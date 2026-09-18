@@ -2,6 +2,7 @@
 // classes the v2 mockup uses so the Motion Atlas skin (index.css) remaps them
 // to the dark theme automatically.
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
+import { createPortal } from "react-dom"
 
 export function Label({ children }: { children: ReactNode }) {
   return (
@@ -20,43 +21,71 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 }
 
 // Small "?" affordance: shows what a metric measures + how to read it against
-// your own baseline. Works on both desktop (hover) and phones (tap toggles;
-// tapping elsewhere closes). Self-positioning above the icon.
+// your own baseline. Works on desktop (hover) and phones (tap toggles; tapping
+// elsewhere closes). The bubble is portaled to <body> and fixed-positioned next
+// to the icon, clamped to the viewport, so it's never clipped by a card's
+// overflow/transform and never dumped off-screen at the bottom.
 export function InfoDot({ text, label, className = "" }: { text: ReactNode; label?: string; className?: string }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLSpanElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const tipRef = useRef<HTMLSpanElement>(null)
+  const [pos, setPos] = useState<{ left: number; top: number; width: number; below: boolean } | null>(null)
+
+  const place = () => {
+    const el = btnRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const width = Math.min(280, window.innerWidth - 24)
+    const left = Math.max(12, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - width - 12))
+    const below = r.top < 210 // too close to the top → drop the bubble below the icon
+    setPos({ left, top: below ? r.bottom + 10 : r.top - 10, width, below })
+  }
+  const show = () => { place(); setOpen(true) }
+
   useEffect(() => {
     if (!open) return
     const onDown = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const t = e.target as Node
+      if (!btnRef.current?.contains(t) && !tipRef.current?.contains(t)) setOpen(false)
     }
+    const onScroll = () => setOpen(false)
     window.addEventListener("pointerdown", onDown)
-    return () => window.removeEventListener("pointerdown", onDown)
+    window.addEventListener("scroll", onScroll, true)
+    window.addEventListener("resize", onScroll)
+    return () => {
+      window.removeEventListener("pointerdown", onDown)
+      window.removeEventListener("scroll", onScroll, true)
+      window.removeEventListener("resize", onScroll)
+    }
   }, [open])
+
   return (
     <span
-      ref={ref}
       className={`relative inline-flex shrink-0 align-middle ${className}`}
-      onMouseEnter={() => setOpen(true)}
+      onMouseEnter={show}
       onMouseLeave={() => setOpen(false)}
     >
       <button
+        ref={btnRef}
         type="button"
         aria-label={label ? `Co znamená: ${label}` : "Nápověda k metrice"}
-        onClick={(e) => { e.stopPropagation(); e.preventDefault(); setOpen((v) => !v) }}
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); open ? setOpen(false) : show() }}
         className="grid size-[18px] place-items-center rounded-full border border-[#8fb0a5]/50 text-[10px] font-bold leading-none text-[#8fb0a5] transition hover:border-[#c7ff54] hover:text-[#c7ff54] active:scale-90"
       >
         ?
       </button>
-      {open && (
+      {open && pos && createPortal(
         <span
+          ref={tipRef}
           role="tooltip"
-          className="absolute bottom-[calc(100%+8px)] left-1/2 z-[95] w-64 max-w-[78vw] -translate-x-1/2 rounded-2xl border border-white/12 bg-[#0c201d] p-3 text-left text-[11px] font-normal normal-case leading-[1.45] tracking-normal text-[#cfe2da] shadow-[0_16px_40px_rgba(0,0,0,.5)] max-sm:fixed max-sm:inset-x-3 max-sm:bottom-[calc(1rem+env(safe-area-inset-bottom))] max-sm:left-3 max-sm:right-3 max-sm:top-auto max-sm:w-auto max-sm:max-w-none max-sm:translate-x-0"
           onClick={(e) => e.stopPropagation()}
+          style={{ position: "fixed", left: pos.left, top: pos.top, width: pos.width, transform: pos.below ? undefined : "translateY(-100%)" }}
+          className="z-[130] animate-[infoPop_.14s_ease-out] rounded-2xl border border-white/12 bg-[#0c201d] p-3 text-left text-[11px] font-normal normal-case leading-[1.45] tracking-normal text-[#cfe2da] shadow-[0_16px_44px_rgba(0,0,0,.55)]"
         >
           {label && <b className="mb-1 block text-[13px] text-[#f1f8f1]">{label}</b>}
           {text}
-        </span>
+        </span>,
+        document.body,
       )}
     </span>
   )

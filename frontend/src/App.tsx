@@ -380,27 +380,27 @@ function Quadrant({ quadrant = "stable", history, live, onSync, syncing, syncMsg
   const [open, setOpen] = useState(false)
   return (
     <div>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <span className="size-3 rounded-[4px]" style={{ background: col, boxShadow: `0 0 0 4px ${col}22` }} />
-          <div>
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="size-3 shrink-0 rounded-[4px]" style={{ background: col, boxShadow: `0 0 0 4px ${col}22` }} />
+          <div className="min-w-0">
             <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Kvadrant stavu</p>
-            <h3 className="font-serif text-lg leading-tight text-[#f1f8f1]">{q.t}</h3>
+            <h3 className="truncate font-serif text-lg leading-tight text-[#f1f8f1]">{q.t}</h3>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {onSync && (
             <button
               onClick={onSync}
               disabled={syncing || !canSync}
               title={canSync ? "Stáhnout nová data z Garminu" : "Nejdřív připojte Garmin pro automatickou synchronizaci na stránce Data"}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#c7ff54]/40 bg-[#c7ff54]/10 px-3 py-1.5 font-mono text-[10px] font-bold text-[#c7ff54] transition enabled:hover:border-[#c7ff54] enabled:hover:bg-[#c7ff54]/20 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[#c7ff54]/40 bg-[#c7ff54]/10 px-3 py-1.5 font-mono text-[10px] font-bold text-[#c7ff54] transition enabled:hover:border-[#c7ff54] enabled:hover:bg-[#c7ff54]/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <span className={syncing ? "inline-block animate-spin" : ""}>⟳</span>
               {syncing ? "Synchronizuji…" : "Synchronizovat"}
             </button>
           )}
-          <button onClick={() => setOpen(true)} className="rounded-full border border-white/12 px-3 py-1.5 font-mono text-[10px] font-bold text-[#6ce6d3] transition hover:border-[#6ce6d3]/50 hover:text-[#c7ff54]">historie 2 měsíce ⤢</button>
+          <button onClick={() => setOpen(true)} className="whitespace-nowrap rounded-full border border-white/12 px-3 py-1.5 font-mono text-[10px] font-bold text-[#6ce6d3] transition hover:border-[#6ce6d3]/50 hover:text-[#c7ff54]">historie 2 měsíce ⤢</button>
         </div>
       </div>
       {syncMsg && <p className="mt-2 text-[11px] font-medium text-[#a9c2b9]">{syncMsg}</p>}
