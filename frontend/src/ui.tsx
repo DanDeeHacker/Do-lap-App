@@ -1,7 +1,7 @@
 // Shared presentational primitives, styled with the same light-hex Tailwind
 // classes the v2 mockup uses so the Motion Atlas skin (index.css) remaps them
 // to the dark theme automatically.
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 
 export function Label({ children }: { children: ReactNode }) {
   return (
@@ -84,6 +84,8 @@ export function Ring({ value, label, max = 100, size = 64 }: { value: number; la
 }
 
 export function Sparkline({ vals, color = "#6ce6d3", h = 48 }: { vals: number[]; color?: string; h?: number }) {
+  const [act, setAct] = useState<number | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
   if (!vals || vals.length < 2) return null
   const w = 300
   const mx = Math.max(...vals)
@@ -91,17 +93,44 @@ export function Sparkline({ vals, color = "#6ce6d3", h = 48 }: { vals: number[];
   const rg = mx - mn || 1
   const pts = vals.map((v, i) => [(i / (vals.length - 1)) * w, h - ((v - mn) / rg) * (h - 8) - 4])
   const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ")
+  const fnum = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1))
+  const pick = (clientX: number) => {
+    const el = wrapRef.current
+    if (!el) return
+    const i = Math.round(((clientX - el.getBoundingClientRect().left) / el.getBoundingClientRect().width) * (vals.length - 1))
+    setAct(Math.max(0, Math.min(vals.length - 1, i)))
+  }
+  const aPct = act != null ? (pts[act][0] / w) * 100 : 0
   return (
-    <div className="relative">
+    <div
+      ref={wrapRef}
+      className="relative select-none"
+      style={{ touchAction: "pan-y" }}
+      onPointerMove={(e) => pick(e.clientX)}
+      onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); pick(e.clientX) }}
+      onPointerUp={() => setAct(null)}
+      onPointerCancel={() => setAct(null)}
+      onPointerLeave={() => setAct(null)}
+    >
       <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="block h-12 w-full">
         <path d={`M0 ${h} L${pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" L")} L${w} ${h} Z`} fill={color} opacity="0.12" />
         <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {act != null && <line x1={pts[act][0]} y1={0} x2={pts[act][0]} y2={h} stroke={color} strokeOpacity=".4" />}
         <circle cx={pts.at(-1)![0]} cy={pts.at(-1)![1]} r="3.5" fill={color} />
+        {act != null && <circle cx={pts[act][0]} cy={pts[act][1]} r="4" fill={color} stroke="#0c201d" strokeWidth="1.5" />}
       </svg>
+      {act != null && (
+        <div
+          className="pointer-events-none absolute top-0 z-10 rounded-md border border-white/12 bg-[#0c201d] px-1.5 py-0.5 font-mono text-[10px] shadow-lg"
+          style={{ left: `${aPct}%`, color, transform: `translateX(${aPct > 74 ? "-100%" : aPct < 26 ? "0%" : "-50%"})` }}
+        >
+          {fnum(vals[act])}
+        </div>
+      )}
       <div className="mt-1 flex justify-between font-mono text-[9px] text-[#71837b]">
-        <span>min {Number.isInteger(mn) ? mn : mn.toFixed(1)}</span>
-        <span className="font-bold text-[#c7ff54]">nyní {Number.isInteger(vals.at(-1)!) ? vals.at(-1) : vals.at(-1)!.toFixed(1)}</span>
-        <span>max {Number.isInteger(mx) ? mx : mx.toFixed(1)}</span>
+        <span>min {fnum(mn)}</span>
+        <span className="font-bold text-[#c7ff54]">nyní {fnum(vals.at(-1)!)}</span>
+        <span>max {fnum(mx)}</span>
       </div>
     </div>
   )
@@ -110,6 +139,8 @@ export function Sparkline({ vals, color = "#6ce6d3", h = 48 }: { vals: number[];
 // Numbered bar chart in the v2 design language: value above each bar, light
 // teal fills, the current bar in warm accent, a drawn baseline axis.
 export function Bars({ vals, unit = "km", labels }: { vals: number[]; unit?: string; labels?: string[] }) {
+  const [act, setAct] = useState<number | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
   if (!vals?.length) return null
   const n = vals.length
   const mx = Math.max(...vals, 1)
@@ -117,16 +148,37 @@ export function Bars({ vals, unit = "km", labels }: { vals: number[]; unit?: str
   const per = n <= 13 ? "t" : "d"
   const num = (v: number) => (Number.isInteger(v) ? v : Math.round(v * 10) / 10)
   const xlab = (i: number) => (labels ? labels[i] || "" : i === n - 1 ? "teď" : i === 0 ? `−${n - 1}${per}` : i === Math.floor((n - 1) / 2) ? `−${n - 1 - i}${per}` : "")
+  const pick = (clientX: number) => {
+    const el = wrapRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setAct(Math.max(0, Math.min(n - 1, Math.floor(((clientX - r.left) / r.width) * n))))
+  }
   return (
     <div className="mt-6">
-      <div className="flex h-32 items-end gap-1.5 border-b border-[#dae2dd] pb-1">
+      <div
+        ref={wrapRef}
+        className="relative flex h-32 select-none items-end gap-1.5 border-b border-[#dae2dd] pb-1"
+        style={{ touchAction: "pan-y" }}
+        onPointerMove={(e) => pick(e.clientX)}
+        onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); pick(e.clientX) }}
+        onPointerUp={() => setAct(null)}
+        onPointerCancel={() => setAct(null)}
+        onPointerLeave={() => setAct(null)}
+      >
         {vals.map((v, i) => {
           const last = i === n - 1
-          const showv = !dense || last || v === mx
+          const on = act === i
+          const showv = !dense || last || v === mx || on
           return (
-            <div key={i} className="relative flex h-full min-w-0 flex-1 items-end" title={`${xlab(i)}: ${num(v)} ${unit}`}>
+            <div key={i} className="relative flex h-full min-w-0 flex-1 items-end">
+              {on && (
+                <div className="pointer-events-none absolute -top-6 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/12 bg-[#0c201d] px-1.5 py-0.5 font-mono text-[10px] text-[#f1f8f1] shadow-lg">
+                  {xlab(i) ? `${xlab(i)}: ` : ""}{num(v)} {unit}
+                </div>
+              )}
               {showv && <span className={`absolute left-1/2 top-0 -translate-x-1/2 text-[9px] font-bold ${last ? "text-[#e77a59]" : "text-[#9bb3aa]"}`}>{num(v)}</span>}
-              <i className={`block min-h-1 w-full self-end rounded-t-sm ${last ? "bg-[#cf6542]" : "bg-[#b5d3ca]"}`} style={{ height: `${Math.max(3, (v / mx) * 88)}%` }} />
+              <i className={`block min-h-1 w-full self-end rounded-t-sm ${on ? "bg-[#c7ff54]" : last ? "bg-[#cf6542]" : "bg-[#b5d3ca]"}`} style={{ height: `${Math.max(3, (v / mx) * 88)}%` }} />
             </div>
           )
         })}
@@ -163,6 +215,8 @@ export function AxisLineChart({
   color?: string
   height?: number
 }) {
+  const [act, setAct] = useState<number | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
   if (!points || points.length < 2) return <p className="mt-2 text-xs text-[#71837b]">Zatím málo dat pro trend v čase.</p>
   const W = 320
   const H = height
@@ -185,28 +239,64 @@ export function AxisLineChart({
   const ticks = [mx, (mx + mn) / 2, mn]
   const xi = [0, Math.floor((points.length - 1) / 2), points.length - 1]
   const fmt = (d: string) => new Date(d.length <= 10 ? d + "T00:00:00" : d).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })
+  // Map a pointer's clientX to the nearest data index. Works for mouse hover and
+  // touch scrub (drag your finger along the line to read each point on iPhone).
+  const pick = (clientX: number) => {
+    const el = wrapRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const i = Math.round(((((clientX - r.left) / r.width) * W - padL) / (W - padL - padR)) * (points.length - 1))
+    setAct(Math.max(0, Math.min(points.length - 1, i)))
+  }
+  const aPct = act != null ? (x(act) / W) * 100 : 0
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full" style={{ height }} preserveAspectRatio="none">
-      {ticks.map((t, i) => (
-        <g key={i}>
-          <line x1={padL} y1={y(t)} x2={W - padR} y2={y(t)} stroke="#6ce6d3" strokeOpacity=".1" />
-          <text x={padL - 5} y={y(t) + 3} textAnchor="end" fill="#71837b" fontSize="8">{nf(t)}</text>
-        </g>
-      ))}
-      {threshold != null && threshold >= mn && threshold <= mx && (
-        <g>
-          <line x1={padL} y1={y(threshold)} x2={W - padR} y2={y(threshold)} stroke="#e77a59" strokeOpacity=".55" strokeDasharray="4 3" />
-          {thresholdLabel && <text x={W - padR} y={y(threshold) - 3} textAnchor="end" fill="#e77a59" fontSize="8">{thresholdLabel}</text>}
-        </g>
+    <div
+      ref={wrapRef}
+      className="relative mt-2 select-none"
+      style={{ touchAction: "pan-y" }}
+      onPointerMove={(e) => pick(e.clientX)}
+      onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); pick(e.clientX) }}
+      onPointerUp={() => setAct(null)}
+      onPointerCancel={() => setAct(null)}
+      onPointerLeave={() => setAct(null)}
+    >
+      <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" style={{ height }} preserveAspectRatio="none">
+        {ticks.map((t, i) => (
+          <g key={i}>
+            <line x1={padL} y1={y(t)} x2={W - padR} y2={y(t)} stroke="#6ce6d3" strokeOpacity=".1" />
+            <text x={padL - 5} y={y(t) + 3} textAnchor="end" fill="#71837b" fontSize="8">{nf(t)}</text>
+          </g>
+        ))}
+        {threshold != null && threshold >= mn && threshold <= mx && (
+          <g>
+            <line x1={padL} y1={y(threshold)} x2={W - padR} y2={y(threshold)} stroke="#e77a59" strokeOpacity=".55" strokeDasharray="4 3" />
+            {thresholdLabel && <text x={W - padR} y={y(threshold) - 3} textAnchor="end" fill="#e77a59" fontSize="8">{thresholdLabel}</text>}
+          </g>
+        )}
+        <path d={area} fill={color} opacity=".12" />
+        <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+        {act != null && <line x1={x(act)} y1={padT} x2={x(act)} y2={H - padB} stroke={color} strokeOpacity=".45" strokeWidth="1" />}
+        <circle cx={x(points.length - 1)} cy={y(points.at(-1)!.v)} r="3.5" fill={color} />
+        {act != null && (
+          <circle cx={x(act)} cy={y(points[act].v)} r="4" fill={color} stroke="#0c201d" strokeWidth="1.5" />
+        )}
+        {act == null && (
+          <text x={x(points.length - 1)} y={y(points.at(-1)!.v) - 6} textAnchor="end" fill={color} fontSize="9" fontWeight="bold">{nf(points.at(-1)!.v)}{unit}</text>
+        )}
+        {xi.map((idx, i) => (
+          <text key={i} x={x(idx)} y={H - 6} textAnchor={i === 0 ? "start" : i === xi.length - 1 ? "end" : "middle"} fill="#71837b" fontSize="8">{fmt(points[idx].t)}</text>
+        ))}
+      </svg>
+      {act != null && (
+        <div
+          className="pointer-events-none absolute top-0 z-10 rounded-lg border border-white/12 bg-[#0c201d] px-2 py-1 text-center shadow-lg"
+          style={{ left: `${aPct}%`, transform: `translateX(${aPct > 74 ? "-100%" : aPct < 26 ? "0%" : "-50%"})` }}
+        >
+          <b className="block font-mono text-[11px] leading-tight" style={{ color }}>{nf(points[act].v)}{unit}</b>
+          <span className="block font-mono text-[9px] leading-tight text-[#71837b]">{fmt(points[act].t)}</span>
+        </div>
       )}
-      <path d={area} fill={color} opacity=".12" />
-      <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={x(points.length - 1)} cy={y(points.at(-1)!.v)} r="3.5" fill={color} />
-      <text x={x(points.length - 1)} y={y(points.at(-1)!.v) - 6} textAnchor="end" fill={color} fontSize="9" fontWeight="bold">{nf(points.at(-1)!.v)}{unit}</text>
-      {xi.map((idx, i) => (
-        <text key={i} x={x(idx)} y={H - 6} textAnchor={i === 0 ? "start" : i === xi.length - 1 ? "end" : "middle"} fill="#71837b" fontSize="8">{fmt(points[idx].t)}</text>
-      ))}
-    </svg>
+    </div>
   )
 }
 

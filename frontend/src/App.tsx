@@ -50,8 +50,12 @@ function useDynamicReveal() {
 
 function Mark() {
   return (
-    <span className="grid size-9 place-items-center rounded-xl bg-[#235e59] font-serif text-lg font-bold text-[#f8f7f1]">
-      d
+    <span className="grid size-9 place-items-center rounded-xl bg-[#071313]">
+      <svg viewBox="0 0 64 64" className="size-7" aria-hidden="true">
+        <circle cx="32" cy="32" r="28" fill="none" stroke="#c7ff54" strokeWidth="2" strokeOpacity=".5" />
+        <path d="M12 44 C12 34 19 13 37 13 C49 13 56 23 56 34 C56 46 45 54 34 54 C24 54 14 52 12 44 Z" fill="#c7ff54" />
+        <path d="M27 42 C27 36 31 23 41 23 C48 23 52 29 52 35 C52 42 45 47 38 47 C31 47 28 46 27 42 Z" fill="#071313" />
+      </svg>
     </span>
   )
 }
@@ -278,23 +282,46 @@ function Metric({
   )
 }
 function NumberedChart({ vals }: { vals?: number[] }) {
+  const [act, setAct] = useState<number | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
   const volume = (vals && vals.length ? vals : [18, 21, 19, 26, 24, 28, 25, 31, 29, 34, 32, 35]).map((v) => Math.round(v))
+  const n = volume.length
   const mx = Math.max(...volume, 1)
+  const lab = (i: number) => (i === n - 1 ? "tento týden" : `−${n - 1 - i} t`)
+  const pick = (clientX: number) => {
+    const el = wrapRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setAct(Math.max(0, Math.min(n - 1, Math.floor(((clientX - r.left) / r.width) * n))))
+  }
   return (
-    <div className="mt-7 flex h-32 items-end gap-1.5 border-b border-[#dae2dd] pb-1">
-      {volume.map((km, i) => (
-        <div key={i} className="relative flex h-full flex-1 items-end">
-          <span className="absolute -top-0 left-1/2 -translate-x-1/2 text-[9px] font-bold text-[#9bb3aa]">
-            {km}
-          </span>
-          <i
-            style={{ height: `${Math.max(3, (km / mx) * 88)}%` }}
-            className={`block min-h-1 w-full self-end rounded-t-sm ${
-              i === volume.length - 1 ? "bg-[#cf6542]" : "bg-[#b5d3ca]"
-            }`}
-          />
-        </div>
-      ))}
+    <div
+      ref={wrapRef}
+      className="relative mt-7 flex h-32 select-none items-end gap-1.5 border-b border-[#dae2dd] pb-1"
+      style={{ touchAction: "pan-y" }}
+      onPointerMove={(e) => pick(e.clientX)}
+      onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); pick(e.clientX) }}
+      onPointerUp={() => setAct(null)}
+      onPointerCancel={() => setAct(null)}
+      onPointerLeave={() => setAct(null)}
+    >
+      {volume.map((km, i) => {
+        const on = act === i
+        return (
+          <div key={i} className="relative flex h-full flex-1 items-end">
+            {on && (
+              <div className="pointer-events-none absolute -top-6 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/12 bg-[#0c201d] px-1.5 py-0.5 font-mono text-[10px] text-[#f1f8f1] shadow-lg">
+                {lab(i)}: {km} km
+              </div>
+            )}
+            <span className="absolute left-1/2 top-0 -translate-x-1/2 text-[9px] font-bold text-[#9bb3aa]">{km}</span>
+            <i
+              style={{ height: `${Math.max(3, (km / mx) * 88)}%` }}
+              className={`block min-h-1 w-full self-end rounded-t-sm ${on ? "bg-[#c7ff54]" : i === n - 1 ? "bg-[#cf6542]" : "bg-[#b5d3ca]"}`}
+            />
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -342,45 +369,50 @@ const QCOL: Record<string, string> = { stable: "#6ce6d3", overreaching: "#f6d69a
 function Quadrant({ quadrant = "stable", history, live }: { quadrant?: string; history?: any[] | null; live?: any }) {
   // 2×2: mechanika (sloupce) × zátěž (řádky). Aktivní buňka = reálný kvadrant.
   const cells: [string, string][] = [
-    ["stable", "stabilní"],
-    ["silent", "driftuje"],
-    ["overreaching", "odlehčit"],
-    ["critical", "objednat fyzio"],
+    ["stable", "Stabilní"],
+    ["silent", "Tichý drift"],
+    ["overreaching", "Přetížení"],
+    ["critical", "Kritická"],
   ]
   const q = QUAD[quadrant] || QUAD.stable
+  const col = QCOL[quadrant] || "#6ce6d3"
   const [open, setOpen] = useState(false)
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between">
-        <span className="font-mono text-[9px] uppercase tracking-[.14em] text-[#71837b]">Kvadrant stavu</span>
-        <button onClick={() => setOpen(true)} className="font-mono text-[9px] font-bold text-[#6ce6d3] hover:text-[#c7ff54]">historie 2 měsíce ⤢</button>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="size-3 rounded-[4px]" style={{ background: col, boxShadow: `0 0 0 4px ${col}22` }} />
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Kvadrant stavu</p>
+            <h3 className="font-serif text-lg leading-tight text-[#f1f8f1]">{q.t}</h3>
+          </div>
+        </div>
+        <button onClick={() => setOpen(true)} className="shrink-0 rounded-full border border-white/12 px-3 py-1.5 font-mono text-[10px] font-bold text-[#6ce6d3] transition hover:border-[#6ce6d3]/50 hover:text-[#c7ff54]">historie 2 měsíce ⤢</button>
       </div>
-      <button type="button" onClick={() => setOpen(true)} className="grid w-full grid-cols-2 gap-1 text-left text-[10px]" title="Zobrazit vývoj stavu za 2 měsíce">
+      <p className="mt-2 max-w-md text-xs leading-5 text-[#a9c2b9]">{q.d}</p>
+      <button type="button" onClick={() => setOpen(true)} className="mt-4 grid w-full grid-cols-2 gap-2 text-left" title="Zobrazit vývoj stavu za 2 měsíce">
         {cells.map(([key, label]) => {
           const active = key === quadrant
+          const c = QCOL[key]
           return (
             <span
               key={key}
-              className={`relative rounded-lg p-3 ${
-                active
-                  ? "bg-[#e77a59]/15 font-bold text-[#ffc1ab] ring-1 ring-[#e77a59]/45"
-                  : "bg-white/[.04] text-[#a9c2b9]"
-              }`}
+              className="relative overflow-hidden rounded-xl border p-3.5 transition"
+              style={{ borderColor: active ? c : "rgba(255,255,255,.08)", background: active ? `${c}20` : "rgba(255,255,255,.03)" }}
             >
-              {label}
-              {active && (
-                <>
-                  <i className="atlas-point absolute right-2 top-2 size-2 rounded-full bg-[#e77a59]" />
-                  <small className="mt-1 block font-normal text-[#ffc1ab]/80">vy jste zde</small>
-                </>
-              )}
+              <span className="flex items-center gap-2">
+                <i className={`size-2 rounded-full ${active ? "atlas-point" : ""}`} style={{ background: active ? c : `${c}55` }} />
+                <b className="text-[13px]" style={{ color: active ? "#f1f8f1" : "#8ba59d" }}>{label}</b>
+              </span>
+              {active && <small className="mt-1.5 block text-[10px] font-bold uppercase tracking-wide" style={{ color: c }}>vy jste zde</small>}
             </span>
           )
         })}
       </button>
-      <p className="mt-2 text-[10px] text-[#71837b]">
-        <b className="text-[#a9c2b9]">{q.t}</b> — {q.d}
-      </p>
+      <div className="mt-2 flex justify-between font-mono text-[8px] uppercase tracking-[.16em] text-[#5f7268]">
+        <span>← vodorovně: mechanika</span>
+        <span>svisle: zátěž ↑</span>
+      </div>
       {open && <QuadrantHistory history={history} live={live} onClose={() => setOpen(false)} />}
     </div>
   )
@@ -605,7 +637,10 @@ function TodayV2() {
           </div>
         </div>
       )}
-      <div className="mt-7 grid gap-4 lg:grid-cols-[1.45fr_.8fr]">
+      <section className="mt-7 rounded-[24px] border border-white/10 bg-gradient-to-br from-[#0c201d] to-[#0a1a18] p-6 text-[#f1f8f1]">
+        <Quadrant quadrant={a?.quadrant} history={quadHist} live={a} />
+      </section>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_.8fr]">
         <section className="rounded-[24px] border border-white/10 bg-[#0c201d] p-6 text-[#f1f8f1]">
           <Label>Regenerace přes noc</Label>
           <div className="mt-3 flex items-end justify-between">
@@ -734,10 +769,6 @@ function TodayV2() {
               <p className="mt-2 text-sm text-[#a9c2b9]">Nic nad prahem — zátěž i mechanika sedí na vaší normě.</p>
             )}
             {gated && <p className="mt-2 text-[10px] text-[#71837b]">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>}
-          </div>
-
-          <div className="mt-5 border-t border-white/10 pt-4">
-            <Quadrant quadrant={a?.quadrant} history={quadHist} live={a} />
           </div>
         </Card>
       </div>
