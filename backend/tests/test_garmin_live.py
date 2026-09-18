@@ -169,3 +169,75 @@ def test_incremental_import_no_duplicates(client, monkeypatch):
 
     acts = client.get(f"/api/runners/{rid}/activities?limit=50").json()
     assert len({a["external_id"] for a in acts}) == 3   # 3 distinct, no duplicate
+
+
+# --- Opt-in token-based auto-sync (remember → stored session token, not password) ---
+
+def test_remember_stores_session_and_status(client, monkeypatch):
+    rid = register(client, "glrem@test.cz", "GL Remember", "runner").json()["runner_id"]
+    monkeypatch.setattr(integrations.garmin_live, "begin_login", lambda e, p: (object(), False, None))
+    monkeypatch.setattr(integrations.garmin_live, "download_seed", lambda g, **k: _seed(SAMPLE_RUN))
+    # seal_token would otherwise call garmin.client.dumps(); stub it (no password in blob).
+    monkeypatch.setattr(integrations.garmin_live, "seal_token", lambda g: ("TOKENBLOB", False))
+
+    # without remember → no stored session
+    client.post("/api/integrations/garmin/connect", json={"email": "x@y.z", "password": "p"})
+    assert client.get("/api/integrations/garmin/status").json()["connected"] is False
+
+    # with remember → session stored + auto_sync on, password never persisted
+    r = client.post("/api/integrations/garmin/connect", json={"email": "x@y.z", "password": "secret", "remember": True})
+    assert r.status_code == 200 and r.json()["remembered"] is True
+    st = client.get("/api/integrations/garmin/status").json()
+    assert st["connected"] is True and st["auto_sync"] is True
+
+
+def test_sync_now_uses_stored_token_no_password(client, monkeypatch):
+    register(client, "glsync@test.cz", "GL Sync", "runner")
+    monkeypatch.setattr(integrations.garmin_live, "begin_login", lambda e, p: (object(), False, None))
+    monkeypatch.setattr(integrations.garmin_live, "download_seed", lambda g, **k: _seed(_run(1, "2026-08-01")))
+    monkeypatch.setattr(integrations.garmin_live, "seal_token", lambda g: ("TOKENBLOB", False))
+    client.post("/api/integrations/garmin/connect", json={"email": "x@y.z", "password": "p", "remember": True})
+
+    resumed = {}
+    def _resume(blob, enc):
+        resumed["blob"] = blob
+        return object()
+    monkeypatch.setattr(integrations.garmin_live, "resume_session", _resume)
+    monkeypatch.setattr(integrations.garmin_live, "download_seed", lambda g, **k: _seed(_run(2, "2026-08-02")))
+    r = client.post("/api/integrations/garmin/sync")
+    assert r.status_code == 200 and r.json()["added_activities"] == 1
+    assert resumed["blob"] == "TOKENBLOB"   # resumed from the stored token, not a login
+
+
+def test_sync_without_session_returns_409(client):
+    register(client, "glnosess@test.cz", "GL NoSess", "runner")
+    r = client.post("/api/integrations/garmin/sync")
+    assert r.status_code == 409
+
+
+def test_autosync_toggle_and_disconnect(client, monkeypatch):
+    register(client, "gltog@test.cz", "GL Toggle", "runner")
+    monkeypatch.setattr(integrations.garmin_live, "begin_login", lambda e, p: (object(), False, None))
+    monkeypatch.setattr(integrations.garmin_live, "download_seed", lambda g, **k: _seed(SAMPLE_RUN))
+    monkeypatch.setattr(integrations.garmin_live, "seal_token", lambda g: ("TOKENBLOB", False))
+    client.post("/api/integrations/garmin/connect", json={"email": "x@y.z", "password": "p", "remember": True})
+
+    assert client.post("/api/integrations/garmin/auto-sync", json={"enabled": False}).json()["auto_sync"] is False
+    assert client.delete("/api/integrations/garmin/session").json()["connected"] is False
+    assert client.get("/api/integrations/garmin/status").json()["connected"] is False
+
+
+def test_revoked_token_disables_autosync(client, monkeypatch):
+    register(client, "glrev@test.cz", "GL Revoked", "runner")
+    monkeypatch.setattr(integrations.garmin_live, "begin_login", lambda e, p: (object(), False, None))
+    monkeypatch.setattr(integrations.garmin_live, "download_seed", lambda g, **k: _seed(SAMPLE_RUN))
+    monkeypatch.setattr(integrations.garmin_live, "seal_token", lambda g: ("TOKENBLOB", False))
+    client.post("/api/integrations/garmin/connect", json={"email": "x@y.z", "password": "p", "remember": True})
+
+    def _revoked(blob, enc):
+        raise garmin_live.AuthError("token revoked")
+    monkeypatch.setattr(integrations.garmin_live, "resume_session", _revoked)
+    r = client.post("/api/integrations/garmin/sync")
+    assert r.status_code == 401
+    # a revoked token must stop the morning retries
+    assert client.get("/api/integrations/garmin/status").json()["auto_sync"] is False

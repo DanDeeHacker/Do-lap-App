@@ -4,8 +4,11 @@ one origin, no CORS to configure. Only an explicit whitelist of frontend
 filenames is servable; nothing under backend/ (source, requirements.txt,
 the SQLite file) is reachable over HTTP.
 """
+import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -14,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from . import models  # noqa: F401  (registers ORM tables on Base before create_all)
 from . import security
 from . import seed as seed_module
+from . import db as dbmod
 from .db import Base, SessionLocal, engine
 from .metrics import engine as E
 from .routers import (
@@ -74,8 +78,97 @@ def _migrate_sqlite(engine):
                     conn.execute(text(f"UPDATE activities SET {c} = NULL WHERE {c} = 0"))
 
 
+_SYNC_HOUR = int(os.environ.get("DOSSLAP_AUTOSYNC_HOUR", "6"))
+_SYNC_MIN = int(os.environ.get("DOSSLAP_AUTOSYNC_MIN", "30"))  # 06:30 local → "before 7 AM"
+
+
+def _seconds_until_next(hour: int, minute: int) -> float:
+    """Seconds from now until the next local HH:MM. The container clock is
+    assumed to be the deploy's local zone (set TZ=Europe/Prague on Railway so
+    'before 7 AM' means the runner's morning)."""
+    now = datetime.now()
+    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if target <= now:
+        target += timedelta(days=1)
+    return (target - now).total_seconds()
+
+
+async def _garmin_autosync_loop():
+    """Fire integrations.auto_sync_all once a day just before 7 AM for every
+    runner who opted into 'remember' on their Garmin connect. Errors per runner
+    are isolated inside auto_sync_all; a failure here never crashes the app."""
+    from .routers.integrations import auto_sync_all
+    log = logging.getLogger("dosslap.autosync")
+    while True:
+        try:
+            await asyncio.sleep(_seconds_until_next(_SYNC_HOUR, _SYNC_MIN))
+        except asyncio.CancelledError:
+            raise
+        try:
+            result = await asyncio.to_thread(auto_sync_all, SessionLocal)
+            log.info("Garmin auto-sync: %s", result)
+        except Exception:  # noqa: BLE001
+            log.exception("Garmin auto-sync loop failed")
+        await asyncio.sleep(60)  # step past the trigger minute so we don't re-fire
+
+
+def _is_deployed() -> bool:
+    return bool(
+        os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID")
+        or os.environ.get("FLY_APP_NAME") or os.path.exists("/.dockerenv")
+    )
+
+
+def _persistence_guard():
+    """Log where the DB lives and shout if a deployed instance is writing to
+    ephemeral image storage — the one config mistake that silently wipes all
+    account history on the next redeploy."""
+    log = logging.getLogger("dosslap.db")
+    info = dbmod.db_location_info()
+    log.info("Database: %s (persistent=%s, exists=%s)", info["path"], info["persistent"], info["exists"])
+    if _is_deployed() and not info["persistent"]:
+        log.warning(
+            "\n" + "!" * 72 +
+            "\n! DATABASE IS ON EPHEMERAL CONTAINER STORAGE: %s"
+            "\n! Account history WILL BE LOST on the next redeploy."
+            "\n! Fix: attach a persistent volume mounted at /data (auto-detected),"
+            "\n!      or set DOSSLAP_DB_PATH to a path on a volume.\n" + "!" * 72,
+            info["path"],
+        )
+
+
+def _backup_db():
+    """Copy the SQLite file to <db_dir>/backups/ before migrations run, keeping
+    the last N. Cheap insurance: a redeploy, a bad migration, or an accidental
+    reset can be rolled back to the pre-boot snapshot. Deploy-only (skipped in
+    local dev / tests) and never blocks startup."""
+    if os.environ.get("DOSSLAP_BACKUPS", "1") == "0" or not _is_deployed():
+        return
+    if not dbmod.db_exists() or dbmod.db_is_ephemeral():
+        return  # nothing to protect, or the backup would be ephemeral too
+    try:
+        import glob
+        import shutil
+        db_path = dbmod.DB_PATH
+        bdir = os.path.join(os.path.dirname(os.path.abspath(db_path)), "backups")
+        os.makedirs(bdir, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        shutil.copy2(db_path, os.path.join(bdir, f"dosslap-{stamp}.db"))
+        keep = int(os.environ.get("DOSSLAP_BACKUP_KEEP", "10"))
+        for old in sorted(glob.glob(os.path.join(bdir, "dosslap-*.db")))[:-keep]:
+            try:
+                os.remove(old)
+            except OSError:
+                pass
+        logging.getLogger("dosslap.db").info("DB backup written to %s (keep %d)", bdir, keep)
+    except Exception:  # noqa: BLE001
+        logging.getLogger("dosslap.db").exception("DB backup failed (continuing without it)")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _persistence_guard()
+    _backup_db()  # snapshot BEFORE create_all/migrate touch the file
     Base.metadata.create_all(bind=engine)
     _migrate_sqlite(engine)
     db = SessionLocal()
@@ -84,7 +177,18 @@ async def lifespan(app: FastAPI):
             seed_module.build_and_seed(db)
     finally:
         db.close()
-    yield
+    task = None
+    if os.environ.get("DOSSLAP_AUTOSYNC", "1") != "0":
+        task = asyncio.create_task(_garmin_autosync_loop())
+    try:
+        yield
+    finally:
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 
 app = FastAPI(title="Došlap API", lifespan=lifespan)
@@ -151,7 +255,10 @@ app.include_router(integrations.router)
 
 @app.get("/api/health")
 def health():
-    return {"ok": True}
+    # `persistent` lets you verify from the running app that account history
+    # will survive a redeploy (i.e. the DB is on a mounted volume, not the image).
+    info = dbmod.db_location_info()
+    return {"ok": True, "db_persistent": info["persistent"], "db_exists": info["exists"]}
 
 
 # Frontend is edited live (static HTML/JS, no build step) — tell the browser

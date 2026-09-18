@@ -105,6 +105,27 @@ class IngestToken(Base):
     last_used_at = Column(String)
 
 
+class GarminSession(Base):
+    """Persisted Garmin Connect *session tokens* (the di_token / di_refresh_token
+    / di_client_id blob from garminconnect's dumps()) — deliberately NOT the
+    account password, which is never stored anywhere. Lets a runner opt in to a
+    daily pre-07:00 auto-sync and a one-tap "Synchronizovat" on the Dnes page
+    without re-entering credentials. The blob is encrypted at rest when
+    DOSSLAP_SECRET (+ the cryptography lib) is present; `encrypted` records which.
+
+    Revocable: disconnecting deletes the row (forgetting the tokens), and the
+    refresh token can additionally be revoked from the Garmin account. One row
+    per runner."""
+    __tablename__ = "garmin_sessions"
+    runner_id = Column(String, ForeignKey("runners.id"), primary_key=True)
+    token_blob = Column(String, nullable=False)   # possibly-encrypted dumps() JSON — tokens only, no password
+    encrypted = Column(Boolean, default=False)
+    auto_sync = Column(Boolean, default=True)
+    created_at = Column(String, nullable=False)
+    last_sync_at = Column(String)
+    last_error = Column(String)
+
+
 class DeviceHistory(Base):
     """Logged whenever a runner's watch model changes — on the demo seed's
     initial assignment and on every Garmin sync where the imported device

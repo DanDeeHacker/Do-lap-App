@@ -19,7 +19,11 @@ export function DataView() {
   const [pw, setPw] = useState("")
   const [code, setCode] = useState("")
   const [appleTok, setAppleTok] = useState<{ token: string; url: string; last_used_at?: string } | null>(null)
+  const [remember, setRemember] = useState(true)
+  const [gStatus, setGStatus] = useState<any | null>(null)
   const toast = useToast()
+  const loadGStatus = () => api.garminStatus().then(setGStatus).catch(() => setGStatus(null))
+  useEffect(() => { loadGStatus() }, [rid])
 
   // Absolute webhook URL from the live origin (robust behind a TLS proxy).
   const pushUrl = `${location.origin}/api/integrations/apple/push`
@@ -47,19 +51,37 @@ export function DataView() {
     if (!email || !pw) return toast({ title: "Zadejte e-mail i heslo" })
     setRes({ loading: true, source: "garminlive" })
     try {
-      const r = await api.garminConnect(email, pw)
+      const r = await api.garminConnect(email, pw, remember)
       if (r.mfa_required) { setRes({ source: "garminlive", mfa: true, mfaToken: r.mfa_token }); toast({ title: "Zadejte ověřovací kód" }) }
-      else { setRes({ ok: true, source: "garminlive", activities: r.added_activities, addedDaily: r.added_daily, meta: r.meta }); toast({ title: `${r.added_activities} nových běhů z Garminu` }); refresh() }
+      else { setRes({ ok: true, source: "garminlive", activities: r.added_activities, addedDaily: r.added_daily, meta: r.meta }); toast({ title: `${r.added_activities} nových běhů z Garminu` }); setPw(""); loadGStatus(); refresh() }
     } catch (e: any) { setRes({ ok: false, source: "garminlive", error: e?.message || "Stažení selhalo." }) }
   }
   const garminMfa = async () => {
     if (!code) return
     setRes({ loading: true, source: "garminlive" })
     try {
-      const r = await api.garminMfa(res!.mfaToken!, code)
+      const r = await api.garminMfa(res!.mfaToken!, code, remember)
       setRes({ ok: true, source: "garminlive", activities: r.added_activities, addedDaily: r.added_daily, meta: r.meta })
-      toast({ title: `${r.added_activities} nových běhů z Garminu` }); refresh()
+      toast({ title: `${r.added_activities} nových běhů z Garminu` }); setPw(""); setCode(""); loadGStatus(); refresh()
     } catch (e: any) { setRes({ ok: false, source: "garminlive", error: e?.message || "Ověření selhalo." }) }
+  }
+  const garminSyncNow = async () => {
+    setRes({ loading: true, source: "garminlive" })
+    try {
+      const r: any = await api.garminSync()
+      setRes({ ok: true, source: "garminlive", activities: r.added_activities, addedDaily: r.added_daily, meta: r.meta })
+      toast({ title: r.added_activities || r.added_daily ? `Staženo: ${r.added_activities} běhů, ${r.added_daily} dní` : "Máte aktuální data" })
+      if (r.status) setGStatus(r.status); else loadGStatus()
+      refresh()
+    } catch (e: any) { setRes({ ok: false, source: "garminlive", error: e?.message || "Synchronizace selhala." }); loadGStatus() }
+  }
+  const garminToggleAuto = async (enabled: boolean) => {
+    try { setGStatus(await api.garminAutoSync(enabled)); toast({ title: enabled ? "Ranní synchronizace zapnuta" : "Ranní synchronizace vypnuta" }) }
+    catch (e: any) { toast({ title: e?.message || "Nepodařilo se změnit nastavení" }) }
+  }
+  const garminDisconnect = async () => {
+    try { setGStatus(await api.garminDisconnect()); toast({ title: "Garmin odpojen — uložený token smazán" }) }
+    catch (e: any) { toast({ title: e?.message || "Odpojení selhalo" }) }
   }
 
   const R = res?.source === source ? res : null
@@ -91,12 +113,33 @@ export function DataView() {
           )}
           {source === "garminlive" && (
             <>
-              <h2 className="font-serif text-2xl">Stáhnout data přímo z Garmin Connect</h2>
-              <p className="mt-2 text-sm text-[#64736e]">Přihlaste se svým účtem — data se stáhnou rovnou. Údaje se použijí <b>jen pro toto stažení</b> a nikam se neukládají. Účty s dvoufázovým ověřením zadají kód níže.</p>
+              {gStatus?.connected && (
+                <div className="mb-5 rounded-2xl border border-[#c7ff54]/30 bg-[#c7ff54]/[.06] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-mono text-[10px] uppercase tracking-[.16em] text-[#8fae52]">Garmin připojen</p>
+                      <p className="mt-1 text-sm text-[#e6efdc]">Ranní synchronizace {gStatus.auto_sync ? <b className="text-[#c7ff54]">zapnutá</b> : <b>vypnutá</b>} · poslední: {gStatus.last_sync_at ? fmtD(gStatus.last_sync_at) : "—"}</p>
+                      {gStatus.last_error && <p className="mt-1 text-xs text-[#e77a59]">{gStatus.last_error}</p>}
+                      <p className="mt-1 text-[11px] text-[#7f938a]">Uložen je jen přístupový <b>token</b> (šifrovaný{gStatus.encrypted ? "" : " – bez klíče v této instanci"}), ne heslo. Token lze zrušit i v účtu Garmin.</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={garminSyncNow} disabled={R?.loading} className="rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313] disabled:opacity-60">{R?.loading ? "Synchronizuji…" : "⟳ Synchronizovat teď"}</button>
+                      <button onClick={() => garminToggleAuto(!gStatus.auto_sync)} className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-[#a9c2b9]">{gStatus.auto_sync ? "Vypnout ranní sync" : "Zapnout ranní sync"}</button>
+                      <button onClick={garminDisconnect} className="rounded-full border border-[#e77a59]/40 px-4 py-2 text-xs font-bold text-[#e77a59]">Odpojit</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <h2 className="font-serif text-2xl">{gStatus?.connected ? "Znovu připojit Garmin Connect" : "Stáhnout data přímo z Garmin Connect"}</h2>
+              <p className="mt-2 text-sm text-[#64736e]">Přihlaste se svým účtem — data se stáhnou rovnou. <b>Heslo se nikam neukládá</b> a použije se jen pro toto přihlášení. Účty s dvoufázovým ověřením zadají kód níže.</p>
               {!R?.mfa ? (
                 <>
                   <Field label="E-mail Garmin Connect"><input value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-xl border px-3 py-2.5 text-sm" placeholder="vas@email.cz" /></Field>
                   <Field label="Heslo"><input type="password" value={pw} onChange={(e) => setPw(e.target.value)} className="w-full rounded-xl border px-3 py-2.5 text-sm" placeholder="••••••••" /></Field>
+                  <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm text-[#a9c2b9]">
+                    <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="mt-0.5 size-4 accent-[#c7ff54]" />
+                    <span>Zůstat připojený a <b>stahovat data automaticky každé ráno</b> (a tlačítkem „Synchronizovat" na Dnes). Uloží se jen přístupový token, ne heslo.</span>
+                  </label>
                   <button onClick={garminLogin} disabled={R?.loading} className="mt-4 w-full rounded-full bg-[#c7ff54] py-3 text-sm font-bold text-[#071313] disabled:opacity-60">{R?.loading ? "Stahuji…" : "Stáhnout data z Garminu"}</button>
                 </>
               ) : (

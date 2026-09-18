@@ -14,7 +14,10 @@ Unit note: the Connect *API* returns metres/seconds and camelCase field
 names — different from the GDPR export's centimetre/millisecond encoding in
 garmin_ingest.py — so this has its own mapping rather than reusing that one.
 """
+import base64
+import hashlib
 import logging
+import os
 from datetime import date, timedelta
 
 logging.getLogger("garminconnect").setLevel(logging.CRITICAL)
@@ -317,3 +320,65 @@ def download_seed(garmin, activity_days: int = 180,
         device = dev["lastUsedDeviceName"]
 
     return assemble_seed(activities, daily_rows, device)
+
+
+# --- Session-token persistence (for opt-in daily auto-sync + one-tap sync) ---
+# We persist ONLY the OAuth tokens garminconnect emits (di_token /
+# di_refresh_token / di_client_id via .dumps()) — never the account password.
+# The blob is encrypted at rest with a key derived from DOSSLAP_SECRET when the
+# `cryptography` package is available; otherwise it falls back to plaintext on
+# the app's private volume (a logged warning, not a crash) so a missing secret
+# doesn't silently break sync on a friends-test deploy.
+
+def _fernet():
+    secret = os.environ.get("DOSSLAP_SECRET")
+    if not secret:
+        return None
+    try:
+        from cryptography.fernet import Fernet
+    except Exception:  # cryptography not installed → plaintext fallback
+        return None
+    key = base64.urlsafe_b64encode(hashlib.sha256(secret.encode()).digest())
+    return Fernet(key)
+
+
+def seal_token(garmin) -> tuple[str, bool]:
+    """Serialize a logged-in Garmin object's session tokens for storage.
+    Returns (blob, encrypted). The blob contains OAuth tokens only, no password."""
+    raw = garmin.client.dumps()
+    f = _fernet()
+    if f is not None:
+        return f.encrypt(raw.encode()).decode(), True
+    logging.getLogger(__name__).warning(
+        "Garmin token stored WITHOUT encryption at rest (set DOSSLAP_SECRET + install cryptography to encrypt)."
+    )
+    return raw, False
+
+
+def _unseal_token(blob: str, encrypted: bool) -> str:
+    if not encrypted:
+        return blob
+    f = _fernet()
+    if f is None:
+        raise GarminLiveError("Uložený token je zašifrovaný, ale chybí DOSSLAP_SECRET pro dešifrování.")
+    return f.decrypt(blob.encode()).decode()
+
+
+def resume_session(blob: str, encrypted: bool):
+    """Rebuild an authenticated Garmin client from a stored token blob (no
+    password, no login round-trip). The client auto-refreshes an expiring
+    access token from the refresh token on first use. Raises AuthError if the
+    stored tokens are no longer valid (revoked / expired refresh token)."""
+    from garminconnect import Garmin, GarminConnectAuthenticationError
+    token_json = _unseal_token(blob, encrypted)
+    try:
+        garmin = Garmin()
+        # tokenstore = inline JSON → loads the tokens and proactively refreshes
+        # an expiring access token from the refresh token (no password, no SSO).
+        garmin.login(tokenstore=token_json)
+        _ensure_profile(garmin)
+    except GarminConnectAuthenticationError as e:
+        raise AuthError(str(e))
+    except Exception as e:
+        raise AuthError(str(e))
+    return garmin

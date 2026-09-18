@@ -317,15 +317,81 @@ def _download_and_merge(db: DBSession, rid: str, garmin) -> dict:
     return {"ok": True, "runner_id": rid, **added, "meta": seed.get("_meta")}
 
 
+def _store_session(db: DBSession, rid: str, garmin, auto_sync: bool = True) -> None:
+    """Persist (or refresh) the runner's Garmin OAuth *session tokens* — never
+    the password — so daily auto-sync and one-tap sync work without re-login.
+    Called after a successful connect/MFA (opt-in) and after every token-based
+    sync (to save the refreshed access token)."""
+    try:
+        blob, enc = garmin_live.seal_token(garmin)
+    except Exception:  # noqa: BLE001 — a serialization failure must not break the import
+        return
+    row = db.query(models.GarminSession).filter(models.GarminSession.runner_id == rid).first()
+    now = E.now_iso()
+    if row is None:
+        row = models.GarminSession(runner_id=rid, token_blob=blob, encrypted=enc,
+                                   auto_sync=auto_sync, created_at=now, last_sync_at=now, last_error=None)
+        db.add(row)
+    else:
+        row.token_blob = blob
+        row.encrypted = enc
+        row.last_sync_at = now
+        row.last_error = None
+    db.commit()
+
+
+def _sync_from_stored(db: DBSession, rid: str) -> dict:
+    """Resume Garmin from the stored token, download+merge, then re-persist the
+    (possibly refreshed) token. Raises 409 if there's no stored session and
+    marks last_error + drops auto_sync on an auth failure so a revoked token
+    stops retrying every morning."""
+    row = db.query(models.GarminSession).filter(models.GarminSession.runner_id == rid).first()
+    if row is None:
+        raise HTTPException(status_code=409, detail="Garmin není připojen pro automatickou synchronizaci — připojte ho nejdřív na stránce Data.")
+    try:
+        garmin = garmin_live.resume_session(row.token_blob, bool(row.encrypted))
+    except garmin_live.AuthError as e:
+        row.last_error = "Uložené přihlášení ke Garminu vypršelo — připojte ho prosím znovu."
+        row.auto_sync = False
+        db.commit()
+        raise HTTPException(status_code=401, detail=row.last_error) from e
+    result = _download_and_merge(db, rid, garmin)
+    _store_session(db, rid, garmin, auto_sync=bool(row.auto_sync))
+    return result
+
+
+def auto_sync_all(session_factory) -> dict:
+    """Called by the pre-07:00 scheduler: sync every runner who opted in. Runs
+    each in isolation so one revoked token doesn't abort the rest."""
+    db = session_factory()
+    try:
+        rids = [r.runner_id for r in db.query(models.GarminSession).filter(models.GarminSession.auto_sync == True).all()]  # noqa: E712
+    finally:
+        db.close()
+    synced = failed = 0
+    for rid in rids:
+        db = session_factory()
+        try:
+            _sync_from_stored(db, rid)
+            synced += 1
+        except Exception:  # noqa: BLE001 — per-runner isolation; error already recorded on the row
+            failed += 1
+        finally:
+            db.close()
+    return {"synced": synced, "failed": failed, "total": len(rids)}
+
+
 @router.post("/garmin/connect", dependencies=[Depends(verify_csrf)])
 def garmin_connect(body: schemas.GarminCredsRequest,
                    user: models.User = Depends(require_role("runner")),
                    db: DBSession = Depends(get_db)):
     """Step 1 of the direct Garmin download. Logs in with the runner's own
-    credentials (used only here, never stored). If the account needs MFA,
-    returns {mfa_required, mfa_token} and the client posts the code to
-    /garmin/connect/mfa. Otherwise downloads + merges straight away. The
-    download is incremental — only days without history are fetched."""
+    credentials. The password is used only here and never stored. If the
+    account needs MFA, returns {mfa_required, mfa_token} and the client posts
+    the code to /garmin/connect/mfa. Otherwise downloads + merges straight away.
+    The download is incremental — only days without history are fetched. When
+    `remember` is set, the resulting OAuth session tokens (not the password) are
+    saved for daily auto-sync + one-tap sync."""
     rid = user.runner_id
     try:
         garmin, needs_mfa, state = garmin_live.begin_login(body.email, body.password)
@@ -339,9 +405,12 @@ def garmin_connect(body: schemas.GarminCredsRequest,
     if needs_mfa:
         _prune_pending()
         token = secrets.token_urlsafe(24)
-        _PENDING_MFA[token] = {"garmin": garmin, "state": state, "rid": rid, "at": time.time()}
+        _PENDING_MFA[token] = {"garmin": garmin, "state": state, "rid": rid, "at": time.time(), "remember": bool(body.remember)}
         return {"mfa_required": True, "mfa_token": token}
-    return _download_and_merge(db, rid, garmin)
+    result = _download_and_merge(db, rid, garmin)
+    if body.remember:
+        _store_session(db, rid, garmin, auto_sync=True)
+    return {**result, "remembered": bool(body.remember)}
 
 
 @router.post("/garmin/connect/mfa", dependencies=[Depends(verify_csrf)])
@@ -358,4 +427,57 @@ def garmin_connect_mfa(body: schemas.GarminMfaRequest,
     except garmin_live.AuthError:
         raise HTTPException(status_code=400, detail="Neplatný nebo prošlý ověřovací kód.")
     _PENDING_MFA.pop(body.mfa_token, None)
-    return _download_and_merge(db, user.runner_id, pending["garmin"])
+    remember = bool(body.remember or pending.get("remember"))
+    result = _download_and_merge(db, user.runner_id, pending["garmin"])
+    if remember:
+        _store_session(db, user.runner_id, pending["garmin"], auto_sync=True)
+    return {**result, "remembered": remember}
+
+
+def _garmin_status(db: DBSession, rid: str) -> dict:
+    row = db.query(models.GarminSession).filter(models.GarminSession.runner_id == rid).first()
+    if row is None:
+        return {"connected": False, "auto_sync": False, "last_sync_at": None, "last_error": None}
+    return {"connected": True, "auto_sync": bool(row.auto_sync),
+            "last_sync_at": row.last_sync_at, "last_error": row.last_error,
+            "encrypted": bool(row.encrypted)}
+
+
+@router.get("/garmin/status")
+def garmin_status(user: models.User = Depends(require_role("runner")),
+                  db: DBSession = Depends(get_db)):
+    """Whether a stored Garmin session exists, whether daily auto-sync is on,
+    and the last sync time / error — drives the Dnes sync button + Data panel."""
+    return _garmin_status(db, user.runner_id)
+
+
+@router.post("/garmin/sync", dependencies=[Depends(verify_csrf)])
+def garmin_sync(user: models.User = Depends(require_role("runner")),
+                db: DBSession = Depends(get_db)):
+    """One-tap 'Synchronizovat' — resume from the stored session token (no
+    password) and pull anything new. Requires a prior connect with 'remember'."""
+    result = _sync_from_stored(db, user.runner_id)
+    return {**result, "status": _garmin_status(db, user.runner_id)}
+
+
+@router.post("/garmin/auto-sync", dependencies=[Depends(verify_csrf)])
+def garmin_auto_sync(body: schemas.GarminAutoSyncRequest,
+                     user: models.User = Depends(require_role("runner")),
+                     db: DBSession = Depends(get_db)):
+    """Turn the daily pre-07:00 auto-sync on/off without disconnecting."""
+    row = db.query(models.GarminSession).filter(models.GarminSession.runner_id == user.runner_id).first()
+    if row is None:
+        raise HTTPException(status_code=409, detail="Garmin není připojen — připojte ho nejdřív.")
+    row.auto_sync = bool(body.enabled)
+    db.commit()
+    return _garmin_status(db, user.runner_id)
+
+
+@router.delete("/garmin/session", dependencies=[Depends(verify_csrf)])
+def garmin_disconnect(user: models.User = Depends(require_role("runner")),
+                      db: DBSession = Depends(get_db)):
+    """Forget the stored Garmin session tokens (stops auto-sync). The account's
+    refresh token can additionally be revoked from Garmin's own settings."""
+    db.query(models.GarminSession).filter(models.GarminSession.runner_id == user.runner_id).delete()
+    db.commit()
+    return {"connected": False, "auto_sync": False, "last_sync_at": None, "last_error": None}

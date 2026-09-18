@@ -15,3 +15,7 @@ python-dotenv>=1.0
 # instead (pip install garminconnect):
 curl_cffi>=0.15.0
 garminconnect>=0.2.28
+# Encrypts the stored Garmin OAuth session token at rest (only when
+# DOSSLAP_SECRET is set; without it the token is stored plaintext on the
+# private volume). Never stores the account password.
+cryptography>=42.0

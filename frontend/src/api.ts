@@ -127,12 +127,17 @@ export const api = {
     fd.append("file", file)
     return call("POST", "/api/integrations/apple/import", fd, { skipAuthRedirect: true })
   },
-  garminConnect: (email: string, password: string) => call("POST", "/api/integrations/garmin/connect", { email, password }, { skipAuthRedirect: true }),
+  garminConnect: (email: string, password: string, remember = false) => call("POST", "/api/integrations/garmin/connect", { email, password, remember }, { skipAuthRedirect: true }),
+  // Token-based Garmin sync (no password stored): status, one-tap sync, daily-auto toggle, disconnect.
+  garminStatus: () => call("GET", "/api/integrations/garmin/status", undefined, { skipAuthRedirect: true }),
+  garminSync: () => call("POST", "/api/integrations/garmin/sync", {}, { skipAuthRedirect: true }),
+  garminAutoSync: (enabled: boolean) => call("POST", "/api/integrations/garmin/auto-sync", { enabled }, { skipAuthRedirect: true }),
+  garminDisconnect: () => call("DELETE", "/api/integrations/garmin/session", undefined, { skipAuthRedirect: true }),
   // Apple Health auto-sync (device push): fetch/rotate the bearer token the
   // phone (Health Auto Export / a Shortcut) posts HealthKit data with.
   applePushToken: () => call("GET", "/api/integrations/apple/push-token"),
   applePushTokenRotate: () => call("POST", "/api/integrations/apple/push-token/rotate", {}),
-  garminMfa: (mfaToken: string, mfaCode: string) => call("POST", "/api/integrations/garmin/connect/mfa", { mfa_token: mfaToken, mfa_code: mfaCode }, { skipAuthRedirect: true }),
+  garminMfa: (mfaToken: string, mfaCode: string, remember = false) => call("POST", "/api/integrations/garmin/connect/mfa", { mfa_token: mfaToken, mfa_code: mfaCode, remember }, { skipAuthRedirect: true }),
 }
 
 export type Me = {

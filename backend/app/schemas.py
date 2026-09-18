@@ -87,14 +87,23 @@ class PhysioInterestRequest(Lenient):
 
 
 class GarminCredsRequest(Lenient):
-    """Used only for a single Garmin Connect login — never stored."""
+    """The password is used only for this single Garmin Connect login and is
+    never stored. When `remember` is true, the resulting OAuth *session tokens*
+    (not the password) are persisted so the runner gets daily auto-sync and a
+    one-tap sync without re-entering credentials."""
     email: str
     password: str
+    remember: bool = False
 
 
 class GarminMfaRequest(Lenient):
     mfa_token: str
     mfa_code: str
+    remember: bool = False
+
+
+class GarminAutoSyncRequest(Lenient):
+    enabled: bool
 
 
 class SlotBookRequest(Lenient):

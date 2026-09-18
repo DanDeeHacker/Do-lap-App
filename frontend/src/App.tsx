@@ -366,7 +366,7 @@ function RecoveryRanges({ rows }: { rows?: any[] }) {
   )
 }
 const QCOL: Record<string, string> = { stable: "#6ce6d3", overreaching: "#f6d69a", silent: "#7fb0d6", critical: "#e77a59" }
-function Quadrant({ quadrant = "stable", history, live }: { quadrant?: string; history?: any[] | null; live?: any }) {
+function Quadrant({ quadrant = "stable", history, live, onSync, syncing, syncMsg, canSync }: { quadrant?: string; history?: any[] | null; live?: any; onSync?: () => void; syncing?: boolean; syncMsg?: string | null; canSync?: boolean }) {
   // 2×2: mechanika (sloupce) × zátěž (řádky). Aktivní buňka = reálný kvadrant.
   const cells: [string, string][] = [
     ["stable", "Stabilní"],
@@ -387,8 +387,22 @@ function Quadrant({ quadrant = "stable", history, live }: { quadrant?: string; h
             <h3 className="font-serif text-lg leading-tight text-[#f1f8f1]">{q.t}</h3>
           </div>
         </div>
-        <button onClick={() => setOpen(true)} className="shrink-0 rounded-full border border-white/12 px-3 py-1.5 font-mono text-[10px] font-bold text-[#6ce6d3] transition hover:border-[#6ce6d3]/50 hover:text-[#c7ff54]">historie 2 měsíce ⤢</button>
+        <div className="flex shrink-0 items-center gap-2">
+          {onSync && (
+            <button
+              onClick={onSync}
+              disabled={syncing || !canSync}
+              title={canSync ? "Stáhnout nová data z Garminu" : "Nejdřív připojte Garmin pro automatickou synchronizaci na stránce Data"}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#c7ff54]/40 bg-[#c7ff54]/10 px-3 py-1.5 font-mono text-[10px] font-bold text-[#c7ff54] transition enabled:hover:border-[#c7ff54] enabled:hover:bg-[#c7ff54]/20 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <span className={syncing ? "inline-block animate-spin" : ""}>⟳</span>
+              {syncing ? "Synchronizuji…" : "Synchronizovat"}
+            </button>
+          )}
+          <button onClick={() => setOpen(true)} className="rounded-full border border-white/12 px-3 py-1.5 font-mono text-[10px] font-bold text-[#6ce6d3] transition hover:border-[#6ce6d3]/50 hover:text-[#c7ff54]">historie 2 měsíce ⤢</button>
+        </div>
       </div>
+      {syncMsg && <p className="mt-2 text-[11px] font-medium text-[#a9c2b9]">{syncMsg}</p>}
       <p className="mt-2 max-w-md text-xs leading-5 text-[#a9c2b9]">{q.d}</p>
       <button type="button" onClick={() => setOpen(true)} className="mt-4 grid w-full grid-cols-2 gap-2 text-left" title="Zobrazit vývoj stavu za 2 měsíce">
         {cells.map(([key, label]) => {
@@ -545,7 +559,7 @@ function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; l
   )
 }
 function TodayV2() {
-  const { me, boot } = useApp()
+  const { me, boot, refresh } = useApp()
   const a = boot?.assessment
   const L = a?.loadDetail
   const rcv = a?.rcv
@@ -557,6 +571,31 @@ function TodayV2() {
     api.quadrantHistory(rid).then((h) => alive && setQuadHist(h)).catch(() => alive && setQuadHist([]))
     return () => { alive = false }
   }, [rid])
+  // Garmin one-tap sync (next to the quadrant). Enabled only when a stored
+  // session token exists (runner opted into "remember" on the Data page).
+  const [gStatus, setGStatus] = useState<any | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    api.garminStatus().then((s) => alive && setGStatus(s)).catch(() => alive && setGStatus(null))
+    return () => { alive = false }
+  }, [rid])
+  const doSync = async () => {
+    setSyncing(true); setSyncMsg(null)
+    try {
+      const r: any = await api.garminSync()
+      const na = r?.added_activities ?? 0, nd = r?.added_daily ?? 0
+      setSyncMsg(na || nd ? `Staženo: ${na} aktivit, ${nd} dní dat.` : "Máte aktuální data — nic nového.")
+      if (r?.status) setGStatus(r.status)
+      await refresh()
+    } catch (e: any) {
+      setSyncMsg(e?.message || "Synchronizace se nezdařila.")
+      api.garminStatus().then(setGStatus).catch(() => {})
+    } finally {
+      setSyncing(false)
+    }
+  }
   const firstName = (me?.name || "").split(" ")[0] || "běžče"
   const today = new Date().toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
   const hour = new Date().getHours()
@@ -638,7 +677,50 @@ function TodayV2() {
         </div>
       )}
       <section className="mt-7 rounded-[24px] border border-white/10 bg-gradient-to-br from-[#0c201d] to-[#0a1a18] p-6 text-[#f1f8f1]">
-        <Quadrant quadrant={a?.quadrant} history={quadHist} live={a} />
+        <Quadrant quadrant={a?.quadrant} history={quadHist} live={a} onSync={doSync} syncing={syncing} syncMsg={syncMsg} canSync={!!gStatus?.connected} />
+        {/* „Stav" — co jde do kvadrantu — je teď součástí boxu s kvadrantem */}
+        <div className="mt-6 border-t border-white/10 pt-5">
+          <div className="flex items-center gap-4">
+            <div className="relative grid size-16 shrink-0 place-items-center">
+              <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90">
+                <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(255 255 255 / .1)" strokeWidth="9" />
+                <circle cx="50" cy="50" r="44" fill="none" stroke={tierCol} strokeWidth="9" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
+              </svg>
+              <b className="font-serif text-2xl text-[#f1f8f1]">{overall}</b>
+            </div>
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Celkový stav</p>
+              <h3 className="font-serif text-xl text-[#f1f8f1]">{quad?.t}</h3>
+              <p className="mt-0.5 text-xs font-bold" style={{ color: tierCol }}>{tierWord}</p>
+            </div>
+          </div>
+          <div className="mt-5">
+            <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Co teď nejvíc ovlivňuje stav</p>
+            {signals.length ? (
+              <div className="mt-2.5 space-y-2.5">
+                {signals.slice(0, 4).map((s) => {
+                  const gc = gradeCol(s.grade)
+                  const w = Math.max(10, (s.pts / (signals[0].pts || 1)) * 100)
+                  return (
+                    <div key={s.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold" style={{ background: `${gc}26`, color: gc }}>{s.grade}</span>
+                        <span className="flex-1 truncate text-[13px] text-[#f1f8f1]">{s.name}</span>
+                        <span className="font-mono text-[11px] text-[#9bb3aa]">{s.val}</span>
+                      </div>
+                      <div className="ml-7 mt-1 h-1 rounded-full bg-white/10">
+                        <i className="block h-full rounded-full" style={{ width: `${w}%`, background: gc }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-[#a9c2b9]">Nic nad prahem — zátěž i mechanika sedí na vaší normě.</p>
+            )}
+            {gated && <p className="mt-2 text-[10px] text-[#71837b]">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>}
+          </div>
+        </div>
       </section>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_.8fr]">
         <section className="rounded-[24px] border border-white/10 bg-[#0c201d] p-6 text-[#f1f8f1]">
@@ -709,7 +791,7 @@ function TodayV2() {
           <RecoveryRanges rows={recoveryRows} />
         </Card>
       </div>
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_.8fr]">
+      <div className="mt-4">
         <Card>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -725,50 +807,6 @@ function TodayV2() {
             <span>Tento týden <small className="text-[#71837b]">(Po–Ne)</small> <b className="block text-base text-[#f1f8f1]">{L?.weekKm ?? "—"} km</b></span>
             <span>Posledních 7 dní <b className="block text-base text-[#f1f8f1]">{L?.runKm7 ?? "—"} km</b></span>
             <span className="text-right">Obvykle / týden <b className="block text-base text-[#f1f8f1]">{typicalKm} km</b></span>
-          </div>
-        </Card>
-        <Card className="bg-[#edf0e9]">
-          <Label>Stav</Label>
-          <div className="mt-3 flex items-center gap-4">
-            <div className="relative grid size-16 shrink-0 place-items-center">
-              <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90">
-                <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(255 255 255 / .1)" strokeWidth="9" />
-                <circle cx="50" cy="50" r="44" fill="none" stroke={tierCol} strokeWidth="9" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
-              </svg>
-              <b className="font-serif text-2xl text-[#f1f8f1]">{overall}</b>
-            </div>
-            <div>
-              <h2 className="font-serif text-xl text-[#f1f8f1]">{quad?.t}</h2>
-              <p className="mt-0.5 text-xs" style={{ color: tierCol }}>{tierWord}</p>
-              <p className="mt-1 text-[11px] leading-4 text-[#a9c2b9]">{quad?.d}</p>
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Co teď nejvíc ovlivňuje stav</p>
-            {signals.length ? (
-              <div className="mt-2.5 space-y-2.5">
-                {signals.slice(0, 4).map((s) => {
-                  const gc = gradeCol(s.grade)
-                  const w = Math.max(10, (s.pts / (signals[0].pts || 1)) * 100)
-                  return (
-                    <div key={s.id}>
-                      <div className="flex items-center gap-2">
-                        <span className="grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-bold" style={{ background: `${gc}26`, color: gc }}>{s.grade}</span>
-                        <span className="flex-1 truncate text-[13px] text-[#f1f8f1]">{s.name}</span>
-                        <span className="font-mono text-[11px] text-[#9bb3aa]">{s.val}</span>
-                      </div>
-                      <div className="ml-7 mt-1 h-1 rounded-full bg-white/10">
-                        <i className="block h-full rounded-full" style={{ width: `${w}%`, background: gc }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-[#a9c2b9]">Nic nad prahem — zátěž i mechanika sedí na vaší normě.</p>
-            )}
-            {gated && <p className="mt-2 text-[10px] text-[#71837b]">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>}
           </div>
         </Card>
       </div>
