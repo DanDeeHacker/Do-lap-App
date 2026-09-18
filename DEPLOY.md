@@ -14,7 +14,7 @@ they can "Add to Home Screen").
 - `Dockerfile` — builds `frontend/dist`, then runs `uvicorn app.main:app` serving the SPA + API.
 - `main.py` — serves the SPA with client-route fallback (`/`, `/auth`, `/app/:tab`, `/data`).
 - `DOSSLAP_HTTPS=1` is set in the image → secure cookies over HTTPS.
-- **Persistence:** the app auto-detects a volume mounted at `/data` and stores the SQLite DB there, so account history survives redeploys with no env var to remember. If there's no volume, it logs a loud startup warning and `GET /api/health` returns `"db_persistent": false`. It also snapshots the DB to `/data/backups/` before each boot's migrations (last 10 kept). Seeding is one-time (only on an empty DB) and never overwrites existing accounts.
+- **Persistence:** if `DATABASE_URL` is set (e.g. a Railway Postgres) the app uses **Postgres** — managed and persistent, survives redeploys with no volume (works on the free plan). Otherwise it uses a **SQLite** file, auto-detecting a volume at `/data`; without a volume it logs a loud startup warning, snapshots the DB to `/data/backups/` before each boot (last 10 kept), and `GET /api/health` returns `"db_persistent": false`. Seeding is one-time (only on an empty DB) and never overwrites existing accounts.
 - Listens on Railway's injected `$PORT` automatically.
 
 ---
@@ -24,12 +24,20 @@ they can "Add to Home Screen").
 1. Push this repo to GitHub (a private repo is fine).
 2. On <https://railway.app> → **New Project → Deploy from GitHub repo** → pick the repo.
    Railway auto-detects the `Dockerfile` and builds.
-3. Add a **persistent volume** (THE step that keeps account history across redeploys):
-   - Project → your service → **Variables/Settings → Volumes → New Volume**
-   - Mount path: `/data`  ← the app auto-detects this; no env var needed.
-   - Verify after deploy: `GET https://<your-domain>/api/health` should show `"db_persistent": true`.
+3. **Keep account history across redeploys — pick ONE:**
+
+   **▸ Recommended: Postgres (works on the free plan, no volume needed)**
+   - In the project → **+ New → Database → Add PostgreSQL**. Railway provisions it.
+   - Open your **app service → Variables → New Variable** and add a *reference*:
+     `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`  (start typing `${{` and pick the Postgres service's `DATABASE_URL`).
+   - Redeploy. The app uses Postgres automatically whenever `DATABASE_URL` is set; tables are created on first boot. Managed = persistent, so redeploys never wipe data.
+   - Verify: `GET https://<your-domain>/api/health` → `"db_persistent": true`.
+
+   **▸ Alternative: persistent volume (needs a paid/Hobby plan)**
+   - Project canvas → **right-click the service → Volume** (or ⌘K → "Create Volume"); mount path `/data`. The app auto-detects it — no env var needed.
+
 4. Add environment variables (service → **Variables**):
-   - `DOSSLAP_DB_PATH` = `/data/dosslap.db` — *optional* now (auto-detected from the /data volume); set it only if you mount the volume somewhere else.
+   - `DOSSLAP_DB_PATH` = `/data/dosslap.db` — *only* for the volume path, and *only* if you mount somewhere other than `/data`. Ignored when `DATABASE_URL` (Postgres) is set.
    - `DOSSLAP_SECRET` = a long random string. Encrypts the stored **Garmin session token** at rest (never the password). If unset, the token is stored unencrypted on the private volume — fine for a friends test, but set it for real use.
    - `TZ` = `Europe/Prague`. The daily Garmin auto-sync runs before 7 AM in the container's local time, so set the zone or "morning" drifts.
    - (`DOSSLAP_HTTPS` is already `1` from the Dockerfile — no need to set it.)

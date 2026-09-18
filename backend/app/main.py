@@ -125,14 +125,14 @@ def _persistence_guard():
     account history on the next redeploy."""
     log = logging.getLogger("dosslap.db")
     info = dbmod.db_location_info()
-    log.info("Database: %s (persistent=%s, exists=%s)", info["path"], info["persistent"], info["exists"])
+    log.info("Database: %s %s (persistent=%s, exists=%s)", info["backend"], info["path"] or "(managed)", info["persistent"], info["exists"])
     if _is_deployed() and not info["persistent"]:
         log.warning(
             "\n" + "!" * 72 +
             "\n! DATABASE IS ON EPHEMERAL CONTAINER STORAGE: %s"
             "\n! Account history WILL BE LOST on the next redeploy."
-            "\n! Fix: attach a persistent volume mounted at /data (auto-detected),"
-            "\n!      or set DOSSLAP_DB_PATH to a path on a volume.\n" + "!" * 72,
+            "\n! Fix: add a Railway Postgres and reference its DATABASE_URL,"
+            "\n!      or attach a persistent volume mounted at /data.\n" + "!" * 72,
             info["path"],
         )
 
@@ -142,6 +142,8 @@ def _backup_db():
     the last N. Cheap insurance: a redeploy, a bad migration, or an accidental
     reset can be rolled back to the pre-boot snapshot. Deploy-only (skipped in
     local dev / tests) and never blocks startup."""
+    if not dbmod.IS_SQLITE:
+        return  # managed Postgres → provider handles backups; nothing to copy
     if os.environ.get("DOSSLAP_BACKUPS", "1") == "0" or not _is_deployed():
         return
     if not dbmod.db_exists() or dbmod.db_is_ephemeral():
@@ -170,7 +172,10 @@ async def lifespan(app: FastAPI):
     _persistence_guard()
     _backup_db()  # snapshot BEFORE create_all/migrate touch the file
     Base.metadata.create_all(bind=engine)
-    _migrate_sqlite(engine)
+    if dbmod.IS_SQLITE:
+        # Additive column back-fills for pre-existing SQLite dev DBs. A fresh
+        # Postgres gets the full, current schema straight from create_all.
+        _migrate_sqlite(engine)
     db = SessionLocal()
     try:
         if db.query(models.Clinic).first() is None:

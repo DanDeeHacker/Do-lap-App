@@ -1,6 +1,10 @@
 fastapi>=0.115
 uvicorn[standard]>=0.30
 SQLAlchemy>=2.0
+# Postgres driver (psycopg v3). Used automatically when DATABASE_URL is set
+# (e.g. a Railway Postgres) so account history survives redeploys with no
+# volume; local dev + tests fall back to a SQLite file with no driver needed.
+psycopg[binary]>=3.1
 pydantic>=2.9
 email-validator>=2.2
 passlib[argon2]>=1.7.4
