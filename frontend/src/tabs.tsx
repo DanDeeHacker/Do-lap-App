@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { AxisLineChart, Bars, Card, Chip, Field, Label, Metric, Ring, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
+import { AxisLineChart, Bars, Card, Chip, Field, InfoDot, Label, Metric, Ring, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
+import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
 import { clamp, czk, FEEL_LABEL, fmtD, fmtDT, fmtSlot, paceStr, PHASE, QUAD, sgn } from "@/lib"
 import MuscleAnatomy, { PainHeatmap, type BodyPoint } from "@/components/MuscleAnatomy"
 
@@ -165,7 +166,7 @@ export function Post() {
                 })}
               </div>
             ) : (
-              <div className="mt-3"><Empty>Zatím žádné check-iny. Přidejte první přes tlačítko Check-in vpravo dole.</Empty></div>
+              <div className="mt-3"><Empty>Zatím žádné check-iny. Přidejte první přes záložku Check-in na pravém okraji.</Empty></div>
             )}
           </Card>
         </div>
@@ -400,9 +401,12 @@ function MechMetricCard({ m, onSelect }: { m: Metric; onSelect: () => void }) {
   const wkY = (v: number) => 72 - ((v - lo) / (hi - lo || 1)) * 54
   const x = (i: number) => 24 + (i / Math.max(1, weeks.length - 1)) * 184
   return (
-    <button onClick={onSelect} className="group w-full p-4 text-left">
+    <div onClick={onSelect} role="button" tabIndex={0} className="group w-full cursor-pointer p-4 text-left">
       <div className="flex items-start justify-between gap-3">
-        <Label>{label}</Label>
+        <span className="flex items-center gap-1.5">
+          <Label>{label}</Label>
+          {MECH_INFO_BY_LABEL[label] && <InfoDot text={MECH_INFO_BY_LABEL[label]} label={label} />}
+        </span>
         <span className={`rounded-full px-2 py-1 text-[9px] font-bold ${hot ? "bg-[#e77a59]/15 text-[#ffc1ab]" : "bg-[#c7ff54]/10 text-[#c7ff54]"}`}>{delta}</span>
       </div>
       <strong className="mt-4 block font-serif text-3xl tracking-[-.05em] text-[#f1f8f1]">
@@ -451,7 +455,7 @@ function MechMetricCard({ m, onSelect }: { m: Metric; onSelect: () => void }) {
           </svg>
         </div>
       )}
-    </button>
+    </div>
   )
 }
 
@@ -680,8 +684,6 @@ export function Mechanics() {
 
   return (
     <>
-      <Head kicker={`Mechanika · ${boot?.runner?.device || ""}`} title="Jak se mění váš běh" sub="Vždy proti vašim běhům ve srovnatelném tempu a terénu. Populační průměry se nepoužívají." />
-
       <section className="overflow-hidden rounded-[28px] border border-[#6ce6d3]/20 bg-[#102724] p-5 md:p-7">
         <div className="grid gap-7 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
           <div>
@@ -848,7 +850,6 @@ export function Load() {
 
   return (
     <>
-      <Head kicker="Zátěž a regenerace" title="Kolik toho unesete a jak se z toho dostáváte" sub="Objem sám o sobě nestačí. Monotónnost, sbíhání a to, jestli se přes noc dostanete zpátky, mění tolerovatelnou dávku víc než celkové kilometry." />
       {edit && <EditDailySheet rid={rid} row={edit} onClose={() => setEdit(null)} onDone={() => { setEdit(null); refresh() }} />}
 
       <section className="mb-4 overflow-hidden rounded-[28px] border border-[#f6d69a]/20 bg-[#102724] p-5 md:p-7">
@@ -907,11 +908,11 @@ export function Load() {
       </section>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <Metric warm label="Zátěž 7 dní" value={`${L.acute}`} caption={`chronicky ${L.chronic} · j.z./týden`} />
-        <Metric label="Poměr 7:28" value={L.valid ? `×${L.ratio}` : "—"} caption={L.valid ? "vč. jiného sportu" : "zatím málo dat"} />
-        <Metric label="Vysoká intenzita" value={L.valid && L.hiChronic ? `×${L.hiRatio}` : "—"} caption={L.valid && L.hiChronic ? `tvrdé běhy ${L.hiAcute}/${L.hiChronic}` : "žádné tvrdé běhy"} />
-        <Metric label="Monotónnost" value={`${L.monotony}`} caption={`strain ${L.strain}`} />
-        <Metric label="Klesání 7 dní" value={`${L.descent7}`} caption={`obvykle ${L.descentBase} m${L.descentSpike ? ` · ×${L.descentSpike}` : ""}`} />
+        <Metric warm label="Zátěž 7 dní" value={`${L.acute}`} caption={`chronicky ${L.chronic} · j.z./týden`} info={MI.acute7} />
+        <Metric label="Poměr 7:28" value={L.valid ? `×${L.ratio}` : "—"} caption={L.valid ? "vč. jiného sportu" : "zatím málo dat"} info={MI.ratio728} />
+        <Metric label="Vysoká intenzita" value={L.valid && L.hiChronic ? `×${L.hiRatio}` : "—"} caption={L.valid && L.hiChronic ? `tvrdé běhy ${L.hiAcute}/${L.hiChronic}` : "žádné tvrdé běhy"} info={MI.hiIntensity} />
+        <Metric label="Monotónnost" value={`${L.monotony}`} caption={`strain ${L.strain}`} info={MI.monotony} />
+        <Metric label="Klesání 7 dní" value={`${L.descent7}`} caption={`obvykle ${L.descentBase} m${L.descentSpike ? ` · ×${L.descentSpike}` : ""}`} info={MI.descent7} />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
@@ -932,9 +933,9 @@ export function Load() {
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         {rcv ? (
           <>
-            <Card><Label>HRV 7 dní</Label><p className="mt-2 font-serif text-3xl">{rcv.hrv.now}<small className="text-sm"> ms</small></p><p className="text-xs text-[#71837b]">baseline {rcv.hrv.base} ms · z {sgn(rcv.hrv.z)}</p><div className="mt-3"><Sparkline vals={rcv.hrv.series} color={rcv.hrv.z <= -1 ? "#e77a59" : "#6ce6d3"} /></div></Card>
-            <Card><Label>Klidový tep</Label><p className="mt-2 font-serif text-3xl">{rcv.rhr.now}</p><p className="text-xs text-[#71837b]">baseline {rcv.rhr.base} · z {sgn(rcv.rhr.z)}</p><div className="mt-3"><Sparkline vals={rcv.rhr.series} color={rcv.rhr.z >= 1.2 ? "#e77a59" : "#6ce6d3"} /></div></Card>
-            <Card><Label>Spánek</Label><p className="mt-2 font-serif text-3xl">{rcv.sleep.now}<small className="text-sm"> h</small></p><p className="text-xs text-[#71837b]">obvykle {rcv.sleep.base} h{rcv.sleep.debt > 0 ? ` · dluh ${rcv.sleep.debt} h/týd` : ""}</p><div className="mt-3"><Sparkline vals={rcv.sleep.series} color={rcv.sleep.debt >= 4 ? "#e77a59" : "#6ce6d3"} /></div></Card>
+            <Card><span className="flex items-center gap-1.5"><Label>HRV 7 dní</Label><InfoDot text={MI.hrv} label="HRV 7 dní" /></span><p className="mt-2 font-serif text-3xl">{rcv.hrv.now}<small className="text-sm"> ms</small></p><p className="text-xs text-[#71837b]">baseline {rcv.hrv.base} ms · z {sgn(rcv.hrv.z)}</p><div className="mt-3"><Sparkline vals={rcv.hrv.series} color={rcv.hrv.z <= -1 ? "#e77a59" : "#6ce6d3"} /></div></Card>
+            <Card><span className="flex items-center gap-1.5"><Label>Klidový tep</Label><InfoDot text={MI.rhr} label="Klidový tep" /></span><p className="mt-2 font-serif text-3xl">{rcv.rhr.now}</p><p className="text-xs text-[#71837b]">baseline {rcv.rhr.base} · z {sgn(rcv.rhr.z)}</p><div className="mt-3"><Sparkline vals={rcv.rhr.series} color={rcv.rhr.z >= 1.2 ? "#e77a59" : "#6ce6d3"} /></div></Card>
+            <Card><span className="flex items-center gap-1.5"><Label>Spánek</Label><InfoDot text={MI.sleep} label="Spánek" /></span><p className="mt-2 font-serif text-3xl">{rcv.sleep.now}<small className="text-sm"> h</small></p><p className="text-xs text-[#71837b]">obvykle {rcv.sleep.base} h{rcv.sleep.debt > 0 ? ` · dluh ${rcv.sleep.debt} h/týd` : ""}</p><div className="mt-3"><Sparkline vals={rcv.sleep.series} color={rcv.sleep.debt >= 4 ? "#e77a59" : "#6ce6d3"} /></div></Card>
             {a.sleepEff && (
               <Card><Label>Efektivita spánku</Label><p className="mt-2 font-serif text-3xl" style={{ color: a.sleepEff.now < 0.85 ? "#e77a59" : undefined }}>{Math.round(a.sleepEff.now * 100)}<small className="text-sm"> %</small></p><p className="text-xs text-[#71837b]">{a.sleepEff.base ? `obvykle ${Math.round(a.sleepEff.base * 100)} %` : "prospáno z času v posteli"} · pod 85 % = roztříštěný</p></Card>
             )}

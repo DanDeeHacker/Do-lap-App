@@ -14,7 +14,8 @@ import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
 import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
 import { clamp, initials, QUAD, roleHome } from "@/lib"
-import { Field, Sheet, ToastHost, useAsync, useToast } from "@/ui"
+import { Field, InfoDot, Sheet, ToastHost, useAsync, useToast } from "@/ui"
+import { METRIC_INFO as MI } from "@/metricinfo"
 import { Load as LoadTab, Mechanics, Post } from "@/tabs"
 import { Care, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
@@ -689,7 +690,7 @@ function TodayV2() {
               <b className="font-serif text-2xl text-[#f1f8f1]">{overall}</b>
             </div>
             <div>
-              <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Celkový stav</p>
+              <span className="flex items-center gap-1.5"><p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Celkový stav</p><InfoDot text={MI.overall} label="Celkový stav" /></span>
               <h3 className="font-serif text-xl text-[#f1f8f1]">{quad?.t}</h3>
               <p className="mt-0.5 text-xs font-bold" style={{ color: tierCol }}>{tierWord}</p>
             </div>
@@ -724,7 +725,7 @@ function TodayV2() {
       </section>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_.8fr]">
         <section className="rounded-[24px] border border-white/10 bg-[#0c201d] p-6 text-[#f1f8f1]">
-          <Label>Regenerace přes noc</Label>
+          <span className="flex items-center gap-1.5"><Label>Regenerace přes noc</Label><InfoDot text={MI.recoveryScore} label="Regenerace přes noc" /></span>
           <div className="mt-3 flex items-end justify-between">
             <b className="text-4xl">
               {score ?? "—"}{" "}
@@ -965,16 +966,6 @@ function Auth() {
 }
 function AtlasBubble() {
   const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
-  const dragRef = useRef<{
-    startX: number
-    startY: number
-    offX: number
-    offY: number
-    w: number
-    h: number
-    moved: boolean
-  } | null>(null)
   const [score, setScore] = useState<number | null>(null)
   const [pain, setPain] = useState(0)
   const [soreness, setSoreness] = useState(1)
@@ -1007,59 +998,16 @@ function AtlasBubble() {
   return (
     <>
       {!open && (
+        // Side rail tab: parked at the right edge, only a slim lip peeks out so
+        // it doesn't block content. Hover (desktop) slides it out; on a phone it
+        // stays peeking and a tap opens the check-in directly.
         <button
-          onPointerDown={(event) => {
-            const target = event.currentTarget
-            target.setPointerCapture(event.pointerId)
-            const rect = target.getBoundingClientRect()
-            dragRef.current = {
-              startX: event.clientX,
-              startY: event.clientY,
-              offX: event.clientX - rect.left,
-              offY: event.clientY - rect.top,
-              w: rect.width,
-              h: rect.height,
-              moved: false,
-            }
-          }}
-          onPointerMove={(event) => {
-            const drag = dragRef.current
-            if (!drag) return
-            if (
-              Math.abs(event.clientX - drag.startX) +
-                Math.abs(event.clientY - drag.startY) >
-              6
-            ) {
-              drag.moved = true
-            }
-            if (drag.moved) {
-              const x = Math.min(
-                Math.max(8, event.clientX - drag.offX),
-                window.innerWidth - drag.w - 8,
-              )
-              const y = Math.min(
-                Math.max(8, event.clientY - drag.offY),
-                window.innerHeight - drag.h - 8,
-              )
-              setPos({ x, y })
-            }
-          }}
-          onPointerUp={() => {
-            const drag = dragRef.current
-            dragRef.current = null
-            if (drag && !drag.moved) setOpen(true)
-          }}
-          style={
-            pos
-              ? { left: pos.x, top: pos.y, right: "auto", bottom: "auto" }
-              : undefined
-          }
-          className="fixed bottom-[calc(5.4rem+env(safe-area-inset-bottom))] right-5 z-[60] flex touch-none cursor-grab items-center gap-2 rounded-full bg-[#c7ff54] px-4 py-3 text-sm font-bold text-[#071313] shadow-[0_12px_32px_rgba(0,0,0,.35)] active:cursor-grabbing"
+          onClick={() => setOpen(true)}
+          aria-label="Otevřít check-in"
+          className="group fixed right-0 top-1/2 z-[60] flex -translate-y-1/2 translate-x-[calc(100%-2.15rem)] items-center gap-2 rounded-l-2xl bg-[#c7ff54] py-3 pl-2.5 pr-4 text-sm font-bold text-[#071313] shadow-[0_10px_28px_rgba(0,0,0,.4)] transition-transform duration-300 ease-out hover:translate-x-0 focus-visible:translate-x-0"
         >
-          <span className="grid size-6 place-items-center rounded-full bg-[#071313]/10">
-            ♡
-          </span>
-          Check-in
+          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[#071313]/10 text-base">♡</span>
+          <span className="whitespace-nowrap">Check-in</span>
         </button>
       )}
       {open && (

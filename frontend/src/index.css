@@ -78,3 +78,21 @@ html, body { overscroll-behavior-y:none; }
 .motion-shell > header .text-\[\#58716b\] { color:#9bb3aa; }
 .motion-shell main { max-width:80rem; background:transparent; }
 .motion-shell main > * { position:relative; }
+
+/* --- phone layout polish ------------------------------------------------- */
+/* The check-in side tab parks partly off the right edge; clip so it never
+   creates a horizontal scrollbar. (App uses fixed header/nav, not sticky, so
+   clipping the x-overflow here is safe.) */
+html, body { overflow-x:clip; }
+@media (max-width: 640px) {
+  /* Decorative orbit ring is pure chrome — drop it on small screens for a
+     cleaner, cheaper paint. */
+  .motion-shell main::before { display:none; }
+  /* The scroll-driven card reveal (rotateX + filter) repaints hard on phones
+     and can blur text mid-scroll — show cards flat and stable instead. */
+  @supports (animation-timeline: view()) {
+    .motion-shell main :is(section,article)[class*="rounded-"] { animation:none; }
+  }
+  /* Comfortable min tap target for the help dots and inline icon buttons. */
+  .motion-shell [aria-label^="Co znamená"], .motion-shell [aria-label="Nápověda k metrice"] { min-width:20px; min-height:20px; }
+}

@@ -197,6 +197,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Došlap API", lifespan=lifespan)
+# Compress responses for clients that accept it (every mobile browser) — the
+# JS bundle drops ~445 KB → ~140 KB on the wire, a big win on phone networks.
+# Applies to API JSON and the served SPA assets alike.
+from starlette.middleware.gzip import GZipMiddleware  # noqa: E402
+
+app.add_middleware(GZipMiddleware, minimum_size=700)
 
 
 def _record_access(db, rid: str, physio_id: str, method: str, resource: str) -> None:
