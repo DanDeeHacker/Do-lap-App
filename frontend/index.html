@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover is what makes env(safe-area-inset-*) non-zero under the
+         Dynamic Island / home indicator on iPhone 15+; interactive-widget keeps
+         the layout stable when the keyboard opens. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="description" content="Běžecké riziko zranění — mechanika, zátěž a deník na jednom místě." />
+    <meta name="theme-color" content="#071313" />
+    <meta name="color-scheme" content="dark" />
+    <!-- iOS "Add to Home Screen" → standalone, dark status bar blended with the UI -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Došlap" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Došlap</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Došlap — přihlášení</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+body{padding-bottom:0}
+.doors{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:8px}
+.door{display:block;text-align:left;padding:16px;border-radius:var(--r-m);border:1px solid var(--glass-14);
+  background:var(--white);transition:all .2s;cursor:pointer}
+.door:hover{border-color:var(--navy-400);transform:translateY(-2px);box-shadow:var(--sh-1)}
+.door b{display:block;font-size:14px;margin-bottom:3px}
+.door span{font-size:12px;color:var(--muted)}
+.backlink{font-size:13px;font-weight:600;color:var(--navy-600);margin-bottom:14px;display:inline-flex;align-items:center;gap:4px}
+.demobox{margin-top:14px;padding:12px 14px;border-radius:var(--r-m);background:var(--blue-soft);display:flex;
+  align-items:center;justify-content:space-between;gap:10px;font-size:12.5px}
+.fielderr{color:var(--alert);font-size:12px;margin-top:5px;display:none}
+.field.invalid input{border-color:var(--alert)}
+.field.invalid .fielderr{display:block}
+</style>
+</head>
+<body>
+<div class="authwrap">
+  <aside class="authside">
+    <div>
+      <div class="logo" style="color:#fff;margin-bottom:30px">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect width="26" height="26" rx="8" fill="#fff"/>
+        <path d="M6 17.5C8.5 17.5 9.5 8.5 12 8.5C14.5 8.5 15.5 17.5 20 13" stroke="#0A2540" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>
+        <span>Došlap</span></div>
+      <h1>Zranění se ohlásí v datech dřív než v noze</h1>
+      <p>Čtyři různé dveře pro čtyři role. Fyzioterapeut se přihlašuje jako odborník, běžec jako pacient — každý vidí jen to, na co má přístup.</p>
+    </div>
+    <div id="side-facts" style="margin-top:34px"></div>
+  </aside>
+
+  <main class="authmain">
+    <div class="authcard" id="card"></div>
+  </main>
+</div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetbody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="core.js"></script>
+<script>
+(function(){
+const D=window.D;
+const {$,esc,H,api,AUTH,toast,ROLE_LABEL_CS}=D;
+const card=$('#card');
+
+const DOORS=[
+  ['runner','Běžec','Přihlásit se jako pacient','M13 4a1.6 1.6 0 1 0 0-.1M8 20l2.5-5 2-2.5-1.5-4-3 2-1.5 3M12.5 8.5l3 2 1 3.5'],
+  ['physio','Fyzioterapeut','Přihlásit se jako odborník','M8 3v4M16 3v4M8 7a4 4 0 0 0 8 0M12 11v4a4 4 0 0 0 8 0v-1'],
+  ['employer','Zaměstnavatel','Firemní přístup k agregátům','M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5'],
+  ['partner','Partner','Prodejna, klub nebo pořadatel','M4 8h16l-1 12H5Z M9 8V6a3 3 0 0 1 6 0v2']
+];
+const DEMO={runner:['adela@demo.cz','pacientka'],physio:['havlickova@fyzioholesovice.cz','fyzioterapeutka'],
+  employer:['hexanet@demo.cz','firemní HR'],partner:['letna@demo.cz','partnerská prodejna']};
+
+const GOOGLE=`<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+  <path fill="#4285F4" d="M22.6 12.2c0-.7-.1-1.4-.2-2H12v4h6a5 5 0 0 1-2.2 3.3v2.8h3.6c2.1-2 3.2-4.9 3.2-8.1Z"/>
+  <path fill="#34A853" d="M12 23c2.9 0 5.3-1 7.1-2.6l-3.6-2.8c-1 .7-2.3 1.1-3.5 1.1-2.7 0-5-1.8-5.9-4.3H2.4v2.9A11 11 0 0 0 12 23Z"/>
+  <path fill="#FBBC05" d="M6.1 14.4a6.6 6.6 0 0 1 0-4.2V7.3H2.4a11 11 0 0 0 0 9.9l3.7-2.8Z"/>
+  <path fill="#EA4335" d="M12 5.4c1.6 0 3 .6 4.1 1.6l3.1-3.1A11 11 0 0 0 2.4 7.3l3.7 2.9C7 7.2 9.3 5.4 12 5.4Z"/></svg>`;
+
+const FACTS=[
+  ['4','oddělené role — každá vidí jen svá vlastní data'],
+  ['0 %','symetrie kontaktu ze zápěstí — vyžaduje hrudní pás nebo RD pod'],
+  ['18','metrik ve třech osách (engine v0.4), každá se stupněm evidence A, B nebo C']
+];
+$('#side-facts').innerHTML=FACTS.map(([n,t])=>
+  `<div style="display:flex;gap:14px;align-items:baseline;margin-bottom:14px">
+    <b style="font-family:var(--mono);font-size:19px;min-width:52px">${n}</b>
+    <span style="font-size:13px;color:rgba(255,255,255,.68);line-height:1.5">${t}</span></div>`).join('');
+
+let role=H.get('role',''), mode=H.get('m','signin'), busy=false;
+
+function doorPicker(){
+  return `<h1 style="font-size:26px">Kdo se přihlašuje?</h1>
+    <p class="sub" style="margin-bottom:18px">Vyberte roli — každá má vlastní přihlášení a vidí jen svá vlastní data.</p>
+    <div class="doors">${DOORS.map(([k,t,d,path])=>`
+      <button class="door" data-act="pickrole" data-role="${k}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--navy-600)" stroke-width="1.8"
+          style="margin-bottom:8px"><path d="${path}"/></svg>
+        <b>${esc(t)}</b><span>${esc(d)}</span></button>`).join('')}</div>`;
+}
+
+function signin(){
+  const demo=DEMO[role];
+  return `<a href="#" class="backlink" data-act="backdoor">← Jiná role</a>
+    <h1 style="font-size:26px">Přihlásit se — ${esc(ROLE_LABEL_CS[role]||role)}</h1>
+    <p class="sub" style="margin-bottom:22px">Pokračujte tam, kde jste skončili.</p>
+    <button class="oauth" data-act="google" ${role!=='runner'?'disabled title="Google přihlášení je zatím jen pro běžce"':''}>${GOOGLE} Pokračovat přes Google</button>
+    <div class="orline">nebo e-mailem</div>
+    <form id="fsignin" novalidate>
+      <label class="field" id="fld-email"><span>E-mail</span>
+        <input type="email" name="email" required placeholder="vas@email.cz">
+        <div class="fielderr">Zadejte platný e-mail.</div></label>
+      <label class="field" id="fld-pw"><span>Heslo</span>
+        <input type="password" name="pw" required minlength="1" placeholder="••••••••">
+        <div class="fielderr">Zadejte heslo.</div></label>
+      <button class="btn" type="submit" style="width:100%">Přihlásit se</button>
+    </form>
+    <div class="demobox"><span>Ukázkový účet: <b class="mono">${demo[0]}</b> (${demo[1]})</span>
+      <button class="btn ghost xs" data-act="filldemo">Vyplnit</button></div>
+    <p class="sub" style="margin-top:18px">Nemáte účet? <a href="#" data-act="gosignup" style="font-weight:600">Vytvořit</a></p>`;
+}
+
+function signup(){
+  return `<a href="#" class="backlink" data-act="backdoor">← Jiná role</a>
+    <h1 style="font-size:26px">Vytvořit účet — ${esc(ROLE_LABEL_CS[role]||role)}</h1>
+    <p class="sub" style="margin-bottom:22px">${role==='runner'?'Bez dat z hodinek umí platforma jen to, co jí napíšete — hodinky připojíte hned po registraci.':
+      role==='physio'?'Po registraci uvidíte sdílenou frontu triáže a můžete si nárokovat případy k péči.':
+      role==='employer'?'Po registraci uvidíte agregát vaší firemní kohorty, jakmile bude mít aspoň 8 běžců.':
+      'Po registraci uvidíte doporučení a provize spojené s vaším partnerským kódem.'}</p>
+    <button class="oauth" data-act="googleup" ${role!=='runner'?'disabled title="Google přihlášení je zatím jen pro běžce"':''}>${GOOGLE} Registrovat přes Google</button>
+    <div class="orline">nebo e-mailem</div>
+    <form id="fsignup" novalidate>
+      <label class="field" id="fld-name"><span>${role==='runner'?'Jméno':role==='physio'?'Jméno a titul':'Název'}</span>
+        <input type="text" name="name" required placeholder="${role==='runner'?'Jan Novák':role==='physio'?'Mgr. Jan Novák':'Firma s.r.o.'}">
+        <div class="fielderr">Zadejte jméno.</div></label>
+      <label class="field" id="fld-email2"><span>E-mail</span><input type="email" name="email" required placeholder="jan@email.cz">
+        <div class="fielderr">Zadejte platný e-mail.</div></label>
+      <label class="field" id="fld-pw2"><span>Heslo <span class="lh">alespoň 8 znaků</span></span>
+        <input type="password" name="pw" required minlength="8" placeholder="••••••••">
+        <div class="fielderr">Heslo musí mít alespoň 8 znaků.</div></label>
+      <button class="btn" type="submit" style="width:100%">Vytvořit účet</button>
+    </form>
+    <p class="sub" style="margin-top:18px">Už účet máte? <a href="#" data-act="gosignin" style="font-weight:600">Přihlásit se</a></p>`;
+}
+
+function paint(){
+  role=H.get('role','');mode=H.get('m','signin');
+  card.innerHTML=!role?doorPicker():(mode==='signup'?signup():signin());
+  card.classList.add('fade');
+  setTimeout(()=>card.classList.remove('fade'),500);
+}
+
+function markInvalid(fieldId,on){
+  const el=document.getElementById(fieldId);if(!el)return;
+  el.classList.toggle('invalid',on);
+}
+
+function afterAuth(u){
+  // H.get() already decodes once (see H.all()) — guard() encoded it exactly once too.
+  const next=H.get('next')||D.ROLE_HOME[u.role]||'index.html';
+  toast('Vítejte, '+u.name.split(' ')[0],'Přihlášeno');
+  setTimeout(()=>{location.href=next},500);
+}
+
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const a=b.dataset.act;
+  if(a==='close'){D.closeSheet();return}
+  if(a==='pickrole'){H.set({role:b.dataset.role,m:'signin'});return}
+  if(a==='backdoor'){e.preventDefault();H.set({role:'',m:''});return}
+  if(a==='gosignup'){e.preventDefault();H.set({m:'signup'});return}
+  if(a==='gosignin'){e.preventDefault();H.set({m:'signin'});return}
+  if(a==='filldemo'){
+    const demo=DEMO[role];
+    const f=document.getElementById('fsignin');
+    f.email.value=demo[0];f.pw.value='demo1234';
+    return}
+  if(a==='google'||a==='googleup'){
+    D.openSheet(`<h2>Pokračovat přes Google</h2>
+      <p class="sub">V prototypu je souhlasová obrazovka jen naznačená — reálné napojení potřebuje vlastní OAuth klienta v Google Cloud Console. V ostrém provozu jde o standardní OAuth 2.0 s PKCE — aplikace dostane e-mail, jméno a ID, nic víc.</p>
+      <div class="devcard" style="margin-top:16px"><div class="devicon" style="background:#fff;border:1px solid var(--glass-14)">${GOOGLE}</div>
+        <div style="flex:1"><b style="font-size:14px">Došlap chce přístup k</b>
+          <div class="sub" style="margin:0">Vaše jméno, e-mailová adresa a profilová fotka</div></div></div>
+      <button class="btn ghost" style="margin-top:16px;width:100%" data-act="close">Zavřít</button>`);
+    return}
+  if(a==='oauthgarmin'){
+    D.openSheet(`<h2>Autorizace Garmin Connect</h2>
+      <p class="sub">Ostrá verze přesměruje na connect.garmin.com. Garmin Health API vyžaduje schválení programu — do té doby je funkční cesta nahrát GDPR export v Data → Připojení.</p>
+      <button class="btn ghost" style="margin-top:16px;width:100%" data-act="close">Zavřít</button>`);
+    return}
+});
+
+document.addEventListener('submit',async e=>{
+  e.preventDefault();const f=e.target,d=Object.fromEntries(new FormData(f));
+  if(f.id==='fsignin'){
+    ['fld-email','fld-pw'].forEach(id=>markInvalid(id,false));
+    if(busy)return;busy=true;
+    const btn=f.querySelector('button');btn.disabled=true;btn.textContent='Přihlašuji…';
+    try{
+      const u=await AUTH.signIn(d.email,d.pw,role);
+      afterAuth(u);
+    }catch(err){
+      btn.disabled=false;btn.textContent='Přihlásit se';busy=false;
+      toast(err.message||'Přihlášení selhalo','Chyba');
+    }
+    return}
+  if(f.id==='fsignup'){
+    if(d.pw.length<8){markInvalid('fld-pw2',true);return}
+    markInvalid('fld-pw2',false);
+    if(busy)return;busy=true;
+    const btn=f.querySelector('button');btn.disabled=true;btn.textContent='Zakládám…';
+    try{
+      const u=await AUTH.register({email:d.email,name:d.name,password:d.pw,role,provider:'password'});
+      afterAuth(u);
+    }catch(err){
+      btn.disabled=false;btn.textContent='Vytvořit účet';busy=false;
+      toast(err.message||'Registrace selhala','Chyba');
+    }
+    return}
+});
+window.addEventListener('hashchange',paint);
+
+(async function boot(){
+  const u=await AUTH.load();
+  if(u){const next=D.ROLE_HOME[u.role]||'index.html';location.href=next;return}
+  paint();
+})();
+})();
+</script>
+</body>
+</html>

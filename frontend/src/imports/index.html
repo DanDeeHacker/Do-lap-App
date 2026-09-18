@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Došlap — Keep moving, Stay Healthy!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+.hero{background:linear-gradient(158deg,var(--navy-800),var(--navy-900));color:#fff;padding:24px 24px 88px}
+.heroin{max-width:1240px;margin:0 auto}
+.herotop{display:flex;justify-content:space-between;align-items:center;margin-bottom:40px}
+.herotop .cta{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);color:#fff;
+  padding:9px 18px;border-radius:99px;font-size:13.5px;font-weight:600;transition:background .2s}
+.herotop .cta:hover{background:rgba(255,255,255,.24)}
+.hero h1{font-size:clamp(30px,5vw,46px);max-width:17ch;letter-spacing:-.035em}
+.hero p{color:rgba(255,255,255,.72);font-size:16px;margin-top:16px;max-width:60ch}
+.roles{max-width:1240px;margin:-52px auto 0;padding:0 24px 80px;position:relative;z-index:2}
+.rolecard{display:block;background:var(--white);border:1px solid var(--glass-14);border-radius:var(--r-l);
+  padding:22px;box-shadow:var(--sh-1);transition:transform .3s cubic-bezier(.32,.72,.25,1),box-shadow .3s;color:var(--ink)}
+.rolecard:hover{transform:translateY(-4px);box-shadow:var(--sh-2)}
+.rolecard h3{margin-top:12px}
+.rolecard .sub{min-height:56px}
+.rolecard .go{margin-top:14px;font-size:13px;font-weight:700;color:var(--navy-600)}
+.rolecard .kicker{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--navy-400)}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="heroin">
+    <div class="herotop">
+      <div class="logo" style="color:#fff">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><rect width="26" height="26" rx="8" fill="#fff"/>
+        <path d="M6 17.5C8.5 17.5 9.5 8.5 12 8.5C14.5 8.5 15.5 17.5 20 13" stroke="#0A2540" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg>
+        <span>Došlap</span></div>
+      <a class="cta" id="topcta" href="auth.html">Přihlásit se</a>
+    </div>
+    <h1>Změny ve vaší zátěži a mechanice vidíte včas</h1>
+    <p>Zátěž z hodinek a drift běžecké mechaniky proti vlastní normě. Každý signál se porovnává jen se stejným terénem a tempem toho samého běžce — ne s populačním průměrem. Čtyři role, čtyři oddělená přihlášení: běžec vidí jen svá data, fyzioterapeut jen pacienty, které převzal, zaměstnavatel jen anonymní agregát.</p>
+  </div>
+</div>
+<div class="roles">
+  <div class="grid g3 stagger" id="cards"></div>
+  <div class="card" style="margin-top:26px">
+    <div class="lbl">Jak platforma funguje</div>
+    <div class="grid g3" style="margin-top:14px">
+      <div><h4>Data</h4><div class="sub">Reálný backend s vlastní databází pro každý účet. Funguje i s deterministickými demo daty pro rychlé vyzkoušení každé role.</div></div>
+      <div><h4>Engine v0.4</h4><div class="sub">18 metrik ve třech osách. Každá nese stupeň evidence A/B/C a jde rozkliknout na vzorec i na to, kde selhává.</div></div>
+      <div><h4>Napojení na hodinky</h4><div class="sub">Import z Garmin Connect je funkční — GDPR export i CSV se zpracují a uloží k vašemu účtu.</div></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="core.js"></script>
+<script>
+(function(){
+const {esc,AUTH,ROLE_HOME}=window.D;
+const cards=[
+  ['runner','runner.html','Běžec','Monitoring zátěže a běžecké mechaniky proti vlastní normě, hodnocení po trénincích a data z hodinek s ruční korekcí. Přihlašuje se jako pacient.'],
+  ['physio','physio.html','Fyzioterapeut','Sdílená fronta triáže seřazená podle rizika, detail každého převzatého pacienta, editace programu a AI souhrn dat. Přihlašuje se jako odborník.'],
+  ['employer','employer.html','Zaměstnavatel','Agregát kohorty bez jmen u zdravotních dat — zobrazí se až od 8 běžců. Rozložení rizika, modelovaná návratnost a pravidla ochrany dat.'],
+  ['partner','partner.html','Partner','Prodejna, klub nebo pořadatel jako akviziční kanál. Doporučení, konverze na předplatné a provize.'],
+  ['runner','data.html','Data a připojení','Funkční import z Garmin Connect — GDPR export i CSV, zpracování a uložení k vašemu účtu.']
+];
+document.getElementById('cards').innerHTML=cards.map(([role,h,t,d])=>
+  `<a class="rolecard" href="auth.html?role=${role}"><div class="kicker">${esc(t)}</div>
+   <h3>${esc(t)}</h3><div class="sub">${esc(d)}</div><div class="go">Přihlásit se →</div></a>`).join('');
+
+(async function(){
+  const u=await AUTH.load();
+  if(u){
+    const cta=document.getElementById('topcta');
+    cta.textContent='Pokračovat do aplikace';
+    cta.href=ROLE_HOME[u.role]||'index.html';
+  }
+})();
+})();
+</script>
+</body>
+</html>

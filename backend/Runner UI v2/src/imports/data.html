@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Došlap — data a připojení</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header id="ebar"></header>
+<div id="tbar"></div>
+<main class="page" id="view"></main>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetbody"></div></div>
+<div class="toast" id="toast"></div>
+<script src="core.js"></script>
+<script>
+(function(){
+const D=window.D;
+const {$,esc,H,api,toast,fmtD,fmtDT,AUTH,SIG_DOC,GRADE_NOTE,initials}=D;
+let ME=null;
+const me=()=>ME;
+const myRid=()=>ME.runner_id;
+let importState=null;
+
+async function refreshDB(){
+  const b=await api.bootstrap(myRid());
+  window.DB={...window.DB,
+    runners:[b.runner], assessments:b.assessment?[b.assessment]:[],
+    checkins:b.checkins, activities:b.activities, activity_feedback:b.activity_feedback,
+    daily_metrics:b.daily_metrics, bookings:b.bookings, messages:b.messages,
+    integration:b.integration,device_history:b.device_history,access_log:b.access_log||[]};
+}
+
+const FIELDMAP=[
+ ['Avg Vertical Ratio','vert_ratio_pct','TAVR drift · rozpad techniky','A'],
+ ['Avg Vertical Oscillation','vert_osc_cm','záloha, když chybí poměr',''],
+ ['Avg Stride Length','stride_len_m','normalizace vertikálního poměru',''],
+ ['Avg Ground Contact Time','gct_ms','GCT drift',''],
+ ['avg_stance_time_balance','gct_balance_l','posun symetrie — POUZE z FIT','!'],
+ ['Avg Run Cadence','cadence_spm','normalizace GCT',''],
+ ['Total Descent','descent_m','excentrická zátěž z klesání',''],
+ ['Distance / Time','distance_km · duration_min','EWMA zátěž, monotónnost',''],
+ ['Avg HR','avg_hr','aerobní decoupling',''],
+ ['splits[]','vr_thirds · hr_thirds','rozpad techniky uvnitř běhu',''],
+ ['restingHeartRate','resting_hr','zvýšený klidový tep',''],
+ ['workoutFeel / workoutRpe','feeling · rpe','pocit po tréninku',''],
+];
+
+/* ---------------- PŘIPOJENÍ ---------------- */
+async function connect(){
+  const rid=myRid();
+  const integ=DB.integration;
+  const st=integ?.status||'disconnected';
+  const acts=DB.activities;
+  const cov=integ?.coverage_json;
+  const imp=importState;
+  const provLabel={garmin:'Garmin',apple:'Apple Health',coros:'Coros'}[integ?.provider]||'Zdroj';
+  return `<div class="head fade"><div class="kicker">Připojení zdrojů</div>
+    <h1>${st==='connected'?`${provLabel} je připojený`:st==='demo'?'Běží na demo datech':'Zatím nepřipojeno'}</h1>
+    <p>Platforma neumí nic odhadovat z ničeho. Dokud nemá aspoň šest týdnů běhů ve srovnatelných podmínkách, mechanické signály nezobrazí — a řekne to místo toho, aby vymýšlela čísla.</p></div>
+
+  <div class="grid g3 stagger" style="margin-bottom:18px">
+    <div class="card dark"><div class="lbl">Aktivit v účtu</div><div class="big">${acts.length}</div>
+      <div class="sub">${acts.length?fmtD(acts[0].started_at)+' → '+fmtD(acts.at(-1).started_at):'—'}</div></div>
+    <div class="card"><div class="lbl">Stav</div>
+      <div class="big" style="font-size:22px;color:${st==='connected'?'var(--ok)':st==='demo'?'var(--muted)':'var(--watch)'}">${
+        st==='connected'?'připojeno':st==='demo'?'demo data':'nepřipojeno'}</div>
+      <div class="sub">${integ?.last_sync_at?'sync '+fmtDT(integ.last_sync_at):'zatím nesynchronizováno'}</div></div>
+    <div class="card"><div class="lbl">Přihlášen</div><div class="big" style="font-size:20px">${esc(me().name.split(' ')[0])}</div>
+      <div class="sub">${esc(me().email)}${me().provider==='google'?' · Google':''}</div></div>
+  </div>
+
+  <div class="split">
+    <div>
+      <div class="card">
+        <div class="lbl">Nahrát export z Garmin Connect</div>
+        <div class="sub">Garmin Connect → Účet → Export Your Data. Přijde ZIP e-mailem — nahrajte ho rovnou celý, nebo jen rozbalený
+          <span class="mono">summarizedActivities.json</span>. Zpracování běží na serveru stejným parserem jako
+          <span class="mono">backend/garmin_ingest.py</span>, včetně FIT souborů uvnitř zipu.</div>
+        <div class="drop" id="drop" style="margin-top:14px">
+          <div style="font-size:15px;font-weight:600">Přetáhněte sem ZIP nebo JSON</div>
+          <div class="sub">Export z Garmin Connect (.zip), summarizedActivities.json, nebo výstup z garmin_ingest.py.</div>
+          <input type="file" id="file" accept=".json,application/json,.zip,application/zip" style="display:none">
+          <button class="btn ghost" style="margin-top:14px" data-act="pick">Vybrat soubor</button></div>
+        ${imp&&imp.source==='garmin'?importResult(imp):''}
+      </div>
+
+      <div class="card">
+        <div class="lbl">Stáhnout data přímo z Garmin Connect</div>
+        <div class="sub">Přihlaste se svým účtem Garmin Connect a data se stáhnou rovnou — bez čekání na export e-mailem. Přihlašovací údaje se použijí <b>jen pro toto jedno stažení</b> a nikam se neukládají. Účty s dvoufázovým ověřením (MFA) zatím nepodporujeme — použijte upload exportu výše.</div>
+        <label class="field" style="margin-top:12px"><span>E-mail Garmin Connect</span>
+          <input type="email" id="gmail" placeholder="vas@email.cz" autocomplete="username"></label>
+        <label class="field"><span>Heslo</span>
+          <input type="password" id="gpass" placeholder="••••••••" autocomplete="current-password"></label>
+        <button class="btn" style="width:100%;margin-top:6px" data-act="garminlogin">Stáhnout data z Garminu</button>
+        ${imp&&imp.source==='garminlive'&&imp.mfa?`
+          <div class="divide"></div><div class="lbl">Ověřovací kód (dvoufázové ověření)</div>
+          <div class="sub">Zadejte kód z aplikace Garmin Connect, SMS nebo e-mailu.</div>
+          <input type="text" id="gmfa" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" style="margin-top:8px">
+          <button class="btn" style="width:100%;margin-top:8px" data-act="garminmfa">Ověřit a stáhnout</button>`:''}
+        ${imp&&imp.source==='garminlive'&&!imp.mfa?importResult(imp):''}
+      </div>
+
+      <div class="card">
+        <div class="lbl">Nahrát export z Apple Health</div>
+        <div class="sub">iPhone → Zdraví → profil → Exportovat všechna data o zdraví. Přijde <span class="mono">export.zip</span> — nahrajte ho celý (nebo rozbalený <span class="mono">export.xml</span>). Zpracuje ho <span class="mono">backend/apple_health_ingest.py</span>: běhy, HRV, klidový tep, spánek a kroky.</div>
+        <div class="drop" id="adrop" style="margin-top:14px">
+          <div style="font-size:15px;font-weight:600">Přetáhněte sem ZIP nebo XML</div>
+          <div class="sub">Apple Health export (.zip) nebo export.xml. Běžecká dynamika (vertikální poměr, kontakt se zemí) se ze zápěstí neměří — mechanické signály se u takového účtu neukážou, stejně jako u Garminu bez hrudního pásu.</div>
+          <input type="file" id="afile" accept=".zip,application/zip,.xml,text/xml,application/xml" style="display:none">
+          <button class="btn ghost" style="margin-top:14px" data-act="applepick">Vybrat soubor</button></div>
+        ${imp&&imp.source==='apple'?importResult(imp):''}
+      </div>
+
+      <div class="card">
+        <div class="lbl">Průběžné připojení přes API</div>
+        <div class="devcard" style="margin-top:12px">
+          <div class="devicon">GC</div>
+          <div style="flex:1"><b style="font-size:14px">Garmin Health &amp; Activity API</b>
+            <div class="sub" style="margin:0">OAuth 2.0 s PKCE, webhook na nové aktivity. Vyžaduje schválení programu ze strany Garminu.</div></div>
+          <button class="btn ghost sm" data-act="apidoc">Detail</button></div>
+        <div class="note" style="margin-top:14px">Do doby schválení je jednorázový export plnohodnotná náhrada — dá stejná pole, jen ne v reálném čase. Pro validaci enginu to stačí, pro provoz ne.</div>
+      </div>
+
+      <div class="card">
+        <div class="lbl">Mapování polí</div>
+        <div class="tw" style="margin-top:12px"><table>
+          <thead><tr><th>Zdroj</th><th>Pole platformy</th><th>Odemyká</th><th>Pokrytí</th></tr></thead>
+          <tbody>${FIELDMAP.map(([a,b,c,flag])=>{
+            const key=b.split(' ')[0];
+            const n=acts.length?Math.round(acts.filter(x=>x[key]!=null&&x[key]!==0).length/acts.length*100):0;
+            return `<tr><td class="mono" style="font-size:11.5px">${esc(a)}</td>
+              <td class="mono" style="font-size:11.5px;color:var(--navy-600)">${esc(b)}</td>
+              <td class="sub" style="margin:0">${esc(c)}</td>
+              <td><span class="chip ${n>70?'ok':n>30?'watch':'alert'}">${n} %</span></td></tr>`}).join('')}
+          </tbody></table></div>
+        <div class="note warn" style="margin-top:14px"><b>Symetrie kontaktu je jediné pole, které hodinky ze zápěstí neměří.</b>
+          Ve FIT souboru je deklarované, ale prázdné — ověřeno na 195 session zprávách reálného exportu. Vyžaduje hrudní pás HRM-Pro / HRM-Run nebo Running Dynamics Pod. Bez nich platforma tenhle signál neukáže vůbec.</div>
+      </div>
+    </div>
+    <div>
+      <div class="card"><div class="lbl">Co se odemkne čím</div>
+        <div style="margin-top:12px">${[
+          ['6 týdnů běhů','baseline pro mechaniku','vert_ratio_pct'],
+          ['Podobné trasy','porovnání ve shodném terénu','—'],
+          ['Hrudní pás','symetrie kontaktu','gct_balance_l'],
+          ['Hodnocení po běhu','vazba bolesti na typ zátěže','—'],
+          ['Denní metriky','HRV, klidový tep, spánek','resting_hr']
+        ].map(([a,b])=>`<div class="fld"><div><b style="font-weight:600">${a}</b>
+          <div class="sub" style="margin:0">${b}</div></div></div>`).join('')}</div></div>
+      <div class="card"><div class="lbl">Skript v repozitáři</div>
+        <div class="fx" style="font-size:11px">python backend/garmin_ingest.py \\
+  export.zip -o user_seed.json --fit</div>
+        <div class="sub">Zpracuje celý ZIP, projde FIT soubory a vypíše, které metriky vaše hodinky vůbec umožňují spočítat.</div></div>
+      ${deviceHistoryCard()}
+      ${accessLogCard()}
+    </div></div>`;
+}
+function accessLogCard(){
+  const log=DB.access_log||[];
+  return `<div class="card"><div class="lbl">Kdo přistupoval k vašim datům</div>
+    <div class="sub">Transparentnost podle GDPR — vidíte, který fyzioterapeut a kdy nahlédl do vašeho záznamu. Zaznamenává se jen přístup někoho jiného, ne vaše vlastní.</div>
+    ${log.length?`<div style="margin-top:10px">${log.map(a=>`
+      <div class="fld"><div><b style="font-weight:600">${esc(a.physio_name||'Fyzioterapeut')}</b>
+        <div class="sub" style="margin:0">${fmtD(a.date)} · ${a.access_count}× ${a.action==='read'?'čtení':'zápis'}${a.resource?' · '+esc(a.resource):''}</div></div>
+        <span class="chip ${a.action==='read'?'glass':'watch'}">${a.action==='read'?'čtení':'zápis'}</span></div>`).join('')}</div>`:
+      '<div class="empty" style="margin-top:12px">Zatím k vašim datům nikdo nepřistupoval.</div>'}
+  </div>`;
+}
+function deviceHistoryCard(){
+  const hist=(DB.device_history||[]).slice().sort((a,b)=>b.recorded_at.localeCompare(a.recorded_at));
+  if(!hist.length)return '';
+  const changed=hist.length>=2&&hist[0].recorded_at>dayAgo(84);
+  return `<div class="card"><div class="lbl">Historie zařízení</div>
+    <div class="sub">Vertikální oscilace se mezi zařízeními liší — po výměně hodinek engine baseline restartuje.</div>
+    <div style="margin-top:10px">${hist.map((h,i)=>`
+      <div class="fld"><div><b style="font-weight:600">${esc(h.device)}</b>
+        <div class="sub" style="margin:0">${i===0?'aktuální':'do '+fmtD(hist[i-1]?.recorded_at)} · od ${fmtD(h.recorded_at)}</div></div></div>`).join('')}</div>
+    ${changed?`<div class="note warn" style="margin-top:12px">Zařízení se změnilo během posledních 84 dní — mechanické signály jsou umlčené, dokud baseline nevznikne znovu na novém zařízení.</div>`:''}
+  </div>`;
+}
+function importResult(imp){
+  if(imp.loading)return `<div class="divide"></div><div class="skel" style="height:16px;margin-bottom:10px"></div>
+    <div class="skel" style="height:16px;width:70%"></div>`;
+  if(!imp.ok)return `<div class="empty" style="margin-top:14px;color:var(--alert)">${esc(imp.error)}</div>`;
+  const m=imp.meta||{}, live=imp.source==='garminlive';
+  return `<div class="divide"></div>
+    <div class="lbl">Výsledek importu</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <span class="chip ok">${imp.activities} ${live?'nových běhů':'aktivit'}</span>
+      ${imp.addedDaily!=null?`<span class="chip glass">+${imp.addedDaily} dní metrik</span>`:''}
+      ${m.first_run?`<span class="chip glass">${fmtD(m.first_run)} → ${fmtD(m.last_run)}</span>`:''}
+      ${!live&&m.daily?`<span class="chip glass">${m.daily} dní metrik</span>`:''}</div>
+    ${live&&imp.activities===0&&(imp.addedDaily||0)===0?`<div class="note" style="margin-top:10px">Vše už bylo staženo dřív — nové dny bez historie se nenašly.</div>`:''}
+    ${m.coverage_pct?`<div class="tw" style="margin-top:12px"><table>
+      <thead><tr><th>Pole</th><th>Pokrytí</th></tr></thead><tbody>
+      ${Object.entries(m.coverage_pct).sort((a,b)=>b[1]-a[1]).map(([k,v])=>
+        `<tr><td class="mono" style="font-size:11.5px">${k}</td>
+         <td><span class="chip ${v>70?'ok':v>30?'watch':'alert'}">${v} %</span></td></tr>`).join('')}
+      </tbody></table></div>`:''}
+    <button class="btn" style="margin-top:14px;width:100%" data-act="gorunner">Otevřít můj přehled</button>`;
+}
+
+/* ---------------- TABULKY ---------------- */
+const TABLE_LABEL={activities:'aktivity',daily_metrics:'denní metriky',activity_feedback:'hodnocení po bězích',
+  checkins:'týdenní check-iny',bookings:'objednávky',messages:'zprávy'};
+const TABLES=Object.keys(TABLE_LABEL);
+async function tables(){
+  const t=H.get('t','activities'), rows=DB[t]||[];
+  const skip=['pain_points','vr_thirds','hr_thirds','pace_thirds'];
+  const cols=rows.length?Object.keys(rows[0]).filter(k=>!skip.includes(k)).slice(0,9):[];
+  return `<div class="head fade"><div class="kicker">Vaše data na backendu</div>
+    <h1>${TABLES.reduce((s,k)=>s+(DB[k]?.length||0),0)} záznamů k vašemu účtu</h1>
+    <p>Přesně to, co je uložené k vašemu účtu na serveru — žádná jiná role ani stránka tahle data nevidí, dokud jim je nesdílíte (fyzioterapeut je uvidí až po převzetí případu).</p></div>
+  <div class="filters">${TABLES.map(x=>
+    `<button class="fchip" data-act="tt" data-t="${x}" aria-pressed="${x===t}">${esc(TABLE_LABEL[x])}
+      <span class="mono">${DB[x]?.length||0}</span></button>`).join('')}</div>
+  <div class="card"><div class="tw"><table>
+    <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${rows.slice(0,30).map(rw=>`<tr>${cols.map(c=>{let v=rw[c];
+      v=v==null?'—':Array.isArray(v)?v.length+'×':typeof v==='object'?'{…}':String(v);
+      if(v.length>30)v=v.slice(0,30)+'…';
+      return `<td class="mono" style="font-size:11.5px">${esc(v)}</td>`}).join('')}</tr>`).join('')}
+    </tbody></table></div>
+    ${rows.length>30?`<div class="sub">30 z ${rows.length} řádků</div>`:rows.length?'':'<div class="empty">Zatím žádné záznamy v této tabulce.</div>'}</div>
+  <div class="card"><div class="btnrow">
+    <button class="btn ghost" data-act="dl">Stáhnout svá data</button></div></div>`;
+}
+
+/* ---------------- ENGINE ---------------- */
+async function engine(){
+  const ids=Object.keys(SIG_DOC);
+  const byGrade=g=>ids.filter(i=>SIG_DOC[i].g===g);
+  return `<div class="head fade"><div class="kicker">Engine v0.4</div>
+    <h1>${ids.length} signálů ve třech osách</h1>
+    <p>Zátěž, mechanika a příznaky se nesčítají do jednoho čísla. Jsou to různé třídy evidence a sloučení by zamlžilo, jaký zásah dává smysl. Počítá se na backendu (<span class="mono">backend/app/metrics/engine.py</span>), tohle je jeho zdokumentovaný slovník signálů.</p></div>
+  <div class="grid g3 stagger" style="margin-bottom:18px">
+    ${['A','B','C'].map(g=>`<div class="card">
+      <div class="cardhead"><div class="lbl">Stupeň ${g}</div>
+        <span class="chip grade ${g==='A'?'alert':g==='B'?'watch':'info'}">${byGrade(g).length}</span></div>
+      <div class="sub" style="margin-top:8px">${esc(GRADE_NOTE[g])}</div></div>`).join('')}
+  </div>
+  <div class="card"><div class="lbl">Všechny signály</div>
+    <div style="margin-top:8px">${ids.map(i=>{const d=SIG_DOC[i];
+      return `<div class="mrow tap" data-act="sig" data-id="${i}" data-runner="${myRid()}">
+        <div class="ico" style="background:${d.g==='A'?'var(--alert-soft)':d.g==='B'?'var(--watch-soft)':'var(--blue-soft)'};
+          color:${d.g==='A'?'var(--alert)':d.g==='B'?'var(--watch)':'var(--blue)'}">${d.g}</div>
+        <div class="nm"><b>${esc(d.t)}</b><em>${esc((d.limit||'').slice(0,92))}…</em></div>
+        <div class="arw">›</div></div>`}).join('')}</div>
+    <div class="sub">U každého signálu je vzorec, proč ho sledujeme, kde selhává a kdy zmizí.</div></div>`;
+}
+
+/* ---------------- API LOG ---------------- */
+async function apilog(){
+  const log=D.API_LOG;
+  return `<div class="head fade"><div class="kicker">Provoz</div>
+    <h1>${log.length} volání v této relaci</h1>
+    <p>Skutečná volání na backend z tohoto prohlížeče, včetně stavového kódu a doby odezvy.</p></div>
+  <div class="card">${log.length?log.map(l=>`<div style="display:flex;gap:10px;
+    font-family:var(--mono);font-size:11.5px;padding:7px 0;border-bottom:1px solid var(--glass-08);color:var(--muted)">
+    <b style="color:${l.status>=400?'var(--alert)':'var(--navy-600)'};min-width:46px">${l.m}</b>
+    <span style="flex:1;color:var(--ink);word-break:break-all">${esc(l.p)}</span>
+    <span>${l.status}</span><span>${l.ms} ms</span><span>${l.at}</span></div>`).join(''):
+    '<div class="empty">Zatím žádná volání.</div>'}</div>`;
+}
+
+/* ---------------- router ---------------- */
+const V={connect,tables,engine,api:apilog};
+async function render(){
+  const u=me();
+  D.TABS.data=[['connect','Připojení'],['tables','Tabulky'],['engine','Engine'],['api','API log']];
+  const tab=D.renderChrome({entity:'data',avatar:initials(u.name)});
+  $('#view').innerHTML=`<div class="grid g3">${'<div class="skel" style="height:130px"></div>'.repeat(3)}</div>
+    <div class="skel" style="height:280px;margin-top:16px"></div>`;
+  try{
+    if(tab!=='api'){await refreshDB();D.CURRENT_ASSESSMENT=DB.assessments[0]||null}
+    $('#view').innerHTML=await (V[tab]||connect)();
+  }catch(err){
+    $('#view').innerHTML=D.errCard(err,'retry');
+    return;
+  }
+  if(tab==='connect')bindDrop();
+}
+function bindDrop(){
+  const d=$('#drop'),f=$('#file');
+  if(d){
+    d.addEventListener('dragover',e=>{e.preventDefault();d.classList.add('over')});
+    d.addEventListener('dragleave',()=>d.classList.remove('over'));
+    d.addEventListener('drop',e=>{e.preventDefault();d.classList.remove('over');take(e.dataTransfer.files[0])});
+    f.addEventListener('change',e=>take(e.target.files[0]));
+  }
+  const ad=$('#adrop'),af=$('#afile');
+  if(ad){
+    ad.addEventListener('dragover',e=>{e.preventDefault();ad.classList.add('over')});
+    ad.addEventListener('dragleave',()=>ad.classList.remove('over'));
+    ad.addEventListener('drop',e=>{e.preventDefault();ad.classList.remove('over');takeApple(e.dataTransfer.files[0])});
+    af.addEventListener('change',e=>takeApple(e.target.files[0]));
+  }
+}
+/* Nahraný soubor (zip export nebo summarizedActivities.json nebo hotový
+   seed z garmin_ingest.py) jde přímo na backend — ten používá stejný
+   parser jako CLI skript (viz backend/garmin_ingest.py: build_seed()),
+   takže tu není druhá, časem rozjíždějící se kopie parsovací logiky. */
+async function take(file){
+  if(!file)return;
+  importState={loading:true,source:'garmin'};
+  render();
+  try{
+    const res=await api.garminIngest(file,false);
+    importState={ok:true,source:'garmin',activities:res.activities,meta:res.meta};
+    toast(`${res.activities} aktivit přeneseno`,'Import');
+  }catch(err){
+    importState={ok:false,source:'garmin',error:err.message||'Import selhal.'};
+  }
+  render();
+}
+async function takeGarminLive(){
+  const email=($('#gmail')?.value||'').trim(), pass=$('#gpass')?.value||'';
+  if(!email||!pass){toast('Zadejte e-mail i heslo ke Garmin Connect','Chybí údaje');return}
+  importState={loading:true,source:'garminlive'};render();
+  try{
+    const res=await api.garminConnect(email,pass);
+    if(res.mfa_required){
+      importState={source:'garminlive',mfa:true,mfaToken:res.mfa_token};
+      toast('Účet má dvoufázové ověření — zadejte kód','Ověření');
+    }else{
+      importState={ok:true,source:'garminlive',activities:res.added_activities,addedDaily:res.added_daily,meta:res.meta};
+      toast(`${res.added_activities} nových běhů z Garminu`,'Staženo');
+    }
+  }catch(err){
+    importState={ok:false,source:'garminlive',error:err.message||'Stažení selhalo.'};
+  }
+  render();
+}
+async function submitGarminMfa(){
+  const code=($('#gmfa')?.value||'').trim(), token=importState&&importState.mfaToken;
+  if(!code){toast('Zadejte ověřovací kód','Chybí kód');return}
+  importState={loading:true,source:'garminlive'};render();
+  try{
+    const res=await api.garminMfa(token,code);
+    importState={ok:true,source:'garminlive',activities:res.added_activities,addedDaily:res.added_daily,meta:res.meta};
+    toast(`${res.added_activities} nových běhů z Garminu`,'Staženo');
+  }catch(err){
+    importState={ok:false,source:'garminlive',error:err.message||'Ověření selhalo.'};
+  }
+  render();
+}
+async function takeApple(file){
+  if(!file)return;
+  importState={loading:true,source:'apple'};
+  render();
+  try{
+    const res=await api.appleIngest(file);
+    importState={ok:true,source:'apple',activities:res.activities,meta:res.meta};
+    toast(`${res.activities} běhů z Apple Health`,'Import');
+  }catch(err){
+    importState={ok:false,source:'apple',error:err.message||'Import selhal.'};
+  }
+  render();
+}
+
+D.bindGlobal(render);
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const a=b.dataset.act;
+  if(a==='retry'){render();return}
+  if(a==='tt'){H.set({t:b.dataset.t});return}
+  if(a==='pick'){$('#file').click();return}
+  if(a==='applepick'){$('#afile').click();return}
+  if(a==='garminlogin'){takeGarminLive();return}
+  if(a==='garminmfa'){submitGarminMfa();return}
+  if(a==='gorunner'){location.href='runner.html';return}
+  if(a==='dl'){const c={runner:DB.runners[0],activities:DB.activities,daily_metrics:DB.daily_metrics,
+      activity_feedback:DB.activity_feedback,checkins:DB.checkins,bookings:DB.bookings,messages:DB.messages,
+      assessment:DB.assessments[0]};
+    const bl=new Blob([JSON.stringify(c,null,1)],{type:'application/json'});
+    const el=document.createElement('a');el.href=URL.createObjectURL(bl);
+    el.download='dosslap-moje-data.json';el.click();URL.revokeObjectURL(el.href);
+    return toast('dosslap-moje-data.json','Staženo')}
+  if(a==='apidoc'){D.openSheet(`<h2>Garmin Health &amp; Activity API</h2>
+    <p class="sub">Průběžné napojení místo jednorázového exportu.</p>
+    <div class="fx">1. OAuth 2.0 + PKCE  → uživatel povolí přístup
+2. POST /oauth-service/oauth/access_token
+3. Webhook na nové aktivity  → push, ne polling
+4. GET /wellness-api/rest/activityDetails
+   → stejná pole jako FIT, včetně úseků
+
+Backend: backend/garmin_ingest.py mapuje odpověď
+na schéma platformy beze změny.</div>
+    <div class="note warn">Program vyžaduje schválení Garminem a smlouvu. Než projde, je jednorázový GDPR export plnohodnotný pro validaci enginu — chybí mu jen průběžnost.</div>
+    <button class="btn ghost" style="margin-top:18px;width:100%" data-act="close">Zavřít</button>`);return}
+});
+
+(async function boot(){
+  ME=await D.guard('runner');
+  if(!ME)return;
+  await D.loadSettings();
+  render();
+})();
+})();
+</script>
+</body>
+</html>

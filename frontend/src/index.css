@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import 'tailwindcss';
+@theme { --font-serif: "Libre Baskerville", Georgia, serif; --font-sans: "Manrope", Arial, sans-serif; --font-mono: "DM Mono", monospace; }
+html, body, #root { min-height:100%; } body { margin:0; font-family:"Manrope", Arial, sans-serif; } button { cursor:pointer; } button:focus-visible,a:focus-visible { outline:3px solid #e47d51; outline-offset:3px; } ::selection { background:#b9d8d0; color:#193431; }
+
+/* --- iPhone 15+ / mobile-web hardening ---------------------------------- */
+html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+/* Kill the grey tap flash and the 300ms double-tap delay on touch. */
+* { -webkit-tap-highlight-color:transparent; }
+a, button, [role="button"], label, summary { touch-action:manipulation; }
+/* Stop the standalone/PWA pull-to-refresh + rubber-band bounce. */
+html, body { overscroll-behavior-y:none; }
+/* iOS zooms the page when a focused input's font-size is <16px. Force ≥16px on
+   touch devices only, so desktop density is untouched. */
+@media (pointer: coarse) {
+  input, select, textarea { font-size:16px; }
+}
+/* Use the dynamic viewport so full-height shells don't jump when Safari's
+   toolbar shows/hides (100vh is wrong on iOS). Maps Tailwind's screen-height
+   utilities to dvh where supported. */
+@supports (min-height:100dvh) {
+  .min-h-screen { min-height:100dvh; }
+  .h-screen { height:100dvh; }
+}
+@keyframes atlasOrbit { to { transform:rotate(360deg); } }
+@keyframes atlasPulse { 50% { transform:translate(-50%,-50%) scale(1.14); opacity:.28; } }
+@keyframes atlasPoint { 50% { box-shadow:0 0 0 6px rgb(228 125 81 / .18); } }
+@keyframes atlasHotspot { 0% { box-shadow:0 0 0 0 rgb(108 230 211 / .5); } 70% { box-shadow:0 0 0 10px rgb(108 230 211 / 0); } 100% { box-shadow:0 0 0 0 rgb(108 230 211 / 0); } }
+@keyframes careReveal { from { opacity:0; transform:translateY(-10px) scaleY(.96); } to { opacity:1; transform:translateY(0) scaleY(1); } }
+@keyframes cardReveal { from { opacity:0; transform:translateY(76px) scale(.91) rotateX(7deg); filter:brightness(.48) saturate(.6); box-shadow:0 30px 70px rgb(0 0 0 / .42); } 62% { opacity:1; transform:translateY(0) scale(1) rotateX(0); filter:brightness(1) saturate(1); } to { opacity:1; transform:translateY(-10px) scale(1.01) rotateX(0); filter:brightness(1.06) saturate(1.08); } }
+.atlas-orbit { animation:atlasOrbit 22s linear infinite; }
+.atlas-pulse { animation:atlasPulse 2.8s ease-in-out infinite; }
+.atlas-point { animation:atlasPoint 1.8s ease-in-out infinite; }
+.atlas-hotspot { cursor:pointer; }
+.atlas-hotspot:hover { animation:atlasHotspot 1.5s infinite; }
+@media (prefers-reduced-motion: reduce) { .atlas-orbit, .atlas-pulse, .atlas-hotspot { animation:none; } }
+
+/* Motion Atlas skin for every routed workspace. The original semantic utility
+   colours are deliberately remapped here so all product areas move together. */
+.bg-\[\#e7e9e1\], .bg-\[\#f9f7f1\] { background-color:#071313; }
+.bg-white { background-color:#0c201d; }
+.bg-\[\#edf0e9\] { background-color:#102724; }
+.bg-\[\#e6f0ec\], .bg-\[\#dcece7\] { background-color:#c7ff54; }
+.bg-\[\#235e59\] { background-color:#102724; }
+.text-\[\#193431\] { color:#f1f8f1; }
+.text-\[\#64736e\], .text-\[\#657872\], .text-\[\#687872\], .text-\[\#71837b\], .text-\[\#6e817a\] { color:#a9c2b9; }
+.text-\[\#235e59\] { color:#c7ff54; }
+.border-\[\#dfe2da\], .border-\[\#d8ddd5\], .border-\[\#d9dfda\] { border-color:rgb(255 255 255 / .13); }
+.bg-\[\#e3f0e8\] { background-color:#17382f; }
+.text-\[\#247252\] { color:#c7ff54; }
+.bg-\[\#fff0df\] { background-color:#3c2922; }
+.text-\[\#a45431\] { color:#ffc1ab; }
+.bg-\[\#f2f8f5\] { background-color:#102724; }
+.border-\[\#9cbcb5\] { border-color:#6ce6d3; }
+/* stray light *surfaces* the base skin missed → dark. Deliberately NOT
+   touching light data-viz fills (#b5d3ca, #b5c1bc, #75ac8a, #47756a, #91b7a9…)
+   — those are chart bars/dots drawn on a dark card and must stay visible. */
+.bg-\[\#eff7f4\], .bg-\[\#e2f0e8\], .bg-\[\#eef4f0\] { background-color:#102724; }
+.bg-\[\#fff0e8\], .bg-\[\#f8e9e4\], .bg-\[\#fbe9e0\] { background-color:#3c2922; }
+.text-\[\#687671\], .text-\[\#8ba59d\], .text-\[\#80968e\] { color:#a9c2b9; }
+.border-\[\#dae2dd\], .border-\[\#f6d69a\] { border-color:rgb(255 255 255 / .13); }
+.border-\[\#235e59\] { border-color:#6ce6d3; }
+.border-\[\#91b7a9\] { border-color:rgb(108 230 211 / .3); }
+.motion-shell { background:radial-gradient(circle at 80% 5%, rgb(107 230 211 / .12), transparent 28rem), #071313; }
+.motion-shell main { position:relative; isolation:isolate; }
+.motion-shell main::before { content:""; position:absolute; z-index:-1; right:8%; top:4rem; width:22rem; height:22rem; border:1px solid rgb(108 230 211 / .12); border-radius:999px; box-shadow:0 0 0 46px rgb(108 230 211 / .025),0 0 0 94px rgb(108 230 211 / .018); pointer-events:none; }
+.motion-shell :is(section,article)[class*="rounded-"] { box-shadow:inset 0 1px 0 rgb(255 255 255 / .035),0 16px 40px rgb(0 0 0 / .13); }
+@supports (animation-timeline: view()) {
+  .motion-shell main :is(section,article)[class*="rounded-"] { animation:cardReveal linear both; animation-timeline:view(); animation-range:entry 0% cover 56%; transform-origin:center bottom; }
+}
+.motion-shell input, .motion-shell textarea { background:#102724; color:#f1f8f1; border-color:rgb(255 255 255 / .16); }
+.motion-shell input::placeholder, .motion-shell textarea::placeholder { color:#719087; }
+.motion-shell button, .motion-shell a { transition:transform .18s ease, background-color .18s ease, border-color .18s ease, color .18s ease; }
+@media (hover:hover) { .motion-shell :is(button,a):hover { transform:translateY(-1px); } }
+.motion-shell .font-mono { letter-spacing:.13em; }
+.motion-shell > header { background:rgb(7 19 19 / .92); border-color:rgb(255 255 255 / .1); color:#f1f8f1; }
+.motion-shell > header .bg-white { background:#102724; }
+.motion-shell > header .text-\[\#58716b\] { color:#9bb3aa; }
+.motion-shell main { max-width:80rem; background:transparent; }
+.motion-shell main > * { position:relative; }

@@ -1,0 +1,10 @@
+{
+  "description": "Delivers a seamless, user-friendly experience with responsive design and intuitive navigation, enhancing usability across mobile and desktop platforms.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

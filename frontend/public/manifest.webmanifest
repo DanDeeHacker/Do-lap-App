@@ -1,0 +1,19 @@
+{
+  "name": "Došlap",
+  "short_name": "Došlap",
+  "description": "Běžecké riziko zranění — mechanika, zátěž a deník na jednom místě.",
+  "lang": "cs",
+  "start_url": "/app/today",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#071313",
+  "theme_color": "#071313",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "maskable" },
+    { "src": "/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ]
+}

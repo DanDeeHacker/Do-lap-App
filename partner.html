@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Došlap — partner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header id="ebar"></header>
+<div id="tbar"></div>
+<main class="page" id="view"></main>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetbody"></div></div>
+<div class="toast" id="toast"></div>
+<script src="core.js"></script>
+<script>
+(function(){
+const D=window.D;
+const {$,esc,H,api,toast,czk,fmtD,openSheet,QUAD,mean}=D;
+const SUB=390;
+let ME=null;
+const parid=()=>ME.partner_id;
+const P=()=>ME.profile;
+const KIND={shop:'prodejna',club:'klub',race:'pořadatel závodů'};
+
+async function refs(){
+  const p=P(), rs=await api.refs(p.id);
+  const subs=rs.filter(r=>r.status==='subscribed');
+  return `<div class="head fade"><div class="kicker">${esc(KIND[p.kind]||'partner')} · ${esc(p.city||'—')}</div>
+    <h1>${esc(p.name)}</h1>
+    <p>${p.kind==='shop'?'Běžec, který u vás dostal doporučení na obuv i vyšetření, se vrací k vám — ne na zahraniční e-shop. To je jediná věc, kterou vám online konkurence nemůže sebrat.':
+      p.kind==='club'?'Členové klubu, kteří se dostanou k vyšetření dřív než ke zranění, zůstávají v tréninku a v klubu. Odpadlictví po zranění je největší důvod, proč lidé z běhu odejdou.':
+      'Účastníci, kteří doběhnou zdraví, se přihlásí i příští rok. Odhlášky kvůli zranění jsou pro pořadatele tichá ztráta.'}</p></div>
+
+  <div class="grid g4 stagger" style="margin-bottom:20px">
+    <div class="card dark"><div class="lbl">Váš kód</div><div class="big" style="font-size:26px">${p.referral_code}</div>
+      <div class="sub">na účtence i na startovní kartě</div></div>
+    <div class="card"><div class="lbl">Doporučených</div><div class="big">${rs.length}</div></div>
+    <div class="card"><div class="lbl">Předplatné</div><div class="big">${subs.length}</div>
+      <div class="sub">${rs.length?Math.round(subs.length/rs.length*100):0} % konverze</div></div>
+    <div class="card tap lift" data-act="tab2" data-t="payout"><div class="lbl">Provize měsíčně</div>
+      <div class="big" style="font-size:27px">${czk(subs.length*SUB*p.commission_pct/100)}</div>
+      <div class="sub">rozklad výpočtu →</div></div>
+  </div>
+
+  <div class="card"><div class="lbl">Doporučení běžci</div>
+    <div class="sub">Vidíte jen to, jestli běžec platí. Zdravotní stav ani zranění vám systém neukáže.</div>
+    <div class="tw" style="margin-top:12px"><table>
+      <thead><tr><th>Č.</th><th>Běžec</th><th>Od</th><th>Stav</th><th>Měsíčně</th></tr></thead>
+      <tbody>${rs.length?rs.map(r=>`<tr>
+        <td class="mono">#${r.runner?.bib||'—'}</td><td>${esc(r.runner?.name||'—')}</td>
+        <td class="mono">${fmtD(r.created_at)}</td>
+        <td><span class="chip ${r.status==='subscribed'?'ok':'glass'}">${r.status==='subscribed'?'platí':'registrován'}</span></td>
+        <td class="mono">${r.status==='subscribed'?czk(SUB):'—'}</td></tr>`).join(''):
+        '<tr><td colspan="5"><div class="empty">Zatím žádná doporučení.</div></td></tr>'}
+      </tbody></table></div></div>`;
+}
+
+async function payout(){
+  const p=P(), rs=await api.refs(p.id);
+  const subs=rs.filter(r=>r.status==='subscribed');
+  const gross=subs.length*SUB, com=gross*p.commission_pct/100;
+  return `<div class="head fade"><div class="kicker">Provize</div>
+    <h1>${czk(com)} měsíčně</h1>
+    <p>Provize se počítá z běžícího předplatného, ne z jednorázového prokliku. Partner tak vydělává na tom, že běžec u služby zůstane — což je zájem obou stran.</p></div>
+  <div class="split-e">
+    <div class="card"><div class="lbl">Výpočet</div>
+      <div style="margin-top:14px">
+        ${[['Platící běžci',subs.length+'','z '+rs.length+' doporučených'],
+           ['Předplatné',czk(SUB),'měsíčně na běžce'],
+           ['Hrubý obrat',czk(gross),'z vašich doporučení'],
+           ['Vaše sazba',p.commission_pct+' %',p.kind==='shop'?'prodejny mají vyšší sazbu, protože nesou náklad na obsluhu':'nižší sazba, doporučení jde bez osobní obsluhy']]
+          .map(([k,v,d])=>`<div class="mrow"><div class="nm"><b>${k}</b><em>${esc(d)}</em></div>
+            <div class="vl"><b>${v}</b></div></div>`).join('')}
+        <div class="mrow" style="border-top:2px solid var(--navy-800);border-bottom:none;padding-top:14px">
+          <div class="nm"><b style="font-size:15px">K výplatě měsíčně</b></div>
+          <div class="vl"><b style="font-size:18px">${czk(com)}</b></div></div></div></div>
+    <div>
+      <div class="card"><div class="lbl">Kdy se provize zastaví</div>
+        <div class="sub" style="margin-top:10px">Když běžec předplatné zruší. Nic se nedoplácí zpětně a nic se nestrhává — jen přestane přibývat. Doporučení, které se nikdy nepřeklopí v předplatné, nevydělá nic, a to je záměr: cílem není počet prokliků, ale to, aby doporučení sedělo.</div></div>
+      <div class="card"><div class="lbl">Konverze v čase</div>
+        <div class="mid">${rs.length?Math.round(subs.length/rs.length*100):0} %</div>
+        <div class="meter"><i style="width:${rs.length?Math.round(subs.length/rs.length*100):0}%"></i></div>
+        <div class="sub">Konverze pod 30 % obvykle znamená, že se doporučuje plošně místo cíleně. Běžci, kterým nic není, službu po měsíci zruší.</div></div>
+    </div></div>`;
+}
+
+async function days(){
+  const p=P();
+  const dir=await api.directory(p.id);
+  const cityPrefix=(p.city||'').split(' ')[0];
+  const phys=cityPrefix?dir.physios.filter(x=>dir.clinics.find(c=>c.id===x.clinic_id)?.city?.startsWith(cityPrefix)):dir.physios;
+  const slots=[[10,'Sobota dopoledne','nejvyšší návštěvnost prodejny'],
+    [14,'Čtvrtek odpoledne','po tréninku klubu'],[21,'Sobota dopoledne','']];
+  return `<div class="head fade"><div class="kicker">Diagnostické dny</div>
+    <h1>Fyzioterapeut u vás na místě</h1>
+    <p>${p.kind==='shop'?'Analýza běhu přímo v prodejně. Zákazník si odnese doporučení na obuv, které vychází z jeho vlastních dat — a vy máte důvod, proč se má vrátit k vám a ne kliknout na e-shop.':
+      p.kind==='club'?'Vyšetření po společném tréninku. Členové nemusí nikam jezdit a klub získá službu, kterou jinde nedostanou.':
+      'Stánek v závodním centru. Kombinace s výdejem startovních čísel funguje nejlíp — lidé tam stejně stojí frontu.'}</p></div>
+  <div class="split-e">
+    <div class="card"><div class="lbl">Nejbližší termíny</div>
+      <div style="margin-top:12px">${slots.map(([d,t,note],i)=>`
+        <div class="mrow"><div class="nm"><b>${t}</b>
+          <em>${fmtD(D.dayAgo(-d))}${note?' · '+note:''}</em></div>
+          <div class="vl"><b>${phys[i%Math.max(phys.length,1)]?.name.split(' ').slice(-1)[0]||'—'}</b>
+            <span class="sub" style="margin:0">${8+i*2} slotů</span></div>
+          <button class="btn ghost sm" data-act="slot" data-t="${esc(t)}">Rezervovat</button></div>`).join('')}</div></div>
+    <div>
+      <div class="card"><div class="lbl">Jak se dělí tržba</div>
+        <div style="margin-top:12px">
+          ${[['Analýza běhu',czk(1490),'cena pro zákazníka'],
+             ['Fyzioterapeut','70 %','vlastní čas a odbornost'],
+             ['Partner','20 %','prostor, propagace, obsluha fronty'],
+             ['Platforma','10 %','objednávkový systém a vyhodnocení']]
+            .map(([k,v,d])=>`<div class="mrow"><div class="nm"><b>${k}</b><em>${esc(d)}</em></div>
+              <div class="vl"><b>${v}</b></div></div>`).join('')}</div></div>
+      <div class="card"><div class="lbl">Co z toho máte kromě podílu</div>
+        <div class="sub" style="margin-top:10px">${p.kind==='shop'?
+          'Data o tom, jaká zranění řeší vaši zákazníci. To je přímý vstup pro objednávky zboží — jestli u vás převažují problémy s Achillovkou, dává smysl skladem držet jiný sortiment než pro kohortu s koleny.':
+          'Přehled, jaké typy obtíží se v klubu opakují. Užitečné pro plánování společných tréninků a silových bloků.'}</div></div>
+    </div></div>`;
+}
+
+const V={refs,payout,days};
+async function render(){
+  const p=P();
+  const tab=D.renderChrome({entity:'partner',avatar:(p.referral_code||D.initials(p.name)||'PT').slice(0,2)});
+  $('#view').innerHTML=`<div class="grid g4">${'<div class="skel" style="height:130px"></div>'.repeat(4)}</div>
+    <div class="skel" style="height:260px;margin-top:16px"></div>`;
+  try{
+    $('#view').innerHTML=await (V[tab]||refs)();
+  }catch(err){
+    $('#view').innerHTML=D.errCard(err,'retry');
+  }
+}
+D.bindGlobal(render);
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  if(b.dataset.act==='retry'){render();return}
+  if(b.dataset.act==='tab2'){H.set({tab:b.dataset.t});return}
+  if(b.dataset.act==='slot'){toast(b.dataset.t+' — potvrzení přijde e-mailem','Rezervováno');return}
+});
+
+(async function boot(){
+  ME=await D.guard('partner');
+  if(!ME)return;
+  await D.loadSettings();
+  render();
+})();
+})();
+</script>
+</body>
+</html>

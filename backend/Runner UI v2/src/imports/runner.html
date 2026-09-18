@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Došlap — běžec</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header id="ebar"></header>
+<div id="tbar"></div>
+<main class="page" id="view"></main>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetbody"></div></div>
+<div class="toast" id="toast"></div>
+<script src="core.js"></script>
+<script src="bodymap.js"></script>
+<script>
+(function(){
+const D=window.D;
+const {$,esc,H,api,toast,sparkline,barchart,quadCard,signalRows,confCard,fmtD,fmtDT,
+  czk,sgn,initials,paceStr,dayAgo,iso,today,daysBetween,clamp,r1,FEEL_LABEL,PHASE,QUAD,TIER}=D;
+
+let ME=null;
+const rid=()=>ME.runner_id;
+const R=()=>DB.runners.find(r=>r.id===rid());
+const A=()=>DB.assessments.find(a=>a.runner_id===rid());
+
+/* natáhne vše, co tahle stránka potřebuje, jedním voláním a naplní window.DB
+   ve stejném tvaru, jaký dřív dodával demo generátor — zbytek stránky se
+   tak nemusí měnit, jen zdroj dat je teď skutečný backend */
+async function refreshDB(){
+  const b=await api.bootstrap(rid());
+  window.DB={...window.DB,
+    runners:[b.runner], assessments:b.assessment?[b.assessment]:[],
+    triage:b.triage?[b.triage]:[], checkins:b.checkins, activities:b.activities,
+    activity_feedback:b.activity_feedback, daily_metrics:b.daily_metrics,
+    bookings:b.bookings, programs:b.program?[b.program]:[],
+    exercises:b.program?.exercises||[], program_revisions:b.program?.revisions||[],
+    messages:b.messages, physios:Object.values(b.physios||{}), integration:b.integration,
+    device_history:b.device_history,
+    injury_reports:b.injury_reports||[], injury_prompt_due:b.injury_prompt_due,
+    conclusions:b.conclusions||[], rtr:b.rtr||null, reminders:b.reminders||[]};
+}
+
+/* ---------- tab: DNEŠEK ---------- */
+async function today_(){
+  const [r,a,bk,day]=await Promise.all([api.runner(rid()),api.assessment(rid()),
+    api.bookings(rid()),api.daily(rid(),1)]);
+  const tri=DB.triage.find(t=>t.runner_id===rid()&&t.status!=='closed');
+  const next=bk.find(b=>b.status==='confirmed');
+  const dtr=r.goal_date?daysBetween(iso(today()),r.goal_date):null;
+  const taper=a.signals.find(s=>s.id==='taper');
+  const L=a.loadDetail, d=day[0], rcv=a.rcv;
+  const unrated=DB.activities.filter(x=>x.runner_id===rid()&&x.started_at>dayAgo(14)&&
+    !DB.activity_feedback.some(f=>f.activity_id===x.id)).length;
+
+  return `<div class="head fade">
+    <div class="kicker">Dnešní přehled</div>
+    <h1>${esc(tri?tri.headline:'Trénink sedí, pokračujte podle plánu')}</h1>
+    <p>${a.quadrant==='silent'?'Vaše mechanika se posunula proti vlastní normě, i když objem nevzrostl a nic nebolí. Tohle je moment, kdy má vyšetření největší cenu.':
+      a.quadrant==='critical'?'Zátěž i technika se pohnuly naráz a hlásíte bolest. Prioritou je teď termín, ne trénink.':
+      a.quadrant==='overreaching'?'Objem vyskočil, ale technika drží. Obvykle stačí zařadit odlehčení, ne přerušit trénink.':
+      'Zátěž i mechanika sedí na vaší vlastní normě ve srovnatelných podmínkách.'}</p>
+    ${r.goal_race?`<div class="sub" style="margin-top:10px">Cíl: ${esc(r.goal_race)}${dtr!=null?` · za ${dtr} dní`:''}</div>`:''}
+    ${taper?`<div class="note warn" style="margin-top:12px">${esc(taper.detail)}</div>`:''}</div>
+
+  <div class="split stagger">
+    <div>
+      ${D.swipeCard([
+        `<div class="lbl">Objem za 7 dní</div><div class="big">${L.acute}<small>km</small></div>
+         <div class="sub">chronicky ${L.chronic} km · EWMA poměr ${L.valid?'×'+L.ratio:'—'}</div>
+         ${D.reveal(`<div class="sub">Poměr porovnává akutní zátěž s vaším vlastním chronickým průměrem. Pásmo 0,70–1,35 je orientační — hlídá se oba konce, protože prudký pokles nese riziko stejně jako skok.</div>
+           <div style="margin-top:10px">${barchart(L.weekly)}</div>`,'Jak se to počítá ▾')}`,
+        `<div class="lbl">Regenerace přes noc</div>
+         ${rcv?`<div style="margin-top:8px">${D.recoveryGauge(rcv.score,rcv.scoreLabel)}</div>`:'<div class="big">—</div><div class="sub">chybí data z hodinek</div>'}
+         ${rcv?D.reveal(`<div class="sub">Skládá se z HRV (${rcv.hrv.now} ms proti baseline ${rcv.hrv.base} ms), klidového tepu (${rcv.rhr.now} proti ${rcv.rhr.base}) a spánku (${rcv.sleep.now} h proti ${rcv.sleep.base} h). HRV i klidový tep reagují na nemoc, alkohol i stres v práci stejně jako na trénink — proto zátěžovou osu jen dolaďují, nikdy ji samy netvoří.</div>
+           <div style="margin-top:10px">${sparkline(rcv.hrv.series,rcv.hrv.z<=-1?'var(--watch)':'var(--navy-600)')}</div>`,'Z čeho se to skládá ▾'):''}`,
+        `<div class="lbl">Čeká na hodnocení</div>
+         <div class="big" style="color:${unrated?'var(--blue)':'var(--ink)'}">${unrated}</div>
+         <div class="sub">${unrated?'běhů bez zpětné vazby za 14 dní':'všechny běhy ohodnoceny'}</div>
+         <button class="btn ${unrated?'':'ghost'} sm" style="margin-top:12px" data-act="tabjump" data-t="post">
+           ${unrated?'Ohodnotit teď':'Zobrazit historii'}</button>`
+      ])}
+
+      <div class="card">
+        <div class="cardhead"><div><div class="lbl">Co dnes zvedá skóre</div>
+          <h3 style="margin-top:6px">${a.signals.length} signálů nad prahem</h3></div>
+          <span class="chip glass">engine ${a.engine}</span></div>
+        <div style="margin-top:8px">${signalRows(a,rid())}</div>
+        <div class="sub">Klepnutím se otevře vzorec, vaše konkrétní čísla a poctivé zhodnocení, jak silná je za tím evidence.</div>
+      </div>
+
+      <div class="card">
+        <div class="cardhead"><div class="lbl">Dnešní data z ${esc(r.device)}</div>
+          <span class="src ${d?.source==='manual'?'manual':''}">${d?.source==='manual'?'ručně opraveno':'z hodinek'}</span></div>
+        <div class="grid g4" style="margin-top:14px">
+          ${dailyTile('Spánek',d?.sleep_h,'h','sleep_h',d,rcv?.sleep.base)}
+          ${dailyTile('HRV',d?.hrv_ms,'ms','hrv_ms',d,rcv?.hrv.base)}
+          ${dailyTile('Klidový tep',d?.resting_hr,'','resting_hr',d,rcv?.rhr.base)}
+          ${dailyTile('Body battery',d?.body_battery,'','body_battery',d,null)}
+        </div>
+        ${d?.edit_note?`<div class="note" style="margin-top:14px">Vaše poznámka k opravě: „${esc(d.edit_note)}"</div>`:''}
+        <div class="sub">Hodinky spánek často nezachytí přesně. Klepněte na hodnotu a přepište ji — engine pak počítá s vaší verzí a poznamená si, že šlo o ruční korekci.</div>
+      </div>
+    </div>
+
+    <div>
+      ${quadCard(a,{tap:true})}
+      ${confCard(a.confidence)}
+      ${rtrCard()}
+      ${runnerConclusionCard()}
+      ${bookingCard()}
+      <div class="card">
+        <div class="lbl">Týdenní check-in</div>
+        <div class="sub">Jediný signál stupně A, který engine má. Biomechanika ho doplňuje, nenahrazuje.</div>
+        ${checkinForm()}
+      </div>
+      ${injuryCard(a)}
+    </div>
+  </div>`;
+}
+function dailyTile(label,val,unit,field,d,base){
+  if(val==null)return `<div><div class="lbl">${label}</div><div class="mid">—</div></div>`;
+  const off=base?r1(val-base):null;
+  return `<div class="tap" data-act="editdaily" data-field="${field}" data-date="${d.date}" data-val="${val}"
+    style="cursor:pointer;border-radius:12px;padding:4px;margin:-4px;transition:background .2s"
+    onmouseover="this.style.background='var(--glass-08)'" onmouseout="this.style.background=''">
+    <div class="lbl">${label}</div><div class="mid">${val}<small style="font-size:12px;font-weight:500;color:var(--muted)"> ${unit}</small></div>
+    ${base?`<div class="sub" style="margin-top:2px">norma ${base} ${unit}${off?` · ${sgn(off)}`:''}</div>`:''}</div>`;
+}
+function checkinForm(){
+  const ci=DB.checkins.filter(c=>c.runner_id===rid()).at(-1);
+  return `<form id="ck" style="margin-top:14px">
+    <label class="field"><span>Bolest při běhu <span class="lh">0 = žádná · 10 = musím přerušit</span></span>
+      <div class="rrow"><input type="range" name="pain_score" min="0" max="10" value="${ci?.pain_score??0}">
+      <span class="rval">${ci?.pain_score??0}</span></div></label>
+    <label class="field"><span>Kde to bolí</span>
+      <input type="text" name="pain_site" value="${esc(ci?.pain_site||'')}" placeholder="např. Achillova šlacha (P)"></label>
+    <label class="field"><span>Svalová únava po tréninku</span>
+      <div class="rrow"><input type="range" name="soreness" min="0" max="10" value="${ci?.soreness??3}">
+      <span class="rval">${ci?.soreness??3}</span></div></label>
+    <label class="field"><span>Stres mimo trénink <span class="lh">1 → 5</span></span>
+      <div class="rrow"><input type="range" name="stress" min="1" max="5" value="${ci?.stress??2}">
+      <span class="rval">${ci?.stress??2}</span></div></label>
+    <label class="field"><span>Poznámka pro fyzioterapeuta</span>
+      <textarea name="notes" placeholder="Nepovinné">${esc(ci?.notes||'')}</textarea></label>
+    <button class="btn" type="submit" style="width:100%">Odeslat a přepočítat</button></form>`;
+}
+
+/* OSTRC-H týdenní kontrola zdraví — jediný validovaný nástroj, kterým se
+   sbírá skutečný výsledek (zranil se / nezranil). Self-report je stupeň B;
+   autoritativní zdroj je závěr od fyzioterapeuta (stupeň A). */
+const OSTRC_Q=[
+  ['q_participation','Účast na tréninku a závodech',
+    [[0,'Plná účast bez obtíží'],[8,'Plná účast, ale s obtížemi'],[17,'Omezená účast'],[25,'Nemohl/a jsem se účastnit']]],
+  ['q_volume','Objem tréninku kvůli obtížím',
+    [[0,'Bez omezení'],[8,'Mírné omezení'],[17,'Střední omezení'],[25,'Velké nebo úplné omezení']]],
+  ['q_performance','Vliv obtíží na výkon',
+    [[0,'Bez vlivu'],[8,'Mírný vliv'],[17,'Střední vliv'],[25,'Velký vliv / nemohl/a jsem']]],
+  ['q_pain','Bolest související s obtížemi',
+    [[0,'Žádná'],[8,'Mírná'],[17,'Střední'],[25,'Silná']]],
+];
+const INJ_REGIONS=[['achilles','Achillova šlacha'],['calf','Lýtko'],['shin','Holeň'],['knee','Koleno'],
+  ['hamstring','Hamstring'],['quad','Kvadriceps'],['hip','Kyčel'],['glute','Hýždě'],['foot','Chodidlo'],
+  ['plantar','Plantární fascie'],['ankle','Kotník'],['itb','IT pás'],['groin','Tříslo'],['lowback','Bederní páteř']];
+
+function rtrCard(){
+  const p=DB.rtr;
+  if(!p)return '';
+  const cur=p.current, done=p.sessions.filter(s=>s.counted).length, tot=p.level_count*p.sessions_per_level;
+  const setback=p.sessions.at(-1)&&!p.sessions.at(-1).counted&&p.sessions.at(-1).pain>p.pain_threshold;
+  return `<div class="card" style="border-color:var(--navy-400)">
+    <div class="cardhead"><div class="lbl">Návrat k běhu</div>
+      <span class="chip glass">úroveň ${p.current_level}/${p.level_count}</span></div>
+    <div class="mid" style="font-size:19px;margin-top:6px">${esc(cur?cur.label:'—')}</div>
+    <div class="sub">Splněno ${p.cleared_at_current}/${p.sessions_per_level} sezení na této úrovni · bolest do ${p.pain_threshold}/10 posune dál. Celkem ${done}/${tot}.</div>
+    <div class="meter" style="margin-top:10px"><i style="width:${tot?Math.round(done/tot*100):0}%"></i></div>
+    ${setback?`<div class="note warn" style="margin-top:12px">Poslední sezení bolelo víc — úroveň zůstává. To je v pořádku, tělo dává vědět.</div>`:''}
+    <button class="btn ${'ghost'}" style="width:100%;margin-top:14px" data-act="rtrlog" data-id="${p.id}">Zaznamenat dnešní sezení</button>
+  </div>`;
+}
+function runnerConclusionCard(){
+  const c=(DB.conclusions||[])[0];
+  if(!c)return '';
+  return `<div class="card" style="border-color:var(--navy-400)">
+    <div class="cardhead"><div class="lbl">Závěr z prohlídky</div>
+      <span class="chip ok">${fmtD(c.approved_at)}</span></div>
+    ${c.finding?`<div style="font-weight:600;margin-top:6px">${esc(c.finding)}</div>`:''}
+    <div class="sub" style="white-space:pre-wrap;margin-top:8px">${esc(c.summary||'')}</div>
+    ${c.has_outcome?`<div class="note" style="margin-top:12px">Fyzioterapeut zaznamenal nález: ${esc(c.out_region||'')}${c.out_side==='P'?' vpravo':c.out_side==='L'?' vlevo':''}.</div>`:''}
+  </div>`;
+}
+/* ---------- objednání fyzioterapie (souhlas → výběr termínu → potvrzení) ---------- */
+const DOW=[['0','Po'],['1','Út'],['2','St'],['3','Čt'],['4','Pá']];
+const DAYPART=[['morning','Ráno'],['afternoon','Odpoledne'],['evening','Večer']];
+let slotFilter={dow:new Set(),part:new Set()};
+const slotDT=iso=>new Date(iso).toLocaleString('cs-CZ',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+function bookingCard(){
+  const r=R(),rem=DB.reminders||[];
+  const bk=(DB.bookings||[]).filter(b=>b.runner_id===rid());
+  const active=bk.filter(b=>b.status==='requested'||b.status==='confirmed');
+  const carePids=new Set([...bk.filter(b=>b.status==='confirmed').map(b=>b.physio_id),
+    ...(DB.programs||[]).filter(p=>p.active).map(p=>p.physio_id)].filter(Boolean));
+  const pn=pid=>DB.physios.find(p=>p.id===pid)?.name||'fyzioterapeut';
+  let h=`<div class="card"><div class="lbl">Fyzioterapie</div>`;
+  h+=rem.map(rm=>`<div class="note warn" style="margin-top:10px"><b>Zítra máte termín</b> · ${slotDT(rm.slot_at)}${rm.physio_name?' · '+esc(rm.physio_name):''}${rm.prep_info?`<div class="sub" style="margin-top:4px">${esc(rm.prep_info)}</div>`:''}</div>`).join('');
+  if(!r.physio_interest){
+    h+=`<div class="sub" style="margin-top:8px">Chcete probrat svá data s fyzioterapeutem? Nejdřív potvrďte zájem — teprve pak vás uvidí a nabídne termíny. Kdykoli to vezmete zpět.</div>
+      <button class="btn" style="width:100%;margin-top:14px" data-act="consent" data-v="1">Mám zájem o fyzioterapii</button>`;
+  }else{
+    h+=`<div class="sub" style="margin-top:8px">Zájem o fyzioterapii potvrzen ✓ <button class="btn ghost xs" data-act="consent" data-v="0" style="margin-left:6px">Zrušit zájem</button></div>
+      <button class="btn" style="width:100%;margin-top:12px" data-act="findslot">Najít termín</button>`;
+    if(active.length)h+=`<div class="divide"></div><div class="lbl">Vaše rezervace</div>${active.map(b=>`
+      <div class="mrow"><div class="nm"><b>${esc(pn(b.physio_id))}</b>
+        <em>${slotDT(b.slot_at)} · ${b.status==='requested'?'čeká na potvrzení fyzia':'potvrzeno'}</em></div>
+        <span class="chip ${b.status==='confirmed'?'ok':'watch'}">${b.status==='requested'?'čeká':'potvrzeno'}</span>
+        <button class="btn ghost sm" data-act="cancelbk" data-id="${b.id}">Zrušit</button></div>`).join('')}`;
+    if(carePids.size)h+=`<div class="divide"></div><div class="lbl">Spolupráce</div>
+      <div class="sub">Můžete kdykoli odvolat spolupráci — fyzio pak ztratí přístup k vašim datům.</div>
+      ${[...carePids].map(pid=>`<div class="mrow"><div class="nm"><b>${esc(pn(pid))}</b></div>
+        <button class="btn ghost sm" data-act="declinephysio" data-id="${pid}">Odvolat</button></div>`).join('')}`;
+  }
+  return h+`</div>`;
+}
+function slotSheet(){
+  return `<h2>Najít termín</h2>
+    <p class="sub">Vyberte, kdy se vám hodí — ukážeme fyzioterapeuty s volnými termíny. Termín potvrdí fyzio, pak vám přijde do kalendáře a den předem připomenutí.</p>
+    <div class="lbl">Dny</div>
+    <div class="filters" style="margin-top:8px">${DOW.map(([k,l])=>`<button class="fchip" data-act="fdow" data-k="${k}" aria-pressed="${slotFilter.dow.has(k)}">${l}</button>`).join('')}</div>
+    <div class="lbl" style="margin-top:12px">Část dne</div>
+    <div class="filters" style="margin-top:8px">${DAYPART.map(([k,l])=>`<button class="fchip" data-act="fpart" data-k="${k}" aria-pressed="${slotFilter.part.has(k)}">${l}</button>`).join('')}</div>
+    <div id="slotresults"></div>`;
+}
+async function loadSlotOptions(){
+  const host=document.getElementById('slotresults');
+  if(host)host.innerHTML='<div class="skel" style="height:90px;margin-top:16px"></div>';
+  try{
+    const opts=await api.bookingOptions([...slotFilter.dow].join(','),[...slotFilter.part].join(','));
+    if(document.getElementById('slotresults'))document.getElementById('slotresults').innerHTML=renderSlotOptions(opts);
+  }catch(err){const h=document.getElementById('slotresults');if(h)h.innerHTML=`<div class="empty" style="margin-top:16px">${esc(err.message||'Nepodařilo se načíst termíny.')}</div>`;}
+}
+function renderSlotOptions(opts){
+  if(!opts.length)return `<div class="empty" style="margin-top:16px">Žádné volné termíny pro tenhle filtr. Zkuste jiné dny nebo část dne.</div>`;
+  return `<div style="margin-top:16px">${opts.map(p=>`
+    <div class="card" style="margin-bottom:12px">
+      <div class="cardhead"><div><b style="font-weight:700">${esc(p.name)}</b>
+        <div class="sub" style="margin:0">${esc(p.clinic?.name||'')}${p.clinic?.city?' · '+esc(p.clinic.city):''} · ${p.years_exp||'—'} let praxe · ★ ${p.rating||'—'}</div></div>
+        ${p.price_czk?`<span class="chip glass">${czk(p.price_czk)}</span>`:''}</div>
+      ${p.bio?`<div class="sub" style="margin-top:8px">${esc(p.bio)}</div>`:''}
+      ${p.specialties&&p.specialties.length?`<div style="margin-top:8px">${p.specialties.map(s=>`<span class="chip glass" style="margin-right:6px">${esc(s)}</span>`).join('')}</div>`:''}
+      <div class="divide"></div><div class="lbl">Volné termíny</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">${p.slots.map(s=>`
+        <button class="btn ghost sm" data-act="pickslot" data-id="${s.id}">${slotDT(s.slot_at)}</button>`).join('')}</div>
+    </div>`).join('')}</div>`;
+}
+function injuryCard(a){
+  const active=a.injury&&a.injury.active;
+  const due=DB.injury_prompt_due;
+  const last=(DB.injury_reports||[])[0];
+  return `<div class="card"${due?' style="border-color:var(--navy-400)"':''}>
+    <div class="cardhead"><div class="lbl">Týdenní kontrola zdraví</div>
+      ${due?'<span class="chip watch">na řadě</span>':(last?`<span class="chip ok">${fmtD(last.submitted_at)}</span>`:'')}</div>
+    <div class="sub">Sbírá skutečný výsledek — jedinou věc, proti které jde engine časem kalibrovat. Vyplňte i týden, kdy vás nic nebolí; „bez obtíží" je stejně důležitý údaj.</div>
+    ${active?`<div class="note warn" style="margin-top:12px">Nahlášené zranění: <b>${esc(active.site)}</b> · OSTRC ${active.severity}/100${active.confirmed?' · potvrzeno fyzioterapeutem':''}<br>
+      <button class="btn ghost sm" style="margin-top:10px" data-act="injresolve">Označit jako zahojené</button></div>`:''}
+    <div class="btnrow" style="margin-top:14px">
+      <button class="btn ghost" data-act="injnone">Tento týden bez obtíží</button>
+    </div>
+    ${D.reveal(`<form id="inj" style="margin-top:6px">
+      ${OSTRC_Q.map(([name,label,opts])=>`<label class="field"><span>${label}</span>
+        <select class="f" name="${name}">${opts.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label>`).join('')}
+      <div class="grid g2">
+        <label class="field"><span>Kde</span>
+          <select class="f" name="body_region"><option value="">— vyberte —</option>
+            ${INJ_REGIONS.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label>
+        <label class="field"><span>Strana</span>
+          <select class="f" name="body_side"><option value="">—</option><option value="L">Levá</option><option value="P">Pravá</option></select></label>
+      </div>
+      <label class="field"><span>Poznámka</span><textarea name="note" placeholder="Nepovinné — kdy se to ozvalo, co to zhoršuje…"></textarea></label>
+      <button class="btn" type="submit" style="width:100%">Nahlásit obtíže</button>
+    </form>`,'Mám obtíže — nahlásit ▾')}
+  </div>`;
+}
+
+/* ---------- tab: PO TRÉNINKU ---------- */
+async function post(){
+  const [un,a]=await Promise.all([api.unrated(rid()),api.assessment(rid())]);
+  const fb=DB.activity_feedback.filter(f=>f.runner_id===rid())
+    .sort((x,y)=>y.submitted_at.localeCompare(x.submitted_at)).slice(0,10);
+  const open=H.get('rate');
+  const act=open?DB.activities.find(x=>x.id===Number(open)):null;
+
+  return `<div class="head fade"><div class="kicker">Zpětná vazba k běhům</div>
+    <h1>${un.length?`${un.length} běhů čeká na hodnocení`:'Všechny běhy máte ohodnocené'}</h1>
+    <p>Hodinky změří, jak jste běželi. Neřeknou, jak vám bylo. Právě vazba pocitu a bolesti na konkrétní typ běhu je to, co fyzioterapeut při vyšetření nejvíc potřebuje — a co z dat samotných nevyčte.</p></div>
+
+  ${act?rateForm(act):''}
+
+  <div class="split">
+    <div>
+      <div class="card">
+        <div class="lbl">Čeká na hodnocení</div>
+        ${un.length?`<div style="margin-top:6px">${un.map(x=>`
+          <div class="mrow tap" data-act="rate" data-id="${x.id}">
+            <div class="ico" style="background:var(--navy-50);color:var(--navy-600);font-family:var(--sans);font-size:11px">
+              ${x.surface==='trail'?'terén':x.surface==='treadmill'?'pás':'silnice'}</div>
+            <div class="nm"><b>${esc(x.title)} · ${x.distance_km} km</b>
+              <em>${fmtD(x.started_at)} · ${paceStr(x.pace_s_km)}/km · ${x.descent_m} m klesání · RPE ${x.rpe}</em></div>
+            <div class="arw">›</div></div>`).join('')}</div>`:
+          `<div class="empty" style="margin-top:12px">Nic nečeká. Další hodnocení se objeví po příštím běhu.</div>`}
+      </div>
+
+      <div class="card">
+        <div class="lbl">Poslední hodnocení</div>
+        ${fb.length?`<div class="tw" style="margin-top:12px"><table>
+          <thead><tr><th>Datum</th><th>Běh</th><th>Pocit</th><th>Nohy</th><th>Bolest</th><th>Místo</th></tr></thead>
+          <tbody>${fb.map(f=>{const ac=DB.activities.find(x=>x.id===f.activity_id);return `<tr>
+            <td class="mono">${fmtD(f.submitted_at)}</td>
+            <td>${esc(ac?.title||'—')} <span class="sub" style="margin:0">${ac?ac.distance_km+' km':''}</span></td>
+            <td>${FEEL_LABEL[f.feeling]}</td><td class="mono">${f.legs}/5</td>
+            <td class="mono" style="color:${f.pain_during>=4?'var(--alert)':'inherit'}">${f.pain_during}/10</td>
+            <td>${f.pain_points&&f.pain_points.length?
+              `<button class="btn ghost xs" data-act="showpts" data-id="${f.id}">${f.pain_points.length}× místo</button>`:
+              f.pain_site?`<span class="chip alert">${esc(f.pain_site)}</span>`:'—'}</td></tr>`}).join('')}
+          </tbody></table></div>`:'<div class="empty" style="margin-top:12px">Zatím žádná hodnocení.</div>'}
+      </div>
+    </div>
+    <div>
+      ${a.fb?`<div class="card">
+        <div class="lbl">Co z hodnocení vyplývá</div>
+        <div class="mid">${a.fb.feelingMean}/5</div>
+        <div class="sub">průměrný pocit za 21 dní · trend ${sgn(a.fb.feelingTrend)}</div>
+        <div class="divide"></div>
+        <div class="lbl">Hlášená bolest</div>
+        <div class="mid" style="color:${a.fb.niggleCount>=3?'var(--alert)':'var(--ink)'}">${a.fb.niggleCount}×</div>
+        <div class="sub">${a.fb.topSite?`nejčastěji ${esc(a.fb.topSite.site)} (${a.fb.topSite.n}×)`:'bez opakovaného místa'}</div>
+        ${a.fb.niggleCount>=3?`<div class="note warn" style="margin-top:14px">Opakované hlášení stejného místa je signál stupně A — silnější než jednorázová vysoká hodnota v týdenním check-inu, protože ukazuje vazbu na konkrétní typ zátěže.</div>`:''}
+      </div>`:`<div class="card"><div class="empty">Zatím málo hodnocení na to, aby z nich šel číst vzorec. Užitečné to začne být zhruba od čtvrtého.</div></div>`}
+      <div class="card">
+        <div class="lbl">Proč to vyplňovat</div>
+        <div class="sub" style="margin-top:10px">Bez hodnocení engine vidí jen to, že jste běželi 14 km v terénu. S hodnocením ví, že vás při tom bolela Achillovka a že se to stalo potřetí za tři týdny — a to už je věta, se kterou fyzioterapeut umí pracovat.</div>
+      </div>
+    </div>
+  </div>`;
+}
+function rateForm(x){
+  return `<div class="card fade" style="border-color:var(--navy-400);margin-bottom:16px">
+    <div class="cardhead"><div><div class="lbl">Hodnocení běhu</div>
+      <h3 style="margin-top:6px">${esc(x.title)} · ${x.distance_km} km · ${fmtD(x.started_at)}</h3>
+      <div class="sub">${paceStr(x.pace_s_km)}/km · ${x.surface==='trail'?'terén':x.surface==='treadmill'?'pás':'silnice'} · ${x.ascent_m} m nastoupáno · ${x.descent_m} m sklesáno · tep ${x.avg_hr}</div></div>
+      <button class="btn ghost sm" data-act="cancelrate">Zavřít</button></div>
+    <div class="divide"></div>
+    <form id="rate" data-id="${x.id}">
+      <div class="grid g2">
+        <div>
+          <label class="field"><span>Jak ztuhlé byly nohy PŘED tímto během <span class="lh">1 = uvolněné · 5 = velmi ztuhlé</span></span>
+            <div class="rrow"><input type="range" name="stiffness_pre" min="1" max="5" value="1">
+            <span class="rval">1</span></div></label>
+          <label class="field"><span>Jak vám bylo <span class="lh">celkový pocit z běhu</span></span>
+            <div class="rrow"><input type="range" name="feeling" min="1" max="5" value="3" data-label="feel">
+            <span class="rval" style="min-width:70px;font-size:13px">normální</span></div></label>
+          <label class="field"><span>Nohy <span class="lh">1 = těžké · 5 = svěží</span></span>
+            <div class="rrow"><input type="range" name="legs" min="1" max="5" value="3">
+            <span class="rval">3</span></div></label>
+          <label class="field"><span>Vnímaná námaha (RPE) <span class="lh">hodinky odhadly ${x.rpe}/10</span></span>
+            <div class="rrow"><input type="range" name="rpe" min="1" max="10" value="${x.rpe}">
+            <span class="rval">${x.rpe}</span></div></label>
+        </div>
+        <div>
+          <label class="field"><span>Bolest během běhu <span class="lh">0 = žádná</span></span>
+            <div class="rrow"><input type="range" name="pain_during" min="0" max="10" value="0">
+            <span class="rval">0</span></div></label>
+          <label class="field"><span>Poznámka k celému běhu</span>
+            <textarea name="note" placeholder="Kdy se to ozvalo, co to zhoršilo, co pomohlo…"></textarea></label>
+          <input type="hidden" name="pain_site" value="">
+        </div>
+      </div>
+      <div class="divide"></div>
+      <div class="lbl">Kde to bolelo</div>
+      <div class="sub">Klepněte na svalovou skupinu. Silueta rozliší levou a pravou stranu a ke každému bodu jde připsat charakter bolesti i poznámku — fyzioterapeut pak nehledá slovy, ale vidí místo.</div>
+      <div id="bodymap" style="margin-top:14px"></div>
+      <button class="btn" type="submit" style="width:100%;margin-top:18px">Uložit hodnocení</button>
+    </form></div>`;
+}
+
+/* ---------- tab: MECHANIKA ---------- */
+async function mech(){
+  const a=await api.assessment(rid());
+  const r=R();
+  if(a.confidence.value<0.6)return `<div class="head fade"><div class="kicker">Mechanika</div>
+    <h1>Baseline se zatím buduje</h1>
+    <p>Spolehlivost je ${Math.round(a.confidence.value*100)} % — ${a.confidence.sessions} tréninků ve srovnatelných podmínkách za 28 dní a ${a.confidence.days} dní historie. Než tohle číslo překročí 60 %, mechanické signály se nezobrazují, protože by šlo o dohady, ne o měření.</p></div>
+    ${confCard(a.confidence)}
+    <div class="card"><div class="lbl">Co pomůže nejrychleji</div>
+      <div class="sub" style="margin-top:10px">Opakovat podobné běhy — stejný povrch, podobné tempo. Baseline se počítá po skupinách povrch × sklon × tempo, takže osm rozdílných běhů dá míň než osm podobných.</div></div>`;
+
+  return `<div class="head fade"><div class="kicker">Mechanika · ${esc(r.device)}</div>
+    <h1>Jak se mění váš běh</h1>
+    <p>Všechno níž je porovnání s vaší vlastní normou ve stejném terénu a tempu. Populační průměry se nepoužívají — hodnoty se navíc liší mezi zařízeními, takže by neměly význam.</p></div>
+
+  <div class="grid g2 stagger">
+    ${a.tavr?card('Vertikální poměr','tavr',`${a.tavr.recMean} %`,
+      `baseline ${a.tavr.baseMean} % · z ${sgn(a.tavr.z)} · ${a.tavr.buckets} shodných profilů terénu`,
+      sparkline(a.tavr.series,a.tavr.z>=1?'var(--watch)':'var(--navy-600)'),a.tavr.z>=1?'B':'ok'):''}
+    ${a.gct?card('Kontakt se zemí','gct',`${a.gct.recMean} ms`,
+      `baseline ${a.gct.baseMean} ms · normalizováno na kadenci · z ${sgn(a.gct.z)}`,
+      sparkline(a.gct.series,a.gct.z>=1?'var(--watch)':'var(--navy-600)'),a.gct.z>=1?'B':'ok'):''}
+    ${a.bal?card('Symetrie kontaktu','bal',`${a.bal.now} %`,
+      `baseline ${a.bal.baseline} % · ${a.bal.direction}`,
+      sparkline(a.bal.series,a.bal.excursion>=0.8?'var(--watch)':'var(--navy-600)'),a.bal.excursion>=0.8?'B':'ok'):''}
+    ${a.dec?card('Rozpad techniky uvnitř běhu','dec',`${sgn(a.dec.latest)} %`,
+      `trend ${sgn(a.dec.trend)} na běh přes ${a.dec.n} srovnatelných dlouhých běhů`,
+      sparkline(a.dec.series,a.dec.trend>0.35?'var(--alert)':'var(--navy-600)'),a.dec.trend>0.35?'C':'ok'):''}
+  </div>
+
+  ${a.tavr?`<div class="card">
+    <div class="lbl">Rozpad podle profilu terénu</div>
+    <div class="sub">Kdyby se všechny běhy házely na jednu hromadu, trailový běh by vertikální poměr zvedl sám o sobě a signál by byl falešný.</div>
+    <div class="tw" style="margin-top:12px"><table>
+      <thead><tr><th>Profil</th><th>Baseline</th><th>Posledních 28 dní</th><th>z</th><th>Běhů (teď/baseline)</th></tr></thead>
+      <tbody>${a.tavr.detail.map(x=>`<tr><td>${esc(x.label)}</td><td class="mono">${x.base}</td>
+        <td class="mono">${x.now}</td>
+        <td class="mono" style="color:${x.z>=1?'var(--watch)':'inherit'};font-weight:600">${sgn(x.z)}</td>
+        <td class="mono">${x.nNow} / ${x.nBase}</td></tr>`).join('')}</tbody></table></div>
+  </div>`:''}
+
+  <div class="card">
+    <div class="lbl">Poslední běhy s dynamikou</div>
+    <div class="tw" style="margin-top:12px"><table>
+      <thead><tr><th>Datum</th><th>Běh</th><th>Km</th><th>Tempo</th><th>Kadence</th><th>VR</th><th>GCT</th><th>Balance</th></tr></thead>
+      <tbody>${DB.activities.filter(x=>x.runner_id===rid())
+        .sort((x,y)=>y.started_at.localeCompare(x.started_at)).slice(0,12).map(x=>`<tr>
+        <td class="mono">${fmtD(x.started_at)}</td><td>${esc(x.title)}</td>
+        <td class="mono">${x.distance_km}</td><td class="mono">${paceStr(x.pace_s_km)}</td>
+        <td class="mono">${x.cadence_spm}</td><td class="mono">${x.vert_ratio_pct}</td>
+        <td class="mono">${x.gct_ms}</td><td class="mono">${x.gct_balance_l}</td></tr>`).join('')}
+      </tbody></table></div>
+  </div>`;
+}
+function card(title,id,val,sub,chart,grade){
+  return `<div class="card tap lift" data-act="sig" data-id="${id}" data-runner="${rid()}">
+    <div class="cardhead"><div class="lbl">${esc(title)}</div>
+      ${grade!=='ok'?`<span class="chip grade watch">${grade}</span>`:`<span class="chip ok">v normě</span>`}</div>
+    <div class="mid">${val}</div><div class="sub">${sub}</div>
+    <div style="margin-top:12px">${chart}</div>
+    <div class="sub" style="color:var(--navy-600);font-weight:600">Otevřít vzorec a evidenci →</div></div>`;
+}
+
+/* ---------- tab: ZÁTĚŽ ---------- */
+async function load_(){
+  const [a,dm]=await Promise.all([api.assessment(rid()),api.daily(rid(),14)]);
+  const L=a.loadDetail, rcv=a.rcv;
+  return `<div class="head fade"><div class="kicker">Zátěž a regenerace</div>
+    <h1>Kolik toho unesete a jak se z toho dostáváte</h1>
+    <p>Objem sám o sobě nestačí. Monotónnost, sbíhání a to, jestli se přes noc dostanete zpátky, mění tolerovatelnou dávku víc než celkové kilometry.</p></div>
+
+  <div class="grid g4 stagger" style="margin-bottom:16px">
+    <div class="card dark"><div class="lbl">7 dní</div><div class="big">${L.acute}<small>km</small></div>
+      <div class="sub">chronicky ${L.chronic} km</div></div>
+    <div class="card tap lift" data-act="sig" data-id="ewma" data-runner="${rid()}"><div class="lbl">EWMA poměr</div>
+      <div class="big" style="color:${L.valid&&(L.ratio>1.35||L.ratio<0.7)?'var(--watch)':'var(--ink)'}">${L.valid?'×'+L.ratio:'—'}</div>
+      <div class="sub">${L.valid?'hlídáme oba konce':'chronická zátěž pod 15 km'}</div></div>
+    <div class="card tap lift" data-act="sig" data-id="mono" data-runner="${rid()}"><div class="lbl">Monotónnost</div>
+      <div class="big" style="color:${L.monotony>2.4?'var(--watch)':'var(--ink)'}">${L.monotony}</div>
+      <div class="sub">strain ${L.strain}</div></div>
+    <div class="card tap lift" data-act="sig" data-id="desc" data-runner="${rid()}"><div class="lbl">Klesání za 7 dní</div>
+      <div class="big">${L.descent7}<small>m</small></div>
+      <div class="sub">obvykle ${L.descentBase} m${L.descentSpike?` · ×${L.descentSpike}`:''}</div></div>
+  </div>
+
+  <div class="split">
+    <div>
+      <div class="card"><div class="lbl">Týdenní objem, 12 týdnů</div>${barchart(L.weekly)}
+        <div class="sub">Poslední sloupec je aktuální týden.</div></div>
+      <div class="card"><div class="lbl">Denní objem, 28 dní</div>${barchart(L.daily)}
+        <div class="sub">Mezery jsou dny volna. Právě jejich absence zvedá monotónnost.</div></div>
+
+      <div class="card tap lift" data-act="sig" data-id="desc_steep" data-runner="${rid()}">
+        <div class="lbl">Klesání za 7 dní podle sklonu</div>
+        ${D.gradientChart(a.gradientDescent)}</div>
+
+      <div class="card">
+        <div class="cardhead"><div class="lbl">Data z hodinek · 14 dní</div>
+          <span class="chip glass">${dm.filter(d=>d.source==='manual').length} ručně opraveno</span></div>
+        <div class="sub">Klepněte na hodnotu a přepište ji, pokud hodinky měřily špatně. Engine pak počítá s vaší verzí.</div>
+        <div class="tw" style="margin-top:12px"><table>
+          <thead><tr><th>Datum</th><th>Spánek</th><th>HRV</th><th>Klidový tep</th><th>Body battery</th><th>Zdroj</th></tr></thead>
+          <tbody>${dm.map(d=>`<tr>
+            <td class="mono">${fmtD(d.date)}</td>
+            <td><button class="btn xs ghost" data-act="editdaily" data-field="sleep_h" data-date="${d.date}" data-val="${d.sleep_h}">${d.sleep_h} h</button>
+              ${d.original_sleep_h!=null?`<span class="sub" style="margin:0"> místo ${d.original_sleep_h}</span>`:''}</td>
+            <td><button class="btn xs ghost" data-act="editdaily" data-field="hrv_ms" data-date="${d.date}" data-val="${d.hrv_ms}">${d.hrv_ms} ms</button></td>
+            <td><button class="btn xs ghost" data-act="editdaily" data-field="resting_hr" data-date="${d.date}" data-val="${d.resting_hr}">${d.resting_hr}</button></td>
+            <td class="mono">${d.body_battery}</td>
+            <td><span class="src ${d.source==='manual'?'manual':''}">${d.source==='manual'?'ručně':'hodinky'}</span></td></tr>`).join('')}
+          </tbody></table></div>
+      </div>
+    </div>
+    <div>
+      ${rcv?`<div class="card tap lift" data-act="sig" data-id="hrv" data-runner="${rid()}">
+        <div class="lbl">HRV za 7 dní</div><div class="mid">${rcv.hrv.now}<small style="font-size:13px"> ms</small></div>
+        <div class="sub">baseline ${rcv.hrv.base} ms · z ${sgn(rcv.hrv.z)}</div>
+        <div style="margin-top:10px">${sparkline(rcv.hrv.series,rcv.hrv.z<=-1?'var(--watch)':'var(--navy-600)')}</div></div>
+      <div class="card tap lift" data-act="sig" data-id="rhr" data-runner="${rid()}">
+        <div class="lbl">Klidový tep</div><div class="mid">${rcv.rhr.now}</div>
+        <div class="sub">baseline ${rcv.rhr.base} · z ${sgn(rcv.rhr.z)}</div>
+        <div style="margin-top:10px">${sparkline(rcv.rhr.series,rcv.rhr.z>=1.2?'var(--watch)':'var(--navy-600)')}</div></div>
+      <div class="card tap lift" data-act="sig" data-id="sleep" data-runner="${rid()}">
+        <div class="lbl">Spánek</div><div class="mid">${rcv.sleep.now}<small style="font-size:13px"> h</small></div>
+        <div class="sub">obvykle ${rcv.sleep.base} h${rcv.sleep.debt>0?` · dluh ${rcv.sleep.debt} h/týden`:''}</div>
+        <div style="margin-top:10px">${sparkline(rcv.sleep.series,rcv.sleep.debt>=4?'var(--watch)':'var(--navy-600)')}</div></div>`:
+      `<div class="card"><div class="empty">Chybí souvislá data z hodinek za posledních 35 dní.</div></div>`}
+      ${a.aer?`<div class="card tap lift" data-act="sig" data-id="aer" data-runner="${rid()}">
+        <div class="lbl">Aerobní decoupling</div><div class="mid">${a.aer.mean} %</div>
+        <div class="sub">tep proti tempu, druhá půle běhu</div></div>`:''}
+    </div>
+  </div>`;
+}
+
+/* ---------- tab: PROGRAM ---------- */
+async function program(){
+  const p=await api.program(rid());
+  if(!p)return `<div class="head fade"><div class="kicker">Program</div>
+    <h1>Zatím vám nikdo program neposlal</h1>
+    <p>Program vzniká na straně fyzioterapeuta poté, co převezme váš případ. Objeví se tady i s pokyny u jednotlivých cviků.</p></div>
+    <div class="card"><div class="empty">Žádný aktivní program.</div></div>`;
+  const adh=p.exercises.length?Math.round(D.mean(p.exercises.map(e=>e.done_count/e.target_count))*100):0;
+  return `<div class="head fade"><div class="kicker">${esc(PHASE[p.phase])} · ${p.weeks} týdny</div>
+    <h1>${esc(p.name)}</h1>
+    <p>Vede ${esc(DB.physios.find(x=>x.id===p.physio_id)?.name||'—')}. Odesláno ${fmtD(p.sent_at||p.started_on)}. Když vám cvik dělá problémy, napište to do zpráv — program se dá upravit i po odeslání.</p></div>
+
+  <div class="split">
+    <div>
+      <div class="card">
+        <div class="cardhead"><div class="lbl">Cviky</div><span class="chip ${adh>=60?'ok':'watch'}">${adh} % splněno</span></div>
+        <div style="margin-top:8px">${p.exercises.map(e=>`
+          <div class="mrow">
+            <div class="nm"><b>${esc(e.name)}</b>
+              <em>${esc(e.dose)} · ${e.per_week}× týdně — ${esc(e.cue)}</em>
+              <div class="meter"><i style="width:${Math.round(e.done_count/e.target_count*100)}%"></i></div></div>
+            <div class="vl"><b>${e.done_count}/${e.target_count}</b></div>
+            <button class="btn ghost sm" data-act="logex" data-id="${e.id}">Hotovo</button></div>`).join('')}</div>
+      </div>
+      ${p.revisions.length?`<div class="card">
+        <div class="lbl">Změny v programu</div>
+        <div class="sub">Fyzioterapeut program upravil po odeslání. Tady vidíte co a proč.</div>
+        <div style="margin-top:12px">${p.revisions.slice().reverse().map(rv=>`
+          <div class="mrow"><div class="nm"><b>${fmtD(rv.at)}</b><em>${esc(rv.note)}</em>
+            ${rv.changes.map(c=>`<div class="chip glass" style="margin-top:6px">${esc(c)}</div>`).join(' ')}</div></div>`).join('')}</div>
+      </div>`:''}
+    </div>
+    <div>
+      <div class="card"><div class="lbl">Jak to funguje</div>
+        <div class="sub" style="margin-top:10px">Cíl je dvanáct opakování každého cviku za čtyři týdny. Když se cvik nedaří nebo provokuje bolest nad 3/10, není to důvod ho zatnout zuby dodělat — je to informace pro fyzioterapeuta.</div>
+        <button class="btn ghost" style="width:100%;margin-top:14px" data-act="tabjump" data-t="msgs">Napsat fyzioterapeutovi</button></div>
+    </div>
+  </div>`;
+}
+
+/* ---------- tab: ZPRÁVY ---------- */
+async function msgs(){
+  const ms=await api.messages(rid());
+  const p=DB.programs.find(x=>x.runner_id===rid()&&x.active);
+  return `<div class="head fade"><div class="kicker">Zprávy</div>
+    <h1>${p?esc(DB.physios.find(x=>x.id===p.physio_id)?.name||'Fyzioterapeut'):'Zatím bez fyzioterapeuta'}</h1>
+    <p>${p?'Píšete přímo tomu, kdo vede váš program. Změny v dávkování řešte tady, ne tím, že cvik vynecháte.':'Zprávy se otevřou, jakmile váš případ někdo převezme.'}</p></div>
+  <div class="card" style="max-width:760px">
+    <div style="max-height:52vh;overflow-y:auto;padding-right:4px">
+      ${ms.length?ms.map(m=>`<div class="msg ${m.sender}">${esc(m.body)}
+        <span class="t">${fmtDT(m.created_at)}</span></div>`).join(''):
+        '<div class="empty">Zatím žádné zprávy.</div>'}</div>
+    <form id="mf" style="display:flex;gap:8px;margin-top:16px">
+      <input type="text" name="body" placeholder="Napsat zprávu…" required>
+      <button class="btn" type="submit">Odeslat</button></form>
+  </div>`;
+}
+
+/* ---------- router ---------- */
+const VIEWS={today:today_,post,mech,load:load_,program,msgs};
+async function render(){
+  try{await refreshDB()}catch(err){
+    D.renderChrome({entity:'runner',avatar:initials(ME.name)});
+    $('#view').innerHTML=D.errCard(err,'retry');
+    return;
+  }
+  const r=R();
+  const unrated=DB.activities.filter(x=>x.runner_id===rid()&&x.started_at>dayAgo(14)&&
+    !DB.activity_feedback.some(f=>f.activity_id===x.id)).length;
+  const a=A();
+  D.CURRENT_ASSESSMENT=a;
+  const badges={};
+  if(unrated)badges.post={n:unrated,tone:'blue'};
+  if(a&&a.signals.length)badges.today={n:a.signals.length,tone:a.tier==='alert'?'hot':''};
+  const tab=D.renderChrome({entity:'runner',badges,avatar:initials(r.name)});
+  $('#view').innerHTML=`<div class="grid g3">${'<div class="skel" style="height:140px"></div>'.repeat(3)}</div>
+    <div class="skel" style="height:300px;margin-top:16px"></div>`;
+  try{
+    $('#view').innerHTML=await (VIEWS[tab]||today_)();
+  }catch(err){
+    $('#view').innerHTML=D.errCard(err,'retry');
+    return;
+  }
+  const bmHost=$('#bodymap');
+  if(bmHost)window._bm=D.BodyMap(bmHost,{points:[],onChange:()=>{}});
+  const viewHost=$('#bodymapview');
+  if(viewHost){
+    const pts=JSON.parse(viewHost.dataset.points||'[]');
+    if(pts.length)D.BodyMapView(viewHost,pts);
+  }
+}
+
+/* ---------- events ---------- */
+D.bindGlobal(render);
+document.addEventListener('click',e=>{if(e.target.closest('[data-act="retry"]'))render()});
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  const act=b.dataset.act;
+  if(act==='tabjump'){H.set({tab:b.dataset.t});return}
+  if(act==='rate'){H.set({tab:'post',rate:b.dataset.id});return}
+  if(act==='cancelrate'){H.set({rate:''});return}
+  if(act==='showpts'){
+    const f=DB.activity_feedback.find(x=>x.id===Number(b.dataset.id));
+    const ac=DB.activities.find(x=>x.id===f.activity_id);
+    D.openSheet(`<h2>${esc(ac?.title||'Běh')} · ${fmtD(f.submitted_at)}</h2>
+      <p class="sub">${f.pain_points.length} označených míst · bolest ${f.pain_during}/10</p>
+      <div id="ptsview" style="margin-top:14px"></div>
+      <div style="margin-top:14px">${f.pain_points.map(p=>`
+        <div class="fld"><div><b style="font-weight:600">${esc(p.region)}${p.side==='P'?' vpravo':p.side==='L'?' vlevo':''}</b>
+          <div class="sub" style="margin:0">${p.severity}/10${p.type?' · '+esc(p.type):''}${p.when?' · '+esc(p.when):''}</div>
+          ${p.note?`<div class="sub" style="margin-top:4px">„${esc(p.note)}"</div>`:''}</div></div>`).join('')}</div>
+      <button class="btn ghost" style="margin-top:18px;width:100%" data-act="close">Zavřít</button>`);
+    setTimeout(()=>{const h=document.getElementById('ptsview');if(h)D.BodyMapView(h,f.pain_points)},30);
+    return}
+  if(act==='book'){
+    const t=DB.triage.find(x=>x.runner_id===rid()&&x.status!=='closed');
+    if(!t?.claimed_by){
+      toast('Případ zatím nemá přiděleného fyzioterapeuta — objeví se ve frontě triáže a termín půjde vybrat, jakmile ho někdo převezme.','Zatím nelze objednat');
+      return}
+    b.disabled=true;b.textContent='Objednávám…';
+    try{
+      const bk=await api.book(rid(),t.claimed_by,'gait_analysis',t.decision==='physio_48h'?2:6);
+      toast(new Date(bk.slot_at).toLocaleDateString('cs-CZ',{weekday:'long',day:'numeric',month:'long'}),'Objednáno');
+    }catch(err){toast(err.message||'Objednání selhalo','Chyba')}
+    return render()}
+  if(act==='logex'){await api.logEx(Number(b.dataset.id));return render()}
+  if(act==='injnone'){b.disabled=true;
+    try{await api.reportInjury(rid(),{kind:'weekly'});toast('Zaznamenáno — díky za vyplnění','Bez obtíží')}
+    catch(err){toast(err.message||'Nepodařilo se uložit','Chyba')}
+    return render()}
+  if(act==='injresolve'){b.disabled=true;b.textContent='Ukládám…';
+    try{await api.reportInjury(rid(),{resolve:true});toast('Označeno jako zahojené','Hotovo')}
+    catch(err){toast(err.message||'Nepodařilo se uložit','Chyba')}
+    return render()}
+  if(act==='consent'){b.disabled=true;
+    try{await api.setInterest(rid(),b.dataset.v==='1');
+      toast(b.dataset.v==='1'?'Zájem potvrzen — teď si můžete vybrat termín':'Zájem zrušen','Hotovo')}
+    catch(err){toast(err.message||'Nepodařilo se uložit','Chyba')}
+    return render()}
+  if(act==='findslot'){D.openSheet(slotSheet());loadSlotOptions();return}
+  if(act==='fdow'){const k=b.dataset.k;slotFilter.dow.has(k)?slotFilter.dow.delete(k):slotFilter.dow.add(k);
+    D.openSheet(slotSheet());loadSlotOptions();return}
+  if(act==='fpart'){const k=b.dataset.k;slotFilter.part.has(k)?slotFilter.part.delete(k):slotFilter.part.add(k);
+    D.openSheet(slotSheet());loadSlotOptions();return}
+  if(act==='pickslot'){b.disabled=true;b.textContent='Odesílám…';
+    try{await api.requestSlot(Number(b.dataset.id));D.closeSheet();
+      toast('Požádáno — čeká na potvrzení fyzioterapeuta','Rezervace');return render()}
+    catch(err){b.disabled=false;toast(err.message||'Termín se nepodařilo rezervovat','Chyba')}
+    return}
+  if(act==='cancelbk'){b.disabled=true;
+    try{await api.cancelBooking(rid(),Number(b.dataset.id));toast('Rezervace zrušena','Hotovo')}
+    catch(err){toast(err.message||'Nepodařilo se zrušit','Chyba')}
+    return render()}
+  if(act==='declinephysio'){b.disabled=true;
+    try{await api.declinePhysio(rid(),b.dataset.id);toast('Spolupráce odvolána — fyzio ztratil přístup k datům','Hotovo')}
+    catch(err){toast(err.message||'Nepodařilo se odvolat','Chyba')}
+    return render()}
+  if(act==='rtrlog'){
+    const p=DB.rtr;const cur=p?.current;
+    D.openSheet(`<h2>Sezení návratu k běhu</h2>
+      <p class="sub">Úroveň ${p?.current_level}: <b>${esc(cur?cur.label:'')}</b>. Zaznamenejte, jak vám bylo — bolest do ${p?.pain_threshold}/10 vás posune dál.</p>
+      <form id="rtrform" data-id="${b.dataset.id}">
+        <label class="field"><span>Dokončil/a jsem sezení</span>
+          <div class="rrow"><input type="checkbox" name="completed" checked><span class="sub" style="margin:0">odškrtněte, pokud jste musel/a přerušit</span></div></label>
+        <label class="field"><span>Bolest během sezení <span class="lh">0 = žádná · 10 = musím přerušit</span></span>
+          <div class="rrow"><input type="range" name="pain" min="0" max="10" value="0"><span class="rval">0</span></div></label>
+        <label class="field"><span>Vnímaná námaha (RPE) <span class="lh">1 → 10</span></span>
+          <div class="rrow"><input type="range" name="rpe" min="1" max="10" value="4"><span class="rval">4</span></div></label>
+        <label class="field"><span>Poznámka</span><textarea name="note" placeholder="Nepovinné"></textarea></label>
+        <div class="btnrow"><button class="btn" type="submit">Uložit sezení</button>
+        <button class="btn ghost" type="button" data-act="close">Zrušit</button></div></form>`);
+    return}
+  if(act==='editdaily'){
+    const {field,date,val}=b.dataset;
+    const LBL={sleep_h:['Spánek','h'],hrv_ms:['HRV','ms'],resting_hr:['Klidový tep','tep/min'],body_battery:['Body battery','']};
+    const [lab,unit]=LBL[field];
+    D.openSheet(`<h2>Opravit: ${lab}</h2>
+      <p class="sub">${fmtD(date)} · hodinky naměřily ${val} ${unit}. ${field==='sleep_h'?'Měření spánku je z hodinek nejméně spolehlivé — nezachytí usnutí, probuzení ani noční kojení.':'Přepište, pokud víte, že měření bylo ovlivněné.'}</p>
+      <form id="edform" data-field="${field}" data-date="${date}">
+        <label class="field"><span>Skutečná hodnota (${unit||'—'})</span>
+          <input type="number" step="0.1" name="value" value="${val}" required></label>
+        <label class="field"><span>Proč opravujete <span class="lh">uvidí to fyzioterapeut</span></span>
+          <input type="text" name="note" placeholder="např. hodinky nezachytily usnutí"></label>
+        <div class="btnrow"><button class="btn" type="submit">Uložit a přepočítat</button>
+        <button class="btn ghost" type="button" data-act="close">Zrušit</button></div></form>`);
+    return}
+});
+document.addEventListener('submit',async e=>{
+  e.preventDefault();const f=e.target;
+  if(f.id==='ck'){const d=Object.fromEntries(new FormData(f));
+    const btn=f.querySelector('button');btn.disabled=true;btn.textContent='Počítám…';
+    try{
+      const a=await api.checkin(rid(),{pain_score:+d.pain_score,pain_site:d.pain_site||null,
+        soreness:+d.soreness,stress:+d.stress,notes:d.notes||null});
+      toast(`${a.overall}/100 · ${QUAD[a.quadrant].t}`,'Přepočítáno');return render()
+    }catch(err){btn.disabled=false;btn.textContent='Odeslat a přepočítat';toast(err.message||'Nepodařilo se uložit','Chyba')}
+    return}
+  if(f.id==='rtrform'){const d=Object.fromEntries(new FormData(f));
+    const btn=f.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='Ukládám…';
+    try{
+      const p=await api.logRtrSession(Number(f.dataset.id),
+        {pain:+d.pain,rpe:+d.rpe,completed:d.completed==='on',note:d.note||null});
+      D.closeSheet();
+      toast(p.status==='completed'?'Návrat k běhu dokončen! 🎉':
+        `Úroveň ${p.current_level}/${p.level_count} · ${p.remaining_at_current} sezení do posunu`,'Uloženo');
+      return render()
+    }catch(err){btn.disabled=false;btn.textContent='Uložit sezení';toast(err.message||'Nepodařilo se uložit','Chyba')}
+    return}
+  if(f.id==='inj'){const d=Object.fromEntries(new FormData(f));
+    const btn=f.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='Odesílám…';
+    try{
+      const a=await api.reportInjury(rid(),{kind:'adhoc',
+        q_participation:+d.q_participation,q_volume:+d.q_volume,
+        q_performance:+d.q_performance,q_pain:+d.q_pain,
+        body_region:d.body_region||null,body_side:d.body_side||null,note:d.note||null});
+      toast(a.injury&&a.injury.active?`OSTRC ${a.injury.active.severity}/100 zaznamenáno`:'Zaznamenáno','Nahlášeno');
+      return render()
+    }catch(err){btn.disabled=false;btn.textContent='Nahlásit obtíže';toast(err.message||'Nepodařilo se uložit','Chyba')}
+    return}
+  if(f.id==='rate'){const d=Object.fromEntries(new FormData(f));
+    const btn=f.querySelector('button[type=submit]');btn.disabled=true;btn.textContent='Ukládám…';
+    const pts=(window._bm?.points)||[];
+    const worst=pts.slice().sort((x,y)=>y.severity-x.severity)[0];
+    const pain=worst?Math.max(+d.pain_during,worst.severity):+d.pain_during;
+    try{
+      await api.rateActivity(rid(),Number(f.dataset.id),{feeling:+d.feeling,legs:+d.legs,rpe:+d.rpe,
+        stiffness_pre:+d.stiffness_pre,
+        pain_during:pain,pain_site:worst?`${worst.region}${worst.side==='P'?' (P)':worst.side==='L'?' (L)':''}`:null,
+        pain_points:pts,niggle:pain>=2,note:d.note||null});
+      toast(pts.length?`${pts.length} míst označeno · bolest ${pain}/10`:'Díky, uloženo','Hodnocení');
+      H.set({rate:''});return render()
+    }catch(err){btn.disabled=false;btn.textContent='Uložit hodnocení';toast(err.message||'Nepodařilo se uložit','Chyba')}
+    return}
+  if(f.id==='edform'){const d=Object.fromEntries(new FormData(f));
+    const btn=f.querySelector('button[type=submit]');
+    try{
+      await api.editDaily(rid(),f.dataset.date,{[f.dataset.field]:+d.value},d.note||null);
+      D.closeSheet();toast('Hodnota přepsána, skóre přepočítáno','Uloženo');return render()
+    }catch(err){toast(err.message||'Nepodařilo se uložit','Chyba')}
+    return}
+  if(f.id==='mf'){const bodyText=new FormData(f).get('body').trim();if(!bodyText)return;
+    f.body.value='';
+    try{await api.send(rid(),'runner',bodyText);return render()}
+    catch(err){toast(err.message||'Zpráva se neodeslala','Chyba')}
+    return}
+});
+
+(async function boot(){
+  ME=await D.guard('runner');
+  if(!ME)return;
+  await D.loadSettings();
+  render();
+})();
+})();
+</script>
+</body>
+</html>

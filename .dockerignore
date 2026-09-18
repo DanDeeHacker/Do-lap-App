@@ -1,0 +1,29 @@
+# Keep the build context small & the image clean.
+.git
+.vscode
+.claude
+
+# Python
+backend/.venv_posix
+backend/__pycache__
+**/__pycache__
+*.pyc
+backend/dosslap.db
+backend/**/dosslap.db
+
+# Node (rebuilt in the image)
+frontend/node_modules
+frontend/dist
+
+# Bundled Garmin source (we install garminconnect from PyPI via requirements)
+python-garminconnect-master
+
+# Legacy vanilla site + docs/artifacts not needed at runtime
+*.xlsx
+~$*.xlsx
+DOSLAP_*.pdf
+DOSLAP_*.md
+README.md
+
+# Local Excel lock files
+~$*

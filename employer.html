@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Došlap — zaměstnavatel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header id="ebar"></header>
+<div id="tbar"></div>
+<main class="page" id="view"></main>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetbody"></div></div>
+<div class="toast" id="toast"></div>
+<script src="core.js"></script>
+<script>
+(function(){
+const D=window.D;
+const {$,esc,H,api,toast,czk,sgn,fmtD,QUAD,TIER,clamp,openSheet}=D;
+let ME=null;
+const MIN_COHORT=8;
+/* Backend now pre-aggregates everything server-side (see
+   backend/app/routers/employers.py) — it never returns a per-runner row,
+   only counts, so no tab here can reconstruct an individual even by
+   combining filters. `n` under 3 in any single bucket comes back as the
+   string "≤2", not an exact count, for the same reason. */
+let COHORT=null;
+async function loadCohort(){COHORT=await api.cohort(ME.employer_id);return COHORT}
+
+/* ---------- KOHORTA ---------- */
+async function cohort(){
+  const c=COHORT;
+  if(c.blocked)return blocked(c);
+  const e=c.employer;
+  const occ=e.seats?Math.round(c.n/e.seats*100):null;
+  const dist=[['ok',c.byTier.ok],['watch',c.byTier.watch],['alert',c.byTier.alert]];
+  const distTotal=dist.reduce((s,[,v])=>s+(typeof v==='number'?v:2),0)||1;
+  return `<div class="head fade"><div class="kicker">${esc(e.city||'')} · ${esc(e.plan)} · ${e.contract_value_czk?czk(e.contract_value_czk)+' ročně':'pilot bez fakturace'}</div>
+    <h1>${esc(e.name)}</h1>
+    <p>Vidíte agregát kohorty. Jména, diagnózy ani zprávy s fyzioterapeutem se zaměstnavateli nezobrazují — a to není nastavení, které by šlo vypnout.</p></div>
+
+  <div class="grid g4 stagger" style="margin-bottom:20px">
+    <div class="card dark"><div class="lbl">Zapojeno</div><div class="big">${c.n}<small>${e.seats?' / '+e.seats:''}</small></div>
+      <div class="sub">${occ!=null?occ+' % obsazenost licencí':'bez definovaného počtu míst'}</div></div>
+    <div class="card tap lift" data-act="doc" data-k="alert"><div class="lbl">Vysoké riziko</div>
+      <div class="big" style="color:${c.byTier.alert?'var(--alert)':'inherit'}">${c.byTier.alert}</div>
+      <div class="sub">skóre 70+</div></div>
+    <div class="card tap lift" data-act="quaddoc"><div class="lbl">Tichý drift</div>
+      <div class="big" style="color:var(--blue)">${c.byQuadrant.silent}</div>
+      <div class="sub">zachyceno bez příznaků</div></div>
+    <div class="card"><div class="lbl">Průměrné skóre</div><div class="big">${c.avgOverall}<small>/100</small></div></div>
+  </div>
+
+  <div class="split-e">
+    <div class="card"><div class="lbl">Rozložení rizika</div>
+      <div style="margin-top:16px">${dist.map(([t,v])=>`
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:11px">
+          <div style="width:110px;font-size:13px;font-weight:500">${TIER[t]}</div>
+          <div style="flex:1;height:26px;background:var(--glass-08);border-radius:8px;overflow:hidden">
+            <div style="height:100%;width:${Math.round((typeof v==='number'?v:2)/distTotal*100)}%;border-radius:8px;transition:width .9s cubic-bezier(.32,.72,.25,1);
+              background:${{ok:'var(--ok)',watch:'var(--watch)',alert:'var(--alert)'}[t]}"></div></div>
+          <div class="mono" style="width:28px;text-align:right">${v}</div></div>`).join('')}</div>
+      <div class="divide"></div>
+      <div class="lbl">Kvadranty rizika</div>
+      <div class="grid g2" style="margin-top:10px">${Object.entries(c.byQuadrant).map(([q,v])=>
+        `<div class="fld"><div><b style="font-weight:600">${esc(QUAD[q].t)}</b>
+          <div class="sub" style="margin:0">${esc(QUAD[q].d)}</div></div><div class="mono">${v}</div></div>`).join('')}</div>
+    </div>
+    <div>
+      <div class="card"><div class="lbl">Co tahle čísla neříkají</div>
+        <div class="sub" style="margin-top:10px">Skóre je pravděpodobnostní vstup pro fyzioterapeuta, ne diagnóza a ne měřítko výkonu zaměstnance. Použít ho k hodnocení lidí by kromě právního problému zničilo ochotu se do programu zapojit — a program bez zapojení nefunguje.</div></div>
+      ${occ!=null?`<div class="card"><div class="lbl">Zapojení</div>
+        <div class="mid">${occ} %</div>
+        <div class="meter"><i style="width:${occ}%"></i></div>
+        <div class="sub">Pod 40 % obsazenosti nemá smysl počítat návratnost — vzorek je malý a výběrově zkreslený směrem k lidem, kteří už běhají.</div></div>`:''}
+    </div></div>`;
+}
+function blocked(c){
+  const e=c.employer;
+  return `<div class="head fade"><div class="kicker">${esc(e.city||'')} · ${esc(e.plan)}</div>
+    <h1>${esc(e.name)}</h1></div>
+  <div class="card"><div class="lbl">Kohorta se nezobrazuje</div>
+    <h3 style="margin-top:8px">Zapojeno ${c.n} lidí, minimum je ${c.minCohort||MIN_COHORT}</h3>
+    <div class="sub">Pod osmi zapojenými by z agregátu šlo dopočítat jednotlivce — stačí vědět, kdo ve firmě běhá. Dokud se práh nepřekročí, zaměstnavatel nevidí nic, ani souhrnná čísla.</div>
+    <div class="note" style="margin-top:16px">Toto pravidlo platí i pro vás jako zákazníka: kdybychom ho obešli na vyžádání, nemělo by u ostatních firem žádnou váhu.</div></div>`;
+}
+
+/* ---------- RIZIKOVÉ SIGNÁLY ---------- */
+async function signals(){
+  const c=COHORT;
+  if(c.blocked)return blocked(c);
+  const rows=c.signals;
+  return `<div class="head fade"><div class="kicker">Rizikové signály</div>
+    <h1>Co v téhle kohortě selhává nejčastěji</h1>
+    <p>Agregace přes celou kohortu bez vazby na jednotlivce. Užitečné pro rozhodnutí o programu — jestli má smysl platit skupinové silové bloky, nebo spíš vzdělávání o plánování zátěže.</p></div>
+  <div class="card"><div class="tw"><table>
+    <thead><tr><th>Signál</th><th>Evidence</th><th>Kolik lidí</th><th>Průměrný příspěvek</th></tr></thead>
+    <tbody>${rows.length?rows.map(s=>`<tr class="tap" data-act="sigdoc" data-id="${s.id}">
+      <td><b>${esc(s.name)}</b></td>
+      <td><span class="chip grade ${s.grade==='A'?'alert':s.grade==='B'?'watch':'info'}">${s.grade}</span></td>
+      <td class="mono">${s.n}</td>
+      <td class="mono">+${s.avgPts} b.</td></tr>`).join(''):
+      '<tr><td colspan="4"><div class="empty">Žádné signály nad prahem.</div></td></tr>'}
+    </tbody></table></div></div>
+  <div class="card"><div class="lbl">Jak to číst</div>
+    <div class="grid g3" style="margin-top:14px">
+      <div><h4>Stupeň A</h4><div class="sub">Konzistentní prospektivní evidence u běžců. Když se objevuje často, program má řešit přímo tohle.</div></div>
+      <div><h4>Stupeň B</h4><div class="sub">Smíšená evidence. Vhodné jako podnět k vyšetření, ne jako důvod k plošnému opatření.</div></div>
+      <div><h4>Stupeň C</h4><div class="sub">Mechanistická úvaha. Do rozhodování o rozpočtu by vstupovat neměla.</div></div>
+    </div></div>`;
+}
+
+/* ---------- NÁVRATNOST ---------- */
+async function roi(){
+  const c=COHORT;
+  if(c.blocked)return blocked(c);
+  const e=c.employer, r=c.roi, cost=e.contract_value_czk;
+  return `<div class="head fade"><div class="kicker">Návratnost</div>
+    <h1>Modelovaný dopad, ne měřený</h1>
+    <p>Následující číslo je aritmetika nad předpoklady, ne doložený výsledek. Uvádíme ho takhle otevřeně proto, že jakmile ho někdo v prezentaci vydává za změřenou úsporu, přestane být použitelný pro obě strany.</p></div>
+  <div class="split-e">
+    <div>
+      <div class="card dark"><div class="lbl">Modelovaná úspora ročně</div>
+        <div class="big">${czk(r.modelledSavingsCzk)}</div>
+        <div class="sub">${r.caught} zachycených případů × ${r.daysSaved} dne neschopnosti × ${czk(r.sickDayCzk)} nákladů na den</div></div>
+      <div class="card"><div class="lbl">Rozklad předpokladů</div>
+        <div style="margin-top:12px">
+          ${[['Zachycené případy',r.caught+' osob','Součet vysokého rizika a tichého driftu. Předpokládá, že u všech by bez zásahu došlo ke zranění — což je horní odhad, ne střední hodnota.'],
+             ['Ušetřené dny',r.daysSaved+' dne','Průměr přes typy běžeckých zranění. Stresová zlomenina znamená týdny, natažené lýtko dva dny.'],
+             ['Náklad na den',czk(r.sickDayCzk),'Odhad plných nákladů zaměstnavatele včetně ztráty výstupu, ne jen náhrady mzdy.']]
+            .map(([k,v,d])=>`<div class="mrow"><div class="nm"><b>${k}</b><em>${esc(d)}</em></div>
+              <div class="vl"><b>${v}</b></div></div>`).join('')}</div>
+        <div class="note warn" style="margin-top:14px">Každý z těch tří předpokladů je diskutabilní. Poctivá verze pro vedení zní: „tohle je model, měřit to začneme po roce srovnáním absencí v zapojené a nezapojené skupině."</div></div>
+    </div>
+    <div>
+      <div class="card"><div class="lbl">Váš model</div>
+        <div class="mid" style="text-transform:capitalize">${esc(e.plan)}</div>
+        <div class="sub">${cost?czk(cost)+' ročně'+(e.seats?' za '+e.seats+' míst':''):'pilot, zatím bez fakturace'}</div>
+        ${cost?`<div class="divide"></div>
+          <div class="lbl">Poměr model / cena</div>
+          <div class="mid">${r.ratio!=null?'×'+r.ratio:'—'}</div>
+          <div class="sub">Interpretovat opatrně — čitatel je modelovaný, jmenovatel skutečný.</div>`:''}</div>
+      <div class="card"><div class="lbl">Tři způsoby fakturace</div>
+        <div style="margin-top:12px;font-size:13.5px;line-height:1.7">
+          <b>Pilot</b> — tři měsíce zdarma, sbírá se baseline absencí. Bez toho se outcome model nedá poctivě nastavit.<br><br>
+          <b>Standard</b> — pevná cena za obsazené místo a měsíc.<br><br>
+          <b>Outcome</b> — část ceny vázaná na doložené snížení MSK absencí proti baseline z pilotu.</div></div>
+    </div></div>`;
+}
+
+/* ---------- OCHRANA DAT ---------- */
+async function privacy(){
+  const c=COHORT;
+  return `<div class="head fade"><div class="kicker">Ochrana dat</div>
+    <h1>Co zaměstnavatel nevidí</h1>
+    <p>Zdravotní data zaměstnanců spadají do zvláštní kategorie podle čl. 9 GDPR. Architektura je postavená tak, aby se k nim zaměstnavatel nedostal ani omylem, ani na vyžádání.</p></div>
+  <div class="grid g2 stagger">
+    <div class="card"><div class="lbl">Nedostupné</div>
+      <div style="margin-top:12px">${['Jména a kontakty zapojených zaměstnanců',
+        'Diagnózy, anamnéza a bolestivá místa','Zprávy mezi pacientem a fyzioterapeutem',
+        'Obsah hodnocení po trénincích','Data z hodinek na úrovni jednotlivce',
+        'Kdo konkrétně je ve vysokém riziku','Jakýkoli řádek dat po jednotlivém běžci'].map(x=>
+        `<div class="mrow" style="padding:9px 0"><div class="ico" style="background:var(--alert-soft);color:var(--alert)">✕</div>
+        <div class="nm"><b style="font-weight:500">${esc(x)}</b></div></div>`).join('')}</div></div>
+    <div class="card"><div class="lbl">Dostupné</div>
+      <div style="margin-top:12px">${['Počet zapojených proti počtu licencí',
+        'Rozložení rizika po pásmech (malé buňky do 3 lidí se nezobrazují přesně)',
+        'Četnost typů signálů v kohortě','Počet zprostředkovaných vyšetření'].map(x=>
+        `<div class="mrow" style="padding:9px 0"><div class="ico" style="background:var(--ok-soft);color:var(--ok)">✓</div>
+        <div class="nm"><b style="font-weight:500">${esc(x)}</b></div></div>`).join('')}</div></div>
+  </div>
+  <div class="card"><div class="lbl">Práh agregace</div>
+    <h3 style="margin-top:8px">Minimálně ${MIN_COHORT} zapojených, jinak se nezobrazí nic</h3>
+    <div class="sub">Ve firmě, kde běhají tři lidé, by „jeden z kohorty je ve vysokém riziku" byla identifikovatelná informace. Práh proto platí na všechny pohledy, včetně souhrnných čísel a včetně exportů — vynucuje ho backend, ne rozhraní.</div>
+    <div class="divide"></div>
+    <div class="lbl">Aktuální stav</div>
+    <div class="mid">${c.n} / ${MIN_COHORT}</div>
+    <div class="sub">${c.n>=MIN_COHORT?'Práh splněn, agregáty se zobrazují.':'Práh nesplněn, kohorta zůstává skrytá.'}</div>
+  </div>
+  <div class="card"><div class="lbl">Kdo je správce a kdo zpracovatel</div>
+    <div class="sub" style="margin-top:10px">Správcem zdravotních dat je poskytovatel péče, ne zaměstnavatel. Zaměstnavatel je odběratelem anonymizované statistiky. Tenhle rozdíl není formalita — určuje, kdo smí data vidět, komu se hlásí incident a co se stane s daty po ukončení pracovního poměru.</div></div>`;
+}
+
+/* ---------- router ---------- */
+const V={cohort,signals,roi,privacy};
+async function render(){
+  const tab=D.renderChrome({entity:'employer',avatar:D.initials(ME.name)||'HR'});
+  $('#view').innerHTML=`<div class="grid g4">${'<div class="skel" style="height:130px"></div>'.repeat(4)}</div>
+    <div class="skel" style="height:280px;margin-top:16px"></div>`;
+  try{
+    await loadCohort();
+    $('#view').innerHTML=await (V[tab]||cohort)();
+  }catch(err){
+    $('#view').innerHTML=D.errCard(err,'retry');
+  }
+}
+D.bindGlobal(render);
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;
+  if(b.dataset.act==='retry'){render();return}
+  if(b.dataset.act==='sigdoc'){D.metricSheet(b.dataset.id,null);return}
+  if(b.dataset.act==='doc'){openSheet(`<h2>Pásmo vysokého rizika</h2>
+    <p class="sub">Skóre 70 a výš. Kombinace mechaniky, zátěže a hlášených příznaků, kde je vyšetření na místě do 48 hodin.</p>
+    <div class="note warn" style="margin-top:14px">Zaměstnavatel se nikdy nedozví, o koho jde. Kontakt s konkrétním člověkem probíhá výhradně přes poskytovatele péče.</div>
+    <button class="btn ghost" style="margin-top:20px;width:100%" data-act="close">Zavřít</button>`);return}
+});
+
+(async function boot(){
+  ME=await D.guard('employer');
+  if(!ME)return;
+  await D.loadSettings();
+  render();
+})();
+})();
+</script>
+</body>
+</html>
