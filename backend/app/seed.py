@@ -236,6 +236,76 @@ def gen_activities(r: dict, rand, start_id: int) -> list[dict]:
     return out
 
 
+# Runner-only demo logins the app uses (password "demo"). Kept as (email,
+# RUNS index) so ensure_demo_accounts() can build them on an already-seeded DB.
+DEMO_LOGINS = [("tichydrift@demo.cz", 10), ("kritickepretizeni@demo.cz", 11)]
+
+
+def ensure_demo_accounts(db: DBSession) -> None:
+    """Idempotently create the two runner demo logins (silent drift + critical
+    overload) even on an ALREADY-seeded database. build_and_seed() only runs on
+    an empty DB (the Clinic-None gate), so on a redeploy over existing data new
+    demo accounts would never appear — this fills that gap. Safe to call on
+    every startup: it no-ops once the accounts exist."""
+    demo_hashed = hash_password("demo")
+    made = False
+    for email, idx in DEMO_LOGINS:
+        if db.query(models.User).filter(models.User.email == email).first():
+            continue
+        s = RUNS[idx]
+        rid = uid("run", idx + 1)
+        if db.query(models.Runner).filter(models.Runner.id == rid).first() is None:
+            rand = mulberry32(1000 + idx)
+            r = models.Runner(
+                id=rid, bib=str(1041 + idx * 7), name=s["n"], birth_year=s["by"], sex=s["sx"],
+                city=s["city"], goal_race=s["race"],
+                goal_date=E.iso_date(E.today_date() + timedelta(days=s["gd"])),
+                prior_injury=s["pi"], prior_injury_months_ago=s["pim"], device="Garmin Forerunner 265",
+            )
+            db.add(r)
+            db.flush()
+            db.add(models.Integration(
+                id=uid("int", idx + 1), runner_id=rid, provider="garmin", status="demo",
+                last_sync_at=E.now_iso(),
+                fields=["vert_ratio_pct", "gct_ms", "gct_balance_l", "cadence_spm", "stride_len_m",
+                        "hrv_ms", "resting_hr", "sleep_h"],
+            ))
+            db.add(models.DeviceHistory(runner_id=rid, device=r.device, source="registration",
+                                        recorded_at=E.day_ago(E.BASE_FROM)))
+            for a in gen_activities(dict(s, id=rid), rand, 1):
+                a = dict(a)
+                a.pop("id", None)
+                db.add(models.Activity(**a))
+            db.flush()
+            hrv_b = 42 + rand() * 28
+            rhr_b = 46 + rand() * 10
+            for d in range(39, -1, -1):
+                stress = E.clamp((14 - d) / 14, 0, 1) if s["sig"] == "load_spike" else 0
+                db.add(models.DailyMetric(
+                    runner_id=rid, date=E.day_ago(d),
+                    sleep_h=E.r1(s["sleep"] + (rand() - 0.5) * 1.5 - stress * 1.1),
+                    hrv_ms=round(hrv_b * (1 - stress * 0.22) + (rand() - 0.5) * 7),
+                    resting_hr=round(rhr_b * (1 + stress * 0.13) + (rand() - 0.5) * 3),
+                    body_battery=round(E.clamp(70 - stress * 30 + (rand() - 0.5) * 22, 5, 100)),
+                    source="garmin",
+                ))
+            for w in range(2, -1, -1):
+                dr = w * (rand() * 0.8 + 0.4)
+                db.add(models.Checkin(
+                    runner_id=rid, submitted_at=E.day_ago(w * 7 + 1),
+                    pain_score=int(E.clamp(round(s["pain"] - dr), 0, 10)),
+                    pain_site=s["site"] if s["pain"] > 0 else None,
+                    soreness=int(E.clamp(round(s["sore"] - dr * 0.7), 0, 10)),
+                    stress=int(E.clamp(round(s["stress"] - (0.4 if w else 0)), 1, 5)),
+                ))
+            db.flush()
+            E.recompute_assessment(db, rid)
+        _mk_user(db, email, s["n"], "runner", demo_hashed, runner_id=rid)
+        made = True
+    if made:
+        db.commit()
+
+
 def _mk_user(db, email, name, role, hashed, **fk):
     u = models.User(email=email, password_hash=hashed, name=name, role=role, provider="password",
                      created_at=E.now_iso(), **fk)

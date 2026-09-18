@@ -180,6 +180,9 @@ async def lifespan(app: FastAPI):
     try:
         if db.query(models.Clinic).first() is None:
             seed_module.build_and_seed(db)
+        # Runs on every boot (not just an empty DB) so the demo logins also
+        # appear on an already-seeded / redeployed database. Idempotent.
+        seed_module.ensure_demo_accounts(db)
     finally:
         db.close()
     task = None
