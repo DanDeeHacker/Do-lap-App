@@ -20,12 +20,8 @@ import { Load as LoadTab, Mechanics, Post } from "@/tabs"
 import { Care, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
 
-const roles = [
-  ["runner", "Běžec", "Monitoring zátěže a běžecké mechaniky."],
-  ["physio", "Fyzioterapeut", "Triage a souvislosti v datech pacientů."],
-  ["employer", "Zaměstnavatel", "Anonymní přehled běžecké kohorty."],
-  ["partner", "Partner", "Doporučení, konverze a provize."],
-]
+// Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
+// svou infrastrukturu; zaměstnavatelé a partneři se v této aplikaci nepřihlašují.
 
 function useDynamicReveal() {
   useEffect(() => {
@@ -837,7 +833,7 @@ function DataPage() {
 function Auth() {
   const nav = useNavigate()
   const { reloadMe } = useApp()
-  const [role, setRole] = useState("runner")
+  const role = "runner" // runner-only sign-in
   // New visitors land on sign-up; they can switch to sign-in via the toggle.
   const [mode, setMode] = useState<"login" | "register">("register")
   const [email, setEmail] = useState("")
@@ -884,8 +880,8 @@ function Auth() {
             Změny ve vaší zátěži a mechanice vidíte včas.
           </h1>
           <p className="mt-5 max-w-md text-sm leading-6 text-[#cbe1db]">
-            Čtyři různé dveře pro čtyři role. Každý vidí jen ta data, ke kterým
-            má oprávněný přístup.
+            Aplikace pro běžce — sledování zátěže, regenerace a běžecké
+            mechaniky proti vaší vlastní baseline.
           </p>
         </div>
       </aside>
@@ -894,30 +890,13 @@ function Auth() {
           <Mark />
           došlap
         </span>
-        <Label>Přístup do platformy</Label>
+        <Label>Přístup pro běžce</Label>
         <h1 className="mt-1 font-serif text-4xl tracking-[-.06em]">
-          {mode === "login" ? "Kdo se přihlašuje?" : "Nová registrace"}
+          {mode === "login" ? "Přihlášení" : "Nová registrace"}
         </h1>
-        <div className="mt-6 grid grid-cols-2 gap-3">
-          {roles.map(([id, roleName]) => (
-            <button
-              onClick={() => setRole(id)}
-              key={id}
-              className={`rounded-2xl border p-4 text-left ${
-                role === id
-                  ? "border-[#235e59] bg-[#eff7f4]"
-                  : "border-[#dfe2da] bg-white"
-              }`}
-            >
-              <span className="text-[#235e59]">◌</span>
-              <b className="mt-2 block text-sm">{roleName}</b>
-            </button>
-          ))}
-        </div>
         <Card className="mt-5">
           <p className="font-serif text-xl">
-            {mode === "login" ? "Přihlásit se" : "Registrovat"}{" "}
-            {roles.find((x) => x[0] === role)?.[1]}
+            {mode === "login" ? "Přihlásit se" : "Registrovat se"}
           </p>
           {mode === "register" && (
             <input

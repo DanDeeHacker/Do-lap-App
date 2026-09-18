@@ -97,6 +97,18 @@ RUNS = [
     dict(n="Radek Souček", by=1990, sx="m", city="Brno", race="Běhej lesy Klínovec", gd=49, base=56, rpw=7,
          pat="steady", sig="mono", emp=1, par=3, pi=None, pim=None, pain=1, site=None,
          sore=4, sleep=6.9, stress=3, trail=.5, fbRate=.65),
+    # --- Demo login cases (appended so existing indices stay stable) ---------
+    # #9 „Tichý drift": mechanika se plíživě mění (drift), ale zátěž i regenerace
+    # drží v normě → kvadrant SILENT. Předchozí zranění = frailty, které drift
+    # zesílí; žádný objemový skok, dobrý spánek → zátěžová osa nízko.
+    dict(n="Tichý drift", by=1992, sx="m", city="Praha", race="Demo", gd=42, base=40, rpw=5,
+         pat="steady", sig="gct_asym", emp=None, par=None, pi="Achillova šlacha", pim=6, pain=1,
+         site="Achillova šlacha (P)", sore=3, sleep=7.6, stress=1, trail=.15, fbRate=.5),
+    # #10 „Kritické přetížení": objemový skok + drift mechaniky + rozbitá
+    # regenerace + čerstvé zranění → obě osy vysoko → kvadrant CRITICAL.
+    dict(n="Kritické přetížení", by=1986, sx="m", city="Praha", race="Demo", gd=56, base=64, rpw=6,
+         pat="spike", sig="load_spike", emp=None, par=None, pi="Achillova šlacha", pim=2, pain=8,
+         site="Achillova šlacha (P)", sore=8, sleep=5.2, stress=5, trail=.1, fbRate=.9),
 ]
 
 DAY_TITLES = {
@@ -469,4 +481,9 @@ def build_and_seed(db: DBSession) -> None:
     _mk_user(db, "havlickova@fyzioholesovice.cz", "Mgr. Tereza Havlíčková", "physio", hashed, physio_id=physios[0].id)
     _mk_user(db, "hexanet@demo.cz", "Hexanet s.r.o. (HR)", "employer", hashed, employer_id=employers[0].id)
     _mk_user(db, "letna@demo.cz", "Běžecká speciálka Letná", "partner", hashed, partner_id=partners[0].id)
+    # Two runner-only demo logins the app actually uses — password "demo",
+    # e-mail derived from the name. #9 = silent drift, #10 = critical overload.
+    demo_hashed = hash_password("demo")
+    _mk_user(db, "tichydrift@demo.cz", "Tichý drift", "runner", demo_hashed, runner_id=runner_rows[10].id)
+    _mk_user(db, "kritickepretizeni@demo.cz", "Kritické přetížení", "runner", demo_hashed, runner_id=runner_rows[11].id)
     db.commit()
