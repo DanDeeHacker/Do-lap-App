@@ -145,6 +145,26 @@ export function DataView() {
       setBtBusy(false)
     }
   }
+  const [dtBusy, setDtBusy] = useState(false)
+  const downloadDetailed = async () => {
+    setDtBusy(true)
+    try {
+      const res = await fetch(`/api/runners/${rid}/backtest-detailed.xlsx`, { credentials: "include" })
+      if (!res.ok) throw new Error("Detailní backtest se nepodařilo vytvořit")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "dosslap_backtest_detailed.xlsx"
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+      toast({ title: "Detailní backtest stažen", msg: "Rozpad skóre po signálech + drivery + legenda" })
+    } catch (e: any) {
+      toast({ title: e?.message || "Detailní backtest se nepodařilo vytvořit" })
+    } finally {
+      setDtBusy(false)
+    }
+  }
   const [expBusy, setExpBusy] = useState(false)
   const downloadData = async () => {
     setExpBusy(true)
@@ -204,9 +224,10 @@ export function DataView() {
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
           <button onClick={downloadBacktest} disabled={btBusy} className="rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313] disabled:opacity-60">{btBusy ? "Připravuji…" : "⬇ Backtest (v1 vs v2)"}</button>
-          <button onClick={downloadData} disabled={expBusy} className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-[#a9c2b9] disabled:opacity-60">{expBusy ? "Připravuji…" : "⬇ Stáhnout moje data (JSON)"}</button>
+          <button onClick={downloadDetailed} disabled={dtBusy} className="rounded-full border border-[#c7ff54]/40 px-4 py-2 text-xs font-bold text-[#c7ff54] disabled:opacity-60">{dtBusy ? "Připravuji…" : "⬇ Detailní backtest"}</button>
+          <button onClick={downloadData} disabled={expBusy} className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-[#a9c2b9] disabled:opacity-60">{expBusy ? "Připravuji…" : "⬇ Moje data (JSON)"}</button>
         </div>
-        <p className="mt-2 text-[11px] leading-4 text-[#71837b]">Backtest = Excel z tvé historie (oba enginy). Data = kompletní JSON tvého účtu <b>bez tokenů a hesel</b> — můžeš ho sdílet k analýze.</p>
+        <p className="mt-2 text-[11px] leading-4 text-[#71837b]">Backtest = souhrn v1 vs v2. Detailní = rozpad skóre po jednotlivých signálech + drivery + legenda vzorců. Data = kompletní JSON <b>bez tokenů a hesel</b>.</p>
       </Card>
 
       <Card className="mt-4">

@@ -351,6 +351,21 @@ def backtest_xlsx(rid: str, user: models.User = Depends(get_current_user), db: D
     )
 
 
+@router.get("/{rid}/backtest-detailed.xlsx")
+def backtest_detailed_xlsx(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Detailed backtest: per-date per-signal point contributions (v1 & v2), raw
+    drivers, and a formula legend — on THIS runner's own history."""
+    from fastapi import Response
+    from .. import reports
+    ensure_runner_self(user, rid)
+    data = reports.engine_detail_xlsx(db, rid)
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="dosslap_backtest_detailed_{rid}.xlsx"'},
+    )
+
+
 @router.get("/{rid}/export.json")
 def export_json(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     """Download this runner's full data as JSON (no credentials/tokens) — for

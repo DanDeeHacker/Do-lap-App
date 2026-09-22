@@ -89,3 +89,11 @@ def test_data_export_json_no_secrets(client):
     # secret tables must never be present
     assert "garmin_sessions" not in body["tables"] and "ingest_tokens" not in body["tables"]
     assert "password" not in r.text.lower() and "token_blob" not in r.text
+
+
+def test_backtest_detailed_download(client):
+    rid = register(client, "btd@test.cz", "BTD Runner", "runner").json()["runner_id"]
+    r = client.get(f"/api/runners/{rid}/backtest-detailed.xlsx")
+    assert r.status_code == 200
+    assert "spreadsheetml" in r.headers.get("content-type", "")
+    assert r.content[:2] == b"PK" and "attachment" in r.headers.get("content-disposition", "")
