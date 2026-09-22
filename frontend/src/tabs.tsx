@@ -693,7 +693,7 @@ export function Mechanics() {
               {drift ? "Při stejném tempu se krok mírně prodlužuje a kontakt se zemí narůstá. Není to alarm, ale dobrý okamžik ubrat tlak." : "Ve srovnatelných podmínkách se vaše mechanika drží ve vlastním obvyklém rozsahu."}
             </p>
             {a.segmentScored && (
-              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#6ce6d3]/12 px-2.5 py-1 text-[10px] font-bold text-[#6ce6d3]" title="Citlivý engine hodnotí drift po úsecích běhu (sjezd / rovina / výjezd zvlášť), ne z jednoho průměru za celý běh — malá změna jen na části trasy se tak neztratí.">
+              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#6ce6d3]/12 px-2.5 py-1 text-[10px] font-bold text-[#6ce6d3]" title="Citlivý engine hodnotí drift po úsecích běhu (sjezd / rovina / výjezd zvlášť) a odečítá vliv tempa a sklonu vlastním kontextovým modelem — malá změna formy se tak neztratí v průměru ani se nezamění za členitější trať.">
                 ⛰ měřeno po úsecích běhu
               </p>
             )}

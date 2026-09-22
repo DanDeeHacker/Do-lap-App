@@ -1250,20 +1250,32 @@ def segment_mechanics(db: DBSession, rid: str):
     recent.sort(key=lambda t: t[0])
     if len(base_segs) < 15 or len(recent) < 1:
         return None
+    from . import regression as reg
     stats = seg.baseline_stats(base_segs)
     if not stats:
         return None
     out = {}
     for field, key in _SEG_FIELD2KEY.items():
-        dis, last_by = [], None
+        # S4: prefer the continuous context regression; fall back to the
+        # per-(surface, band) bucket method when there aren't enough segments.
+        model = reg.fit_metric(base_segs, field)
+        dis, last_by, method = [], None, "bucket"
         for _started, segs in recent:
-            sd_ = seg.session_drift(segs, stats, field)
+            sd_ = reg.session_residual_drift(segs, model) if model else seg.session_drift(segs, stats, field)
             if sd_:
                 dis.append(max(-4.0, min(4.0, sd_["di"])))
                 last_by = sd_["byBand"]
+        if model and dis:
+            method = "regression"
+        elif not dis:  # regression scored nothing in domain → retry with buckets
+            for _started, segs in recent:
+                sd_ = seg.session_drift(segs, stats, field)
+                if sd_:
+                    dis.append(max(-4.0, min(4.0, sd_["di"])))
+                    last_by = sd_["byBand"]
         flag = _ewma_flag(dis)
         if flag and len(dis) >= 1:
-            out[key] = {**flag, "byBand": last_by, "segment": True}
+            out[key] = {**flag, "byBand": last_by, "segment": True, "method": method}
     return out or None
 
 
