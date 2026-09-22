@@ -419,15 +419,28 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   )
 }
 
-export function Sheet({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
+export function Sheet({ open, onClose, children, footer }: { open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 md:items-center md:p-6" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_.2s_ease-out] md:items-center md:p-6"
+      onClick={onClose}
+    >
       <div
-        className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-[28px] border border-white/10 bg-[#0c201d] p-6 text-[#f1f8f1] md:rounded-[28px]"
+        className="flex max-h-[93dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[28px] border border-white/10 bg-[#0c201d] text-[#f1f8f1] shadow-[0_-8px_40px_rgba(0,0,0,.5)] animate-[sheetUp_.28s_cubic-bezier(.22,1,.36,1)] md:max-h-[88dvh] md:rounded-[28px] md:animate-[fadeIn_.2s_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
-        {children}
+        {/* grab handle (phone) */}
+        <span className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-white/20 md:hidden" />
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-3 md:px-6 md:pt-4" style={{ overscrollBehavior: "contain" }}>
+          {children}
+          {!footer && <div className="h-[max(1.25rem,env(safe-area-inset-bottom))]" />}
+        </div>
+        {footer && (
+          <div className="shrink-0 border-t border-white/10 bg-[#0c201d]/95 px-5 py-3 pb-[max(.85rem,env(safe-area-inset-bottom))] backdrop-blur md:px-6">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   )

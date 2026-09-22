@@ -83,7 +83,6 @@ export function Post() {
       <Head
         kicker="Deník běhů"
         title={unrated.length ? `${unrated.length} běhů čeká na zápis` : "Deník máte kompletní"}
-        sub="Hodinky změří, jak jste běželi. Neřeknou, jak vám bylo. Váš zápis pocitu a bolesti k danému běhu je to, co z dat samotných nevyčtete — a kdykoli ho můžete upravit."
       />
       {rate && <RateSheet act={rate.act} initial={rate.initial} rid={rid} onClose={() => setRate(null)} onDone={() => { setRate(null); refresh() }} />}
       <div className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
@@ -95,11 +94,11 @@ export function Post() {
                 {unrated.map((x) => (
                   <button key={x.id} onClick={() => setRate({ act: x })} className="flex w-full items-center gap-3 py-3 text-left">
                     <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#17382f] text-[10px] font-bold text-[#6ce6d3]">{surf(x.surface)}</span>
-                    <span className="flex-1">
-                      <b className="text-sm">{x.title} · {x.distance_km} km</b>
-                      <em className="block text-xs not-italic text-[#71837b]">{fmtD(x.started_at)} · {paceStr(x.pace_s_km)}/km · {x.descent_m} m klesání</em>
+                    <span className="min-w-0 flex-1">
+                      <b className="block truncate text-sm">{x.title} · {x.distance_km} km</b>
+                      <em className="block truncate text-xs not-italic text-[#71837b]">{fmtD(x.started_at)} · {paceStr(x.pace_s_km)}/km · {x.descent_m} m klesání</em>
                     </span>
-                    <span className="text-[#6ce6d3]">›</span>
+                    <span className="shrink-0 text-[#6ce6d3]">›</span>
                   </button>
                 ))}
               </div>
@@ -121,14 +120,14 @@ export function Post() {
                     <button key={f.id} onClick={() => editEntry(f)} className="group flex w-full items-center gap-3 py-3 text-left">
                       <span className="grid size-9 shrink-0 place-items-center rounded-xl text-[10px] font-bold" style={{ background: hurt ? "#3a1f18" : "#17382f", color: hurt ? "#e77a59" : "#6ce6d3" }}>{surf(act?.surface)}</span>
                       <span className="min-w-0 flex-1">
-                        <b className="text-sm">{act ? `${act.title} · ${act.distance_km} km` : "Běh"}</b>
+                        <b className="block truncate text-sm">{act ? `${act.title} · ${act.distance_km} km` : "Běh"}</b>
                         <em className="mt-0.5 block truncate text-xs not-italic text-[#71837b]">
                           {fmtD(f.submitted_at)} · pocit {FEEL_LABEL[f.feeling] || "—"} · nohy {f.legs}/5
                           {f.pain_during > 0 ? ` · bolest ${f.pain_during}/10` : ""}
                         </em>
                       </span>
-                      {f.pain_site && <Chip tone="alert">{f.pain_site}</Chip>}
-                      <span className="text-[#71837b] transition group-hover:text-[#6ce6d3]">Upravit</span>
+                      {f.pain_site && <span className="hidden sm:block"><Chip tone="alert">{f.pain_site}</Chip></span>}
+                      <span className="shrink-0 text-xs text-[#71837b] transition group-hover:text-[#6ce6d3]"><span className="hidden sm:inline">Upravit</span><span className="sm:hidden">›</span></span>
                     </button>
                   )
                 })}
@@ -322,10 +321,19 @@ function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; rid: stri
     })
 
   return (
-    <Sheet open onClose={onClose}>
-      <h2 className="font-serif text-2xl">{edit ? "Upravit zápis" : `${act.title}${act.distance_km ? ` · ${act.distance_km} km` : ""}`}</h2>
+    <Sheet
+      open
+      onClose={onClose}
+      footer={
+        <div className="flex gap-2">
+          <button onClick={submit} disabled={busy} className="flex-1 rounded-full bg-[#c7ff54] py-3 text-sm font-bold text-[#071313] disabled:opacity-60">{busy ? "Ukládám…" : edit ? "Uložit změny" : "Uložit zápis"}</button>
+          <button onClick={onClose} className="rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-[#a9c2b9]">Zrušit</button>
+        </div>
+      }
+    >
+      <h2 className="font-serif text-2xl leading-tight">{edit ? "Upravit zápis" : `${act.title}${act.distance_km ? ` · ${act.distance_km} km` : ""}`}</h2>
       <p className="mt-1 text-xs text-[#a9c2b9]">{fmtD(act.started_at)}{act.pace_s_km ? ` · ${paceStr(act.pace_s_km)}/km` : ""}{act.surface ? ` · ${surf(act.surface)}` : ""}{act.descent_m ? ` · ${act.descent_m} m sklesáno` : ""}</p>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className="mt-4 grid gap-x-6 gap-y-4 md:grid-cols-2">
         <div>
           <Field label="Jak ztuhlé byly nohy PŘED během" hint="1 uvolněné · 5 ztuhlé"><Slider name="stiff" min={1} max={5} value={stiff} onChange={setStiff} /></Field>
           <Field label="Jak vám bylo"><Slider name="feeling" min={1} max={5} value={feeling} onChange={setFeeling} labels={FEEL_LABEL} /></Field>
@@ -336,17 +344,13 @@ function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; rid: stri
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="Kdy se to ozvalo, co to zhoršilo…" />
           </Field>
         </div>
-        <div>
+        <div className="min-w-0">
           <Label>Kde to bolelo</Label>
           <p className="mt-1 text-xs text-[#71837b]">Klepněte na všechna místa, která bolela — můžete vybrat víc, silueta rozliší levou a pravou stranu.</p>
-          <div className="mt-3"><MuscleAnatomy multi onSelect={setPoints} initialRegions={initialRegions} /></div>
+          <div className="mx-auto mt-3 max-w-[280px] md:max-w-none"><MuscleAnatomy multi onSelect={setPoints} initialRegions={initialRegions} /></div>
         </div>
       </div>
       {err && <p className="mt-3 text-xs font-bold text-[#e77a59]">{err}</p>}
-      <div className="mt-5 flex gap-2">
-        <button onClick={submit} disabled={busy} className="flex-1 rounded-full bg-[#c7ff54] py-3 text-sm font-bold text-[#071313] disabled:opacity-60">{busy ? "Ukládám…" : edit ? "Uložit změny" : "Uložit zápis"}</button>
-        <button onClick={onClose} className="rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-[#a9c2b9]">Zrušit</button>
-      </div>
     </Sheet>
   )
 }

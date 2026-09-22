@@ -85,6 +85,8 @@ html, body { overscroll-behavior-y:none; }
    clipping the x-overflow here is safe.) */
 html, body { overflow-x:clip; }
 @keyframes infoPop { from { opacity:0; } }  /* opacity-only: must not fight the bubble's inline transform positioning */
+@keyframes sheetUp { from { transform:translateY(100%); } }
+@keyframes fadeIn { from { opacity:0; } }
 @keyframes cardRevealLite { from { opacity:0; transform:translateY(26px); } to { opacity:1; transform:translateY(0); } }
 @media (max-width: 640px) {
   /* Decorative orbit ring is pure chrome — drop it on small screens for a
