@@ -94,7 +94,7 @@ def _copy(db, model, rid):
     return [{c: getattr(r, c) for c in cols} for r in db.query(model).filter(model.runner_id == rid).all()]
 
 
-def _replay_both(db, rid, step_days):
+def _replay_both(db, rid, step_days, warmup_days=7):
     runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
     if not runner:
         return []
@@ -111,7 +111,9 @@ def _replay_both(db, rid, step_days):
         return []
     first = min(a["started_at"][:10] for a in acts)
     last = max(a["started_at"][:10] for a in acts)
-    ad = date.fromisoformat(first) + timedelta(days=42)
+    # Small warm-up so the timeline starts near the first run (early weeks are
+    # baseline-building: low confidence, mechanics gated → mostly load/stable).
+    ad = date.fromisoformat(first) + timedelta(days=warmup_days)
     end = date.fromisoformat(last)
     if ad > end:
         ad = end

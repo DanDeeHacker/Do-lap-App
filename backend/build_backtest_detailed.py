@@ -112,7 +112,7 @@ def replay(data, step_days=7):
     dates = sorted(a["started_at"][:10] for a in acts if a.get("started_at"))
     if not dates:
         return
-    ad = date.fromisoformat(dates[0]) + timedelta(days=42)
+    ad = date.fromisoformat(dates[0]) + timedelta(days=7)  # small warm-up → near first run
     end = date.fromisoformat(dates[-1])
     asofs = []
     while ad <= end:
