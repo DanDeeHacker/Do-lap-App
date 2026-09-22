@@ -138,6 +138,8 @@ export const api = {
   applePushToken: () => call("GET", "/api/integrations/apple/push-token"),
   applePushTokenRotate: () => call("POST", "/api/integrations/apple/push-token/rotate", {}),
   garminMfa: (mfaToken: string, mfaCode: string, remember = false) => call("POST", "/api/integrations/garmin/connect/mfa", { mfa_token: mfaToken, mfa_code: mfaCode, remember }, { skipAuthRedirect: true }),
+  // Switch the mechanics engine (v1 standard / v2 sensitive) and recompute.
+  setEngine: (rid: string, mode: "v1" | "v2") => call("POST", `/api/runners/${rid}/engine`, { mode }),
 }
 
 export type Me = {

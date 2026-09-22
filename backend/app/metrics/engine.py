@@ -39,6 +39,26 @@ def sd(a):
     return math.sqrt(sum((x - m) ** 2 for x in a) / (len(a) - 1))
 
 
+def median(a):
+    a = sorted(a)
+    n = len(a)
+    if not n:
+        return 0
+    mid = n // 2
+    return a[mid] if n % 2 else (a[mid - 1] + a[mid]) / 2
+
+
+def mad_sd(a):
+    """Robust standard deviation from the median absolute deviation. Less
+    inflated by a single outlier run than the plain SD, so a genuinely small
+    but consistent shift still clears the threshold (v2 noise scale)."""
+    a = list(a)
+    if len(a) < 2:
+        return 0
+    m = median(a)
+    return 1.4826 * median([abs(x - m) for x in a])
+
+
 def slope(a):
     a = list(a)
     n = len(a)
@@ -108,6 +128,40 @@ def today_pinned(d):
         yield
     finally:
         _today_override.value = prev
+
+
+# --- Engine mode (v1 = standard/averaged, v2 = sensitive/per-run) -----------
+# The mechanics axis can be computed two ways; the runner picks which in the app
+# (Runner.engine_mode). Stored thread-locally for the same threadpool-safety
+# reason as today_pinned. v2 changes ONLY the mechanics drift core (_drift_z_core)
+# — load, recovery, quadrant machinery and payload shape are shared, so the two
+# engines are directly comparable and swappable per runner.
+_engine_ctx = threading.local()
+
+
+def _emode() -> str:
+    return getattr(_engine_ctx, "mode", None) or "v1"
+
+
+def _eexcl() -> frozenset:
+    return getattr(_engine_ctx, "excl", None) or frozenset()
+
+
+@contextmanager
+def engine_pinned(mode: str):
+    prev_m = getattr(_engine_ctx, "mode", None)
+    prev_e = getattr(_engine_ctx, "excl", None)
+    _engine_ctx.mode = mode or "v1"
+    _engine_ctx.excl = frozenset()
+    try:
+        yield
+    finally:
+        _engine_ctx.mode = prev_m
+        _engine_ctx.excl = prev_e
+
+
+def engine_version_for(mode: str) -> str:
+    return ENGINE_VERSION + ("-s" if mode == "v2" else "")
 
 
 def iso_date(d):
@@ -240,43 +294,77 @@ def daily(db: DBSession, rid: str, n: int):
 
 
 # ---------------------------------------------------------------- drift-z core
+_V2_HALFLIFE = 10.0  # days — recency half-life for the v2 recent aggregate [Calibrate]
+
+
 def _drift_z_core(A, field, recent_days):
+    """Per-terrain-bucket drift of `field`: recent vs the runner's own baseline.
+
+    v1 (standard): recent value = flat mean over the whole recent window, noise
+    scale = baseline SD. A small change gets averaged away by older recent runs
+    and the SD is inflated by outliers, so only a large shift crosses.
+
+    v2 (sensitive): recent value = recency-weighted mean (10-day half-life) so a
+    fresh change dominates instead of being diluted; noise scale = robust MAD so
+    a genuinely small-but-consistent shift still clears; baseline excludes pain
+    periods so the norm doesn't quietly absorb the drift. Same output shape."""
+    v2 = _emode() == "v2"
     lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
     base = [a for a in A if a.started_at <= hi and a.started_at > lo and getattr(a, field) is not None]
+    if v2:
+        excl = _eexcl()
+        if excl:
+            trimmed = [a for a in base if a.started_at[:10] not in excl]
+            if len(trimmed) >= 6:  # only apply if enough baseline survives
+                base = trimmed
     rec_cut = day_ago(recent_days)
     rec = [a for a in A if a.started_at > rec_cut and getattr(a, field) is not None]
     if len(base) < 6 or len(rec) < 3:
         return None
     by_b: dict[str, list[float]] = {}
-    rec_b: dict[str, list[float]] = {}
+    rec_b: dict[str, list] = {}
     for a in base:
         by_b.setdefault(bucket(a), []).append(getattr(a, field))
     for a in rec:
-        rec_b.setdefault(bucket(a), []).append(getattr(a, field))
-    num, den = 0.0, 0
+        rec_b.setdefault(bucket(a), []).append(a)
+    today_iso = iso_date(today_date())
+    num, den, n_scored = 0.0, 0.0, 0
     detail = []
-    for b, recv in rec_b.items():
+    for b, recs in rec_b.items():
         bv = by_b.get(b)
         if not bv or len(bv) < 3:
             continue
-        s = max(sd(bv), abs(mean(bv)) * 0.012)
-        # Clamp per-bucket z to a sane range so one degenerate bucket (a near-
-        # constant baseline, or an outlier/mislabelled session like a run-walk
-        # with implausibly low cadence) can't dominate the weighted drift.
-        z = clamp((mean(recv) - mean(bv)) / s, -4, 4) if s else 0
+        recvals = [getattr(a, field) for a in recs]
+        if v2:
+            center = median(bv)
+            s = max(mad_sd(bv), sd(bv) * 0.5, abs(center) * 0.012)
+            ws = [0.5 ** (max(0, days_between(a.started_at, today_iso)) / _V2_HALFLIFE) for a in recs]
+            wsum = sum(ws) or 1.0
+            now_val = sum(w * v for w, v in zip(ws, recvals)) / wsum
+            weight = wsum  # recency mass — a bucket with a very recent run gets more say
+        else:
+            center = mean(bv)
+            s = max(sd(bv), abs(center) * 0.012)
+            now_val = mean(recvals)
+            weight = len(recs)
+        # Clamp per-bucket z so one degenerate bucket (near-constant baseline, or
+        # an outlier/mislabelled run-walk) can't dominate the weighted drift.
+        z = clamp((now_val - center) / s, -4, 4) if s else 0
         detail.append({
             "bucket": b, "label": bucket_label(b), "z": r2(z),
-            "base": r2(mean(bv)), "now": r2(mean(recv)), "nBase": len(bv), "nNow": len(recv),
+            "base": r2(center), "now": r2(now_val), "nBase": len(bv), "nNow": len(recs),
         })
-        num += z * len(recv)
-        den += len(recv)
+        num += z * weight
+        den += weight
+        n_scored += len(recs)
     if not den:
         return None
     detail.sort(key=lambda d: -d["z"])
     series = [getattr(a, field) for a in A if getattr(a, field) is not None][-26:]
+    base_center = median if v2 else mean
     return {
-        "z": r2(num / den), "buckets": len(detail), "nRecent": den, "detail": detail,
-        "baseMean": r2(mean([getattr(a, field) for a in base])),
+        "z": r2(num / den), "buckets": len(detail), "nRecent": n_scored, "detail": detail,
+        "baseMean": r2(base_center([getattr(a, field) for a in base])),
         "recMean": r2(mean([getattr(a, field) for a in rec])),
         "series": series,
     }
@@ -1035,8 +1123,36 @@ def _act_dict(a) -> dict:
     }
 
 
+def _v2_baseline_exclusions(db: DBSession, rid: str, after_days: int = 14, thr: int = 3) -> frozenset:
+    """v2 only — ISO dates within `after_days` of a pain report >= thr/10 (daily
+    check-ins + post-run feedback). Baseline runs on these dates are dropped so a
+    painful period isn't quietly absorbed into the runner's norm (spec S8.4)."""
+    out: set[str] = set()
+
+    def add(d: str | None):
+        if not d:
+            return
+        try:
+            d0 = date.fromisoformat(d[:10])
+        except ValueError:
+            return
+        for k in range(after_days + 1):
+            out.add((d0 + timedelta(days=k)).isoformat())
+
+    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid).all():
+        if (c.pain_score or 0) >= thr:
+            add(c.submitted_at)
+    for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid).all():
+        if (f.pain_during or 0) >= thr:
+            add(f.submitted_at)
+    return frozenset(out)
+
+
 def assess(db: DBSession, rid: str) -> dict:
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    if _emode() == "v2":
+        # Feed pain-period exclusions to the mechanics drift core for this scope.
+        _engine_ctx.excl = _v2_baseline_exclusions(db, rid)
     conf = confidence(db, rid)
     L = load(db, rid)
     gated = conf["value"] >= 0.6
@@ -1456,7 +1572,8 @@ def assess(db: DBSession, rid: str) -> dict:
     tier = "alert" if overall >= 70 else ("watch" if overall >= 40 else "ok")
 
     return {
-        "runner_id": rid, "computed_at": now_iso(), "engine": ENGINE_VERSION,
+        "runner_id": rid, "computed_at": now_iso(), "engine": engine_version_for(_emode()),
+        "engineMode": _emode(),
         "mech": mech_score, "load": load_score, "symp": symp_score, "overall": overall,
         "tier": tier, "quadrant": quadrant, "confidence": conf,
         "signals": sorted(sig, key=lambda s: -s["pts"]),
@@ -1485,7 +1602,9 @@ def recompute_assessment(db: DBSession, rid: str) -> dict:
     assess(db,rid) which also upserts the runner's triage row. Call this
     after any mutation that can move the score (checkin, activity rating,
     daily-metric edit, garmin import, program claim)."""
-    a = assess(db, rid)
+    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    with engine_pinned((r.engine_mode if r else None) or "v1"):
+        a = assess(db, rid)
     row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()
     if row is None:
         row = models.Assessment(runner_id=rid)
@@ -1539,7 +1658,9 @@ def get_or_refresh_assessment(db: DBSession, rid: str) -> dict:
     row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()
     if row is None:
         return recompute_assessment(db, rid)
-    stale = (row.engine_version != ENGINE_VERSION) or ((row.computed_at or "")[:10] < iso_date(today_date()))
+    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    expected = engine_version_for((r.engine_mode if r else None) or "v1")
+    stale = (row.engine_version != expected) or ((row.computed_at or "")[:10] < iso_date(today_date()))
     return recompute_assessment(db, rid) if stale else assessment_row_to_dict(row)
 
 
@@ -1550,6 +1671,7 @@ def assessment_row_to_dict(row: models.Assessment) -> dict:
         return None
     out = {
         "runner_id": row.runner_id, "computed_at": row.computed_at, "engine": row.engine_version,
+        "engineMode": "v2" if (row.engine_version or "").endswith("-s") else "v1",
         "mech": row.mech, "load": row.load, "symp": row.symp, "overall": row.overall,
         "tier": row.tier, "quadrant": row.quadrant, "confidence": row.confidence_json,
         "signals": row.signals_json,

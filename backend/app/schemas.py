@@ -106,6 +106,10 @@ class GarminAutoSyncRequest(Lenient):
     enabled: bool
 
 
+class EngineModeRequest(Lenient):
+    mode: str  # "v1" standard | "v2" sensitive
+
+
 class SlotBookRequest(Lenient):
     slot_id: int
     kind: str = "assessment"

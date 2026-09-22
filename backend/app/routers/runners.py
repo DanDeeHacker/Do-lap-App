@@ -37,6 +37,21 @@ ALLOWED_PROFILE_PATCH = {
 }
 
 
+@router.post("/{rid}/engine", dependencies=[Depends(verify_csrf)])
+def set_engine(rid: str, body: schemas.EngineModeRequest,
+               user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Switch the runner's mechanics engine: "v1" standard (averaged) or "v2"
+    sensitive (per-run, robust noise scale). Recomputes the assessment right
+    away so the change is visible immediately."""
+    ensure_runner_self(user, rid)
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    mode = body.mode if body.mode in ("v1", "v2") else "v1"
+    r.engine_mode = mode
+    db.commit()
+    a = E.recompute_assessment(db, rid)
+    return {"ok": True, "engine_mode": mode, "assessment": a}
+
+
 @router.patch("/{rid}", dependencies=[Depends(verify_csrf)])
 def update_runner(rid: str, body: schemas.RunnerProfilePatch,
                   user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
@@ -211,7 +226,8 @@ def _engine_replay(db: DBSession, rid: str, asofs):
                     ts.add(models.Assessment(runner_id=rid, quadrant=prev_q, tier="ok",
                                              mech=0, load=0, symp=0, overall=0, engine_version=E.ENGINE_VERSION))
                     ts.commit()
-                av = E.assess(ts, rid)
+                with E.engine_pinned((runner.engine_mode or "v1")):
+                    av = E.assess(ts, rid)
                 av["_cut"] = cut
                 out.append(av)
                 prev_q = av["quadrant"]

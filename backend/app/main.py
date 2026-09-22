@@ -65,6 +65,11 @@ def _migrate_sqlite(engine):
     if dcols and "sleep_efficiency" not in dcols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE daily_metrics ADD COLUMN sleep_efficiency FLOAT"))
+    rcols = {c["name"] for c in insp.get_columns("runners")} if insp.has_table("runners") else set()
+    if rcols and "engine_mode" not in rcols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE runners ADD COLUMN engine_mode VARCHAR"))
+            conn.execute(text("UPDATE runners SET engine_mode = 'v1' WHERE engine_mode IS NULL"))
     # Clean sensor-dropout zeros in already-imported data: a 0 in a running-
     # dynamics / HR field is a missing reading, not a real value (see
     # garmin_live._pos). Set them NULL so the engine skips them instead of

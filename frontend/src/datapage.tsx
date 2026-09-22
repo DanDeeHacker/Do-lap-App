@@ -86,6 +86,26 @@ export function DataView() {
 
   const R = res?.source === source ? res : null
 
+  const engineMode: "v1" | "v2" = boot?.assessment?.engineMode || boot?.runner?.engine_mode || "v1"
+  const [engBusy, setEngBusy] = useState(false)
+  const switchEngine = async (mode: "v1" | "v2") => {
+    if (mode === engineMode || engBusy) return
+    setEngBusy(true)
+    try {
+      await api.setEngine(rid, mode)
+      toast({ title: mode === "v2" ? "Zapnut Citlivý engine" : "Zapnut Standardní engine" })
+      await refresh()
+    } catch (e: any) {
+      toast({ title: e?.message || "Přepnutí se nezdařilo" })
+    } finally {
+      setEngBusy(false)
+    }
+  }
+  const engines: [("v1" | "v2"), string, string][] = [
+    ["v1", "Standardní", "Vyhlazený průměr napříč běhy."],
+    ["v2", "Citlivý", "Zachytí i malé změny mechaniky dřív."],
+  ]
+
   return (
     <>
       <div className="mb-6"><Label>Data a připojení</Label><h1 className="mt-1 font-serif text-4xl tracking-[-.06em]">{integ?.status === "connected" ? "Zdroj připojen" : "Zatím nepřipojeno"}</h1></div>
@@ -94,6 +114,35 @@ export function DataView() {
         <Metric label="Stav" value={integ?.status === "connected" ? "připojeno" : "nepřipojeno"} caption={integ?.provider ? `zdroj ${integ.provider}` : "—"} />
         <Metric label="Profil" value={(me?.name || "").split(" ")[0]} caption="běžec / pacient" />
       </div>
+
+      <Card className="mt-4">
+        <div className="flex items-center justify-between gap-2">
+          <Label>Engine hodnocení mechaniky</Label>
+          <span className="rounded-full bg-[#c7ff54]/15 px-2.5 py-1 text-[10px] font-bold text-[#c7ff54]">{engineMode === "v2" ? "Citlivý" : "Standardní"}</span>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {engines.map(([id, name, desc]) => {
+            const on = engineMode === id
+            return (
+              <button
+                key={id}
+                onClick={() => switchEngine(id)}
+                disabled={engBusy}
+                className={`rounded-2xl border p-4 text-left transition disabled:opacity-60 ${on ? "border-[#c7ff54] bg-[#c7ff54]/10" : "border-white/12 bg-white/[.03] hover:border-white/25"}`}
+              >
+                <span className="flex items-center gap-2">
+                  <i className={`size-2.5 rounded-full ${on ? "bg-[#c7ff54]" : "bg-white/25"}`} />
+                  <b className="text-sm text-[#f1f8f1]">{name}{id === "v2" ? " · beta" : ""}</b>
+                </span>
+                <p className="mt-1.5 text-xs leading-4 text-[#a9c2b9]">{desc}</p>
+              </button>
+            )
+          })}
+        </div>
+        <p className="mt-3 text-[11px] leading-4 text-[#71837b]">
+          Citlivý engine počítá odchylku proti tvé vlastní typické chybě a váží čerstvé běhy víc, takže pozvolný drift zachytí dřív než průměrový Standardní. Experimentální — zatím nevalidované na reálných datech.
+        </p>
+      </Card>
 
       <Card className="mt-4">
         <div className="flex flex-wrap gap-2">
