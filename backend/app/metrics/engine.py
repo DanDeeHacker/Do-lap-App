@@ -183,15 +183,20 @@ _GRADE_LABEL = {"up": "stoupání", "flat": "rovina", "down": "klesání", "roll
 _PACE_LABEL = {"fast": "rychle", "mod": "středně", "easy": "volně"}
 
 
-def quadrant_of(load_score, mech_score, prev=None, hi=QUAD_THRESHOLD, lo=QUAD_EXIT):
+def quadrant_of(load_score, mech_score, prev=None, hi=QUAD_THRESHOLD, lo=QUAD_EXIT, mech_ok=True):
     """Quadrant with hysteresis: an axis counts as elevated once it crosses
     `hi`, and keeps counting until it falls back below `lo`. Without this the
     label flip-flops week to week when a score hovers around 25 (seen on real
-    backtested data). `prev` is the last persisted quadrant."""
+    backtested data). `prev` is the last persisted quadrant.
+
+    `mech_ok` (v2 only) is the Phase-2 flag gate: the mechanics axis may push to
+    Silent/Critical only when the across-session evidence is a real flag
+    (persistence or convergence), not a single-session blip. v1 always passes
+    True, so its behaviour is unchanged."""
     prev_load = prev in ("overreaching", "critical")
     prev_mech = prev in ("silent", "critical")
     load_hot = load_score >= hi or (prev_load and load_score >= lo)
-    mech_hot = mech_score >= hi or (prev_mech and mech_score >= lo)
+    mech_hot = (mech_score >= hi or (prev_mech and mech_score >= lo)) and mech_ok
     if load_hot and mech_hot:
         return "critical"
     if load_hot:
@@ -294,7 +299,11 @@ def daily(db: DBSession, rid: str, n: int):
 
 
 # ---------------------------------------------------------------- drift-z core
-_V2_HALFLIFE = 10.0  # days — recency half-life for the v2 recent aggregate [Calibrate]
+_V2_HALFLIFE = 10.0     # days — recency half-life for the v2 recent aggregate [Calibrate]
+_V2_EWMA_LAMBDA = 0.3   # EWMA weight on the newest session (spec S7) [Calibrate]
+_V2_EWMA_L = 2.5        # control-limit width in σ_DI (spec S7) [Calibrate]
+_V2_DELTA = 0.5         # "possible deviation" threshold, typical-error units [Calibrate]
+_V2_CLEAR = 1.0         # "clear deviation" threshold, typical-error units [Calibrate]
 
 
 def _drift_z_core(A, field, recent_days):
@@ -362,12 +371,48 @@ def _drift_z_core(A, field, recent_days):
     detail.sort(key=lambda d: -d["z"])
     series = [getattr(a, field) for a in A if getattr(a, field) is not None][-26:]
     base_center = median if v2 else mean
-    return {
+    out = {
         "z": r2(num / den), "buckets": len(detail), "nRecent": n_scored, "detail": detail,
         "baseMean": r2(base_center([getattr(a, field) for a in base])),
         "recMean": r2(mean([getattr(a, field) for a in rec])),
         "series": series,
     }
+    if v2:
+        # --- Phase 2: across-session EWMA + persistence/convergence -----------
+        # Build a per-session drift index (oldest→newest) in the runner's own
+        # typical-error units, only for sessions in a familiar terrain bucket
+        # (domain-of-applicability — unfamiliar conditions are "not scored").
+        base_stats = {}
+        for b, bv in by_b.items():
+            if len(bv) < 3:
+                continue
+            c = median(bv)
+            base_stats[b] = (c, max(mad_sd(bv), sd(bv) * 0.5, abs(c) * 0.012))
+        dis = []
+        for a in sorted(rec, key=lambda a: a.started_at):
+            st = base_stats.get(bucket(a))
+            if not st or not st[1]:
+                continue
+            dis.append(clamp((getattr(a, field) - st[0]) / st[1], -4, 4))
+        if dis:
+            e = 0.0
+            for d in dis:
+                e = _V2_EWMA_LAMBDA * d + (1 - _V2_EWMA_LAMBDA) * e
+            sigma = mad_sd(dis) or sd(dis) or 1.0
+            ctrl = _V2_EWMA_L * sigma * math.sqrt(_V2_EWMA_LAMBDA / (2 - _V2_EWMA_LAMBDA))
+            latest = dis[-1]
+            last3 = dis[-3:]
+            dom = 1 if sum(x > 0 for x in last3) >= 2 else (-1 if sum(x < 0 for x in last3) >= 2 else 0)
+            # Magnitude class is on the SMOOTHED EWMA (not a single noisy run), so
+            # the label is stable and clean runners don't flicker into "watch".
+            out.update({
+                "z": r2(e),                     # smoothed cross-session drift feeds the score
+                "ewma": r2(e), "latest": r2(latest), "ctrl": r2(ctrl), "nSessions": len(dis),
+                "beyond": abs(e) > ctrl,        # EWMA outside the control limit
+                "persist": dom != 0 and e * dom > 0,  # same sign in ≥2 of last 3 sessions
+                "state": "clear" if abs(e) >= _V2_CLEAR else ("possible" if abs(e) >= _V2_DELTA else "usual"),
+            })
+    return out
 
 
 def drift_z(db: DBSession, rid: str, field: str, recent_days: int = RECENT):
@@ -1568,12 +1613,28 @@ def assess(db: DBSession, rid: str) -> dict:
     symp_score = rnd(clamp(symp_score, 0, 100))
     overall = rnd(clamp(mech_score * 0.38 + load_score * 0.30 + symp_score * 0.52, 0, 100))
     prev_row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()
+    # v2 Phase 2: across-session evidence label (informational — shown to the
+    # user, NOT yet a hard quadrant gate). "flag" = persistence (EWMA past its
+    # control limit + same sign in ≥2 of last 3 sessions, rule A) or convergence
+    # (≥2 registry metrics clear, rule B); "watch" = one clear metric. The EWMA
+    # smoothing already damps one-off spikes and accumulates genuine slow drift,
+    # so the quadrant follows the smoothed mech score; the hard flag-gate is
+    # deferred to the segmentation phase, where within-session "clear" (a CI over
+    # many segments) is reliable enough to gate on.
+    mech_flag = mech_watch = False
+    if _emode() == "v2":
+        mm = [m for m in (tv, gc, cad, strd, vosc) if isinstance(m, dict) and "state" in m]
+        clears = [m for m in mm if m.get("state") == "clear"]
+        rule_a = any(m.get("beyond") and m.get("persist") for m in mm)
+        rule_b = len(clears) >= 2
+        mech_flag = rule_a or rule_b
+        mech_watch = (not mech_flag) and len(clears) >= 1
     quadrant = quadrant_of(load_score, mech_score, prev_row.quadrant if prev_row else None)
     tier = "alert" if overall >= 70 else ("watch" if overall >= 40 else "ok")
 
     return {
         "runner_id": rid, "computed_at": now_iso(), "engine": engine_version_for(_emode()),
-        "engineMode": _emode(),
+        "engineMode": _emode(), "mechFlag": mech_flag, "mechWatch": mech_watch,
         "mech": mech_score, "load": load_score, "symp": symp_score, "overall": overall,
         "tier": tier, "quadrant": quadrant, "confidence": conf,
         "signals": sorted(sig, key=lambda s: -s["pts"]),
@@ -1618,7 +1679,8 @@ def recompute_assessment(db: DBSession, rid: str) -> dict:
     row.detail_json = {
         k: a[k] for k in
         ("loadDetail", "tavr", "gct", "bal", "dec", "aer", "rcv", "fb", "cadence", "stride", "vosc",
-         "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury")
+         "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury",
+         "engineMode", "mechFlag", "mechWatch")
     }
     db.flush()
 

@@ -382,6 +382,15 @@ function Quadrant({ quadrant = "stable", history, live, onSync, syncing, syncMsg
           <div className="min-w-0">
             <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Kvadrant stavu</p>
             <h3 className="truncate font-serif text-lg leading-tight text-[#f1f8f1]">{q.t}</h3>
+            {live?.engineMode === "v2" && (live?.mechFlag || live?.mechWatch) && (
+              <span
+                className="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold"
+                style={live?.mechFlag ? { background: "#e77a5920", color: "#ffc1ab" } : { background: "#ffffff12", color: "#a9c2b9" }}
+                title={live?.mechFlag ? "Citlivý engine: odchylka mechaniky přetrvává napříč běhy nebo se sešly dvě metriky" : "Citlivý engine: jedna metrika mechaniky se odchýlila — zatím jen sledujeme"}
+              >
+                {live?.mechFlag ? "⚑ mechanika přetrvává" : "◔ sledovat mechaniku"}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
