@@ -144,6 +144,7 @@ export const api = {
   garminMfa: (mfaToken: string, mfaCode: string, remember = false) => call("POST", "/api/integrations/garmin/connect/mfa", { mfa_token: mfaToken, mfa_code: mfaCode, remember }, { skipAuthRedirect: true }),
   // Switch the mechanics engine (v1 standard / v2 sensitive) and recompute.
   setEngine: (rid: string, mode: "v1" | "v2") => call("POST", `/api/runners/${rid}/engine`, { mode }),
+  runSegments: (rid: string) => call("GET", `/api/runners/${rid}/run-segments`),
 }
 
 export type Me = {

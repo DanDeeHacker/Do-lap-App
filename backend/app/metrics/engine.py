@@ -1279,6 +1279,61 @@ def segment_mechanics(db: DBSession, rid: str):
     return out or None
 
 
+_SEG_METRIC_LABELS = {
+    "gct_ms": "Kontakt se zemí", "vratio_pct": "Vertikální poměr", "cadence_spm": "Kadence",
+    "step_len_m": "Délka kroku", "vo_cm": "Vertikální oscilace",
+}
+
+
+def run_segment_breakdown(db: DBSession, rid: str, days: int = 60, limit: int = 12) -> list:
+    """Per-RUN within-run drift for the Pohyb tab: for each recent run that has a
+    stored stream, how each metric deviated from the runner's own baseline, split
+    by gradient (sjezd / rovina / výjezd). Surfaces the notable single-band
+    changes the whole-session score averages out. Empty until streams are fetched."""
+    from . import regression as reg
+    from . import segmentation as seg
+    rows = (
+        db.query(models.ActivityStream.segments_json, models.Activity.started_at,
+                 models.Activity.title, models.Activity.distance_km)
+        .join(models.Activity, models.ActivityStream.activity_id == models.Activity.id)
+        .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.segments_json.isnot(None))
+        .order_by(models.Activity.started_at.desc()).all()
+    )
+    if not rows:
+        return []
+    lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
+    excl = _v2_baseline_exclusions(db, rid)
+    base_segs = []
+    for segs, started, _t, _d in rows:
+        if segs and hi >= (started or "") > lo and (started or "")[:10] not in excl:
+            base_segs.extend(segs)
+    if len(base_segs) < 15:
+        return []
+    stats = seg.baseline_stats(base_segs)
+    models_by = {f: reg.fit_metric(base_segs, f) for f in seg.MECH_FIELDS}
+    cut = day_ago(days)
+    out = []
+    for segs, started, title, dist in rows:
+        if not segs or (started or "") <= cut:
+            continue
+        metrics = {}
+        for f, label in _SEG_METRIC_LABELS.items():
+            m = models_by.get(f)
+            d = reg.session_residual_drift(segs, m) if m else seg.session_drift(segs, stats, f)
+            if d and d.get("byBand"):
+                metrics[f] = {"di": d["di"], "byBand": d["byBand"], "label": label,
+                              "method": "regression" if m else "bucket"}
+        if not metrics:
+            continue
+        notable = any(abs(v["di"]) >= 0.8 or any(abs(z) >= 1.5 for z in v["byBand"].values())
+                      for v in metrics.values())
+        out.append({"date": started, "title": title, "distanceKm": dist,
+                    "metrics": metrics, "notable": notable})
+        if len(out) >= limit:
+            break
+    return out
+
+
 def assess(db: DBSession, rid: str) -> dict:
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
     if _emode() == "v2":

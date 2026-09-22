@@ -320,6 +320,14 @@ def get_assessment(rid: str, user: models.User = Depends(get_current_user), db: 
     return E.get_or_refresh_assessment(db, rid)
 
 
+@router.get("/{rid}/run-segments")
+def run_segments(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Per-run within-run segment drift (sjezd/rovina/výjezd) for the Pohyb tab.
+    Empty until detailed streams have been fetched."""
+    ensure_runner_read_access(db, user, rid)
+    return E.run_segment_breakdown(db, rid)
+
+
 @router.get("/{rid}/activities")
 def list_activities(rid: str, limit: int = 10, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_read_access(db, user, rid)
