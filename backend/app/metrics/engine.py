@@ -1281,8 +1281,72 @@ def segment_mechanics(db: DBSession, rid: str):
 
 _SEG_METRIC_LABELS = {
     "gct_ms": "Kontakt se zemí", "vratio_pct": "Vertikální poměr", "cadence_spm": "Kadence",
-    "step_len_m": "Délka kroku", "vo_cm": "Vertikální oscilace",
+    "step_len_m": "Délka kroku", "vo_cm": "Vertikální oscilace", "gct_bal_pct": "Symetrie kontaktu",
 }
+_BAND_LABELS = {"B1": "prudký sjezd", "B2": "sjezd", "B3": "rovina", "B4": "výjezd", "B5": "prudký výjezd"}
+
+
+def segment_significance(db: DBSession, rid: str, n_runs: int = 3, min_base: int = 5) -> dict:
+    """Per-segment statistical test of the last `n_runs` runs against the runner's
+    own baseline. For each segment × metric, the segment value is compared with
+    the distribution of the runner's baseline segments in the SAME terrain bucket
+    (surface × gradient band): z = (value − baseline_mean) / baseline_SD, two-sided
+    normal p. A segment is 'significant' at 95% when |z| ≥ 1.96 and the baseline
+    bucket has ≥ min_base segments. Uses stored segments (fetch Detailní data)."""
+    from . import segmentation as seg
+    rows = (
+        db.query(models.ActivityStream.segments_json, models.Activity.started_at,
+                 models.Activity.title, models.Activity.distance_km)
+        .join(models.Activity, models.ActivityStream.activity_id == models.Activity.id)
+        .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.segments_json.isnot(None))
+        .order_by(models.Activity.started_at.desc()).all()
+    )
+    if not rows:
+        return {"runs": [], "note": "no_streams"}
+    lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
+    excl = _v2_baseline_exclusions(db, rid)
+    by = {}  # (field, surface, band) -> [values]
+    for segs, started, _t, _d in rows:
+        if segs and hi >= (started or "") > lo and (started or "")[:10] not in excl:
+            for s in segs:
+                for f in seg.MECH_FIELDS:
+                    if s.get(f) is not None:
+                        by.setdefault((f, s.get("surface") or "unknown", s.get("band")), []).append(s[f])
+    base = {k: (mean(v), sd(v), len(v)) for k, v in by.items() if len(v) >= min_base}
+    sqrt2 = 2 ** 0.5
+    runs_out = []
+    for segs, started, title, dist in rows[:n_runs]:
+        segs = segs or []
+        seg_out, sig_count = [], 0
+        for i, s in enumerate(segs):
+            findings = []
+            for f in seg.MECH_FIELDS:
+                v = s.get(f)
+                st = base.get((f, s.get("surface") or "unknown", s.get("band")))
+                if v is None or not st or st[1] <= 0:
+                    continue
+                m, sdev, nb = st
+                z = (v - m) / sdev
+                p = math.erfc(abs(z) / sqrt2)  # two-sided normal p-value
+                sig = abs(z) >= 1.96
+                if sig:
+                    sig_count += 1
+                findings.append({
+                    "metric": f, "label": _SEG_METRIC_LABELS.get(f, f),
+                    "value": r2(v), "base": r2(m), "sd": r2(sdev), "baseN": nb,
+                    "z": r2(z), "p": round(p, 4), "sig": sig, "dir": "up" if z > 0 else "down",
+                })
+            seg_out.append({
+                "idx": i, "band": s.get("band"), "bandLabel": _BAND_LABELS.get(s.get("band"), s.get("band")),
+                "surface": s.get("surface"), "elapsedMin": r1((s.get("elapsedS") or 0) / 60),
+                "durationS": s.get("durationS"), "findings": findings,
+                "sig": any(f["sig"] for f in findings),
+            })
+        runs_out.append({
+            "date": started, "title": title, "distanceKm": dist,
+            "nSeg": len(segs), "sigCount": sig_count, "segments": seg_out,
+        })
+    return {"runs": runs_out, "baselineBuckets": len(base)}
 
 
 def run_segment_breakdown(db: DBSession, rid: str, days: int = 60, limit: int = 12) -> list:

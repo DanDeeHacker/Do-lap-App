@@ -328,6 +328,14 @@ def run_segments(rid: str, user: models.User = Depends(get_current_user), db: DB
     return E.run_segment_breakdown(db, rid)
 
 
+@router.get("/{rid}/run-segment-significance")
+def run_segment_significance(rid: str, n: int = 3, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Per-segment statistical test (each metric vs the runner's baseline for the
+    same terrain) for the last n runs. Empty until detailed streams are fetched."""
+    ensure_runner_read_access(db, user, rid)
+    return E.segment_significance(db, rid, n_runs=n)
+
+
 @router.get("/{rid}/activities")
 def list_activities(rid: str, limit: int = 10, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_read_access(db, user, rid)

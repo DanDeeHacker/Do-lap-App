@@ -66,3 +66,36 @@ def test_segment_mechanics_endtoend(client, db_session):
     assert sm and "gct" in sm
     assert sm["gct"]["z"] > 0.5
     assert sm["gct"]["byBand"]["down"] > sm["gct"]["byBand"].get("level", 0)
+
+
+def test_segment_significance(client, db_session):
+    import random
+    from app.metrics import engine as E
+    from app import models
+    from tests.conftest import register
+    random.seed(3)
+    rid = register(client, "sig@test.cz", "Sig Runner", "runner").json()["runner_id"]
+    db = db_session
+    def s(band, gct):
+        return {"band": band, "surface": "road", "durationS": 60, "meanSpeed": 3.0,
+                "meanGradient": -0.12 if band == "B1" else 0.0, "elapsedS": 0, "gct_ms": gct}
+    aid = 0
+    def add(day, segs):
+        nonlocal aid; aid += 1
+        a = models.Activity(runner_id=rid, provider="garmin", external_id=f"z{aid}",
+                            started_at=E.day_ago(day), sport="running", distance_km=10.0, duration_min=55)
+        db.add(a); db.flush()
+        db.add(models.ActivityStream(activity_id=a.id, runner_id=rid, external_id=a.external_id,
+               segments_json=segs, created_at=E.now_iso()))
+    for day in range(78, 30, -6):   # baseline: flat gct ~240±5, downhill ~232±5
+        add(day, [s("B3", 240 + random.gauss(0, 5)), s("B1", 232 + random.gauss(0, 5))])
+    add(3, [s("B3", 241), s("B1", 262)])   # recent: downhill gct clearly elevated
+    db.commit()
+    res = E.segment_significance(db, rid, n_runs=1)
+    run = res["runs"][0]
+    downhill = next(sg for sg in run["segments"] if sg["band"] == "B1")
+    gct = next(f for f in downhill["findings"] if f["metric"] == "gct_ms")
+    assert gct["sig"] is True and gct["p"] < 0.05 and gct["z"] > 1.96 and gct["dir"] == "up"
+    flat = next(sg for sg in run["segments"] if sg["band"] == "B3")
+    assert not any(f["sig"] for f in flat["findings"])   # flat segment is normal
+    assert run["sigCount"] >= 1

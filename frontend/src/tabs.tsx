@@ -623,66 +623,82 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
   )
 }
 
-// Per-run within-run drift (sjezd / rovina / výjezd) from stored segments —
-// surfaces the notable single-band changes the whole-session score averages out.
+// Per-segment statistical test of the last 3 runs vs the runner's own baseline
+// (each metric, same terrain bucket): z-score + two-sided p, significant at 95%.
 function RunSegments({ rid }: { rid?: string }) {
-  const [rows, setRows] = useState<any[] | null>(null)
+  const [data, setData] = useState<any | null>(null)
+  const [openRun, setOpenRun] = useState<number | null>(null)
   useEffect(() => {
     if (!rid) return
     let alive = true
-    api.runSegments(rid).then((r) => alive && setRows(r || [])).catch(() => alive && setRows([]))
+    api.runSegmentSignificance(rid).then((d) => alive && setData(d || { runs: [] })).catch(() => alive && setData({ runs: [] }))
     return () => { alive = false }
   }, [rid])
-  if (rows === null) return null
+  if (data === null) return null
+  const runs: any[] = data.runs || []
   const fmt = (d: string) => new Date(d).toLocaleDateString("cs-CZ", { day: "numeric", month: "short" })
-  const bands: [string, string][] = [["down", "sjezd"], ["level", "rovina"], ["up", "výjezd"]]
-  const col = (z: number) => (Math.abs(z) >= 1.5 ? "#e77a59" : Math.abs(z) >= 0.8 ? "#f6d69a" : "#6ce6d3")
-  if (!rows.length)
+  const sigCol = (p: number) => (p < 0.01 ? "#e77a59" : p < 0.05 ? "#f6d69a" : "#8ba59d")
+  const info = <InfoDot label="Test úseků vůči baseline" text="Každý úsek běhu se porovná s rozložením vašich baseline úseků na stejném terénu (povrch × sklon): z = (hodnota − váš průměr) / vaše SD, dvoustranné p. Významné = |z| ≥ 1,96 (p < 0,05) — úsek se odlišuje nad rámec vaší běžné variability." />
+  if (!runs.length)
     return (
       <Card className="mt-4">
-        <span className="flex items-center gap-1.5"><Label>Rozpad běhů podle úseků</Label><InfoDot label="Rozpad podle úseků" text="Pro každý běh: o kolik se metrika liší od vaší normy zvlášť na sjezdu / rovině / výjezdu (v jednotkách vaší typické chyby, s odečteným tempem a sklonem)." /></span>
-        <p className="mt-2 text-sm text-[#64736e]">Zapne se po stažení <b>Detailních dat</b> (Data → ⛰ Detailní data) — pak uvidíte, kde v běhu se mechanika mění, hlavně značné změny na sjezdech.</p>
+        <span className="flex items-center gap-1.5"><Label>Test úseků vůči baseline (3 poslední běhy)</Label>{info}</span>
+        <p className="mt-2 text-sm text-[#64736e]">Zapne se po stažení <b>Detailních dat</b> (Data → ⛰ Detailní data) — pak u každého úseku uvidíte, které metriky se statisticky významně liší od vaší normy.</p>
       </Card>
     )
+  const finding = (f: any) => (
+    <span key={f.metric} className="flex flex-wrap items-baseline gap-x-1.5 text-[12px]" style={{ color: f.sig ? sigCol(f.p) : "#8ba59d" }}>
+      <b className="text-[#e6efe9]">{f.label}</b>
+      <span className="font-mono">{f.value}</span><span className="text-[#5f7268]">vs {f.base}</span>
+      <span className="font-mono">z={f.z > 0 ? "+" : ""}{f.z}</span>
+      <span className="font-mono">p={f.p.toFixed(3)}</span>
+      <span>{f.dir === "up" ? "↑" : "↓"}</span>
+      {f.sig && <span className="text-[9px] font-extrabold uppercase tracking-wide">· významné</span>}
+    </span>
+  )
   return (
     <Card className="mt-4">
-      <span className="flex items-center gap-1.5"><Label>Rozpad běhů podle úseků</Label><InfoDot label="Rozpad podle úseků" text="Pro každý běh: o kolik se metrika liší od vaší normy zvlášť na sjezdu / rovině / výjezdu (v jednotkách vaší typické chyby, s odečteným tempem a sklonem). Zvýrazněné = značná změna, kterou průměr za celý běh skryje." /></span>
-      <div className="mt-3 space-y-2.5">
-        {rows.map((r, i) => {
-          const shown = Object.entries(r.metrics).filter(([, m]: any) => Math.abs(m.di) >= 0.5 || Object.values(m.byBand).some((z: any) => Math.abs(z) >= 1.0))
+      <span className="flex items-center gap-1.5"><Label>Test úseků vůči baseline (3 poslední běhy)</Label>{info}</span>
+      <div className="mt-3 space-y-3">
+        {runs.map((r, i) => {
+          const open = openRun === i
+          const sigSegs = (r.segments || []).filter((s: any) => s.sig)
           return (
-            <div key={i} className={`rounded-2xl border p-3 ${r.notable ? "border-[#e77a59]/40 bg-[#e77a59]/[.06]" : "border-white/10 bg-white/[.02]"}`}>
+            <div key={i} className={`rounded-2xl border p-3 ${r.sigCount ? "border-[#e77a59]/40 bg-[#e77a59]/[.05]" : "border-white/10 bg-white/[.02]"}`}>
               <div className="flex items-center justify-between gap-2">
                 <b className="truncate text-sm text-[#f1f8f1]">{fmt(r.date)} · {r.title || "Běh"}</b>
-                <span className="shrink-0 text-[11px] text-[#71837b]">{r.distanceKm ? `${r.distanceKm} km` : ""}{r.notable ? " · značná změna" : ""}</span>
+                <span className="shrink-0 text-[11px] text-[#71837b]">{r.distanceKm ? `${r.distanceKm} km · ` : ""}{r.nSeg} úseků · {r.sigCount ? `${r.sigCount} významných` : "bez odchylek"}</span>
               </div>
-              {shown.length ? (
-                <div className="mt-2 space-y-1.5">
-                  {shown.map(([f, m]: any) => (
-                    <div key={f} className="flex items-center gap-2">
-                      <span className="w-28 shrink-0 truncate text-[12px] text-[#a9c2b9]">{m.label}</span>
-                      <div className="flex flex-1 gap-1">
-                        {bands.map(([b, lab]) => {
-                          const z = m.byBand[b]
-                          return (
-                            <span key={b} className="flex-1 rounded-md px-1 py-1 text-center text-[10px] font-bold"
-                              style={{ background: z == null ? "#ffffff08" : `${col(z)}22`, color: z == null ? "#5f7268" : col(z) }}>
-                              {lab} {z == null ? "—" : `${z > 0 ? "+" : ""}${z}`}
-                            </span>
-                          )
-                        })}
+              {sigSegs.length > 0 && (
+                <div className="mt-2 space-y-2">
+                  {sigSegs.map((s: any) => (
+                    <div key={s.idx} className="rounded-xl bg-black/20 p-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-[#8fb0a5]">úsek {s.idx + 1} · {s.bandLabel} · {s.elapsedMin} min</p>
+                      <div className="mt-1 space-y-0.5">{s.findings.filter((f: any) => f.sig).map(finding)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button onClick={() => setOpenRun(open ? null : i)} className="mt-2 font-mono text-[10px] font-bold text-[#6ce6d3]">
+                {open ? "skrýt všechny úseky ▲" : `všechny úseky (${r.nSeg}) ▾`}
+              </button>
+              {open && (
+                <div className="mt-2 space-y-2 border-t border-white/10 pt-2">
+                  {(r.segments || []).map((s: any) => (
+                    <div key={s.idx}>
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-[#71837b]">úsek {s.idx + 1} · {s.bandLabel} · {s.elapsedMin} min</p>
+                      <div className="mt-0.5 space-y-0.5">
+                        {s.findings.length ? s.findings.map(finding) : <span className="text-[11px] text-[#5f7268]">mimo doménu / bez baseline</span>}
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p className="mt-1 text-[11px] text-[#71837b]">Mechanika v normě napříč úseky.</p>
               )}
             </div>
           )
         })}
       </div>
-      <p className="mt-3 text-[10px] text-[#71837b]">Hodnoty jsou v násobcích vaší typické chyby (±). Nad ±1,5 = výrazné (červeně).</p>
+      <p className="mt-3 text-[10px] text-[#71837b]">z = odchylka v násobcích vaší SD na daném terénu · p = dvoustranná pravděpodobnost · významné při p &lt; 0,05.</p>
     </Card>
   )
 }

@@ -145,6 +145,7 @@ export const api = {
   // Switch the mechanics engine (v1 standard / v2 sensitive) and recompute.
   setEngine: (rid: string, mode: "v1" | "v2") => call("POST", `/api/runners/${rid}/engine`, { mode }),
   runSegments: (rid: string) => call("GET", `/api/runners/${rid}/run-segments`),
+  runSegmentSignificance: (rid: string, n = 3) => call("GET", `/api/runners/${rid}/run-segment-significance?n=${n}`),
 }
 
 export type Me = {
