@@ -103,7 +103,8 @@ def _features(chunk, surface):
         "band": chunk[0]["_band"], "surface": surface or "unknown",
         "durationS": dur, "distanceM": round(dist, 1),
         "meanSpeed": round(_mean(spds), 3), "meanGradient": round(_mean([r["_grade"] for r in chunk]), 4),
-        "elapsedS": chunk[0]["_t"], "steady": cv <= STEADY_CV,
+        "elapsedS": chunk[0]["_t"], "cumDescentM": round(chunk[0].get("_cumdesc", 0.0), 1),
+        "steady": cv <= STEADY_CV,
     }
     for f in MECH_FIELDS:
         feat[f] = _median([r.get(f) for r in chunk])
@@ -126,8 +127,18 @@ def segment(records, surface=None):
     ts = _times(records)
     grades = _gradients(records)
     run = _running(records)
+    # Cumulative descent (metres) up to each record — fatigue/eccentric-load proxy
+    # that the S4 regression uses as a covariate (later in the run runs downhill-
+    # tired legs differently even at the same speed/gradient).
+    cum = 0.0
+    prev_alt = None
     for i, r in enumerate(records):
-        r["_t"], r["_grade"], r["_band"] = ts[i], grades[i], _band(grades[i])
+        a = r.get("altitude_m")
+        if a is not None and prev_alt is not None and a < prev_alt:
+            cum += prev_alt - a
+        if a is not None:
+            prev_alt = a
+        r["_t"], r["_grade"], r["_band"], r["_cumdesc"] = ts[i], grades[i], _band(grades[i]), cum
     segs, cur = [], []
     for i, r in enumerate(records):
         if not run[i]:

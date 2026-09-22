@@ -26,8 +26,9 @@ _DOMAIN_PAD_G = 0.03     # gradient widening [Calibrate]
 def _raw(seg):
     v = seg.get("meanSpeed") or 0.0
     g = seg.get("meanGradient") or 0.0
-    t = (seg.get("elapsedS") or 0) / 600.0  # per 10 minutes
-    return {"v": v, "v2": v * v, "g": g, "g2": g * g, "vg": v * g, "t": t}
+    t = (seg.get("elapsedS") or 0) / 600.0        # per 10 minutes
+    d = (seg.get("cumDescentM") or 0) / 100.0     # cumulative descent, per 100 m
+    return {"v": v, "v2": v * v, "g": g, "g2": g * g, "vg": v * g, "t": t, "d": d}
 
 
 def _median(xs):
@@ -68,9 +69,12 @@ def fit_metric(baseline_segments, field, lam=_RIDGE_LAMBDA, beta_prior=None):
     rows = [(s, _raw(s)) for s in baseline_segments if s.get(field) is not None]
     if len(rows) < _MIN_FIT_SEGMENTS:
         return None
-    means = {c: sum(r[c] for _, r in rows) / len(rows) for c in _NUM_COLS}
+    # Cumulative descent D is only a covariate when every baseline segment carries
+    # it (older streams predate it) — keeps the design matrix dimension-consistent.
+    cols = list(_NUM_COLS) + (["d"] if all(s.get("cumDescentM") is not None for s, _ in rows) else [])
+    means = {c: sum(r[c] for _, r in rows) / len(rows) for c in cols}
     stds = {}
-    for c in _NUM_COLS:
+    for c in cols:
         var = sum((r[c] - means[c]) ** 2 for _, r in rows) / len(rows)
         stds[c] = (var ** 0.5) or 1.0
     # surface dummies: reference = most common; others with ≥3 segments
@@ -81,7 +85,7 @@ def fit_metric(baseline_segments, field, lam=_RIDGE_LAMBDA, beta_prior=None):
     dummies = [su for su, n in surf_counts.items() if su != ref and n >= 3]
 
     def design(seg, raw):
-        row = [1.0] + [(raw[c] - means[c]) / stds[c] for c in _NUM_COLS]
+        row = [1.0] + [(raw[c] - means[c]) / stds[c] for c in cols]
         row += [1.0 if (seg.get("surface") or "unknown") == su else 0.0 for su in dummies]
         return row
 
@@ -103,7 +107,7 @@ def fit_metric(baseline_segments, field, lam=_RIDGE_LAMBDA, beta_prior=None):
     vs = [r["v"] for _, r in rows]
     gs = [r["g"] for _, r in rows]
     return {
-        "field": field, "beta": beta, "means": means, "stds": stds, "dummies": dummies,
+        "field": field, "beta": beta, "means": means, "stds": stds, "dummies": dummies, "cols": cols,
         "sigma": max(sigma, 1e-6), "n": len(rows),
         "domain": {"vLo": _pct(vs, 5) - _DOMAIN_PAD_V, "vHi": _pct(vs, 95) + _DOMAIN_PAD_V,
                    "gLo": _pct(gs, 5) - _DOMAIN_PAD_G, "gHi": _pct(gs, 95) + _DOMAIN_PAD_G},
@@ -112,7 +116,8 @@ def fit_metric(baseline_segments, field, lam=_RIDGE_LAMBDA, beta_prior=None):
 
 def _design_row(model, seg):
     raw = _raw(seg)
-    row = [1.0] + [(raw[c] - model["means"][c]) / model["stds"][c] for c in _NUM_COLS]
+    cols = model.get("cols", list(_NUM_COLS))
+    row = [1.0] + [(raw[c] - model["means"][c]) / model["stds"][c] for c in cols]
     row += [1.0 if (seg.get("surface") or "unknown") == su else 0.0 for su in model["dummies"]]
     return row, raw
 

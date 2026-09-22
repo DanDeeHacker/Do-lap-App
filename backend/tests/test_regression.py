@@ -73,3 +73,17 @@ def test_segment_mechanics_uses_regression(client, db_session):
     assert sm and "gct" in sm
     assert sm["gct"]["method"] == "regression"   # enough data → S4 model used
     assert sm["gct"]["z"] > 1.0                    # the real shift is caught
+
+
+def test_cumdescent_covariate_used_when_present():
+    # baseline WITH cumDescentM on every segment → model includes the "d" column
+    segs = []
+    for i in range(40):
+        s = _seg(2.8 + (i % 5) * 0.2, -0.05 + (i % 7) * 0.02, 240 + i % 3)
+        s["cumDescentM"] = (i % 10) * 25.0
+        segs.append(s)
+    m = R.fit_metric(segs, "gct_ms")
+    assert m and "d" in m["cols"]
+    # baseline WITHOUT cumDescentM → "d" dropped (dimension-safe for old streams)
+    m2 = R.fit_metric([_seg(3.0, 0.0, 240 + i % 3) for i in range(40)], "gct_ms")
+    assert m2 and "d" not in m2["cols"]

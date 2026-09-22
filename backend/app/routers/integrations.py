@@ -483,7 +483,7 @@ def garmin_disconnect(user: models.User = Depends(require_role("runner")),
     return {"connected": False, "auto_sync": False, "last_sync_at": None, "last_error": None}
 
 
-def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap: int = 25) -> dict:
+def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap: int = 25, retry_failed: bool = False) -> dict:
     """Phase 4 — pull the 1 Hz stream for running activities that don't yet have
     one (oldest-first within the window), run Stage-S1 quality control, store the
     derived elevation profile + segments, and back-fill Activity.elevation_profile.
@@ -494,6 +494,14 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
     activities are skipped, so repeated calls progressively fill the history.
     Per-activity errors are isolated."""
     from ..metrics import segmentation, stream_qc
+    if retry_failed:
+        # Drop failure tombstones (no segments + quality.failed) so they're retried.
+        for st in db.query(models.ActivityStream).filter(
+                models.ActivityStream.runner_id == rid,
+                models.ActivityStream.segments_json.is_(None)).all():
+            if (st.quality_json or {}).get("failed"):
+                db.delete(st)
+        db.commit()
     cut = E.day_ago(since_days)
     activities = (
         db.query(models.Activity)
@@ -596,7 +604,7 @@ def garmin_terrain(user: models.User = Depends(require_role("runner")),
 
 
 @router.post("/garmin/streams", dependencies=[Depends(verify_csrf)])
-def garmin_streams(days: int = 3650, cap: int = 25,
+def garmin_streams(days: int = 3650, cap: int = 25, retry: int = 0,
                    user: models.User = Depends(require_role("runner")),
                    db: DBSession = Depends(get_db)):
     """Fetch detailed per-second data (track, elevation, mechanics) for runs using
@@ -612,4 +620,4 @@ def garmin_streams(days: int = 3650, cap: int = 25,
         garmin = garmin_live.resume_session(row.token_blob, bool(row.encrypted))
     except garmin_live.AuthError as e:
         raise HTTPException(status_code=401, detail="Uložené přihlášení ke Garminu vypršelo — připojte ho prosím znovu.") from e
-    return _fetch_streams(db, rid, garmin, since_days=days, cap=max(1, min(cap, 60)))
+    return _fetch_streams(db, rid, garmin, since_days=days, cap=max(1, min(cap, 60)), retry_failed=bool(retry))

@@ -1312,12 +1312,19 @@ def segment_significance(db: DBSession, rid: str, n_runs: int = 3, min_base: int
                 for f in seg.MECH_FIELDS:
                     if s.get(f) is not None:
                         by.setdefault((f, s.get("surface") or "unknown", s.get("band")), []).append(s[f])
-    base = {k: (mean(v), sd(v), len(v)) for k, v in by.items() if len(v) >= min_base}
+    # Robust baseline per (metric, surface, band): median + MAD-based SD, so one
+    # odd baseline segment doesn't distort the norm (matches the rest of v2).
+    base = {}
+    for k, v in by.items():
+        if len(v) >= min_base:
+            c = median(v)
+            base[k] = (c, max(mad_sd(v), sd(v) * 0.5, abs(c) * 0.012, 1e-9), len(v))
     sqrt2 = 2 ** 0.5
+    all_findings = []  # every (segment × metric) test, for a family-wide FDR
     runs_out = []
     for segs, started, title, dist in rows[:n_runs]:
         segs = segs or []
-        seg_out, sig_count = [], 0
+        seg_out = []
         for i, s in enumerate(segs):
             findings = []
             for f in seg.MECH_FIELDS:
@@ -1328,25 +1335,37 @@ def segment_significance(db: DBSession, rid: str, n_runs: int = 3, min_base: int
                 m, sdev, nb = st
                 z = (v - m) / sdev
                 p = math.erfc(abs(z) / sqrt2)  # two-sided normal p-value
-                sig = abs(z) >= 1.96
-                if sig:
-                    sig_count += 1
-                findings.append({
+                fnd = {
                     "metric": f, "label": _SEG_METRIC_LABELS.get(f, f),
                     "value": r2(v), "base": r2(m), "sd": r2(sdev), "baseN": nb,
-                    "z": r2(z), "p": round(p, 4), "sig": sig, "dir": "up" if z > 0 else "down",
-                })
+                    "z": r2(z), "p": round(p, 4), "sigRaw": abs(z) >= 1.96,
+                    "sig": False, "dir": "up" if z > 0 else "down",
+                }
+                findings.append(fnd)
+                all_findings.append(fnd)
             seg_out.append({
                 "idx": i, "band": s.get("band"), "bandLabel": _BAND_LABELS.get(s.get("band"), s.get("band")),
                 "surface": s.get("surface"), "elapsedMin": r1((s.get("elapsedS") or 0) / 60),
-                "durationS": s.get("durationS"), "findings": findings,
-                "sig": any(f["sig"] for f in findings),
+                "durationS": s.get("durationS"), "findings": findings, "sig": False,
             })
         runs_out.append({
             "date": started, "title": title, "distanceKm": dist,
-            "nSeg": len(segs), "sigCount": sig_count, "segments": seg_out,
+            "nSeg": len(segs), "sigCount": 0, "segments": seg_out,
         })
-    return {"runs": runs_out, "baselineBuckets": len(base)}
+    # Benjamini–Hochberg FDR at 5% across ALL segment×metric tests, so "significant"
+    # accounts for how many comparisons were run (many segments × 6 metrics).
+    ps = sorted(f["p"] for f in all_findings)
+    thr = 0.0
+    for rank, pv in enumerate(ps, 1):
+        if pv <= (rank / len(ps)) * 0.05:
+            thr = pv
+    for f in all_findings:
+        f["sig"] = f["p"] <= thr
+    for run in runs_out:
+        for sgm in run["segments"]:
+            sgm["sig"] = any(f["sig"] for f in sgm["findings"])
+        run["sigCount"] = sum(1 for sgm in run["segments"] for f in sgm["findings"] if f["sig"])
+    return {"runs": runs_out, "baselineBuckets": len(base), "fdr": 0.05}
 
 
 def run_segment_breakdown(db: DBSession, rid: str, days: int = 60, limit: int = 12) -> list:

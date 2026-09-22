@@ -698,7 +698,7 @@ function RunSegments({ rid }: { rid?: string }) {
           )
         })}
       </div>
-      <p className="mt-3 text-[10px] text-[#71837b]">z = odchylka v násobcích vaší SD na daném terénu · p = dvoustranná pravděpodobnost · významné při p &lt; 0,05.</p>
+      <p className="mt-3 text-[10px] text-[#71837b]">z = odchylka v násobcích vaší (robustní) SD na daném terénu · p = dvoustranná pravděpodobnost · „významné" = po korekci na počet testů (FDR 5 %), ne jen p &lt; 0,05.</p>
     </Card>
   )
 }
