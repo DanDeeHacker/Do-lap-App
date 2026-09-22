@@ -483,26 +483,29 @@ def garmin_disconnect(user: models.User = Depends(require_role("runner")),
     return {"connected": False, "auto_sync": False, "last_sync_at": None, "last_error": None}
 
 
-def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 45, cap: int = 40) -> dict:
-    """Phase 4 — pull the 1 Hz stream for recent running activities that don't yet
-    have one, run Stage-S1 quality control, and store the derived elevation
-    profile. Also back-fills Activity.elevation_profile so the terrain-aware load
-    (Phase 3) starts working on real Garmin runs. Per-activity errors are
-    isolated so one bad activity doesn't abort the batch."""
+def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap: int = 25) -> dict:
+    """Phase 4 — pull the 1 Hz stream for running activities that don't yet have
+    one (oldest-first within the window), run Stage-S1 quality control, store the
+    derived elevation profile + segments, and back-fill Activity.elevation_profile.
+
+    Fetches at most `cap` per call (each Garmin detail request is slow, so a batch
+    keeps the HTTP request from timing out) and reports `remaining` so the caller
+    can loop until the whole window is backfilled. Idempotent: already-fetched
+    activities are skipped, so repeated calls progressively fill the history.
+    Per-activity errors are isolated."""
     from ..metrics import segmentation, stream_qc
     cut = E.day_ago(since_days)
     activities = (
         db.query(models.Activity)
         .filter(models.Activity.runner_id == rid, models.Activity.external_id.isnot(None),
                 models.Activity.started_at > cut, models.Activity.sport == "running")
-        .order_by(models.Activity.started_at.desc()).all()
+        .order_by(models.Activity.started_at.asc()).all()  # oldest first → baseline fills first
     )
     have = {row[0] for row in db.query(models.ActivityStream.activity_id)
             .filter(models.ActivityStream.runner_id == rid).all()}
+    todo = [a for a in activities if a.id not in have]
     fetched = stored = failed = 0
-    for a in activities[:cap]:
-        if a.id in have:
-            continue
+    for a in todo[:cap]:
         try:
             res = stream_qc.process(garmin_live.fetch_details(garmin, a.external_id))
             segs = segmentation.segment(res.get("records") or [], surface=a.surface)
@@ -522,7 +525,8 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 45, cap: i
     db.commit()
     if stored:
         E.recompute_assessment(db, rid)
-    return {"fetched": fetched, "stored": stored, "failed": failed}
+    return {"fetched": fetched, "stored": stored, "failed": failed,
+            "remaining": max(0, len(todo) - stored), "total": len(activities), "have": len(have) + stored}
 
 
 @router.post("/garmin/terrain", dependencies=[Depends(verify_csrf)])
@@ -575,11 +579,14 @@ def garmin_terrain(user: models.User = Depends(require_role("runner")),
 
 
 @router.post("/garmin/streams", dependencies=[Depends(verify_csrf)])
-def garmin_streams(user: models.User = Depends(require_role("runner")),
+def garmin_streams(days: int = 3650, cap: int = 25,
+                   user: models.User = Depends(require_role("runner")),
                    db: DBSession = Depends(get_db)):
-    """Fetch detailed per-second data (track, elevation, mechanics) for recent
-    runs using the stored Garmin session — unlocks terrain-aware load now and
-    within-run segmentation later. Requires a prior connect with 'remember'."""
+    """Fetch detailed per-second data (track, elevation, mechanics) for runs using
+    the stored Garmin session — unlocks terrain-aware load and within-run
+    segmentation. Backfills the whole window (default ~10 y) in batches of `cap`;
+    the response's `remaining` lets the client loop until done. Requires a prior
+    connect with 'remember'."""
     rid = user.runner_id
     row = db.query(models.GarminSession).filter(models.GarminSession.runner_id == rid).first()
     if row is None:
@@ -588,4 +595,4 @@ def garmin_streams(user: models.User = Depends(require_role("runner")),
         garmin = garmin_live.resume_session(row.token_blob, bool(row.encrypted))
     except garmin_live.AuthError as e:
         raise HTTPException(status_code=401, detail="Uložené přihlášení ke Garminu vypršelo — připojte ho prosím znovu.") from e
-    return _fetch_streams(db, rid, garmin)
+    return _fetch_streams(db, rid, garmin, since_days=days, cap=max(1, min(cap, 60)))

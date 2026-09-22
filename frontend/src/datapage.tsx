@@ -78,9 +78,16 @@ export function DataView() {
   const garminStreamsNow = async () => {
     setRes({ loading: true, source: "garminlive" })
     try {
-      const r: any = await api.garminStreams()
+      let total = 0
+      // Backfill the whole window in batches; the server returns `remaining`.
+      for (let i = 0; i < 60; i++) {
+        const r: any = await api.garminStreams()
+        total += r.stored || 0
+        if (r.stored) toast({ title: `Detailní data: ${r.have}/${r.total} běhů`, msg: r.remaining ? `zbývá ${r.remaining}…` : "hotovo" })
+        if (!r.remaining || (!r.stored && !r.fetched)) break
+      }
       setRes({ ok: true, source: "garminlive" })
-      toast({ title: r.stored ? `Detailní data: ${r.stored} běhů (trať a sklon)` : "Detailní data jsou aktuální" })
+      toast({ title: total ? `Detailní data stažena: +${total} běhů` : "Detailní data jsou aktuální" })
       refresh()
     } catch (e: any) { setRes({ ok: false, source: "garminlive", error: e?.message || "Načtení detailních dat selhalo." }) }
   }
@@ -259,7 +266,7 @@ export function DataView() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button onClick={garminSyncNow} disabled={R?.loading} className="rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313] disabled:opacity-60">{R?.loading ? "Synchronizuji…" : "⟳ Synchronizovat teď"}</button>
-                      <button onClick={garminStreamsNow} disabled={R?.loading} title="Stáhne trať, výškový profil a mechaniku po sekundách pro nedávné běhy — zapne terénní zátěž" className="rounded-full border border-[#6ce6d3]/40 px-4 py-2 text-xs font-bold text-[#6ce6d3] disabled:opacity-60">⛰ Detailní data</button>
+                      <button onClick={garminStreamsNow} disabled={R?.loading} title="Stáhne trať, výškový profil a mechaniku po sekundách pro VŠECHNY běhy v historii (po dávkách) — zapne terénní zátěž a segmenty" className="rounded-full border border-[#6ce6d3]/40 px-4 py-2 text-xs font-bold text-[#6ce6d3] disabled:opacity-60">⛰ Detailní data</button>
                       <button onClick={garminTerrainNow} disabled={R?.loading} title="Z GPS trati nejnovějšího běhu určí povrch a terén (OpenStreetMap, v ČR ZABAGED)" className="rounded-full border border-[#6ce6d3]/40 px-4 py-2 text-xs font-bold text-[#6ce6d3] disabled:opacity-60">🗺 Povrch trasy</button>
                       <button onClick={() => garminToggleAuto(!gStatus.auto_sync)} className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-[#a9c2b9]">{gStatus.auto_sync ? "Vypnout ranní sync" : "Zapnout ranní sync"}</button>
                       <button onClick={garminDisconnect} className="rounded-full border border-[#e77a59]/40 px-4 py-2 text-xs font-bold text-[#e77a59]">Odpojit</button>
