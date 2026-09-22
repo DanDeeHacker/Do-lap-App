@@ -307,6 +307,28 @@ _V2_DELTA = 0.5         # "possible deviation" threshold, typical-error units [C
 _V2_CLEAR = 1.0         # "clear deviation" threshold, typical-error units [Calibrate]
 
 
+def _ewma_flag(dis):
+    """Across-session EWMA control chart over a per-session drift-index series
+    (oldest→newest, in typical-error units). Returns the smoothed drift `z` plus
+    the persistence/convergence label fields, or None if the series is empty.
+    Shared by the per-run drift core and the Phase-5 segment path."""
+    if not dis:
+        return None
+    e = 0.0
+    for d in dis:
+        e = _V2_EWMA_LAMBDA * d + (1 - _V2_EWMA_LAMBDA) * e
+    sigma = mad_sd(dis) or sd(dis) or 1.0
+    ctrl = _V2_EWMA_L * sigma * math.sqrt(_V2_EWMA_LAMBDA / (2 - _V2_EWMA_LAMBDA))
+    last3 = dis[-3:]
+    dom = 1 if sum(x > 0 for x in last3) >= 2 else (-1 if sum(x < 0 for x in last3) >= 2 else 0)
+    return {
+        "z": r2(e), "ewma": r2(e), "latest": r2(dis[-1]), "ctrl": r2(ctrl), "nSessions": len(dis),
+        "beyond": abs(e) > ctrl,
+        "persist": dom != 0 and e * dom > 0,
+        "state": "clear" if abs(e) >= _V2_CLEAR else ("possible" if abs(e) >= _V2_DELTA else "usual"),
+    }
+
+
 def _drift_z_core(A, field, recent_days):
     """Per-terrain-bucket drift of `field`: recent vs the runner's own baseline.
 
@@ -395,24 +417,9 @@ def _drift_z_core(A, field, recent_days):
             if not st or not st[1]:
                 continue
             dis.append(clamp((getattr(a, field) - st[0]) / st[1], -4, 4))
-        if dis:
-            e = 0.0
-            for d in dis:
-                e = _V2_EWMA_LAMBDA * d + (1 - _V2_EWMA_LAMBDA) * e
-            sigma = mad_sd(dis) or sd(dis) or 1.0
-            ctrl = _V2_EWMA_L * sigma * math.sqrt(_V2_EWMA_LAMBDA / (2 - _V2_EWMA_LAMBDA))
-            latest = dis[-1]
-            last3 = dis[-3:]
-            dom = 1 if sum(x > 0 for x in last3) >= 2 else (-1 if sum(x < 0 for x in last3) >= 2 else 0)
-            # Magnitude class is on the SMOOTHED EWMA (not a single noisy run), so
-            # the label is stable and clean runners don't flicker into "watch".
-            out.update({
-                "z": r2(e),                     # smoothed cross-session drift feeds the score
-                "ewma": r2(e), "latest": r2(latest), "ctrl": r2(ctrl), "nSessions": len(dis),
-                "beyond": abs(e) > ctrl,        # EWMA outside the control limit
-                "persist": dom != 0 and e * dom > 0,  # same sign in ≥2 of last 3 sessions
-                "state": "clear" if abs(e) >= _V2_CLEAR else ("possible" if abs(e) >= _V2_DELTA else "usual"),
-            })
+        flag = _ewma_flag(dis)
+        if flag:
+            out.update(flag)
     return out
 
 
@@ -1209,6 +1216,57 @@ def _v2_baseline_exclusions(db: DBSession, rid: str, after_days: int = 14, thr: 
     return frozenset(out)
 
 
+_SEG_FIELD2KEY = {"vratio_pct": "tavr", "gct_ms": "gct", "cadence_spm": "cadence",
+                  "step_len_m": "stride", "vo_cm": "vosc"}
+
+
+def segment_mechanics(db: DBSession, rid: str):
+    """Phase 5 — within-run mechanics drift from stored S3 segments. Each session's
+    segments are scored against the runner's own per-(surface, band) segment
+    baseline (median + MAD), giving a duration-weighted session drift index that
+    a per-run average would have hidden (e.g. a downhill-only drift). The series
+    is smoothed by the shared EWMA. Returns per-metric results keyed by engine
+    metric name, or None when there aren't enough segmented sessions yet."""
+    from . import segmentation as seg
+    rows = (
+        db.query(models.ActivityStream.segments_json, models.Activity.started_at)
+        .join(models.Activity, models.ActivityStream.activity_id == models.Activity.id)
+        .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.segments_json.isnot(None))
+        .all()
+    )
+    if not rows:
+        return None
+    lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
+    excl = _eexcl()
+    base_segs, recent = [], []
+    for segs, started in rows:
+        if not segs:
+            continue
+        d = (started or "")[:10]
+        if hi >= (started or "") > lo and d not in excl:
+            base_segs.extend(segs)
+        if (started or "") > day_ago(RECENT):
+            recent.append((started, segs))
+    recent.sort(key=lambda t: t[0])
+    if len(base_segs) < 15 or len(recent) < 1:
+        return None
+    stats = seg.baseline_stats(base_segs)
+    if not stats:
+        return None
+    out = {}
+    for field, key in _SEG_FIELD2KEY.items():
+        dis, last_by = [], None
+        for _started, segs in recent:
+            sd_ = seg.session_drift(segs, stats, field)
+            if sd_:
+                dis.append(max(-4.0, min(4.0, sd_["di"])))
+                last_by = sd_["byBand"]
+        flag = _ewma_flag(dis)
+        if flag and len(dis) >= 1:
+            out[key] = {**flag, "byBand": last_by, "segment": True}
+    return out or None
+
+
 def assess(db: DBSession, rid: str) -> dict:
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
     if _emode() == "v2":
@@ -1230,6 +1288,23 @@ def assess(db: DBSession, rid: str) -> dict:
     duty = duty_factor(db, rid) if gated else None
     gcv = gait_cv(db, rid) if gated else None
     dec = decouple(db, rid) if gated else None
+    # Phase 5 — when detailed streams have been fetched, replace each metric's
+    # per-run drift with the finer within-run SEGMENT drift (no within-run
+    # averaging). Only overrides metrics that already passed the confidence gate;
+    # keeps the per-run detail/series for the existing charts.
+    seg_scored = False
+    if gated and _emode() == "v2":
+        sm = segment_mechanics(db, rid)
+        if sm:
+            for key, var in (("tavr", tv), ("gct", gc), ("cadence", cad), ("stride", strd), ("vosc", vosc)):
+                res = sm.get(key)
+                if res and isinstance(var, dict):
+                    for k in ("z", "ewma", "ctrl", "latest", "state", "persist", "beyond", "nSessions"):
+                        if k in res:
+                            var[k] = res[k]
+                    var["byBand"] = res.get("byBand")
+                    var["segment"] = True
+                    seg_scored = True
     aer = aerobic(db, rid)
     rcv = recovery(db, rid)
     fb = feedback(db, rid)
@@ -1650,7 +1725,7 @@ def assess(db: DBSession, rid: str) -> dict:
 
     return {
         "runner_id": rid, "computed_at": now_iso(), "engine": engine_version_for(_emode()),
-        "engineMode": _emode(), "mechFlag": mech_flag, "mechWatch": mech_watch,
+        "engineMode": _emode(), "mechFlag": mech_flag, "mechWatch": mech_watch, "segmentScored": seg_scored,
         "mech": mech_score, "load": load_score, "symp": symp_score, "overall": overall,
         "tier": tier, "quadrant": quadrant, "confidence": conf,
         "signals": sorted(sig, key=lambda s: -s["pts"]),
@@ -1696,7 +1771,7 @@ def recompute_assessment(db: DBSession, rid: str) -> dict:
         k: a[k] for k in
         ("loadDetail", "tavr", "gct", "bal", "dec", "aer", "rcv", "fb", "cadence", "stride", "vosc",
          "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury",
-         "engineMode", "mechFlag", "mechWatch")
+         "engineMode", "mechFlag", "mechWatch", "segmentScored")
     }
     db.flush()
 

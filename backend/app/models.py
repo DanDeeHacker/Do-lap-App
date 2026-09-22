@@ -120,6 +120,7 @@ class ActivityStream(Base):
     external_id = Column(String, index=True)
     elevation_profile = Column(JSON)
     quality_json = Column(JSON)
+    segments_json = Column(JSON)   # Phase 5 — S3 segment features for within-run scoring
     gps = Column(Boolean, default=False)
     created_at = Column(String, nullable=False)
 

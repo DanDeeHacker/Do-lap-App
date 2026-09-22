@@ -692,6 +692,11 @@ export function Mechanics() {
             <p className="mt-3 max-w-sm text-sm leading-6 text-[#a9c2b9]">
               {drift ? "Při stejném tempu se krok mírně prodlužuje a kontakt se zemí narůstá. Není to alarm, ale dobrý okamžik ubrat tlak." : "Ve srovnatelných podmínkách se vaše mechanika drží ve vlastním obvyklém rozsahu."}
             </p>
+            {a.segmentScored && (
+              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#6ce6d3]/12 px-2.5 py-1 text-[10px] font-bold text-[#6ce6d3]" title="Citlivý engine hodnotí drift po úsecích běhu (sjezd / rovina / výjezd zvlášť), ne z jednoho průměru za celý běh — malá změna jen na části trasy se tak neztratí.">
+                ⛰ měřeno po úsecích běhu
+              </p>
+            )}
             <div className={`mt-5 inline-flex items-center gap-2 rounded-full px-3 py-2 text-[10px] font-bold ${drift ? "bg-[#e77a59]/12 text-[#ffc1ab]" : "bg-[#c7ff54]/12 text-[#c7ff54]"}`}>
               <i className={`size-2 rounded-full ${drift ? "bg-[#e77a59]" : "bg-[#c7ff54]"}`} />
               {drift ? "vyšší než váš obvyklý střed" : "v rámci obvyklého středu"}

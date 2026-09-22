@@ -489,7 +489,7 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 45, cap: i
     profile. Also back-fills Activity.elevation_profile so the terrain-aware load
     (Phase 3) starts working on real Garmin runs. Per-activity errors are
     isolated so one bad activity doesn't abort the batch."""
-    from ..metrics import stream_qc
+    from ..metrics import segmentation, stream_qc
     cut = E.day_ago(since_days)
     activities = (
         db.query(models.Activity)
@@ -505,6 +505,7 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 45, cap: i
             continue
         try:
             res = stream_qc.process(garmin_live.fetch_details(garmin, a.external_id))
+            segs = segmentation.segment(res.get("records") or [], surface=a.surface)
             fetched += 1
         except Exception:  # noqa: BLE001 — per-activity isolation
             failed += 1
@@ -513,7 +514,7 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 45, cap: i
         db.add(models.ActivityStream(
             activity_id=a.id, runner_id=rid, external_id=a.external_id,
             elevation_profile=prof, quality_json=res.get("quality"),
-            gps=bool(res.get("gps")), created_at=E.now_iso(),
+            segments_json=segs or None, gps=bool(res.get("gps")), created_at=E.now_iso(),
         ))
         if prof and not a.elevation_profile:
             a.elevation_profile = prof
