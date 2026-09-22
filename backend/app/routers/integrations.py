@@ -525,6 +525,55 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 45, cap: i
     return {"fetched": fetched, "stored": stored, "failed": failed}
 
 
+@router.post("/garmin/terrain", dependencies=[Depends(verify_csrf)])
+def garmin_terrain(user: models.User = Depends(require_role("runner")),
+                   db: DBSession = Depends(get_db)):
+    """Live-sample the surface/trail of the runner's NEWEST run from its GPS track
+    (OSM via Overpass worldwide; ČÚZK ZABAGED preferred in CZ). Stores the
+    classification and refines the run's surface bucket. Requires a stored Garmin
+    session (streams carry the lat/lon track)."""
+    from ..metrics import geo_sample, stream_qc
+    rid = user.runner_id
+    row = db.query(models.GarminSession).filter(models.GarminSession.runner_id == rid).first()
+    if row is None:
+        raise HTTPException(status_code=409, detail="Garmin není připojen — připojte ho nejdřív na stránce Data.")
+    try:
+        garmin = garmin_live.resume_session(row.token_blob, bool(row.encrypted))
+    except garmin_live.AuthError as e:
+        raise HTTPException(status_code=401, detail="Uložené přihlášení ke Garminu vypršelo — připojte ho prosím znovu.") from e
+    newest = (
+        db.query(models.Activity)
+        .filter(models.Activity.runner_id == rid, models.Activity.external_id.isnot(None),
+                models.Activity.sport == "running")
+        .order_by(models.Activity.started_at.desc()).first()
+    )
+    if newest is None:
+        raise HTTPException(status_code=404, detail="Žádný běh k analýze.")
+    try:
+        records = stream_qc.process(garmin_live.fetch_details(garmin, newest.external_id)).get("records") or []
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Nepodařilo se stáhnout trať z Garminu: {e}")
+    track = [(r["lat"], r["lon"]) for r in records if r.get("lat") is not None and r.get("lon") is not None]
+    if not track:
+        raise HTTPException(status_code=422, detail="Tento běh nemá GPS trať (např. běžecký pás).")
+    result = geo_sample.sample_surface(track)
+    if not result:
+        raise HTTPException(status_code=502, detail="Nepodařilo se určit povrch trasy (služba nedostupná).")
+    st = db.query(models.ActivityStream).filter(models.ActivityStream.activity_id == newest.id).first()
+    if st is None:
+        st = models.ActivityStream(activity_id=newest.id, runner_id=rid, external_id=newest.external_id,
+                                   created_at=E.now_iso())
+        db.add(st)
+    st.surface_json = result
+    eng_surface = geo_sample.to_engine_surface(result)
+    if eng_surface:
+        newest.surface = eng_surface
+    db.commit()
+    E.recompute_assessment(db, rid)
+    return {"ok": True, "activity": {"title": newest.title, "date": newest.started_at},
+            "surface": result, "appliedSurface": eng_surface}
+
+
 @router.post("/garmin/streams", dependencies=[Depends(verify_csrf)])
 def garmin_streams(user: models.User = Depends(require_role("runner")),
                    db: DBSession = Depends(get_db)):

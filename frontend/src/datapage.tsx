@@ -84,6 +84,17 @@ export function DataView() {
       refresh()
     } catch (e: any) { setRes({ ok: false, source: "garminlive", error: e?.message || "Načtení detailních dat selhalo." }) }
   }
+  const garminTerrainNow = async () => {
+    setRes({ loading: true, source: "garminlive" })
+    try {
+      const r: any = await api.garminTerrain()
+      setRes({ ok: true, source: "garminlive" })
+      const s = r.surface || {}
+      const cls = { paved: "zpevněný", compact: "šotolina", soft: "měkký", unknown: "neznámý" }[s.surfaceClass as string] || s.surfaceClass
+      toast({ title: `Povrch trasy: ${cls}${s.onTrail ? " · terén" : ""}`, msg: `zdroj ${String(s.source).toUpperCase()} · pokrytí ${Math.round((s.coverage || 0) * 100)} %` })
+      refresh()
+    } catch (e: any) { setRes({ ok: false, source: "garminlive", error: e?.message || "Určení povrchu selhalo." }) }
+  }
   const garminToggleAuto = async (enabled: boolean) => {
     try { setGStatus(await api.garminAutoSync(enabled)); toast({ title: enabled ? "Ranní synchronizace zapnuta" : "Ranní synchronizace vypnuta" }) }
     catch (e: any) { toast({ title: e?.message || "Nepodařilo se změnit nastavení" }) }
@@ -183,6 +194,7 @@ export function DataView() {
                     <div className="flex flex-wrap gap-2">
                       <button onClick={garminSyncNow} disabled={R?.loading} className="rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313] disabled:opacity-60">{R?.loading ? "Synchronizuji…" : "⟳ Synchronizovat teď"}</button>
                       <button onClick={garminStreamsNow} disabled={R?.loading} title="Stáhne trať, výškový profil a mechaniku po sekundách pro nedávné běhy — zapne terénní zátěž" className="rounded-full border border-[#6ce6d3]/40 px-4 py-2 text-xs font-bold text-[#6ce6d3] disabled:opacity-60">⛰ Detailní data</button>
+                      <button onClick={garminTerrainNow} disabled={R?.loading} title="Z GPS trati nejnovějšího běhu určí povrch a terén (OpenStreetMap, v ČR ZABAGED)" className="rounded-full border border-[#6ce6d3]/40 px-4 py-2 text-xs font-bold text-[#6ce6d3] disabled:opacity-60">🗺 Povrch trasy</button>
                       <button onClick={() => garminToggleAuto(!gStatus.auto_sync)} className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-[#a9c2b9]">{gStatus.auto_sync ? "Vypnout ranní sync" : "Zapnout ranní sync"}</button>
                       <button onClick={garminDisconnect} className="rounded-full border border-[#e77a59]/40 px-4 py-2 text-xs font-bold text-[#e77a59]">Odpojit</button>
                     </div>
