@@ -40,47 +40,50 @@ DIST_DIR = os.path.join(FRONTEND_DIR, "frontend", "dist")
 HAS_SPA = os.path.isfile(os.path.join(DIST_DIR, "index.html"))
 
 
-def _migrate_sqlite(engine):
-    """Tiny additive migrations for columns added after a DB already exists —
-    create_all never ALTERs. Safe/idempotent: only adds missing columns."""
+def _migrate(engine):
+    """Additive column back-fills for columns added after a table already exists —
+    create_all() never ALTERs. `ALTER TABLE ... ADD COLUMN` is standard SQL, so
+    this runs on BOTH SQLite (dev) and Postgres (deploy): on a redeploy over an
+    existing Postgres, new columns would otherwise be missing and every query on
+    that table would 500. Safe/idempotent — re-checks each column before adding."""
     from sqlalchemy import inspect, text
-    insp = inspect(engine)
-    cols = {c["name"] for c in insp.get_columns("activities")} if insp.has_table("activities") else set()
-    if cols and "sport" not in cols:
+
+    def has_col(table, col):
+        insp = inspect(engine)  # fresh each call so it sees columns added above
+        if not insp.has_table(table):
+            return True  # table doesn't exist yet → create_all will build it fully
+        return col in {c["name"] for c in insp.get_columns(table)}
+
+    def add(table, col, ddl, backfill=None):
+        if has_col(table, col):
+            return
         with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE activities ADD COLUMN sport VARCHAR"))
-            conn.execute(text("UPDATE activities SET sport = 'running' WHERE sport IS NULL"))
-    icols = {c["name"] for c in insp.get_columns("injury_reports")} if insp.has_table("injury_reports") else set()
-    if icols and "pain_points" not in icols:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE injury_reports ADD COLUMN pain_points JSON"))
-    ccols = {c["name"] for c in insp.get_columns("checkins")} if insp.has_table("checkins") else set()
-    if ccols and "pain_points" not in ccols:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE checkins ADD COLUMN pain_points JSON"))
-    if ccols and "mood" not in ccols:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE checkins ADD COLUMN mood INTEGER"))
-    dcols = {c["name"] for c in insp.get_columns("daily_metrics")} if insp.has_table("daily_metrics") else set()
-    if dcols and "sleep_efficiency" not in dcols:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE daily_metrics ADD COLUMN sleep_efficiency FLOAT"))
-    rcols = {c["name"] for c in insp.get_columns("runners")} if insp.has_table("runners") else set()
-    if rcols and "engine_mode" not in rcols:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE runners ADD COLUMN engine_mode VARCHAR"))
-            conn.execute(text("UPDATE runners SET engine_mode = 'v1' WHERE engine_mode IS NULL"))
-    # Clean sensor-dropout zeros in already-imported data: a 0 in a running-
-    # dynamics / HR field is a missing reading, not a real value (see
-    # garmin_live._pos). Set them NULL so the engine skips them instead of
-    # dragging the metric's average toward zero. Gated so it's a no-op once clean.
-    zcols = [c for c in ("cadence_spm", "stride_len_m", "vert_osc_cm", "vert_ratio_pct", "gct_ms", "gct_balance_l", "avg_hr") if c in cols]
-    if zcols:
-        cond = " OR ".join(f"{c} = 0" for c in zcols)
-        with engine.begin() as conn:
-            if conn.execute(text(f"SELECT 1 FROM activities WHERE {cond} LIMIT 1")).first():
-                for c in zcols:
-                    conn.execute(text(f"UPDATE activities SET {c} = NULL WHERE {c} = 0"))
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+            if backfill:
+                conn.execute(text(backfill))
+
+    add("activities", "sport", "sport VARCHAR", "UPDATE activities SET sport = 'running' WHERE sport IS NULL")
+    add("injury_reports", "pain_points", "pain_points JSON")
+    add("checkins", "pain_points", "pain_points JSON")
+    add("checkins", "mood", "mood INTEGER")
+    add("daily_metrics", "sleep_efficiency", "sleep_efficiency FLOAT")
+    add("runners", "engine_mode", "engine_mode VARCHAR", "UPDATE runners SET engine_mode = 'v1' WHERE engine_mode IS NULL")
+    # activity_streams may pre-date these two columns on a Postgres provisioned at Phase 4.
+    add("activity_streams", "segments_json", "segments_json JSON")
+    add("activity_streams", "surface_json", "surface_json JSON")
+
+    # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
+    # them (Postgres deploys never imported those raw zeros). Idempotent.
+    if engine.dialect.name == "sqlite":
+        insp = inspect(engine)
+        cols = {c["name"] for c in insp.get_columns("activities")} if insp.has_table("activities") else set()
+        zcols = [c for c in ("cadence_spm", "stride_len_m", "vert_osc_cm", "vert_ratio_pct", "gct_ms", "gct_balance_l", "avg_hr") if c in cols]
+        if zcols:
+            cond = " OR ".join(f"{c} = 0" for c in zcols)
+            with engine.begin() as conn:
+                if conn.execute(text(f"SELECT 1 FROM activities WHERE {cond} LIMIT 1")).first():
+                    for c in zcols:
+                        conn.execute(text(f"UPDATE activities SET {c} = NULL WHERE {c} = 0"))
 
 
 _SYNC_HOUR = int(os.environ.get("DOSSLAP_AUTOSYNC_HOUR", "6"))
@@ -177,10 +180,9 @@ async def lifespan(app: FastAPI):
     _persistence_guard()
     _backup_db()  # snapshot BEFORE create_all/migrate touch the file
     Base.metadata.create_all(bind=engine)
-    if dbmod.IS_SQLITE:
-        # Additive column back-fills for pre-existing SQLite dev DBs. A fresh
-        # Postgres gets the full, current schema straight from create_all.
-        _migrate_sqlite(engine)
+    # Additive column back-fills — runs on SQLite AND Postgres, because a redeploy
+    # over an existing Postgres won't have columns added since it was provisioned.
+    _migrate(engine)
     db = SessionLocal()
     try:
         if db.query(models.Clinic).first() is None:
