@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session as DBSession
 
+from . import terrain
 from .. import models
 from ..serializers import to_dict
 
@@ -721,6 +722,10 @@ def load(db: DBSession, rid: str):
     # dimension (vs the worst run of the prior 30 days) counts.
     runs = sorted([a for a in A if (a.distance_km or 0) > 0], key=lambda a: a.started_at)
     today = today_date()
+    # v2 (Phase 3): Minetti grade-adjusted distance per run — flat-equivalent km,
+    # so a hilly run's true cost feeds the spike, not just its raw distance.
+    _v2 = _emode() == "v2"
+    _ga = {id(a): terrain.grade_adjusted_km(a.elevation_profile, a.distance_km or 0) for a in runs} if _v2 else {}
 
     def _sess_spikes(a):
         d0 = a.started_at[:10]
@@ -732,7 +737,11 @@ def load(db: DBSession, rid: str):
         prior_eff = [sl(x) for x in prior if sl(x) > 0]
         eff = sl(a)
         eff_r = (eff / max(prior_eff)) if (prior_eff and eff > 0) else 0.0
-        return (max(dist_r, eff_r), dist_r, eff_r)  # combined, distance, effort
+        ga_r = 0.0
+        if _v2:
+            prior_ga = [_ga[id(x)] for x in prior if _ga.get(id(x), 0) > 0]
+            ga_r = (_ga[id(a)] / max(prior_ga)) if (prior_ga and _ga.get(id(a), 0) > 0) else 0.0
+        return (max(dist_r, eff_r, ga_r), dist_r, eff_r, ga_r)  # combined, distance, effort, grade-adj
 
     def _days_ago(a):
         return (today - date.fromisoformat(a.started_at[:10])).days
@@ -749,8 +758,11 @@ def load(db: DBSession, rid: str):
     if acute_spikes:
         sess_spike_a, best = max(acute_spikes, key=lambda t: t[1][0])
         sess_spike = best[0]
-        sess_spike_basis = ("obojí" if abs(best[1] - best[2]) < 0.08
-                            else ("vzdálenost" if best[1] >= best[2] else "intenzita"))
+        # basis = whichever component (distance / effort / grade-adjusted terrain)
+        # drove the spike; "obojí" when the top two are within 0.08 of each other.
+        comps = [("vzdálenost", best[1]), ("intenzita", best[2]), ("převýšení", best[3])]
+        comps.sort(key=lambda kv: -kv[1])
+        sess_spike_basis = comps[0][0] if (comps[0][1] - comps[1][1] >= 0.08) else "obojí"
     else:
         sess_spike_a, sess_spike, sess_spike_basis = None, None, None
     # Latent memory: a big spike 8-28 days ago still elevates risk (IOC 2016 —
@@ -806,6 +818,10 @@ def load(db: DBSession, rid: str):
         "paceSpike": pace_spike,
         # safe single-session ceiling: ~10% over the longest run of the last 30d
         "safeLongRunKm": r1(max([a.distance_km for a in runs if _days_ago(a) <= 30], default=0) * 1.1) or None,
+        # v2 Phase 3 — terrain-aware load from the elevation profile (None when no
+        # profile, e.g. summary-only Garmin imports).
+        "gradeAdjKm7": (lambda g: r1(g) if g else None)(sum(terrain.grade_adjusted_km(a.elevation_profile, a.distance_km or 0) for a in w7 if a.elevation_profile)),
+        "downhillKm7": (lambda d: r1(d) if d else None)(sum(terrain.downhill_exposure(a.elevation_profile)[0] for a in w7 if a.elevation_profile)),
     }
 
 

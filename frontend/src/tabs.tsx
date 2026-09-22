@@ -913,6 +913,8 @@ export function Load() {
         <Metric label="Vysoká intenzita" value={L.valid && L.hiChronic ? `×${L.hiRatio}` : "—"} caption={L.valid && L.hiChronic ? `tvrdé běhy ${L.hiAcute}/${L.hiChronic}` : "žádné tvrdé běhy"} info={MI.hiIntensity} />
         <Metric label="Monotónnost" value={`${L.monotony}`} caption={`strain ${L.strain}`} info={MI.monotony} />
         <Metric label="Klesání 7 dní" value={`${L.descent7}`} caption={`obvykle ${L.descentBase} m${L.descentSpike ? ` · ×${L.descentSpike}` : ""}`} info={MI.descent7} />
+        {L.gradeAdjKm7 != null && <Metric label="Efektivní km" value={`${L.gradeAdjKm7}`} caption={`plochý ekvivalent · reálně ${L.runKm7} km`} info={MI.gradeAdj} />}
+        {L.downhillKm7 != null && <Metric label="Sbíhání" value={`${L.downhillKm7} km`} caption="v klesání ≥ 5 %" info={MI.downhill} />}
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>

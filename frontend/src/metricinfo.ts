@@ -17,6 +17,10 @@ export const METRIC_INFO: Record<string, string> = {
     "Nejtěžší jednotlivý trénink vůči vašemu maximu za posledních 30 dní — podle vzdálenosti i podle intenzity (bere se horší z obou). Jeden výrazně větší běh než na co jste zvyklí je nejsilnější spouštěč přetížení.",
   safeLongRun:
     "Odhad délky nejdelšího běhu, který teď zvládnete bez velkého skoku v zátěži — odvozeno z vaší nedávné historie. Slouží jako strop pro plánování víkendového dlouhého běhu.",
+  gradeAdj:
+    "Efektivní „plochý ekvivalent\" kilometrů za 7 dní — vzdálenost přepočtená podle energetické náročnosti sklonu (Minetti). Kopcovitý běh stojí víc než stejně dlouhý po rovině, takže tohle číslo je vyšší než reálné km na členitém terénu. Citlivý engine z toho počítá i skok v zátěži, aby hilly běh nepodhodnotil.",
+  downhill:
+    "Kilometry naběhané v klesání od −5 % sklonu za 7 dní. Klesání zatěžuje svaly excentricky (brzdění) víc, než odpovídá jeho nízké metabolické ceně — proto ho sledujeme zvlášť. Prudký nárůst bývá spouštěč bolesti stehen a kolen.",
 
   // — Regenerace (recovery) —
   hrv: "Variabilita tepové frekvence přes noc (ms). Vyšší = lépe zregenerováno. Důležitá je odchylka od VAŠÍ baseline (z-skóre), ne absolutní hodnota — pokles o víc než ~1 SD napovídá únavu nebo blížící se nemoc.",
