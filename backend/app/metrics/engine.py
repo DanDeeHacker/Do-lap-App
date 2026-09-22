@@ -1495,19 +1495,27 @@ def assess(db: DBSession, rid: str) -> dict:
     # direction. A signal is listed only once the drift is genuinely notable
     # (`show`), so tiny drift still feeds the score without cluttering the list.
     #                (id,     name,                            grade, mag,               dead, weight, cap, show,  val,                     detail)
+    # When v2 segment scoring overrode a metric, the per-run baseMean→recMean no
+    # longer matches the (segment EWMA) z we show — so describe it by gradient
+    # band instead, keeping `val` (z) and `detail` consistent.
+    def _seg_detail(m):
+        bb = (m or {}).get("byBand") or {}
+        parts = [f"{lbl} {sgn(bb[k])}" for k, lbl in (("down", "sjezd"), ("level", "rovina"), ("up", "výjezd")) if k in bb]
+        return ("úseky (odchylka v SD): " + " · ".join(parts)) if parts else "měřeno po úsecích běhu"
+
     mech_terms = []
     if tv:
-        mech_terms.append(("tavr", "Vertikální poměr roste", "B", tv["z"], 0.2, 17, 4.0, 0.6, f"z {sgn(tv['z'])}",
-                           f"{tv['baseMean']} % → {tv['recMean']} % · {tv['buckets']} shodných profilů terénu"))
+        d = _seg_detail(tv) if tv.get("segment") else f"{tv['baseMean']} % → {tv['recMean']} % · {tv['buckets']} shodných profilů terénu"
+        mech_terms.append(("tavr", "Vertikální poměr roste", "B", tv["z"], 0.2, 17, 4.0, 0.6, f"z {sgn(tv['z'])}", d))
     if gc:
-        mech_terms.append(("gct", "Prodloužený kontakt se zemí", "B", gc["z"], 0.2, 13, 4.0, 0.6, f"z {sgn(gc['z'])}",
-                           f"{gc['baseMean']} ms → {gc['recMean']} ms po normalizaci na kadenci"))
+        d = _seg_detail(gc) if gc.get("segment") else f"{gc['baseMean']} ms → {gc['recMean']} ms po normalizaci na kadenci"
+        mech_terms.append(("gct", "Prodloužený kontakt se zemí", "B", gc["z"], 0.2, 13, 4.0, 0.6, f"z {sgn(gc['z'])}", d))
     if cad:
-        mech_terms.append(("cad", "Klesající kadence", "C", -cad["z"], 0.2, 10, 4.0, 0.6, f"z {sgn(cad['z'])}",
-                           f"{cad['baseMean']} → {cad['recMean']} spm · {cad['buckets']} shodných profilů terénu"))
+        d = _seg_detail(cad) if cad.get("segment") else f"{cad['baseMean']} → {cad['recMean']} spm · {cad['buckets']} shodných profilů terénu"
+        mech_terms.append(("cad", "Klesající kadence", "C", -cad["z"], 0.2, 10, 4.0, 0.6, f"z {sgn(cad['z'])}", d))
     if vosc:
-        mech_terms.append(("vosc", "Vyšší vertikální oscilace", "C", vosc["z"], 0.2, 10, 4.0, 0.6, f"z {sgn(vosc['z'])}",
-                           f"{vosc['baseMean']} → {vosc['recMean']} cm · {vosc['buckets']} shodných profilů terénu"))
+        d = _seg_detail(vosc) if vosc.get("segment") else f"{vosc['baseMean']} → {vosc['recMean']} cm · {vosc['buckets']} shodných profilů terénu"
+        mech_terms.append(("vosc", "Vyšší vertikální oscilace", "C", vosc["z"], 0.2, 10, 4.0, 0.6, f"z {sgn(vosc['z'])}", d))
     if bal:
         mech_terms.append(("bal", "Posun v symetrii kontaktu", "B", bal["excursion"], 0.4, 22, 3.0, 0.8, f"{sgn(bal['excursion'])} p.b.",
                            f"{bal['baseline']} % → {bal['now']} % vlevo · {bal['direction']}"))

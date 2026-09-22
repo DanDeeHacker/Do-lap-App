@@ -79,15 +79,18 @@ export function DataView() {
     setRes({ loading: true, source: "garminlive" })
     try {
       let total = 0
+      let stalled = false
       // Backfill the whole window in batches; the server returns `remaining`.
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < 80; i++) {
         const r: any = await api.garminStreams()
         total += r.stored || 0
-        if (r.stored) toast({ title: `Detailní data: ${r.have}/${r.total} běhů`, msg: r.remaining ? `zbývá ${r.remaining}…` : "hotovo" })
-        if (!r.remaining || (!r.stored && !r.fetched)) break
+        if (r.stalled) { stalled = true; break }
+        if (r.have) toast({ title: `Detailní data: ${r.have}/${r.total} běhů`, msg: r.remaining ? `zbývá ${r.remaining}…` : "hotovo" })
+        if (!r.remaining) break
       }
       setRes({ ok: true, source: "garminlive" })
-      toast({ title: total ? `Detailní data stažena: +${total} běhů` : "Detailní data jsou aktuální" })
+      if (stalled) toast({ title: "Garmin dočasně omezuje požadavky", msg: `Staženo +${total}. Zkus to prosím za chvíli znovu — už stažené zůstává.` })
+      else toast({ title: total ? `Detailní data stažena: +${total} běhů` : "Detailní data jsou aktuální" })
       refresh()
     } catch (e: any) { setRes({ ok: false, source: "garminlive", error: e?.message || "Načtení detailních dat selhalo." }) }
   }

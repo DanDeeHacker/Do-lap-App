@@ -94,7 +94,7 @@ def _copy(db, model, rid):
     return [{c: getattr(r, c) for c in cols} for r in db.query(model).filter(model.runner_id == rid).all()]
 
 
-def _replay_both(db, rid, step_days, warmup_days=7):
+def _replay_both(db, rid, step_days, warmup_days=7, start=None):
     runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
     if not runner:
         return []
@@ -114,6 +114,8 @@ def _replay_both(db, rid, step_days, warmup_days=7):
     # Small warm-up so the timeline starts near the first run (early weeks are
     # baseline-building: low confidence, mechanics gated → mostly load/stable).
     ad = date.fromisoformat(first) + timedelta(days=warmup_days)
+    if start is not None and start > ad:
+        ad = start  # cap the earliest as-of date (keeps the daily sheet bounded)
     end = date.fromisoformat(last)
     if ad > end:
         ad = end
@@ -275,9 +277,11 @@ def engine_compare_xlsx(db, rid: str) -> bytes:
     _hdr(wk, [c[0] for c in WCOLS], [c[1] for c in WCOLS])
     _fill_rows(wk, weekly)
 
-    daily = _replay_both(db, rid, step_days=1)
+    # Daily sheet is bounded to the last ~8 weeks — a full-history daily replay
+    # (one throwaway DB + 2× assess per day) would otherwise risk an HTTP timeout.
+    daily = _replay_both(db, rid, step_days=1, start=E.today_date() - timedelta(days=56))
     if daily:
-        dy = wb.create_sheet("Denně")
+        dy = wb.create_sheet("Denně (8 týdnů)")
         _hdr(dy, [c[0] for c in WCOLS], [c[1] for c in WCOLS])
         _fill_rows(dy, daily)
 

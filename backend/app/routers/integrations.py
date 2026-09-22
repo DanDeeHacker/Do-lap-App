@@ -505,13 +505,28 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
             .filter(models.ActivityStream.runner_id == rid).all()}
     todo = [a for a in activities if a.id not in have]
     fetched = stored = failed = 0
+    stalled = False
     for a in todo[:cap]:
         try:
             res = stream_qc.process(garmin_live.fetch_details(garmin, a.external_id))
             segs = segmentation.segment(res.get("records") or [], surface=a.surface)
             fetched += 1
-        except Exception:  # noqa: BLE001 — per-activity isolation
+        except Exception as e:  # noqa: BLE001
+            msg = str(e).lower()
+            if "429" in msg or "too many" in msg or "rate" in msg:
+                # Rate-limited by Garmin — stop the batch WITHOUT a tombstone so
+                # these retry later; the caller shows "try again shortly".
+                stalled = True
+                break
+            # A specific activity has no usable detail (manual entry, odd type,
+            # deleted stream…). Tombstone it (segments_json NULL) so the backfill
+            # advances instead of retrying the same run forever.
             failed += 1
+            db.add(models.ActivityStream(
+                activity_id=a.id, runner_id=rid, external_id=a.external_id,
+                elevation_profile=None, quality_json={"failed": True, "error": str(e)[:200]},
+                segments_json=None, gps=False, created_at=E.now_iso(),
+            ))
             continue
         prof = res.get("elevation_profile") or None
         db.add(models.ActivityStream(
@@ -525,8 +540,10 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
     db.commit()
     if stored:
         E.recompute_assessment(db, rid)
-    return {"fetched": fetched, "stored": stored, "failed": failed,
-            "remaining": max(0, len(todo) - stored), "total": len(activities), "have": len(have) + stored}
+    processed = stored + failed  # tombstoned + stored are consumed from `todo`
+    return {"fetched": fetched, "stored": stored, "failed": failed, "stalled": stalled,
+            "remaining": max(0, len(todo) - processed), "total": len(activities),
+            "have": len(have) + processed}
 
 
 @router.post("/garmin/terrain", dependencies=[Depends(verify_csrf)])
