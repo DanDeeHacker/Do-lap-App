@@ -8,6 +8,7 @@ only the data that existed then (engine 'today' pinned), once per engine, with
 each engine's own hysteresis carried forward.
 """
 import io
+import json
 from datetime import date, timedelta
 
 from openpyxl import Workbook
@@ -134,6 +135,46 @@ def _fill_rows(ws, pts, start_row=2):
         _qcell(ws, row, 12, v2["quadrant"])
         row += 1
     return row
+
+
+# Runner-scoped tables safe to export. Deliberately EXCLUDES the secret tables
+# (ingest_tokens, garmin_sessions) and never touches users/password hashes.
+def _export_models():
+    return [
+        models.Integration, models.ActivityStream, models.DeviceHistory, models.Activity,
+        models.ActivityFeedback, models.DailyMetric, models.Checkin, models.InjuryReport,
+        models.Assessment, models.Triage, models.Booking, models.Referral, models.Conclusion,
+        models.ReturnToRun, models.RtrSession, models.Program, models.Message, models.CareAssignment,
+    ]
+
+
+def runner_export(db, rid: str) -> bytes:
+    """Full per-runner data export as JSON — everything scoped to this runner
+    EXCEPT credentials (no Garmin/ingest tokens, no password). Shareable for
+    off-line analysis / backtesting."""
+    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+
+    def rows(model):
+        cols = [c.name for c in model.__table__.columns]
+        return [{c: getattr(x, c) for c in cols}
+                for x in db.query(model).filter(model.runner_id == rid).all()]
+
+    tables = {}
+    for model in _export_models():
+        try:
+            tables[model.__tablename__] = rows(model)
+        except Exception:  # noqa: BLE001 — a missing optional table shouldn't break the export
+            tables[model.__tablename__] = []
+    data = {
+        "schema": 1,
+        "exportedAt": E.now_iso(),
+        "engineVersion": E.ENGINE_VERSION,
+        "note": "Osobní data běžce z Došlapu. NEOBSAHUJE přihlašovací tokeny, Garmin token ani hesla.",
+        "runner": {c.name: getattr(r, c.name) for c in models.Runner.__table__.columns} if r else None,
+        "counts": {name: len(rowlist) for name, rowlist in tables.items()},
+        "tables": tables,
+    }
+    return json.dumps(data, ensure_ascii=False, default=str, indent=2).encode("utf-8")
 
 
 def engine_compare_xlsx(db, rid: str) -> bytes:

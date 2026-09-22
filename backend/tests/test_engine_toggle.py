@@ -77,3 +77,15 @@ def test_backtest_xlsx_download(client):
     assert "spreadsheetml" in r.headers.get("content-type", "")
     assert r.content[:2] == b"PK"        # valid xlsx (zip) even with little data
     assert "attachment" in r.headers.get("content-disposition", "")
+
+
+def test_data_export_json_no_secrets(client):
+    rid = register(client, "exp@test.cz", "Exp Runner", "runner").json()["runner_id"]
+    r = client.get(f"/api/runners/{rid}/export.json")
+    assert r.status_code == 200 and "application/json" in r.headers.get("content-type", "")
+    assert "attachment" in r.headers.get("content-disposition", "")
+    body = r.json()
+    assert body["runner"]["id"] == rid and "tables" in body and "counts" in body
+    # secret tables must never be present
+    assert "garmin_sessions" not in body["tables"] and "ingest_tokens" not in body["tables"]
+    assert "password" not in r.text.lower() and "token_blob" not in r.text

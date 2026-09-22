@@ -351,6 +351,21 @@ def backtest_xlsx(rid: str, user: models.User = Depends(get_current_user), db: D
     )
 
 
+@router.get("/{rid}/export.json")
+def export_json(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Download this runner's full data as JSON (no credentials/tokens) — for
+    sharing / off-line analysis."""
+    from fastapi import Response
+    from .. import reports
+    ensure_runner_self(user, rid)
+    data = reports.runner_export(db, rid)
+    return Response(
+        content=data,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="dosslap_data_{rid}.json"'},
+    )
+
+
 @router.get("/{rid}/activities")
 def list_activities(rid: str, limit: int = 10, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_read_access(db, user, rid)
