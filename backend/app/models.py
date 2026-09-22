@@ -108,6 +108,22 @@ class IngestToken(Base):
     last_used_at = Column(String)
 
 
+class ActivityStream(Base):
+    """Result of Stage S1 (Phase 4) for one activity: the compact elevation
+    profile derived from the 1 Hz Garmin stream (feeds Phase 3 terrain load and,
+    later, DMR 5G / ZABAGED sampling) plus quality stats. One row per activity;
+    the raw per-second records are re-fetched on demand by the segmentation phase
+    rather than stored, to keep the DB small."""
+    __tablename__ = "activity_streams"
+    activity_id = Column(Integer, ForeignKey("activities.id"), primary_key=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    external_id = Column(String, index=True)
+    elevation_profile = Column(JSON)
+    quality_json = Column(JSON)
+    gps = Column(Boolean, default=False)
+    created_at = Column(String, nullable=False)
+
+
 class GarminSession(Base):
     """Persisted Garmin Connect *session tokens* (the di_token / di_refresh_token
     / di_client_id blob from garminconnect's dumps()) — deliberately NOT the

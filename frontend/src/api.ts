@@ -133,6 +133,8 @@ export const api = {
   garminSync: () => call("POST", "/api/integrations/garmin/sync", {}, { skipAuthRedirect: true }),
   garminAutoSync: (enabled: boolean) => call("POST", "/api/integrations/garmin/auto-sync", { enabled }, { skipAuthRedirect: true }),
   garminDisconnect: () => call("DELETE", "/api/integrations/garmin/session", undefined, { skipAuthRedirect: true }),
+  // Phase 4: fetch per-second detail streams (track, elevation, mechanics) for recent runs.
+  garminStreams: () => call("POST", "/api/integrations/garmin/streams", {}, { skipAuthRedirect: true }),
   // Apple Health auto-sync (device push): fetch/rotate the bearer token the
   // phone (Health Auto Export / a Shortcut) posts HealthKit data with.
   applePushToken: () => call("GET", "/api/integrations/apple/push-token"),

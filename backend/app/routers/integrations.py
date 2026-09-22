@@ -481,3 +481,61 @@ def garmin_disconnect(user: models.User = Depends(require_role("runner")),
     db.query(models.GarminSession).filter(models.GarminSession.runner_id == user.runner_id).delete()
     db.commit()
     return {"connected": False, "auto_sync": False, "last_sync_at": None, "last_error": None}
+
+
+def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 45, cap: int = 40) -> dict:
+    """Phase 4 — pull the 1 Hz stream for recent running activities that don't yet
+    have one, run Stage-S1 quality control, and store the derived elevation
+    profile. Also back-fills Activity.elevation_profile so the terrain-aware load
+    (Phase 3) starts working on real Garmin runs. Per-activity errors are
+    isolated so one bad activity doesn't abort the batch."""
+    from ..metrics import stream_qc
+    cut = E.day_ago(since_days)
+    activities = (
+        db.query(models.Activity)
+        .filter(models.Activity.runner_id == rid, models.Activity.external_id.isnot(None),
+                models.Activity.started_at > cut, models.Activity.sport == "running")
+        .order_by(models.Activity.started_at.desc()).all()
+    )
+    have = {row[0] for row in db.query(models.ActivityStream.activity_id)
+            .filter(models.ActivityStream.runner_id == rid).all()}
+    fetched = stored = failed = 0
+    for a in activities[:cap]:
+        if a.id in have:
+            continue
+        try:
+            res = stream_qc.process(garmin_live.fetch_details(garmin, a.external_id))
+            fetched += 1
+        except Exception:  # noqa: BLE001 — per-activity isolation
+            failed += 1
+            continue
+        prof = res.get("elevation_profile") or None
+        db.add(models.ActivityStream(
+            activity_id=a.id, runner_id=rid, external_id=a.external_id,
+            elevation_profile=prof, quality_json=res.get("quality"),
+            gps=bool(res.get("gps")), created_at=E.now_iso(),
+        ))
+        if prof and not a.elevation_profile:
+            a.elevation_profile = prof
+        stored += 1
+    db.commit()
+    if stored:
+        E.recompute_assessment(db, rid)
+    return {"fetched": fetched, "stored": stored, "failed": failed}
+
+
+@router.post("/garmin/streams", dependencies=[Depends(verify_csrf)])
+def garmin_streams(user: models.User = Depends(require_role("runner")),
+                   db: DBSession = Depends(get_db)):
+    """Fetch detailed per-second data (track, elevation, mechanics) for recent
+    runs using the stored Garmin session — unlocks terrain-aware load now and
+    within-run segmentation later. Requires a prior connect with 'remember'."""
+    rid = user.runner_id
+    row = db.query(models.GarminSession).filter(models.GarminSession.runner_id == rid).first()
+    if row is None:
+        raise HTTPException(status_code=409, detail="Garmin není připojen — připojte ho nejdřív na stránce Data.")
+    try:
+        garmin = garmin_live.resume_session(row.token_blob, bool(row.encrypted))
+    except garmin_live.AuthError as e:
+        raise HTTPException(status_code=401, detail="Uložené přihlášení ke Garminu vypršelo — připojte ho prosím znovu.") from e
+    return _fetch_streams(db, rid, garmin)

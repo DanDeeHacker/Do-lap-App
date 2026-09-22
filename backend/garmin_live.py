@@ -364,6 +364,16 @@ def _unseal_token(blob: str, encrypted: bool) -> str:
     return f.decrypt(blob.encode()).decode()
 
 
+def fetch_details(garmin, activity_id) -> dict:
+    """Phase 4 — pull the per-record (1 Hz) sample stream for one activity
+    (metricDescriptors + activityDetailMetrics). Parsed by
+    app.metrics.stream_qc. Raises GarminLiveError on a network/API failure."""
+    try:
+        return garmin.get_activity_details(str(activity_id)) or {}
+    except Exception as e:  # noqa: BLE001
+        raise GarminLiveError(str(e))
+
+
 def resume_session(blob: str, encrypted: bool):
     """Rebuild an authenticated Garmin client from a stored token blob (no
     password, no login round-trip). The client auto-refreshes an expiring
