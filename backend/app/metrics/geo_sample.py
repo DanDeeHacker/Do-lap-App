@@ -24,6 +24,12 @@ _TRAIL_HW = {"path", "footway", "track", "bridleway", "cycleway", "steps", "pede
 _CZ_BBOX = (48.5, 12.0, 51.1, 18.9)  # (min_lat, min_lon, max_lat, max_lon)
 _UA = "dosslap/0.1 (+https://dosslap)"
 
+# ČÚZK ZABAGED planimetry (ArcGIS REST, JSON query). Layer ids from the service
+# catalogue: roads/streets vs paths/tracks, plus the forest layer for a canopy flag.
+_ZABAGED_URL = "https://ags.cuzk.cz/arcgis/rest/services/ZABAGED_POLOHOPIS/MapServer"
+_ZABAGED_LAYERS = {"silnice": 79, "pesina": 82, "cesta": 83, "ulice": 84, "les": 142}
+_ZABAGED_BUFFER_M = 30
+
 
 def in_czech_republic(track) -> bool:
     if not track:
@@ -106,17 +112,58 @@ def overpass_surface(track, timeout: int = 25) -> dict | None:
     return _classify(els, "osm")
 
 
-def zabaged_surface(track, timeout: int = 20) -> dict | None:
-    """CZ-preferred: ČÚZK ZABAGED communications/forest layer via its public
-    service. Endpoint/layer names are [Verify] against current ČÚZK docs, so this
-    is guarded — any failure returns None and the caller falls back to OSM."""
-    try:  # pragma: no cover - live CZ service, endpoint to be pinned
-        # Placeholder for the ČÚZK ZABAGED WFS GetFeature (bbox around the track)
-        # → parse path type / surface. Until the endpoint is confirmed we return
-        # None so Czech runs still get OSM classification.
+def _zabaged_count(geom_json: str, layer: int, timeout: int) -> int:
+    """Count ZABAGED features of one layer within _ZABAGED_BUFFER_M of the track."""
+    body = urllib.parse.urlencode({
+        "geometry": geom_json, "geometryType": "esriGeometryPolyline", "inSR": "4326",
+        "distance": str(_ZABAGED_BUFFER_M), "units": "esriSRUnit_Meter",
+        "spatialRel": "esriSpatialRelIntersects", "returnCountOnly": "true", "f": "json",
+    }).encode()
+    req = urllib.request.Request(f"{_ZABAGED_URL}/{layer}/query", data=body,
+                                 headers={"User-Agent": _UA, "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 - fixed https host
+        d = json.loads(resp.read().decode())
+    if "count" not in d:
+        raise ValueError(d.get("error", "no count"))
+    return int(d["count"])
+
+
+def zabaged_surface(track, timeout: int = 15) -> dict | None:
+    """Authoritative CZ classification from ČÚZK ZABAGED: counts roads/streets vs
+    paths/tracks within 30 m of the run's track (one query per layer), plus a
+    forest-canopy flag. ZABAGED is complete for Czech terrain (unlike OSM's ~30%
+    surface coverage), so a hit is confident. Returns None on any failure or when
+    nothing is found nearby, so the caller falls back to OSM."""
+    pts = downsample(track, 40)
+    if len(pts) < 2:
         return None
-    except Exception:  # noqa: BLE001
+    geom = json.dumps({"paths": [[[lon, lat] for lat, lon in pts]],
+                       "spatialReference": {"wkid": 4326}})
+    try:
+        c = {k: _zabaged_count(geom, lid, timeout) for k, lid in _ZABAGED_LAYERS.items()}
+    except Exception:  # noqa: BLE001 — network/endpoint failure → OSM fallback
         return None
+    return _classify_zabaged(c)
+
+
+def _classify_zabaged(c: dict) -> dict | None:
+    """Pure: turn ZABAGED per-layer feature counts into a classification."""
+    trail = c["cesta"] + c["pesina"]
+    road = c["silnice"] + c["ulice"]
+    if trail + road == 0:
+        return None
+    if road > trail:
+        surface_class = "paved"
+    elif c["pesina"] >= c["cesta"] and c["pesina"] > 0:
+        surface_class = "soft"      # footpath — typically soft/natural
+    elif c["cesta"] > 0:
+        surface_class = "compact"   # track — typically firm/unpaved
+    else:
+        surface_class = "paved"
+    return {
+        "surfaceClass": surface_class, "onTrail": trail >= road and trail > 0,
+        "forest": c.get("les", 0) > 0, "coverage": 1.0, "n": trail + road, "source": "zabaged",
+    }
 
 
 def sample_surface(track) -> dict | None:

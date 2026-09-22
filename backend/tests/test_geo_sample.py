@@ -42,7 +42,27 @@ def test_in_czech_republic_and_downsample():
     assert len(G.downsample([(50.0 + i * 1e-4, 14.4) for i in range(100)], n=10)) == 10
 
 
+def test_classify_zabaged():
+    # forest track (cesta dominant) → compact off-road, forest flagged
+    r = G._classify_zabaged({"cesta": 8, "pesina": 0, "silnice": 1, "ulice": 1, "les": 3})
+    assert r["surfaceClass"] == "compact" and r["onTrail"] is True and r["forest"] is True
+    # city street (roads dominant) → paved, not trail
+    r = G._classify_zabaged({"cesta": 0, "pesina": 0, "silnice": 2, "ulice": 5, "les": 0})
+    assert r["surfaceClass"] == "paved" and r["onTrail"] is False
+    # footpath dominant → soft
+    r = G._classify_zabaged({"cesta": 1, "pesina": 4, "silnice": 0, "ulice": 0, "les": 0})
+    assert r["surfaceClass"] == "soft" and r["onTrail"] is True
+    # nothing nearby → None (caller falls back to OSM)
+    assert G._classify_zabaged({"cesta": 0, "pesina": 0, "silnice": 0, "ulice": 0, "les": 0}) is None
+
+
 @pytest.mark.skipif(not os.environ.get("RUN_NET"), reason="live network (set RUN_NET=1)")
 def test_overpass_live():
     r = G.overpass_surface([(50.0903, 14.4006)])
     assert r is None or "surfaceClass" in r
+
+
+@pytest.mark.skipif(not os.environ.get("RUN_NET"), reason="live network (set RUN_NET=1)")
+def test_zabaged_live():
+    r = G.zabaged_surface([(50.0930 + i * 3e-4, 14.3300 + i * 4e-4) for i in range(12)])
+    assert r is None or (r["source"] == "zabaged" and "surfaceClass" in r)

@@ -91,7 +91,7 @@ export function DataView() {
       setRes({ ok: true, source: "garminlive" })
       const s = r.surface || {}
       const cls = { paved: "zpevněný", compact: "šotolina", soft: "měkký", unknown: "neznámý" }[s.surfaceClass as string] || s.surfaceClass
-      toast({ title: `Povrch trasy: ${cls}${s.onTrail ? " · terén" : ""}`, msg: `zdroj ${String(s.source).toUpperCase()} · pokrytí ${Math.round((s.coverage || 0) * 100)} %` })
+      toast({ title: `Povrch trasy: ${cls}${s.onTrail ? " · terén" : ""}${s.forest ? " · les" : ""}`, msg: `zdroj ${String(s.source).toUpperCase()} · pokrytí ${Math.round((s.coverage || 0) * 100)} %` })
       refresh()
     } catch (e: any) { setRes({ ok: false, source: "garminlive", error: e?.message || "Určení povrchu selhalo." }) }
   }
