@@ -22,3 +22,4 @@ python-garminconnect-master/
 .vscode/
 .claude/
 _data/
+backend/backtest_engine_compare.xlsx
