@@ -125,6 +125,26 @@ export function DataView() {
     ["v1", "Standardní", "Vyhlazený průměr napříč běhy."],
     ["v2", "Citlivý", "Zachytí i malé změny mechaniky dřív."],
   ]
+  const [btBusy, setBtBusy] = useState(false)
+  const downloadBacktest = async () => {
+    setBtBusy(true)
+    try {
+      const res = await fetch(`/api/runners/${rid}/backtest.xlsx`, { credentials: "include" })
+      if (!res.ok) throw new Error("Backtest se nepodařilo vytvořit")
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "dosslap_backtest.xlsx"
+      document.body.appendChild(a); a.click(); a.remove()
+      URL.revokeObjectURL(url)
+      toast({ title: "Backtest stažen", msg: "Excel: Souhrn · Týdně · Denně (v1 vs v2)" })
+    } catch (e: any) {
+      toast({ title: e?.message || "Backtest se nepodařilo vytvořit" })
+    } finally {
+      setBtBusy(false)
+    }
+  }
 
   return (
     <>
@@ -162,6 +182,10 @@ export function DataView() {
         <p className="mt-3 text-[11px] leading-4 text-[#71837b]">
           Citlivý engine počítá odchylku proti tvé vlastní typické chybě a váží čerstvé běhy víc, takže pozvolný drift zachytí dřív než průměrový Standardní. Experimentální — zatím nevalidované na reálných datech.
         </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
+          <button onClick={downloadBacktest} disabled={btBusy} className="rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313] disabled:opacity-60">{btBusy ? "Připravuji…" : "⬇ Stáhnout backtest (v1 vs v2)"}</button>
+          <span className="text-[11px] text-[#71837b]">Excel z tvé historie: Souhrn · Týdně · Denně, oba enginy vedle sebe.</span>
+        </div>
       </Card>
 
       <Card className="mt-4">

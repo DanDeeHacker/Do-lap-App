@@ -336,6 +336,21 @@ def run_segment_significance(rid: str, n: int = 3, user: models.User = Depends(g
     return E.segment_significance(db, rid, n_runs=n)
 
 
+@router.get("/{rid}/backtest.xlsx")
+def backtest_xlsx(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Download an Excel backtest comparing the original (v1) and new sensitive
+    (v2) engine over THIS runner's own history — replayed weekly + daily."""
+    from fastapi import Response
+    from .. import reports
+    ensure_runner_self(user, rid)
+    data = reports.engine_compare_xlsx(db, rid)
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="dosslap_backtest_{rid}.xlsx"'},
+    )
+
+
 @router.get("/{rid}/activities")
 def list_activities(rid: str, limit: int = 10, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_read_access(db, user, rid)

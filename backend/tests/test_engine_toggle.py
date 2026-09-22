@@ -68,3 +68,12 @@ def test_v2_persistence_flag_fields_present():
                             + [_mk(9, 106), _mk(6, 107), _mk(3, 108)], "vert_ratio_pct", 28)
     assert {"ewma", "ctrl", "state", "persist", "beyond"} <= set(r)
     assert r["persist"] is True and r["state"] in ("possible", "clear")
+
+
+def test_backtest_xlsx_download(client):
+    rid = register(client, "bt@test.cz", "BT Runner", "runner").json()["runner_id"]
+    r = client.get(f"/api/runners/{rid}/backtest.xlsx")
+    assert r.status_code == 200
+    assert "spreadsheetml" in r.headers.get("content-type", "")
+    assert r.content[:2] == b"PK"        # valid xlsx (zip) even with little data
+    assert "attachment" in r.headers.get("content-disposition", "")

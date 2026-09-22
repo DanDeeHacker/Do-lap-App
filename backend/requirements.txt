@@ -23,3 +23,5 @@ garminconnect>=0.2.28
 # DOSSLAP_SECRET is set; without it the token is stored plaintext on the
 # private volume). Never stores the account password.
 cryptography>=42.0
+# Excel export for the in-app v1-vs-v2 engine backtest download.
+openpyxl>=3.1
