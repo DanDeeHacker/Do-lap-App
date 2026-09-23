@@ -252,6 +252,12 @@ def _engine_replay(db: DBSession, rid: str, asofs):
     return out
 
 
+# Bump when the history *shape/window* logic changes (not the engine version) so
+# a deploy invalidates same-day cache rows written by the previous code — the
+# cache key otherwise only turns over on a data change or a new day.
+_HISTORY_VERSION = "h2"
+
+
 def _cached_history(db: DBSession, rid: str, kind: str, builder):
     """O(1) read of an engine history replay: return the cached payload when it
     matches the runner's engine version and was computed today, else rebuild once
@@ -259,7 +265,7 @@ def _cached_history(db: DBSession, rid: str, kind: str, builder):
     (and implicitly each new day), so the replay runs at most once per change —
     not on every page view."""
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
-    ev = E.engine_version_for((r.engine_mode if r else None) or "v1")
+    ev = E.engine_version_for((r.engine_mode if r else None) or "v1") + "|" + _HISTORY_VERSION
     today = E.iso_date(E.today_date())
     row = (
         db.query(models.EngineHistoryCache)
@@ -289,7 +295,9 @@ def mech_history(rid: str, user: models.User = Depends(get_current_user), db: DB
         acts_dates = [a[0][:10] for a in db.query(models.Activity.started_at).filter(models.Activity.runner_id == rid).all()]
         if not acts_dates:
             return []
-        ad = date.fromisoformat(min(acts_dates)) + timedelta(days=42)
+        # Start at the first activity (no baseline warmup offset) so the trend
+        # spans the runner's real history; the [-26:] cap keeps it ~6 months.
+        ad = date.fromisoformat(min(acts_dates))
         end = E.today_date()  # end at *today*, so the last trend point equals the current score
         asofs = []
         while ad <= end:
@@ -324,7 +332,10 @@ def quadrant_history(rid: str, days: int = QUAD_HISTORY_DAYS, user: models.User 
         if not acts_dates:
             return []
         end = E.today_date()
-        start = max(date.fromisoformat(min(acts_dates)) + timedelta(days=42), end - timedelta(days=days - 1))
+        # Go back the full window (default ~6 months), bounded only by when the
+        # runner's data actually starts — no 42-day baseline warmup offset, which
+        # was clipping the strip to ~4 months for spring-onward histories.
+        start = max(date.fromisoformat(min(acts_dates)), end - timedelta(days=days - 1))
         asofs = []
         ad = start
         while ad <= end:

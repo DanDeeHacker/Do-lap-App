@@ -92,10 +92,17 @@ function KnobRow({ k, value, pts, active, onChange, selected, onSelect }: {
   return (
     <div className={`rounded-xl border px-3 py-2.5 transition ${selected ? "border-[#c7ff54]/60 bg-[#c7ff54]/[.05]" : "border-white/8 bg-white/[.02]"}`}>
       <div className="flex items-center gap-2">
-        <button onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title="Zobrazit citlivostní křivku">
-          <span className="grid size-4 shrink-0 place-items-center rounded-full text-[8px] font-bold" style={{ background: `${GRADE_COL[k.grade] || "#71837b"}26`, color: GRADE_COL[k.grade] || "#71837b" }}>{k.grade}</span>
-          <span className="truncate text-[13px] text-[#e7efe9]">{k.label}</span>
-        </button>
+        {isBool ? (
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="grid size-4 shrink-0 place-items-center rounded-full text-[8px] font-bold" style={{ background: `${GRADE_COL[k.grade] || "#71837b"}26`, color: GRADE_COL[k.grade] || "#71837b" }}>{k.grade}</span>
+            <span className="truncate text-[13px] text-[#e7efe9]">{k.label}</span>
+          </span>
+        ) : (
+          <button onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title="Zobrazit citlivostní křivku">
+            <span className="grid size-4 shrink-0 place-items-center rounded-full text-[8px] font-bold" style={{ background: `${GRADE_COL[k.grade] || "#71837b"}26`, color: GRADE_COL[k.grade] || "#71837b" }}>{k.grade}</span>
+            <span className="truncate text-[13px] text-[#e7efe9]">{k.label}</span>
+          </button>
+        )}
         <InfoDot text={k.desc} label={k.label} />
         <span className="w-16 shrink-0 text-right font-mono text-[11px] text-[#9bb3aa]">{fmtVal(k, value)}</span>
         {!isBool && (
@@ -183,16 +190,27 @@ function QuadrantMini({ quadrant }: { quadrant: string }) {
   )
 }
 
+type PlotLine = { key: "load" | "mech" | "symp" | "overall"; color: string; label: string }
+const PLOT_LINES: Record<string, PlotLine[]> = {
+  load: [{ key: "load", color: AXIS_COL.load, label: "zátěž" }, { key: "mech", color: AXIS_COL.mech, label: "mechanika" }],
+  mech: [{ key: "load", color: AXIS_COL.load, label: "zátěž" }, { key: "mech", color: AXIS_COL.mech, label: "mechanika" }],
+  symp: [{ key: "symp", color: AXIS_COL.symp, label: "příznaky" }, { key: "overall", color: "#cbd5cc", label: "celkové" }],
+}
+
 function SweepChart({ sweep }: { sweep: Sweep }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   const s = sweep.series
   if (s.length < 2) return null
+  // Plot the axis the selected metric actually drives: load & mechanics for the
+  // quadrant axes; symptoms & overall for symptom metrics (which don't move the
+  // quadrant — only overall risk).
+  const lines = PLOT_LINES[sweep.axis] || PLOT_LINES.load
   const W = 320, H = 150, padL = 26, padR = 8, padT = 10, padB = 26
-  const maxY = Math.max(30, ...s.map((p) => Math.max(p.load, p.mech))) * 1.1
+  const maxY = Math.max(30, ...s.map((p) => Math.max(...lines.map((l) => p[l.key])))) * 1.1
   const x = (i: number) => padL + (i / (s.length - 1)) * (W - padL - padR)
   const y = (v: number) => padT + (1 - v / maxY) * (H - padT - padB)
-  const line = (key: "load" | "mech") => s.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(p[key]).toFixed(1)}`).join(" ")
+  const line = (key: PlotLine["key"]) => s.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(p[key]).toFixed(1)}`).join(" ")
   const vx = (val: number) => padL + clamp((val - sweep.min) / (sweep.max - sweep.min || 1), 0, 1) * (W - padL - padR)
   const fmtx = (v: number) => (Math.abs(v) >= 100 ? String(Math.round(v)) : (Math.round(v * 100) / 100).toString().replace(".", ","))
   const cur = act ?? s.findIndex((p) => p.value >= sweep.current)
@@ -227,8 +245,7 @@ function SweepChart({ sweep }: { sweep: Sweep }) {
         )}
         {/* current value marker */}
         <line x1={vx(sweep.current)} y1={padT} x2={vx(sweep.current)} y2={H - padB} stroke="#f1f8f1" strokeOpacity="0.55" strokeWidth="1.4" />
-        <path d={line("load")} fill="none" stroke={AXIS_COL.load} strokeWidth="2" strokeLinejoin="round" />
-        <path d={line("mech")} fill="none" stroke={AXIS_COL.mech} strokeWidth="2" strokeLinejoin="round" />
+        {lines.map((l) => <path key={l.key} d={line(l.key)} fill="none" stroke={l.color} strokeWidth="2" strokeLinejoin="round" />)}
         {act != null && <line x1={x(act)} y1={padT} x2={x(act)} y2={H - padB} stroke="#f1f8f1" strokeOpacity="0.3" />}
         {/* x labels */}
         {[0, Math.floor((s.length - 1) / 2), s.length - 1].map((idx, i) => (
@@ -237,15 +254,19 @@ function SweepChart({ sweep }: { sweep: Sweep }) {
       </svg>
       <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 text-[10px]">
         <span className="flex items-center gap-3">
-          <span className="flex items-center gap-1"><i className="h-0.5 w-3" style={{ background: AXIS_COL.load }} />zátěž</span>
-          <span className="flex items-center gap-1"><i className="h-0.5 w-3" style={{ background: AXIS_COL.mech }} />mechanika</span>
+          {lines.map((l) => (
+            <span key={l.key} className="flex items-center gap-1"><i className="h-0.5 w-3" style={{ background: l.color }} />{l.label}</span>
+          ))}
         </span>
         {curP && (
           <span className="font-mono text-[#9bb3aa]">
-            {sweep.label} {fmtx(curP.value)} → zátěž {curP.load} · mech {curP.mech} · <b style={{ color: QCOL[curP.quadrant] }}>{(QUAD[curP.quadrant] || QUAD.stable).t}</b>
+            {sweep.label} {fmtx(curP.value)} → {lines.map((l) => `${l.label} ${curP[l.key]}`).join(" · ")} · <b style={{ color: QCOL[curP.quadrant] }}>{(QUAD[curP.quadrant] || QUAD.stable).t}</b>
           </span>
         )}
       </div>
+      {sweep.axis === "symp" && (
+        <p className="mt-1 text-[10px] leading-4 text-[#71837b]">Příznaky nemění kvadrant (ten určuje jen zátěž × mechanika) — zvedají celkové skóre a tím tier rizika.</p>
+      )}
     </div>
   )
 }
