@@ -90,17 +90,17 @@ function KnobRow({ k, value, pts, active, onChange, selected, onSelect }: {
   const thrPct = k.thr != null && k.min != null && k.max != null
     ? clamp(((k.thr - k.min) / (k.max - k.min)) * 100, 0, 100) : null
   return (
-    <div className={`rounded-xl border px-3 py-2.5 transition ${selected ? "border-[#c7ff54]/60 bg-[#c7ff54]/[.05]" : "border-white/8 bg-white/[.02]"}`}>
+    <div className={`min-w-0 rounded-xl border px-3 py-2.5 transition ${selected ? "border-[#c7ff54]/60 bg-[#c7ff54]/[.05]" : "border-white/8 bg-white/[.02]"}`}>
       <div className="flex items-center gap-2">
         {isBool ? (
           <span className="flex min-w-0 flex-1 items-center gap-1.5">
             <span className="grid size-4 shrink-0 place-items-center rounded-full text-[8px] font-bold" style={{ background: `${GRADE_COL[k.grade] || "#71837b"}26`, color: GRADE_COL[k.grade] || "#71837b" }}>{k.grade}</span>
-            <span className="truncate text-[13px] text-[#e7efe9]">{k.label}</span>
+            <span className="text-[13px] leading-tight text-[#e7efe9]">{k.label}</span>
           </span>
         ) : (
           <button onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-1.5 text-left" title="Zobrazit citlivostní křivku">
             <span className="grid size-4 shrink-0 place-items-center rounded-full text-[8px] font-bold" style={{ background: `${GRADE_COL[k.grade] || "#71837b"}26`, color: GRADE_COL[k.grade] || "#71837b" }}>{k.grade}</span>
-            <span className="truncate text-[13px] text-[#e7efe9]">{k.label}</span>
+            <span className="text-[13px] leading-tight text-[#e7efe9]">{k.label}</span>
           </button>
         )}
         <InfoDot text={k.desc} label={k.label} />
@@ -356,8 +356,8 @@ export function EngineLab() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(320px,380px)_1fr] lg:items-start">
         {/* ---------------- live summary + sweep (sticky) ---------------- */}
-        <div className="grid gap-4 lg:sticky lg:top-24">
-          <Card className="border-white/10 bg-[#0c201d] text-[#f1f8f1]">
+        <div className="grid min-w-0 gap-4 lg:sticky lg:top-24">
+          <Card className="min-w-0 border-white/10 bg-[#0c201d] text-[#f1f8f1]">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <Label>Výsledný stav</Label>
@@ -387,7 +387,7 @@ export function EngineLab() {
             </div>
           </Card>
 
-          <Card className="border-white/10 bg-[#0c201d] text-[#f1f8f1]">
+          <Card className="min-w-0 border-white/10 bg-[#0c201d] text-[#f1f8f1]">
             <div className="flex items-center justify-between">
               <Label>Citlivostní křivka</Label>
               <span className="font-mono text-[10px] text-[#71837b]">osy 0–100 · práh 25</span>
@@ -398,9 +398,9 @@ export function EngineLab() {
         </div>
 
         {/* ---------------- knob sections ---------------- */}
-        <div className="grid gap-4">
+        <div className="grid min-w-0 gap-4">
           {spec.axes.map((ax) => (
-            <Card key={ax.id} className="border-white/10 bg-[#0c201d] text-[#f1f8f1]">
+            <Card key={ax.id} className="min-w-0 border-white/10 bg-[#0c201d] text-[#f1f8f1]">
               <div className="flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <i className="size-2.5 rounded-full" style={{ background: ax.color }} />
