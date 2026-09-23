@@ -175,11 +175,12 @@ def bootstrap(rid: str, user: models.User = Depends(get_current_user), db: DBSes
 
 
 def _engine_replay(db: DBSession, rid: str, asofs):
-    """Replay assess() as of each date in `asofs` on a throwaway in-memory DB
-    holding only the data that existed up to that date, engine 'today' pinned to
-    it (same technique as build_backtest). Yields the full assessment per date.
-    Objective wearable engine only (activities + daily) — self-report isn't
-    replayed, so historical points match the mechanics/load/recovery view."""
+    """Replay assess() as of each date in `asofs` (which MUST be ascending) with
+    the engine 'today' pinned to it. Builds one throwaway in-memory DB and streams
+    rows in as the pinned day advances — far cheaper than rebuilding the DB per
+    date. Replays the runner's objective data AND self-report (check-ins, run
+    ratings, injury reports), so each historical point includes the symptom axis
+    and matches the live state the runner actually saw on that day."""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from ..db import Base
@@ -187,54 +188,93 @@ def _engine_replay(db: DBSession, rid: str, asofs):
     runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
     if not runner:
         return []
+
+    def rows_of(model):
+        return [{c.name: getattr(r, c.name) for c in model.__table__.columns}
+                for r in db.query(model).filter(model.runner_id == rid).all()]
+
     rdata = {c.name: getattr(runner, c.name) for c in models.Runner.__table__.columns}
-    acts = [{c.name: getattr(r, c.name) for c in models.Activity.__table__.columns}
-            for r in db.query(models.Activity).filter(models.Activity.runner_id == rid).all()]
-    daily = [{c.name: getattr(r, c.name) for c in models.DailyMetric.__table__.columns}
-             for r in db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid).all()]
-    # DeviceHistory drives the confidence device-change gate that silences the
-    # mechanical signals — without it the replayed confidence is higher than the
-    # live one, so the replayed mech score diverges from the current score.
-    devices = [{c.name: getattr(r, c.name) for c in models.DeviceHistory.__table__.columns}
-               for r in db.query(models.DeviceHistory).filter(models.DeviceHistory.runner_id == rid).all()]
+    acts = rows_of(models.Activity)
     if not acts:
         return []
 
+    def kd(v):  # date key from an ISO date or datetime string
+        return (v or "")[:10]
+
+    # (rows sorted by date, date-key fn, model, keep original id?). Activity keeps
+    # its id so ActivityFeedback.activity_id still resolves. DeviceHistory feeds the
+    # confidence device-change gate; check-ins/ratings/injuries feed the symptom axis
+    # and (in v2) the pain-period baseline exclusions.
+    streams = [
+        (sorted(acts, key=lambda a: a["started_at"]), lambda a: kd(a["started_at"]), models.Activity, True),
+        (sorted(rows_of(models.DailyMetric), key=lambda d: d["date"]), lambda d: kd(d["date"]), models.DailyMetric, False),
+        (sorted(rows_of(models.DeviceHistory), key=lambda x: x.get("recorded_at") or ""), lambda x: kd(x.get("recorded_at")), models.DeviceHistory, False),
+        (sorted(rows_of(models.Checkin), key=lambda x: x.get("submitted_at") or ""), lambda x: kd(x.get("submitted_at")), models.Checkin, False),
+        (sorted(rows_of(models.ActivityFeedback), key=lambda x: x.get("submitted_at") or ""), lambda x: kd(x.get("submitted_at")), models.ActivityFeedback, False),
+        (sorted(rows_of(models.InjuryReport), key=lambda x: x.get("submitted_at") or ""), lambda x: kd(x.get("submitted_at")), models.InjuryReport, False),
+    ]
+    ptrs = [0] * len(streams)
+    mode = runner.engine_mode or "v1"
+
+    eng = create_engine("sqlite://")
+    Base.metadata.create_all(eng)
+    ts = sessionmaker(bind=eng)()
     out = []
     prev_q = None
-    for adate in asofs:
-        # Pin "today" thread-locally (not a module global) so concurrent
-        # requests in FastAPI's threadpool can't corrupt each other's clock.
-        with E.today_pinned(adate):
-            eng = create_engine("sqlite://")
-            Base.metadata.create_all(eng)
-            ts = sessionmaker(bind=eng)()
-            try:
-                ts.add(models.Runner(**rdata))
-                cut = adate.isoformat()
-                for a in acts:
-                    if a["started_at"][:10] <= cut:
-                        ts.add(models.Activity(**{k: v for k, v in a.items() if k != "id"}))
-                for d in daily:
-                    if d["date"][:10] <= cut:
-                        ts.add(models.DailyMetric(**{k: v for k, v in d.items() if k != "id"}))
-                for dv in devices:
-                    if (dv.get("recorded_at") or "")[:10] <= cut:
-                        ts.add(models.DeviceHistory(**{k: v for k, v in dv.items() if k != "id"}))
-                ts.commit()
+    try:
+        ts.add(models.Runner(**rdata))
+        ts.commit()
+        for adate in asofs:
+            cut = adate.isoformat()
+            # Pin "today" thread-locally (not a module global) so concurrent
+            # requests in FastAPI's threadpool can't corrupt each other's clock.
+            with E.today_pinned(adate), E.engine_pinned(mode):
+                for i, (rows, keyf, model, keep_id) in enumerate(streams):
+                    p = ptrs[i]
+                    while p < len(rows) and keyf(rows[p]) <= cut:
+                        data = rows[p] if keep_id else {k: v for k, v in rows[p].items() if k != "id"}
+                        ts.add(model(**data))
+                        p += 1
+                    ptrs[i] = p
+                # Seed the prior quadrant so hysteresis carries across the replay.
+                ts.query(models.Assessment).delete()
                 if prev_q:
                     ts.add(models.Assessment(runner_id=rid, quadrant=prev_q, tier="ok",
                                              mech=0, load=0, symp=0, overall=0, engine_version=E.ENGINE_VERSION))
-                    ts.commit()
-                with E.engine_pinned((runner.engine_mode or "v1")):
-                    av = E.assess(ts, rid)
+                ts.commit()
+                av = E.assess(ts, rid)
                 av["_cut"] = cut
                 out.append(av)
                 prev_q = av["quadrant"]
-            finally:
-                ts.close()
-                eng.dispose()
+    finally:
+        ts.close()
+        eng.dispose()
     return out
+
+
+def _cached_history(db: DBSession, rid: str, kind: str, builder):
+    """O(1) read of an engine history replay: return the cached payload when it
+    matches the runner's engine version and was computed today, else rebuild once
+    and store it. Invalidated in engine.recompute_assessment on any data change
+    (and implicitly each new day), so the replay runs at most once per change —
+    not on every page view."""
+    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    ev = E.engine_version_for((r.engine_mode if r else None) or "v1")
+    today = E.iso_date(E.today_date())
+    row = (
+        db.query(models.EngineHistoryCache)
+        .filter(models.EngineHistoryCache.runner_id == rid, models.EngineHistoryCache.kind == kind)
+        .first()
+    )
+    if row and row.engine_version == ev and row.computed_for == today and row.payload_json is not None:
+        return row.payload_json
+    payload = builder()
+    if row is None:
+        row = models.EngineHistoryCache(runner_id=rid, kind=kind)
+        db.add(row)
+    row.engine_version, row.computed_for, row.payload_json, row.updated_at = ev, today, payload, E.now_iso()
+    db.commit()
+    return payload
 
 
 @router.get("/{rid}/mech-history")
@@ -245,45 +285,62 @@ def mech_history(rid: str, user: models.User = Depends(get_current_user), db: DB
     ensure_runner_read_access(db, user, rid)
     from datetime import date, timedelta
 
-    acts_dates = [a[0][:10] for a in db.query(models.Activity.started_at).filter(models.Activity.runner_id == rid).all()]
-    if not acts_dates:
-        return []
-    ad = date.fromisoformat(min(acts_dates)) + timedelta(days=42)
-    end = E.today_date()  # end at *today*, so the last trend point equals the current score
-    asofs = []
-    while ad <= end:
-        asofs.append(ad)
-        ad += timedelta(days=7)
-    if not asofs or asofs[-1] != end:
-        asofs.append(end)
-    asofs = asofs[-26:]  # cap cost — last ~6 months of weekly points
-    return [{"date": av["_cut"], "mech": av["mech"], "load": av["load"], "symp": av["symp"],
-             "overall": av["overall"], "quadrant": av["quadrant"]} for av in _engine_replay(db, rid, asofs)]
+    def build():
+        acts_dates = [a[0][:10] for a in db.query(models.Activity.started_at).filter(models.Activity.runner_id == rid).all()]
+        if not acts_dates:
+            return []
+        ad = date.fromisoformat(min(acts_dates)) + timedelta(days=42)
+        end = E.today_date()  # end at *today*, so the last trend point equals the current score
+        asofs = []
+        while ad <= end:
+            asofs.append(ad)
+            ad += timedelta(days=7)
+        if not asofs or asofs[-1] != end:
+            asofs.append(end)
+        asofs = asofs[-26:]  # cap cost — last ~6 months of weekly points
+        return [{"date": av["_cut"], "mech": av["mech"], "load": av["load"], "symp": av["symp"],
+                 "overall": av["overall"], "quadrant": av["quadrant"]} for av in _engine_replay(db, rid, asofs)]
+
+    return _cached_history(db, rid, "mech", build)
+
+
+# ~6 months of daily state, so the quadrant strip shows the long arc, not just a
+# recent window. This is the default the app always asks for and is cached; the
+# incremental replay + cache keep the ~180-day daily rebuild off the hot path.
+QUAD_HISTORY_DAYS = 183
 
 
 @router.get("/{rid}/quadrant-history")
-def quadrant_history(rid: str, days: int = 60, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
-    """Daily replay of the quadrant / state over the last ~2 months — powers the
+def quadrant_history(rid: str, days: int = QUAD_HISTORY_DAYS, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Daily replay of the quadrant / state over the last ~6 months — powers the
     hover overview on the quadrant. One point per calendar day up to today."""
     ensure_runner_read_access(db, user, rid)
     from datetime import date, timedelta
 
-    acts_dates = [a[0][:10] for a in db.query(models.Activity.started_at).filter(models.Activity.runner_id == rid).all()]
-    if not acts_dates:
-        return []
-    days = max(7, min(days, 92))
-    end = E.today_date()
-    start = max(date.fromisoformat(min(acts_dates)) + timedelta(days=42), end - timedelta(days=days - 1))
-    asofs = []
-    ad = start
-    while ad <= end:
-        asofs.append(ad)
-        ad += timedelta(days=1)
-    return [{"date": av["_cut"], "quadrant": av["quadrant"], "overall": av["overall"],
-             "tier": av["tier"], "mech": av["mech"], "load": av["load"], "symp": av["symp"],
-             "signals": [{"name": s["name"], "pts": s["pts"], "grade": s["grade"]}
-                         for s in (av.get("signals") or [])[:5]]}
-            for av in _engine_replay(db, rid, asofs)]
+    days = max(7, min(days, 190))
+
+    def build():
+        acts_dates = [a[0][:10] for a in db.query(models.Activity.started_at).filter(models.Activity.runner_id == rid).all()]
+        if not acts_dates:
+            return []
+        end = E.today_date()
+        start = max(date.fromisoformat(min(acts_dates)) + timedelta(days=42), end - timedelta(days=days - 1))
+        asofs = []
+        ad = start
+        while ad <= end:
+            asofs.append(ad)
+            ad += timedelta(days=1)
+        return [{"date": av["_cut"], "quadrant": av["quadrant"], "overall": av["overall"],
+                 "tier": av["tier"], "mech": av["mech"], "load": av["load"], "symp": av["symp"],
+                 "signals": [{"name": s["name"], "pts": s["pts"], "grade": s["grade"]}
+                             for s in (av.get("signals") or [])[:5]]}
+                for av in _engine_replay(db, rid, asofs)]
+
+    # Only the default full-range request is cached (what the app always sends);
+    # a custom window is computed ad hoc so it can't poison the shared cache row.
+    if days == QUAD_HISTORY_DAYS:
+        return _cached_history(db, rid, "quadrant", build)
+    return build()
 
 
 @router.get("/{rid}/run-compare/{aid}")

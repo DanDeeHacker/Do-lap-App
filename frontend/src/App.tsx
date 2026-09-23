@@ -428,12 +428,12 @@ function Quadrant({ quadrant = "stable", history, live, onSync, syncing, syncMsg
               {syncing ? "Synchronizuji…" : "Synchronizovat"}
             </button>
           )}
-          <button onClick={() => setOpen(true)} className="whitespace-nowrap rounded-full border border-white/12 px-3 py-1.5 font-mono text-[10px] font-bold text-[#6ce6d3] transition hover:border-[#6ce6d3]/50 hover:text-[#c7ff54]">historie 2 měsíce ⤢</button>
+          <button onClick={() => setOpen(true)} className="whitespace-nowrap rounded-full border border-white/12 px-3 py-1.5 font-mono text-[10px] font-bold text-[#6ce6d3] transition hover:border-[#6ce6d3]/50 hover:text-[#c7ff54]">historie 6 měsíců ⤢</button>
         </div>
       </div>
       {syncMsg && <p className="mt-2 text-[11px] font-medium text-[#a9c2b9]">{syncMsg}</p>}
       <p className="mt-2 max-w-md text-xs leading-5 text-[#a9c2b9]">{q.d}</p>
-      <button type="button" onClick={() => setOpen(true)} className="mt-4 grid w-full grid-cols-2 gap-2 text-left" title="Zobrazit vývoj stavu za 2 měsíce">
+      <button type="button" onClick={() => setOpen(true)} className="mt-4 grid w-full grid-cols-2 gap-2 text-left" title="Zobrazit vývoj stavu za 6 měsíců">
         {cells.map(([key, label]) => {
           const active = key === quadrant
           const c = QCOL[key]
@@ -461,7 +461,7 @@ function Quadrant({ quadrant = "stable", history, live, onSync, syncing, syncMsg
   )
 }
 
-// Large pop-out: daily state over the last ~2 months — bar height = overall
+// Large pop-out: daily state over the last ~6 months — bar height = overall
 // risk, color = quadrant. Hover a bar to see that day's date and the signals
 // that were influencing the state.
 function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; live?: any; onClose: () => void }) {
@@ -503,7 +503,7 @@ function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; l
       <div className="fixed inset-x-0 bottom-0 top-[calc(68px+env(safe-area-inset-top))] z-[90] flex flex-col overflow-hidden border-t border-white/12 bg-[#0c201d] pb-[env(safe-area-inset-bottom)] text-[#f1f8f1] shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[.16em] text-[#71837b]">Vývoj stavu · 2 měsíce</p>
+            <p className="font-mono text-[10px] uppercase tracking-[.16em] text-[#71837b]">Vývoj stavu · 6 měsíců</p>
             <h2 className="mt-1 font-serif text-2xl">Kvadrant a rizikové skóre po dnech</h2>
           </div>
           <button onClick={onClose} className="grid size-9 shrink-0 place-items-center rounded-full border border-white/15 text-lg">×</button>

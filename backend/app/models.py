@@ -301,6 +301,22 @@ class Assessment(Base):
     detail_json = Column(JSON)
 
 
+class EngineHistoryCache(Base):
+    """Cached output of the expensive engine history replay — one row per
+    (runner, kind). Valid while it matches the runner's engine version and was
+    computed for the current day; invalidated wholesale in
+    engine.recompute_assessment whenever the runner's data changes, and rebuilt
+    lazily on the next read. Turns a per-page-view O(days × full-assess) replay
+    into an O(1) lookup."""
+    __tablename__ = "engine_history_cache"
+    runner_id = Column(String, ForeignKey("runners.id"), primary_key=True)
+    kind = Column(String, primary_key=True)  # "quadrant" | "mech"
+    engine_version = Column(String)
+    computed_for = Column(String)  # YYYY-MM-DD the replay's pinned "today" was
+    payload_json = Column(JSON)
+    updated_at = Column(String)
+
+
 class Triage(Base):
     __tablename__ = "triage"
     id = Column(Integer, primary_key=True, autoincrement=True)

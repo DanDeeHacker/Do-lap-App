@@ -184,20 +184,20 @@ _GRADE_LABEL = {"up": "stoupání", "flat": "rovina", "down": "klesání", "roll
 _PACE_LABEL = {"fast": "rychle", "mod": "středně", "easy": "volně"}
 
 
-def quadrant_of(load_score, mech_score, prev=None, hi=QUAD_THRESHOLD, lo=QUAD_EXIT, mech_ok=True):
+def quadrant_of(load_score, mech_score, prev=None, hi=QUAD_THRESHOLD, lo=QUAD_EXIT):
     """Quadrant with hysteresis: an axis counts as elevated once it crosses
     `hi`, and keeps counting until it falls back below `lo`. Without this the
     label flip-flops week to week when a score hovers around 25 (seen on real
     backtested data). `prev` is the last persisted quadrant.
 
-    `mech_ok` (v2 only) is the Phase-2 flag gate: the mechanics axis may push to
-    Silent/Critical only when the across-session evidence is a real flag
-    (persistence or convergence), not a single-session blip. v1 always passes
-    True, so its behaviour is unchanged."""
+    The mechanics axis follows its (EWMA-smoothed) score directly — the Phase-2
+    persistence/convergence flags are surfaced as an informational chip
+    (`mechFlag`/`mechWatch`) rather than gating the quadrant here; the hard gate
+    is deferred to the within-run segmentation phase (see assess())."""
     prev_load = prev in ("overreaching", "critical")
     prev_mech = prev in ("silent", "critical")
     load_hot = load_score >= hi or (prev_load and load_score >= lo)
-    mech_hot = (mech_score >= hi or (prev_mech and mech_score >= lo)) and mech_ok
+    mech_hot = mech_score >= hi or (prev_mech and mech_score >= lo)
     if load_hot and mech_hot:
         return "critical"
     if load_hot:
@@ -260,15 +260,23 @@ _SPORT_LPM = {"running": 1.0, "cycling": 0.85, "swimming": 1.1, "strength": 0.7,
               "rowing": 1.0, "elliptical": 0.8, "hiking": 0.6, "walking": 0.4, "other": 0.8}
 
 
-def hr_bounds(runs, dailies):
-    """Estimate the runner's HR max / resting HR for TRIMP. No birth year, so
-    HR max is anchored on their own hardest sessions (avg HR + margin, floor 185)
-    and resting HR on the median of recorded daily readings."""
+def hr_bounds(runs, dailies, birth_year=None):
+    """Estimate the runner's HR max / resting HR for TRIMP. HR max is anchored on
+    their own hardest sessions (avg HR + margin), and — when a birth year is on
+    file — the age estimate (Tanaka 2001: 208 − 0.7·age) replaces the flat 185
+    floor, which overestimates HR max for older runners and so understates
+    HR-reserve / TRIMP. Never below the runner's own hardest observed effort.
+    Resting HR is the median of recorded daily readings."""
     hrs = [a.avg_hr for a in runs if a.avg_hr]
     rhrs = sorted(d.resting_hr for d in dailies if d.resting_hr)
     rhr = rhrs[len(rhrs) // 2] if rhrs else 50.0
-    hrmax = max(185.0, (max(hrs) + 10) if hrs else 0.0)
-    return hrmax, rhr
+    observed = (max(hrs) + 10) if hrs else 0.0
+    est = 185.0
+    if birth_year:
+        age = today_date().year - int(birth_year)
+        if 8 < age < 100:
+            est = clamp(208 - 0.7 * age, 150.0, 210.0)
+    return max(est, observed), rhr
 
 
 def session_load(a, hrmax: float = 190.0, rhr: float = 50.0) -> float:
@@ -633,7 +641,8 @@ def load(db: DBSession, rid: str):
     A = acts(db, rid)                    # running only — km volume bars, descent, mechanics
     ALL = all_acts(db, rid)              # every sport — drives systemic training load
     CROSS = [a for a in ALL if not is_run(a)]
-    hrmax, rhr = hr_bounds(A, daily(db, rid, 180))
+    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    hrmax, rhr = hr_bounds(A, daily(db, rid, 180), r.birth_year if r else None)
     sl = lambda a: session_load(a, hrmax, rhr)
 
     # A session counts as high-intensity when its average HR sits at ≥80 % of
@@ -646,9 +655,12 @@ def load(db: DBSession, rid: str):
     daily_hi = []       # high-intensity training load (AU) per day (drives HI-ACWR)
     for d in range(55, -1, -1):
         k = day_ago(d)
-        daily_km.append(sum(a.distance_km or 0 for a in A if a.started_at == k))
-        daily_load.append(sum(sl(a) for a in ALL if a.started_at == k))
-        daily_hi.append(sum(sl(a) for a in ALL if a.started_at == k and hi(a)))
+        # Slice to the date component: started_at is date-only from every current
+        # ingest path, but a bare `== k` would silently zero the whole load axis
+        # if a datetime ever slipped in — so compare defensively on [:10].
+        daily_km.append(sum(a.distance_km or 0 for a in A if (a.started_at or "")[:10] == k))
+        daily_load.append(sum(sl(a) for a in ALL if (a.started_at or "")[:10] == k))
+        daily_hi.append(sum(sl(a) for a in ALL if (a.started_at or "")[:10] == k and hi(a)))
 
     def ewma(arr, n):
         lam = 2 / (n + 1)
@@ -1592,7 +1604,8 @@ def assess(db: DBSession, rid: str) -> dict:
         if p:
             load_score += p
             _basis = L.get("sessionSpikeBasis") or "vzdálenost"
-            _bl = {"vzdálenost": "délce", "intenzita": "intenzitě", "obojí": "délce i intenzitě"}.get(_basis, "délce")
+            _bl = {"vzdálenost": "délce", "intenzita": "intenzitě", "převýšení": "převýšení",
+                   "obojí": "délce i intenzitě"}.get(_basis, "délce")
             push("session_spike", "Skok v jednom běhu", "B", p, f"×{s}",
                  f"Nejnáročnější běh ({L['sessionSpikeKm']} km) je {band} proti nejnáročnějšímu běhu za předchozích 30 dní — "
                  f"skok ve {_bl}. Skok v jednotlivém běhu je nejsilnější signál rizika (běžecká kohorta 5 205 běžců; "
@@ -1963,6 +1976,10 @@ def recompute_assessment(db: DBSession, rid: str) -> dict:
             status="closed" if decision == "self_managed" else "open",
             claimed_by=None, created_at=now_iso(),
         ))
+    # A recompute means the runner's inputs changed (a sync, check-in, rating,
+    # edit…) or the day rolled — either way the cached engine-history replays are
+    # now stale, so drop them; the next history read rebuilds and re-caches them.
+    db.query(models.EngineHistoryCache).filter(models.EngineHistoryCache.runner_id == rid).delete()
     db.commit()
     return a
 
