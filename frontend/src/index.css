@@ -85,6 +85,12 @@ html, body { overscroll-behavior-y:none; }
    sizing of any fixed rail/drawer must be handled in the component itself — see
    the check-in tab, which expands inward instead of parking off the edge. */
 html, body { overflow-x:clip; }
+/* Grid items default to min-width:auto (= their content's min-content), so one
+   nowrap/truncate child — a long run title, a long metric label — forces the
+   whole track wider than the phone and the excess gets clipped by overflow-x:clip
+   above (content looks cut off). Letting grid items shrink makes that text
+   truncate/wrap instead of overflowing. shrink-0 items are unaffected. */
+.motion-shell main [class~="grid"] > * { min-width: 0; }
 @keyframes infoPop { from { opacity:0; } }  /* opacity-only: must not fight the bubble's inline transform positioning */
 @keyframes sheetUp { from { transform:translateY(100%); } }
 @keyframes fadeIn { from { opacity:0; } }
