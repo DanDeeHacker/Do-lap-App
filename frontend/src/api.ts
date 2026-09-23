@@ -93,6 +93,13 @@ export const api = {
   mechHistory: (id: string) => call("GET", `/api/runners/${id}/mech-history`),
   quadrantHistory: (id: string) => call("GET", `/api/runners/${id}/quadrant-history`),
   runCompare: (id: string, aid: number) => call("GET", `/api/runners/${id}/run-compare/${aid}`),
+
+  // engine sensitivity sandbox (Citlivostní analýza)
+  engineKnobs: () => call("GET", "/api/engine/knobs"),
+  engineSimulate: (inputs: any, prevQuadrant?: string | null) => call("POST", "/api/engine/simulate", { inputs, prevQuadrant }),
+  engineSweep: (inputs: any, knob: string, prevQuadrant?: string | null, points?: number) =>
+    call("POST", "/api/engine/sweep", { inputs, knob, prevQuadrant, points }),
+  engineInputs: (id: string) => call("GET", `/api/engine/inputs/${id}`),
   bookings: (id: string) => call("GET", `/api/runners/${id}/bookings`),
   program: (id: string) => call("GET", `/api/runners/${id}/program`),
   logEx: (rid: string, exId: number) => call("PATCH", `/api/runners/${rid}/exercises/${exId}/log`, {}),

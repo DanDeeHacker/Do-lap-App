@@ -19,6 +19,7 @@ import { METRIC_INFO as MI } from "@/metricinfo"
 import { Load as LoadTab, Mechanics, Post } from "@/tabs"
 import { Care, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
+import { EngineLab } from "@/enginelab"
 
 // Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
 // svou infrastrukturu; zaměstnavatelé a partneři se v této aplikaci nepřihlašují.
@@ -130,6 +131,7 @@ function Topbar() {
                 <div className="mt-3 grid gap-1.5">
                   <button onClick={() => { setProfileOpen(false); setEditOpen(true) }} className="rounded-xl bg-white/[.05] px-3 py-2 text-left text-xs font-bold hover:bg-white/[.09]">Upravit profil</button>
                   <Link to="/data" onClick={() => setProfileOpen(false)} className="rounded-xl bg-white/[.05] px-3 py-2 text-left text-xs font-bold hover:bg-white/[.09]">Data a připojení</Link>
+                  <Link to="/engine" onClick={() => setProfileOpen(false)} className="rounded-xl bg-white/[.05] px-3 py-2 text-left text-xs font-bold hover:bg-white/[.09]">Citlivostní analýza</Link>
                 </div>
                 <button
                   onClick={async () => { setProfileOpen(false); await logout(); nav("/auth") }}
@@ -1196,6 +1198,7 @@ const router = createBrowserRouter([
     children: [
       { path: "/app/:tab", Component: RunnerPage },
       { path: "/data", Component: DataPage },
+      { path: "/engine", Component: EngineLab },
     ],
   },
 ])

@@ -22,7 +22,7 @@ from .db import Base, SessionLocal, engine
 from .metrics import engine as E
 from .routers import (
     ai, auth, booking, conclusions, employers, integrations, partners, physios, programs, rtr,
-    runners, triage,
+    runners, simulate, triage,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -272,6 +272,7 @@ app.include_router(ai.router)
 app.include_router(employers.router)
 app.include_router(partners.router)
 app.include_router(integrations.router)
+app.include_router(simulate.router)
 
 
 @app.get("/api/health")
