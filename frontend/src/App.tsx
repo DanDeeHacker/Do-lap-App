@@ -36,7 +36,22 @@ function useDynamicReveal() {
           ?.scrollIntoView({ behavior: "smooth", block: "nearest" })
       }, 100)
     }
-    const observer = new MutationObserver(revealLatest)
+    // Only react when an actual reveal target is inserted — not on every DOM
+    // mutation. A blanket observer fired on toasts, tooltip portals, chart hover
+    // state and sheet toggles, hijacking the user's scroll and churning on hover.
+    const isRevealTarget = (node: Node) =>
+      node instanceof HTMLElement &&
+      (node.matches("[data-auto-reveal]") || !!node.querySelector("[data-auto-reveal]"))
+    const observer = new MutationObserver((records) => {
+      for (const rec of records) {
+        for (const node of rec.addedNodes) {
+          if (isRevealTarget(node)) {
+            revealLatest()
+            return
+          }
+        }
+      }
+    })
     observer.observe(document.body, { childList: true, subtree: true })
     return () => {
       window.clearTimeout(timer)
@@ -281,8 +296,16 @@ function Metric({
 function NumberedChart({ vals }: { vals?: number[] }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
-  const volume = (vals && vals.length ? vals : [18, 21, 19, 26, 24, 28, 25, 31, 29, 34, 32, 35]).map((v) => Math.round(v))
+  // No invented bars: until real weekly km arrive (boot loading / no loadDetail),
+  // show an honest empty state instead of a hardcoded fake series.
+  const volume = (vals || []).map((v) => Math.round(v))
   const n = volume.length
+  if (!n)
+    return (
+      <div className="mt-7 grid h-32 place-items-center rounded-xl border border-dashed border-[#dae2dd] text-xs text-[#71837b]">
+        Zatím není dost dat pro týdenní přehled.
+      </div>
+    )
   const mx = Math.max(...volume, 1)
   const lab = (i: number) => (i === n - 1 ? "tento týden" : `−${n - 1 - i} t`)
   const pick = (clientX: number) => {
@@ -565,7 +588,7 @@ function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; l
   )
 }
 function TodayV2() {
-  const { me, boot, refresh } = useApp()
+  const { me, boot, refresh, error } = useApp()
   const a = boot?.assessment
   const L = a?.loadDetail
   const rcv = a?.rcv
@@ -668,6 +691,16 @@ function TodayV2() {
           </h1>
         </div>
       </div>
+      {error && !a && (
+        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#e77a59]/40 bg-[#3c2922] p-4 text-[#ffc1ab]">
+          <span className="text-lg leading-none">⚠</span>
+          <div className="flex-1">
+            <p className="text-sm font-bold">Data se nepodařilo načíst</p>
+            <p className="mt-0.5 text-xs leading-5">{error}</p>
+          </div>
+          <button onClick={() => refresh()} className="shrink-0 self-center rounded-full bg-[#c7ff54] px-3 py-1.5 text-xs font-bold text-[#071313]">Zkusit znovu</button>
+        </div>
+      )}
       {a?.painWarn && (
         <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#e77a59]/40 bg-[#3c2922] p-4 text-[#ffc1ab]">
           <span className="text-lg leading-none">⚠</span>

@@ -3,7 +3,7 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { AxisLineChart, Bars, Card, Chip, Field, InfoDot, Label, Metric, Ring, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
-import { clamp, czk, FEEL_LABEL, fmtD, fmtDT, fmtSlot, paceStr, PHASE, QUAD, sgn } from "@/lib"
+import { clamp, czk, FEEL_LABEL, fmtD, fmtSlot, paceStr, PHASE, QUAD, sgn } from "@/lib"
 import MuscleAnatomy, { PainHeatmap, type BodyPoint } from "@/components/MuscleAnatomy"
 
 const surf = (s?: string) => ({ road: "silnice", trail: "terén", treadmill: "pás", track: "dráha" } as any)[s || ""] || s || "—"
@@ -20,6 +20,21 @@ export function Head({ kicker, title, sub }: { kicker: string; title: string; su
 }
 function Empty({ children }: { children: any }) {
   return <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-[#71837b]">{children}</div>
+}
+
+// A page gate that tells "still loading" apart from "the fetch failed". Without
+// this a failed bootstrap keeps rendering "Načítám…" forever, since boot stays
+// null. Surfaces store.error and offers a retry.
+function LoadGate({ label = "Načítám…" }: { label?: string }) {
+  const { error, refresh } = useApp()
+  if (!error) return <Empty>{label}</Empty>
+  return (
+    <div className="rounded-2xl border border-[#e77a59]/40 bg-[#3c2922] p-6 text-center">
+      <p className="text-sm font-bold text-[#ffc1ab]">Data se nepodařilo načíst</p>
+      <p className="mt-1 text-xs leading-5 text-[#ffc1ab]/80">{error}</p>
+      <button onClick={() => refresh()} className="mt-4 rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313]">Zkusit znovu</button>
+    </div>
+  )
 }
 
 /* ============================ DENÍK ============================ */
@@ -363,15 +378,17 @@ const std = (a: number[]) => {
   const m = mean(a)
   return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1))
 }
-type Metric = { label: string; unit: string; dec: number; value: number; baseline: number; z: number; delta: string; hot: boolean; position: number; weeks: number[]; dates: string[]; series: number[]; seriesDates: string[]; terrain?: boolean }
+type Metric = { label: string; unit: string; dec: number; value: number; baseline: number; z: number; delta: string; hot: boolean; position: number; weeks: number[]; dates: string[]; series: number[]; seriesDates: string[]; terrain?: boolean; approx?: boolean }
 
 // dates of the last `n` runs that carry `field` (to label the per-run charts)
 function fieldDates(acts: any[], field: string, n: number): string[] {
   return acts.filter((a) => a[field] != null).sort((a, b) => a.started_at.localeCompare(b.started_at)).slice(-n).map((a) => a.started_at)
 }
 
-// Build a metric card straight from activity fields (cadence, stride, oscillation)
-// — recent mean vs a baseline window, last 8 runs as the mini chart.
+// Rough fallback for when the engine has no terrain-cleaned drift for a metric:
+// a plain recent-vs-baseline mean straight off the raw activity fields, with NO
+// terrain normalization. Flagged `approx` so the card can say so out loud instead
+// of masquerading as an engine-grade, terrain-cleaned signal.
 function metricFromActs(acts: any[], field: string, label: string, unit: string, dec: number): Metric | null {
   const rows = acts.filter((a) => a[field] != null).sort((a, b) => a.started_at.localeCompare(b.started_at))
   if (rows.length < 6) return null
@@ -385,11 +402,11 @@ function metricFromActs(acts: any[], field: string, label: string, unit: string,
   const z = (value - baseline) / sd
   const d = value - baseline
   const delta = `${d >= 0 ? "+" : "−"}${mfmt(dec, Math.abs(d))} ${unit}`
-  return { label, unit, dec, value, baseline, z, delta, hot: false, position: clamp(50 + z * 18, 8, 92), weeks, dates: dates.slice(-8), series: vals.slice(-26), seriesDates: dates.slice(-26), terrain: false }
+  return { label, unit, dec, value, baseline, z, delta, hot: false, position: clamp(50 + z * 18, 8, 92), weeks, dates: dates.slice(-8), series: vals.slice(-26), seriesDates: dates.slice(-26), terrain: false, approx: true }
 }
 
 function MechMetricCard({ m, onSelect }: { m: Metric; onSelect: () => void }) {
-  const { label, unit, dec, value, baseline, z, delta, hot, weeks, dates } = m
+  const { label, unit, dec, value, baseline, z, delta, hot, weeks, dates, approx } = m
   // Numeric axis for the interval bar: usual range = baseline ± 1 SD (SD backed
   // out from the z-score), so the bar shows real numbers, not just a dot.
   const isd = Math.abs(z) > 0.15 ? Math.abs(value - baseline) / Math.abs(z) : (Math.abs(baseline) * 0.03 || 1)
@@ -410,6 +427,7 @@ function MechMetricCard({ m, onSelect }: { m: Metric; onSelect: () => void }) {
         <span className="flex items-center gap-1.5">
           <Label>{label}</Label>
           {MECH_INFO_BY_LABEL[label] && <InfoDot text={MECH_INFO_BY_LABEL[label]} label={label} />}
+          {approx && <span title="Málo dat v jednotlivých profilech terénu — hrubý odhad z průměru běhů napříč terénem, ne terénně očištěná odchylka enginu." className="rounded-full bg-white/[.06] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#9bb3aa]">odhad</span>}
         </span>
         <span className={`rounded-full px-2 py-1 text-[9px] font-bold ${hot ? "bg-[#e77a59]/15 text-[#ffc1ab]" : "bg-[#c7ff54]/10 text-[#c7ff54]"}`}>{delta}</span>
       </div>
@@ -718,7 +736,7 @@ export function Mechanics() {
     api.mechHistory(rid).then((h) => alive && setMechHist(h)).catch(() => alive && setMechHist([]))
     return () => { alive = false }
   }, [rid, gatedNow])
-  if (!a) return <Empty>Načítám…</Empty>
+  if (!a) return <LoadGate />
   if ((a.confidence?.value ?? 0) < 0.6)
     return (
       <>
@@ -736,16 +754,35 @@ export function Mechanics() {
     const seriesDates = dts.slice(dts.length - n)
     return { label, unit, dec, value, baseline, z, delta, hot, position, weeks: series.slice(-8), dates: seriesDates.slice(-8), series, seriesDates, terrain }
   }
+  // The card visualizes per-run numbers (baseMean → recMean over the run series),
+  // so derive its deviation, interval bar and "hot" flag from *those same* numbers
+  // via one helper. The engine's own z can be a segment/terrain-cleaned z that
+  // diverges from baseMean→recMean under v2 segment scoring — reusing it here made
+  // the card say "baseline X → teď Y · odchylka z" with a z that didn't match X→Y.
+  // The engine's authoritative z still drives the mech score + the signal list below.
+  const mk = (o: any, field: string, label: string, unit: string, dec: number, terrain = true): Metric => {
+    const series = (o.series || []) as number[]
+    const base = o.baseMean, rec = o.recMean
+    // Pair the per-run means with a per-run z. Under v2 segment scoring `o.z` is the
+    // segment z (kept for the score); the engine preserves the per-run drift as
+    // `perRunZ`. Prefer that; else the plain per-run `o.z`; else derive one from the
+    // series so "baseline X → teď Y · odchylka z" is always internally consistent.
+    const z =
+      o.perRunZ != null ? o.perRunZ
+        : !o.segment && o.z != null ? o.z
+          : (rec - base) / (std(series) || Math.abs(base * 0.02) || 1)
+    return eng(series, field, label, unit, dec, rec, base, z, `${sgn(Math.round(z * 100) / 100)} z`, Math.abs(z) >= 1, clamp(50 + z * 18, 8, 92), terrain)
+  }
   const metrics: Metric[] = []
-  if (a.tavr) metrics.push(eng(a.tavr.series, "vert_ratio_pct", "Vertikální poměr", "%", 1, a.tavr.recMean, a.tavr.baseMean, a.tavr.z, `${sgn(a.tavr.z)} z`, a.tavr.z >= 1, clamp(50 + a.tavr.z * 18, 8, 92)))
-  if (a.gct) metrics.push(eng(a.gct.series, "gct_ms", "Kontakt se zemí", "ms", 0, a.gct.recMean, a.gct.baseMean, a.gct.z, `${sgn(a.gct.z)} z`, a.gct.z >= 1, clamp(50 + a.gct.z * 18, 8, 92)))
-  if (a.bal) metrics.push(eng(a.bal.series, "gct_balance_l", "Symetrie kontaktu", "%", 1, a.bal.now, a.bal.baseline, a.bal.excursion, `${sgn(a.bal.excursion)} p.b.`, a.bal.excursion >= 0.8, clamp(50 + a.bal.excursion * 22, 8, 92), false))
-  // Prefer the backend's per-terrain drift-z (terrain-cleaned); fall back to a
-  // plain recent-vs-baseline mean only when there isn't enough bucketed data.
+  if (a.tavr) metrics.push(mk(a.tavr, "vert_ratio_pct", "Vertikální poměr", "%", 1))
+  if (a.gct) metrics.push(mk(a.gct, "gct_ms", "Kontakt se zemí", "ms", 0))
+  // Balance is intentionally terrain-agnostic and carries its own excursion (p.b.),
+  // not a baseMean→recMean z — keep its own mapping, just with a symmetric |·| gate.
+  if (a.bal) metrics.push(eng(a.bal.series, "gct_balance_l", "Symetrie kontaktu", "%", 1, a.bal.now, a.bal.baseline, a.bal.excursion, `${sgn(a.bal.excursion)} p.b.`, Math.abs(a.bal.excursion) >= 0.8, clamp(50 + a.bal.excursion * 22, 8, 92), false))
+  // Prefer the backend's per-terrain drift; fall back to a plain (approx) mean
+  // only when there isn't enough bucketed data.
   const engDrift = (d: any, field: string, label: string, unit: string, dec: number): Metric | null =>
-    d
-      ? eng(d.series, field, label, unit, dec, d.recMean, d.baseMean, d.z, `${sgn(d.z)} z`, Math.abs(d.z) >= 1, clamp(50 + d.z * 18, 8, 92))
-      : metricFromActs(acts, field, label, unit, dec)
+    d ? mk(d, field, label, unit, dec) : metricFromActs(acts, field, label, unit, dec)
   for (const m of [
     engDrift(a.cadence, "cadence_spm", "Kadence", "spm", 0),
     engDrift(a.stride, "stride_len_m", "Délka kroku", "m", 2),
@@ -922,7 +959,7 @@ export function Load() {
     api.mechHistory(rid).then((h) => alive && setHist(h)).catch(() => alive && setHist([]))
     return () => { alive = false }
   }, [rid])
-  if (!L) return <Empty>Načítám…</Empty>
+  if (!L) return <LoadGate />
 
   // State follows the quadrant (post-hysteresis) so Zátěž matches it exactly.
   const loadHot = a.quadrant === "overreaching" || a.quadrant === "critical"
@@ -1172,31 +1209,6 @@ export function Program() {
   )
 }
 
-/* ============================ ZPRÁVY ============================ */
-export function Messages() {
-  const { me, boot, refresh } = useApp()
-  const rid = me!.runner_id!
-  const ms = (boot?.messages || []) as any[]
-  const p = boot?.program
-  const physioName = p ? boot?.physios?.[p.physio_id]?.name : null
-  const [body, setBody] = useState("")
-  const send = async () => { const b = body.trim(); if (!b) return; setBody(""); await api.send(rid, "runner", b); refresh() }
-  return (
-    <>
-      <Head kicker="Zprávy" title={physioName || "Zatím bez fyzioterapeuta"} sub={physioName ? "Píšete přímo tomu, kdo vede váš program." : "Zprávy se otevřou, jakmile váš případ někdo převezme."} />
-      <Card className="max-w-2xl">
-        <div className="flex max-h-[52vh] flex-col gap-2 overflow-y-auto pr-1">
-          {ms.length ? ms.map((m) => (
-            <div key={m.id} className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${m.sender === "runner" ? "ml-auto bg-[#c7ff54] text-[#071313]" : m.sender === "system" ? "mx-auto bg-white/5 text-[#a9c2b9]" : "bg-[#17382f] text-[#f1f8f1]"}`}>
-              {m.body}<span className="mt-1 block text-[10px] opacity-60">{fmtDT(m.created_at)}</span>
-            </div>
-          )) : <Empty>Zatím žádné zprávy.</Empty>}
-        </div>
-        <div className="mt-4 flex gap-2">
-          <input value={body} onChange={(e) => setBody(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Napsat zprávu…" className="flex-1 rounded-xl border px-3 py-2.5 text-sm" />
-          <button onClick={send} className="rounded-full bg-[#c7ff54] px-5 text-sm font-bold text-[#071313]">Odeslat</button>
-        </div>
-      </Card>
-    </>
-  )
-}
+// (Removed the unreachable `Messages` chat tab: the "messages" route renders
+// <Care/>, whose PhysioChat is the live physio conversation. The old standalone
+// Messages component had no import or route and only risked drifting out of sync.)

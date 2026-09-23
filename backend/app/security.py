@@ -9,6 +9,7 @@ import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from urllib.parse import urlsplit
 
 from fastapi import Request
 from passlib.context import CryptContext
@@ -71,15 +72,21 @@ def revoke_session(db: DBSession, token: Optional[str]) -> None:
 
 # ---------------------------------------------------------------- CSRF
 def same_origin(request: Request) -> bool:
-    """Reject only when an Origin header is present and disagrees with the
-    request's own host. Absent Origin (curl, test clients, older browser
+    """Reject only when an Origin header is present and its host disagrees with
+    the request's own Host. Absent Origin (curl, test clients, older browser
     navigations) is allowed through — SameSite=Lax on the session cookie is
-    the primary defense; this catches cross-site fetch/XHR specifically."""
+    the primary defense; this catches cross-site fetch/XHR specifically.
+
+    Compares the *exact* host (scheme-stripped netloc), not a substring. The old
+    `origin.endswith(host)` / `f"//{host}" in origin` test let look-alike hosts
+    through — e.g. Host `app.example.com` was accepted from Origin
+    `https://app.example.com.evil.com` (which contains `//app.example.com`) and
+    from `https://notapp.example.com` (which ends with `app.example.com`)."""
     origin = request.headers.get("origin")
     if not origin:
         return True
     host = request.headers.get("host", "")
-    return origin.endswith(host) or f"//{host}" in origin
+    return bool(host) and urlsplit(origin).netloc == host
 
 
 # ---------------------------------------------------------------- throttle

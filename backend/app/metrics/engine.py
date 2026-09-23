@@ -1449,6 +1449,12 @@ def assess(db: DBSession, rid: str) -> dict:
             for key, var in (("tavr", tv), ("gct", gc), ("cadence", cad), ("stride", strd), ("vosc", vosc)):
                 res = sm.get(key)
                 if res and isinstance(var, dict):
+                    # The segment override replaces `z` (drives the score) with the
+                    # finer within-run segment z, but leaves baseMean/recMean/series
+                    # per-run. Preserve the per-run drift z as `perRunZ` so anything
+                    # that narrates "baseMean → recMean · odchylka z" pairs the per-run
+                    # means with a matching per-run z, not the segment one.
+                    var["perRunZ"] = var.get("z")
                     for k in ("z", "ewma", "ctrl", "latest", "state", "persist", "beyond", "nSessions"):
                         if k in res:
                             var[k] = res[k]

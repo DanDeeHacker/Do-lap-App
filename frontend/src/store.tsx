@@ -36,9 +36,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     const rid = me?.runner_id
     if (!rid) return
+    // Clear any prior error up front so a retry (or a later refresh) shows the
+    // loading state again instead of the stale error while the request is in flight.
+    setError(null)
     try {
       setBoot(await api.bootstrap(rid))
-      setError(null)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Nepodařilo se načíst data")
     }
@@ -52,6 +54,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     setMe(null)
     setBoot(null)
+    setError(null)
   }, [])
 
   useEffect(() => {

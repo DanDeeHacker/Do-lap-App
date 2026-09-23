@@ -33,7 +33,8 @@ export const fmtSlot = (iso?: string) => {
 export const czk = (n?: number | null) => (n == null ? "—" : new Intl.NumberFormat("cs-CZ").format(n) + " Kč")
 
 export const paceStr = (sPerKm?: number | null) => {
-  if (!sPerKm) return "—"
+  // Only null/undefined/NaN is "missing" — a genuine 0 should read "0:00", not "—".
+  if (sPerKm == null || !Number.isFinite(sPerKm)) return "—"
   const m = Math.floor(sPerKm / 60)
   const s = Math.round(sPerKm % 60)
   return `${m}:${String(s).padStart(2, "0")}`
