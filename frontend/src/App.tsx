@@ -1021,13 +1021,16 @@ function AtlasBubble() {
   return (
     <>
       {!open && (
-        // Side rail tab: parked at the right edge, only a slim lip peeks out so
-        // it doesn't block content. Hover (desktop) slides it out; on a phone it
-        // stays peeking and a tap opens the check-in directly.
+        // Side rail tab: a compact icon tab pinned to the right edge that expands
+        // *inward* (width) on hover to reveal the label; on a phone it stays as the
+        // icon and a tap opens the check-in. It is kept fully on-screen (never
+        // translated off the right edge) — an off-canvas fixed element makes iOS
+        // Safari scroll the whole page horizontally, and overflow:clip can't clip
+        // a position:fixed box.
         <button
           onClick={() => setOpen(true)}
           aria-label="Otevřít check-in"
-          className="group fixed right-0 top-1/2 z-[60] flex -translate-y-1/2 translate-x-[calc(100%-2.15rem)] items-center gap-2 rounded-l-2xl bg-[#c7ff54] py-3 pl-2.5 pr-4 text-sm font-bold text-[#071313] shadow-[0_10px_28px_rgba(0,0,0,.4)] transition-transform duration-300 ease-out hover:translate-x-0 focus-visible:translate-x-0"
+          className="group fixed right-0 top-1/2 z-[60] flex w-12 -translate-y-1/2 items-center gap-2 overflow-hidden rounded-l-2xl bg-[#c7ff54] py-3 pl-2.5 pr-4 text-sm font-bold text-[#071313] shadow-[0_10px_28px_rgba(0,0,0,.4)] transition-[width] duration-300 ease-out hover:w-40 hover:-translate-y-1/2 focus-visible:w-40 focus-visible:-translate-y-1/2"
         >
           <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[#071313]/10 text-base">♡</span>
           <span className="whitespace-nowrap">Check-in</span>
