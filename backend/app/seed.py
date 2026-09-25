@@ -241,12 +241,50 @@ def gen_activities(r: dict, rand, start_id: int) -> list[dict]:
 DEMO_LOGINS = [("tichydrift@demo.cz", 10), ("kritickepretizeni@demo.cz", 11)]
 
 
+def _is_demo_email(email: str | None) -> bool:
+    return (email or "").lower().endswith("@demo.cz")
+
+
+def _has_real_account(db: DBSession, rid: str) -> bool:
+    """A non-demo login owns this runner — its data is a real person's."""
+    return any(not _is_demo_email(u.email) for u in db.query(models.User).filter(models.User.runner_id == rid).all())
+
+
+def _free_runner_id(db: DBSession) -> str:
+    nums = [int(r[0].split("-")[1]) for r in db.query(models.Runner.id).all()
+            if r[0].startswith("run-") and r[0].split("-")[1].isdigit()]
+    return uid("run", max(nums, default=0) + 1)
+
+
+def detach_demo_logins(db: DBSession) -> list[str]:
+    """A demo login (public password) must never share a runner with a real
+    account. Registration hands out the next free runner id, which could be the
+    very id a demo login expects (run-0011 / run-0012) — the demo login then got
+    attached to a real person's data. Removes any such demo login (its sessions,
+    settings and notes with it); ensure_demo_accounts re-creates it on its own
+    synthetic runner. Returns the removed e-mails."""
+    removed = []
+    for email, _idx in DEMO_LOGINS:
+        u = db.query(models.User).filter(models.User.email == email).first()
+        if u is None or not u.runner_id or not _has_real_account(db, u.runner_id):
+            continue
+        for M in (models.UserSession, models.Settings, models.Annotation):
+            db.query(M).filter(M.user_id == u.id).delete()
+        db.delete(u)
+        removed.append(email)
+    if removed:
+        db.commit()
+    return removed
+
+
 def ensure_demo_accounts(db: DBSession) -> None:
     """Idempotently create the two runner demo logins (silent drift + critical
     overload) even on an ALREADY-seeded database. build_and_seed() only runs on
     an empty DB (the Clinic-None gate), so on a redeploy over existing data new
     demo accounts would never appear — this fills that gap. Safe to call on
-    every startup: it no-ops once the accounts exist."""
+    every startup: it no-ops once the accounts exist. A demo login always gets
+    its own synthetic runner — never one that belongs to a real account."""
+    detach_demo_logins(db)
     demo_hashed = hash_password("demo")
     made = False
     for email, idx in DEMO_LOGINS:
@@ -254,6 +292,8 @@ def ensure_demo_accounts(db: DBSession) -> None:
             continue
         s = RUNS[idx]
         rid = uid("run", idx + 1)
+        if _has_real_account(db, rid):
+            rid = _free_runner_id(db)
         if db.query(models.Runner).filter(models.Runner.id == rid).first() is None:
             rand = mulberry32(1000 + idx)
             r = models.Runner(
