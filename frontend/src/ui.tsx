@@ -281,6 +281,7 @@ export function AxisLineChart({
   dec = 0,
   color = "#6ce6d3",
   height = 128,
+  band,
 }: {
   points: { t: string; v: number }[]
   yMin?: number
@@ -291,6 +292,8 @@ export function AxisLineChart({
   dec?: number
   color?: string
   height?: number
+  /** a shaded reference range (e.g. the runner's usual range) with an optional midline */
+  band?: { lo: number; hi: number; mid?: number; label?: string }
 }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -302,8 +305,13 @@ export function AxisLineChart({
   const padT = 12
   const padB = 22
   const vs = points.map((p) => p.v)
-  let mn = yMin ?? Math.min(...vs)
-  let mx = yMax ?? Math.max(...vs)
+  let mn = yMin ?? Math.min(...vs, ...(band ? [band.lo] : []))
+  let mx = yMax ?? Math.max(...vs, ...(band ? [band.hi] : []))
+  if (band && yMin == null && yMax == null) {
+    const pad = (mx - mn) * 0.08
+    mn -= pad
+    mx += pad
+  }
   if (mn === mx) {
     mn -= 1
     mx += 1
@@ -344,6 +352,14 @@ export function AxisLineChart({
             <text x={padL - 5} y={y(t) + 3} textAnchor="end" fill="#71837b" fontSize="8">{nf(t)}</text>
           </g>
         ))}
+        {band && (
+          <g>
+            <rect x={padL} y={y(band.hi)} width={W - padL - padR} height={Math.max(1, y(band.lo) - y(band.hi))} fill={color} opacity=".09" />
+            <line x1={padL} y1={y(band.hi)} x2={W - padR} y2={y(band.hi)} stroke={color} strokeOpacity=".35" strokeWidth="0.8" />
+            <line x1={padL} y1={y(band.lo)} x2={W - padR} y2={y(band.lo)} stroke={color} strokeOpacity=".35" strokeWidth="0.8" />
+            {band.mid != null && <line x1={padL} y1={y(band.mid)} x2={W - padR} y2={y(band.mid)} stroke={color} strokeOpacity=".5" strokeDasharray="3 3" strokeWidth="0.8" />}
+          </g>
+        )}
         {threshold != null && threshold >= mn && threshold <= mx && (
           <g>
             <line x1={padL} y1={y(threshold)} x2={W - padR} y2={y(threshold)} stroke="#e77a59" strokeOpacity=".55" strokeDasharray="4 3" />
@@ -364,6 +380,19 @@ export function AxisLineChart({
           <text key={i} x={x(idx)} y={H - 6} textAnchor={i === 0 ? "start" : i === xi.length - 1 ? "end" : "middle"} fill="#71837b" fontSize="8">{fmt(points[idx].t)}</text>
         ))}
       </svg>
+      {band?.label && (
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[#71837b]">
+          <span className="inline-flex items-center gap-1.5">
+            <i className="inline-block h-2.5 w-4 rounded-sm border" style={{ background: `${color}22`, borderColor: `${color}66` }} />
+            {band.label} {nf(band.lo)}–{nf(band.hi)}{unit}
+          </span>
+          {band.mid != null && (
+            <span className="inline-flex items-center gap-1.5">
+              <i className="inline-block w-4 border-t border-dashed" style={{ borderColor: `${color}99` }} />střed {nf(band.mid)}{unit}
+            </span>
+          )}
+        </p>
+      )}
       {act != null && (
         <div
           className="pointer-events-none absolute top-0 z-10 rounded-lg border border-white/12 bg-[#0c201d] px-2 py-1 text-center shadow-lg"

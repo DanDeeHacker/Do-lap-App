@@ -44,46 +44,87 @@ function HeadroomBar({ now, ceiling, tone }: { now: number | null; ceiling: numb
   )
 }
 
+const CH_NOTE: Record<string, string> = {
+  systemic: "Tep × čas ze všech aktivit (běh i jiné sporty) — objem a intenzita v jednom čísle. Co z ní zbývá, omezuje v Tréninku i dnešní kilometry a minuty v Z4+.",
+}
+
 function ChannelRow({ id, c, margins }: { id: string; c: any; margins: any }) {
   const wk = c.week
   const ses = c.session
   const wTone = toneOf(wk?.ratio, margins.week)
   const sTone = toneOf(ses?.ratio, margins.session)
+  const why = !c.pts ? null : c.driver === "session" ? "body za jeden běh nad kapacitou" : c.driver === "week" ? "body za 7 dní nad kapacitou" : c.driver === "latent" ? "body doznívajícího skoku" : null
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[.02] p-3.5">
       <div className="flex items-center gap-2">
         <b className="text-sm text-[#f1f8f1]">{c.label}</b>
         <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[9px] font-bold text-[#9bb3aa]">{c.grade}</span>
-        <span className="ml-auto font-mono text-[11px]" style={{ color: c.pts ? "#f6d69a" : "#71837b" }}>{c.pts ? `+${c.pts} b` : "0 b"}</span>
+        <span className="ml-auto text-right font-mono text-[11px]" style={{ color: c.pts ? "#f6d69a" : "#71837b" }}>
+          {c.pts ? `+${c.pts} b` : "0 b"}
+          {why && <span className="block font-sans text-[9px] text-[#71837b]">{why}</span>}
+        </span>
       </div>
       {!c.known ? (
         <p className="mt-2 text-[11px] text-[#71837b]">Kapacitu teprve poznáváme — stačí pár běhů{id === "intensity" ? " s tepem" : ""}.</p>
       ) : (
         <>
-          {c.ceilingToday != null && id !== "systemic" && (
-            <p className="mt-1.5 text-[12px] text-[#a9c2b9]">
-              Dnes max na jeden běh <b className="text-[#f1f8f1]">{num(c.ceilingToday)} {c.unit}</b>
-              <span className="text-[10px] text-[#71837b]"> · prokázáno {num(c.capSession)} {c.unit}</span>
-            </p>
-          )}
           {wk && (
-            <div className="mt-2">
-              <div className="mb-1 flex justify-between text-[10px] text-[#71837b]">
-                <span>7 dní <b className="text-[#e7efe9]">{num(wk.now)}</b> / strop {num(wk.ceiling)} {c.unit}</span>
-                <span>{wk.left > 0 ? `zbývá ${num(wk.left)}` : "strop vyčerpán"}</span>
+            <>
+              <p className="mt-1.5 text-[12px] text-[#a9c2b9]">
+                Týdenní kapacita <b className="text-[#f1f8f1]">{num(wk.cap)} {c.unit}</b>
+                <span className="text-[10px] text-[#71837b]"> · strop s rezervou {num(wk.ceiling)}</span>
+              </p>
+              <div className="mt-2">
+                <div className="mb-1 flex justify-between text-[10px] text-[#71837b]">
+                  <span>posledních 7 dní <b className="text-[#e7efe9]">{num(wk.now)}</b> {c.unit}</span>
+                  <span>{wk.left > 0 ? `do stropu zbývá ${num(wk.left)}` : "strop vyčerpán"}</span>
+                </div>
+                <HeadroomBar now={wk.now} ceiling={wk.ceiling} tone={wTone} />
               </div>
-              <HeadroomBar now={wk.now} ceiling={wk.ceiling} tone={wTone} />
-            </div>
+            </>
           )}
           {ses && (
             <p className="mt-2 text-[10px] text-[#71837b]">
-              Nejnáročnější běh 7 dní ({fmtD(ses.date)}): <b style={{ color: (TONE as any)[sTone] }}>{num(ses.value)} {c.unit} · ×{num(ses.ratio)}</b> proti kapacitě {num(ses.cap)}
+              Nejnáročnější běh 7 dní ({fmtD(ses.date)}): <b style={{ color: (TONE as any)[sTone] }}>{num(ses.value)} {c.unit} · ×{num(ses.ratio)}</b> proti kapacitě jednoho běhu {num(ses.cap)}
               {ses.readiness < 0.99 ? ` · připravenost ${Math.round(ses.readiness * 100)} %` : ""}
             </p>
           )}
           {c.latent && <p className="mt-1 text-[10px] text-[#f6d69a]">Doznívá skok ×{num(c.latent.ratio)} z {fmtD(c.latent.date)}</p>}
+          {CH_NOTE[id] && <p className="mt-2 text-[10px] leading-4 text-[#71837b]">{CH_NOTE[id]}</p>}
         </>
       )}
+    </div>
+  )
+}
+
+function ZoneTime({ cap }: { cap: any }) {
+  const zones: any[] = cap.zones || []
+  const mins: Record<string, number> = Object.fromEntries((cap.zones7d?.minutes || []).map((z: any) => [z.z, z.min]))
+  const max = Math.max(1, ...Object.values(mins))
+  const total = Object.values(mins).reduce((a, b) => a + b, 0)
+  return (
+    <div>
+      <span className="flex items-center gap-1.5"><Label>Tepové zóny · čas za 7 dní</Label><InfoDot text={MI.hrZones} label="Tepové zóny" /></span>
+      <div className="mt-2 grid grid-cols-5 gap-1 text-center">
+        {zones.map((z: any) => {
+          const hard = z.z === "Z4" || z.z === "Z5"
+          const m = mins[z.z]
+          return (
+            <div key={z.z} className={`flex flex-col rounded-lg px-1 py-1.5 ${hard ? "bg-[#e77a59]/15" : "bg-white/[.05]"}`}>
+              <b className="block text-[11px] text-[#f1f8f1]">{z.z}</b>
+              <span className="font-mono text-[10px] text-[#9bb3aa]">{z.lo}–{z.hi}</span>
+              <div className="mx-auto mt-1.5 flex h-10 w-3 items-end rounded-full bg-white/10">
+                <i className="block w-full rounded-full" style={{ height: `${((m || 0) / max) * 100}%`, background: hard ? "#e77a59" : "#6ce6d3" }} />
+              </div>
+              <span className="mt-1 font-mono text-[11px] font-bold text-[#f1f8f1]">{m != null ? `${m} min` : "—"}</span>
+            </div>
+          )
+        })}
+      </div>
+      <p className="mt-1.5 text-[10px] leading-4 text-[#71837b]">
+        {cap.zones7d ? `${cap.zones7d.runs} ${cap.zones7d.runs === 1 ? "běh" : cap.zones7d.runs < 5 ? "běhy" : "běhů"} · celkem ${total} min${cap.zones7d.exact ? "" : " · u běhů bez detailních dat odhad z průměrného tepu"}` : "Za posledních 7 dní žádný běh s tepem."}
+        {" "}· max ≈ {cap.hrMax} · klid ≈ {cap.hrRest} tep/min · kanál intenzity = minuty v Z4+
+      </p>
     </div>
   )
 }
@@ -95,8 +136,8 @@ export function CapacityPanel({ cap }: { cap: any }) {
     <section className="mb-4 rounded-[24px] border border-[#f6d69a]/20 bg-[#0c201d] p-5 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <span className="flex items-center gap-1.5"><Label>Kapacita a dnešní stropy</Label><InfoDot text={MI.capacity} label="Kapacita" /></span>
-          <p className="mt-1 max-w-xl text-xs leading-5 text-[#a9c2b9]">Zátěž proti tomu, co jste prokazatelně zvládli bez obtíží. Bílá čárka = strop (kapacita + rezerva, snížená podle dnešní připravenosti).</p>
+          <span className="flex items-center gap-1.5"><Label>Týdenní kapacita</Label><InfoDot text={MI.capacity} label="Kapacita" /></span>
+          <p className="mt-1 max-w-xl text-xs leading-5 text-[#a9c2b9]">Posledních 7 dní proti tomu, co za týden prokazatelně zvládáte bez obtíží. Bílá čárka = strop (kapacita + 15 % rezerva, podle připravenosti v týdnu). Kolik z toho je v plánu na tento týden a na dnešek, ukazuje Trénink.</p>
         </div>
         <Readiness r={cap.readiness} />
       </div>
@@ -133,18 +174,7 @@ export function CapacityPanel({ cap }: { cap: any }) {
             <p className="mt-2 text-[11px] text-[#a9c2b9]">Týden: <b className="text-[#f1f8f1]">{re.week.now} j.z.</b> · obvykle {re.week.lo}–{re.week.hi} · <b style={{ color: (BAND[re.week.band] || [])[1] }}>{(BAND[re.week.band] || [re.week.band])[0]}</b></p>
           )}
         </div>
-        <div>
-          <span className="flex items-center gap-1.5"><Label>Tepové zóny</Label><InfoDot text={MI.hrZones} label="Tepové zóny" /></span>
-          <div className="mt-2 grid grid-cols-5 gap-1 text-center">
-            {(cap.zones || []).map((z: any) => (
-              <div key={z.z} className={`rounded-lg px-1 py-1.5 ${z.z === "Z4" || z.z === "Z5" ? "bg-[#e77a59]/15" : "bg-white/[.05]"}`}>
-                <b className="block text-[11px] text-[#f1f8f1]">{z.z}</b>
-                <span className="font-mono text-[10px] text-[#9bb3aa]">{z.lo}–{z.hi}</span>
-              </div>
-            ))}
-          </div>
-          <p className="mt-1.5 text-[10px] text-[#71837b]">max ≈ {cap.hrMax} · klid ≈ {cap.hrRest} tep/min · kanál intenzity = minuty v Z4+</p>
-        </div>
+        <ZoneTime cap={cap} />
       </div>
     </section>
   )

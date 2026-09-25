@@ -406,22 +406,19 @@ function metricFromActs(acts: any[], field: string, label: string, unit: string,
   return { label, unit, dec, value, baseline, z, delta, hot: false, position: clamp(50 + z * 18, 8, 92), weeks, dates: dates.slice(-8), series: vals.slice(-26), seriesDates: dates.slice(-26), terrain: false, approx: true }
 }
 
+// Usual range = baseline ± 1 SD, the SD backed out from the z-score — shared by
+// the card's interval bar and the band in the full-trend chart.
+function usualRange(m: Metric) {
+  const isd = Math.abs(m.z) > 0.15 ? Math.abs(m.value - m.baseline) / Math.abs(m.z) : (Math.abs(m.baseline) * 0.03 || 1)
+  return { lo: m.baseline - isd, hi: m.baseline + isd, isd }
+}
+
 function MechMetricCard({ m, onSelect }: { m: Metric; onSelect: () => void }) {
-  const { label, unit, dec, value, baseline, z, delta, hot, weeks, dates, approx } = m
-  // Numeric axis for the interval bar: usual range = baseline ± 1 SD (SD backed
-  // out from the z-score), so the bar shows real numbers, not just a dot.
-  const isd = Math.abs(z) > 0.15 ? Math.abs(value - baseline) / Math.abs(z) : (Math.abs(baseline) * 0.03 || 1)
-  const bLo = baseline - isd, bHi = baseline + isd
+  const { label, unit, dec, value, baseline, delta, hot, approx } = m
+  // Numeric axis for the interval bar, so the bar shows real numbers, not just a dot.
+  const { lo: bLo, hi: bHi, isd } = usualRange(m)
   const dLo = Math.min(bLo, value) - isd * 0.8, dHi = Math.max(bHi, value) + isd * 0.8
   const P = (x: number) => clamp(((x - dLo) / (dHi - dLo)) * 100, 4, 96)
-  const has = weeks.length > 0
-  const mn = has ? Math.min(...weeks) : 0
-  const mx = has ? Math.max(...weeks) : 1
-  const pad = (mx - mn) * 0.35 || Math.abs(mx * 0.02) || 1
-  const lo = mn - pad
-  const hi = mx + pad
-  const wkY = (v: number) => 72 - ((v - lo) / (hi - lo || 1)) * 54
-  const x = (i: number) => 24 + (i / Math.max(1, weeks.length - 1)) * 184
   return (
     <div onClick={onSelect} role="button" tabIndex={0} className="group w-full cursor-pointer p-4 text-left">
       <div className="flex items-start justify-between gap-3">
@@ -449,35 +446,7 @@ function MechMetricCard({ m, onSelect }: { m: Metric; onSelect: () => void }) {
           <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${P(bLo)}%` }}>{mfmt(dec, bLo)}</span>
           <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${P(bHi)}%` }}>{mfmt(dec, bHi)}</span>
         </div>
-        <p className="mt-1 text-[10px] text-[#9bb3aa]">obvyklé rozmezí {mfmt(dec, bLo)}–{mfmt(dec, bHi)} {unit} · střed {mfmt(dec, baseline)}</p>
       </div>
-      {has && (
-        <div className="mt-4 border-t border-white/5 pt-3">
-          <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">
-            Posledních {weeks.length} běhů{dates.length ? ` · ${fmtD(dates[0])} → ${fmtD(dates.at(-1)!)}` : ""}
-          </p>
-          <svg viewBox="0 0 220 100" className="mt-2 h-24 w-full overflow-visible" aria-label={`Trend metriky ${label} za posledních ${weeks.length} běhů`}>
-            <line x1="20" y1="8" x2="20" y2="74" stroke="#6ce6d3" strokeOpacity=".25" />
-            <line x1="20" y1="74" x2="212" y2="74" stroke="#6ce6d3" strokeOpacity=".25" />
-            {[mx, mn].map((tick, ti) => (
-              <text key={ti} x="16" y={wkY(tick) + 2.5} textAnchor="end" fill="#71837b" fontSize="6.5">{mfmt(dec, tick)}</text>
-            ))}
-            {weeks.map((v, i) => {
-              const latest = i === weeks.length - 1
-              const cx = x(i)
-              const y = wkY(v)
-              const xlabel = latest ? "nyní" : i === 0 && dates[0] ? fmtD(dates[0]) : ""
-              return (
-                <g key={i}>
-                  <text x={cx} y={y - 4} textAnchor="middle" fill={latest ? "#ffc1ab" : "#9bb3aa"} fontSize="6" fontWeight={latest ? "bold" : "normal"}>{mfmt(dec, v)}</text>
-                  <rect x={cx - 4.5} y={y} width={9} height={Math.max(74 - y, 1)} rx="2" fill={latest ? "#e77a59" : "#6ce6d3"} fillOpacity={latest ? 1 : 0.42} />
-                  <text x={cx} y="88" textAnchor={i === 0 ? "start" : "middle"} fill={latest ? "#ffc1ab" : "#71837b"} fontSize="6.5">{xlabel}</text>
-                </g>
-              )
-            })}
-          </svg>
-        </div>
-      )}
     </div>
   )
 }
@@ -507,41 +476,32 @@ function bucketKey(a: any): string {
 }
 const bucketParts = (b: string) => { const [s, g, p] = b.split("|"); return { surf: _SURF[s] || s, grade: _GRADE[g] || g, pace: _PACE[p] || p } }
 
-type Cell = { now: number; z: number | null } | null
+type Cell = { now: number | null; avg6: number; z: number | null } | null
+const TERRAIN_DAYS = 182   // the terrain comparison looks 6 months back, so every profile has runs to show
 // Per terrain profile × per metric: recent mean and its drift-z against the
 // same profile's baseline — same windows/logic as engine._drift_z_core.
 function terrainCompare(acts: any[]) {
-  const lo = dayAgo(84), hi = dayAgo(29), rec = dayAgo(28)
-  const byB: Record<string, any[]> = {}, recB: Record<string, any[]> = {}
+  const since = dayAgo(TERRAIN_DAYS), rec = dayAgo(28)
+  const byB: Record<string, any[]> = {}
   for (const a of acts) {
-    const b = bucketKey(a)
-    if (a.started_at <= hi && a.started_at > lo) (byB[b] ||= []).push(a)
-    if (a.started_at > rec) (recB[b] ||= []).push(a)
+    if (!a.started_at || a.started_at <= since || (a.sport && a.sport !== "running")) continue
+    ;(byB[bucketKey(a)] ||= []).push(a)
   }
-  const ranked = Object.keys(recB).sort((x, y) => recB[y].length - recB[x].length)
-  const withBase = ranked.filter((b) => (byB[b]?.length || 0) >= 3)
-  // Buckets that have a baseline (reliable z) come first, then the rest — so a
-  // minority surface like trail can still surface for the diversity pass even
-  // when it has no comparable baseline yet (its cells show the value, z "málo dat").
-  const pool = [...withBase, ...ranked.filter((b) => !withBase.includes(b))]
-  // Prefer surface diversity: take the strongest bucket of each distinct
-  // surface first (so trail shows even when it's a minority of runs), then
-  // fill the remaining slots with the next-highest buckets.
-  const keys: string[] = []
-  const seenSurf = new Set<string>()
-  for (const b of pool) { const s = b.split("|")[0]; if (!seenSurf.has(s)) { keys.push(b); seenSurf.add(s) } if (keys.length === 3) break }
-  for (const b of pool) { if (keys.length === 3) break; if (!keys.includes(b)) keys.push(b) }
-  const profiles = keys.map((b) => ({ key: b, ...bucketParts(b), nNow: recB[b].length }))
+  // every profile run at least twice in 6 months, most runs first
+  const keys = Object.keys(byB).filter((b) => byB[b].length >= 2).sort((x, y) => byB[y].length - byB[x].length)
+  const profiles = keys.map((b) => ({ key: b, ...bucketParts(b), n: byB[b].length, nNow: byB[b].filter((a) => a.started_at > rec).length }))
   const rows = M_DEFS.map((m) => ({
     ...m,
     cells: keys.map((b): Cell => {
-      const recv = recB[b].map((a) => a[m.field]).filter((v: any) => v != null) as number[]
-      if (!recv.length) return null
-      const bv = (byB[b] || []).map((a) => a[m.field]).filter((v: any) => v != null) as number[]
-      const now = mean(recv)
-      if (bv.length < 3) return { now, z: null }
-      const s = Math.max(std(bv), Math.abs(mean(bv)) * 0.012) || 1
-      return { now, z: (now - mean(bv)) / s }
+      const vals = byB[b].filter((a) => a[m.field] != null).map((a) => ({ d: a.started_at as string, v: a[m.field] as number }))
+      if (!vals.length) return null
+      const recv = vals.filter((x) => x.d > rec).map((x) => x.v)
+      const base = vals.filter((x) => x.d <= rec).map((x) => x.v)
+      const now = recv.length ? mean(recv) : null
+      const avg6 = mean(vals.map((x) => x.v))
+      if (now == null || base.length < 3) return { now, avg6, z: null }
+      const sd = Math.max(std(base), Math.abs(mean(base)) * 0.012) || 1
+      return { now, avg6, z: (now - mean(base)) / sd }
     }),
   }))
   return { profiles, rows }
@@ -551,18 +511,19 @@ function TerrainMatrix({ acts }: { acts: any[] }) {
   const { profiles, rows } = useMemo(() => terrainCompare(acts), [acts])
   if (!profiles.length) return <Card><Empty>Zatím není dost běhů ve srovnatelných profilech terénu.</Empty></Card>
   const zTone = (z: number | null) => (z == null ? "#71837b" : Math.abs(z) >= 1 ? "#e77a59" : Math.abs(z) >= 0.5 ? "#f6d69a" : "#6ce6d3")
-  const cols = `minmax(112px,1.2fr) repeat(${profiles.length}, minmax(0,1fr))`
+  const cols = `minmax(104px,1.1fr) repeat(${profiles.length}, minmax(92px,1fr))`
   return (
     <Card>
-      <Label>Podle profilu terénu</Label>
-      <p className="mt-1 text-xs text-[#71837b]">Každý sloupec je jiný profil (povrch · sklon · tempo). Hodnota = průměr posledních 28 dní, odchylka (z) proti vaší baseline ve stejném profilu.</p>
-      <div className="mt-4 grid items-stretch gap-y-1" style={{ gridTemplateColumns: cols }}>
+      <Label>Podle profilu terénu · 6 měsíců</Label>
+      <p className="mt-1 text-xs leading-5 text-[#71837b]">Každý sloupec je jiný profil (povrch · sklon · tempo) — všechny, které jste za posledních 6 měsíců běželi aspoň dvakrát. Hodnota = průměr posledních 28 dní; šedě průměr za 6 měsíců, když jste profil poslední měsíc neběželi. Odchylka (z) = posledních 28 dní proti starším běhům stejného profilu.</p>
+      <div className="-mx-1 mt-4 overflow-x-auto px-1 pb-1">
+      <div className="grid min-w-max items-stretch gap-y-1" style={{ gridTemplateColumns: cols }}>
         <div />
         {profiles.map((p) => (
           <div key={p.key} className="rounded-xl bg-[#102724] px-2 py-2 text-center">
             <p className="text-[13px] font-semibold text-[#f1f8f1]">{p.surf}</p>
             <p className="text-[10px] text-[#9bb3aa]">{p.grade} · {p.pace}</p>
-            <p className="mt-0.5 font-mono text-[9px] text-[#71837b]">{p.nNow} běhů</p>
+            <p className="mt-0.5 font-mono text-[9px] text-[#71837b]">{p.n} běhů · {p.nNow} za 28 d</p>
           </div>
         ))}
         {rows.map((r) => (
@@ -572,10 +533,17 @@ function TerrainMatrix({ acts }: { acts: any[] }) {
             {r.cells.map((c, i) => (
               <div key={i} className="px-1 py-2.5 text-center">
                 {c ? (
-                  <>
-                    <p className="font-serif text-lg leading-none text-[#f1f8f1]">{mfmt(r.dec, c.now)}</p>
-                    <p className="mt-1 font-mono text-[10px]" style={{ color: zTone(c.z) }}>{c.z != null ? `${sgn(Math.round(c.z * 100) / 100)} z` : "málo dat"}</p>
-                  </>
+                  c.now != null ? (
+                    <>
+                      <p className="font-serif text-lg leading-none text-[#f1f8f1]">{mfmt(r.dec, c.now)}</p>
+                      <p className="mt-1 font-mono text-[10px]" style={{ color: zTone(c.z) }}>{c.z != null ? `${sgn(Math.round(c.z * 100) / 100)} z` : "málo dat"}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-serif text-lg leading-none text-[#71837b]">{mfmt(r.dec, c.avg6)}</p>
+                      <p className="mt-1 font-mono text-[9px] text-[#71837b]">⌀ 6 měs.</p>
+                    </>
+                  )
                 ) : (
                   <p className="text-[#71837b]">—</p>
                 )}
@@ -583,6 +551,7 @@ function TerrainMatrix({ acts }: { acts: any[] }) {
             ))}
           </Fragment>
         ))}
+      </div>
       </div>
     </Card>
   )
@@ -1072,7 +1041,6 @@ export function Mechanics() {
     engDrift(a.cadence, "cadence_spm", "Kadence", "spm", 0),
     engDrift(a.stride, "stride_len_m", "Délka kroku", "m", 2),
     engDrift(a.vosc, "vert_osc_cm", "Vertikální oscilace", "cm", 1),
-    engDrift(a.duty, "duty_factor", "Poměr kontaktu", "", 2),
   ]) if (m) metrics.push(m)
 
   // State label follows the quadrant (post-hysteresis), so Pohyb matches the
@@ -1098,11 +1066,6 @@ export function Mechanics() {
             <p className="mt-3 max-w-sm text-sm leading-6 text-[#a9c2b9]">
               {drift ? "Při stejném tempu se krok mírně prodlužuje a kontakt se zemí narůstá. Není to alarm, ale dobrý okamžik ubrat tlak." : "Ve srovnatelných podmínkách se vaše mechanika drží ve vlastním obvyklém rozsahu."}
             </p>
-            {a.segmentScored && (
-              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#6ce6d3]/12 px-2.5 py-1 text-[10px] font-bold text-[#6ce6d3]" title="Citlivý engine hodnotí drift po úsecích běhu (sjezd / rovina / výjezd zvlášť) a odečítá vliv tempa a sklonu vlastním kontextovým modelem — malá změna formy se tak neztratí v průměru ani se nezamění za členitější trať.">
-                ⛰ měřeno po úsecích běhu
-              </p>
-            )}
             <div className={`mt-5 inline-flex items-center gap-2 rounded-full px-3 py-2 text-[10px] font-bold ${drift ? "bg-[#e77a59]/12 text-[#ffc1ab]" : "bg-[#c7ff54]/12 text-[#c7ff54]"}`}>
               <i className={`size-2 rounded-full ${drift ? "bg-[#e77a59]" : "bg-[#c7ff54]"}`} />
               {drift ? "vyšší než váš obvyklý střed" : "v rámci obvyklého středu"}
@@ -1167,7 +1130,8 @@ export function Mechanics() {
                     {m.series.length > 1 && (
                       <div className="mt-3">
                         <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Celý trend · {m.series.length} běhů{m.seriesDates.length ? ` · ${fmtD(m.seriesDates[0])} → ${fmtD(m.seriesDates.at(-1)!)}` : ""}</p>
-                        <AxisLineChart points={m.series.map((v, i) => ({ t: m.seriesDates[i] || m.seriesDates.at(-1) || "", v }))} dec={m.dec} unit={` ${m.unit}`} color={m.hot ? "#e77a59" : "#6ce6d3"} height={130} />
+                        <AxisLineChart points={m.series.map((v, i) => ({ t: m.seriesDates[i] || m.seriesDates.at(-1) || "", v }))} dec={m.dec} unit={` ${m.unit}`} color="#c7ff54" height={150}
+                          band={{ lo: usualRange(m).lo, hi: usualRange(m).hi, mid: m.baseline, label: "vaše obvyklé rozmezí" }} />
                       </div>
                     )}
                   </div>

@@ -126,7 +126,9 @@ def test_taper_before_the_goal_race(client, db_session):
 def test_deload_when_load_axis_is_high(client, db_session):
     rid, r = _runner(client, db_session, "g9@test.cz")
     g = _guide(db_session, rid, r, load=30)
-    assert g["week"]["mode"] == "deload" and g["week"]["progression"] == 0.7
+    assert g["week"]["mode"] == "deload" and g["week"]["progression"] == round(G.CYCLE[4], 3)
+    last_week = g["week"]["cycle"]["weeks"][3]["km"]
+    assert g["week"]["channels"]["volume"]["budget"] <= 0.55 * last_week + 0.1   # 55 % of last week
     assert not g["types"]["kvalitní"]["allowed"] and not g["types"]["dlouhý"]["allowed"]
 
 
@@ -158,6 +160,109 @@ def test_week_budget_used_up_means_rest(client, db_session):
     r = db_session.query(models.Runner).filter(models.Runner.id == rid).first()
     db_session.commit()
     g = _guide(db_session, rid, r, load=0)
-    assert g["type"] == "volno" and g["week"]["channels"]["volume"]["left"] == 0
+    vol = g["week"]["channels"]["volume"]
+    assert g["type"] == "volno" and vol["todayMax"] == 0 and vol["limitedBy"] in ("7d", "week", "systemic")
     assert g["done"] and g["done"]["volume"] > 0
-    assert any("rozpočet objemu je vyčerpaný" in x for x in g["reasons"])
+    assert any("dnes volno" in x for x in g["reasons"])
+
+
+# ---------------------------------------------------------------- 4-week cycle
+def test_cycle_position_from_the_last_recovery_week():
+    base = [40.0] * 12
+    rec = lambda j: base[:j] + [20.0] + base[j + 1:]           # recovery j+1 weeks back
+    assert G.cycle_position(rec(0))["pos"] == 1                 # recovery last week → week 1
+    assert G.cycle_position(rec(1))["pos"] == 2
+    c = G.cycle_position([44.0, 20.0] + [40.0] * 10)            # recovery 2 weeks back after a 40 km week
+    assert (c["pos"], c["ref"], c["refBack"]) == (2, 40.0, 3)
+    assert G.cycle_position(rec(3))["pos"] == 4                 # 4 weeks after → recovery week again
+
+
+def test_cycle_position_from_last_weeks_strain_without_a_recovery_week():
+    steady = [40.0] * 12
+    assert G.cycle_position([44.0] + steady)["pos"] == 4        # already above baseline → recover now
+    assert G.cycle_position([40.0] + steady)["pos"] == 3
+    assert G.cycle_position([35.0] + steady)["pos"] == 2
+    c = G.cycle_position([30.0] + steady)                       # low week (not < 70 %) → start on the baseline
+    assert c["pos"] == 1 and c["ref"] == 40.0
+    assert G.cycle_position([10.0, 12.0, 0.0, 0.0]) is None     # too little history
+
+
+def _weeks_of_runs(db, rid, weekly_km, runs_per_week=4, spacing=2):
+    """Completed calendar weeks, oldest first, ending last week (today pinned);
+    runs every `spacing` days from Monday."""
+    ws = G.week_start(E.today_date())
+    n = len(weekly_km)
+    for i, km in enumerate(weekly_km):
+        start = ws - timedelta(days=7 * (n - i))
+        for k in range(runs_per_week):
+            d = start + timedelta(days=k * spacing)
+            db.add(models.Activity(runner_id=rid, provider="garmin", external_id=f"{rid}-w{i}-{k}", started_at=d.isoformat(),
+                                   sport="running", title="Běh", distance_km=km / runs_per_week,
+                                   duration_min=km / runs_per_week * 5.8, pace_s_km=348, avg_hr=145, surface="road",
+                                   ascent_m=15, descent_m=15))
+    db.commit()
+
+
+def test_weekly_target_follows_the_cycle_and_never_exceeds_capacity(client, db_session):
+    from datetime import date
+    rid = register(client, "gc1@test.cz", "Cycle", "runner").json()["runner_id"]
+    r = db_session.query(models.Runner).filter(models.Runner.id == rid).first()
+    r.engine_mode = "v3"
+    db_session.commit()
+    with E.today_pinned(date(2026, 9, 23)):                    # a Wednesday
+        # 8 steady weeks, a recovery week, then week 1 of the new cycle (90 %) last week
+        _weeks_of_runs(db_session, rid, [40, 40, 40, 40, 40, 40, 40, 40, 22, 36])
+        g = _guide(db_session, rid, r, load=0)
+        cyc, vol = g["week"]["cycle"], g["week"]["channels"]["volume"]
+        assert cyc["pos"] == 2 and g["week"]["mode"] == "build"   # recovery 2 weeks back → week 2 (100 %)
+        assert cyc["refKm"] == 40.0
+        assert vol["budget"] == min(40.0, vol["ceiling7"])          # 100 % of the reference, capped by capacity
+        assert vol["budget"] <= vol["ceiling7"] and vol["done"] == 0   # nothing run since Monday
+        assert any("2. týden cyklu" in x for x in g["reasons"])
+
+
+def test_celkova_zatez_bounds_todays_kilometres(client, db_session):
+    rid, r = _runner(client, db_session, "gc2@test.cz")
+    for k in range(1, 4):                                          # three long hard bike rides: lots of HR × time
+        db_session.add(models.Activity(runner_id=rid, provider="garmin", external_id=f"bike{k}", started_at=E.day_ago(k),
+                                       sport="cycling", title="Kolo", duration_min=240, avg_hr=160))
+    db_session.commit()
+    g = _guide(db_session, rid, r, load=0)
+    sysc, vol = g["week"]["channels"]["systemic"], g["week"]["channels"]["volume"]
+    assert sysc["left7"] is not None and sysc["left7"] < sysc["ceiling7"]
+    assert vol["limitedBy"] == "systemic" or vol["todayMax"] == 0
+
+
+def test_rested_runner_with_the_week_done_gets_rest_but_may_jog(client, db_session):
+    from datetime import date
+    rid = register(client, "gc3@test.cz", "Rested", "runner").json()["runner_id"]
+    r = db_session.query(models.Runner).filter(models.Runner.id == rid).first()
+    r.engine_mode = "v3"
+    db_session.commit()
+    with E.today_pinned(date(2026, 9, 24)):                     # Thursday
+        # last week at the peak (run Mon–Thu, so it's outside today's 7-day window) → recovery week now
+        _weeks_of_runs(db_session, rid, [40, 40, 40, 40, 40, 40, 40, 40, 44], spacing=1)
+        for k, d in enumerate((21, 22, 23)):                    # Mon–Wed of the recovery week: 8,5 km each
+            db_session.add(models.Activity(runner_id=rid, provider="garmin", external_id=f"rw{k}",
+                                           started_at=date(2026, 9, d).isoformat(), sport="running", title="Běh",
+                                           distance_km=8.5, duration_min=49, pace_s_km=345, avg_hr=140,
+                                           surface="road", ascent_m=10, descent_m=10))
+        db_session.commit()
+        g = _guide(db_session, rid, r, load=0)
+        vol = g["week"]["channels"]["volume"]
+        assert g["week"]["mode"] == "recovery" and vol["limitedBy"] == "week" and g["type"] == "volno"
+        assert g["types"]["regenerace"]["allowed"] and g["types"]["regenerace"]["km"]["hi"] > 0
+        assert any("tělo je zregenerované" in x for x in g["reasons"]) or g["readiness"] < 0.9
+
+
+def test_repeated_mild_pain_means_odlehcit(client, db_session):
+    rid, r = _runner(client, db_session, "gc4@test.cz")
+    for k in (1, 4, 8):                                          # the same site, 2/10, on three days
+        db_session.add(models.Checkin(runner_id=rid, submitted_at=E.day_ago(k), pain_score=2,
+                                      pain_points=[{"region": "Achillova šlacha (P)"}]))
+    db_session.commit()
+    a = E.recompute_assessment(db_session, rid)
+    assert a["painRecurring"]["days"] == 3 and a["tier"] in ("watch", "alert")
+    g = a["guidance"]
+    assert not g["types"]["dlouhý"]["allowed"] and not g["types"]["kvalitní"]["allowed"]
+    assert any("Opakovaná bolest" in x and "odlehčit" in x for x in g["reasons"])

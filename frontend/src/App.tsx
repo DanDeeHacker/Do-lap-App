@@ -705,6 +705,7 @@ function TodayV2() {
   const typicalKm = wkly.length > 1 ? Math.round(wkly.slice(0, -1).reduce((s, x) => s + x, 0) / (wkly.length - 1)) : (L?.runKm7 ?? 0)
   const signals = (a?.signals || []) as any[]
   const tierWord = a?.tier === "alert" ? "vysoké riziko" : a?.tier === "watch" ? "sledovat" : "nízké riziko"
+  const recur = a?.painRecurring as { site: string; days: number } | null | undefined
   const tierCol = a?.tier === "alert" ? "#e77a59" : a?.tier === "watch" ? "#f6d69a" : "#6ce6d3"
   const gradeCol = (g: string) => (g === "A" ? "#e77a59" : g === "B" ? "#f6d69a" : "#6ce6d3")
   const overall = a?.overall ?? 0
@@ -758,8 +759,13 @@ function TodayV2() {
             </div>
             <div>
               <span className="flex items-center gap-1.5"><p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Celkový stav</p><InfoDot text={MI.overall} label="Celkový stav" /></span>
-              <h3 className="font-serif text-xl text-[#f1f8f1]">{quad?.t}</h3>
+              <h3 className="font-serif text-xl text-[#f1f8f1]">{recur && a?.tier !== "alert" ? "Odlehčit — opakovaná bolest" : quad?.t}</h3>
               <p className="mt-0.5 text-xs font-bold" style={{ color: tierCol }}>{tierWord}</p>
+              {recur && (
+                <p className="mt-1 text-[11px] leading-4 text-[#f6d69a]">
+                  {recur.site} · {recur.days}× za 28 dní — i mírná bolest na stejném místě je vzorec přetížení. Kratší a volnější běhy, bez dlouhého běhu a intenzity.
+                </p>
+              )}
             </div>
           </div>
           <div className="mt-5">
@@ -845,7 +851,7 @@ function TodayV2() {
             <div className="flex items-center gap-3">
               <span className="grid size-6 place-items-center rounded-full bg-[#c7ff54]/15 text-[#c7ff54]">↗</span>
               <span>
-                <b>{a?.tier === "alert" ? "Prioritou je odlehčení" : a?.tier === "watch" ? "Sledujte zátěž" : "Trénink sedí"}</b>
+                <b>{a?.tier === "alert" || a?.painRecurring ? "Prioritou je odlehčení" : a?.tier === "watch" ? "Sledujte zátěž" : "Trénink sedí"}</b>
                 <small className="ml-2 text-[#91b7a9]">{quad?.d}</small>
               </span>
             </div>

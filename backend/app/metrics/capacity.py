@@ -65,6 +65,7 @@ READINESS_FLOOR = 0.7
 Z4_HRR = 0.80           # Z4 starts at 80 % heart-rate reserve (Karvonen)
 ECC_DEFAULT = 1.16      # descent weighting without a profile ≈ a typical −5 % descent
 COMBO = (1.0, 0.5, 0.25, 0.25, 0.25)
+TOP_N = {"intensity": 3}   # per-run capacity = mean of the N largest tolerated sessions (else the max)
 ZONES = (("Z1", 0.50, 0.60), ("Z2", 0.60, 0.70), ("Z3", 0.70, 0.80), ("Z4", 0.80, 0.90), ("Z5", 0.90, 1.00))
 
 
@@ -120,6 +121,39 @@ def z4_minutes(a, hist, hrmax, rhr):
     return None
 
 
+def zone_minutes(a, hist, hrmax, rhr):
+    """Minutes in Z1–Z5 (heart-rate reserve bands, ZONES) — exact from the stream's
+    HR histogram, else estimated like z4_minutes (HR spread around the thirds /
+    the average). Z4 + Z5 equals z4_minutes. None without heart rate."""
+    if hrmax <= rhr:
+        return None
+    bounds = [(rhr + lo * (hrmax - rhr), rhr + hi * (hrmax - rhr)) for _, lo, hi in ZONES]
+    bounds[-1] = (bounds[-1][0], math.inf)
+    out = [0.0] * len(ZONES)
+    if hist:
+        for b, sec in hist.items():
+            h = float(b) + 1.0
+            for i, (lo, hi) in enumerate(bounds):
+                if lo <= h < hi:
+                    out[i] += sec / 60.0
+                    break
+        return out
+    dur = a.duration_min or 0
+    th = a.hr_thirds
+    if dur <= 0:
+        return None
+    if th and len(th) == 3 and all(th):
+        parts = [(dur / 3, h, 0.04 * (hrmax - rhr)) for h in th]
+    elif a.avg_hr:
+        parts = [(dur, a.avg_hr, 0.06 * (hrmax - rhr))]
+    else:
+        return None
+    for d, h, sdv in parts:
+        for i, (lo, hi) in enumerate(bounds):
+            out[i] += d * ((1.0 if hi == math.inf else _phi((hi - h) / sdv)) - _phi((lo - h) / sdv))
+    return out
+
+
 _ECC_CACHE: dict = {}
 
 
@@ -155,6 +189,7 @@ def run_exposures(db, rid, hrmax, rhr):
             continue
         run = E.is_run(a)
         exp = {"systemic": E.session_load(a, hrmax, rhr) or None}
+        zones = None
         if run:
             desc = a.descent_m
             if desc is None and a.elevation_profile:
@@ -163,8 +198,10 @@ def run_exposures(db, rid, hrmax, rhr):
             exp["intensity"] = z4_minutes(a, hists.get(a.id), hrmax, rhr)
             exp["descent"] = (desc or 0.0) * (fac.get(a.id) or default_fac)
             exp["ascent"] = a.ascent_m or 0.0
+            zones = zone_minutes(a, hists.get(a.id), hrmax, rhr)
         out.append({"id": a.id, "date": a.started_at[:10], "run": run, "title": a.title,
                     "km": a.distance_km, "exp": exp, "avgHr": a.avg_hr,
+                    "zoneMin": zones, "zoneExact": bool(hists.get(a.id)),
                     "speed": E._speed_ms(a), "ascPerKm": ((a.ascent_m or 0) + (a.descent_m or 0)) / max(a.distance_km or 1, 0.1)})
     return out
 
@@ -218,19 +255,25 @@ def channel_items(sessions, ch, pain: set, tol: dict | None = None):
 def session_capacity(items, ref_day: str, ch):
     """Largest tolerated single-session exposure before `ref_day` (decayed), or
     None when fewer than MIN_PRIOR sessions in the last 30 days carry the channel.
-    `items` from channel_items()."""
+    Intensity uses the mean of the TOP_N largest instead: Z4+ minutes of one
+    session can be an outlier (a race, a hot day inflating heart rate), and a
+    single such run must not open a huge per-run allowance. `items` from
+    channel_items()."""
     ref = _d(ref_day)
     lo = bisect_left(items, ((ref - timedelta(days=CAP_MAX_AGE)).isoformat(),))
     hi = bisect_left(items, (ref_day,))
-    best, n30 = 0.0, 0
+    vals, n30 = [], 0
     for day, v, ok in items[lo:hi]:
         age = (ref - _d(day)).days
         if age <= CAP_WINDOW:
             n30 += 1
         if ok:
-            best = max(best, v * _decay(age))
+            vals.append(v * _decay(age))
     if n30 < MIN_PRIOR:
         return None
+    vals.sort(reverse=True)
+    top = vals[:TOP_N.get(ch, 1)]
+    best = sum(top) / len(top) if top else 0.0
     return max(best, CHANNELS[ch]["floor_s"])
 
 
@@ -445,9 +488,12 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
         if capw is not None:
             rw = now_w / (capw * wk_ready)
             p_w = band_points(rw, m_w)
+            # the ceiling is exactly where the weekly score starts: capacity × the
+            # week's average readiness × (1 + margin) — not today's readiness, so
+            # the weekly picture doesn't jump with one night's sleep
+            ceil_w = capw * (1 + m_w) * wk_ready
             week = {"now": _fmt(now_w, ch), "cap": _fmt(capw, ch), "ratio": round(rw, 2),
-                    "ceiling": _fmt(capw * (1 + m_w) * r_today, ch),
-                    "left": _fmt(max(0.0, capw * (1 + m_w) * r_today - now_w), ch)}
+                    "ceiling": _fmt(ceil_w, ch), "left": _fmt(max(0.0, ceil_w - now_w), ch)}
         # --- today's per-run ceiling (capacity from everything before today)
         cap_today = session_capacity(items, (today + timedelta(days=1)).isoformat(), ch)
         raw = max(p_s, p_w, latent[0])
@@ -493,8 +539,12 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
                 "systemic": "Celková zátěž nad kapacitou"}[ch]
         signals.append({"id": f"cap_{ch}", "name": name, "grade": spec["grade"], "pts": pts, "val": val,
                         "detail": detail})
+    week7 = [s for s in runs_pool if 0 <= (today - _d(s["date"])).days < 7 and s.get("zoneMin")]
+    zmin = [sum(s["zoneMin"][i] for s in week7) for i in range(len(ZONES))]
+    zone7 = {"minutes": [{"z": z, "min": round(m)} for (z, _, _), m in zip(ZONES, zmin)],
+             "runs": len(week7), "exact": all(s["zoneExact"] for s in week7)} if week7 else None
     return {
-        "score": total, "signals": signals, "channels": channels,
+        "score": total, "signals": signals, "channels": channels, "zones7d": zone7,
         "readiness": {"today": r_today, "parts": parts_today, "week": round(wk_ready, 3)},
         "margins": {"session": round(m_s, 3), "week": round(m_w, 3), "frailty": round(frailty, 2)},
         "zones": hr_zones(hrmax, rhr), "hrMax": E.rnd(hrmax), "hrRest": E.rnd(rhr),

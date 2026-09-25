@@ -26,7 +26,10 @@ from ..serializers import to_dict
 # engines); v2: calibrated noise scale/EWMA, one-sided grouped flags, standardised
 # segment drift. The version is part of the stored assessment, so bumping it makes
 # every runner's cached score recompute on the next read.
-ENGINE_VERSION = "v0.7.0"
+# v0.7.1 — v3 guidance on a 4-week loading cycle (90/100/110/55 %), one weekly
+# budget across tabs, robust per-run intensity capacity (mean of the top 3),
+# zone minutes; repeated same-site pain lifts the tier to "watch" (odlehčit).
+ENGINE_VERSION = "v0.7.1"
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -241,7 +244,7 @@ def _sensitive() -> bool:
     return _emode() in ("v2", "v3")
 
 
-# v1 → "v0.7.0", v2 → "v0.7.0-s" (citlivý), v3 → "v0.7.0-c" (kapacitní). The suffix
+# v1 → "v0.7.1", v2 → "v0.7.1-s" (citlivý), v3 → "v0.7.1-c" (kapacitní). The suffix
 # is how a stored assessment row remembers which engine produced it.
 _MODE_SUFFIX = {"v2": "-s", "v3": "-c"}
 
@@ -1366,6 +1369,23 @@ def pain_recurrence(db: DBSession, rid: str, window: int = 28) -> dict:
     return dates
 
 
+RECUR_MIN_DAYS = 3     # same running-relevant site on ≥ 3 different days in 28 = recurring
+
+
+def recurring_pain(db: DBSession, rid: str, window: int = 28):
+    """The running-relevant body site reported on the most different days in the
+    window, when that's ≥ RECUR_MIN_DAYS — {site, days, last} — else None."""
+    rec = pain_recurrence(db, rid, window)
+    best = None
+    for region, dates in rec.items():
+        if not _run_relevant(region):
+            continue
+        days = sorted(set(dates))
+        if len(days) >= RECUR_MIN_DAYS and (best is None or len(days) > best["days"]):
+            best = {"site": _REGION_LABEL.get(str(region).lower(), region), "days": len(days), "last": days[-1]}
+    return best
+
+
 def confidence(db: DBSession, rid: str):
     A = acts(db, rid)
     if not A:
@@ -2328,6 +2348,12 @@ def assess(db: DBSession, rid: str) -> dict:
     mech_flag, mech_watch = _mech_flags(tv, gc, cad, strd, vosc) if _sensitive() else (False, False)
     quadrant = quadrant_of(load_score, mech_score, prev_row.quadrant if prev_row else None)
     tier = "alert" if overall >= 70 else ("watch" if overall >= 40 else "ok")
+    # Repeated pain at the same running-relevant site, even mild, is the classic
+    # overuse pattern — never "low risk / carry on": at least "watch", and the v3
+    # guidance treats it like moderate pain (odlehčit). Pain > 5 keeps its own path.
+    pain_recur = recurring_pain(db, rid)
+    if pain_recur and tier == "ok":
+        tier = "watch"
 
     return {
         "runner_id": rid, "computed_at": now_iso(), "engine": engine_version_for(_emode()),
@@ -2338,6 +2364,7 @@ def assess(db: DBSession, rid: str) -> dict:
         "loadDetail": L, "tavr": tv, "gct": gc, "bal": bal, "dec": dec, "aer": aer, "rcv": rcv, "fb": fb,
         "cadence": cad, "stride": strd, "vosc": vosc, "duty": duty, "gaitCv": gcv, "painWarn": pain_warn,
         "hrvCv": hcv, "sleepReg": sreg, "sleepEff": seff, "stiffness": stiff, "gradientDescent": gdesc, "injury": inj,
+        "painRecurring": pain_recur,
         # v0.6 — single-session paradigm surface + capacity/frailty transparency +
         # forward-looking guardrail (the safe next-long-run ceiling).
         "sessionSpike": L.get("sessionSpike"), "spikeLatent": L.get("spikeLatent"),
@@ -2396,7 +2423,7 @@ def recompute_assessment(db: DBSession, rid: str) -> dict:
         k: a[k] for k in
         ("loadDetail", "tavr", "gct", "bal", "dec", "aer", "rcv", "fb", "cadence", "stride", "vosc",
          "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury",
-         "engineMode", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance")
+         "engineMode", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance", "painRecurring")
     }
     db.flush()
 

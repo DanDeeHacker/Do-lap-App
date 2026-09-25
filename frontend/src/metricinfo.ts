@@ -44,7 +44,7 @@ export const METRIC_INFO: Record<string, string> = {
   confidence: "Spolehlivost — nakolik je už postavená vaše baseline (počet srovnatelných tréninků a dní historie). Dokud je nízká, mechanické signály se raději nezobrazují, aby nemátly.",
   // — Kapacitní engine (v3) —
   capacity:
-    "Kapacita = co jste prokazatelně zvládli bez obtíží: nejnáročnější jednotlivý běh posledních 30 dní (starší slábnou) a nejlepší / průměrný týden posledních týdnů — zvlášť pro objem, intenzitu (minuty v zóně Z4+), klesání a stoupání. Běhy, po kterých do 3 dnů přišla bolest ≥ 3/10, se do kapacity nepočítají. Strop = kapacita + malá rezerva (+10 % na běh, +15 % na týden), snížená podle dnešní připravenosti. Čím víc nad stropem, tím víc bodů zátěže.",
+    "Kapacita = co jste prokazatelně zvládli bez obtíží. Za týden: průměrný týden posledních 4 týdnů, nebo 90 % nejlepšího týdne za 6 týdnů — zvlášť pro objem, intenzitu (minuty v Z4+), klesání, stoupání a celkovou zátěž (tep × čas ze všech aktivit). Na jeden běh: nejnáročnější běh posledních 30 dní, u intenzity průměr tří nejtvrdších (jeden závod nebo horký den kapacitu nenafoukne). Běhy, po kterých do 3 dnů přišla bolest ≥ 3/10, se nepočítají. Strop = kapacita + rezerva (+15 % za týden, +10 % na běh), snížená podle připravenosti. Nad stropem přibývají body zátěže. Kolik z kapacity je v plánu na tento týden, ukazuje Trénink.",
   readiness:
     "Připravenost dne (70–100 %) snižuje vaši kapacitu, když jste se nevyspali nebo tělo nestíhá regenerovat: noční HRV a klidový tep proti vaší normě, kratší spánek a svalová bolest / únava z check-inu. Stejný běh je po špatné noci větší zátěž než po dobré.",
   relEffort:
@@ -52,7 +52,9 @@ export const METRIC_INFO: Record<string, string> = {
   hrZones:
     "Tepové zóny z tepové rezervy (Karvonen): maximální tep odhadujeme z vašich nejtěžších běhů a věku, klidový tep z nočních měření. Z4+ (≥ 80 % rezervy) = tvrdá práce — z ní se počítá kanál intenzity.",
   weekBudget:
-    "Týdenní rozpočet = vaše týdenní kapacita × průběh (budování ×1,05–1,10, udržení ×1,0, odlehčovací týden ×0,7 po třech plných týdnech nebo při zvýšené zátěži, ladění ×0,5–0,7 před závodem) × dnešní připravenost. Počítá se za posledních 7 dní; bílá čárka = rozpočet.",
+    "Týdenní cíl jede ve 4týdenním cyklu: 1. týden 90 %, 2. týden 100 %, 3. týden 110 % referenčního týdne (posledního plného týdne před minulým odlehčovacím), 4. týden odlehčovací — 55 % třetího týdne. Kde v cyklu jste, pozná aplikace z posledního odlehčovacího týdne, jinak z toho, jak náročný byl minulý týden proti vaší normě. Cíl nikdy nepřekročí strop vaší týdenní kapacity (Zátěž); při zvýšené zátěži přijde odlehčovací týden dřív, před závodem ladění. Vzorec 3 + 1 je běžná praxe periodizace ve vytrvalostních sportech (Issurin 2010, Mujika 2018): zátěž musí střídat regenerace (Meeusen 2013); přesná procenta jsou zavedená konvence, proto ji pořád hlídá kapacita a denní připravenost.",
+  readinessTraining:
+    "Připravenost (70–100 %) = jak jste dnes zregenerovaní: noční HRV a klidový tep proti vašemu průměru za 4 týdny, spánek proti obvyklému a svalová bolest / únava z check-inu. Snižuje dnešní strop na jeden běh a délku tréninku a rozhoduje, jestli je dnes prostor na kvalitu (od 85 %) a dlouhý běh. Týdenní cíl z cyklu nemění — i odpočaté tělo má v odlehčovacím týdnu nebo po splnění cíle volno (krátký regenerační běh zůstává k dispozici, pokud to 7denní strop dovolí).",
 }
 
 // Mechanika cards are keyed by their Czech label at the call site.

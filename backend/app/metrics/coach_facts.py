@@ -26,8 +26,9 @@ QUAD = {
 TIER = {"ok": "Nízké riziko", "watch": "Sledovat", "alert": "Vysoké riziko"}
 PHYSIO_REFERRALS = ("physio_48h", "physio_7d")
 SURFACE = {"road": "silnice", "trail": "terén", "treadmill": "pás", "track": "dráha"}
-WEEK_MODE = {"deload": "odlehčovací týden", "hold": "udržovací týden", "build": "postupné navyšování",
-             "taper": "ladění před závodem"}
+WEEK_MODE = {"deload": "odlehčovací týden (zvýšená zátěž)", "recovery": "odlehčovací týden cyklu",
+             "build": "budovací týden cyklu", "taper": "ladění před závodem", "learning": "nastavování cyklu",
+             "hold": "udržovací týden"}
 
 _DOT_DECIMAL = re.compile(r"(?<=\d)\.(?=\d)")
 
@@ -110,6 +111,7 @@ def _today(a: dict):
         "reasons": [cz_text(r) for r in g.get("reasons") or []],
         "notes": [cz_text(n) for n in t.get("notes") or []],
         "weekMode": WEEK_MODE.get((g.get("week") or {}).get("mode"), (g.get("week") or {}).get("mode")),
+        "cycleWeek": ((g.get("week") or {}).get("cycle") or {}).get("pos"),
     }
     if g.get("type") != "volno" and (km.get("hi") or 0) > 0:
         out.update({
@@ -124,8 +126,11 @@ def _today(a: dict):
     left = {}
     for key, c in ((g.get("week") or {}).get("channels") or {}).items():
         dec = 1 if key == "volume" else 0
-        left[key] = {"label": c.get("label"), "unit": c.get("unit"), "budget": G._cz(c.get("budget"), dec),
-                     "done": G._cz(c.get("done"), dec), "left": G._cz(c.get("left"), dec)}
+        if key not in ("volume", "intensity", "descent", "ascent"):
+            continue
+        left[key] = {"label": c.get("label"), "unit": c.get("unit"), "weekTarget": G._cz(c.get("budget"), dec),
+                     "doneThisWeek": G._cz(c.get("done"), dec), "leftThisWeek": G._cz(c.get("left"), dec),
+                     "todayMax": G._cz(c.get("todayMax"), dec)}
     if left:
         out["weekBudget"] = left
     return out

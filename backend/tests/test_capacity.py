@@ -111,7 +111,9 @@ def test_v3_engine_scores_a_volume_jump(client, db_session):
     db.commit()
     a2 = E.recompute_assessment(db, rid)
     vol = a2["capacity"]["channels"]["volume"]
-    assert vol["session"]["ratio"] > 2.0 and vol["pts"] >= 20
+    # (a long run is often an intensity jump too — then volume is the 2nd channel and
+    # counts half in the combined score, so check its own raw points and the total)
+    assert vol["session"]["ratio"] > 2.0 and vol["raw"] >= 20 and a2["capacity"]["score"] >= 20
     assert any(s["id"] == "cap_volume" for s in a2["signals"]) and a2["load"] > calm
     # v3 keeps the sensitive (v2) mechanics
     assert a2["mechFlag"] in (True, False) and "segmentScored" in a2
@@ -136,3 +138,21 @@ def test_poor_readiness_turns_a_normal_run_into_an_exceedance(client, db_session
     # today's ceiling is scaled down by readiness
     vol = a["capacity"]["channels"]["volume"]
     assert vol["ceilingToday"] < vol["capSession"] * 1.1 * 0.8
+
+
+def test_intensity_capacity_is_not_one_outlier_run():
+    items = [(E.day_ago(k), v, True) for k, v in ((20, 90.0), (15, 20.0), (10, 18.0), (5, 16.0))]
+    items.sort(key=lambda t: t[0])
+    assert C.session_capacity(items, E.day_ago(0), "intensity") == pytest.approx((90 + 20 + 18) / 3)
+    assert C.session_capacity(items, E.day_ago(0), "volume") == 90.0     # volume keeps the demonstrated max
+
+
+def test_zone_minutes_add_up_to_the_z4_minutes():
+    from types import SimpleNamespace
+    a = SimpleNamespace(duration_min=60, hr_thirds=None, avg_hr=160)
+    z = C.zone_minutes(a, None, 190, 50)
+    assert sum(z) == pytest.approx(60, abs=2)
+    assert z[3] + z[4] == pytest.approx(C.z4_minutes(a, None, 190, 50), abs=1e-6)
+    hist = {"130": 600, "150": 1200, "168": 600}               # bpm → seconds
+    zh = C.zone_minutes(a, hist, 190, 50)
+    assert zh[3] + zh[4] == pytest.approx(C.z4_minutes(a, hist, 190, 50))

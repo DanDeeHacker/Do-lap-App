@@ -1,18 +1,24 @@
-// Engine v3, phase 2 — the Trénink tab: today's guardrails from the runner's own
-// capacity (session type, distance, HR zone + pace, Z4+ minutes, ascent/descent,
-// terrain) and why. A guardrail, not a training plan.
+// Engine v3 — the Trénink tab: today's session within this week's target (4-week
+// loading cycle on the runner's own reference week, capped by the capacity the
+// Zátěž tab shows): session type, distance, HR zone + pace, Z4+ minutes,
+// ascent/descent, terrain, and why.
 import { useEffect, useState } from "react"
 import { Link } from "react-router"
 import { useApp } from "@/store"
 import { Card, InfoDot, Label } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
-import { paceStr } from "@/lib"
+import { fmtD, paceStr } from "@/lib"
 
 const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"]
 const MODE: Record<string, [string, string]> = {
-  build: ["Budování", "#6ce6d3"], hold: ["Udržení", "#f6d69a"], deload: ["Odlehčovací týden", "#f6d69a"], taper: ["Ladění před závodem", "#c7ff54"],
+  build: ["Budovací týden", "#6ce6d3"], recovery: ["Odlehčovací týden", "#f6d69a"], deload: ["Odlehčovací · zvýšená zátěž", "#e77a59"],
+  taper: ["Ladění před závodem", "#c7ff54"], learning: ["Nastavuji cyklus", "#9bb3aa"], hold: ["Udržení", "#f6d69a"],
 }
-const CH_ORDER = ["volume", "intensity", "descent", "ascent"] as const
+const CYCLE_PCT = [90, 100, 110, 55]
+const LIMIT: Record<string, string> = {
+  week: "zbytek týdenního cíle", "7d": "7denní strop kapacity", run: "strop jednoho běhu", systemic: "zbytek celkové zátěže",
+}
+const CH_ORDER = ["volume", "intensity", "descent", "ascent", "systemic"] as const
 const num = (v: number | null | undefined, d = 1) =>
   v == null ? "—" : v.toLocaleString("cs-CZ", { maximumFractionDigits: d, minimumFractionDigits: 0 })
 const range = (lo?: number | null, hi?: number | null, d = 1) =>
@@ -28,7 +34,8 @@ function Stat({ label, value, sub, warn, text }: { label: string; value: string;
   )
 }
 
-function WeekBar({ c }: { c: any }) {
+function WeekRow({ c, id }: { c: any; id: string }) {
+  const d = id === "volume" ? 1 : 0
   if (c.budget == null) return (
     <div><div className="mb-1 flex justify-between text-[11px]"><span className="text-[#e7efe9]">{c.label}</span><span className="text-[10px] text-[#71837b]">kapacitu poznáváme</span></div><div className="h-2 rounded-full bg-white/10" /></div>
   )
@@ -36,15 +43,84 @@ function WeekBar({ c }: { c: any }) {
   const over = (c.done ?? 0) > c.budget
   return (
     <div>
-      <div className="mb-1 flex justify-between text-[11px]">
+      <div className="mb-1 flex justify-between gap-2 text-[11px]">
         <span className="text-[#e7efe9]">{c.label}</span>
-        <span className="font-mono text-[10px] text-[#9bb3aa]">{num(c.done, 0)} / {num(c.budget, 0)} {c.unit} · {over ? "vyčerpáno" : `zbývá ${num(c.left, 0)}`}</span>
+        <span className="whitespace-nowrap font-mono text-[10px] text-[#9bb3aa]">{num(c.done, d)} / {num(c.budget, d)} {c.unit} · {over || c.left === 0 ? "splněno" : `zbývá ${num(c.left, d)}`}</span>
       </div>
       <div className="relative h-2 rounded-full bg-white/10">
-        <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${((c.done ?? 0) / scale) * 100}%`, background: over ? "#e77a59" : "#6ce6d3" }} />
+        <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${((c.done ?? 0) / scale) * 100}%`, background: over ? "#f6d69a" : "#6ce6d3" }} />
         <i className="absolute -inset-y-1 w-0.5 bg-[#f1f8f1]" style={{ left: `calc(${(c.budget / scale) * 100}% - 1px)` }} />
       </div>
+      <p className="mt-1 text-[10px] leading-4 text-[#71837b]">
+        7 dní {num(c.done7, d)} / strop {num(c.ceiling7, d)} {c.unit}
+        {id !== "systemic" && c.todayMax != null && <> · dnes max <b className="text-[#c9dcd4]">{num(c.todayMax, d)}</b>{c.limitedBy ? ` (${LIMIT[c.limitedBy] || c.limitedBy})` : ""}</>}
+      </p>
     </div>
+  )
+}
+
+function CycleStrip({ cyc }: { cyc: any }) {
+  const weeks: any[] = cyc?.weeks || []
+  if (!weeks.length) return null
+  const max = Math.max(1, ...weeks.map((w) => Math.max(w.km || 0, w.target || 0)))
+  return (
+    <div className="grid grid-cols-5 items-end gap-2">
+      {weeks.map((w) => (
+        <div key={w.start} className="min-w-0 text-center">
+          <div className="relative mx-auto flex h-16 w-full max-w-[46px] items-end overflow-hidden rounded-md bg-white/[.04]">
+            {w.current && w.target != null && (
+              <i className="absolute inset-x-0 bottom-0 rounded-md border border-dashed border-[#c7ff54]/80" style={{ height: `${(w.target / max) * 100}%` }} />
+            )}
+            <i className="relative block w-full rounded-md" style={{ height: `${((w.km || 0) / max) * 100}%`, background: w.current ? "#c7ff54" : "#6ce6d3", opacity: w.current ? 1 : 0.5 }} />
+          </div>
+          <p className="mt-1 whitespace-nowrap font-mono text-[10px] text-[#f1f8f1]">{num(w.km)} km</p>
+          <p className="truncate text-[9px] text-[#71837b]">{w.current ? (w.target != null ? `cíl ${num(w.target)}` : "tento týden") : `od ${fmtD(w.start)}`}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function WeekPanel({ g }: { g: any }) {
+  const wk = g.week || {}
+  const cyc = wk.cycle || {}
+  const [modeLabel, modeCol] = MODE[wk.mode] || MODE.build
+  const pct = Math.round((wk.progression ?? 1) * 100)
+  const vol = wk.channels?.volume || {}
+  const how =
+    wk.mode === "build" ? `Cíl = ${pct} % referenčního týdne (${num(cyc.refKm)} km${cyc.refWeek ? `, týden od ${fmtD(cyc.refWeek)}` : ""}).`
+      : wk.mode === "recovery" ? "4. týden cyklu: 55 % vrcholového týdne — tělo vstřebá předchozí tři týdny zátěže."
+        : wk.mode === "deload" ? "Zátěž je zvýšená, proto odlehčovací týden hned: 55 % minulého týdne."
+          : wk.mode === "taper" ? `Ladění před závodem: ${pct} % referenčního týdne.`
+            : "Cyklus nastavíme, až budou aspoň 4 týdny dat — do té doby je cílem vaše týdenní kapacita."
+  return (
+    <section className="mt-4 rounded-[24px] border border-white/10 bg-[#0c201d] p-5 md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5"><Label>Tento týden</Label><InfoDot text={MI.weekBudget} label="Týdenní cíl a cyklus" /></span>
+        <span className="rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: `${modeCol}1f`, color: modeCol }}>
+          {cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? `${cyc.pos}. týden ze 4 · ` : ""}{modeLabel}
+        </span>
+      </div>
+      {cyc.pos != null && (
+        <div className="mt-3 flex gap-1.5" aria-label={`${cyc.pos}. týden čtyřtýdenního cyklu`}>
+          {CYCLE_PCT.map((p, i) => (
+            <span key={i} className={`flex-1 rounded-lg px-2 py-1 text-center text-[10px] font-bold ${cyc.pos === i + 1 ? "bg-[#c7ff54] text-[#071313]" : "bg-white/[.05] text-[#71837b]"}`}>
+              {i + 1}. týden · {p} %
+            </span>
+          ))}
+        </div>
+      )}
+      <p className="mt-3 text-xs leading-5 text-[#a9c2b9]">
+        {how} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž ({num(vol.ceiling7)} km za 7 dní) — a dnešek hlídá obojí: zbytek týdenního cíle i 7denní strop.
+      </p>
+      <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_1.3fr]">
+        <div>
+          <p className="mb-2 font-mono text-[9px] uppercase tracking-[.14em] text-[#71837b]">Objem po týdnech (od pondělí)</p>
+          <CycleStrip cyc={cyc} />
+        </div>
+        <div className="space-y-3">{CH_ORDER.map((id) => wk.channels?.[id] && <WeekRow key={id} c={wk.channels[id]} id={id} />)}</div>
+      </div>
+    </section>
   )
 }
 
@@ -66,7 +142,6 @@ export function Training() {
   const kind = sel || g.type
   const t = g.types[kind] || g.types[g.type]
   const today = new Date(g.date + "T12:00:00").toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
-  const [modeLabel, modeCol] = MODE[g.week?.mode] || MODE.build
   const run = kind !== "volno" && kind !== "závod"
   const pat = g.pattern || {}
   return (
@@ -75,11 +150,12 @@ export function Training() {
         <div>
           <Label>{`Trénink · ${today}`}</Label>
           <h1 className="mt-1 font-serif text-4xl tracking-[-.06em]">{t.label}</h1>
-          <p className="mt-1.5 max-w-xl text-sm text-[#a9c2b9]">Mantinely na dnešek z vaší vlastní kapacity — kolik a jak tvrdě, aby trénink nepřesáhl, co tělo prokazatelně zvládá. Ne tréninkový plán.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {g.provisional && <span className="rounded-full bg-[#f6d69a]/15 px-3 py-1.5 text-[11px] font-bold text-[#f6d69a]">předběžné · čeká na ranní data</span>}
-          <span className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-[#a9c2b9]">připravenost {Math.round((g.readiness ?? 1) * 100)} %</span>
+          <span className="flex items-center gap-1 rounded-full bg-white/[.06] py-1 pl-3 pr-1.5 text-[11px] font-bold text-[#a9c2b9]">
+            připravenost {Math.round((g.readiness ?? 1) * 100)} %<InfoDot text={MI.readinessTraining} label="Připravenost" />
+          </span>
         </div>
       </div>
 
@@ -140,27 +216,20 @@ export function Training() {
         )}
       </section>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <Card>
-          <Label>Proč</Label>
-          {g.reasons?.length ? (
-            <ul className="mt-2 space-y-2 text-sm text-[#e7efe9]">{g.reasons.map((r: string, i: number) => <li key={i} className="flex gap-2"><span className="text-[#6ce6d3]">›</span><span>{r}</span></li>)}</ul>
-          ) : <p className="mt-2 text-sm text-[#a9c2b9]">Vše v normě — běžný tréninkový den.</p>}
-          <p className="mt-4 text-[11px] leading-4 text-[#71837b]">
-            {pat.runDayNames?.length ? `Obvykle běháte: ${pat.runDayNames.join(", ")}` : "Pravidelné dny zatím nepoznáváme"}
-            {pat.longDayName ? ` · dlouhý běh ${pat.longDayName}` : ""}
-            {pat.hardDayNames?.length ? ` · tvrdé tréninky: ${pat.hardDayNames.join(", ")}` : ""}
-            {pat.easyKm ? ` · typický lehký běh ${num(pat.easyKm)} km` : ""}
-          </p>
-        </Card>
-        <Card>
-          <div className="flex items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5"><Label>Rozpočet týdne (7 dní)</Label><InfoDot text={MI.weekBudget} label="Rozpočet týdne" /></span>
-            <span className="rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: `${modeCol}1f`, color: modeCol }}>{modeLabel} ×{num(g.week?.progression, 2)}</span>
-          </div>
-          <div className="mt-3 space-y-3">{CH_ORDER.map((id) => g.week?.channels?.[id] && <WeekBar key={id} c={g.week.channels[id]} />)}</div>
-        </Card>
-      </div>
+      <WeekPanel g={g} />
+
+      <Card className="mt-4">
+        <Label>Proč</Label>
+        {g.reasons?.length ? (
+          <ul className="mt-2 space-y-2 text-sm text-[#e7efe9]">{g.reasons.map((r: string, i: number) => <li key={i} className="flex gap-2"><span className="text-[#6ce6d3]">›</span><span>{r}</span></li>)}</ul>
+        ) : <p className="mt-2 text-sm text-[#a9c2b9]">Vše v normě — běžný tréninkový den.</p>}
+        <p className="mt-4 text-[11px] leading-4 text-[#71837b]">
+          {pat.runDayNames?.length ? `Obvykle běháte: ${pat.runDayNames.join(", ")}` : "Pravidelné dny zatím nepoznáváme"}
+          {pat.longDayName ? ` · dlouhý běh ${pat.longDayName}` : ""}
+          {pat.hardDayNames?.length ? ` · tvrdé tréninky: ${pat.hardDayNames.join(", ")}` : ""}
+          {pat.easyKm ? ` · typický lehký běh ${num(pat.easyKm)} km` : ""}
+        </p>
+      </Card>
       <p className="mt-4 text-[10px] leading-4 text-[#71837b]">Došlap není zdravotnický prostředek. Doporučení jsou ochranné mantinely z vašich dat, ne léčba ani diagnóza. Při bolesti, která se vrací nebo zhoršuje, se poraďte s fyzioterapeutem.</p>
     </>
   )

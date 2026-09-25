@@ -3,7 +3,8 @@
 A guardrail, not a coach: it turns the runner's capacity model (capacity.py) into
 safe ranges for today — which kind of session fits, how far, how hard (HR zones
 and the matching pace), how much climbing/descending, on what terrain, and why.
-It never writes a periodised plan (an AI coach may come later).
+Weekly targets follow a 4-week loading cycle; there is no day-by-day plan
+(an AI coach may come later).
 
 Rules, in order:
   1. Overrides (as agreed with the product owner):
@@ -12,16 +13,23 @@ Rules, in order:
        alert tier or silent drift → triage physio_48h / physio_7d) → volno +
        book the physio;
      • pain > 5 without a referral → regenerace / cross-training, no physio push;
-     • pain 3–5 → the session is MODIFIED (shorter, easier, flat/soft, no long
-       run or quality), never cancelled.
-  2. Weekly budget per channel = weekly capacity × progression × readiness:
-     progression 1.10 (fresh, low load) / 1.05 (default) / 1.00 (load rising or
-     readiness < 90 %); 0.70 deload when Zátěž ≥ 25 or after 3 build weeks in a
-     row; taper 0.70 (8–14 days to the goal race) / 0.50 (≤ 7 days).
-     Left today = budget − the last 6 days − anything already run today.
-  3. Per-run ceilings = capacity.ceilingToday (demonstrated capacity + margin,
-     scaled by today's readiness) — at the ceiling the Zátěž axis scores 0, so
-     following the guidance can never itself raise the load score.
+     • pain 3–5, or the same site hurting on ≥ 3 days in 4 weeks (even mildly)
+       → the session is MODIFIED (shorter, easier, flat/soft, no long run or
+       quality), never cancelled.
+  2. This calendar week's TARGET per channel follows a 4-week loading cycle:
+     90 % / 100 % / 110 % of the reference week (the last loaded week before the
+     previous recovery week), then a recovery week at 55 % of week 3 (see
+     CYCLE, cycle_position). Load ≥ 25 forces a recovery week (55 % of last
+     week); taper 0.70 / 0.50 of the reference 8–14 / ≤ 7 days to the goal race.
+     A target never exceeds the capacity ceiling the Zátěž tab shows (weekly
+     capacity × the week's readiness × (1 + margin)), so following the plan
+     can't itself create a load exceedance.
+  3. Today's allowance = the tightest of: what's left of this week's target, the
+     rolling 7-day ceiling minus the last 6 days, the per-run ceiling
+     (capacity.ceilingToday, scaled by today's readiness) and what's left of the
+     overall load (Celková zátěž = HR × time, all sports) turned into km / Z4+
+     minutes. `limitedBy` names the binding one. With the week's target met but
+     the 7-day ceiling open, a short easy run stays available (not recommended).
   4. Session type by default from the runner's own pattern (usual run days,
      long-run weekday, hard days over the last 8 weeks); a quality session only
      ≥ 48 h after the last hard one, readiness ≥ 85 %, intensity budget left,
@@ -52,6 +60,17 @@ MIN_RUN_KM = 2.0        # below this there's no meaningful run left today → vo
 HRR = {"regenerace": (0.50, 0.65), "lehký": (0.60, 0.72), "dlouhý": (0.60, 0.75), "kvalitní": (0.80, 0.92)}
 PACE_FALLBACK = {"regenerace": (1.06, 1.15), "lehký": (0.97, 1.05), "dlouhý": (1.00, 1.08)}
 CHS = ("volume", "intensity", "descent", "ascent")
+# 4-week loading cycle (3 build weeks on a reference week + 1 recovery week), as
+# asked by the product owner: 90 % / 100 % / 110 % of the last loaded week before
+# the previous recovery week, then 50–60 % of week 3. The 3:1 pattern is standard
+# endurance periodization practice (Issurin 2010; Mujika et al. 2018) — planned
+# overload must alternate with recovery (Meeusen et al. 2013 ECSS/ACSM consensus);
+# the exact percentages are convention, not trial-tested, so the capacity ceiling
+# (Zátěž) and daily readiness stay in charge (Kiely 2012: adapt to the response).
+CYCLE = {1: 0.90, 2: 1.00, 3: 1.10, 4: 0.55 * 1.10}
+RECOVERY_BELOW = 0.70      # a completed week under 70 % of the 4 before it = a recovery week
+CYCLE_MIN_WEEKS = 4        # completed weeks with data needed to place the runner in the cycle
+Z4_TRIMP_PER_MIN = 0.85 * 0.64 * 2.718281828 ** (1.92 * 0.85)   # Banister TRIMP of a minute at 85 % HRR
 
 
 def _d(s):
@@ -140,6 +159,53 @@ def _pace_band(kind, hr, fit, easy_pace, speed_range=None):
     return None
 
 
+def week_start(d: date) -> date:
+    return d - timedelta(days=d.weekday())
+
+
+def cycle_position(weeks: list[float]) -> dict | None:
+    """Where this calendar week sits in the 4-week cycle. `weeks` = the runner's
+    completed weekly volume, newest first (weeks[0] = last week).
+
+    • The latest recovery week (< 70 % of the 4 weeks before it) within the last
+      4 weeks anchors the cycle: recovery last week → this is week 1, two weeks
+      ago → week 2 … four weeks ago → week 4. The reference is the loaded week
+      just before that recovery week.
+    • Without one, last week's strain against the runner's baseline (mean of the
+      4 weeks before it) places the cycle: ≥ 105 % → recover now (week 4),
+      ≥ 95 % → week 3, ≥ 85 % → week 2, else start at week 1 on the baseline.
+    None with less than CYCLE_MIN_WEEKS of history."""
+    if len([w for w in weeks if w > 0]) < CYCLE_MIN_WEEKS:
+        return None
+
+    def base(i):
+        prev = weeks[i + 1:i + 5]
+        return sum(prev) / len(prev) if len(prev) >= 3 and sum(prev) > 0 else None
+    for j in range(4):
+        b = base(j)
+        if b and weeks[j] <= RECOVERY_BELOW * b:
+            ref_i = j + 1
+            real = ref_i < len(weeks) and weeks[ref_i] > 0
+            return {"pos": j + 1, "how": "recovery", "recoveryBack": j + 1,
+                    "refBack": ref_i + 1 if real else None, "refScale": None,
+                    "ref": weeks[ref_i] if real else b}
+    b = base(0)
+    if not b:
+        return None
+    strain = weeks[0] / b
+    if strain >= 1.05:
+        pos, prev = 4, 3
+    elif strain >= 0.95:
+        pos, prev = 3, 2
+    elif strain >= 0.85:
+        pos, prev = 2, 1
+    else:
+        return {"pos": 1, "how": "strain", "strain": round(strain, 2), "refBack": None, "refScale": None, "ref": b}
+    # last week counts as the previous cycle week → reference = last week / its factor
+    return {"pos": pos, "how": "strain", "strain": round(strain, 2), "refBack": 1, "refScale": 1 / CYCLE[prev],
+            "ref": weeks[0] / CYCLE[prev]}
+
+
 def _latest_pain(db, rid, today):
     """Worst running pain reported today or yesterday (check-in or run rating)."""
     cut = (today - timedelta(days=1)).isoformat()
@@ -195,47 +261,90 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     hard_dates = [s["date"] for s in runs if (s["exp"].get("intensity") or 0) >= HARD_Z4_MIN and s["date"] < t_iso]
     days_since_hard = (today - _d(max(hard_dates))).days if hard_dates else None
 
-    # ---- weekly budget ----------------------------------------------------
-    vol_daily = {}
-    for s in runs:
-        vol_daily[s["date"]] = vol_daily.get(s["date"], 0.0) + (s["km"] or 0)
-    wk_cap_vol = (ch["volume"].get("week") or {}).get("cap")
+    # ---- this week's target: the 4-week cycle, never above capacity -------------
+    ws = week_start(today)
 
-    def win(end_back):
-        return sum(vol_daily.get((today - timedelta(days=end_back + k)).isoformat(), 0.0) for k in range(7))
-    build_weeks = bool(wk_cap_vol) and all(win(b) >= 0.9 * wk_cap_vol for b in (7, 14, 21))
-    if load >= 25 or build_weeks:
-        mode, prog = "deload", 0.70
-    elif load >= 12 or ready < 0.90:
-        mode, prog = "hold", 1.00
-    elif ready >= 0.95 and load < 6 and pain < 3:
-        mode, prog = "build", 1.10
-    else:
-        mode, prog = "build", 1.05
-    if days_to_race is not None and 0 < days_to_race <= 14:
-        taper = 0.50 if days_to_race <= 7 else 0.70
-        if taper < prog:
-            mode, prog = "taper", taper
-
-    week = {}
-    for c in CHS:
-        info = ch.get(c) or {}
-        w = info.get("week") or {}
-        daily = {}
-        for s in runs:
+    def sums(pool, c):
+        out = {}
+        for s in pool:
             v = s["exp"].get(c)
             if v:
-                daily[s["date"]] = daily.get(s["date"], 0.0) + v
-        done6 = sum(daily.get((today - timedelta(days=k)).isoformat(), 0.0) for k in range(1, 7))
-        done_today = daily.get(t_iso, 0.0)
-        budget = w["cap"] * prog * ready if w.get("cap") else None
-        left = max(0.0, budget - done6 - done_today) if budget is not None else None
-        ceil_run = info.get("ceilingToday")
-        today_max = ceil_run if left is None else (left if ceil_run is None else min(ceil_run, left))
-        dec = C.CHANNELS[c]["dec"]
+                out[s["date"]] = out.get(s["date"], 0.0) + v
+        return out
+    daily = {c: sums(runs, c) for c in CHS}
+    daily["systemic"] = sums([s for s in sessions if s["date"] <= t_iso], "systemic")   # all sports
+    vol_daily = daily["volume"]
+
+    def week_sum(c, start):
+        return sum(daily[c].get((start + timedelta(days=k)).isoformat(), 0.0) for k in range(7))
+    past = {c: [week_sum(c, ws - timedelta(days=7 * k)) for k in range(1, 17)] for c in daily}
+    cyc = cycle_position(past["volume"])
+    if days_to_race is not None and 0 < days_to_race <= 14:
+        mode, factor = "taper", (0.50 if days_to_race <= 7 else 0.70)
+    elif cyc is None:
+        mode, factor = "learning", 1.0
+    elif load >= 25 and cyc["pos"] != 4:
+        mode, factor = "deload", CYCLE[4]
+    else:
+        mode, factor = ("recovery" if cyc["pos"] == 4 else "build"), CYCLE[cyc["pos"]]
+
+    def reference(c):
+        """The channel's reference week for the cycle (None → use the capacity)."""
+        if cyc is None:
+            return None
+        w = past[c]
+        if mode == "deload":                  # forced: 55 % of last week, whatever the cycle said
+            return w[0] / CYCLE[3]
+        if cyc["refBack"]:
+            return w[cyc["refBack"] - 1] * (cyc["refScale"] or 1.0)
+        lo = cyc.get("recoveryBack") if cyc["how"] == "recovery" else 1
+        vals = w[lo:lo + 4]
+        return sum(vals) / len(vals) if vals else None
+
+    week = {}
+    for c in (*CHS, "systemic"):
+        info = ch.get(c) or {}
+        wcap = info.get("week") or {}
+        ceil7 = wcap.get("ceiling")           # Zátěž's weekly threshold (capacity × readiness × (1 + margin))
+        ref = reference(c)
+        if ref is None:
+            ref = wcap.get("cap")
+        target = None if ref is None else ref * factor
+        if target is not None and ceil7 is not None:
+            target = min(target, ceil7)       # the plan never schedules a load exceedance
+        done_week = sum(daily[c].get((ws + timedelta(days=k)).isoformat(), 0.0) for k in range((today - ws).days + 1))
+        done6 = sum(daily[c].get((today - timedelta(days=k)).isoformat(), 0.0) for k in range(1, 7))
+        done_today = daily[c].get(t_iso, 0.0)
+        left_week = None if target is None else max(0.0, target - done_week)
+        left7 = None if ceil7 is None else max(0.0, ceil7 - done6 - done_today)
+        ceil_run = info.get("ceilingToday") if c != "systemic" else None
+        limits = {k: v for k, v in (("week", left_week), ("7d", left7), ("run", ceil_run)) if v is not None}
+        lim = min(limits, key=limits.get) if limits else None
         week[c] = {"label": info.get("label", C.CHANNELS[c]["label"]), "unit": info.get("unit", C.CHANNELS[c]["unit"]),
-                   "budget": _r(budget, dec), "done": _r(done6 + done_today, dec), "doneToday": _r(done_today, dec),
-                   "left": _r(left, dec), "ceilingRun": ceil_run, "todayMax": _r(today_max, dec)}
+                   "capacity": wcap.get("cap"), "ceiling7": ceil7, "done7": done6 + done_today, "left7": left7,
+                   "budget": target, "done": done_week, "doneToday": done_today, "left": left_week,
+                   "ceilingRun": ceil_run, "todayMax": limits[lim] if lim else None, "limitedBy": lim}
+    # Celková zátěž (HR × time, all sports) is volume × intensity in one number —
+    # what's left of it also bounds today's kilometres and hard minutes
+    sys_left = week["systemic"]["todayMax"]
+    easy_rate = [s["exp"]["systemic"] / s["km"] for s in hist
+                 if s["km"] and s["exp"].get("systemic") and (s["exp"].get("intensity") or 0) < 5]
+    per_km = E.median(easy_rate) if len(easy_rate) >= 3 else None
+    km_by_sys = sys_left / per_km if (sys_left is not None and per_km) else None
+    for c, cap_c in (("volume", km_by_sys), ("intensity", None if sys_left is None else sys_left / Z4_TRIMP_PER_MIN)):
+        if cap_c is not None and (week[c]["todayMax"] is None or cap_c < week[c]["todayMax"]):
+            week[c]["todayMax"], week[c]["limitedBy"] = cap_c, "systemic"
+    for c, wc in week.items():
+        dec = C.CHANNELS[c]["dec"]
+        for k in ("capacity", "ceiling7", "done7", "left7", "budget", "done", "doneToday", "left", "todayMax"):
+            wc[k] = _r(wc[k], dec)
+    cycle = {
+        "pos": cyc["pos"] if cyc else None, "how": cyc["how"] if cyc else None, "factor": round(factor, 3),
+        "refKm": _r(reference("volume")) if cyc else None,
+        "refWeek": (ws - timedelta(days=7 * cyc["refBack"])).isoformat() if cyc and cyc["refBack"] else None,
+        "weeks": [{"start": (ws - timedelta(days=7 * k)).isoformat(), "km": _r(past["volume"][k - 1])} for k in (4, 3, 2, 1)]
+        + [{"start": ws.isoformat(), "km": week["volume"]["done"], "target": week["volume"]["budget"], "current": True}],
+    }
 
     # ---- limits per session type --------------------------------------------
     vol_max = week["volume"]["todayMax"]
@@ -243,21 +352,33 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     desc_max = week["descent"]["todayMax"]
     asc_max = week["ascent"]["todayMax"]
     base_km = easy_km or 6.0
-    pain_mod = 3 <= pain <= 5
+    recurring = a.get("painRecurring")
+    pain_mod = 3 <= pain <= 5 or (bool(recurring) and pain <= 5)
+    pain_why = (f"Bolest {pain}/10" if pain >= 3 else
+                f"Opakovaná bolest ({recurring['site']}, {recurring['days']}× za 28 dní)" if recurring else "")
     km_scale = (0.7 if pain_mod else 1.0) * max(ready, 0.75)
+    # weekly target reached but the 7-day ceiling still has room: a short easy run
+    # stays available (not the default) — a rested body may move, the plan isn't risk
+    vw = week["volume"]
+    sys7 = week["systemic"]["left7"]           # safety only — the week's plan targets don't bound this extra run
+    km_by_sys7 = sys7 / per_km if (sys7 is not None and per_km) else None
+    easy_room = [x for x in (vw["left7"], vw["ceilingRun"], km_by_sys7) if x is not None]
+    easy_room = min(easy_room) if easy_room else None
+    extra_easy = (vw["limitedBy"] == "week" and (vol_max or 0) < MIN_RUN_KM and easy_room is not None
+                  and easy_room >= MIN_RUN_KM and ready >= 0.90 and not pain_mod and pain < 3)
 
     def cap_km(x):
         return x if vol_max is None else min(x, vol_max)
 
-    def mk(kind, lo, hi, z4max=None, z4t=None, dfac=1.0, terrain=None, notes=None):
+    def mk(kind, lo, hi, z4max=None, z4t=None, dfac=1.0, terrain=None, notes=None, vmax=None):
         hr = _hr_band(kind, hrmax, rhr) if kind in HRR else None
         pace = _pace_band(kind, hr, fit, easy_pace, speed_range) if kind != "kvalitní" else None
-        lo, hi = cap_km(lo), cap_km(hi)
+        lo, hi = (cap_km(lo), cap_km(hi)) if vmax is None else (min(lo, vmax), min(hi, vmax))
         lo = min(lo, hi)
         mid_pace = ((pace[0] + pace[1]) / 2) if pace else easy_pace
         dur = (round(lo * mid_pace / 60), round(hi * mid_pace / 60)) if mid_pace else None
         d_max = None if desc_max is None else desc_max * dfac * (0.5 if (pain_mod or drift) else 1.0)
-        return {"label": TYPE_LABEL[kind], "km": {"lo": _r(lo), "hi": _r(hi), "max": _r(vol_max)},
+        return {"label": TYPE_LABEL[kind], "km": {"lo": _r(lo), "hi": _r(hi), "max": _r(vol_max if vmax is None else vmax)},
                 "durationMin": dur, "hr": hr, "hrZones": {"regenerace": "Z1–Z2", "lehký": "Z2", "dlouhý": "Z2",
                                                           "kvalitní": "Z4–Z5 v úsecích, jinak Z1–Z2"}[kind],
                 "pace": pace, "z4Max": _r(z4max, 0), "z4Target": z4t, "descentMax": _r(d_max, 0),
@@ -269,9 +390,12 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                        "why": None, "notes": ["Odpočinek nebo lehká chůze, protažení, mobilita."],
                        "terrain": None, "hr": None, "pace": None, "durationMin": None, "z4Max": 0, "z4Target": None,
                        "descentMax": 0, "ascentMax": 0}}
+    extra_cap = min(easy_room, 0.6 * base_km) if extra_easy else None
     types["regenerace"] = mk("regenerace", 0.5 * base_km * km_scale, 0.75 * base_km * km_scale, z4max=0, dfac=0.5,
-                             terrain="rovina nebo měkký povrch",
-                             notes=["Velmi volně, konverzační tempo — cílem je prokrvit, ne trénovat."])
+                             terrain="rovina nebo měkký povrch", vmax=extra_cap,
+                             notes=["Velmi volně, konverzační tempo — cílem je prokrvit, ne trénovat."]
+                             + (["Nad rámec týdenního cíle — jen pokud máte chuť; pod 7denním stropem nic nezhorší."]
+                                if extra_easy else []))
     types["lehký"] = mk("lehký", 0.85 * base_km * km_scale, 1.1 * base_km * km_scale,
                         z4max=min(5, int_max) if int_max is not None else 5, dfac=0.8)
     long_target = max(base_km * 1.2, LONG_SHARE * (week["volume"]["budget"] or 0))
@@ -311,8 +435,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         for k in ("lehký", "dlouhý", "kvalitní"):
             block(k, f"Bolest {pain}/10 — dnes jen velmi volně nebo jiný sport bez bolesti.")
     if pain_mod:
-        block("dlouhý", f"Bolest {pain}/10 — dnes bez dlouhého běhu.")
-        block("kvalitní", f"Bolest {pain}/10 — dnes bez intenzity.")
+        block("dlouhý", f"{pain_why} — dnes bez dlouhého běhu.")
+        block("kvalitní", f"{pain_why} — dnes bez intenzity.")
     if ready < READY_QUALITY:
         block("kvalitní", f"Připravenost {round(ready * 100)} % — na tvrdý trénink je potřeba aspoň {round(READY_QUALITY * 100)} %.")
         block("dlouhý", f"Připravenost {round(ready * 100)} % — dlouhý běh přesuňte na odpočatější den.")
@@ -331,11 +455,17 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         block("dlouhý", f"Strop na jeden běh je dnes {_cz(vol_max)} km — na dlouhý běh nezbývá.")
     if days_to_race is not None and 0 < days_to_race <= 7:
         block("dlouhý", "Týden před závodem — bez dlouhého běhu.")
-    if (week["volume"]["left"] is not None and week["volume"]["left"] < 0.5 * base_km):
+    no_room = {"week": "Týdenní cíl objemu je splněný.", "7d": "Posledních 7 dní jste na stropu týdenní kapacity.",
+               "systemic": "Celková zátěž (tep × čas) je na stropu.", "run": "Na dnešek už nezbývá objem."}
+    if vw["left"] is not None and vw["left"] < 0.5 * base_km:
         for k in ("lehký", "dlouhý", "kvalitní"):
-            block(k, "Týdenní rozpočet objemu je vyčerpaný.")
-    if vol_max is not None and vol_max < MIN_RUN_KM:
-        block("regenerace", "Na dnešek už nezbývá objem — volno, případně jiný sport bez nárazů (kolo, plavání).")
+            block(k, "Týdenní cíl objemu je splněný.")
+    if vol_max is not None and vol_max < 0.5 * base_km:
+        for k in ("lehký", "dlouhý", "kvalitní"):
+            block(k, no_room.get(vw["limitedBy"], "Na dnešek už nezbývá objem."))
+    if vol_max is not None and vol_max < MIN_RUN_KM and not extra_easy:
+        block("regenerace", no_room.get(vw["limitedBy"], "Na dnešek už nezbývá objem.")
+              + " Volno, případně jiný sport bez nárazů (kolo, plavání).")
 
     # ---- default type -------------------------------------------------------
     wd = today.weekday()
@@ -364,8 +494,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         typ = "regenerace" if types["regenerace"]["allowed"] else "volno"
     if len(hist) < 3 and typ not in ("volno", "závod") and not override:
         typ = "lehký"
+    if extra_easy and typ == "regenerace":
+        typ = "volno"                     # the optional easy run is offered, not recommended
 
-    # ---- reasons (2–4, most important first) -------------------------------
+    # ---- reasons (most important first) -------------------------------------
     reasons = []  # the override itself is shown as the banner, not repeated here
     if override:
         pass
@@ -373,30 +505,47 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         reasons.append(f"Bolest {pain}/10{f' · {pain_site}' if pain_site else ''} — dnes jen velmi volně nebo jiný sport, "
                        "který nebolí. Pokud potrvá, proberte ji s fyzioterapeutem.")
     elif pain_mod:
-        reasons.append(f"Bolest {pain}/10{f' · {pain_site}' if pain_site else ''} — běh jen kratší a volnější, po rovině "
-                       "nebo měkkém povrchu, bez dlouhého běhu a intenzity.")
+        reasons.append(f"{pain_why}{f' · {pain_site}' if (pain >= 3 and pain_site) else ''} — odlehčit: běh jen kratší "
+                       "a volnější, po rovině nebo měkkém povrchu, bez dlouhého běhu a intenzity.")
     if typ == "volno" and not override and vol_max is not None and vol_max < MIN_RUN_KM:
-        reasons.append("Týdenní rozpočet objemu je vyčerpaný — dnes volno, případně jiný sport bez nárazů.")
+        lim = vw["limitedBy"]
+        if lim == "week":
+            reasons.append(f"Týdenní cíl je splněný ({_cz(vw['done'])} z {_cz(vw['budget'])} km) — dnes volno.")
+        elif lim == "7d":
+            reasons.append(f"Posledních 7 dní {_cz(vw['done7'])} km — na stropu vaší týdenní kapacity "
+                           f"({_cz(vw['ceiling7'])} km), dnes volno.")
+        elif lim == "systemic":
+            reasons.append("Celková zátěž (tep × čas ze všech aktivit) je na stropu týdenní kapacity — dnes volno.")
+        else:
+            reasons.append("Na dnešek už nezbývá objem — dnes volno, případně jiný sport bez nárazů.")
     parts = cap["readiness"].get("parts") or {}
     part_lbl = {"hrv": "nižší HRV", "rhr": "vyšší klidový tep", "sleep": "kratší spánek",
                 "soreness": "svalová bolest", "fatigue": "únava"}
     low = [part_lbl[k] for k, v in sorted(parts.items(), key=lambda kv: -kv[1]) if v > 0.1 and k in part_lbl]
     if ready < 0.95 and low:
-        reasons.append(f"Připravenost {round(ready * 100)} % ({', '.join(low[:3])}) — cíle i stropy jsou úměrně nižší.")
+        reasons.append(f"Připravenost {round(ready * 100)} % ({', '.join(low[:3])}) — dnešní stropy jsou úměrně nižší.")
+    elif typ == "volno" and not override and ready >= 0.90:
+        reasons.append(f"Připravenost {round(ready * 100)} % — tělo je zregenerované, volno je kvůli týdennímu plánu, "
+                       "ne kvůli únavě." + (f" Pokud máte chuť, krátký regenerační běh do {_cz(extra_cap)} km nic nezhorší."
+                                            if extra_easy else ""))
     if provisional:
         reasons.append("Ještě nemáme dnešní spánek a HRV — doporučení je předběžné a po synchronizaci se upřesní.")
     if mode == "deload":
-        reasons.append("Odlehčovací týden (objem ×0,7) — " + ("zátěž je zvýšená." if load >= 25 else
-                                                            "po třech týdnech v plné zátěži."))
+        reasons.append("Zátěž je zvýšená — odlehčovací týden (55 % minulého týdne), dokud neklesne.")
     elif mode == "taper":
         reasons.append(f"{(runner.goal_race if runner and runner.goal_race else 'Závod')} za {days_to_race} dní — "
-                       f"ladění formy, objem ×{_cz(prog, 2)}.")
+                       f"ladění formy, objem ×{_cz(factor, 2)} referenčního týdne.")
+    elif mode == "recovery":
+        reasons.append("4. týden cyklu — odlehčovací týden (55 % vrcholového týdne), ať se trénink vstřebá.")
+    elif mode == "build":
+        reasons.append(f"{cycle['pos']}. týden cyklu — cíl {round(factor * 100)} % referenčního týdne "
+                       f"({_cz(cycle['refKm'])} km).")
+    else:
+        reasons.append("Čtyřtýdenní cyklus nastavíme po 4 týdnech dat — zatím je cílem vaše týdenní kapacita.")
     if drift:
         reasons.append("Mechanika se odchyluje od vaší normy — bez intenzity a prudkých seběhů, raději rovina.")
-    vb = week["volume"]
-    if vb["budget"]:
-        pct = round(100 * (vb["done"] or 0) / vb["budget"]) if vb["budget"] else None
-        reasons.append(f"Za posledních 7 dní {_cz(vb['done'])} km z týdenního rozpočtu {_cz(vb['budget'])} km ({pct} %).")
+    if vw["budget"] and not (typ == "volno" and vw["limitedBy"] == "week"):
+        reasons.append(f"Tento týden (od pondělí) {_cz(vw['done'])} z cíle {_cz(vw['budget'])} km.")
     if typ == "kvalitní" and days_since_hard is not None:
         reasons.append(f"Poslední tvrdý trénink před {days_since_hard} dny — prostor na kvalitu.")
     if typ == "dlouhý":
@@ -413,10 +562,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         "date": t_iso, "engine": "v3", "type": typ, "typeLabel": TYPE_LABEL[typ],
         "provisional": provisional, "override": override, "referral": decision if referral else None,
         "pain": pain or 0, "readiness": ready, "types": types,
-        "week": {"channels": week, "mode": mode, "progression": prog},
+        "week": {"channels": week, "mode": mode, "progression": round(factor, 3), "cycle": cycle},
         "pattern": {**pat, "runDayNames": [WD[w] for w in pat["runDays"]],
                     "longDayName": WD[pat["longDay"]] if pat["longDay"] is not None else None,
                     "hardDayNames": [WD[w] for w in pat["hardDays"]], "easyKm": _r(easy_km), "easyPace": _r(easy_pace, 0)},
-        "reasons": reasons[:4], "done": done,
+        "reasons": reasons[:5], "done": done,
         "zones": cap.get("zones"), "hrSource": "fit" if fit else "fallback",
     }
