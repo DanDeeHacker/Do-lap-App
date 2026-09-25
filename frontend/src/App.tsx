@@ -20,6 +20,8 @@ import { Load as LoadTab, Mechanics, Post } from "@/tabs"
 import { Care, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
 import { EngineLab } from "@/enginelab"
+import { CapacityMini } from "@/capacity"
+import { Training } from "@/training"
 
 // Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
 // svou infrastrukturu; zaměstnavatelé a partneři se v této aplikaci nepřihlašují.
@@ -80,6 +82,7 @@ function Topbar() {
   const { pathname } = useLocation()
   const runner = boot?.runner
   const ini = initials(me?.name)
+  const navItems = useRunnerNav()
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-[#dfe2da]/80 bg-[#f9f7f1]/95 pt-[env(safe-area-inset-top)] backdrop-blur">
       <div className="mx-auto flex h-[68px] max-w-[1180px] items-center justify-between gap-4 px-5">
@@ -88,7 +91,7 @@ function Topbar() {
           <span className="hidden sm:inline">došlap</span>
         </Link>
         <nav className="hidden flex-1 items-center justify-center gap-1 md:flex">
-          {runnerNav.map(([id, label]) => {
+          {navItems.map(([id, label]) => {
             const to = `/app/${id}`
             const active = pathname === to
             return (
@@ -205,6 +208,12 @@ const runnerNav: [string, string][] = [
   ["load", "Zátěž"],
   ["messages", "Péče"],
 ]
+// The Trénink tab exists only with the Kapacitní engine (v3), right after Dnes.
+function useRunnerNav(): [string, string][] {
+  const { boot } = useApp()
+  const v3 = (boot?.assessment?.engineMode || boot?.runner?.engine_mode) === "v3"
+  return v3 ? [runnerNav[0], ["training", "Trénink"], ...runnerNav.slice(1)] : runnerNav
+}
 function Layout() {
   const { me, loading } = useApp()
   if (loading)
@@ -407,11 +416,11 @@ function Quadrant({ quadrant = "stable", history, live, onSync, syncing, syncMsg
           <div className="min-w-0">
             <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Kvadrant stavu</p>
             <h3 className="truncate font-serif text-lg leading-tight text-[#f1f8f1]">{q.t}</h3>
-            {live?.engineMode === "v2" && (live?.mechFlag || live?.mechWatch) && (
+            {(live?.engineMode === "v2" || live?.engineMode === "v3") && (live?.mechFlag || live?.mechWatch) && (
               <span
                 className="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold"
                 style={live?.mechFlag ? { background: "#e77a5920", color: "#ffc1ab" } : { background: "#ffffff12", color: "#a9c2b9" }}
-                title={live?.mechFlag ? "Citlivý engine: odchylka mechaniky přetrvává napříč běhy nebo se sešly dvě metriky" : "Citlivý engine: jedna metrika mechaniky se odchýlila — zatím jen sledujeme"}
+                title={live?.mechFlag ? "Citlivý engine: mechanika se v rizikovém směru drží mimo vaši normu napříč běhy, nebo se to ukazuje ve dvou nezávislých skupinách metrik" : "Citlivý engine: jedna skupina metrik mechaniky se výrazně odchýlila — zatím jen sledujeme"}
               >
                 {live?.mechFlag ? "⚑ mechanika přetrvává" : "◔ sledovat mechaniku"}
               </span>
@@ -849,6 +858,7 @@ function TodayV2() {
             <span>Posledních 7 dní <b className="block text-base text-[#f1f8f1]">{L?.runKm7 ?? "—"} km</b></span>
             <span className="text-right">Obvykle / týden <b className="block text-base text-[#f1f8f1]">{typicalKm} km</b></span>
           </div>
+          {a?.capacity && <CapacityMini cap={a.capacity} />}
         </Card>
       </div>
     </>
@@ -863,6 +873,8 @@ function RunnerPage() {
       return <Mechanics />
     case "load":
       return <LoadTab />
+    case "training":
+      return <Training />
     case "program":
       return <Navigate to="/app/messages" replace />
     case "messages":
@@ -1167,14 +1179,15 @@ function AtlasBubble() {
     </>
   )
 }
-const NAV_ICON: Record<string, string> = { today: "⌂", post: "▤", mechanics: "◌", load: "⌁", messages: "◔" }
+const NAV_ICON: Record<string, string> = { today: "⌂", training: "◎", post: "▤", mechanics: "◌", load: "⌁", messages: "◔" }
 function AtlasNav() {
   const { pathname } = useLocation()
+  const navItems = useRunnerNav()
   // Single source of truth = runnerNav, so the mobile bar can never drift from
   // the desktop tabs again (previously missing "Deník" and in wrong order).
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 flex border-t border-white/10 bg-[#071313]/95 px-2 pb-[max(.8rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:hidden">
-      {runnerNav.map(([id, label]) => {
+      {navItems.map(([id, label]) => {
         const to = `/app/${id}`
         return (
           <Link

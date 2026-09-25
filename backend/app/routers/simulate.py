@@ -38,7 +38,8 @@ def knobs(user: models.User = Depends(get_current_user)):
 def simulate(payload: dict = Body(...), user: models.User = Depends(get_current_user)):
     inputs = payload.get("inputs") if isinstance(payload, dict) else None
     prev = payload.get("prevQuadrant") if isinstance(payload, dict) else None
-    return S.simulate(inputs or {}, prev_quadrant=prev)
+    mode = payload.get("mode") if isinstance(payload, dict) else None
+    return S.simulate(inputs or {}, prev_quadrant=prev, mode=mode or "v1")
 
 
 @router.post("/sweep")
@@ -47,7 +48,8 @@ def sweep(payload: dict = Body(...), user: models.User = Depends(get_current_use
     knob = payload.get("knob") if isinstance(payload, dict) else None
     prev = payload.get("prevQuadrant") if isinstance(payload, dict) else None
     n = int(payload.get("points") or 41)
-    return S.sweep(inputs or {}, knob or "", n=max(2, min(n, 81)), prev_quadrant=prev)
+    mode = payload.get("mode") if isinstance(payload, dict) else None
+    return S.sweep(inputs or {}, knob or "", n=max(2, min(n, 81)), prev_quadrant=prev, mode=mode or "v1")
 
 
 @router.get("/inputs/{rid}")
@@ -56,4 +58,5 @@ def inputs_for_runner(rid: str, user: models.User = Depends(get_current_user), d
     ensure_runner_read_access(db, user, rid)
     a = E.get_or_refresh_assessment(db, rid)
     runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
-    return {"inputs": S.inputs_from_assessment(a, runner), "prevQuadrant": a.get("quadrant")}
+    return {"inputs": S.inputs_from_assessment(a, runner), "prevQuadrant": a.get("quadrant"),
+            "mode": "v3" if a.get("engineMode") == "v3" else "v1"}

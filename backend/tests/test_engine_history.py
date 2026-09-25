@@ -64,3 +64,27 @@ def test_mech_history_is_cached_and_stable(client):
     assert a == b  # second read is served from cache, identical
     if a:
         assert a[-1]["date"] == E.iso_date(E.today_date())
+
+
+def test_v2_history_replays_segment_streams(client, db_session):
+    """A v2 runner with stored streams is scored per SEGMENT live; the history
+    replay must see the same streams, or its trend/today point silently falls
+    back to per-run drift and disagrees with the live score."""
+    from .conftest import register
+    from .synth import add_streams, seed_runs
+    rid = register(client, "histseg@test.cz", "Hist Seg", "runner").json()["runner_id"]
+    db = db_session
+    seed_runs(db, rid)
+    recent = E.day_ago(E.RECENT)
+    add_streams(db, rid, lambda started: 18.0 if started > recent else 0.0)
+    db.query(models.Runner).filter(models.Runner.id == rid).first().engine_mode = "v2"
+    db.commit()
+    live = E.recompute_assessment(db, rid)
+    assert live["segmentScored"] is True
+
+    hist = client.get(f"/api/runners/{rid}/quadrant-history").json()
+    assert hist[-1]["date"] == E.iso_date(E.today_date())
+    for axis in ("mech", "load", "symp", "overall", "quadrant"):
+        assert hist[-1][axis] == live[axis], f"{axis}: history-end {hist[-1][axis]} != live {live[axis]}"
+    mh = client.get(f"/api/runners/{rid}/mech-history").json()
+    assert mh[-1]["mech"] == live["mech"]

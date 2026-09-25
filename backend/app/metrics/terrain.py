@@ -51,6 +51,51 @@ def grade_adjusted_km(profile, fallback_km: float = 0.0) -> float:
     return metres / 1000.0 if seen else (fallback_km or 0.0)
 
 
+# Downhill running costs LESS energy (Minetti: ≈ 0.6× flat at −10 %) but loads the
+# legs MORE: braking/impact forces and eccentric quadriceps work rise with downhill
+# grade — normal impact-force peaks +32 % at −6° (≈ −10.5 %) and +54 % at −9°
+# (≈ −15.8 %) (Gottschall & Kram 2005), i.e. ≈ +3.2 % per 1 % of downhill grade.
+_ECC_PER_GRADE = 3.2
+
+
+def _load_factor(g: float) -> float:
+    if g >= 0:
+        return minetti_cr(g) / _CR0
+    return max(minetti_cr(g) / _CR0, 1.0 + _ECC_PER_GRADE * min(-g, 0.45))
+
+
+def load_km(profile):
+    """Terrain-LOAD-weighted kilometres for the single-session spike: uphill by
+    Minetti's cost (metabolic + propulsive demand), downhill by eccentric/impact
+    load. grade_adjusted_km() alone counted a steep downhill run as LESS than its
+    flat distance, so the most eccentric-heavy runs could never raise the terrain
+    spike. None when the run has no usable elevation profile — such runs must not
+    be compared against profile-based ones (raw km vs weighted km)."""
+    if not profile or len(profile) < 2:
+        return None
+    metres, seen = 0.0, False
+    for dd, g in _segments(profile):
+        metres += dd * _load_factor(g)
+        seen = True
+    return metres / 1000.0 if seen else None
+
+
+def descent_weighting(profile):
+    """(raw descent m, steepness-weighted descent m) from an elevation profile —
+    each metre of drop counts (1 + 3.2·|grade|), the same eccentric/impact factor
+    as load_km, so steep descending weighs more than the same drop taken gently.
+    (0, 0) without a usable profile."""
+    if not profile or len(profile) < 2:
+        return (0.0, 0.0)
+    raw = weighted = 0.0
+    for dd, g in _segments(profile):
+        if g < 0:
+            drop = -g * dd
+            raw += drop
+            weighted += drop * (1.0 + _ECC_PER_GRADE * min(-g, 0.45))
+    return (raw, weighted)
+
+
 def downhill_exposure(profile):
     """L3 — (km run at gradient ≤ −5%, gradient-weighted downhill Σ|g|·Δd in km).
     Downhill running is eccentric-heavy and underweighted by metabolic cost

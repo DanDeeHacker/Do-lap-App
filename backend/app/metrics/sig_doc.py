@@ -14,7 +14,9 @@ SIG_DOC = {
     "tavr": {
         "t": "Terénně očištěný drift vertikálního poměru", "g": "B",
         "fx": "VR      = vertikální oscilace / délka kroku\n"
-              "TAVR_z  = (průměr VR za 28 dní − baseline) / SD\n"
+              "VR_adj  = VR − β·(rychlost − vaše obvyklá rychlost)   β = vaše vlastní citlivost na tempo (Theil–Sen)\n"
+              "TAVR_z  = (průměr VR_adj za 28 dní − baseline) / SD            [standardní engine]\n"
+              "        = EWMA(λ 0,15) odchylek jednotlivých běhů v SD            [citlivý engine]\n"
               "          baseline = dny 84 → 29\n"
               "          skupiny: povrch × sklon × pásmo tempa",
         "why": "Vertikální oscilace sama o sobě je špatná jednotka — kdo prodlouží krok, zvedne VO bez ztráty "
@@ -28,7 +30,7 @@ SIG_DOC = {
     },
     "gct": {
         "t": "Prodloužený kontakt se zemí", "g": "B",
-        "fx": "GCT_adj = GCT × (kadence / baseline_kadence)\nz       = (GCT_adj − baseline) / SD   [14 dní]",
+        "fx": "GCT_adj = GCT × (kadence / baseline_kadence), přepočteno na vaše obvyklé tempo\nz       = (GCT_adj − baseline) / SD   [14 dní]",
         "why": "Doba kontaktu se zemí roste s únavou — měřitelně stoupá od 10. kilometru dlouhého běhu spolu s "
                "vyšším extenčním momentem kyčle a addukčním úhlem. Trvale zvýšená hodnota při shodném tempu a "
                "kadenci naznačuje, že se únava mezi tréninky nestíhá odbourávat.",
@@ -62,7 +64,7 @@ SIG_DOC = {
     },
     "cad": {
         "t": "Klesající kadence", "g": "C",
-        "fx": "z = (kadence_teď − baseline) / SD   [na shodných profilech terénu × tempa]\nsignál při z ≤ −1",
+        "fx": "z = (kadence_teď − baseline) / SD   [na shodných profilech terénu × tempa,\n     přepočteno na vaše obvyklé tempo]\nsignál při z ≤ −1",
         "why": "Nižší kadence při srovnatelném tempu znamená delší krok a delší kontakt se zemí — spojené s vyšším "
                "nárazem a brzdicí silou. Pokles proti vlastní normě bývá časný znak nastupující únavy nebo změny techniky.",
         "limit": "Stupeň C. Kadence přirozeně kolísá s tempem a terénem — proto se porovnává jen ve shodných profilech, "
@@ -71,7 +73,7 @@ SIG_DOC = {
     },
     "vosc": {
         "t": "Vyšší vertikální oscilace", "g": "C",
-        "fx": "z = (oscilace_teď − baseline) / SD   [na shodných profilech terénu × tempa]\nsignál při z ≥ 1",
+        "fx": "z = (oscilace_teď − baseline) / SD   [na shodných profilech terénu × tempa,\n     přepočteno na vaše obvyklé tempo]\nsignál při z ≥ 1",
         "why": "Vyšší vertikální oscilace znamená víc pohybu nahoru/dolů místo dopředu — méně ekonomický běh a vyšší "
                "nárazové zatížení na krok. Nárůst proti vlastní normě při shodném tempu naznačuje zhoršující se techniku nebo únavu.",
         "limit": "Stupeň C. Mechanisticky dává smysl, prospektivní validace pro riziko zranění je slabá. Citlivé na tempo a terén — proto per-profil.",
@@ -118,7 +120,9 @@ SIG_DOC = {
     "session_spike": {
         "t": "Skok v jednom běhu (single-session paradigm)", "g": "B",
         "fx": "spike = max(vzdálenost, vnitřní zátěž TRIMP) jednoho běhu / nejvyšší z předchozích 30 dní\n"
-              "bere HORŠÍ z obou os · +10–30 % → až 6 b · +30–100 % → až 14 b · nad +100 % → 14–30 b",
+              "citlivý engine navíc: terénní km (stoupání × Minetti, klesání × excentrická zátěž ≈ +3,2 %/1 % sklonu)\n"
+              "     — jen mezi běhy s výškovým profilem\n"
+              "bere NEJHORŠÍ z os · +10–30 % → až 6 b · +30–100 % → až 14 b · nad +100 % → 14–30 b",
         "why": "V zatím největší prospektivní kohortě (RUNSAFE, 5 205 běžců, 588 tis. běhů, BJSM 2025) je skok "
                "v délce JEDNOHO běhu proti nejdelšímu běhu předchozích 30 dní dávkově závislý rizikový faktor "
                "(HRR až 2,28 nad +100 %) — silnější a specifičtější než ACWR. v0.6.1 přidává i vnitřní zátěž "
@@ -355,6 +359,59 @@ SIG_DOC = {
         "limit": "Stupeň C — logická kombinace dvou already-existujících signálů (termín + zátěž), ne "
                  "samostatně validovaný prediktor. Nehodnotí kvalitu tréninkového plánu, jen jeho načasování.",
         "clear": "Buď zátěžové skóre klesne pod práh, nebo závod proběhne/termín se posune.",
+    },
+    # ---- engine v3 (Kapacitní): load scored against the runner's own capacity ----
+    "cap_volume": {
+        "t": "Objem nad kapacitou", "g": "B",
+        "fx": "kapacita běhu  = nejdelší běh posledních 30 dní (starší do 90 dní s poločasem 30 dní),\n"
+              "                 bez běhů, po kterých do 72 h přišla bolest ≥ 3/10\n"
+              "kapacita týdne = max(průměrný týden 4 předchozích týdnů, 0,9 × nejlepší týden 6 týdnů)\n"
+              "poměr = km / (kapacita × připravenost dne) · body nad +10 % (běh) / +15 % (týden):\n"
+              "  do 1,3× ≤ 6 b · do 2× ≤ 20 b · nad 2× až 40 b · váha 1,0",
+        "why": "Skok v délce jednoho běhu proti nejdelšímu běhu předchozích 30 dní je v kohortě 5 205 běžců "
+               "(Frandsen 2025) dávkově závislý rizikový faktor; prudký týdenní nárůst (> 30 %) souvisí s "
+               "některými typy zranění (Nielsen 2014). Kapacita je to, co jste prokazatelně zvládli bez obtíží.",
+        "limit": "Observační evidence — strop je ochranné zábradlí, ne záruka. Kapacitu nelze poznat dřív než "
+                 "po ~3 bězích za 30 dní (týden: ~4 týdny historie).",
+        "clear": "Zmizí, když nejnáročnější běh i posledních 7 dní klesnou pod vaši kapacitu (+ rezervu).",
+    },
+    "cap_intensity": {
+        "t": "Intenzita nad kapacitou", "g": "B",
+        "fx": "expozice = minuty v zóně Z4+ (≥ 80 % tepové rezervy, Karvonen)\n"
+              "  z tepového histogramu detailních dat, jinak odhad z průměrného tepu (třetin běhu)\n"
+              "kapacita a body jako u objemu · váha 0,9",
+        "why": "U dat ze sportovních hodinek předpovídala zranění spíš akutní námaha než samotná vzdálenost "
+               "(Neal 2024); zátěž je vhodné kvantifikovat vnější i vnitřní složkou (Paquette 2020).",
+        "limit": "Bez tepu se nepočítá. Zóny závisí na odhadu maximální tepové frekvence (z vašich nejtěžších běhů "
+                 "a věku, Tanaka 2001) — odhad z průměrného tepu je hrubší než histogram.",
+        "clear": "Když minuty v Z4+ jednoho běhu i týdne klesnou pod vaši prokázanou kapacitu.",
+    },
+    "cap_descent": {
+        "t": "Klesání nad kapacitou", "g": "C",
+        "fx": "expozice = metry klesání × (1 + 3,2 × sklon) — strmé klesání váží víc\n"
+              "kapacita a body jako u objemu · váha 0,8",
+        "why": "Seběh je excentrická zátěž: nárazové síly rostou se sklonem (Gottschall & Kram 2005) a svalové "
+               "poškození je největší při první neznámé dávce — opakovaná expozice chrání (repeated-bout effect, "
+               "McHugh 2003). Proto se měří proti VAŠÍ nedávné dávce klesání, ne absolutně.",
+        "limit": "Stupeň C: silný mechanismus, málo prospektivních dat o zraněních. Bez výškového profilu se sklon "
+                 "odhaduje z vašich jiných běhů.",
+        "clear": "Po návratu klesání pod vaši kapacitu; postupné přidávání kopců kapacitu zvyšuje.",
+    },
+    "cap_ascent": {
+        "t": "Stoupání nad kapacitou", "g": "C",
+        "fx": "expozice = metry stoupání · kapacita a body jako u objemu · váha 0,5",
+        "why": "Stoupání zvyšuje zatížení lýtka a Achillovy šlachy a metabolickou náročnost (Minetti 2002).",
+        "limit": "Stupeň C — nejslabší kanál, proto nejnižší váha.",
+        "clear": "Po návratu stoupání pod vaši kapacitu.",
+    },
+    "cap_systemic": {
+        "t": "Celková zátěž nad kapacitou", "g": "B",
+        "fx": "expozice = tepová tréninková zátěž TRIMP (Banister) všech sportů\n"
+              "kapacita a body jako u objemu · váha 0,7",
+        "why": "Vnitřní zátěž napříč sporty — zachytí i dlouhé středně těžké tréninky a křížový trénink, které "
+               "kilometry běhu nevidí.",
+        "limit": "Závisí na tepu a odhadu tepových hranic.",
+        "clear": "Když jednotlivý trénink i týdenní součet klesnou pod vaši kapacitu.",
     },
     "hist": {
         "t": "Zranění v anamnéze", "g": "A", "fx": None,

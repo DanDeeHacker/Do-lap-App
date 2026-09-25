@@ -58,7 +58,7 @@ def test_v2_ewma_damps_single_spike_but_accumulates_drift():
     with E.engine_pinned("v2"):
         zp = E._drift_z_core(persistent, "vert_ratio_pct", 28)["z"]
         zs = E._drift_z_core(spike, "vert_ratio_pct", 28)["z"]
-    assert zp > 2.0                 # sustained drift shows up strongly
+    assert zp > 1.5                 # sustained drift shows up strongly (λ = 0.15, 4 sessions)
     assert zs < zp / 2             # a single spike is damped well below it
 
 
@@ -97,3 +97,34 @@ def test_backtest_detailed_download(client):
     assert r.status_code == 200
     assert "spreadsheetml" in r.headers.get("content-type", "")
     assert r.content[:2] == b"PK" and "attachment" in r.headers.get("content-disposition", "")
+
+
+def test_v2_flag_needs_magnitude_not_just_consistency():
+    """A trivially small but perfectly consistent deviation must not look
+    'beyond' the control limit (σ is the baseline's, i.e. 1 — not the recent
+    sessions' own tiny spread)."""
+    f = E._ewma_flag([0.05, 0.06, 0.05, 0.07, 0.06])
+    assert f["beyond"] is False and f["state"] == "usual"
+    assert E._mech_flags(f, None, None, None, None) == (False, False)
+
+
+def test_v2_flags_are_one_sided():
+    # vertical ratio IMPROVING (falling) strongly: no warning, marked improving
+    better = E._ewma_flag([-3.0] * 5, E._BAD_SIGN["vert_ratio_pct"])
+    assert better["beyond"] is False and better["persist"] is False and better["state"] == "usual"
+    assert better["improving"] is True
+    assert E._mech_flags(better, None, None, None, None) == (False, False)
+    # cadence FALLING is the risk direction for cadence → flagged
+    worse = E._ewma_flag([-3.0] * 5, E._BAD_SIGN["cadence_spm"])
+    assert worse["beyond"] and worse["persist"] and worse["state"] == "clear"
+    assert E._mech_flags(None, None, worse, None, None)[0] is True
+
+
+def test_v2_coupled_metrics_count_once_for_convergence():
+    clear = {"state": "clear", "beyond": False, "persist": False}
+    # cadence + stride move together at a given speed → one group, only "watch"
+    assert E._mech_flags(None, None, clear, clear, None) == (False, True)
+    # vertical ratio + oscillation are coupled too
+    assert E._mech_flags(clear, None, None, None, clear) == (False, True)
+    # two independent groups (vertical + contact) → convergence flag
+    assert E._mech_flags(clear, clear, None, None, None) == (True, False)

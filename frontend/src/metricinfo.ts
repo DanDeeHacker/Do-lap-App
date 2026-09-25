@@ -18,7 +18,7 @@ export const METRIC_INFO: Record<string, string> = {
   safeLongRun:
     "Odhad délky nejdelšího běhu, který teď zvládnete bez velkého skoku v zátěži — odvozeno z vaší nedávné historie. Slouží jako strop pro plánování víkendového dlouhého běhu.",
   gradeAdj:
-    "Efektivní „plochý ekvivalent\" kilometrů za 7 dní — vzdálenost přepočtená podle energetické náročnosti sklonu (Minetti). Kopcovitý běh stojí víc než stejně dlouhý po rovině, takže tohle číslo je vyšší než reálné km na členitém terénu. Citlivý engine z toho počítá i skok v zátěži, aby hilly běh nepodhodnotil.",
+    "Efektivní „plochý ekvivalent\" kilometrů za 7 dní — vzdálenost přepočtená podle energetické náročnosti sklonu (Minetti). Kopcovitý běh stojí víc než stejně dlouhý po rovině, takže tohle číslo je vyšší než reálné km na členitém terénu. Citlivý engine pro skok v zátěži počítá náročnost terénu zvlášť: stoupání podle energetické náročnosti, klesání podle excentrické zátěže — strmý sjezd stojí méně energie, ale nohy zatěžuje víc.",
   downhill:
     "Kilometry naběhané v klesání od −5 % sklonu za 7 dní. Klesání zatěžuje svaly excentricky (brzdění) víc, než odpovídá jeho nízké metabolické ceně — proto ho sledujeme zvlášť. Prudký nárůst bývá spouštěč bolesti stehen a kolen.",
 
@@ -42,6 +42,17 @@ export const METRIC_INFO: Record<string, string> = {
   // — Stav / kvadrant —
   overall: "Celkové skóre stavu (0–100) složené z mechaniky, zátěže a příznaků, vážené podle síly důkazů. Vyšší = víc signálů k pozornosti. Vždy proti vaší vlastní historii.",
   confidence: "Spolehlivost — nakolik je už postavená vaše baseline (počet srovnatelných tréninků a dní historie). Dokud je nízká, mechanické signály se raději nezobrazují, aby nemátly.",
+  // — Kapacitní engine (v3) —
+  capacity:
+    "Kapacita = co jste prokazatelně zvládli bez obtíží: nejnáročnější jednotlivý běh posledních 30 dní (starší slábnou) a nejlepší / průměrný týden posledních týdnů — zvlášť pro objem, intenzitu (minuty v zóně Z4+), klesání a stoupání. Běhy, po kterých do 3 dnů přišla bolest ≥ 3/10, se do kapacity nepočítají. Strop = kapacita + malá rezerva (+10 % na běh, +15 % na týden), snížená podle dnešní připravenosti. Čím víc nad stropem, tím víc bodů zátěže.",
+  readiness:
+    "Připravenost dne (70–100 %) snižuje vaši kapacitu, když jste se nevyspali nebo tělo nestíhá regenerovat: noční HRV a klidový tep proti vaší normě, kratší spánek a svalová bolest / únava z check-inu. Stejný běh je po špatné noci větší zátěž než po dobré.",
+  relEffort:
+    "Relativní úsilí porovná tepovou zátěž běhu s vašimi běhy za posledních 8 týdnů (pod / obvyklé / nad / výrazně nad obvyklým). ‚Tep při tempu' ukazuje, o kolik byl tep vyšší nebo nižší, než kolik obvykle potřebujete na stejné tempo — výrazně vyšší tep při lehkém tempu bývá známkou únavy, horka nebo nemoci.",
+  hrZones:
+    "Tepové zóny z tepové rezervy (Karvonen): maximální tep odhadujeme z vašich nejtěžších běhů a věku, klidový tep z nočních měření. Z4+ (≥ 80 % rezervy) = tvrdá práce — z ní se počítá kanál intenzity.",
+  weekBudget:
+    "Týdenní rozpočet = vaše týdenní kapacita × průběh (budování ×1,05–1,10, udržení ×1,0, odlehčovací týden ×0,7 po třech plných týdnech nebo při zvýšené zátěži, ladění ×0,5–0,7 před závodem) × dnešní připravenost. Počítá se za posledních 7 dní; bílá čárka = rozpočet.",
 }
 
 // Mechanika cards are keyed by their Czech label at the call site.

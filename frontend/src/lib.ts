@@ -35,8 +35,9 @@ export const czk = (n?: number | null) => (n == null ? "—" : new Intl.NumberFo
 export const paceStr = (sPerKm?: number | null) => {
   // Only null/undefined/NaN is "missing" — a genuine 0 should read "0:00", not "—".
   if (sPerKm == null || !Number.isFinite(sPerKm)) return "—"
-  const m = Math.floor(sPerKm / 60)
-  const s = Math.round(sPerKm % 60)
+  const t = Math.round(sPerKm) // round the total first — 359.6 s is 6:00, not "5:60"
+  const m = Math.floor(t / 60)
+  const s = t % 60
   return `${m}:${String(s).padStart(2, "0")}`
 }
 

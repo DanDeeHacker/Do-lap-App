@@ -364,10 +364,26 @@ def _unseal_token(blob: str, encrypted: bool) -> str:
     return f.decrypt(blob.encode()).decode()
 
 
+# Garmin's /details endpoint returns at most `maxChartSize` rows (the library
+# default is 2000), decimating longer activities — a 2 h run came back at ~4 s per
+# row, which the segmenter then dropped entirely. Ask for full resolution (covers
+# ~14 h at 1 Hz); the stream parser is time-based, so a coarser answer still works.
+FULL_RES_ROWS = 50000
+
+
 def fetch_details(garmin, activity_id) -> dict:
-    """Phase 4 — pull the per-record (1 Hz) sample stream for one activity
-    (metricDescriptors + activityDetailMetrics). Parsed by
+    """Phase 4 — pull the per-record sample stream for one activity
+    (metricDescriptors + activityDetailMetrics) at full resolution. Parsed by
     app.metrics.stream_qc. Raises GarminLiveError on a network/API failure."""
+    try:
+        return garmin.get_activity_details(str(activity_id), maxchart=FULL_RES_ROWS) or {}
+    except TypeError:
+        pass  # a client without the maxchart parameter → default resolution below
+    except Exception as e:  # noqa: BLE001
+        msg = str(e).lower()
+        if "429" in msg or "too many" in msg or "rate" in msg:
+            raise GarminLiveError(str(e))
+        # Some other refusal of the large chart size → retry at the default size.
     try:
         return garmin.get_activity_details(str(activity_id)) or {}
     except Exception as e:  # noqa: BLE001

@@ -96,9 +96,10 @@ export const api = {
 
   // engine sensitivity sandbox (Citlivostní analýza)
   engineKnobs: () => call("GET", "/api/engine/knobs"),
-  engineSimulate: (inputs: any, prevQuadrant?: string | null) => call("POST", "/api/engine/simulate", { inputs, prevQuadrant }),
-  engineSweep: (inputs: any, knob: string, prevQuadrant?: string | null, points?: number) =>
-    call("POST", "/api/engine/sweep", { inputs, knob, prevQuadrant, points }),
+  engineSimulate: (inputs: any, prevQuadrant?: string | null, mode: "v1" | "v3" = "v1") =>
+    call("POST", "/api/engine/simulate", { inputs, prevQuadrant, mode }),
+  engineSweep: (inputs: any, knob: string, prevQuadrant?: string | null, points?: number, mode: "v1" | "v3" = "v1") =>
+    call("POST", "/api/engine/sweep", { inputs, knob, prevQuadrant, points, mode }),
   engineInputs: (id: string) => call("GET", `/api/engine/inputs/${id}`),
   bookings: (id: string) => call("GET", `/api/runners/${id}/bookings`),
   program: (id: string) => call("GET", `/api/runners/${id}/program`),
@@ -149,8 +150,8 @@ export const api = {
   applePushToken: () => call("GET", "/api/integrations/apple/push-token"),
   applePushTokenRotate: () => call("POST", "/api/integrations/apple/push-token/rotate", {}),
   garminMfa: (mfaToken: string, mfaCode: string, remember = false) => call("POST", "/api/integrations/garmin/connect/mfa", { mfa_token: mfaToken, mfa_code: mfaCode, remember }, { skipAuthRedirect: true }),
-  // Switch the mechanics engine (v1 standard / v2 sensitive) and recompute.
-  setEngine: (rid: string, mode: "v1" | "v2") => call("POST", `/api/runners/${rid}/engine`, { mode }),
+  // Switch the engine (v1 standard / v2 sensitive / v3 capacity) and recompute.
+  setEngine: (rid: string, mode: "v1" | "v2" | "v3") => call("POST", `/api/runners/${rid}/engine`, { mode }),
   runSegments: (rid: string) => call("GET", `/api/runners/${rid}/run-segments`),
   runSegmentSignificance: (rid: string, n = 3) => call("GET", `/api/runners/${rid}/run-segment-significance?n=${n}`),
 }

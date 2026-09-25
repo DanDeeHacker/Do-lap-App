@@ -39,14 +39,16 @@ def test_simulate_matches_live_engine_load_and_mech(client, db_session):
     checked = 0
     for rid in rids:
         runner = db_session.query(models.Runner).filter(models.Runner.id == rid).first()
-        with E.engine_pinned((runner.engine_mode if runner else None) or "v1"):
+        mode = (runner.engine_mode if runner else None) or "v1"
+        with E.engine_pinned(mode):
             a = E.assess(db_session, rid)
         inp = S.inputs_from_assessment(a, runner)
-        res = S.simulate(inp, prev_quadrant=None)
+        res = S.simulate(inp, prev_quadrant=None, mode="v3" if mode == "v3" else "v1")
 
         # Per-signal parity on the load axis (all load pushes are unconditional
         # when fired, so ids + points must match one-for-one).
-        live_load = {s["id"]: s["pts"] for s in a["signals"] if s["id"] in S._LOAD_SIGNAL_IDS}
+        load_ids = S._LOAD_SIGNAL_IDS | {f"cap_{c}" for c in S.CAP.CHANNELS}
+        live_load = {s["id"]: s["pts"] for s in a["signals"] if s["id"] in load_ids}
         sim_load = {s["id"]: s["pts"] for s in res["signals"] if s["axis"] == "load"}
         assert sim_load == live_load, f"{rid}: load signals differ\nlive={live_load}\nsim={sim_load}"
 
@@ -100,3 +102,28 @@ def test_inputs_endpoint_seeds_from_runner(client, email, password):
     res = client.post("/api/engine/simulate", json={"inputs": payload["inputs"]}).json()
     live = client.get(f"/api/runners/{rid}/assessment").json()
     assert res["load"] == live["load"] and res["mech"] == live["mech"]
+
+
+def test_v3_sandbox_reproduces_the_live_capacity_axis(client, db_session):
+    """Seed the sandbox from a v3 runner and it must reproduce the live load and
+    mechanics axes exactly; lowering readiness must raise the load axis."""
+    from .synth import seed_runs
+    from .conftest import register
+    rid = register(client, "sens3@test.cz", "Sens Three", "runner").json()["runner_id"]
+    seed_runs(db_session, rid, days=100)
+    db_session.add(models.Activity(runner_id=rid, provider="garmin", external_id="big", started_at=E.day_ago(1),
+                                   sport="running", title="Dlouhý", distance_km=21.0, duration_min=130,
+                                   avg_hr=150, surface="road", ascent_m=250, descent_m=250))
+    runner = db_session.query(models.Runner).filter(models.Runner.id == rid).first()
+    runner.engine_mode = "v3"
+    db_session.commit()
+    with E.engine_pinned("v3"):
+        a = E.assess(db_session, rid)
+    inp = S.inputs_from_assessment(a, runner)
+    res = S.simulate(inp, mode="v3")
+    assert res["load"] == a["load"] and res["mech"] == a["mech"] and a["load"] > 0
+    worse = S.simulate({**inp, "v3ready": 0.75}, mode="v3")
+    assert worse["load"] > res["load"]
+    # v1/v2-only knobs don't move the v3 load axis, and vice versa
+    assert S.simulate({**inp, "sessionSpike": 2.5}, mode="v3")["load"] == res["load"]
+    assert S.simulate({**S.DEFAULTS, "v3_volume_s": 2.5}, mode="v1")["load"] == 0

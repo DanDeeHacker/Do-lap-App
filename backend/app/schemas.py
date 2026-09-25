@@ -107,7 +107,7 @@ class GarminAutoSyncRequest(Lenient):
 
 
 class EngineModeRequest(Lenient):
-    mode: str  # "v1" standard | "v2" sensitive
+    mode: str  # "v1" standard | "v2" sensitive | "v3" capacity
 
 
 class SlotBookRequest(Lenient):

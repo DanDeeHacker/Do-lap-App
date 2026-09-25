@@ -5,6 +5,7 @@ import { AxisLineChart, Bars, Card, Chip, Field, InfoDot, Label, Metric, Ring, S
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
 import { clamp, czk, FEEL_LABEL, fmtD, fmtSlot, paceStr, PHASE, QUAD, sgn } from "@/lib"
 import MuscleAnatomy, { PainHeatmap, type BodyPoint } from "@/components/MuscleAnatomy"
+import { CAP_SIGNAL_IDS, CapacityPanel } from "@/capacity"
 
 const surf = (s?: string) => ({ road: "silnice", trail: "terén", treadmill: "pás", track: "dráha" } as any)[s || ""] || s || "—"
 const dayAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10)
@@ -656,7 +657,7 @@ function RunSegments({ rid }: { rid?: string }) {
   const runs: any[] = data.runs || []
   const fmt = (d: string) => new Date(d).toLocaleDateString("cs-CZ", { day: "numeric", month: "short" })
   const sigCol = (p: number) => (p < 0.01 ? "#e77a59" : p < 0.05 ? "#f6d69a" : "#8ba59d")
-  const info = <InfoDot label="Test úseků vůči baseline" text="Každý úsek běhu se porovná s rozložením vašich baseline úseků na stejném terénu (povrch × sklon): z = (hodnota − váš průměr) / vaše SD, dvoustranné p. Významné = |z| ≥ 1,96 (p < 0,05) — úsek se odlišuje nad rámec vaší běžné variability." />
+  const info = <InfoDot label="Test úseků vůči baseline" text="Každý úsek běhu se porovná s tím, co od vás vaše vlastní baseline čeká přesně pro ten úsek — při jeho tempu, sklonu, čase v běhu a povrchu (kontextový model; při malé baseline stejný terén povrch × sklon). z = (hodnota − očekávaná hodnota) / vaše SD, p ze Studentova t-rozdělení podle velikosti baseline. Rychlejší běh tak sám o sobě nevypadá jako změna techniky. Významné = po korekci na počet testů (FDR 5 %)." />
   if (!runs.length)
     return (
       <Card className="mt-4">
@@ -716,7 +717,7 @@ function RunSegments({ rid }: { rid?: string }) {
           )
         })}
       </div>
-      <p className="mt-3 text-[10px] text-[#71837b]">z = odchylka v násobcích vaší (robustní) SD na daném terénu · p = dvoustranná pravděpodobnost · „významné" = po korekci na počet testů (FDR 5 %), ne jen p &lt; 0,05.</p>
+      <p className="mt-3 text-[10px] text-[#71837b]">z = odchylka od hodnoty očekávané při daném tempu a sklonu, v násobcích vaší SD · p = dvoustranná (t-rozdělení) · „významné" = po korekci na počet testů (FDR 5 %), ne jen p &lt; 0,05 · úseky mimo vaši obvyklou rychlost / sklon / povrch se netestují.</p>
     </Card>
   )
 }
@@ -943,6 +944,8 @@ const LOAD_IDS = new Set([
   "session_spike", "spike_latent", "pace_spike", "load_capacity",
   // grade-C ACWR context + the rest of the load axis
   "ewma", "hi_load", "load_creep", "mono", "desc", "desc_steep", "aer", "hrv", "rhr", "hrvcv", "tsb", "taper",
+  // engine v3 — load against the runner's own capacity, per channel
+  ...CAP_SIGNAL_IDS,
 ])
 export function Load() {
   const { me, boot, refresh } = useApp()
@@ -968,6 +971,7 @@ export function Load() {
     ? "Akutní zátěž a související signály se zvedají nad vaši obvyklou úroveň — dobrý čas ubrat a hlídat regeneraci."
     : "Objem, intenzita, monotónnost i regenerace sedí na vaší obvyklé úrovni."
   const loadSig = ((a.signals || []) as any[]).filter((s) => LOAD_IDS.has(s.id))
+  const capVol = a.capacity?.channels?.volume
 
   // Same reconciliation as Pohyb: pin the trend's final point to the live load
   // score + date so the chart end always equals the big number / quadrant.
@@ -1003,12 +1007,16 @@ export function Load() {
                 </div>
               </div>
             )}
-            {L?.safeLongRunKm && (
+            {(capVol?.ceilingToday != null || L?.safeLongRunKm) && (
               <div className="mt-4 flex items-center gap-2 rounded-xl bg-white/[.04] px-3 py-2.5">
                 <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-[#17382f] text-[#6ce6d3]">⤢</span>
                 <p className="text-[11px] leading-4 text-[#a9c2b9]">
-                  Bezpečný nejdelší běh: <b className="text-[#f1f8f1]">≈ {L.safeLongRunKm} km</b>
-                  <span className="block text-[10px] text-[#71837b]">≈ +10 % nad váš nejdelší běh 30 dní · nad +100 % prudce roste riziko</span>
+                  Bezpečný nejdelší běh dnes: <b className="text-[#f1f8f1]">≈ {(capVol?.ceilingToday ?? L.safeLongRunKm).toLocaleString("cs-CZ")} km</b>
+                  <span className="block text-[10px] text-[#71837b]">
+                    {capVol?.ceilingToday != null
+                      ? "vaše prokázaná kapacita + 10 %, snížená podle dnešní připravenosti"
+                      : "≈ +10 % nad váš nejdelší běh 30 dní · nad +100 % prudce roste riziko"}
+                  </span>
                 </p>
               </div>
             )}
@@ -1034,6 +1042,7 @@ export function Load() {
         </div>
       </section>
 
+      {a.capacity && <CapacityPanel cap={a.capacity} />}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Metric warm label="Zátěž 7 dní" value={`${L.acute}`} caption={`chronicky ${L.chronic} · j.z./týden`} info={MI.acute7} />
         <Metric label="Poměr 7:28" value={L.valid ? `×${L.ratio}` : "—"} caption={L.valid ? "vč. jiného sportu" : "zatím málo dat"} info={MI.ratio728} />

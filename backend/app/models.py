@@ -79,7 +79,8 @@ class Runner(Base):
     physio_interest = Column(Boolean, default=False)
     physio_interest_at = Column(String)
     # Which mechanics engine scores this runner: "v1" standard (averaged) or
-    # "v2" sensitive (per-run, robust noise scale). Toggled in the app.
+    # "v2" sensitive (per-run, robust noise scale) or "v3" capacity (v2 mechanics +
+    # load scored against the runner's own capacity). Toggled in the app.
     engine_mode = Column(String, default="v1")
 
 

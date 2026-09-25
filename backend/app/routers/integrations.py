@@ -492,7 +492,12 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
     keeps the HTTP request from timing out) and reports `remaining` so the caller
     can loop until the whole window is backfilled. Idempotent: already-fetched
     activities are skipped, so repeated calls progressively fill the history.
-    Per-activity errors are isolated."""
+    Rows segmented by an older segmenter (quality_json.segVersion below
+    segmentation.SEG_VERSION) are re-fetched and overwritten in place, so every
+    run is scored by the same code. Streams that fail Stage-S1 quality control
+    (too little running / poor coverage) keep their elevation profile but get no
+    segments, so they never reach mechanics scoring. Per-activity errors are
+    isolated."""
     from ..metrics import segmentation, stream_qc
     if retry_failed:
         # Drop failure tombstones (no segments + quality.failed) so they're retried.
@@ -509,15 +514,22 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
                 models.Activity.started_at > cut, models.Activity.sport == "running")
         .order_by(models.Activity.started_at.asc()).all()  # oldest first → baseline fills first
     )
-    have = {row[0] for row in db.query(models.ActivityStream.activity_id)
+    rows = {st.activity_id: st for st in db.query(models.ActivityStream)
             .filter(models.ActivityStream.runner_id == rid).all()}
-    todo = [a for a in activities if a.id not in have]
-    fetched = stored = failed = 0
+
+    def current(st):
+        q = st.quality_json or {}
+        return bool(q.get("failed")) or (q.get("segVersion") or 1) >= segmentation.SEG_VERSION
+
+    todo = [a for a in activities if a.id not in rows or not current(rows[a.id])]
+    have_before = len(activities) - len(todo)
+    fetched = stored = failed = rejected = 0
     stalled = False
     for a in todo[:cap]:
+        old = rows.get(a.id)
         try:
             res = stream_qc.process(garmin_live.fetch_details(garmin, a.external_id))
-            segs = segmentation.segment(res.get("records") or [], surface=a.surface)
+            segs = segmentation.segment(res.get("records") or [], surface=a.surface) if res.get("accepted") else []
             fetched += 1
         except Exception as e:  # noqa: BLE001
             msg = str(e).lower()
@@ -526,10 +538,16 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
                 # these retry later; the caller shows "try again shortly".
                 stalled = True
                 break
+            failed += 1
+            if old is not None:
+                # A stale row whose refresh failed keeps its previous segments;
+                # stamp it current so the backfill doesn't retry it forever.
+                old.quality_json = {**(old.quality_json or {}), "segVersion": segmentation.SEG_VERSION,
+                                    "refreshFailed": str(e)[:200]}
+                continue
             # A specific activity has no usable detail (manual entry, odd type,
             # deleted stream…). Tombstone it (segments_json NULL) so the backfill
             # advances instead of retrying the same run forever.
-            failed += 1
             db.add(models.ActivityStream(
                 activity_id=a.id, runner_id=rid, external_id=a.external_id,
                 elevation_profile=None, quality_json={"failed": True, "error": str(e)[:200]},
@@ -537,21 +555,29 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
             ))
             continue
         prof = res.get("elevation_profile") or None
-        db.add(models.ActivityStream(
-            activity_id=a.id, runner_id=rid, external_id=a.external_id,
-            elevation_profile=prof, quality_json=res.get("quality"),
-            segments_json=segs or None, gps=bool(res.get("gps")), created_at=E.now_iso(),
-        ))
+        quality = {**(res.get("quality") or {}), "accepted": bool(res.get("accepted")),
+                   "segVersion": segmentation.SEG_VERSION}
+        if not res.get("accepted"):
+            rejected += 1
+        st = old or models.ActivityStream(activity_id=a.id, runner_id=rid)
+        st.external_id = a.external_id
+        st.elevation_profile = prof
+        st.quality_json = quality
+        st.segments_json = segs or None
+        st.gps = bool(res.get("gps"))
+        st.created_at = E.now_iso()
+        if old is None:
+            db.add(st)
         if prof and not a.elevation_profile:
             a.elevation_profile = prof
         stored += 1
     db.commit()
     if stored:
         E.recompute_assessment(db, rid)
-    processed = stored + failed  # tombstoned + stored are consumed from `todo`
-    return {"fetched": fetched, "stored": stored, "failed": failed, "stalled": stalled,
+    processed = stored + failed  # tombstoned / refreshed / stored are consumed from `todo`
+    return {"fetched": fetched, "stored": stored, "failed": failed, "rejected": rejected, "stalled": stalled,
             "remaining": max(0, len(todo) - processed), "total": len(activities),
-            "have": len(have) + processed}
+            "have": have_before + processed}
 
 
 @router.post("/garmin/terrain", dependencies=[Depends(verify_csrf)])
@@ -597,6 +623,8 @@ def garmin_terrain(user: models.User = Depends(require_role("runner")),
     eng_surface = geo_sample.to_engine_surface(result)
     if eng_surface:
         newest.surface = eng_surface
+        if st.segments_json:  # keep the stored segments in step with the refined surface
+            st.segments_json = [{**sg, "surface": eng_surface} for sg in st.segments_json]
     db.commit()
     E.recompute_assessment(db, rid)
     return {"ok": True, "activity": {"title": newest.title, "date": newest.started_at},

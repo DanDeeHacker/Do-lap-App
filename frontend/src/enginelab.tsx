@@ -14,7 +14,9 @@ type Knob = {
   id: string; axis: string; label: string; grade: string; kind?: string
   unit?: string; min?: number; max?: number; step?: number; default: any
   thr?: number | null; dir?: string; desc: string
+  engine?: "v12" | "v3"; hidden?: boolean
 }
+type Mode = "v1" | "v3"
 type Spec = {
   knobs: Knob[]; defaults: Record<string, any>
   axes: { id: string; label: string; color: string }[]
@@ -46,6 +48,10 @@ const SIG_BY_KNOB: Record<string, string> = {
   soreness: "sore", stress: "fatigue", sleepDebt: "sleep", sleepRegRatio: "sleepreg", sleepEff: "sleepeff",
   feelingTrend: "feel", stiffnessIgnore: "stiffness", injurySeverity: "injury", complaintDays: "complaints",
   priorInjuryMonths: "hist",
+  // engine v3 — both the per-run and the 7-day ratio drive one channel signal
+  v3_volume_s: "cap_volume", v3_volume_w: "cap_volume", v3_intensity_s: "cap_intensity", v3_intensity_w: "cap_intensity",
+  v3_descent_s: "cap_descent", v3_descent_w: "cap_descent", v3_ascent_s: "cap_ascent", v3_ascent_w: "cap_ascent",
+  v3_systemic_s: "cap_systemic", v3_systemic_w: "cap_systemic",
 }
 // signals that come from an interaction / gate, shown as read-only derived rows.
 const DERIVED_LABEL: Record<string, string> = { load_capacity: "Zátěž × regenerace (interakce)" }
@@ -272,12 +278,17 @@ function SweepChart({ sweep }: { sweep: Sweep }) {
 }
 
 export function EngineLab() {
-  const { me } = useApp()
+  const { me, boot } = useApp()
   const rid = me?.runner_id
+  const isV3 = (boot?.assessment?.engineMode || boot?.runner?.engine_mode) === "v3"
+  // Which engine's load axis the sandbox models — follows the runner's engine,
+  // switchable to compare.
+  const [mode, setMode] = useState<Mode>(isV3 ? "v3" : "v1")
   const [spec, setSpec] = useState<Spec | null>(null)
   const [inputs, setInputs] = useState<Record<string, any>>({})
   const [prev, setPrev] = useState<string>("stable")
-  const [sel, setSel] = useState<string>("sessionSpike")
+  const [sel, setSel] = useState<string>(isV3 ? "v3_volume_s" : "sessionSpike")
+  useEffect(() => { setMode(isV3 ? "v3" : "v1"); setSel(isV3 ? "v3_volume_s" : "sessionSpike") }, [isV3])
   const [res, setRes] = useState<SimResult | null>(null)
   const [sweep, setSweep] = useState<Sweep | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -293,13 +304,13 @@ export function EngineLab() {
     return () => { alive = false }
   }, [])
 
-  const key = useMemo(() => JSON.stringify(inputs) + "|" + prev, [inputs, prev])
+  const key = useMemo(() => JSON.stringify(inputs) + "|" + prev + "|" + mode, [inputs, prev, mode])
   const dKey = useDebounced(key, 80)
   useEffect(() => {
     if (!spec || !Object.keys(inputs).length) return
     let alive = true
-    api.engineSimulate(inputs, prev).then((r: SimResult) => alive && (setRes(r), setErr(null))).catch(() => alive && setErr("Výpočet selhal."))
-    api.engineSweep(inputs, sel, prev, 49).then((s: Sweep) => alive && setSweep(s)).catch(() => {})
+    api.engineSimulate(inputs, prev, mode).then((r: SimResult) => alive && (setRes(r), setErr(null))).catch(() => alive && setErr("Výpočet selhal."))
+    api.engineSweep(inputs, sel, prev, 49, mode).then((s: Sweep) => alive && setSweep(s)).catch(() => {})
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dKey, sel, spec])
@@ -312,6 +323,10 @@ export function EngineLab() {
       const d = await api.engineInputs(rid)
       setInputs({ ...spec!.defaults, ...d.inputs })
       if (d.prevQuadrant) setPrev(d.prevQuadrant)
+      if (d.mode === "v3" || d.mode === "v1") {
+        setMode(d.mode)
+        setSel(d.mode === "v3" ? "v3_volume_s" : "sessionSpike")
+      }
       setSeeded(true)
     } catch { setErr("Nepodařilo se načíst vaše hodnoty.") }
   }
@@ -326,7 +341,8 @@ export function EngineLab() {
 
   if (!spec) return <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-[#71837b]">{err || "Načítám engine…"}</div>
 
-  const byAxis = (ax: string) => spec.knobs.filter((k) => k.axis === ax)
+  const visible = (k: Knob) => !k.hidden && (!k.engine || (mode === "v3" ? k.engine === "v3" : k.engine === "v12"))
+  const byAxis = (ax: string) => spec.knobs.filter((k) => k.axis === ax && visible(k))
   const axisScore = (ax: string) => (ax === "load" ? res?.load : ax === "mech" ? res?.mech : res?.symp) ?? 0
   const quad = res ? QUAD[res.quadrant] || QUAD.stable : QUAD.stable
 
@@ -343,6 +359,18 @@ export function EngineLab() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-full border border-white/15 p-0.5 text-[11px] font-bold">
+            {([["v1", "Standardní / Citlivý"], ["v3", "Kapacitní"]] as [Mode, string][]).map(([m, l]) => (
+              <button key={m} onClick={() => {
+                setMode(m)
+                const k = spec.knobs.find((x) => x.id === sel)
+                if (k && k.engine && k.engine !== (m === "v3" ? "v3" : "v12")) setSel(m === "v3" ? "v3_volume_s" : "sessionSpike")
+              }}
+                className={`rounded-full px-3 py-1.5 transition ${mode === m ? "bg-[#c7ff54] text-[#071313]" : "text-[#a9c2b9] hover:text-[#f1f8f1]"}`}>
+                {l}
+              </button>
+            ))}
+          </div>
           {rid && (
             <button onClick={loadMine} className={`rounded-full px-4 py-2 text-xs font-bold transition ${seeded ? "bg-[#c7ff54] text-[#071313]" : "border border-[#c7ff54]/50 text-[#c7ff54] hover:bg-[#c7ff54]/10"}`}>
               Načíst moje data

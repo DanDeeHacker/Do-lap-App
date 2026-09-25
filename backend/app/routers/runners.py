@@ -40,12 +40,13 @@ ALLOWED_PROFILE_PATCH = {
 @router.post("/{rid}/engine", dependencies=[Depends(verify_csrf)])
 def set_engine(rid: str, body: schemas.EngineModeRequest,
                user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
-    """Switch the runner's mechanics engine: "v1" standard (averaged) or "v2"
-    sensitive (per-run, robust noise scale). Recomputes the assessment right
-    away so the change is visible immediately."""
+    """Switch the runner's engine: "v1" standard (averaged), "v2" sensitive
+    (per-run, calibrated mechanics) or "v3" capacity (v2 mechanics + the load
+    axis scored against the runner's own demonstrated capacity; unlocks the
+    Trénink tab). Recomputes the assessment right away so the change is visible."""
     ensure_runner_self(user, rid)
     r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
-    mode = body.mode if body.mode in ("v1", "v2") else "v1"
+    mode = body.mode if body.mode in ("v1", "v2", "v3") else "v1"
     r.engine_mode = mode
     db.commit()
     a = E.recompute_assessment(db, rid)
@@ -201,12 +202,21 @@ def _engine_replay(db: DBSession, rid: str, asofs):
     def kd(v):  # date key from an ISO date or datetime string
         return (v or "")[:10]
 
+    # Stored per-run streams (segments) enter on their activity's day. Without them
+    # the replay never saw v2 segment scoring, so a v2 runner's history (and its
+    # "today" point) silently fell back to per-run drift and disagreed with live.
+    act_day = {a["id"]: kd(a["started_at"]) for a in acts}
+    stream_rows = [s for s in rows_of(models.ActivityStream) if s["activity_id"] in act_day]
+
     # (rows sorted by date, date-key fn, model, keep original id?). Activity keeps
-    # its id so ActivityFeedback.activity_id still resolves. DeviceHistory feeds the
-    # confidence device-change gate; check-ins/ratings/injuries feed the symptom axis
-    # and (in v2) the pain-period baseline exclusions.
+    # its id so ActivityFeedback.activity_id and ActivityStream.activity_id still
+    # resolve. DeviceHistory feeds the confidence device-change gate; check-ins/
+    # ratings/injuries feed the symptom axis and (in v2) the pain-period baseline
+    # exclusions.
     streams = [
         (sorted(acts, key=lambda a: a["started_at"]), lambda a: kd(a["started_at"]), models.Activity, True),
+        (sorted(stream_rows, key=lambda s: act_day[s["activity_id"]]), lambda s: act_day[s["activity_id"]],
+         models.ActivityStream, True),
         (sorted(rows_of(models.DailyMetric), key=lambda d: d["date"]), lambda d: kd(d["date"]), models.DailyMetric, False),
         (sorted(rows_of(models.DeviceHistory), key=lambda x: x.get("recorded_at") or ""), lambda x: kd(x.get("recorded_at")), models.DeviceHistory, False),
         (sorted(rows_of(models.Checkin), key=lambda x: x.get("submitted_at") or ""), lambda x: kd(x.get("submitted_at")), models.Checkin, False),
@@ -255,7 +265,7 @@ def _engine_replay(db: DBSession, rid: str, asofs):
 # Bump when the history *shape/window* logic changes (not the engine version) so
 # a deploy invalidates same-day cache rows written by the previous code — the
 # cache key otherwise only turns over on a data change or a new day.
-_HISTORY_VERSION = "h2"
+_HISTORY_VERSION = "h3"
 
 
 def _cached_history(db: DBSession, rid: str, kind: str, builder):

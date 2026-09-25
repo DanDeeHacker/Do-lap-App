@@ -9,6 +9,7 @@ clinician-facing summary repeats verbatim.
 """
 import math
 import threading
+from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
@@ -20,7 +21,11 @@ from . import terrain
 from .. import models
 from ..serializers import to_dict
 
-ENGINE_VERSION = "v0.6.1"
+# v0.7.0 — per-run drift adjusted to the runner's own pace sensitivity (both
+# engines); v2: calibrated noise scale/EWMA, one-sided grouped flags, standardised
+# segment drift. The version is part of the stored assessment, so bumping it makes
+# every runner's cached score recompute on the next read.
+ENGINE_VERSION = "v0.7.0"
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -58,6 +63,74 @@ def mad_sd(a):
         return 0
     m = median(a)
     return 1.4826 * median([abs(x - m) for x in a])
+
+
+def inlier_mean_sd(a, k=5.0):
+    """(mean, SD, n) after dropping gross artefacts — points more than `k` robust
+    SDs from the median (only with ≥ 10 points). Efficient like the plain SD when
+    the data are clean (MAD alone is a noisy, often too-small scale on small
+    samples, which inflated z-scores), yet one wild sensor value can't blow the
+    scale up. k = 5 keeps a 95 % prediction test at ~5 % false positives on clean
+    data; tighter trimming made it anti-conservative."""
+    a = list(a)
+    if len(a) < 10:
+        # Too few points to tell an outlier from ordinary spread — the MAD itself
+        # is unstable here, and trimming would shrink the SD (anti-conservative).
+        return (mean(a), sd(a), len(a))
+    m, r = median(a), mad_sd(a)
+    keep = [x for x in a if abs(x - m) <= k * r] if r > 0 else a
+    if len(keep) < 2:
+        keep = a
+    return (mean(keep), sd(keep), len(keep))
+
+
+def _betacf(a, b, x):
+    """Continued fraction for the regularised incomplete beta (Numerical Recipes)."""
+    fpmin = 1e-300
+    qab, qap, qam = a + b, a + 1.0, a - 1.0
+    c, d = 1.0, 1.0 - qab * x / qap
+    d = 1.0 / (d if abs(d) > fpmin else fpmin)
+    h = d
+    for m in range(1, 300):
+        m2 = 2 * m
+        aa = m * (b - m) * x / ((qam + m2) * (a + m2))
+        d = 1.0 + aa * d
+        d = 1.0 / (d if abs(d) > fpmin else fpmin)
+        c = 1.0 + aa / c
+        c = c if abs(c) > fpmin else fpmin
+        h *= d * c
+        aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2))
+        d = 1.0 + aa * d
+        d = 1.0 / (d if abs(d) > fpmin else fpmin)
+        c = 1.0 + aa / c
+        c = c if abs(c) > fpmin else fpmin
+        de = d * c
+        h *= de
+        if abs(de - 1.0) < 3e-14:
+            break
+    return h
+
+
+def _betai(a, b, x):
+    if x <= 0:
+        return 0.0
+    if x >= 1:
+        return 1.0
+    bt = math.exp(math.lgamma(a + b) - math.lgamma(a) - math.lgamma(b) + a * math.log(x) + b * math.log(1 - x))
+    if x < (a + 1) / (a + b + 2):
+        return bt * _betacf(a, b, x) / a
+    return 1.0 - bt * _betacf(b, a, 1 - x) / b
+
+
+def t_two_sided_p(t, df):
+    """Two-sided p-value of Student's t with `df` degrees of freedom. With a
+    baseline of only a handful of segments the normal p is far too small (a
+    95 % test fired ~23 % of the time at n = 5)."""
+    if df is None or df < 1:
+        return 1.0
+    if df > 1000:
+        return math.erfc(abs(t) / math.sqrt(2))
+    return clamp(_betai(df / 2.0, 0.5, df / (df + t * t)), 0.0, 1.0)
 
 
 def slope(a):
@@ -161,8 +234,24 @@ def engine_pinned(mode: str):
         _engine_ctx.excl = prev_e
 
 
+def _sensitive() -> bool:
+    """v2 AND v3 use the sensitive (per-run, calibrated) mechanics engine; v3 adds
+    the capacity-based load axis on top."""
+    return _emode() in ("v2", "v3")
+
+
+# v1 → "v0.7.0", v2 → "v0.7.0-s" (citlivý), v3 → "v0.7.0-c" (kapacitní). The suffix
+# is how a stored assessment row remembers which engine produced it.
+_MODE_SUFFIX = {"v2": "-s", "v3": "-c"}
+
+
 def engine_version_for(mode: str) -> str:
-    return ENGINE_VERSION + ("-s" if mode == "v2" else "")
+    return ENGINE_VERSION + _MODE_SUFFIX.get(mode, "")
+
+
+def mode_of_version(version: str) -> str:
+    v = version or ""
+    return next((m for m, suf in _MODE_SUFFIX.items() if v.endswith(suf)), "v1")
 
 
 def iso_date(d):
@@ -308,47 +397,130 @@ def daily(db: DBSession, rid: str, n: int):
 
 
 # ---------------------------------------------------------------- drift-z core
-_V2_HALFLIFE = 10.0     # days — recency half-life for the v2 recent aggregate [Calibrate]
-_V2_EWMA_LAMBDA = 0.3   # EWMA weight on the newest session (spec S7) [Calibrate]
-_V2_EWMA_L = 2.5        # control-limit width in σ_DI (spec S7) [Calibrate]
+# Calibrated by Monte Carlo on synthetic runners through this exact code (no real
+# change, normal and heavy-tailed run-to-run noise, ~4 runs/week): λ = 0.15 puts
+# the chance that a metric shows as a signal (z ≥ 0.6) with NO real change at
+# ≈ 5 % (λ = 0.3 gave ≈ 10–12 %, v1 ≈ 3.5 %), while still catching a +1 SD shift
+# in the last 5 days ~3× as often as v1 (33 % vs 12 %) and over 14 days 67 % vs
+# 42 %. L = 2.75 puts the "⚑ mechanika přetrvává" flag at ≈ 5 % with no change
+# (was ≈ 28 % before the σ / direction / grouping fixes).
+_V2_EWMA_LAMBDA = 0.15  # EWMA weight on the newest session (spec S7 said 0.3) [Calibrated]
+_V2_EWMA_L = 2.75       # control-limit width in EWMA standard errors [Calibrated]
 _V2_DELTA = 0.5         # "possible deviation" threshold, typical-error units [Calibrate]
 _V2_CLEAR = 1.0         # "clear deviation" threshold, typical-error units [Calibrate]
 
 
-def _ewma_flag(dis):
+# Direction in which each mechanics metric drifts toward risk (+1 = rising is
+# bad, −1 = falling is bad). The v2 flags are one-sided: an improvement (e.g. a
+# cadence increase from gait retraining) must never raise a warning chip, just as
+# it never adds score points. Stride/step length is judged at matched pace, where
+# a longer step = a lower cadence (overstriding).
+_BAD_SIGN = {
+    "vert_ratio_pct": 1, "vratio_pct": 1, "gct_adj": 1, "gct_ms": 1, "vert_osc_cm": 1, "vo_cm": 1,
+    "cadence_spm": -1, "stride_len_m": 1, "step_len_m": 1, "duty": 1,
+}
+
+
+def _ewma_flag(dis, bad=1):
     """Across-session EWMA control chart over a per-session drift-index series
-    (oldest→newest, in typical-error units). Returns the smoothed drift `z` plus
-    the persistence/convergence label fields, or None if the series is empty.
-    Shared by the per-run drift core and the Phase-5 segment path."""
+    (oldest→newest, in the runner's own typical-error units). Returns the smoothed
+    drift `z` plus the persistence/convergence label fields, or None if the series
+    is empty. Shared by the per-run drift core and the Phase-5 segment path.
+
+    The drift indices are already standardised by the runner's BASELINE noise, so
+    the in-control σ is 1 by construction; the control limit uses the exact
+    (time-varying) EWMA standard error for n sessions. It used to be scaled by the
+    recent sessions' own spread, which made a trivially small but consistent
+    deviation (DIs 0.05, 0.06, 0.05 …) look "beyond" the limits. All labels are
+    one-sided in the metric's risk direction `bad`."""
     if not dis:
         return None
+    lam = _V2_EWMA_LAMBDA
     e = 0.0
     for d in dis:
-        e = _V2_EWMA_LAMBDA * d + (1 - _V2_EWMA_LAMBDA) * e
-    sigma = mad_sd(dis) or sd(dis) or 1.0
-    ctrl = _V2_EWMA_L * sigma * math.sqrt(_V2_EWMA_LAMBDA / (2 - _V2_EWMA_LAMBDA))
+        e = lam * d + (1 - lam) * e
+    n = len(dis)
+    se = math.sqrt(lam / (2 - lam) * (1 - (1 - lam) ** (2 * n)))
+    ctrl = _V2_EWMA_L * se
+    eb = e * bad  # deviation measured in the risk direction
     last3 = dis[-3:]
-    dom = 1 if sum(x > 0 for x in last3) >= 2 else (-1 if sum(x < 0 for x in last3) >= 2 else 0)
     return {
-        "z": r2(e), "ewma": r2(e), "latest": r2(dis[-1]), "ctrl": r2(ctrl), "nSessions": len(dis),
-        "beyond": abs(e) > ctrl,
-        "persist": dom != 0 and e * dom > 0,
-        "state": "clear" if abs(e) >= _V2_CLEAR else ("possible" if abs(e) >= _V2_DELTA else "usual"),
+        "z": r2(e), "ewma": r2(e), "latest": r2(dis[-1]), "ctrl": r2(ctrl), "se": r2(se), "nSessions": n,
+        "beyond": eb > ctrl,
+        "persist": eb > 0 and sum(1 for x in last3 if x * bad > 0) >= 2,
+        "state": "clear" if eb >= _V2_CLEAR else ("possible" if eb >= _V2_DELTA else "usual"),
+        "improving": eb <= -_V2_DELTA,
     }
+
+
+def _speed_ms(a):
+    km, mn = getattr(a, "distance_km", None) or 0, getattr(a, "duration_min", None) or 0
+    return km * 1000.0 / (mn * 60.0) if km > 0 and mn > 0 else None
+
+
+_PACE_MIN_RUNS = 8        # baseline runs needed to estimate the pace slope
+_PACE_MIN_SPREAD = 0.15   # m/s — within-bucket speed spread (10–90 %) needed to estimate it [Calibrate]
+_PACE_EXTRAP = 0.2        # m/s — how far past the baseline's speed range we extrapolate
+
+
+def _pace_slope(base, field) -> float:
+    """The runner's own sensitivity of `field` to running speed (units per m/s).
+
+    Cadence, step length, ground contact, oscillation and vertical ratio all
+    change with speed, and a terrain bucket spans a wide pace range (everything
+    slower than 5:30/km is "volně"). Without this, easy runs done 15–25 s/km
+    slower (heat, fatigue, simply running easier) read as mechanical drift and
+    could push the runner into "silent drift" → a physio referral.
+
+    Estimated WITHIN terrain buckets (each bucket centred on its own medians, so
+    the bucket split itself can't create a slope) with Theil–Sen (median of
+    pairwise slopes — robust to odd runs). 0 when the baseline has too few runs
+    or too little speed variation to tell."""
+    by = {}
+    for a in base:
+        v, sp = getattr(a, field), _speed_ms(a)
+        if v is not None and sp is not None:
+            by.setdefault(bucket(a), []).append((sp, v))
+    pts = []
+    for rows in by.values():
+        if len(rows) < 3:
+            continue
+        ms, mv = median([r[0] for r in rows]), median([r[1] for r in rows])
+        pts += [(sp - ms, v - mv) for sp, v in rows]
+    if len(pts) < _PACE_MIN_RUNS:
+        return 0.0
+    xs = sorted(p_[0] for p_ in pts)
+    if xs[int(0.9 * (len(xs) - 1))] - xs[int(0.1 * (len(xs) - 1))] < _PACE_MIN_SPREAD:
+        return 0.0
+    slopes = [(v2 - v1) / (s2 - s1) for i, (s1, v1) in enumerate(pts) for (s2, v2) in pts[i + 1:]
+              if abs(s2 - s1) >= 0.03]
+    return median(slopes) if len(slopes) >= 10 else 0.0
 
 
 def _drift_z_core(A, field, recent_days):
     """Per-terrain-bucket drift of `field`: recent vs the runner's own baseline.
 
     v1 (standard): recent value = flat mean over the whole recent window, noise
-    scale = baseline SD. A small change gets averaged away by older recent runs
-    and the SD is inflated by outliers, so only a large shift crosses.
+    scale = baseline SD. A small change gets averaged away by older recent runs,
+    so only a large or long-lasting shift crosses.
 
-    v2 (sensitive): recent value = recency-weighted mean (10-day half-life) so a
-    fresh change dominates instead of being diluted; noise scale = robust MAD so
-    a genuinely small-but-consistent shift still clears; baseline excludes pain
-    periods so the norm doesn't quietly absorb the drift. Same output shape."""
-    v2 = _emode() == "v2"
+    v2 (sensitive): every recent run in a familiar terrain bucket becomes a drift
+    index DI = (value − bucket median) / σ in the runner's own typical-error units,
+    and the headline `z` is the across-session EWMA of those DIs (newest session
+    weighted λ) — a fresh change dominates instead of being diluted, while one odd
+    run is damped. σ is the bucket's outlier-trimmed SD, inflated for how well
+    the baseline median itself is known (√(1 + π/2n)), so a DI is ~N(0, 1) when
+    nothing changed (the earlier MAD-with-a-0.5·SD-floor scale was too small on
+    small buckets and inflated z). The per-bucket `detail` and `baseMean`/
+    `recMean` use the same EWMA session weights, so they decompose the headline
+    z exactly and can't contradict its sign. The baseline excludes pain periods
+    so the norm doesn't quietly absorb the drift. Same output shape.
+
+    Both: values are first adjusted to the runner's typical baseline speed using
+    their own speed sensitivity (_pace_slope), so a slower/faster pace inside a
+    terrain bucket isn't mistaken for a change in form. `baseMean`/`recMean` and
+    the per-bucket detail are in those pace-adjusted units; `series` stays raw."""
+    v2 = _sensitive()
     lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
     base = [a for a in A if a.started_at <= hi and a.started_at > lo and getattr(a, field) is not None]
     if v2:
@@ -361,32 +533,37 @@ def _drift_z_core(A, field, recent_days):
     rec = [a for a in A if a.started_at > rec_cut and getattr(a, field) is not None]
     if len(base) < 6 or len(rec) < 3:
         return None
+    pslope = _pace_slope(base, field)
+    base_sp = [sp for sp in (_speed_ms(a) for a in base) if sp is not None]
+    ref_sp = median(base_sp) if base_sp else 0.0
+    sp_lo = (min(base_sp) - _PACE_EXTRAP) if base_sp else 0.0
+    sp_hi = (max(base_sp) + _PACE_EXTRAP) if base_sp else 0.0
+
+    def val(a):
+        """`field` at the runner's typical baseline speed."""
+        v = getattr(a, field)
+        sp = _speed_ms(a) if pslope else None
+        return v if sp is None else v - pslope * (clamp(sp, sp_lo, sp_hi) - ref_sp)
     by_b: dict[str, list[float]] = {}
-    rec_b: dict[str, list] = {}
     for a in base:
-        by_b.setdefault(bucket(a), []).append(getattr(a, field))
+        by_b.setdefault(bucket(a), []).append(val(a))
+    series = [getattr(a, field) for a in A if getattr(a, field) is not None][-26:]
+    pace_out = {"paceSlope": round(pslope, 4), "paceAdjusted": bool(pslope)}
+    if v2:
+        return _drift_v2(field, rec, by_b, val, series, pace_out)
+    rec_b: dict[str, list] = {}
     for a in rec:
         rec_b.setdefault(bucket(a), []).append(a)
-    today_iso = iso_date(today_date())
     num, den, n_scored = 0.0, 0.0, 0
     detail = []
     for b, recs in rec_b.items():
         bv = by_b.get(b)
         if not bv or len(bv) < 3:
             continue
-        recvals = [getattr(a, field) for a in recs]
-        if v2:
-            center = median(bv)
-            s = max(mad_sd(bv), sd(bv) * 0.5, abs(center) * 0.012)
-            ws = [0.5 ** (max(0, days_between(a.started_at, today_iso)) / _V2_HALFLIFE) for a in recs]
-            wsum = sum(ws) or 1.0
-            now_val = sum(w * v for w, v in zip(ws, recvals)) / wsum
-            weight = wsum  # recency mass — a bucket with a very recent run gets more say
-        else:
-            center = mean(bv)
-            s = max(sd(bv), abs(center) * 0.012)
-            now_val = mean(recvals)
-            weight = len(recs)
+        recvals = [val(a) for a in recs]
+        center = mean(bv)
+        s = max(sd(bv), abs(center) * 0.012)
+        now_val = mean(recvals)
         # Clamp per-bucket z so one degenerate bucket (near-constant baseline, or
         # an outlier/mislabelled run-walk) can't dominate the weighted drift.
         z = clamp((now_val - center) / s, -4, 4) if s else 0
@@ -394,41 +571,59 @@ def _drift_z_core(A, field, recent_days):
             "bucket": b, "label": bucket_label(b), "z": r2(z),
             "base": r2(center), "now": r2(now_val), "nBase": len(bv), "nNow": len(recs),
         })
-        num += z * weight
-        den += weight
+        num += z * len(recs)
+        den += len(recs)
         n_scored += len(recs)
     if not den:
         return None
     detail.sort(key=lambda d: -d["z"])
-    series = [getattr(a, field) for a in A if getattr(a, field) is not None][-26:]
-    base_center = median if v2 else mean
-    out = {
+    return {
         "z": r2(num / den), "buckets": len(detail), "nRecent": n_scored, "detail": detail,
-        "baseMean": r2(base_center([getattr(a, field) for a in base])),
-        "recMean": r2(mean([getattr(a, field) for a in rec])),
-        "series": series,
+        "baseMean": r2(mean([val(a) for a in base])),
+        "recMean": r2(mean([val(a) for a in rec])),
+        "series": series, **pace_out,
     }
-    if v2:
-        # --- Phase 2: across-session EWMA + persistence/convergence -----------
-        # Build a per-session drift index (oldest→newest) in the runner's own
-        # typical-error units, only for sessions in a familiar terrain bucket
-        # (domain-of-applicability — unfamiliar conditions are "not scored").
-        base_stats = {}
-        for b, bv in by_b.items():
-            if len(bv) < 3:
-                continue
-            c = median(bv)
-            base_stats[b] = (c, max(mad_sd(bv), sd(bv) * 0.5, abs(c) * 0.012))
-        dis = []
-        for a in sorted(rec, key=lambda a: a.started_at):
-            st = base_stats.get(bucket(a))
-            if not st or not st[1]:
-                continue
-            dis.append(clamp((getattr(a, field) - st[0]) / st[1], -4, 4))
-        flag = _ewma_flag(dis)
-        if flag:
-            out.update(flag)
-    return out
+
+
+def _drift_v2(field, rec, by_b, val, series, pace_out):
+    """v2 body of _drift_z_core (see its docstring): per-session drift indices →
+    EWMA, with the bucket detail and means built from the same session weights."""
+    stats = {}
+    for b, bv in by_b.items():
+        if len(bv) < 3:
+            continue
+        _m, s_, _n = inlier_mean_sd(bv)
+        c = median(bv)
+        stats[b] = (c, max(s_, abs(c) * 0.012) * math.sqrt(1 + (math.pi / 2) / len(bv)), len(bv))
+    # Domain of applicability: only sessions in a familiar terrain bucket are scored.
+    sess = [(a, bucket(a)) for a in sorted(rec, key=lambda a: a.started_at) if bucket(a) in stats]
+    if not sess:
+        return None
+    dis = [clamp((val(a) - stats[b][0]) / stats[b][1], -4, 4) for a, b in sess]
+    flag = _ewma_flag(dis, _BAD_SIGN.get(field, 1))
+    lam, n = _V2_EWMA_LAMBDA, len(dis)
+    w = [lam * (1 - lam) ** (n - 1 - i) for i in range(n)]  # each session's weight in the final EWMA
+    wsum = sum(w)
+    per_b: dict[str, list] = {}
+    for (a, b), wi, di in zip(sess, w, dis):
+        per_b.setdefault(b, []).append((wi, di, val(a)))
+    detail = []
+    for b, items in per_b.items():
+        wb = sum(x[0] for x in items)
+        detail.append({
+            "bucket": b, "label": bucket_label(b), "z": r2(sum(x[0] * x[1] for x in items) / wb),
+            # Σ weight × z over buckets == the headline EWMA z (up to rounding)
+            "weight": round(wb, 4), "base": r2(stats[b][0]),
+            "now": r2(sum(x[0] * x[2] for x in items) / wb), "nBase": stats[b][2], "nNow": len(items),
+        })
+    detail.sort(key=lambda d: -d["z"])
+    return {
+        **flag, "buckets": len(detail), "nRecent": n, "detail": detail,
+        # EWMA-weighted, so recMean − baseMean has the sign of the headline z.
+        "baseMean": r2(sum(wi * stats[b][0] for (a, b), wi in zip(sess, w)) / wsum),
+        "recMean": r2(sum(wi * val(a) for (a, b), wi in zip(sess, w)) / wsum),
+        "series": series, **pace_out,
+    }
 
 
 def drift_z(db: DBSession, rid: str, field: str, recent_days: int = RECENT):
@@ -741,10 +936,11 @@ def load(db: DBSession, rid: str):
     # dimension (vs the worst run of the prior 30 days) counts.
     runs = sorted([a for a in A if (a.distance_km or 0) > 0], key=lambda a: a.started_at)
     today = today_date()
-    # v2 (Phase 3): Minetti grade-adjusted distance per run — flat-equivalent km,
-    # so a hilly run's true cost feeds the spike, not just its raw distance.
+    # v2 (Phase 3): terrain-load-weighted km per run (Minetti cost uphill, eccentric
+    # load downhill) so a hilly run's true demand feeds the spike, not just its raw
+    # distance. Only runs WITH an elevation profile are compared with each other.
     _v2 = _emode() == "v2"
-    _ga = {id(a): terrain.grade_adjusted_km(a.elevation_profile, a.distance_km or 0) for a in runs} if _v2 else {}
+    _ga = {id(a): terrain.load_km(a.elevation_profile) for a in runs} if _v2 else {}
 
     def _sess_spikes(a):
         d0 = a.started_at[:10]
@@ -757,9 +953,9 @@ def load(db: DBSession, rid: str):
         eff = sl(a)
         eff_r = (eff / max(prior_eff)) if (prior_eff and eff > 0) else 0.0
         ga_r = 0.0
-        if _v2:
-            prior_ga = [_ga[id(x)] for x in prior if _ga.get(id(x), 0) > 0]
-            ga_r = (_ga[id(a)] / max(prior_ga)) if (prior_ga and _ga.get(id(a), 0) > 0) else 0.0
+        if _v2 and _ga.get(id(a)):
+            prior_ga = [_ga[id(x)] for x in prior if _ga.get(id(x))]
+            ga_r = (_ga[id(a)] / max(prior_ga)) if len(prior_ga) >= 3 else 0.0
         return (max(dist_r, eff_r, ga_r), dist_r, eff_r, ga_r)  # combined, distance, effort, grade-adj
 
     def _days_ago(a):
@@ -777,11 +973,12 @@ def load(db: DBSession, rid: str):
     if acute_spikes:
         sess_spike_a, best = max(acute_spikes, key=lambda t: t[1][0])
         sess_spike = best[0]
-        # basis = whichever component (distance / effort / grade-adjusted terrain)
-        # drove the spike; "obojí" when the top two are within 0.08 of each other.
-        comps = [("vzdálenost", best[1]), ("intenzita", best[2]), ("převýšení", best[3])]
+        # basis = the component(s) that drove the spike: the top one plus any other
+        # within 0.08 of it, e.g. "vzdálenost+terén". (With three components the old
+        # "obojí" couldn't say which two.)
+        comps = [("vzdálenost", best[1]), ("intenzita", best[2]), ("terén", best[3])]
         comps.sort(key=lambda kv: -kv[1])
-        sess_spike_basis = comps[0][0] if (comps[0][1] - comps[1][1] >= 0.08) else "obojí"
+        sess_spike_basis = "+".join(k for k, v in comps if v > 0 and comps[0][1] - v < 0.08) or comps[0][0]
     else:
         sess_spike_a, sess_spike, sess_spike_basis = None, None, None
     # Latent memory: a big spike 8-28 days ago still elevates risk (IOC 2016 —
@@ -831,7 +1028,7 @@ def load(db: DBSession, rid: str):
         "sessionSpike": r2(sess_spike) if sess_spike is not None else None,
         "sessionSpikeKm": r1(sess_spike_a.distance_km) if sess_spike_a else None,
         "sessionSpikeAt": sess_spike_a.started_at if sess_spike_a else None,
-        "sessionSpikeBasis": sess_spike_basis,  # v0.6.1 — distance / effort / both
+        "sessionSpikeBasis": sess_spike_basis,  # "vzdálenost" / "intenzita" / "terén", "+"-joined when tied
         "spikeLatent": r2(latent) if latent > 0 else None,
         "spikeLatentDaysAgo": latent_days,
         "paceSpike": pace_spike,
@@ -1232,62 +1429,165 @@ _SEG_FIELD2KEY = {"vratio_pct": "tavr", "gct_ms": "gct", "cadence_spm": "cadence
                   "step_len_m": "stride", "vo_cm": "vosc"}
 
 
-def segment_mechanics(db: DBSession, rid: str):
-    """Phase 5 — within-run mechanics drift from stored S3 segments. Each session's
-    segments are scored against the runner's own per-(surface, band) segment
-    baseline (median + MAD), giving a duration-weighted session drift index that
-    a per-run average would have hidden (e.g. a downhill-only drift). The series
-    is smoothed by the shared EWMA. Returns per-metric results keyed by engine
-    metric name, or None when there aren't enough segmented sessions yet."""
-    from . import segmentation as seg
-    rows = (
-        db.query(models.ActivityStream.segments_json, models.Activity.started_at)
+def _stream_rows(db: DBSession, rid: str, newest_first: bool = False) -> list[dict]:
+    """The runner's stored segment streams joined to their activity, one dict per
+    run: {aid, created, started, title, distanceKm, surface, segs}. Each segment
+    takes the activity's CURRENT surface — segments are cut at fetch time, and a
+    later surface refinement (terrain sampling, a manual fix) must reach the
+    segment baselines and the regression's surface terms too."""
+    order = models.Activity.started_at.desc() if newest_first else models.Activity.started_at.asc()
+    q = (
+        db.query(models.ActivityStream.segments_json, models.ActivityStream.created_at, models.Activity.id,
+                 models.Activity.started_at, models.Activity.title, models.Activity.distance_km,
+                 models.Activity.surface)
         .join(models.Activity, models.ActivityStream.activity_id == models.Activity.id)
         .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.segments_json.isnot(None))
-        .all()
+        .order_by(order, models.Activity.id.asc())
     )
-    if not rows:
-        return None
-    lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
-    excl = _eexcl()
-    base_segs, recent = [], []
-    for segs, started in rows:
+    out = []
+    for segs, created, aid, started, title, dist, surface in q.all():
         if not segs:
             continue
-        d = (started or "")[:10]
-        if hi >= (started or "") > lo and d not in excl:
-            base_segs.extend(segs)
-        if (started or "") > day_ago(RECENT):
-            recent.append((started, segs))
-    recent.sort(key=lambda t: t[0])
-    if len(base_segs) < 15 or len(recent) < 1:
-        return None
+        if surface:
+            segs = [s if s.get("surface") == surface else {**s, "surface": surface} for s in segs]
+        out.append({"aid": aid, "created": created or "", "started": started or "", "title": title,
+                    "distanceKm": dist, "surface": surface, "segs": segs})
+    return out
+
+
+def _baseline_rows(rows: list[dict], excl) -> list[dict]:
+    """Rows in the 84→29-day baseline window, minus pain-period dates."""
+    lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
+    return [r for r in rows if hi >= r["started"] > lo and r["started"][:10] not in excl]
+
+
+# Regression fits over the baseline segments are the expensive part of segment
+# scoring (pure-Python ridge over hundreds of segments) and the baseline only
+# changes when a run enters/leaves the window — so memoise per exact baseline.
+# The key is the identity of every baseline stream (activity, fetch time, surface,
+# segment count), so a re-fetched stream or a changed surface refits.
+_SEG_FIT_CACHE: "OrderedDict[tuple, object]" = OrderedDict()
+_SEG_FIT_LOCK = threading.Lock()
+_SEG_FIT_MAX = 512
+
+
+def _seg_cached(kind: str, base_rows: list[dict], field: str, build):
+    key = (kind, field, tuple((r["aid"], r["created"], r["surface"], len(r["segs"])) for r in base_rows))
+    with _SEG_FIT_LOCK:
+        if key in _SEG_FIT_CACHE:
+            _SEG_FIT_CACHE.move_to_end(key)
+            return _SEG_FIT_CACHE[key]
+    val = build()
+    with _SEG_FIT_LOCK:
+        _SEG_FIT_CACHE[key] = val
+        while len(_SEG_FIT_CACHE) > _SEG_FIT_MAX:
+            _SEG_FIT_CACHE.popitem(last=False)
+    return val
+
+
+def _seg_fit(base_rows: list[dict], field: str):
     from . import regression as reg
+    return _seg_cached("fit", base_rows, field,
+                       lambda: reg.fit_metric([s for r in base_rows for s in r["segs"]], field))
+
+
+_SEG_MIN_BASE_SESS = 5   # baseline sessions needed to know the runner's session-level noise
+_NOTABLE_DI, _NOTABLE_BAND = 2.5, 3.0   # "notable run" bars, session typical-error units
+_SEG_SESS_FLOOR = 0.25   # floor on that noise (in segment-z units) — in-sample spreads can be tiny [Calibrate]
+
+
+def _rms_scale(xs):
+    """Session-level typical error from baseline-session drift indices (which
+    centre on 0 by construction): RMS with an n−1 denominator and the √(1 + 1/n)
+    prediction factor (a NEW session also carries the baseline's own estimation
+    error), floored."""
+    n = len(xs)
+    if n < _SEG_MIN_BASE_SESS:
+        return None
+    return max(math.sqrt(sum(x * x for x in xs) / (n - 1) * (1 + 1 / n)), _SEG_SESS_FLOOR)
+
+
+def _seg_scale(base_rows, stats, field, method):
+    """How much the runner's own BASELINE sessions scatter on this metric, per
+    session and per gradient group, in the scorer's units. A session's drift
+    index is an average of many segment z-scores, so its natural spread depends
+    on how the runner's noise splits between days and within a run — dividing by
+    this empirical spread puts every session DI in session typical-error units
+    (the same units the per-run path and the EWMA thresholds assume)."""
+    from . import regression as reg
+    from . import segmentation as seg
+    model = _seg_fit(base_rows, field) if method == "regression" else None
+
+    def build():
+        dis, bands = [], {"down": [], "level": [], "up": []}
+        for r in base_rows:
+            d = reg.session_residual_drift(r["segs"], model) if model else seg.session_drift(r["segs"], stats, field)
+            if d:
+                dis.append(d["di"])
+                for k, v in d["byBand"].items():
+                    bands[k].append(v)
+        return {"sess": _rms_scale(dis), "band": {k: _rms_scale(v) for k, v in bands.items()}, "n": len(dis)}
+    return _seg_cached("scale-" + method, base_rows, field, build)
+
+
+def _seg_session(segs, base_rows, stats, field, method):
+    """One session's standardised segment drift for `field`, or None (not
+    scorable / baseline too thin to know the session-level noise)."""
+    from . import regression as reg
+    from . import segmentation as seg
+    sc = _seg_scale(base_rows, stats, field, method)
+    if sc["sess"] is None:
+        return None
+    model = _seg_fit(base_rows, field) if method == "regression" else None
+    d = reg.session_residual_drift(segs, model) if model else seg.session_drift(segs, stats, field)
+    if not d:
+        return None
+    return {
+        "di": clamp(d["di"] / sc["sess"], -4.0, 4.0), "rawDi": d["di"], "sessSd": r2(sc["sess"]),
+        "nSeg": d["nSeg"],
+        # a band without ≥5 baseline sessions keeps raw segment-z units (conservative)
+        "byBand": {k: r2(v / (sc["band"].get(k) or 1.0)) for k, v in d["byBand"].items()},
+    }
+
+
+def _seg_method(base_rows, field):
+    return "regression" if _seg_fit(base_rows, field) else "bucket"
+
+
+def segment_mechanics(db: DBSession, rid: str):
+    """Phase 5 — within-run mechanics drift from stored S3 segments. Each segment
+    is scored against the runner's own baseline — the S4 context regression
+    (speed, gradient, time-in-run, surface) when there are enough baseline
+    segments, else the per-(surface, band) median/MAD — and the duration-weighted
+    session drift index is standardised by the runner's own baseline-session
+    scatter (_seg_scale). That surfaces changes a per-run average would hide
+    (e.g. a downhill-only drift). The series is smoothed by the shared EWMA.
+    Returns per-metric results keyed by engine metric name, or None when there
+    aren't enough segmented sessions yet."""
+    from . import segmentation as seg
+    rows = _stream_rows(db, rid)
+    if not rows:
+        return None
+    base_rows = _baseline_rows(rows, _eexcl())
+    base_segs = [s for r in base_rows for s in r["segs"]]
+    recent = [r["segs"] for r in rows if r["started"] > day_ago(RECENT)]
+    if len(base_segs) < 15 or len(base_rows) < _SEG_MIN_BASE_SESS or not recent:
+        return None
     stats = seg.baseline_stats(base_segs)
     if not stats:
         return None
     out = {}
     for field, key in _SEG_FIELD2KEY.items():
-        # S4: prefer the continuous context regression; fall back to the
-        # per-(surface, band) bucket method when there aren't enough segments.
-        model = reg.fit_metric(base_segs, field)
-        dis, last_by, method = [], None, "bucket"
-        for _started, segs in recent:
-            sd_ = reg.session_residual_drift(segs, model) if model else seg.session_drift(segs, stats, field)
-            if sd_:
-                dis.append(max(-4.0, min(4.0, sd_["di"])))
-                last_by = sd_["byBand"]
-        if model and dis:
-            method = "regression"
-        elif not dis:  # regression scored nothing in domain → retry with buckets
-            for _started, segs in recent:
-                sd_ = seg.session_drift(segs, stats, field)
-                if sd_:
-                    dis.append(max(-4.0, min(4.0, sd_["di"])))
-                    last_by = sd_["byBand"]
-        flag = _ewma_flag(dis)
-        if flag and len(dis) >= 1:
-            out[key] = {**flag, "byBand": last_by, "segment": True, "method": method}
+        method = _seg_method(base_rows, field)
+        res = [x for x in (_seg_session(s, base_rows, stats, field, method) for s in recent) if x]
+        if not res and method == "regression":  # nothing in the model's domain → bucket method
+            method = "bucket"
+            res = [x for x in (_seg_session(s, base_rows, stats, field, method) for s in recent) if x]
+        if not res:
+            continue
+        flag = _ewma_flag([x["di"] for x in res], _BAD_SIGN.get(field, 1))
+        out[key] = {**flag, "byBand": res[-1]["byBand"], "segment": True, "method": method,
+                    "sessSd": res[-1]["sessSd"]}
     return out or None
 
 
@@ -1300,58 +1600,70 @@ _BAND_LABELS = {"B1": "prudký sjezd", "B2": "sjezd", "B3": "rovina", "B4": "vý
 
 def segment_significance(db: DBSession, rid: str, n_runs: int = 3, min_base: int = 5) -> dict:
     """Per-segment statistical test of the last `n_runs` runs against the runner's
-    own baseline. For each segment × metric, the segment value is compared with
-    the distribution of the runner's baseline segments in the SAME terrain bucket
-    (surface × gradient band): z = (value − baseline_mean) / baseline_SD, two-sided
-    normal p. A segment is 'significant' at 95% when |z| ≥ 1.96 and the baseline
-    bucket has ≥ min_base segments. Uses stored segments (fetch Detailní data)."""
+    own baseline. Each segment × metric is compared with what the runner's
+    baseline predicts for THAT segment:
+
+    • regression (enough baseline segments): the S4 context model's expected value
+      at the segment's speed, gradient, time-in-run and surface; the test statistic
+      is the residual over the model's residual SD (inflated for estimation). Out-
+      of-domain segments (unfamiliar speed/gradient/surface) are not tested. This
+      removes the pace confound — a faster run no longer lights up GCT/cadence/
+      step length everywhere just for being faster.
+    • bucket fallback: the baseline segments in the same surface × gradient band,
+      as a prediction interval t = (value − mean) / (SD·√(1 + 1/n)).
+
+    p-values come from Student's t (df from the baseline size), so a small baseline
+    bucket is not over-trusted. "Significant" = Benjamini–Hochberg FDR 5 % across
+    every segment × metric test shown. Uses stored segments (fetch Detailní data)."""
+    from . import regression as reg
     from . import segmentation as seg
-    rows = (
-        db.query(models.ActivityStream.segments_json, models.Activity.started_at,
-                 models.Activity.title, models.Activity.distance_km)
-        .join(models.Activity, models.ActivityStream.activity_id == models.Activity.id)
-        .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.segments_json.isnot(None))
-        .order_by(models.Activity.started_at.desc()).all()
-    )
+    rows = _stream_rows(db, rid, newest_first=True)
     if not rows:
         return {"runs": [], "note": "no_streams"}
-    lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
-    excl = _v2_baseline_exclusions(db, rid)
+    base_rows = _baseline_rows(rows, _v2_baseline_exclusions(db, rid))
+    models_by = {f: _seg_fit(base_rows, f) for f in seg.MECH_FIELDS}
     by = {}  # (field, surface, band) -> [values]
-    for segs, started, _t, _d in rows:
-        if segs and hi >= (started or "") > lo and (started or "")[:10] not in excl:
-            for s in segs:
-                for f in seg.MECH_FIELDS:
-                    if s.get(f) is not None:
-                        by.setdefault((f, s.get("surface") or "unknown", s.get("band")), []).append(s[f])
-    # Robust baseline per (metric, surface, band): median + MAD-based SD, so one
-    # odd baseline segment doesn't distort the norm (matches the rest of v2).
+    for r in base_rows:
+        for s in r["segs"]:
+            for f in seg.MECH_FIELDS:
+                if s.get(f) is not None:
+                    by.setdefault((f, s.get("surface") or "unknown", s.get("band")), []).append(s[f])
     base = {}
     for k, v in by.items():
         if len(v) >= min_base:
-            c = median(v)
-            base[k] = (c, max(mad_sd(v), sd(v) * 0.5, abs(c) * 0.012, 1e-9), len(v))
-    sqrt2 = 2 ** 0.5
+            m_, s_, n_ = inlier_mean_sd(v)
+            base[k] = (m_, max(s_, abs(m_) * 0.012, 1e-9), n_)
     all_findings = []  # every (segment × metric) test, for a family-wide FDR
     runs_out = []
-    for segs, started, title, dist in rows[:n_runs]:
-        segs = segs or []
+    for r in rows[:n_runs]:
         seg_out = []
-        for i, s in enumerate(segs):
+        for i, s in enumerate(r["segs"]):
             findings = []
             for f in seg.MECH_FIELDS:
                 v = s.get(f)
-                st = base.get((f, s.get("surface") or "unknown", s.get("band")))
-                if v is None or not st or st[1] <= 0:
+                if v is None:
                     continue
-                m, sdev, nb = st
-                z = (v - m) / sdev
-                p = math.erfc(abs(z) / sqrt2)  # two-sided normal p-value
+                model = models_by.get(f)
+                if model is not None:
+                    if not reg.in_domain(model, s):
+                        continue
+                    expected = reg.predict(model, s)
+                    sdev = model["sigma"] * math.sqrt(1 + model["k"] / model["n"])
+                    df, nb, method = model["n"] - model["k"], model["n"], "regression"
+                else:
+                    st = base.get((f, s.get("surface") or "unknown", s.get("band")))
+                    if not st:
+                        continue
+                    expected, sd0, nb = st
+                    sdev = sd0 * math.sqrt(1 + 1 / nb)
+                    df, method = nb - 1, "bucket"
+                t = (v - expected) / sdev
+                p = t_two_sided_p(t, df)
                 fnd = {
                     "metric": f, "label": _SEG_METRIC_LABELS.get(f, f),
-                    "value": r2(v), "base": r2(m), "sd": r2(sdev), "baseN": nb,
-                    "z": r2(z), "p": round(p, 4), "sigRaw": abs(z) >= 1.96,
-                    "sig": False, "dir": "up" if z > 0 else "down",
+                    "value": r2(v), "base": r2(expected), "sd": r2(sdev), "baseN": nb, "method": method,
+                    "z": r2(t), "_p": p, "p": round(p, 4), "sigRaw": p < 0.05,
+                    "sig": False, "dir": "up" if t > 0 else "down",
                 }
                 findings.append(fnd)
                 all_findings.append(fnd)
@@ -1361,77 +1673,91 @@ def segment_significance(db: DBSession, rid: str, n_runs: int = 3, min_base: int
                 "durationS": s.get("durationS"), "findings": findings, "sig": False,
             })
         runs_out.append({
-            "date": started, "title": title, "distanceKm": dist,
-            "nSeg": len(segs), "sigCount": 0, "segments": seg_out,
+            "date": r["started"], "title": r["title"], "distanceKm": r["distanceKm"],
+            "nSeg": len(r["segs"]), "sigCount": 0, "segments": seg_out,
         })
     # Benjamini–Hochberg FDR at 5% across ALL segment×metric tests, so "significant"
     # accounts for how many comparisons were run (many segments × 6 metrics).
-    ps = sorted(f["p"] for f in all_findings)
-    thr = 0.0
+    ps = sorted(f["_p"] for f in all_findings)
+    thr = -1.0
     for rank, pv in enumerate(ps, 1):
         if pv <= (rank / len(ps)) * 0.05:
             thr = pv
     for f in all_findings:
-        f["sig"] = f["p"] <= thr
+        f["sig"] = f.pop("_p") <= thr
     for run in runs_out:
         for sgm in run["segments"]:
             sgm["sig"] = any(f["sig"] for f in sgm["findings"])
         run["sigCount"] = sum(1 for sgm in run["segments"] for f in sgm["findings"] if f["sig"])
-    return {"runs": runs_out, "baselineBuckets": len(base), "fdr": 0.05}
+    return {"runs": runs_out, "baselineBuckets": len(base), "fdr": 0.05,
+            "method": "regression" if any(models_by.values()) else "bucket"}
 
 
 def run_segment_breakdown(db: DBSession, rid: str, days: int = 60, limit: int = 12) -> list:
     """Per-RUN within-run drift for the Pohyb tab: for each recent run that has a
     stored stream, how each metric deviated from the runner's own baseline, split
-    by gradient (sjezd / rovina / výjezd). Surfaces the notable single-band
-    changes the whole-session score averages out. Empty until streams are fetched."""
-    from . import regression as reg
+    by gradient (sjezd / rovina / výjezd), in session typical-error units (see
+    _seg_scale). Surfaces the notable single-band changes the whole-session score
+    averages out. Empty until streams are fetched."""
     from . import segmentation as seg
-    rows = (
-        db.query(models.ActivityStream.segments_json, models.Activity.started_at,
-                 models.Activity.title, models.Activity.distance_km)
-        .join(models.Activity, models.ActivityStream.activity_id == models.Activity.id)
-        .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.segments_json.isnot(None))
-        .order_by(models.Activity.started_at.desc()).all()
-    )
+    rows = _stream_rows(db, rid, newest_first=True)
     if not rows:
         return []
-    lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
-    excl = _v2_baseline_exclusions(db, rid)
-    base_segs = []
-    for segs, started, _t, _d in rows:
-        if segs and hi >= (started or "") > lo and (started or "")[:10] not in excl:
-            base_segs.extend(segs)
-    if len(base_segs) < 15:
+    base_rows = _baseline_rows(rows, _v2_baseline_exclusions(db, rid))
+    base_segs = [s for r in base_rows for s in r["segs"]]
+    if len(base_segs) < 15 or len(base_rows) < _SEG_MIN_BASE_SESS:
         return []
     stats = seg.baseline_stats(base_segs)
-    models_by = {f: reg.fit_metric(base_segs, f) for f in seg.MECH_FIELDS}
+    methods = {f: _seg_method(base_rows, f) for f in _SEG_METRIC_LABELS}
     cut = day_ago(days)
     out = []
-    for segs, started, title, dist in rows:
-        if not segs or (started or "") <= cut:
+    for r in rows:
+        if r["started"] <= cut:
             continue
         metrics = {}
         for f, label in _SEG_METRIC_LABELS.items():
-            m = models_by.get(f)
-            d = reg.session_residual_drift(segs, m) if m else seg.session_drift(segs, stats, f)
+            d = _seg_session(r["segs"], base_rows, stats, f, methods[f])
             if d and d.get("byBand"):
-                metrics[f] = {"di": d["di"], "byBand": d["byBand"], "label": label,
-                              "method": "regression" if m else "bucket"}
+                metrics[f] = {"di": r2(d["di"]), "byBand": d["byBand"], "label": label, "method": methods[f]}
         if not metrics:
             continue
-        notable = any(abs(v["di"]) >= 0.8 or any(abs(z) >= 1.5 for z in v["byBand"].values())
+        # Up to 6 metrics × 3 gradient groups are looked at per run, so the bar
+        # is set for that many looks: |session drift| ≥ 2.5 or a band ≥ 3.0 in the
+        # runner's own session typical-error units (~1 % / ~0.3 % per look with no
+        # real change). The old |di| ≥ 0.8 / band ≥ 1.5 in raw segment units
+        # marked most ordinary runs "notable".
+        notable = any(abs(v["di"]) >= _NOTABLE_DI or any(abs(z) >= _NOTABLE_BAND for z in v["byBand"].values())
                       for v in metrics.values())
-        out.append({"date": started, "title": title, "distanceKm": dist,
+        out.append({"date": r["started"], "title": r["title"], "distanceKm": r["distanceKm"],
                     "metrics": metrics, "notable": notable})
         if len(out) >= limit:
             break
     return out
 
 
+def _mech_flags(tv, gc, cad, strd, vosc) -> tuple[bool, bool]:
+    """v2 evidence labels over the per-metric drift results → (flag, watch).
+    Rule A (persistence): some metric is past its EWMA control limit, most recent
+    sessions agree, and the drift is at least "possible" in size. Rule B
+    (convergence): ≥ 2 independent metric GROUPS show a clear drift. Watch: one
+    clear group, or a metric past its control limit. One-sided throughout."""
+    groups = {"vertical": (tv, vosc), "cadence": (cad, strd), "contact": (gc,)}
+
+    def ok(m):
+        return isinstance(m, dict) and "state" in m
+
+    def grp(pred):
+        return [g for g, ms in groups.items() if any(ok(m) and pred(m) for m in ms)]
+    rule_a = bool(grp(lambda m: m.get("beyond") and m.get("persist") and m.get("state") != "usual"))
+    clear_groups = grp(lambda m: m.get("state") == "clear")
+    flag = rule_a or len(clear_groups) >= 2
+    watch = (not flag) and (len(clear_groups) >= 1 or bool(grp(lambda m: m.get("beyond"))))
+    return flag, watch
+
+
 def assess(db: DBSession, rid: str) -> dict:
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
-    if _emode() == "v2":
+    if _sensitive():
         # Feed pain-period exclusions to the mechanics drift core for this scope.
         _engine_ctx.excl = _v2_baseline_exclusions(db, rid)
     conf = confidence(db, rid)
@@ -1455,7 +1781,7 @@ def assess(db: DBSession, rid: str) -> dict:
     # averaging). Only overrides metrics that already passed the confidence gate;
     # keeps the per-run detail/series for the existing charts.
     seg_scored = False
-    if gated and _emode() == "v2":
+    if gated and _sensitive():
         sm = segment_mechanics(db, rid)
         if sm:
             for key, var in (("tavr", tv), ("gct", gc), ("cadence", cad), ("stride", strd), ("vosc", vosc)):
@@ -1540,18 +1866,21 @@ def assess(db: DBSession, rid: str) -> dict:
         parts = [f"{lbl} {sgn(bb[k])}" for k, lbl in (("down", "sjezd"), ("level", "rovina"), ("up", "výjezd")) if k in bb]
         return ("úseky (odchylka v SD): " + " · ".join(parts)) if parts else "měřeno po úsecích běhu"
 
+    def _pace_note(m):
+        return " · přepočteno na vaše obvyklé tempo" if (m or {}).get("paceAdjusted") else ""
+
     mech_terms = []
     if tv:
-        d = _seg_detail(tv) if tv.get("segment") else f"{tv['baseMean']} % → {tv['recMean']} % · {tv['buckets']} shodných profilů terénu"
+        d = _seg_detail(tv) if tv.get("segment") else f"{tv['baseMean']} % → {tv['recMean']} % · {tv['buckets']} shodných profilů terénu{_pace_note(tv)}"
         mech_terms.append(("tavr", "Vertikální poměr roste", "B", tv["z"], 0.2, 17, 4.0, 0.6, f"z {sgn(tv['z'])}", d))
     if gc:
-        d = _seg_detail(gc) if gc.get("segment") else f"{gc['baseMean']} ms → {gc['recMean']} ms po normalizaci na kadenci"
+        d = _seg_detail(gc) if gc.get("segment") else f"{gc['baseMean']} ms → {gc['recMean']} ms po normalizaci na kadenci{_pace_note(gc)}"
         mech_terms.append(("gct", "Prodloužený kontakt se zemí", "B", gc["z"], 0.2, 13, 4.0, 0.6, f"z {sgn(gc['z'])}", d))
     if cad:
-        d = _seg_detail(cad) if cad.get("segment") else f"{cad['baseMean']} → {cad['recMean']} spm · {cad['buckets']} shodných profilů terénu"
+        d = _seg_detail(cad) if cad.get("segment") else f"{cad['baseMean']} → {cad['recMean']} spm · {cad['buckets']} shodných profilů terénu{_pace_note(cad)}"
         mech_terms.append(("cad", "Klesající kadence", "C", -cad["z"], 0.2, 10, 4.0, 0.6, f"z {sgn(cad['z'])}", d))
     if vosc:
-        d = _seg_detail(vosc) if vosc.get("segment") else f"{vosc['baseMean']} → {vosc['recMean']} cm · {vosc['buckets']} shodných profilů terénu"
+        d = _seg_detail(vosc) if vosc.get("segment") else f"{vosc['baseMean']} → {vosc['recMean']} cm · {vosc['buckets']} shodných profilů terénu{_pace_note(vosc)}"
         mech_terms.append(("vosc", "Vyšší vertikální oscilace", "C", vosc["z"], 0.2, 10, 4.0, 0.6, f"z {sgn(vosc['z'])}", d))
     if bal:
         mech_terms.append(("bal", "Posun v symetrii kontaktu", "B", bal["excursion"], 0.4, 22, 3.0, 0.8, f"{sgn(bal['excursion'])} p.b.",
@@ -1579,138 +1908,6 @@ def assess(db: DBSession, rid: str) -> dict:
                  f"Kontakt se zemí je z běhu na běh rozházenější kolem vaší normy (SD {gcv['sdNow']} vs {gcv['sdBase']} ms) — "
                  "časný signál nervosvalové únavy nebo kompenzace, ještě než se posune samotný průměr.")
 
-    # --- Load axis is evidence-weighted (v0.5.2 recalibration). The well-
-    # validated grade-B signals (ACWR, high-intensity spike, monotony, HRV,
-    # resting HR, aerobic decoupling) can flip the "overreaching" state on their
-    # own at genuinely elevated values. The softer grade-C signals (descent
-    # spikes, load creep, HRV volatility, fitness–fatigue balance) are capped low
-    # so they add nuance/severity but don't stack their way to the threshold by
-    # themselves — before this, a single hilly week (desc, cap 26) nearly flipped
-    # the quadrant, pinning ~half of days at "Přetížení".
-    # v0.6 — SINGLE-SESSION SPIKE is now the spine of the load axis. Bands from
-    # the RUNSAFE cohort's hazard ratios (BJSM 2025): >+100 % (×2.0) is the clear
-    # danger zone (HRR 2.28); +30–100 % moderate; +10–30 % a mild nudge.
-    if L["valid"] and L["sessionSpike"] is not None and L["sessionSpike"] > 1.1:
-        s = L["sessionSpike"]
-        if s > 2.0:
-            p = rnd(clamp((s - 2.0) * 16, 0, 16) + 14)      # 14..30
-            band = "nad +100 %"
-        elif s > 1.3:
-            p = rnd(clamp((s - 1.3) * 20, 0, 14))           # up to 14
-            band = "+30–100 %"
-        else:
-            p = rnd(clamp((s - 1.1) * 25, 0, 6))            # up to 6
-            band = "+10–30 %"
-        if p:
-            load_score += p
-            _basis = L.get("sessionSpikeBasis") or "vzdálenost"
-            _bl = {"vzdálenost": "délce", "intenzita": "intenzitě", "převýšení": "převýšení",
-                   "obojí": "délce i intenzitě"}.get(_basis, "délce")
-            push("session_spike", "Skok v jednom běhu", "B", p, f"×{s}",
-                 f"Nejnáročnější běh ({L['sessionSpikeKm']} km) je {band} proti nejnáročnějšímu běhu za předchozích 30 dní — "
-                 f"skok ve {_bl}. Skok v jednotlivém běhu je nejsilnější signál rizika (běžecká kohorta 5 205 běžců; "
-                 "u intenzity potvrzeno i na datech z hodinek, Neal 2024) — silnější než poměr 7:28.")
-
-    # v0.6 — latent memory: risk stays elevated 1-4 weeks AFTER a big spike, not
-    # the day of it (IOC 2016), decaying to zero by 28 days.
-    if L["valid"] and L["spikeLatent"] is not None:
-        p = rnd(clamp(L["spikeLatent"] * 22, 0, 16))
-        if p:
-            load_score += p
-            push("spike_latent", "Doznívající skok v zátěži", "B", p, f"před {L['spikeLatentDaysAgo']} dny",
-                 "Velký skok v délce běhu z posledních týdnů — riziko zranění vrcholí 1–4 týdny po prudkém nárůstu, "
-                 "ne hned. Stav proto zůstává zvýšený, dokud tělo nedožene adaptaci.")
-
-    # v0.6 — pace spike: a distinct mechanism from distance (Nielsen 2014 — sudden
-    # pace → Achilles/plantar/tibial; distance → knee/shin).
-    if L["valid"] and L["paceSpike"] is not None and L["paceSpike"] > 1.06:
-        p = rnd(clamp((L["paceSpike"] - 1.06) * 40, 0, 10))
-        if p:
-            load_score += p
-            push("pace_spike", "Skok v tempu", "C", p, f"×{L['paceSpike']}",
-                 "Nedávný běh byl výrazně rychlejší než vaše obvyklé tempo posledních 30 dní — prudké zrychlení "
-                 "zatěžuje jinak než delší vzdálenost (spíš Achillovka / planta / holeň).")
-
-    # v0.6 — ACWR DEMOTED to low-weight context (grade C). The team-sport
-    # acute:chronic "sweet spot" does not transfer to distance running — the same
-    # RUNSAFE cohort found ACWR *inversely* related to overuse injury and the
-    # week-to-week ratio unrelated. Kept only as a mild descriptor / detraining flag.
-    if L["valid"] and L["ratio"] is not None and L["ratio"] > 1.5:
-        p = rnd(clamp((L["ratio"] - 1.5) * 18, 0, 12) + 2)
-        load_score += p
-        push("ewma", "Zvýšený poměr zátěže (7:28)", "C", p, f"×{L['ratio']}",
-             f"Akutní zátěž {L['acute']} proti chronické {L['chronic']} j.z./týden. Pozn.: v běžecké kohortě "
-             "sám poměr 7:28 riziko nepředpovídá — hlavní signál je skok v jednotlivém běhu výše.")
-    elif L["valid"] and L["ratio"] is not None and L["ratio"] < 0.7:
-        load_score += 10
-        push("ewma", "Náhlý pokles zátěže", "C", 10, f"×{L['ratio']}",
-             "Prudké snížení objemu — mírně vyšší riziko při návratu k plné zátěži, ne bezpečná zóna")
-
-    # v0.5 — high-intensity exposure spike (hard efforts jumping on a low hard base)
-    if L["valid"] and L["hiAcute"] >= 60 and L["hiRatio"] is not None and L["hiRatio"] > 1.5:
-        p = rnd(clamp((L["hiRatio"] - 1.5) * 20, 0, 20))
-        load_score += p
-        push("hi_load", "Skok ve vysoké intenzitě", "B", p, f"×{L['hiRatio']}",
-             f"Tvrdá práce (vysoký tep) {L['hiAcute']} vs obvyklých {L['hiChronic']} j.z./týden. "
-             "Prudký nárůst intenzity na nízké základně nese vyšší riziko než stejná zátěž volně.")
-
-    # v0.5 — load creep: slow, persistent acute rise the spike thresholds miss
-    if L["valid"] and L["ratio"] is not None and L["ratio"] < 1.3 and L["loadCreep"] is not None and L["loadCreep"] >= 1.15:
-        p = rnd(clamp((L["loadCreep"] - 1.15) * 30, 0, 10))
-        if p:
-            load_score += p
-            push("load_creep", "Postupný nárůst zátěže", "C", p, f"+{round((L['loadCreep'] - 1) * 100)} % / 2 týdny",
-                 "Zátěž pozvolna roste dva týdny po sobě, i když poměr 7:28 je ještě v klidu — "
-                 "plíživé navyšování předchází zranění častěji než jednorázový skok.")
-
-    if L["monotony"] > 2.4:
-        p = rnd(clamp((L["monotony"] - 2.4) * 7, 0, 20))
-        load_score += p
-        push("mono", "Monotónní trénink", "B", p, f"{L['monotony']}", f"Chybí skutečně lehké dny · strain {L['strain']}")
-    if L["descentSpike"] is not None and L["descentSpike"] > 1.45:
-        p = rnd(clamp((L["descentSpike"] - 1.45) * 15, 0, 14))
-        load_score += p
-        push("desc", "Nárůst sbíhání", "C", p, f"×{L['descentSpike']}",
-             f"{L['descent7']} m klesání za 7 dní proti obvyklým {L['descentBase']} m")
-    if gdesc and gdesc["steepSpike"] is not None and gdesc["steepSpike"] > 1.5:
-        p = rnd(clamp((gdesc["steepSpike"] - 1.5) * 12, 0, 12))
-        load_score += p
-        push("desc_steep", "Nárůst strmého klesání (≥10 % sklon)", "C", p, f"×{gdesc['steepSpike']}",
-             f"{gdesc['steep7']} m klesání nad 10% sklonem za 7 dní proti obvyklým {gdesc['steepBaseWeekly']} "
-             "m/týden — strmé klesání zatěžuje excentricky víc než pozvolné, i při stejném celkovém převýšení")
-    if aer and aer["mean"] > 5.5:
-        p = rnd(clamp((aer["mean"] - 5.5) * 3, 0, 12))
-        load_score += p
-        push("aer", "Aerobní decoupling", "B", p, f"{aer['mean']} %", "Tep se v druhé půli odpojuje od tempa")
-    if rcv and rcv["hrv"]["z"] <= -1.0:
-        p = rnd(clamp(-rcv["hrv"]["z"] * 10, 0, 22))
-        load_score += p
-        push("hrv", "Potlačená HRV", "B", p, f"{rcv['hrv']['now']} ms",
-             f"Baseline {rcv['hrv']['base']} ms · z {rcv['hrv']['z']} za posledních 7 dní")
-    if rcv and rcv["rhr"]["z"] >= 1.2:
-        p = rnd(clamp(rcv["rhr"]["z"] * 8, 0, 18))
-        load_score += p
-        push("rhr", "Zvýšený klidový tep", "B", p, f"{rcv['rhr']['now']} tep/min",
-             f"Baseline {rcv['rhr']['base']} · z {sgn(rcv['rhr']['z'])}")
-    if hcv and hcv["ratio"] is not None and hcv["ratio"] >= 1.4:
-        p = rnd(clamp((hcv["ratio"] - 1.4) * 14, 0, 10))
-        load_score += p
-        push("hrvcv", "Kolísavá HRV mezi dny", "C", p, f"CV ×{hcv['ratio']}",
-             f"Den-k-dni variabilita HRV {hcv['cvNow']} % proti obvyklým {hcv['cvBase']} %")
-    # Fitness–fatigue gap, relative to chronic load so the threshold is unit-free
-    # (acute/chronic are now training-load AU, not km).
-    if L["valid"] and L["chronic"] and L["tsbBalance"] is not None:
-        tsb_rel = L["tsbBalance"] / L["chronic"]
-        if tsb_rel <= -0.12:
-            p = rnd(clamp((-tsb_rel - 0.12) * 90, 0, 12))
-            load_score += p
-            push("tsb", "Nepříznivá bilance zátěže", "C", p, f"{sgn(L['tsbBalance'])} j.z./týd",
-                 f"Fitness (42denní průměr) {L['fitness42']} proti aktuální zátěži {L['acute']} j.z./týden — akutní zátěž předbíhá vybudovanou")
-
-    # v0.6 — LOAD × CAPACITY interaction (Bertelsen 2017 framework: injury is
-    # cumulative load exceeding *structure-specific capacity*, and capacity is
-    # modulated by recovery). A spike on depleted recovery is far riskier than the
-    # same spike when fresh — so score the interaction, not just the two alone.
     cap_parts = []
     if rcv and rcv["hrv"]["z"] is not None:
         cap_parts.append(clamp(-rcv["hrv"]["z"] / 2.0, 0, 1))            # suppressed HRV
@@ -1719,15 +1916,174 @@ def assess(db: DBSession, rid: str) -> dict:
     if rcv and rcv["sleep"]["debt"] is not None:
         cap_parts.append(clamp(rcv["sleep"]["debt"] / 8.0, 0, 1))       # sleep debt
     capacity_deficit = r2(mean(cap_parts)) if cap_parts else None
-    spike_sev = max((L["sessionSpike"] or 1) - 1, (L["ratio"] or 1) - 1, 0)
-    if L["valid"] and capacity_deficit is not None and capacity_deficit >= 0.3 and spike_sev > 0.1:
-        p = rnd(clamp(capacity_deficit * spike_sev * 34, 0, 16))
-        if p:
+
+    cap_v3 = None
+    if _emode() == "v3":
+        # v3 (Kapacitní): the load axis is exceedance over the runner's own
+        # demonstrated capacity per channel (objem / intenzita / klesání / stoupání /
+        # celková zátěž), with readiness (HRV, klidový tep, spánek, check-in) scaling
+        # capacity instead of adding separate points. See metrics/capacity.py.
+        from . import capacity as CAP
+        cap_v3 = CAP.assess_capacity(db, rid, frailty=frailty, runner=r)
+        for cs in cap_v3["signals"]:
+            load_score += cs["pts"]
+            push(cs["id"], cs["name"], cs["grade"], cs["pts"], cs["val"], cs["detail"])
+        # Pace spike (Nielsen 2014: sudden pace → Achilles / plantar / tibia) and
+        # monotony (Foster) describe load *structure* the channels don't.
+        if L["valid"] and L["paceSpike"] is not None and L["paceSpike"] > 1.06:
+            p = rnd(clamp((L["paceSpike"] - 1.06) * 40, 0, 10))
+            if p:
+                load_score += p
+                push("pace_spike", "Skok v tempu", "C", p, f"×{L['paceSpike']}",
+                     "Nedávný běh byl výrazně rychlejší než vaše obvyklé tempo posledních 30 dní — prudké zrychlení "
+                     "zatěžuje jinak než delší vzdálenost (spíš Achillovka / planta / holeň).")
+        if L["monotony"] > 2.4:
+            p = rnd(clamp((L["monotony"] - 2.4) * 7, 0, 12))
+            if p:
+                load_score += p
+                push("mono", "Monotónní trénink", "B", p, f"{L['monotony']}", f"Chybí skutečně lehké dny · strain {L['strain']}")
+    else:
+        # --- Load axis is evidence-weighted (v0.5.2 recalibration). The well-
+        # validated grade-B signals (ACWR, high-intensity spike, monotony, HRV,
+        # resting HR, aerobic decoupling) can flip the "overreaching" state on their
+        # own at genuinely elevated values. The softer grade-C signals (descent
+        # spikes, load creep, HRV volatility, fitness–fatigue balance) are capped low
+        # so they add nuance/severity but don't stack their way to the threshold by
+        # themselves — before this, a single hilly week (desc, cap 26) nearly flipped
+        # the quadrant, pinning ~half of days at "Přetížení".
+        # v0.6 — SINGLE-SESSION SPIKE is now the spine of the load axis. Bands from
+        # the RUNSAFE cohort's hazard ratios (BJSM 2025): >+100 % (×2.0) is the clear
+        # danger zone (HRR 2.28); +30–100 % moderate; +10–30 % a mild nudge.
+        if L["valid"] and L["sessionSpike"] is not None and L["sessionSpike"] > 1.1:
+            s = L["sessionSpike"]
+            if s > 2.0:
+                p = rnd(clamp((s - 2.0) * 16, 0, 16) + 14)      # 14..30
+                band = "nad +100 %"
+            elif s > 1.3:
+                p = rnd(clamp((s - 1.3) * 20, 0, 14))           # up to 14
+                band = "+30–100 %"
+            else:
+                p = rnd(clamp((s - 1.1) * 25, 0, 6))            # up to 6
+                band = "+10–30 %"
+            if p:
+                load_score += p
+                _basis = L.get("sessionSpikeBasis") or "vzdálenost"
+                _names = {"vzdálenost": "délce", "intenzita": "intenzitě", "terén": "náročnosti terénu"}
+                _bl = " i ".join(_names.get(b, "délce") for b in _basis.split("+"))
+                push("session_spike", "Skok v jednom běhu", "B", p, f"×{s}",
+                     f"Nejnáročnější běh ({L['sessionSpikeKm']} km) je {band} proti nejnáročnějšímu běhu za předchozích 30 dní — "
+                     f"skok v {_bl}. Skok v jednotlivém běhu je nejsilnější signál rizika (běžecká kohorta 5 205 běžců; "
+                     "u intenzity potvrzeno i na datech z hodinek, Neal 2024) — silnější než poměr 7:28.")
+
+        # v0.6 — latent memory: risk stays elevated 1-4 weeks AFTER a big spike, not
+        # the day of it (IOC 2016), decaying to zero by 28 days.
+        if L["valid"] and L["spikeLatent"] is not None:
+            p = rnd(clamp(L["spikeLatent"] * 22, 0, 16))
+            if p:
+                load_score += p
+                push("spike_latent", "Doznívající skok v zátěži", "B", p, f"před {L['spikeLatentDaysAgo']} dny",
+                     "Velký skok v délce běhu z posledních týdnů — riziko zranění vrcholí 1–4 týdny po prudkém nárůstu, "
+                     "ne hned. Stav proto zůstává zvýšený, dokud tělo nedožene adaptaci.")
+
+        # v0.6 — pace spike: a distinct mechanism from distance (Nielsen 2014 — sudden
+        # pace → Achilles/plantar/tibial; distance → knee/shin).
+        if L["valid"] and L["paceSpike"] is not None and L["paceSpike"] > 1.06:
+            p = rnd(clamp((L["paceSpike"] - 1.06) * 40, 0, 10))
+            if p:
+                load_score += p
+                push("pace_spike", "Skok v tempu", "C", p, f"×{L['paceSpike']}",
+                     "Nedávný běh byl výrazně rychlejší než vaše obvyklé tempo posledních 30 dní — prudké zrychlení "
+                     "zatěžuje jinak než delší vzdálenost (spíš Achillovka / planta / holeň).")
+
+        # v0.6 — ACWR DEMOTED to low-weight context (grade C). The team-sport
+        # acute:chronic "sweet spot" does not transfer to distance running — the same
+        # RUNSAFE cohort found ACWR *inversely* related to overuse injury and the
+        # week-to-week ratio unrelated. Kept only as a mild descriptor / detraining flag.
+        if L["valid"] and L["ratio"] is not None and L["ratio"] > 1.5:
+            p = rnd(clamp((L["ratio"] - 1.5) * 18, 0, 12) + 2)
             load_score += p
-            push("load_capacity", "Zátěž na sníženou regeneraci", "B", p,
-                 f"deficit {round(capacity_deficit * 100)} %",
-                 "Skok v zátěži padá na oslabenou regeneraci (nižší HRV / vyšší klidový tep / spánkový dluh). "
-                 "Stejný nárůst na unaveném těle přesahuje momentální kapacitu tkání dřív než na odpočatém.")
+            push("ewma", "Zvýšený poměr zátěže (7:28)", "C", p, f"×{L['ratio']}",
+                 f"Akutní zátěž {L['acute']} proti chronické {L['chronic']} j.z./týden. Pozn.: v běžecké kohortě "
+                 "sám poměr 7:28 riziko nepředpovídá — hlavní signál je skok v jednotlivém běhu výše.")
+        elif L["valid"] and L["ratio"] is not None and L["ratio"] < 0.7:
+            load_score += 10
+            push("ewma", "Náhlý pokles zátěže", "C", 10, f"×{L['ratio']}",
+                 "Prudké snížení objemu — mírně vyšší riziko při návratu k plné zátěži, ne bezpečná zóna")
+
+        # v0.5 — high-intensity exposure spike (hard efforts jumping on a low hard base)
+        if L["valid"] and L["hiAcute"] >= 60 and L["hiRatio"] is not None and L["hiRatio"] > 1.5:
+            p = rnd(clamp((L["hiRatio"] - 1.5) * 20, 0, 20))
+            load_score += p
+            push("hi_load", "Skok ve vysoké intenzitě", "B", p, f"×{L['hiRatio']}",
+                 f"Tvrdá práce (vysoký tep) {L['hiAcute']} vs obvyklých {L['hiChronic']} j.z./týden. "
+                 "Prudký nárůst intenzity na nízké základně nese vyšší riziko než stejná zátěž volně.")
+
+        # v0.5 — load creep: slow, persistent acute rise the spike thresholds miss
+        if L["valid"] and L["ratio"] is not None and L["ratio"] < 1.3 and L["loadCreep"] is not None and L["loadCreep"] >= 1.15:
+            p = rnd(clamp((L["loadCreep"] - 1.15) * 30, 0, 10))
+            if p:
+                load_score += p
+                push("load_creep", "Postupný nárůst zátěže", "C", p, f"+{round((L['loadCreep'] - 1) * 100)} % / 2 týdny",
+                     "Zátěž pozvolna roste dva týdny po sobě, i když poměr 7:28 je ještě v klidu — "
+                     "plíživé navyšování předchází zranění častěji než jednorázový skok.")
+
+        if L["monotony"] > 2.4:
+            p = rnd(clamp((L["monotony"] - 2.4) * 7, 0, 20))
+            load_score += p
+            push("mono", "Monotónní trénink", "B", p, f"{L['monotony']}", f"Chybí skutečně lehké dny · strain {L['strain']}")
+        if L["descentSpike"] is not None and L["descentSpike"] > 1.45:
+            p = rnd(clamp((L["descentSpike"] - 1.45) * 15, 0, 14))
+            load_score += p
+            push("desc", "Nárůst sbíhání", "C", p, f"×{L['descentSpike']}",
+                 f"{L['descent7']} m klesání za 7 dní proti obvyklým {L['descentBase']} m")
+        if gdesc and gdesc["steepSpike"] is not None and gdesc["steepSpike"] > 1.5:
+            p = rnd(clamp((gdesc["steepSpike"] - 1.5) * 12, 0, 12))
+            load_score += p
+            push("desc_steep", "Nárůst strmého klesání (≥10 % sklon)", "C", p, f"×{gdesc['steepSpike']}",
+                 f"{gdesc['steep7']} m klesání nad 10% sklonem za 7 dní proti obvyklým {gdesc['steepBaseWeekly']} "
+                 "m/týden — strmé klesání zatěžuje excentricky víc než pozvolné, i při stejném celkovém převýšení")
+        if aer and aer["mean"] > 5.5:
+            p = rnd(clamp((aer["mean"] - 5.5) * 3, 0, 12))
+            load_score += p
+            push("aer", "Aerobní decoupling", "B", p, f"{aer['mean']} %", "Tep se v druhé půli odpojuje od tempa")
+        if rcv and rcv["hrv"]["z"] <= -1.0:
+            p = rnd(clamp(-rcv["hrv"]["z"] * 10, 0, 22))
+            load_score += p
+            push("hrv", "Potlačená HRV", "B", p, f"{rcv['hrv']['now']} ms",
+                 f"Baseline {rcv['hrv']['base']} ms · z {rcv['hrv']['z']} za posledních 7 dní")
+        if rcv and rcv["rhr"]["z"] >= 1.2:
+            p = rnd(clamp(rcv["rhr"]["z"] * 8, 0, 18))
+            load_score += p
+            push("rhr", "Zvýšený klidový tep", "B", p, f"{rcv['rhr']['now']} tep/min",
+                 f"Baseline {rcv['rhr']['base']} · z {sgn(rcv['rhr']['z'])}")
+        if hcv and hcv["ratio"] is not None and hcv["ratio"] >= 1.4:
+            p = rnd(clamp((hcv["ratio"] - 1.4) * 14, 0, 10))
+            load_score += p
+            push("hrvcv", "Kolísavá HRV mezi dny", "C", p, f"CV ×{hcv['ratio']}",
+                 f"Den-k-dni variabilita HRV {hcv['cvNow']} % proti obvyklým {hcv['cvBase']} %")
+        # Fitness–fatigue gap, relative to chronic load so the threshold is unit-free
+        # (acute/chronic are now training-load AU, not km).
+        if L["valid"] and L["chronic"] and L["tsbBalance"] is not None:
+            tsb_rel = L["tsbBalance"] / L["chronic"]
+            if tsb_rel <= -0.12:
+                p = rnd(clamp((-tsb_rel - 0.12) * 90, 0, 12))
+                load_score += p
+                push("tsb", "Nepříznivá bilance zátěže", "C", p, f"{sgn(L['tsbBalance'])} j.z./týd",
+                     f"Fitness (42denní průměr) {L['fitness42']} proti aktuální zátěži {L['acute']} j.z./týden — akutní zátěž předbíhá vybudovanou")
+
+        # v0.6 — LOAD × CAPACITY interaction (Bertelsen 2017 framework: injury is
+        # cumulative load exceeding *structure-specific capacity*, and capacity is
+        # modulated by recovery). A spike on depleted recovery is far riskier than the
+        # same spike when fresh — so score the interaction, not just the two alone.
+        spike_sev = max((L["sessionSpike"] or 1) - 1, (L["ratio"] or 1) - 1, 0)
+        if L["valid"] and capacity_deficit is not None and capacity_deficit >= 0.3 and spike_sev > 0.1:
+            p = rnd(clamp(capacity_deficit * spike_sev * 34, 0, 16))
+            if p:
+                load_score += p
+                push("load_capacity", "Zátěž na sníženou regeneraci", "B", p,
+                     f"deficit {round(capacity_deficit * 100)} %",
+                     "Skok v zátěži padá na oslabenou regeneraci (nižší HRV / vyšší klidový tep / spánkový dluh). "
+                     "Stejný nárůst na unaveném těle přesahuje momentální kapacitu tkání dřív než na odpočatém.")
 
     # Race proximity is deliberately not a primary framing anywhere in the
     # UI — it's informational unless it combines with an already-elevated
@@ -1877,9 +2233,13 @@ def assess(db: DBSession, rid: str) -> dict:
     # count for more. Multiplicative, so it amplifies existing signals only. Rounded
     # so scores stay integer end-to-end (and the live-formula backtest matches exactly).
     mech_score = rnd(clamp(mech_score * frailty, 0, 100))
-    load_score = rnd(clamp(load_score * frailty, 0, 100))
+    # (v3 already applies injury history by shrinking the capacity margins —
+    # multiplying its load score as well would count it twice.)
+    load_score = rnd(clamp(load_score * (1.0 if _emode() == "v3" else frailty), 0, 100))
     symp_score = rnd(clamp(symp_score, 0, 100))
-    overall = rnd(clamp(mech_score * 0.38 + load_score * 0.30 + symp_score * 0.52, 0, 100))
+    # v3 gives the load axis more say in the overall state (0.30 → 0.40).
+    w_load = 0.40 if _emode() == "v3" else 0.30
+    overall = rnd(clamp(mech_score * 0.38 + load_score * w_load + symp_score * 0.52, 0, 100))
     prev_row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()
     # v2 Phase 2: across-session evidence label (informational — shown to the
     # user, NOT yet a hard quadrant gate). "flag" = persistence (EWMA past its
@@ -1889,14 +2249,14 @@ def assess(db: DBSession, rid: str) -> dict:
     # so the quadrant follows the smoothed mech score; the hard flag-gate is
     # deferred to the segmentation phase, where within-session "clear" (a CI over
     # many segments) is reliable enough to gate on.
-    mech_flag = mech_watch = False
-    if _emode() == "v2":
-        mm = [m for m in (tv, gc, cad, strd, vosc) if isinstance(m, dict) and "state" in m]
-        clears = [m for m in mm if m.get("state") == "clear"]
-        rule_a = any(m.get("beyond") and m.get("persist") for m in mm)
-        rule_b = len(clears) >= 2
-        mech_flag = rule_a or rule_b
-        mech_watch = (not mech_flag) and len(clears) >= 1
+    #
+    # All labels are one-sided (risk direction only — an improvement never raises
+    # the chip). Metrics that are mechanically coupled count as ONE piece of
+    # evidence for convergence: vertical ratio = oscillation / step length, and at
+    # a given speed step length = speed / cadence, so a single cadence change moves
+    # both cadence and stride. Rule A also needs a real magnitude (≥ "possible"),
+    # not just statistical consistency.
+    mech_flag, mech_watch = _mech_flags(tv, gc, cad, strd, vosc) if _sensitive() else (False, False)
     quadrant = quadrant_of(load_score, mech_score, prev_row.quadrant if prev_row else None)
     tier = "alert" if overall >= 70 else ("watch" if overall >= 40 else "ok")
 
@@ -1915,6 +2275,7 @@ def assess(db: DBSession, rid: str) -> dict:
         "sessionSpikeBasis": L.get("sessionSpikeBasis"),
         "paceSpike": L.get("paceSpike"), "safeLongRunKm": L.get("safeLongRunKm"),
         "capacityDeficit": capacity_deficit, "frailty": r2(frailty), "priorRegions": sorted(prior_regions),
+        "capacity": cap_v3,
     }
 
 
@@ -1926,6 +2287,18 @@ DECISION_HEAD = {
 }
 
 
+def triage_decision(a: dict) -> str:
+    """The engine's own referral decision for an assessment — shared by the triage
+    queue and the v3 training guidance (whose physio override requires it)."""
+    if a["quadrant"] == "critical" or a["tier"] == "alert":
+        return "physio_48h"
+    if a["quadrant"] == "silent":
+        return "physio_7d"
+    if a["tier"] == "watch":
+        return "app_program"
+    return "self_managed"
+
+
 def recompute_assessment(db: DBSession, rid: str) -> dict:
     """Recomputes assess() and persists it, mirroring core.js's top-level
     assess(db,rid) which also upserts the runner's triage row. Call this
@@ -1934,6 +2307,12 @@ def recompute_assessment(db: DBSession, rid: str) -> dict:
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
     with engine_pinned((r.engine_mode if r else None) or "v1"):
         a = assess(db, rid)
+    # v3: today's training guidance (Trénink tab) — computed on the live recompute
+    # only (every sync / check-in / rating / new day), never in history replays.
+    a["guidance"] = None
+    if a.get("engineMode") == "v3":
+        from . import guidance as G
+        a["guidance"] = G.build_guidance(db, rid, a, r)
     row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()
     if row is None:
         row = models.Assessment(runner_id=rid)
@@ -1948,18 +2327,11 @@ def recompute_assessment(db: DBSession, rid: str) -> dict:
         k: a[k] for k in
         ("loadDetail", "tavr", "gct", "bal", "dec", "aer", "rcv", "fb", "cadence", "stride", "vosc",
          "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury",
-         "engineMode", "mechFlag", "mechWatch", "segmentScored")
+         "engineMode", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance")
     }
     db.flush()
 
-    if a["quadrant"] == "critical" or a["tier"] == "alert":
-        decision = "physio_48h"
-    elif a["quadrant"] == "silent":
-        decision = "physio_7d"
-    elif a["tier"] == "watch":
-        decision = "app_program"
-    else:
-        decision = "self_managed"
+    decision = triage_decision(a)
     headline = DECISION_HEAD[decision]
 
     open_triage = (
@@ -2005,7 +2377,7 @@ def assessment_row_to_dict(row: models.Assessment) -> dict:
         return None
     out = {
         "runner_id": row.runner_id, "computed_at": row.computed_at, "engine": row.engine_version,
-        "engineMode": "v2" if (row.engine_version or "").endswith("-s") else "v1",
+        "engineMode": mode_of_version(row.engine_version),
         "mech": row.mech, "load": row.load, "symp": row.symp, "overall": row.overall,
         "tier": row.tier, "quadrant": row.quadrant, "confidence": row.confidence_json,
         "signals": row.signals_json,

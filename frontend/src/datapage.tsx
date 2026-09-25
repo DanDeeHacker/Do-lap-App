@@ -116,14 +116,15 @@ export function DataView() {
 
   const R = res?.source === source ? res : null
 
-  const engineMode: "v1" | "v2" = boot?.assessment?.engineMode || boot?.runner?.engine_mode || "v1"
+  type EngineMode = "v1" | "v2" | "v3"
+  const engineMode: EngineMode = boot?.assessment?.engineMode || boot?.runner?.engine_mode || "v1"
   const [engBusy, setEngBusy] = useState(false)
-  const switchEngine = async (mode: "v1" | "v2") => {
+  const switchEngine = async (mode: EngineMode) => {
     if (mode === engineMode || engBusy) return
     setEngBusy(true)
     try {
       await api.setEngine(rid, mode)
-      toast({ title: mode === "v2" ? "Zapnut Citlivý engine" : "Zapnut Standardní engine" })
+      toast({ title: `Zapnut ${ENGINE_NAME[mode]} engine` })
       await refresh()
     } catch (e: any) {
       toast({ title: e?.message || "Přepnutí se nezdařilo" })
@@ -131,9 +132,11 @@ export function DataView() {
       setEngBusy(false)
     }
   }
-  const engines: [("v1" | "v2"), string, string][] = [
+  const ENGINE_NAME: Record<EngineMode, string> = { v1: "Standardní", v2: "Citlivý", v3: "Kapacitní" }
+  const engines: [EngineMode, string, string][] = [
     ["v1", "Standardní", "Vyhlazený průměr napříč běhy."],
     ["v2", "Citlivý", "Zachytí i malé změny mechaniky dřív."],
+    ["v3", "Kapacitní", "Citlivá mechanika + zátěž proti vaší vlastní kapacitě (objem, intenzita, klesání, stoupání). Záložka Trénink s denním doporučením přibude v další fázi."],
   ]
   const [btBusy, setBtBusy] = useState(false)
   const downloadBacktest = async () => {
@@ -207,10 +210,10 @@ export function DataView() {
 
       <Card className="mt-4">
         <div className="flex items-center justify-between gap-2">
-          <Label>Engine hodnocení mechaniky</Label>
-          <span className="rounded-full bg-[#c7ff54]/15 px-2.5 py-1 text-[10px] font-bold text-[#c7ff54]">{engineMode === "v2" ? "Citlivý" : "Standardní"}</span>
+          <Label>Engine hodnocení</Label>
+          <span className="rounded-full bg-[#c7ff54]/15 px-2.5 py-1 text-[10px] font-bold text-[#c7ff54]">{ENGINE_NAME[engineMode] || "Standardní"}</span>
         </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
           {engines.map(([id, name, desc]) => {
             const on = engineMode === id
             return (
@@ -222,7 +225,7 @@ export function DataView() {
               >
                 <span className="flex items-center gap-2">
                   <i className={`size-2.5 rounded-full ${on ? "bg-[#c7ff54]" : "bg-white/25"}`} />
-                  <b className="text-sm text-[#f1f8f1]">{name}{id === "v2" ? " · beta" : ""}</b>
+                  <b className="text-sm text-[#f1f8f1]">{name}{id !== "v1" ? " · beta" : ""}</b>
                 </span>
                 <p className="mt-1.5 text-xs leading-4 text-[#a9c2b9]">{desc}</p>
               </button>
@@ -230,7 +233,7 @@ export function DataView() {
           })}
         </div>
         <p className="mt-3 text-[11px] leading-4 text-[#71837b]">
-          Citlivý engine počítá odchylku proti tvé vlastní typické chybě a váží čerstvé běhy víc, takže pozvolný drift zachytí dřív než průměrový Standardní. Experimentální — zatím nevalidované na reálných datech.
+          Citlivý engine počítá odchylku každého běhu proti tvé vlastní typické chybě a váží čerstvé běhy víc, takže změnu zachytí dřív než průměrový Standardní — nastavený tak, aby bez skutečné změny ukázal signál zhruba jen v 5 % případů. Všechny enginy přepočítávají mechaniku na tvé obvyklé tempo, takže pomalejší klusy nevypadají jako drift. Kapacitní engine navíc hodnotí zátěž proti tomu, co jsi prokazatelně zvládl(a) bez obtíží — po jednotlivých bězích i týdnech, v objemu, intenzitě (tepové zóny), klesání a stoupání — a snižuje ji podle toho, jak ses vyspal(a). Experimentální — zatím nevalidované na reálných zraněních.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
           <button onClick={downloadBacktest} disabled={btBusy} className="rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313] disabled:opacity-60">{btBusy ? "Připravuji…" : "⬇ Backtest (v1 vs v2)"}</button>

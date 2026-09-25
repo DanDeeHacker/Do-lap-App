@@ -87,3 +87,14 @@ def test_cumdescent_covariate_used_when_present():
     # baseline WITHOUT cumDescentM → "d" dropped (dimension-safe for old streams)
     m2 = R.fit_metric([_seg(3.0, 0.0, 240 + i % 3) for i in range(40)], "gct_ms")
     assert m2 and "d" not in m2["cols"]
+
+
+def test_unseen_surface_is_out_of_domain():
+    """A road-only baseline has no coefficient for trail; scoring a trail segment
+    against the road model would read the surface effect as a form change."""
+    model = R.fit_metric(_baseline(), "gct_ms")           # all road
+    assert R.residual_z(model, _seg(3.0, 0.0, 240)) is not None
+    assert R.residual_z(model, _seg(3.0, 0.0, 262, surface="trail")) is None
+    mixed = _baseline() + [_seg(3.0, 0.0, 250, surface="trail") for _ in range(5)]
+    m2 = R.fit_metric(mixed, "gct_ms")                    # trail seen ≥3× → has a dummy
+    assert R.residual_z(m2, _seg(3.0, 0.0, 250, surface="trail")) is not None
