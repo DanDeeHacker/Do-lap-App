@@ -14,6 +14,7 @@ if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
 os.environ["DOSSLAP_DB_PATH"] = os.path.join(tempfile.mkdtemp(prefix="dosslap_test_"), "test.db")
+os.environ["DATABASE_URL"] = ""   # never the production Postgres, whatever a shell or .env holds
 os.environ["DOSSLAP_WEATHER"] = "off"   # no network in tests; weather tests enable it with a fake fetch
 # app/llm.py load_dotenv()s backend/.env, which never overrides a set variable — so pin
 # the feedback-loop settings empty here, and tests don't depend on the developer's .env.
