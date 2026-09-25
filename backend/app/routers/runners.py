@@ -4,7 +4,7 @@ scopes through deps.ensure_runner_read_access / ensure_runner_self — a
 runner may only ever touch their own runner_id; a physio may read (never
 write on the runner's behalf) once they've claimed the case.
 """
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
@@ -34,7 +34,7 @@ def get_runner(rid: str, user: models.User = Depends(get_current_user), db: DBSe
 
 ALLOWED_PROFILE_PATCH = {
     "birth_year", "sex", "city", "goal_race", "goal_date", "prior_injury",
-    "prior_injury_months_ago", "device",
+    "prior_injury_months_ago", "prior_injury_date", "prior_injury_side", "device", "hr_max",
 }
 
 
@@ -72,6 +72,55 @@ def set_cycle_week(rid: str, body: schemas.CycleWeekRequest,
     return {"ok": True, "assessment": E.recompute_assessment(db, rid)}
 
 
+@router.get("/{rid}/races")
+def list_races(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Plan B4 — the race calendar (plus the profile's goal race as an A race)."""
+    ensure_runner_read_access(db, user, rid)
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    return E.races_for(db, r)
+
+
+@router.post("/{rid}/races", dependencies=[Depends(verify_csrf)])
+def add_race(rid: str, body: schemas.RaceRequest,
+             user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    ensure_runner_self(user, rid)
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    try:
+        d = date.fromisoformat(body.date[:10])
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Neplatné datum závodu")
+    today = E.today_date()
+    if not (today - timedelta(days=366) <= d <= today + timedelta(days=731)):
+        raise HTTPException(status_code=422, detail="Datum závodu musí být do roka zpátky a do dvou let dopředu")
+    if body.priority not in ("A", "B", "C"):
+        raise HTTPException(status_code=422, detail="Priorita závodu musí být A, B nebo C")
+    if body.distance_km is not None and not (0 < body.distance_km <= 300):
+        raise HTTPException(status_code=422, detail="Délka závodu musí být 0–300 km")
+    name = (body.name or "").strip()[:80] or None
+    db.add(models.Race(runner_id=rid, date=d.isoformat(), name=name, distance_km=body.distance_km,
+                       priority=body.priority, created_at=E.now_iso()))
+    if r.goal_date and r.goal_date[:10] == d.isoformat():
+        r.goal_race, r.goal_date = None, None          # the calendar entry replaces the profile's goal race
+    db.commit()
+    return {"races": E.races_for(db, r), "assessment": E.recompute_assessment(db, rid)}
+
+
+@router.delete("/{rid}/races/{race_id}", dependencies=[Depends(verify_csrf)])
+def delete_race(rid: str, race_id: str,
+                user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    ensure_runner_self(user, rid)
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    if race_id == "goal":                               # the profile's goal race
+        r.goal_race, r.goal_date = None, None
+    else:
+        row = db.query(models.Race).filter(models.Race.runner_id == rid,
+                                           models.Race.id == (int(race_id) if race_id.isdigit() else -1)).first()
+        or_404(row, "Závod nenalezen")
+        db.delete(row)
+    db.commit()
+    return {"races": E.races_for(db, r), "assessment": E.recompute_assessment(db, rid)}
+
+
 @router.patch("/{rid}", dependencies=[Depends(verify_csrf)])
 def update_runner(rid: str, body: schemas.RunnerProfilePatch,
                   user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
@@ -81,8 +130,25 @@ def update_runner(rid: str, body: schemas.RunnerProfilePatch,
     ensure_runner_self(user, rid)
     r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
     for k, v in body.patch.items():
-        if k in ALLOWED_PROFILE_PATCH:
-            setattr(r, k, v)
+        if k not in ALLOWED_PROFILE_PATCH:
+            continue
+        if k == "hr_max" and v not in (None, ""):
+            try:
+                v = int(v)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=422, detail="Maximální tep musí být číslo") from None
+            if not 120 <= v <= 230:
+                raise HTTPException(status_code=422, detail="Maximální tep musí být 120–230 tepů/min")
+        if k == "prior_injury_side" and v not in (None, "", "left", "right", "both"):
+            raise HTTPException(status_code=422, detail="Strana zranění: levá, pravá nebo obě")
+        if k == "prior_injury_date" and v:
+            try:
+                if date.fromisoformat(str(v)[:10]) > E.today_date():
+                    raise ValueError
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Datum zranění nesmí být v budoucnosti") from None
+            v = str(v)[:10]
+        setattr(r, k, (v or None) if k in ("prior_injury_side", "prior_injury_date", "hr_max") else v)
     db.commit()
     E.recompute_assessment(db, rid)
     db.refresh(r)
@@ -252,6 +318,8 @@ def _engine_replay(db: DBSession, rid: str, asofs, mode: str | None = None):
     prev_q = None
     try:
         ts.add(models.Runner(**rdata))
+        for x in rows_of(models.Race):          # the race calendar is a plan — known from the start
+            ts.add(models.Race(**x))
         ts.commit()
         for adate in asofs:
             cut = adate.isoformat()
@@ -560,10 +628,28 @@ def unrated_activities(rid: str, user: models.User = Depends(get_current_user), 
     }
     rows = (
         db.query(models.Activity)
-        .filter(models.Activity.runner_id == rid, models.Activity.started_at > cutoff)
+        .filter(models.Activity.runner_id == rid, models.Activity.started_at > cutoff,
+                models.Activity.excluded.isnot(True))
         .order_by(models.Activity.started_at.desc()).all()
     )
     return to_dicts([a for a in rows if a.id not in done_ids])
+
+
+@router.post("/{rid}/activities/{aid}/exclude", dependencies=[Depends(verify_csrf)])
+def exclude_activity(rid: str, aid: int, body: schemas.ExcludeActivityRequest, background: BackgroundTasks,
+                     user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Feedback railway#36 — take an activity out of every calculation (scores,
+    capacity, comparisons, AI texts) or put it back. Kept in the database so a
+    Garmin re-sync doesn't import it again and it can be restored."""
+    ensure_runner_self(user, rid)
+    a = or_404(db.query(models.Activity).filter(models.Activity.id == aid, models.Activity.runner_id == rid).first(),
+               "Aktivita nenalezena")
+    a.excluded = bool(body.excluded)
+    a.excluded_at = E.now_iso() if body.excluded else None
+    db.commit()
+    out = E.recompute_assessment(db, rid)
+    background.add_task(coach_texts.refresh_bg, rid)
+    return {"ok": True, "id": aid, "excluded": a.excluded, "assessment": out}
 
 
 @router.post("/{rid}/activities/{aid}/rate", dependencies=[Depends(verify_csrf)])
@@ -759,6 +845,8 @@ def report_injury(rid: str, body: schemas.InjuryReportRequest,
         body_region=region, body_side=side, pain_points=pts, note=body.note, confirmed=False,
     )
     db.add(rep)
+    db.flush()
+    E.record_injury(db, rid, rep)          # plan B3: a reported injury becomes the injury history
     db.commit()
     return E.recompute_assessment(db, rid)
 
@@ -772,7 +860,8 @@ def create_checkin(rid: str, body: schemas.CheckinRequest, background: Backgroun
     c = models.Checkin(
         runner_id=rid, submitted_at=E.iso_date(E.today_date()), pain_score=body.pain_score,
         pain_site=site, pain_points=pts, soreness=body.soreness, stress=body.stress,
-        mood=body.mood, notes=body.notes,
+        mood=body.mood, notes=body.notes, limits_movement=body.limits_movement,
+        run_modified=body.run_modified, limping=body.limping,
     )
     db.add(c)
     db.commit()

@@ -36,6 +36,13 @@ class CheckinRequest(Lenient):
     stress: Optional[int] = None
     mood: Optional[int] = None
     notes: Optional[str] = None
+    limits_movement: Optional[bool] = None   # pain limits ordinary movement / walking
+    run_modified: Optional[bool] = None      # a run was shortened or changed because of pain
+    limping: Optional[bool] = None
+
+
+class ExcludeActivityRequest(Lenient):
+    excluded: bool = True
 
 
 class RateActivityRequest(Lenient):
@@ -108,6 +115,13 @@ class GarminAutoSyncRequest(Lenient):
 
 class EngineModeRequest(Lenient):
     mode: str  # "v1" standard | "v2" sensitive | "v3" capacity
+
+
+class RaceRequest(Lenient):
+    date: str                           # YYYY-MM-DD
+    name: Optional[str] = None
+    distance_km: Optional[float] = None
+    priority: str = "B"                 # A | B | C
 
 
 class CycleWeekRequest(Lenient):

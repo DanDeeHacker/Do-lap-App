@@ -67,6 +67,8 @@ def _migrate(engine):
     add("checkins", "pain_points", "pain_points JSON")
     add("checkins", "mood", "mood INTEGER")
     add("daily_metrics", "sleep_efficiency", "sleep_efficiency FLOAT")
+    for col in ("deep_min", "rem_min", "light_min", "awake_min"):
+        add("daily_metrics", col, f"{col} FLOAT")
     add("runners", "engine_mode", "engine_mode VARCHAR", "UPDATE runners SET engine_mode = 'v1' WHERE engine_mode IS NULL")
     # activity_streams may pre-date these two columns on a Postgres provisioned at Phase 4.
     add("activity_streams", "segments_json", "segments_json JSON")
@@ -76,9 +78,17 @@ def _migrate(engine):
     add("activities", "start_lat", "start_lat FLOAT")
     add("activities", "start_lon", "start_lon FLOAT")
     add("activities", "weather_json", "weather_json JSON")
+    add("activities", "excluded", "excluded BOOLEAN")
+    add("activities", "excluded_at", "excluded_at VARCHAR")
     add("runners", "coach_consent", "coach_consent BOOLEAN", "UPDATE runners SET coach_consent = FALSE WHERE coach_consent IS NULL")
     add("runners", "coach_consent_at", "coach_consent_at VARCHAR")
     add("runners", "cycle_override", "cycle_override JSON")
+    add("runners", "prior_injury_date", "prior_injury_date VARCHAR")
+    add("runners", "prior_injury_side", "prior_injury_side VARCHAR")
+    add("runners", "hr_max", "hr_max INTEGER")
+    add("checkins", "limits_movement", "limits_movement BOOLEAN")
+    add("checkins", "run_modified", "run_modified BOOLEAN")
+    add("checkins", "limping", "limping BOOLEAN")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.

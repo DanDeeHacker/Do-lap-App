@@ -73,6 +73,9 @@ class Runner(Base):
     partner_id = Column(String, ForeignKey("partners.id"), index=True)
     prior_injury = Column(String)
     prior_injury_months_ago = Column(Integer)
+    prior_injury_date = Column(String)   # ISO date; months are derived from it (plan A5)
+    prior_injury_side = Column(String)   # left | right | both
+    hr_max = Column(Integer)             # plan C2: measured max HR (test / race); None → estimated
     device = Column(String)
     # Consent gate: a runner is invisible to physios (triage queue / candidate
     # list) until they explicitly opt into the physiotherapy service.
@@ -215,6 +218,10 @@ class Activity(Base):
     start_lat = Column(Float)
     start_lon = Column(Float)
     weather_json = Column(JSON)      # metrics/weather.py summary, fetched once per run
+    # the runner took it out of every calculation (feedback railway#36) — kept, not
+    # deleted, so a Garmin re-sync doesn't bring it back and it can be restored
+    excluded = Column(Boolean, default=False)
+    excluded_at = Column(String)
 
 
 class ActivityFeedback(Base):
@@ -241,6 +248,10 @@ class DailyMetric(Base):
     date = Column(String, index=True, nullable=False)
     sleep_h = Column(Float)
     sleep_efficiency = Column(Float)  # v0.5 — TST / (TST + awake), 0-1
+    deep_min = Column(Float)          # sleep stages from the watch (minutes) — the quality of sleep,
+    rem_min = Column(Float)           # not only its length, feeds readiness (feedback railway#33)
+    light_min = Column(Float)
+    awake_min = Column(Float)
     hrv_ms = Column(Float)
     resting_hr = Column(Float)
     body_battery = Column(Float)
@@ -264,6 +275,11 @@ class Checkin(Base):
     soreness = Column(Integer)
     stress = Column(Integer)
     mood = Column(Integer)  # 0-4 subjective mood — NOT scored; kept to check mood↔risk correlation
+    # function, not just a number (OSTRC logic, prevention plan A1): pain that limits
+    # ordinary movement, a run shortened / changed because of pain, limping
+    limits_movement = Column(Boolean)
+    run_modified = Column(Boolean)
+    limping = Column(Boolean)
     notes = Column(String)
 
 
@@ -588,6 +604,21 @@ class Annotation(Base):
     created_at = Column(String)
     updated_at = Column(String)
     resolved_at = Column(String)
+
+
+class Race(Base):
+    """Plan B4 — the runner's race calendar. Priority A = the goal race (taper
+    before it), B = a race run hard but without a taper, C = a race run as
+    training. The profile's goal_race / goal_date still work: the engine reads
+    them as an A race when the calendar has nothing on that day."""
+    __tablename__ = "races"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    date = Column(String, nullable=False)           # YYYY-MM-DD
+    name = Column(String)
+    distance_km = Column(Float)
+    priority = Column(String, default="B")          # A | B | C
+    created_at = Column(String)
 
 
 class CoachText(Base):

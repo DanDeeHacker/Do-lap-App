@@ -163,6 +163,22 @@ def _sleep_eff(v: dict):
     return None
 
 
+_STAGES = (("deep_min", "deepTime", "deepSleepSeconds"), ("rem_min", "remTime", "remSleepSeconds"),
+           ("light_min", "lightTime", "lightSleepSeconds"), ("awake_min", "awakeTime", "awakeSleepSeconds"))
+
+
+def _sleep_stages(v: dict) -> dict:
+    """Sleep stages in minutes from either sleep payload (the range stats use
+    deepTime / remTime …, the per-day DTO deepSleepSeconds …). Only when the
+    watch staged the night (deep + REM + light > 0)."""
+    out = {}
+    for col, a, b in _STAGES:
+        secs = v.get(a) if v.get(a) is not None else v.get(b)
+        if secs is not None:
+            out[col] = round(secs / 60, 1)
+    return out if sum(out.get(c, 0) for c in ("deep_min", "rem_min", "light_min")) > 0 else {}
+
+
 def map_daily(cdate: str, summary: dict | None, sleep: dict | None, hrv: dict | None) -> dict | None:
     """Per-day wellness → platform daily_metrics row (only fields present)."""
     row = {"date": cdate, "source": "garmin"}
@@ -179,6 +195,7 @@ def map_daily(cdate: str, summary: dict | None, sleep: dict | None, hrv: dict | 
         eff = _sleep_eff(dto)
         if eff is not None:
             row["sleep_efficiency"] = eff
+        row.update(_sleep_stages(dto))
     if hrv:
         avg = (hrv.get("hrvSummary") or {}).get("lastNightAvg") or (hrv.get("hrvSummary") or {}).get("weeklyAvg")
         if avg is not None:
@@ -278,13 +295,16 @@ def _index(rows, val_fn, date_key="calendarDate"):
 
 
 def download_seed(garmin, activity_days: int = 180,
-                  skip_dates: frozenset = frozenset(), since_date: str | None = None) -> dict:
+                  skip_dates: frozenset = frozenset(), since_date: str | None = None,
+                  sleep_backfill_days: int = 0) -> dict:
     """Download from an already-logged-in Garmin object. Daily wellness (HRV,
     resting HR, sleep, steps) is pulled with the *range* endpoints — one call
     each, auto-chunked by the library — so it covers the whole history cheaply
     instead of a per-day loop that previously only reached ~6 weeks back (why
     older HRV was missing). Incremental: `skip_dates` are days we already have
-    (skipped), `since_date` starts the activity window at our last activity."""
+    (skipped), `since_date` starts the activity window at our last activity.
+    `sleep_backfill_days` > 0 also pulls that many days of sleep stages for days
+    we already have (seed["daily_fill"] — merged only into empty fields)."""
     end = date.today()
     start = end - timedelta(days=activity_days)
     if since_date:
@@ -309,9 +329,12 @@ def download_seed(garmin, activity_days: int = 180,
     hrv_resp = _safe(garmin.get_hrv_data_range, s_iso, e_iso)
     hrv_list = hrv_resp.get("hrvSummaries") if isinstance(hrv_resp, dict) else None
     hrv = _index(hrv_list, lambda r: r.get("lastNightAvg") or r.get("weeklyAvg"))
-    sleep_raw = _safe(garmin.get_sleep_daily, s_iso, e_iso)
+    sl_from = min(start, end - timedelta(days=sleep_backfill_days)).isoformat() if sleep_backfill_days else s_iso
+    sleep_raw = _safe(garmin.get_sleep_daily, sl_from, e_iso)
     sleep = _index(sleep_raw, lambda r: (r.get("values") or {}).get("totalSleepTimeInSeconds"))
     sleep_eff = _index(sleep_raw, lambda r: _sleep_eff(r.get("values") or {}))
+    stages = _index(sleep_raw, lambda r: _sleep_stages(r.get("values") or {}) or None)
+    sleep = {d: v for d, v in sleep.items() if d >= s_iso}        # new rows only inside the normal window
 
     daily_rows = []
     for d in sorted((set(rhr) | set(steps) | set(hrv) | set(sleep)) - set(skip_dates)):
@@ -326,15 +349,21 @@ def download_seed(garmin, activity_days: int = 180,
             row["sleep_h"] = round(sleep[d] / 3600, 1)
         if d in sleep_eff:
             row["sleep_efficiency"] = sleep_eff[d]
+        row.update(stages.get(d) or {})
         if len(row) > 2:
             daily_rows.append(row)
+    # stages (and efficiency) for days we already have — filled into empty fields only
+    daily_fill = [{"date": d, **(stages.get(d) or {}), **({"sleep_efficiency": sleep_eff[d]} if d in sleep_eff else {})}
+                  for d in sorted(set(stages) & set(skip_dates))]
 
     device = "Garmin"
     dev = _safe(garmin.get_device_last_used)
     if isinstance(dev, dict) and dev.get("lastUsedDeviceName"):
         device = dev["lastUsedDeviceName"]
 
-    return assemble_seed(activities, daily_rows, device)
+    seed = assemble_seed(activities, daily_rows, device)
+    seed["daily_fill"] = daily_fill
+    return seed
 
 
 # --- Session-token persistence (for opt-in daily auto-sync + one-tap sync) ---

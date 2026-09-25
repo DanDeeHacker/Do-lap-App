@@ -47,7 +47,7 @@ export function Post() {
   const acts = (boot?.activities || []) as any[]
   const cutoff = dayAgo(14)
   const rated = new Set(fb.map((f) => f.activity_id))
-  const unrated = acts.filter((a) => a.started_at > cutoff && !rated.has(a.id))
+  const unrated = acts.filter((a) => a.started_at > cutoff && !rated.has(a.id) && !a.excluded)
   const actById = useMemo(() => new Map(acts.map((a) => [a.id, a])), [acts])
   const sorted = useMemo(() => fb.slice().sort((x, y) => y.submitted_at.localeCompare(x.submitted_at)), [fb])
   const ov = useMemo(() => diaryOverview(fb), [fb])
@@ -618,8 +618,46 @@ function RunContext({ x }: { x: any }) {
   )
 }
 
+// Feedback railway#36 — take a run out of every calculation (or put it back).
+// The run stays listed (faded) so it can be restored; nothing is deleted.
+function ExcludeRun({ rid, x, onDone }: { rid: string; x: any; onDone: (excluded: boolean) => void }) {
+  const [ask, setAsk] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const toast = useToast()
+  const go = async (excluded: boolean) => {
+    setBusy(true)
+    try {
+      await api.excludeActivity(rid, x.id, excluded)
+      onDone(excluded)
+      toast({ title: excluded ? "Běh vyřazen z výpočtů" : "Běh se zase počítá" })
+    } catch (e: any) {
+      toast({ title: e?.message || "Nepodařilo se" })
+    } finally { setBusy(false); setAsk(false) }
+  }
+  if (x.excluded)
+    return (
+      <div className="flex flex-wrap items-center gap-2 border-t border-white/5 px-4 py-3 text-xs text-[#a9c2b9]">
+        <span className="flex-1">Tento běh je vyřazený — nepočítá se do skóre, kapacity, srovnání ani AI textů.</span>
+        <button disabled={busy} onClick={() => go(false)} className="rounded-full border border-[#6ce6d3]/40 px-3 py-1 font-bold text-[#6ce6d3]">Vrátit do výpočtů</button>
+      </div>
+    )
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t border-white/5 px-4 py-3 text-xs text-[#a9c2b9]">
+      {ask ? (
+        <>
+          <span className="flex-1">Vyřadit „{x.title}“ ({fmtD(x.started_at)})? Přestane se počítat do skóre, kapacity, srovnání i AI textů. Kdykoli ho vrátíte.</span>
+          <button disabled={busy} onClick={() => go(true)} className="rounded-full bg-[#e77a59] px-3 py-1 font-bold text-[#071313]">Vyřadit</button>
+          <button onClick={() => setAsk(false)} className="rounded-full border border-white/15 px-3 py-1 font-bold">Zrušit</button>
+        </>
+      ) : (
+        <button onClick={() => setAsk(true)} className="ml-auto text-[11px] text-[#71837b] underline decoration-dotted hover:text-[#e77a59]">Vyřadit běh z výpočtů</button>
+      )}
+    </div>
+  )
+}
+
 function RunHistoryReal({ acts }: { acts: any[] }) {
-  const { me } = useApp()
+  const { me, refresh } = useApp()
   const rid = me?.runner_id
   const [open, setOpen] = useState(false)
   const [run, setRun] = useState<number | null>(null)
@@ -658,11 +696,12 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
             const tl = terrainLine(x.terrain)
             const wl = weatherLine(x.weather)
             return (
-              <div key={x.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#0c201d]">
+              <div key={x.id} className={`overflow-hidden rounded-2xl border border-white/10 bg-[#0c201d] ${x.excluded ? "opacity-60" : ""}`}>
                 <button onClick={() => setRun(isOpen ? null : x.id)} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 text-left">
                   <span className="grid size-9 place-items-center rounded-xl bg-[#17382f] text-[10px] font-bold text-[#6ce6d3]">{surf(x.surface)}</span>
                   <span className="min-w-0">
                     <b className="text-sm">{x.title}</b>
+                    {x.excluded && <span className="ml-2 rounded-full bg-white/[.08] px-2 py-0.5 align-middle text-[9px] font-bold uppercase tracking-[.08em] text-[#9bb3aa]">vyřazeno</span>}
                     <em className="block text-xs not-italic text-[#71837b]">{fmtD(x.started_at)}{x.start_time ? ` ${x.start_time}` : ""} · {x.distance_km} km · {paceStr(x.pace_s_km)}/km · {x.avg_hr} tep</em>
                     {(tl || wl) && (
                       <span className="mt-1 flex flex-wrap gap-1.5">
@@ -674,7 +713,7 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
                   <span className="whitespace-nowrap font-mono text-xs text-[#9bb3aa]">VR {x.vert_ratio_pct ?? "—"} · {isOpen ? "▴" : "▾"}</span>
                 </button>
                 {isOpen && ctx && <RunContext x={x} />}
-                {isOpen && rid && <SegmentTimeline rid={rid} aid={x.id} />}
+                {isOpen && rid && !x.excluded && <SegmentTimeline rid={rid} aid={x.id} />}
                 {isOpen && (
                   d && d.metrics ? (
                     <MonthCompare data={d} />
@@ -687,6 +726,13 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
                   ) : (
                     <p className="border-t border-white/5 px-4 py-3 text-xs text-[#71837b]">Načítám srovnání s během před měsícem…</p>
                   )
+                )}
+                {isOpen && rid && ctx && (
+                  <ExcludeRun rid={rid} x={x} onDone={(ex) => {
+                    setCtx((c) => (c ? c.map((r: any) => (r.id === x.id ? { ...r, excluded: ex } : r)) : c))
+                    setCmp({})
+                    refresh()
+                  }} />
                 )}
               </div>
             )
@@ -979,7 +1025,8 @@ export function Mechanics() {
   const { me, boot } = useApp()
   const rid = me?.runner_id
   const a = boot?.assessment
-  const acts = (boot?.activities || []) as any[]
+  const allActs = (boot?.activities || []) as any[]
+  const acts = useMemo(() => allActs.filter((x) => !x.excluded), [allActs])   // excluded runs count nowhere
   const [openMetric, setOpenMetric] = useState("Vertikální poměr")
   const [terr, setTerr] = useState(false)
   const [mechHist, setMechHist] = useState<any[] | null>(null)
@@ -1173,9 +1220,6 @@ export function Load() {
   // State follows the quadrant (post-hysteresis) so Zátěž matches it exactly.
   const loadHot = a.quadrant === "overreaching" || a.quadrant === "critical"
   const loadHeadline = loadHot ? "Zátěž je zvýšená" : (a.load ?? 0) >= 12 ? "Zátěž roste" : "Zátěž drží v normě"
-  const loadDesc = loadHot
-    ? "Akutní zátěž a související signály se zvedají nad vaši obvyklou úroveň — dobrý čas ubrat a hlídat regeneraci."
-    : "Objem, intenzita, monotónnost i regenerace sedí na vaší obvyklé úrovni."
   const loadSig = ((a.signals || []) as any[]).filter((s) => LOAD_IDS.has(s.id))
   const capVol = a.capacity?.channels?.volume
 
@@ -1188,62 +1232,64 @@ export function Load() {
   return (
     <>
 
+      {/* Signál zátěže: the score and its trend first, then what makes it up (feedback railway#34/#35) */}
       <section className="mb-4 overflow-hidden rounded-[28px] border border-[#f6d69a]/20 bg-[#102724] p-5 md:p-7">
-        <div className="grid gap-7 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <Label>Signál zátěže</Label>
             <h2 className="mt-2 font-serif text-3xl leading-tight text-[#f1f8f1]">{loadHeadline}</h2>
-            <p className="mt-3 max-w-sm text-sm leading-6 text-[#a9c2b9]">{loadDesc}</p>
-            <div className={`mt-5 inline-flex items-center gap-2 rounded-full px-3 py-2 text-[10px] font-bold ${loadHot ? "bg-[#e77a59]/12 text-[#ffc1ab]" : "bg-[#c7ff54]/12 text-[#c7ff54]"}`}>
-              <i className={`size-2 rounded-full ${loadHot ? "bg-[#e77a59]" : "bg-[#c7ff54]"}`} />
-              {loadHot ? "nad obvyklou úrovní" : "v obvyklém rozsahu"}
-            </div>
-            {loadSig.length > 0 && (
-              <div className="mt-4 border-t border-white/10 pt-3">
-                <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Co tvoří skóre zátěže</p>
-                <div className="mt-2 space-y-1.5">
-                  {loadSig.map((s) => (
-                    <div key={s.id} className="flex items-center gap-2 text-[12px]">
-                      <span className="flex-1 truncate text-[#e7efe9]">{s.name}</span>
-                      <span className="font-mono text-[#9bb3aa]">{s.val}</span>
-                      <span className="font-mono text-[#f6d69a]">+{s.pts}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {(capVol?.ceilingToday != null || L?.safeLongRunKm) && (
-              <div className="mt-4 flex items-center gap-2 rounded-xl bg-white/[.04] px-3 py-2.5">
-                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-[#17382f] text-[#6ce6d3]">⤢</span>
-                <p className="text-[11px] leading-4 text-[#a9c2b9]">
-                  Bezpečný nejdelší běh dnes: <b className="text-[#f1f8f1]">≈ {(capVol?.ceilingToday ?? L.safeLongRunKm).toLocaleString("cs-CZ")} km</b>
-                  <span className="block text-[10px] text-[#71837b]">
-                    {capVol?.ceilingToday != null
-                      ? "vaše prokázaná kapacita + 10 %, snížená podle dnešní připravenosti"
-                      : "≈ +10 % nad váš nejdelší běh 30 dní · nad +100 % prudce roste riziko"}
-                  </span>
-                </p>
-              </div>
-            )}
           </div>
-          <div className="rounded-[22px] border border-white/10 bg-[#0c201d] p-5">
-            <div className="flex items-center justify-between">
-              <Label>Skóre zátěže — trend</Label>
-              <span className="font-mono text-[10px] text-[#71837b]">0–100</span>
-            </div>
-            <div className="mt-2 flex items-end gap-2">
-              <b className="font-serif text-4xl text-[#f1f8f1]">{a.load}</b>
-              <small className="pb-1 text-xs text-[#9bb3aa]">/ 100 · {loadHot ? "zvýšená" : "v normě"}</small>
-            </div>
-            {hist === null ? (
-              <p className="mt-3 text-sm text-[#71837b]">Počítám trend v čase…</p>
-            ) : hist.length > 1 ? (
-              <AxisLineChart points={loadPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh" color={loadHot ? "#e77a59" : "#f6d69a"} height={140} />
-            ) : (
-              <p className="mt-3 text-sm text-[#71837b]">Na trend je zatím málo historie.</p>
-            )}
-            <p className="mt-1 text-[10px] text-[#71837b]">skóre zátěže po týdnech · nad prahem 25 = zvýšená (vstupuje do kvadrantu)</p>
+          <div className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-[10px] font-bold ${loadHot ? "bg-[#e77a59]/12 text-[#ffc1ab]" : "bg-[#c7ff54]/12 text-[#c7ff54]"}`}>
+            <i className={`size-2 rounded-full ${loadHot ? "bg-[#e77a59]" : "bg-[#c7ff54]"}`} />
+            {loadHot ? "nad obvyklou úrovní" : "v obvyklém rozsahu"}
           </div>
+        </div>
+        <div className="mt-5 rounded-[22px] border border-white/10 bg-[#0c201d] p-5">
+          <div className="flex items-center justify-between">
+            <Label>Skóre zátěže — trend</Label>
+            <span className="font-mono text-[10px] text-[#71837b]">0–100</span>
+          </div>
+          <div className="mt-2 flex items-end gap-2">
+            <b className="font-serif text-4xl text-[#f1f8f1]">{a.load}</b>
+            <small className="pb-1 text-xs text-[#9bb3aa]">/ 100 · {loadHot ? "zvýšená" : "v normě"}</small>
+          </div>
+          {hist === null ? (
+            <p className="mt-3 text-sm text-[#71837b]">Počítám trend v čase…</p>
+          ) : hist.length > 1 ? (
+            <AxisLineChart points={loadPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh" color={loadHot ? "#e77a59" : "#f6d69a"} height={140} />
+          ) : (
+            <p className="mt-3 text-sm text-[#71837b]">Na trend je zatím málo historie.</p>
+          )}
+          <p className="mt-1 text-[10px] text-[#71837b]">skóre zátěže po týdnech · nad prahem 25 = zvýšená (vstupuje do kvadrantu)</p>
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Co tvoří skóre zátěže</p>
+            {loadSig.length > 0 ? (
+              <div className="mt-2 space-y-1.5">
+                {loadSig.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2 text-[12px]">
+                    <span className="flex-1 truncate text-[#e7efe9]">{s.name}</span>
+                    <span className="font-mono text-[#9bb3aa]">{s.val}</span>
+                    <span className="font-mono text-[#f6d69a]">+{s.pts}</span>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="mt-2 text-[12px] text-[#a9c2b9]">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
+          </div>
+          {(capVol?.ceilingSession != null || L?.safeLongRunKm) && (
+            <div className="flex items-center gap-2 self-start rounded-xl bg-white/[.04] px-3 py-2.5">
+              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-[#17382f] text-[#6ce6d3]">⤢</span>
+              <p className="text-[11px] leading-4 text-[#a9c2b9]">
+                Bezpečný nejdelší běh tento týden: <b className="text-[#f1f8f1]">≈ {(capVol?.ceilingSession ?? L.safeLongRunKm).toLocaleString("cs-CZ")} km</b>
+                <span className="block text-[10px] text-[#71837b]">
+                  {capVol?.ceilingSession != null
+                    ? `vaše prokázaná kapacita jednoho běhu + 10 %${capVol.ceilingToday != null && capVol.ceilingToday < capVol.ceilingSession - 0.05 ? ` · dnes podle připravenosti jen ≈ ${capVol.ceilingToday.toLocaleString("cs-CZ")} km` : ""}`
+                    : "≈ +10 % nad váš nejdelší běh 30 dní · nad +100 % prudce roste riziko"}
+                </span>
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -1270,15 +1316,52 @@ export function Load() {
             <Card><span className="flex items-center gap-1.5"><Label>HRV 7 dní</Label><InfoDot text={MI.hrv} label="HRV 7 dní" /></span><p className="mt-2 font-serif text-3xl">{rcv.hrv.now}<small className="text-sm"> ms</small></p><p className="text-xs text-[#71837b]">baseline {rcv.hrv.base} ms · z {sgn(rcv.hrv.z)}</p><div className="mt-3"><Sparkline vals={rcv.hrv.series} color={rcv.hrv.z <= -1 ? "#e77a59" : "#6ce6d3"} /></div></Card>
             <Card><span className="flex items-center gap-1.5"><Label>Klidový tep</Label><InfoDot text={MI.rhr} label="Klidový tep" /></span><p className="mt-2 font-serif text-3xl">{rcv.rhr.now}</p><p className="text-xs text-[#71837b]">baseline {rcv.rhr.base} · z {sgn(rcv.rhr.z)}</p><div className="mt-3"><Sparkline vals={rcv.rhr.series} color={rcv.rhr.z >= 1.2 ? "#e77a59" : "#6ce6d3"} /></div></Card>
             <Card><span className="flex items-center gap-1.5"><Label>Spánek</Label><InfoDot text={MI.sleep} label="Spánek" /></span><p className="mt-2 font-serif text-3xl">{rcv.sleep.now}<small className="text-sm"> h</small></p><p className="text-xs text-[#71837b]">obvykle {rcv.sleep.base} h{rcv.sleep.debt > 0 ? ` · dluh ${rcv.sleep.debt} h/týd` : ""}</p><div className="mt-3"><Sparkline vals={rcv.sleep.series} color={rcv.sleep.debt >= 4 ? "#e77a59" : "#6ce6d3"} /></div></Card>
-            {a.sleepEff && (
-              <Card><Label>Efektivita spánku</Label><p className="mt-2 font-serif text-3xl" style={{ color: a.sleepEff.now < 0.85 ? "#e77a59" : undefined }}>{Math.round(a.sleepEff.now * 100)}<small className="text-sm"> %</small></p><p className="text-xs text-[#71837b]">{a.sleepEff.base ? `obvykle ${Math.round(a.sleepEff.base * 100)} %` : "prospáno z času v posteli"} · pod 85 % = roztříštěný</p></Card>
-            )}
+            {a.sleepEff && <SleepQualityCard s={a.sleepEff} />}
           </>
         ) : (
           <Card className="md:col-span-3"><Empty>Chybí souvislá data z hodinek za posledních 35 dní.</Empty></Card>
         )}
       </div>
     </>
+  )
+}
+
+// Feedback railway#33 — sleep quality, not only length: efficiency (asleep / in bed)
+// and the deep + REM share of the staged night against the runner's 8-week normal.
+// Both feed readiness (at most half a signal — watch staging is approximate).
+function SleepQualityCard({ s }: { s: any }) {
+  const pct = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)} %`)
+  const restLow = s.restNow != null && s.restBase != null && s.restNow < s.restBase - 0.03
+  const effLow = s.now != null && (s.now < 0.85 || (s.base != null && s.now < s.base - 0.02))
+  const ln = s.lastNight
+  const total = ln ? ln.deepMin + ln.remMin + ln.lightMin : 0
+  const seg = (m: number, col: string, key: string) => total > 0 && <i key={key} className="block h-full" style={{ width: `${(m / total) * 100}%`, background: col }} />
+  return (
+    <Card>
+      <span className="flex items-center gap-1.5"><Label>Kvalita spánku</Label><InfoDot text={MI.sleepQuality} label="Kvalita spánku" /></span>
+      <div className="mt-2 flex items-end gap-4">
+        <div>
+          <p className="font-serif text-3xl" style={{ color: restLow ? "#e77a59" : undefined }}>{pct(s.restNow)}</p>
+          <p className="text-[10px] text-[#71837b]">hluboký + REM{s.restBase != null ? ` · obvykle ${pct(s.restBase)}` : ""}</p>
+        </div>
+        <div>
+          <p className="font-serif text-2xl" style={{ color: effLow ? "#e77a59" : undefined }}>{pct(s.now)}</p>
+          <p className="text-[10px] text-[#71837b]">efektivita{s.base != null ? ` · obvykle ${pct(s.base)}` : ""}</p>
+        </div>
+      </div>
+      {ln && total > 0 && (
+        <div className="mt-3">
+          <div className="flex h-2 overflow-hidden rounded-full bg-white/10">
+            {seg(ln.deepMin, "#6ce6d3", "d")}{seg(ln.remMin, "#c7ff54", "r")}{seg(ln.lightMin, "#71837b", "l")}
+          </div>
+          <p className="mt-1 text-[10px] text-[#71837b]">poslední noc: hluboký {ln.deepMin} min · REM {ln.remMin} min · lehký {ln.lightMin} min{ln.awakeMin ? ` · vzhůru ${ln.awakeMin} min` : ""}</p>
+        </div>
+      )}
+      <p className="mt-2 text-[10px] leading-4 text-[#71837b]">
+        {s.restNow == null ? "Fáze spánku se načtou při další synchronizaci s Garminem. " : ""}
+        {restLow || effLow ? "Méně kvalitní spánek než obvykle snižuje dnešní připravenost." : "Průměr 7 nocí proti vaší normě za 8 týdnů."}
+      </p>
+    </Card>
   )
 }
 

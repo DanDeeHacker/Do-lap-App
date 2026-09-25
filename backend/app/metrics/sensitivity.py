@@ -9,7 +9,8 @@ BOTH and asserts the load + mechanics axes (the two that determine the
 quadrant) come out identical — so any drift from the live engine fails CI.
 """
 from . import capacity as CAP
-from .engine import QUAD_EXIT, QUAD_THRESHOLD, clamp, days_between, iso_date, quadrant_of, rnd, today_date
+from . import engine as E
+from .engine import QUAD_EXIT, QUAD_THRESHOLD, clamp, quadrant_of, rnd
 
 # Canonical load-axis signal ids (some are derived, not tied to one knob) — used
 # by the fidelity test to compare simulate() against the live engine per-signal.
@@ -470,10 +471,10 @@ def inputs_from_assessment(a: dict, runner=None) -> dict:
     if active:
         out["injurySeverity"] = active.get("severity") or 0
         out["injuryConfirmed"] = bool(active.get("confirmed"))
-    if runner is not None and getattr(runner, "prior_injury", None) and getattr(runner, "prior_injury_months_ago", None) is not None:
-        out["priorInjuryMonths"] = runner.prior_injury_months_ago
-    if runner is not None and getattr(runner, "goal_date", None):
-        d = days_between(iso_date(today_date()), runner.goal_date)
-        if d is not None and 0 <= d <= 21:
-            out["daysToRace"] = d
+    months = E.injury_months(runner) if runner is not None else None   # date → months → "recent" (plan A5)
+    if months is not None:
+        out["priorInjuryMonths"] = months
+    nxt = (a.get("races") or {}).get("nextA")                           # plan B4: the calendar's next A race
+    if nxt and 0 <= nxt["daysTo"] <= 21:
+        out["daysToRace"] = nxt["daysTo"]
     return out

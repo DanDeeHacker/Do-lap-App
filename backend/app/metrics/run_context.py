@@ -79,5 +79,6 @@ def run_history(db, rid: str, limit: int = 20) -> list[dict]:
             "terrain": terrain_context(a, surf.get(a.id)),
             "weather": a.weather_json,
             "weatherNote": None if a.weather_json else _weather_note(a, runner),
+            "excluded": bool(a.excluded),
         })
     return out

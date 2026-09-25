@@ -11,7 +11,7 @@ const num = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleStr
 const TONE = { ok: "#6ce6d3", watch: "#f6d69a", alert: "#e77a59", muted: "#71837b" }
 const toneOf = (ratio: number | null | undefined, margin: number) =>
   ratio == null ? "muted" : ratio <= 1 + margin ? "ok" : ratio <= 1.3 ? "watch" : "alert"
-const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší spánek", soreness: "svalová bolest", fatigue: "únava" }
+const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší nebo méně kvalitní spánek", soreness: "svalová bolest", fatigue: "únava" }
 const BAND: Record<string, [string, string]> = {
   pod: ["pod obvyklým", TONE.muted], "obvyklé": ["obvyklé", TONE.ok], nad: ["nad obvyklým", TONE.watch], "výrazně nad": ["výrazně nad", TONE.alert],
 }
@@ -93,10 +93,23 @@ function ChannelRow({ id, c, margins }: { id: string; c: any; margins: any }) {
             </p>
           )}
           {c.latent && <p className="mt-1 text-[10px] text-[#f6d69a]">Doznívá skok ×{num(c.latent.ratio)} z {fmtD(c.latent.date)}</p>}
+          {c.pendingJump && <PendingJump j={c.pendingJump} unit={c.unit} />}
           {CH_NOTE[id] && <p className="mt-2 text-[10px] leading-4 text-[#71837b]">{CH_NOTE[id]}</p>}
         </>
       )}
     </div>
+  )
+}
+
+// plan B1: a big jump isn't capacity until it's held for 14 days (and confirmed pain-free)
+function PendingJump({ j, unit }: { j: any; unit: string }) {
+  const held = j.countsFrom <= new Date().toISOString().slice(0, 10)
+  return (
+    <p className="mt-1 text-[10px] leading-4 text-[#9bb3aa]">
+      Skok {fmtD(j.date)} ({num(j.value)} {unit}{j.ratio ? ` · ×${num(j.ratio)}` : ""}){" "}
+      {held ? "se do kapacity počítá jen napůl" : `se do kapacity nepočítá do ${fmtD(j.countsFrom)}`}
+      {j.confirmed ? "." : " — ohodnoťte ten běh (bolest 0), ať se po té době započítá celý."}
+    </p>
   )
 }
 
@@ -107,7 +120,9 @@ function ZoneTime({ cap }: { cap: any }) {
   const total = Object.values(mins).reduce((a, b) => a + b, 0)
   return (
     <div>
-      <span className="flex items-center gap-1.5"><Label>Tepové zóny · čas za 7 dní</Label><InfoDot text={MI.hrZones} label="Tepové zóny" /></span>
+      <span className="flex items-center gap-1.5"><Label>Tepové zóny · čas za 7 dní</Label>
+        {!cap.hrMaxMeasured && <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[9px] font-bold text-[#9bb3aa]" title="Maximální tep je odhad — změřený zadejte v profilu">odhad</span>}
+        <InfoDot text={MI.hrZones} label="Tepové zóny" /></span>
       <div className="mt-2 grid grid-cols-5 gap-1 text-center">
         {zones.map((z: any) => {
           const hard = z.z === "Z4" || z.z === "Z5"
@@ -126,7 +141,7 @@ function ZoneTime({ cap }: { cap: any }) {
       </div>
       <p className="mt-1.5 text-[10px] leading-4 text-[#71837b]">
         {cap.zones7d ? `${cap.zones7d.runs} ${cap.zones7d.runs === 1 ? "běh" : cap.zones7d.runs < 5 ? "běhy" : "běhů"} · celkem ${total} min${cap.zones7d.exact ? "" : " · u běhů bez detailních dat odhad z průměrného tepu"}` : "Za posledních 7 dní žádný běh s tepem."}
-        {" "}· max ≈ {cap.hrMax} · klid ≈ {cap.hrRest} tep/min · kanál intenzity = minuty v Z4+
+        {" "}· max {cap.hrMaxMeasured ? `${cap.hrMax} (změřený)` : `≈ ${cap.hrMax} (odhad — změřený zadejte v profilu)`} · klid ≈ {cap.hrRest} tep/min · kanál intenzity = minuty v Z4+
       </p>
     </div>
   )

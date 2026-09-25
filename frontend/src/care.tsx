@@ -158,7 +158,8 @@ function HealthSection({ onReport, onRtr }: { onReport: () => void; onRtr: () =>
           <Card>
             <Label>Nahlášené zranění</Label>
             <div className="mt-2 rounded-xl bg-[#3c2922] p-3 text-sm text-[#ffc1ab]"><b>{injActive.site}</b> · OSTRC {injActive.severity}/100<br />
-              <button onClick={async () => { await api.reportInjury(rid, { resolve: true }); refresh() }} className="mt-2 rounded-full border border-white/15 px-3 py-1 text-xs font-bold">Označit jako zahojené</button></div>
+              <button onClick={async () => { await api.reportInjury(rid, { resolve: true }); refresh() }} className="mt-2 rounded-full border border-white/15 px-3 py-1 text-xs font-bold">Označit jako zahojené</button>
+              <p className="mt-2 text-[11px] leading-4 text-[#ffc1ab]/80">Pak následují 3 týdny postupného návratu (50 → 75 → 90 % týdne před zraněním), první 2 týdny bez intenzity.</p></div>
             <button onClick={onReport} className="mt-3 text-xs font-bold text-[#71837b] underline">Nahlásit další obtíže</button>
           </Card>
         ) : (
@@ -243,14 +244,18 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
   )
 }
 
-function InjurySheet({ rid, onClose, onDone }: { rid: string; onClose: () => void; onDone: () => void }) {
-  const [q, setQ] = useState<Record<string, number>>({ q_participation: 0, q_volume: 0, q_performance: 0, q_pain: 0 })
+export function InjurySheet({ rid, onClose, onDone, initialRegions = [], initialQ, intro }: {
+  rid: string; onClose: () => void; onDone: () => void; initialRegions?: string[]; initialQ?: Record<string, number>; intro?: string
+}) {
+  const [q, setQ] = useState<Record<string, number>>({ q_participation: 0, q_volume: 0, q_performance: 0, q_pain: 0, ...initialQ })
   const [points, setPoints] = useState<BodyPoint[]>([])
   const { busy, err, run } = useAsync()
   const toast = useToast()
   return (
     <Sheet open onClose={onClose}>
       <h2 className="font-serif text-2xl">Nahlásit obtíže (OSTRC)</h2>
+      {intro && <p className="mt-1 text-xs leading-5 text-[#a9c2b9]">{intro}</p>}
+      <p className="mt-1 text-[11px] leading-4 text-[#71837b]">Obtíže s dopadem na trénink se zapíšou do historie zranění v profilu (datum a strana). Po označení „zahojené" vás aplikace vrátí k běhu postupně: 50 → 75 → 90 % běžného týdne, první 2 týdny bez intenzity.</p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="grid gap-3">
           {OSTRC.map(([name, label, opts]) => (
@@ -260,7 +265,7 @@ function InjurySheet({ rid, onClose, onDone }: { rid: string; onClose: () => voi
         <div>
           <Label>Kde to bolí</Label>
           <p className="mt-1 text-xs text-[#71837b]">Klepněte na všechna místa, která bolí — silueta rozliší levou a pravou stranu.</p>
-          <div className="mt-3"><MuscleAnatomy multi onSelect={setPoints} /></div>
+          <div className="mt-3"><MuscleAnatomy multi onSelect={setPoints} initialRegions={initialRegions} /></div>
         </div>
       </div>
       {err && <p className="mt-3 text-xs font-bold text-[#e77a59]">{err}</p>}

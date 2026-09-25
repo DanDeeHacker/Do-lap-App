@@ -264,3 +264,83 @@ def test_every_sync_also_fetches_details_for_new_runs(client, monkeypatch):
         raise RuntimeError("garmin down")
     monkeypatch.setattr(integrations, "_fetch_streams", boom)
     assert client.post("/api/integrations/garmin/sync").status_code == 200     # a failed detail fetch never fails the sync
+
+
+# --- Sleep stages (feedback railway#33): quality, not only length ---
+
+def test_sleep_stages_from_both_payloads():
+    row = garmin_live.map_daily("2026-08-01", None, {"dailySleepDTO": {
+        "sleepTimeSeconds": 27000, "deepSleepSeconds": 5400, "remSleepSeconds": 6000,
+        "lightSleepSeconds": 15600, "awakeSleepSeconds": 900}}, None)
+    assert (row["deep_min"], row["rem_min"], row["light_min"], row["awake_min"]) == (90, 100, 260, 15)
+    assert garmin_live._sleep_stages({"deepTime": 3600, "remTime": 4800, "lightTime": 14400, "awakeTime": 600}) == \
+        {"deep_min": 60, "rem_min": 80, "light_min": 240, "awake_min": 10}
+    assert garmin_live._sleep_stages({"awakeTime": 600}) == {}          # an unstaged night
+
+
+class _RangeGarmin:
+    """Range endpoints only — what download_seed calls."""
+    def __init__(self):
+        self.sleep_from = None
+
+    def get_activities_by_date(self, s, e):
+        return []
+
+    def get_rhr_daily(self, s, e):
+        return [{"calendarDate": "2026-08-10", "value": 49}]
+
+    def get_daily_steps(self, s, e):
+        return []
+
+    def get_hrv_data_range(self, s, e):
+        return {"hrvSummaries": []}
+
+    def get_sleep_daily(self, s, e):
+        self.sleep_from = s
+        v = {"totalSleepTimeInSeconds": 27000, "deepTime": 5400, "remTime": 6000, "lightTime": 15600, "awakeTime": 900}
+        return [{"calendarDate": d, "values": v} for d in ("2026-03-01", "2026-08-05", "2026-08-10")]
+
+    def get_device_last_used(self):
+        return {}
+
+
+def test_download_backfills_sleep_stages_for_days_we_have(monkeypatch):
+    import datetime as dt
+
+    class _Today(dt.date):
+        @classmethod
+        def today(cls):
+            return dt.date(2026, 8, 11)
+    monkeypatch.setattr(garmin_live, "date", _Today)
+    g = _RangeGarmin()
+    seed = garmin_live.download_seed(g, skip_dates=frozenset({"2026-03-01", "2026-08-05"}), since_date="2026-08-01",
+                                     sleep_backfill_days=180)
+    assert g.sleep_from <= "2026-02-13"                                   # 180 days back, not just since the last run
+    assert [f["date"] for f in seed["daily_fill"]] == ["2026-03-01", "2026-08-05"]
+    assert seed["daily_fill"][0]["deep_min"] == 90 and seed["daily_fill"][0]["sleep_efficiency"] == 0.968
+    new = {r["date"]: r for r in seed["daily_metrics"]}
+    assert set(new) == {"2026-08-10"} and new["2026-08-10"]["rem_min"] == 100
+
+
+def test_merge_fills_sleep_stages_only_into_empty_fields(client, db_session, monkeypatch):
+    from app import models
+    rid = register(client, "glsleep@test.cz", "GL Sleep", "runner").json()["runner_id"]
+    db_session.add(models.DailyMetric(runner_id=rid, date="2026-08-05", sleep_h=7.0, sleep_efficiency=0.9, source="manual"))
+    db_session.commit()
+    seed = _seed(SAMPLE_RUN)
+    seed["daily_fill"] = [{"date": "2026-08-05", "deep_min": 80, "rem_min": 95, "light_min": 250, "awake_min": 20,
+                           "sleep_efficiency": 0.95}]
+    captured = {}
+
+    def _dl(g, **k):
+        captured.update(k)
+        return seed
+    monkeypatch.setattr(integrations.garmin_live, "begin_login", lambda e, p: (object(), False, None))
+    monkeypatch.setattr(integrations.garmin_live, "download_seed", _dl)
+    assert client.post("/api/integrations/garmin/connect", json={"email": "x@y.z", "password": "p"}).status_code == 200
+    assert captured["sleep_backfill_days"] == 180                        # no stages stored yet → backfill once
+    db_session.expire_all()
+    row = db_session.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid).one()
+    assert (row.deep_min, row.rem_min, row.sleep_efficiency, row.sleep_h) == (80, 95, 0.9, 7.0)   # nothing overwritten
+    client.post("/api/integrations/garmin/connect", json={"email": "x@y.z", "password": "p"})
+    assert captured["sleep_backfill_days"] == 0

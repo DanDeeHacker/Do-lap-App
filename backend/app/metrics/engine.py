@@ -9,6 +9,7 @@ clinician-facing summary repeats verbatim.
 """
 import calendar
 import math
+import re
 import threading
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -33,7 +34,7 @@ from ..serializers import to_dict
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.7.3"
+ENGINE_VERSION = "v0.8.0"
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -165,6 +166,12 @@ def r1(n):
 
 def r2(n):
     return None if n is None else round(n, 2)
+
+
+def _cz_num(n, dec=1) -> str:
+    """A number for Czech text: decimal comma, no trailing ",0"."""
+    v = round(float(n), dec)
+    return (f"{v:.{dec}f}".rstrip("0").rstrip(".") if dec else str(int(v))).replace(".", ",")
 
 
 def rnd(n):
@@ -336,9 +343,10 @@ def is_run(a) -> bool:
 
 
 def all_acts(db: DBSession, rid: str):
+    """Every activity the engine counts — without the ones the runner excluded."""
     return (
         db.query(models.Activity)
-        .filter(models.Activity.runner_id == rid)
+        .filter(models.Activity.runner_id == rid, models.Activity.excluded.isnot(True))
         .order_by(models.Activity.started_at.asc(), models.Activity.id.asc())
         .all()
     )
@@ -357,16 +365,20 @@ _SPORT_LPM = {"running": 1.0, "cycling": 0.85, "swimming": 1.1, "strength": 0.7,
               "rowing": 1.0, "elliptical": 0.8, "hiking": 0.6, "walking": 0.4, "other": 0.8}
 
 
-def hr_bounds(runs, dailies, birth_year=None):
+def hr_bounds(runs, dailies, birth_year=None, measured=None):
     """Estimate the runner's HR max / resting HR for TRIMP. HR max is anchored on
     their own hardest sessions (avg HR + margin), and — when a birth year is on
     file — the age estimate (Tanaka 2001: 208 − 0.7·age) replaces the flat 185
     floor, which overestimates HR max for older runners and so understates
     HR-reserve / TRIMP. Never below the runner's own hardest observed effort.
+    A MEASURED HR max from the profile (plan C2) replaces the estimate — only
+    never below the hardest average HR actually recorded.
     Resting HR is the median of recorded daily readings."""
     hrs = [a.avg_hr for a in runs if a.avg_hr]
     rhrs = sorted(d.resting_hr for d in dailies if d.resting_hr)
     rhr = rhrs[len(rhrs) // 2] if rhrs else 50.0
+    if measured:
+        return max(float(measured), max(hrs, default=0.0)), rhr
     observed = (max(hrs) + 10) if hrs else 0.0
     est = 185.0
     if birth_year:
@@ -865,7 +877,7 @@ def load(db: DBSession, rid: str):
     ALL = all_acts(db, rid)              # every sport — drives systemic training load
     CROSS = [a for a in ALL if not is_run(a)]
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
-    hrmax, rhr = hr_bounds(A, daily(db, rid, 180), r.birth_year if r else None)
+    hrmax, rhr = hr_bounds(A, daily(db, rid, 180), r.birth_year if r else None, r.hr_max if r else None)
     sl = lambda a: session_load(a, hrmax, rhr)
 
     # A session counts as high-intensity when its average HR sits at ≥80 % of
@@ -1200,21 +1212,34 @@ def sleep_efficiency(db: DBSession, rid: str):
     higher musculoskeletal injury risk beyond raw duration. Reports the recent
     7-day mean and the runner's own 28-day baseline. None when not imported
     (older data / devices that don't expose it)."""
-    rec = [d.sleep_efficiency for d in daily(db, rid, 7) if d.sleep_efficiency is not None]
+    from .capacity import rest_share
+    week = daily(db, rid, 7)
+    rec = [d.sleep_efficiency for d in week if d.sleep_efficiency is not None]
     base = (
         db.query(models.DailyMetric)
         .filter(
             models.DailyMetric.runner_id == rid,
-            models.DailyMetric.date <= day_ago(7),
-            models.DailyMetric.date > day_ago(35),
-            models.DailyMetric.sleep_efficiency.isnot(None),
+            models.DailyMetric.date <= day_ago(8),
+            models.DailyMetric.date > day_ago(56),
         )
         .all()
     )
-    base_v = [d.sleep_efficiency for d in base]
-    if len(rec) < 3:
+    base_v = [d.sleep_efficiency for d in base if d.sleep_efficiency is not None]
+    # feedback railway#33 — quality, not only length: deep + REM share of the
+    # staged sleep against the runner's own 8-week normal
+    rs_now = [x for x in (rest_share(d) for d in week) if x is not None]
+    rs_base = [x for x in (rest_share(d) for d in base) if x is not None]
+    if len(rec) < 3 and len(rs_now) < 3:
         return None
-    return {"now": r2(mean(rec)), "base": r2(mean(base_v)) if base_v else None, "n": len(rec)}
+    last = max(week, key=lambda d: d.date, default=None)
+    out = {"now": r2(mean(rec)) if len(rec) >= 3 else None, "base": r2(mean(base_v)) if base_v else None, "n": len(rec)}
+    if len(rs_now) >= 3:
+        out["restNow"] = r2(mean(rs_now))
+        out["restBase"] = r2(mean(rs_base)) if len(rs_base) >= 10 else None
+        if last is not None and last.deep_min is not None:
+            out["lastNight"] = {"date": last.date, "deepMin": rnd(last.deep_min), "remMin": rnd(last.rem_min or 0),
+                                "lightMin": rnd(last.light_min or 0), "awakeMin": rnd(last.awake_min or 0)}
+    return out
 
 
 def feedback(db: DBSession, rid: str):
@@ -1374,6 +1399,20 @@ def pain_recurrence(db: DBSession, rid: str, window: int = 28) -> dict:
 
 
 RECUR_MIN_DAYS = 3     # same running-relevant site on ≥ 3 different days in 28 = recurring
+PRIOR_UNKNOWN_MONTHS = 6   # a prior injury with no date counts as recent (prevention plan A5)
+FUNCTION_WINDOW_DAYS = 2   # a check-in saying pain limits movement counts today and tomorrow (A1)
+ACUTE_WINDOW_DAYS = 4      # an acute-overload report counts on its day and the 3 after (A2)
+MAX_EFFORT_WINDOW = 21     # races / maximal efforts looked back for recovery blocks (A3)
+RTR_FACTORS = (0.50, 0.75, 0.90)   # B3: weekly volume after a resolved injury, weeks 1–3 (of the pre-injury week)
+RTR_NO_QUALITY_DAYS = 14           # B3: no intensity for this long after it's resolved
+RACE_EFFORT_GAP = 14               # B4: a race this close after a maximal effort (or another race) is a risk
+RACE_DAY_READY_MIN = 50            # B4: race-day warning below this readiness…
+RACE_DAY_PAIN_DAYS = 7             # …or with running pain reported in these last days
+PAIN_MORNING_MIN = 2       # B2: next-morning pain from this level counts (1/10 is noise)
+PAIN_TREND_RISE = 1.0      # B2: weekly mean pain up by this much…
+PAIN_TREND_MIN = 2.0       # …to at least this level = rising week to week
+_RACE_WORDS = ("marathon", "maraton", "race", "závod", "zavod", "parkrun", "10k", "5k", "půlmaraton")
+_SIDE_CZ = {"left": "vlevo", "right": "vpravo", "both": "oboustranně"}
 
 
 def recurring_pain(db: DBSession, rid: str, window: int = 28):
@@ -1388,6 +1427,318 @@ def recurring_pain(db: DBSession, rid: str, window: int = 28):
         if len(days) >= RECUR_MIN_DAYS and (best is None or len(days) > best["days"]):
             best = {"site": _REGION_LABEL.get(str(region).lower(), region), "days": len(days), "last": days[-1]}
     return best
+
+
+def injury_months(r) -> int | None:
+    """Months since the runner's prior injury: from its date, else the months
+    they entered, else PRIOR_UNKNOWN_MONTHS — an injury with no date is treated
+    as recent rather than ignored (plan A5). None without a prior injury."""
+    if not r or not r.prior_injury:
+        return None
+    if getattr(r, "prior_injury_date", None):
+        try:
+            return max(0, (today_date() - date.fromisoformat(str(r.prior_injury_date)[:10])).days // 30)
+        except ValueError:
+            pass
+    if r.prior_injury_months_ago is not None:
+        return r.prior_injury_months_ago
+    return PRIOR_UNKNOWN_MONTHS
+
+
+def _sites(points, site) -> list[str]:
+    regs = [p.get("region") for p in (points or []) if p.get("region")]
+    if not regs and site:
+        regs = [x.strip() for x in str(site).split(",") if x.strip()]
+    return list(dict.fromkeys(regs))
+
+
+def function_limit(db: DBSession, rid: str):
+    """Plan A1 — the latest check-in (today / yesterday) saying pain limits ordinary
+    movement, made the runner limp, or shortened / changed a run. OSTRC logic:
+    function, not the pain number, marks an injury — a 2/10 that makes you limp
+    matters more than a 5/10 that doesn't. None when nothing was reported."""
+    cut = day_ago(FUNCTION_WINDOW_DAYS - 1)
+    rows = (db.query(models.Checkin)
+            .filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= cut)
+            .order_by(models.Checkin.submitted_at.desc()).all())
+    c = next((x for x in rows if x.limits_movement or x.limping or x.run_modified), None)
+    if c is None:
+        return None
+    regs = _sites(c.pain_points, c.pain_site)
+    if regs and not any(_run_relevant(x) for x in regs):
+        return None                                   # an arm or shoulder doesn't stop running
+    return {"at": c.submitted_at[:10], "site": ", ".join(regs) or None, "limitsMovement": bool(c.limits_movement),
+            "limping": bool(c.limping), "runModified": bool(c.run_modified),
+            "severe": bool(c.limits_movement or c.limping)}
+
+
+def acute_overload(db: DBSession, rid: str):
+    """Plan A2 — a report right after running that already says "too much":
+    pain at ≥ 2 running-relevant sites, or soreness ≥ 7 with pain, or RPE 9–10
+    with pain. Acts at once instead of waiting for pain to recur on 3 days.
+    {at, daysSince, reasons, sites} of the latest trigger in the window, else None."""
+    since = day_ago(ACUTE_WINDOW_DAYS - 1)
+    trig = []
+    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= since):
+        sites = [x for x in _sites(c.pain_points, c.pain_site) if _run_relevant(x)]
+        hurts = (c.pain_score or 0) >= 1 or bool(sites)
+        why = []
+        if len(sites) >= 2:
+            why.append(f"bolest na {len(sites)} místech")
+        if (c.soreness or 0) >= 7 and hurts:
+            why.append(f"svalová bolest {c.soreness}/10")
+        if why:
+            trig.append((c.submitted_at[:10], why, sites))
+    for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid,
+                                                      models.ActivityFeedback.submitted_at >= since):
+        sites = [x for x in _sites(f.pain_points, f.pain_site) if _run_relevant(x)]
+        hurts = (f.pain_during or 0) >= 1 or bool(sites) or bool(f.niggle)
+        why = []
+        if len(sites) >= 2:
+            why.append(f"bolest na {len(sites)} místech")
+        if (f.rpe or 0) >= 9 and hurts:
+            why.append(f"námaha {f.rpe}/10 s bolestí")
+        if why:
+            trig.append((f.submitted_at[:10], why, sites))
+    if not trig:
+        return None
+    at = max(t[0] for t in trig)
+    reasons = list(dict.fromkeys(w for t in trig for w in t[1]))
+    sites = list(dict.fromkeys(x for t in trig for x in t[2]))
+    return {"at": at, "daysSince": (today_date() - date.fromisoformat(at)).days, "reasons": reasons, "sites": sites}
+
+
+_SIDE_OF = {"L": "left", "P": "right", "R": "right"}
+
+
+def record_injury(db: DBSession, rid: str, rep) -> None:
+    """Plan B3 — a reported injury (OSTRC severity > 0) becomes the runner's
+    injury history: the site is added to prior_injury, and a NEW episode (no
+    other active report) sets prior_injury_date / prior_injury_side, so injury
+    history and frailty never depend on the profile being filled in by hand."""
+    if not rep or (rep.severity or 0) <= 0:
+        return
+    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    if r is None:
+        return
+    others = (db.query(models.InjuryReport)
+              .filter(models.InjuryReport.runner_id == rid, models.InjuryReport.status == "active",
+                      models.InjuryReport.id != rep.id).count()) if rep.id else 0
+    region = rep.body_region or next((p.get("region") for p in (rep.pain_points or []) if p.get("region")), None)
+    site = re.sub(r"\s*\((L|P)\)$", "", str(region)).strip() if region else None
+    if site and site.lower() not in (r.prior_injury or "").lower():
+        r.prior_injury = f"{r.prior_injury}; {site}" if r.prior_injury else site
+    elif not r.prior_injury:
+        r.prior_injury = "zranění (nahlášené)"
+    if others == 0 or not r.prior_injury_date:
+        r.prior_injury_date = (rep.submitted_at or now_iso())[:10]
+        sides = {_SIDE_OF.get(p.get("side")) for p in (rep.pain_points or [])} | {_SIDE_OF.get(rep.body_side)}
+        sides.discard(None)
+        r.prior_injury_side = "both" if len(sides) > 1 else (sides.pop() if sides else r.prior_injury_side)
+
+
+def return_to_run(db: DBSession, rid: str):
+    """Plan B3 — graded return after an injury the runner (or physio) marked as
+    resolved: weeks 1–3 at 50 / 75 / 90 % of the pre-injury week, no intensity
+    for the first 14 days. {site, injuryAt, resolvedAt, daysSince, week, factor,
+    noQuality, physioPlan} while within 3 weeks of resolving, else None."""
+    reps = db.query(models.InjuryReport).filter(models.InjuryReport.runner_id == rid).all()
+    if any(x.status == "active" and (x.severity or 0) > 0 for x in reps):
+        return None                                   # still injured — the injury override applies
+    done = [x for x in reps if x.status == "resolved" and x.resolved_at and (x.severity or 0) > 0]
+    if not done:
+        return None
+    last = max(x.resolved_at[:10] for x in done)
+    days = (today_date() - date.fromisoformat(last)).days
+    if not 0 <= days < 7 * len(RTR_FACTORS):
+        return None
+    episode = [x for x in done if x.resolved_at[:10] == last]
+    first = min(episode, key=lambda x: x.submitted_at)
+    wk = days // 7 + 1
+    plan = db.query(models.ReturnToRun).filter(models.ReturnToRun.runner_id == rid,
+                                               models.ReturnToRun.status == "active").first()
+    return {"site": _injury_site_label(first), "injuryAt": first.submitted_at[:10], "resolvedAt": last,
+            "daysSince": days, "week": wk, "factor": RTR_FACTORS[wk - 1],
+            "noQuality": days < RTR_NO_QUALITY_DAYS,
+            "noQualityUntil": iso_date(date.fromisoformat(last) + timedelta(days=RTR_NO_QUALITY_DAYS)),
+            "physioPlan": plan is not None}
+
+
+def races_for(db: DBSession, r) -> list[dict]:
+    """Plan B4 — the race calendar, plus the profile's goal race (goal_race /
+    goal_date) as an A race when the calendar has nothing on that day."""
+    if r is None:
+        return []
+    today = today_date()
+    out = [{"id": x.id, "date": x.date[:10], "name": x.name, "km": x.distance_km, "priority": x.priority or "B",
+            "source": "calendar"}
+           for x in db.query(models.Race).filter(models.Race.runner_id == r.id)]
+    if r.goal_date and not any(o["date"] == str(r.goal_date)[:10] for o in out):
+        out.append({"id": "goal", "date": str(r.goal_date)[:10], "name": r.goal_race, "km": None, "priority": "A",
+                    "source": "profile"})
+    for o in out:
+        try:
+            o["daysTo"] = (date.fromisoformat(o["date"]) - today).days
+        except ValueError:
+            o["daysTo"] = None
+    return sorted((o for o in out if o["daysTo"] is not None), key=lambda o: o["date"])
+
+
+def _race_name(x) -> str:
+    return x.get("name") or ("cílový závod" if x.get("priority") == "A" else "závod")
+
+
+def race_outlook(db: DBSession, rid: str, r, efforts: list[dict], readiness_score=None):
+    """Plan B4 — what the calendar means today: {next, nextA, upcoming, warnings}
+    or None without upcoming races. Warnings: a race within 14 days after a
+    maximal effort or another race; on race day (or the day before) readiness
+    under 50 % or running pain in the last 7 days."""
+    races = races_for(db, r)
+    upcoming = [x for x in races if 0 <= x["daysTo"] <= 120]
+    if not upcoming:
+        return None
+    warnings = []
+    for x in upcoming:
+        if x["daysTo"] > 28:
+            continue
+        rd = date.fromisoformat(x["date"])
+        near = [e for e in efforts if e["date"] != x["date"] and 0 < (rd - date.fromisoformat(e["date"])).days <= RACE_EFFORT_GAP]
+        if near:
+            e = max(near, key=lambda e: e["date"])
+            gap = (rd - date.fromisoformat(e["date"])).days
+            warnings.append({"kind": "effort_before", "race": x["date"], "gap": gap,
+                             "text": f"{_race_name(x).capitalize()} ({x['date'][8:10].lstrip('0')}. {x['date'][5:7].lstrip('0')}.) "
+                                     f"je jen {gap} dní po maximálním úsilí {e['date'][8:10].lstrip('0')}. "
+                                     f"{e['date'][5:7].lstrip('0')}. ({_cz_num(e['km'])} km). Plné zotavení trvá ~{e['days']} dní — "
+                                     "zvažte závod běžet jen jako trénink, nebo ho vynechat."})
+        prev = [y for y in races if y["date"] < x["date"] and y["priority"] in ("A", "B") and x["priority"] in ("A", "B")
+                and (rd - date.fromisoformat(y["date"])).days <= RACE_EFFORT_GAP and y["date"] not in {e["date"] for e in near}]
+        if prev:
+            y = prev[-1]
+            gap = (rd - date.fromisoformat(y["date"])).days
+            warnings.append({"kind": "races_close", "race": x["date"], "gap": gap,
+                             "text": f"Dva závody {gap} dní po sobě ({_race_name(y)} → {_race_name(x)}) — na oba naplno "
+                                     "není dost času na zotavení; jeden běžte jako trénink."})
+    nxt = upcoming[0]
+    if nxt["daysTo"] <= 1:
+        why = []
+        if readiness_score is not None and readiness_score < RACE_DAY_READY_MIN:
+            why.append(f"připravenost {readiness_score} %")
+        hurt = [p for p in _pain_reports(db, rid, day_ago(RACE_DAY_PAIN_DAYS - 1)) if p["pain"] >= PAIN_MORNING_MIN]
+        if hurt:
+            top = max(hurt, key=lambda p: p["pain"])
+            why.append(f"bolest {top['pain']}/10 za posledních {RACE_DAY_PAIN_DAYS} dní"
+                       + (f" ({', '.join(top['sites'][:2])})" if top["sites"] else ""))
+        if why:
+            warnings.append({"kind": "race_day", "race": nxt["date"], "gap": nxt["daysTo"],
+                             "text": f"{'Dnes' if nxt['daysTo'] == 0 else 'Zítra'} {_race_name(nxt)}, ale {' a '.join(why)}. "
+                                     "Závod na hraně zotavení je častý začátek zranění — běžte jen v pohodlném tempu, "
+                                     "nebo nestartujte; při bolesti během závodu zpomalte nebo odstupte."})
+    nxt_a = next((x for x in upcoming if x["priority"] == "A"), None)
+    return {"next": nxt, "nextA": nxt_a, "upcoming": upcoming[:8], "warnings": warnings}
+
+
+def _pain_reports(db: DBSession, rid: str, since: str) -> list[dict]:
+    """Running-relevant pain reports since `since`: check-ins by their day, run
+    ratings by the RUN's day (pain during that run, even if rated later)."""
+    out = []
+    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= since):
+        sites = _sites(c.pain_points, c.pain_site)
+        if sites and not any(_run_relevant(x) for x in sites):
+            continue
+        out.append({"day": c.submitted_at[:10], "kind": "checkin", "pain": c.pain_score or 0,
+                    "sites": [x for x in sites if _run_relevant(x)]})
+    rows = (db.query(models.ActivityFeedback, models.Activity.started_at)
+            .join(models.Activity, models.Activity.id == models.ActivityFeedback.activity_id)
+            .filter(models.ActivityFeedback.runner_id == rid, models.Activity.started_at >= since))
+    for f, started in rows:
+        sites = _sites(f.pain_points, f.pain_site)
+        if sites and not any(_run_relevant(x) for x in sites):
+            continue
+        out.append({"day": started[:10], "kind": "run", "pain": f.pain_during or 0,
+                    "sites": [x for x in sites if _run_relevant(x)]})
+    return out
+
+
+def pain_monitor(db: DBSession, rid: str):
+    """Plan B2 — the pain-monitoring model (Silbernagel 2007): pain during a run
+    may be tolerable, but it must settle by the next morning and must not grow
+    from week to week. Returns {morningWorse, trend} (either may be None) or None.
+
+    morningWorse — today's check-in shows more pain (≥ 2) at a site than was
+                   reported during yesterday's run there → today no running.
+    trend        — mean daily pain of the last 7 days ≥ 1 point above the 7
+                   days before, reaching ≥ 2 → training is modified."""
+    today = today_date()
+    t_iso, y_iso = iso_date(today), iso_date(today - timedelta(days=1))
+    reps = _pain_reports(db, rid, iso_date(today - timedelta(days=14)))
+    morning = None
+    ci = [r for r in reps if r["kind"] == "checkin" and r["day"] == t_iso and r["pain"] >= PAIN_MORNING_MIN]
+    ran = [r for r in reps if r["kind"] == "run" and r["day"] == y_iso]
+    if ci and ran:
+        m = max(ci, key=lambda r: r["pain"])
+        for site in (m["sites"] or [None]):
+            # during = that run's pain at this site (0 when the rating didn't mark it)
+            during = max((r["pain"] if (site is None or not r["sites"] or site in r["sites"]) else 0) for r in ran)
+            if m["pain"] > during:
+                morning = {"at": t_iso, "runDate": y_iso, "site": site, "morning": m["pain"], "during": during}
+                break
+    # weekly trend: per day the highest reported pain; a week needs ≥ 2 reported
+    # days now and ≥ 1 before (no reports ≠ no pain, so missing days don't count)
+    by_day: dict = {}
+    for r in reps:
+        by_day[r["day"]] = max(by_day.get(r["day"], 0), r["pain"])
+    now = [v for d, v in by_day.items() if (today - date.fromisoformat(d)).days < 7]
+    before = [v for d, v in by_day.items() if 7 <= (today - date.fromisoformat(d)).days < 14]
+    trend = None
+    if len(now) >= 2 and before:
+        mn, mb = mean(now), mean(before)
+        if mn - mb >= PAIN_TREND_RISE and mn >= PAIN_TREND_MIN:
+            trend = {"now": r1(mn), "before": r1(mb), "daysNow": len(now), "daysBefore": len(before)}
+    if not morning and not trend:
+        return None
+    return {"morningWorse": morning, "trend": trend}
+
+
+def max_efforts(db: DBSession, rid: str, hrmax: float | None, window: int = MAX_EFFORT_WINDOW) -> list[dict]:
+    """Plan A3 — races and maximal efforts in the last `window` days: ≥ 10 km (≥ 5
+    km when the title says it's a race) with RPE ≥ 9, or average HR ≥ 92 % of HR
+    max, or a pace ≥ 12 % faster than the runner's usual long runs, or a race
+    title. Each gets a recovery block of ~1 day per 3 km (2–14 days), the first
+    third of it rest."""
+    runs = acts(db, rid)
+    fb = {f.activity_id: f for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid)}
+    since, today = day_ago(window), today_date()
+    out = []
+    for a in runs:
+        if not a.started_at or a.started_at[:10] < since:
+            continue
+        km = a.distance_km or 0
+        titled = any(w in (a.title or "").lower() for w in _RACE_WORDS)
+        if km < (5 if titled else 10):
+            continue
+        d0 = a.started_at[:10]
+        lo = iso_date(date.fromisoformat(d0) - timedelta(days=90))
+        prior = [x for x in runs if x.id != a.id and x.pace_s_km and lo <= x.started_at[:10] < d0]
+        long_ = [x.pace_s_km for x in prior if (x.distance_km or 0) >= 12]
+        usual = median(long_) if len(long_) >= 3 else (median([x.pace_s_km for x in prior]) if len(prior) >= 5 else None)
+        why = []
+        f = fb.get(a.id)
+        if f and (f.rpe or 0) >= 9:
+            why.append(f"námaha {f.rpe}/10")
+        if a.avg_hr and hrmax and a.avg_hr >= 0.92 * hrmax:
+            why.append(f"průměrný tep {round(a.avg_hr)} ({round(100 * a.avg_hr / hrmax)} % maxima)")
+        if usual and a.pace_s_km and a.pace_s_km <= 0.88 * usual:
+            why.append(f"tempo o {round(100 * (1 - a.pace_s_km / usual))} % rychlejší než vaše obvyklé dlouhé běhy")
+        if titled:
+            why.append("závod")
+        if not why:
+            continue
+        days = int(clamp(round(km / 3), 2, 14))
+        since_days = (today - date.fromisoformat(d0)).days
+        out.append({"date": d0, "km": r1(km), "title": a.title, "why": why, "days": days,
+                    "restDays": max(2, math.ceil(days / 3)), "daysSince": since_days})
+    return out
 
 
 def confidence(db: DBSession, rid: str):
@@ -1486,7 +1837,8 @@ def _stream_rows(db: DBSession, rid: str, newest_first: bool = False) -> list[di
                  models.Activity.started_at, models.Activity.title, models.Activity.distance_km,
                  models.Activity.surface)
         .join(models.Activity, models.ActivityStream.activity_id == models.Activity.id)
-        .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.segments_json.isnot(None))
+        .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.segments_json.isnot(None),
+                models.Activity.excluded.isnot(True))
         .order_by(order, models.Activity.id.asc())
     )
     out = []
@@ -1938,7 +2290,9 @@ def assess(db: DBSession, rid: str) -> dict:
         for pp in (rep.pain_points or []):
             if pp.get("region"):
                 prior_regions.add(pp["region"])
-    prior_months = r.prior_injury_months_ago if (r and r.prior_injury_months_ago is not None) else None
+    prior_months = injury_months(r)
+    prior_unknown = bool(r and r.prior_injury and not getattr(r, "prior_injury_date", None)
+                         and r.prior_injury_months_ago is None)
     frailty = 1.0
     if r and r.prior_injury and prior_months is not None and prior_months <= 12:
         frailty = 1 + clamp(0.20 * (1 - prior_months / 12), 0.04, 0.20)
@@ -2180,15 +2534,16 @@ def assess(db: DBSession, rid: str) -> dict:
     # Race proximity is deliberately not a primary framing anywhere in the
     # UI — it's informational unless it combines with an already-elevated
     # load state, in which case it becomes a genuine red flag.
-    if r and r.goal_date:
-        days_to_race = days_between(iso_date(today_date()), r.goal_date)
+    next_a = next((x for x in races_for(db, r) if x["priority"] == "A" and x["daysTo"] >= 0), None) if r else None
+    if next_a:                                # plan B4: the calendar's next A race (or the profile's goal race)
+        days_to_race = next_a["daysTo"]
         if days_to_race is not None and 0 <= days_to_race <= 21 and (
             load_score >= QUAD_THRESHOLD or (L["ratio"] is not None and L["ratio"] > 1.3)
         ):
             p = rnd(clamp((21 - days_to_race) / 21 * 14, 4, 14))
             load_score += p
             push("taper", "Blízký závod při zvýšené zátěži", "C", p, f"{days_to_race} dní do závodu",
-                 f"{r.goal_race or 'cílový závod'} za {days_to_race} dní při zvýšené aktuální zátěži — "
+                 f"{next_a['name'] or 'cílový závod'} za {days_to_race} dní při zvýšené aktuální zátěži — "
                  "riziko přetížení těsně před závodem stoupá, zvažte odlehčení místo dalšího navyšování")
 
     if fb and fb["niggleCount"] >= 3:
@@ -2260,7 +2615,7 @@ def assess(db: DBSession, rid: str) -> dict:
         push("sleepreg", "Nepravidelná délka spánku", "C", p, f"SD ×{sreg['ratio']}",
              f"kolísání délky spánku {sreg['sdNow']} h proti obvyklým {sreg['sdBase']} h za 14 dní")
     # v0.5 — low sleep efficiency (fragmented sleep) beyond raw duration
-    if seff and seff["now"] < 0.85:
+    if seff and seff["now"] is not None and seff["now"] < 0.85:
         p = rnd(clamp((0.85 - seff["now"]) * 60, 0, 16))
         if p:
             symp_score += p
@@ -2286,9 +2641,11 @@ def assess(db: DBSession, rid: str) -> dict:
     if r and r.prior_injury and prior_months is not None and prior_months <= 12:
         p = rnd(clamp(18 * (1 - prior_months / 12), 6, 18))
         symp_score += p
-        push("hist", "Zranění v anamnéze", "A", p, f"{prior_months} měs.",
-             f"{r.prior_injury} — nejrobustnější rizikový faktor napříč literaturou; váha klesá s časem od zranění "
-             f"a snižuje toleranci zátěže (×{r2(frailty)}).")
+        side = _SIDE_CZ.get(getattr(r, "prior_injury_side", None) or "", "")
+        push("hist", "Zranění v anamnéze", "A", p, "datum neznámé" if prior_unknown else f"{prior_months} měs.",
+             f"{r.prior_injury}{f' ({side})' if side else ''} — nejrobustnější rizikový faktor napříč literaturou; "
+             f"váha klesá s časem od zranění a snižuje toleranci zátěže (×{r2(frailty)})."
+             + (" Datum zranění chybí — počítáme ho jako nedávné; doplňte ho v profilu." if prior_unknown else ""))
 
     # v0.6 — a live reported/confirmed injury (OSTRC-H). Weighted on the
     # symptom axis on a par with an in-run pain report, scaled by severity;
@@ -2321,6 +2678,46 @@ def assess(db: DBSession, rid: str) -> dict:
         push("complaints", "Opakované obtíže (napříč místy)", "B", p, f"{run_complaint_days} dní / 28",
              "Bolest hlášená ve více dnech za poslední 4 týdny, i když se místo mění. Opakované obtíže "
              "předcházejí zranění častěji než jednorázová bolest — širší, citlivější varování než jen recidiva stejného místa.")
+
+    # Prevention plan A1–A3: function, acute overload right after a run, and
+    # races / maximal efforts (the last two feed the v3 guidance and the Dnes banners).
+    func = function_limit(db, rid)
+    if func:
+        p = 45 if func["severe"] else 22
+        symp_score += p
+        what = "omezený pohyb" if func["limitsMovement"] else "kulhání" if func["limping"] else "upravený běh"
+        push("function", "Bolest omezuje pohyb" if func["severe"] else "Bolest omezila běh", "A", p, what,
+             f"{func['site'] or 'Nahlášená bolest'} — omezení v pohybu je úroveň zranění i při nízkém čísle bolesti "
+             "(OSTRC). Běh vynechat a nechat posoudit.")
+    acute = acute_overload(db, rid)
+    if acute:
+        symp_score += 20
+        push("acute", "Akutní přetížení po běhu", "B", 20, f"{acute['daysSince']} d",
+             ", ".join(acute["reasons"]) + " — hned po běhu; den dva bez běhu, pak jen volně.")
+    rtr = return_to_run(db, rid)
+    pmon = pain_monitor(db, rid)
+    if pmon and pmon["morningWorse"]:
+        mw = pmon["morningWorse"]
+        symp_score += 25
+        push("pain_morning", "Bolest ráno horší než při běhu", "B", 25, f"{mw['morning']}/10 vs {mw['during']}/10",
+             f"{mw['site'] or 'Bolest'}: ráno po běhu {mw['morning']}/10, při běhu {mw['during']}/10. Podle modelu "
+             "sledování bolesti (Silbernagel 2007) má bolest do rána odeznít — když je horší, byla zátěž moc; dnes bez běhu.")
+    if pmon and pmon["trend"]:
+        tr = pmon["trend"]
+        symp_score += 12
+        push("pain_trend", "Bolest týden od týdne roste", "B", 12, f"{_cz_num(tr['before'])} → {_cz_num(tr['now'])}",
+             f"Průměrná hlášená bolest za 7 dní {_cz_num(tr['now'])}/10 proti {_cz_num(tr['before'])}/10 týden předtím — "
+             "bolest nemá z týdne na týden růst (Silbernagel 2007); odlehčit, bez intenzity a dlouhého běhu.")
+    hrmax_all, _rhr = hr_bounds(acts(db, rid), daily(db, rid, 180), r.birth_year if r else None, r.hr_max if r else None)
+    efforts = max_efforts(db, rid, hrmax_all)
+    race_rec = next((e for e in sorted(efforts, key=lambda e: e["date"], reverse=True) if e["daysSince"] < e["days"]), None)
+    races = None
+    if r is not None:
+        rs = (cap_v3 or {}).get("readiness", {}).get("score") if cap_v3 else None
+        if rs is None and any(0 <= x["daysTo"] <= 1 for x in races_for(db, r)):
+            from . import capacity as CAP
+            rs = CAP.readiness_by_day(db, rid, [iso_date(today_date())]).get(iso_date(today_date()), (1.0, {}, None))[2]
+        races = race_outlook(db, rid, r, efforts, rs)
 
     # Frailty (injury history) reduces load tolerance: same objective load/mechanics
     # count for more. Multiplicative, so it amplifies existing signals only. Rounded
@@ -2358,6 +2755,13 @@ def assess(db: DBSession, rid: str) -> dict:
     pain_recur = recurring_pain(db, rid)
     if pain_recur and tier == "ok":
         tier = "watch"
+    # A4 — the risk label never contradicts the state (Přetížení / Tichý drift are
+    # not "low risk"); A1/A2 — limited function is injury-level, acute overload at least "watch".
+    order = {"ok": 0, "watch": 1, "alert": 2}
+    floor = "alert" if (quadrant == "critical" or (func and func["severe"])) else \
+        "watch" if (quadrant in ("overreaching", "silent") or func or acute or pmon) else "ok"
+    if order[floor] > order[tier]:
+        tier = floor
 
     return {
         "runner_id": rid, "computed_at": now_iso(), "engine": engine_version_for(_emode()),
@@ -2368,7 +2772,8 @@ def assess(db: DBSession, rid: str) -> dict:
         "loadDetail": L, "tavr": tv, "gct": gc, "bal": bal, "dec": dec, "aer": aer, "rcv": rcv, "fb": fb,
         "cadence": cad, "stride": strd, "vosc": vosc, "duty": duty, "gaitCv": gcv, "painWarn": pain_warn,
         "hrvCv": hcv, "sleepReg": sreg, "sleepEff": seff, "stiffness": stiff, "gradientDescent": gdesc, "injury": inj,
-        "painRecurring": pain_recur,
+        "painRecurring": pain_recur, "functionLimit": func, "acuteOverload": acute, "raceRecovery": race_rec,
+        "maxEfforts": efforts, "painMonitor": pmon, "returnToRun": rtr, "races": races,
         # v0.6 — single-session paradigm surface + capacity/frailty transparency +
         # forward-looking guardrail (the safe next-long-run ceiling).
         "sessionSpike": L.get("sessionSpike"), "spikeLatent": L.get("spikeLatent"),
@@ -2427,7 +2832,8 @@ def recompute_assessment(db: DBSession, rid: str) -> dict:
         k: a[k] for k in
         ("loadDetail", "tavr", "gct", "bal", "dec", "aer", "rcv", "fb", "cadence", "stride", "vosc",
          "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury",
-         "engineMode", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance", "painRecurring")
+         "engineMode", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance", "painRecurring",
+         "functionLimit", "acuteOverload", "raceRecovery", "maxEfforts", "painMonitor", "returnToRun", "races")
     }
     db.flush()
 

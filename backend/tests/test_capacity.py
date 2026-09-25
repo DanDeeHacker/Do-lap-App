@@ -49,12 +49,42 @@ def test_runs_followed_by_pain_are_not_proven_capacity():
 
 
 def test_weekly_capacity_average_or_best_week():
-    daily = {_day(k): 6.0 for k in range(7, 35)}           # steady ~42 km weeks
+    daily = {_day(k): 6.0 for k in range(7, 77)}           # steady 42 km weeks
     for k in range(14, 21):
-        daily[_day(k)] = 9.0                                # one 63 km week 2–3 weeks ago
-    cap = C.weekly_capacity(daily, _day(0), _day(60), set(), "volume")
-    assert cap == pytest.approx(0.9 * 63.0)
+        daily[_day(k)] = 7.2                                # one 50 km week (1.2×) 2–3 weeks ago
+    cap = C.weekly_capacity(daily, _day(0), _day(80), set(), "volume")
+    assert cap == pytest.approx(0.9 * 50.4)
     assert C.weekly_capacity(daily, _day(0), _day(20), set(), "volume") is None   # < 4 weeks of history
+
+
+def test_a_spike_week_is_not_demonstrated_weekly_capacity():
+    """Plan B1: a week > 1.3× the weeks before it doesn't raise the weekly capacity."""
+    daily = {_day(k): 6.0 for k in range(7, 77)}
+    for k in range(14, 21):
+        daily[_day(k)] = 9.0                                # 63 km after 42 km weeks = 1.5×
+    cap = C.weekly_capacity(daily, _day(0), _day(80), set(), "volume")
+    assert cap < 0.9 * 63.0 and cap >= (42 * 3 + 63) / 4   # still ≥ the plain 4-week average
+    # right after the start of the history there's too little before a week to call it a spike
+    short = {_day(k): 6.0 if k < 30 else 0.0 for k in range(7, 40)}
+    assert C.weekly_capacity(short, _day(0), _day(30), set(), "volume") == pytest.approx(0.9 * 42)
+
+
+def test_a_session_jump_doesnt_count_until_held_and_confirmed():
+    """Plan B1: a run > 1.3× its own capacity isn't capacity for 14 days; after
+    that it counts fully only when a pain-free report followed it, else half."""
+    base = [_sess(k, volume=10.0) for k in (40, 36, 33, 29, 26)]
+    recent = [_sess(k, volume=10.0) for k in (12, 9, 6, 3)]
+    jump_new = base + [_sess(8, volume=20.0)] + recent
+    assert C.session_capacity(C.channel_items(jump_new, "volume", set()), _day(0), "volume") == pytest.approx(10.0)
+    jump_old = base + [_sess(20, volume=20.0)] + recent
+    items = C.channel_items(jump_old, "volume", set())
+    assert [it[3] for it in items if it[1] == 20.0] == [True]
+    assert C.session_capacity(items, _day(0), "volume") == pytest.approx(10.0)       # no report → 0.5 × 20
+    items = C.channel_items(jump_old, "volume", set(), reports={_day(19)})
+    assert C.session_capacity(items, _day(0), "volume") == pytest.approx(20.0)       # confirmed pain-free
+    # a gradual step (≤ 1.3×) counts at once
+    step = base + [_sess(8, volume=12.5)] + recent
+    assert C.session_capacity(C.channel_items(step, "volume", set()), _day(0), "volume") == pytest.approx(12.5)
 
 
 def test_z4_minutes_from_histogram_and_from_average():
@@ -189,3 +219,27 @@ def test_how_far_off_hrv_and_resting_hr_must_be_to_drop_readiness():
     assert score(3, 3) == 20                            # the floor
     wk = C.readiness_from(C.readiness_parts({"hrv_ms": 60, "resting_hr": 50}, {"hrv_ms": 60 - 0.8 * 5}, base))[1]
     assert wk < 90                                      # a 7-night HRV mean 0.8 SD low already costs
+
+
+def test_a_long_night_of_poor_quality_sleep_lowers_readiness(client, db_session):
+    """Feedback railway#33: sleep quality (deep + REM share, efficiency) moderates
+    readiness, not only its length — at most half a signal."""
+    db = db_session
+    rid = register(client, "rdq@test.cz", "Sleep Q", "runner").json()["runner_id"]
+    for k in range(0, 40):
+        deep, rem = (95 if k % 2 else 85), (100 if k % 3 else 110)
+        eff = 0.99 if k % 2 else 0.985                       # near-constant efficiency
+        if k == 0:
+            deep, rem = 40, 50                               # a normal-length night with little deep / REM sleep
+        db.add(models.DailyMetric(runner_id=rid, date=E.day_ago(k), hrv_ms=62 if k == 0 else 60 + (k % 5),
+                                  resting_hr=51 if k == 0 else 50 + (k % 3),
+                                  sleep_h=7.6 + (k % 3) * 0.1, sleep_efficiency=eff,
+                                  deep_min=deep, rem_min=rem, light_min=260, awake_min=10))
+    db.commit()
+    ready = C.readiness_by_day(db, rid, [E.day_ago(0), E.day_ago(1)])
+    f0, p0, s0 = ready[E.day_ago(0)]
+    assert p0["sleep"] > 0.3 and 55 <= s0 < 80           # quality alone: capped at half a signal
+    assert ready[E.day_ago(1)][1].get("sleep", 0) == 0    # an ordinary night's sleep costs nothing
+    # a 2-point efficiency dip on a near-constant baseline is noise, not 4 SD
+    parts = C.readiness_parts({"sleep_efficiency": 0.97}, {}, {"sleep_efficiency": (0.99, 0.004)})
+    assert parts["sleep"] < 0.15

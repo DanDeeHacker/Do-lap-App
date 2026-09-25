@@ -15,6 +15,7 @@ const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"
 const MODE: Record<string, [string, string]> = {
   build: ["Budovací týden", "#6ce6d3"], recovery: ["Odlehčovací týden", "#f6d69a"], deload: ["Odlehčovací · zvýšená zátěž", "#e77a59"],
   taper: ["Ladění před závodem", "#c7ff54"], learning: ["Nastavuji cyklus", "#9bb3aa"], hold: ["Udržení", "#f6d69a"],
+  return: ["Návrat po zranění", "#f6d69a"],
 }
 const CYCLE_PCT = [90, 100, 110, 55]
 const LIMIT: Record<string, string> = {
@@ -143,7 +144,7 @@ function WeekPanel({ g }: { g: any }) {
     }
   }
   // before a race the taper decides; with elevated load only a recovery week can be picked
-  const locked = wk.mode === "taper"
+  const locked = wk.mode === "taper" || wk.mode === "return" || !!wk.novice
   const allowed = (p: number) => !locked && (wk.mode !== "deload" || p === 4)
   const [modeLabel, modeCol] = MODE[wk.mode] || MODE.build
   const pct = Math.round((wk.progression ?? 1) * 100)
@@ -153,6 +154,8 @@ function WeekPanel({ g }: { g: any }) {
       : wk.mode === "recovery" ? "4. týden cyklu: 55 % vrcholového týdne — tělo vstřebá předchozí tři týdny zátěže."
         : wk.mode === "deload" ? "Zátěž je zvýšená, proto odlehčovací týden hned: 55 % minulého týdne."
           : wk.mode === "taper" ? `Ladění před závodem: ${pct} % referenčního týdne.`
+            : wk.mode === "return" ? `Návrat po zranění: ${pct} % průměrného týdne před zraněním (${num(cyc.refKm)} km) — 50 → 75 → 90 % během tří týdnů.`
+              : wk.novice ? `Prvních 6 týdnů (do ${fmtD(wk.novice.until)}): cíl = minulý týden + 10 %, dlouhý běh nejvýš o 10 % delší než nejdelší za 30 dní. Cyklus a osobní kapacitu nastavíme potom.`
             : "Cyklus nastavíme, až budou aspoň 4 týdny dat — do té doby je cílem vaše týdenní kapacita."
   return (
     <section className="mt-4 rounded-[24px] border border-white/10 bg-[#0c201d] p-5 md:p-6">
@@ -169,7 +172,7 @@ function WeekPanel({ g }: { g: any }) {
           return (
             <button key={n} role="radio" aria-checked={on} disabled={busy || on || !allowed(n)}
               onClick={() => setAsk(n)}
-              title={locked ? "Před závodem řídí týden ladění formy." : !allowed(n) ? "Zátěž je zvýšená — nejdřív odlehčovací týden." : on ? "Aktuální týden cyklu" : "Přepnout tento týden"}
+              title={locked ? (wk.novice ? "Prvních 6 týdnů běží bez cyklu." : wk.mode === "return" ? "Návrat po zranění řídí týden sám." : "Před závodem řídí týden ladění formy.") : !allowed(n) ? "Zátěž je zvýšená — nejdřív odlehčovací týden." : on ? "Aktuální týden cyklu" : "Přepnout tento týden"}
               className={`rounded-lg px-1.5 py-1.5 text-center text-[10px] font-bold leading-tight transition ${on ? "bg-[#c7ff54] text-[#071313]" : allowed(n) ? "bg-white/[.06] text-[#c9dcd4] hover:bg-white/[.12]" : "bg-white/[.03] text-[#5f7268]"}`}>
               {n}. týden<span className="block font-normal opacity-80">{p} %</span>
             </button>
@@ -200,6 +203,95 @@ function WeekPanel({ g }: { g: any }) {
         <div className="max-w-md"><CycleStrip cyc={cyc} /></div>
       </div>
     </section>
+  )
+}
+
+// Plan B4 — the race calendar. A = the goal race (taper before it), B = run hard
+// without a taper, C = run as training. The profile's goal race shows here too.
+const PRIO: Record<string, [string, string]> = {
+  A: ["A · cílový", "#c7ff54"], B: ["B · naplno bez ladění", "#6ce6d3"], C: ["C · jako trénink", "#9bb3aa"],
+}
+const DIST = [["5", "5 km"], ["10", "10 km"], ["21.1", "půlmaraton"], ["42.2", "maraton"]]
+
+function RacesCard({ outlook }: { outlook: any }) {
+  const { me, refresh } = useApp()
+  const rid = me?.runner_id
+  const toast = useToast()
+  const [races, setRaces] = useState<any[] | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [f, setF] = useState({ date: "", name: "", km: "", priority: "B" })
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { if (rid) api.races(rid).then(setRaces).catch(() => setRaces([])) }, [rid, outlook?.next?.date])
+  if (!rid) return null
+  const save = async () => {
+    if (!f.date) return
+    setBusy(true)
+    try {
+      const r = await api.addRace(rid, { date: f.date, name: f.name || undefined, distance_km: f.km ? Number(f.km.replace(",", ".")) : null, priority: f.priority })
+      setRaces(r.races); setAdding(false); setF({ date: "", name: "", km: "", priority: "B" }); refresh()
+    } catch (e: any) {
+      toast({ title: e?.message || "Závod se nepodařilo uložit" })
+    } finally { setBusy(false) }
+  }
+  const del = async (id: number | string) => {
+    setBusy(true)
+    try { const r = await api.deleteRace(rid, id); setRaces(r.races); refresh() } finally { setBusy(false) }
+  }
+  const list = (races || []).filter((x) => x.daysTo >= -30)
+  const warns = (outlook?.warnings || []).filter((w: any) => w.kind !== "race_day")
+  const inp = "w-full rounded-xl border border-white/10 bg-white/[.04] px-3 py-2 text-sm text-[#f1f8f1]"
+  return (
+    <Card className="mt-4">
+      <div className="flex items-center justify-between gap-2">
+        <Label>Závody</Label>
+        {!adding && <button onClick={() => setAdding(true)} className="rounded-full border border-white/15 px-3 py-1 text-[11px] font-bold text-[#c7ff54]">+ Přidat závod</button>}
+      </div>
+      {warns.map((w: any, i: number) => (
+        <p key={i} className="mt-3 rounded-xl border border-[#f6d69a]/35 bg-[#33301f] px-3 py-2 text-xs leading-5 text-[#f6e2b3]">⚠ {w.text}</p>
+      ))}
+      {races === null ? <p className="mt-2 text-sm text-[#71837b]">Načítám…</p> : list.length === 0 && !adding ? (
+        <p className="mt-2 text-sm text-[#a9c2b9]">Zatím žádný závod. Přidejte ho — před cílovým závodem (A) plán zařadí ladění formy a hlídá, aby závod nepřišel moc brzy po jiném maximálním úsilí.</p>
+      ) : (
+        <ul className="mt-3 divide-y divide-white/5">
+          {list.map((x) => {
+            const [pl, pc] = PRIO[x.priority] || PRIO.B
+            return (
+              <li key={x.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 ${x.daysTo < 0 ? "opacity-50" : ""}`}>
+                <span className="w-16 shrink-0 font-mono text-xs text-[#9bb3aa]">{fmtD(x.date)}</span>
+                <span className="min-w-0 flex-1 text-sm text-[#f1f8f1]">
+                  {x.name || (x.priority === "A" ? "Cílový závod" : "Závod")}{x.km ? <span className="text-[#71837b]"> · {num(x.km)} km</span> : null}
+                  {x.source === "profile" && <span className="text-[10px] text-[#71837b]"> · z profilu</span>}
+                </span>
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${pc}1f`, color: pc }}>{pl}</span>
+                <span className="w-16 text-right text-[11px] text-[#9bb3aa]">{x.daysTo === 0 ? "dnes" : x.daysTo > 0 ? `za ${x.daysTo} d` : "proběhl"}</span>
+                <button disabled={busy} onClick={() => del(x.id)} aria-label="Smazat závod" className="text-xs text-[#71837b] hover:text-[#e77a59]">✕</button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {adding && (
+        <div className="mt-3 grid gap-2 rounded-2xl border border-white/10 p-3 sm:grid-cols-2">
+          <label className="text-[11px] text-[#9bb3aa]">Datum<input type="date" className={inp} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
+          <label className="text-[11px] text-[#9bb3aa]">Název<input className={inp} value={f.name} placeholder="např. Pražský půlmaraton" maxLength={80} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
+          <label className="text-[11px] text-[#9bb3aa]">Délka (km)
+            <input className={inp} inputMode="decimal" value={f.km} onChange={(e) => setF({ ...f, km: e.target.value })} />
+            <span className="mt-1 flex flex-wrap gap-1">{DIST.map(([v, l]) => <button key={v} type="button" onClick={() => setF({ ...f, km: v })} className="rounded-full bg-white/[.06] px-2 py-0.5 text-[10px] text-[#a9c2b9]">{l}</button>)}</span>
+          </label>
+          <div className="text-[11px] text-[#9bb3aa]">Priorita
+            <div className="mt-1 flex flex-wrap gap-1">{Object.entries(PRIO).map(([k, [l, c]]) => (
+              <button key={k} type="button" onClick={() => setF({ ...f, priority: k })} className="rounded-full border px-2.5 py-1 text-[10px] font-bold"
+                style={f.priority === k ? { borderColor: c, color: c, background: `${c}1f` } : { borderColor: "rgb(255 255 255 / .12)", color: "#a9c2b9" }}>{l}</button>
+            ))}</div>
+            <p className="mt-1 text-[10px] leading-4 text-[#71837b]">A = hlavní cíl, 2 týdny před ním ladění formy. B = naplno, bez ladění. C = jako trénink.</p>
+          </div>
+          <div className="flex gap-2 sm:col-span-2">
+            <button disabled={busy || !f.date} onClick={save} className="rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313] disabled:opacity-50">Uložit</button>
+            <button onClick={() => setAdding(false)} className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-[#a9c2b9]">Zrušit</button>
+          </div>
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -248,7 +340,7 @@ export function Training() {
         <div className="mt-5 rounded-2xl border border-[#e77a59]/45 bg-[#3c2922] p-4 text-[#ffc1ab]">
           <p className="text-sm font-bold">⚠ {g.override.title}</p>
           <p className="mt-1 text-xs leading-5">{g.override.text}</p>
-          {g.override.kind === "physio" && (
+          {(g.override.kind === "physio" || g.override.kind === "function") && (
             <Link to="/app/messages" className="mt-3 inline-block rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313]">Objednat fyzioterapeuta</Link>
           )}
         </div>
@@ -294,7 +386,7 @@ export function Training() {
             <Stat label="Terén" text value={t.terrain ? t.terrain.split(" — ")[0] : "—"} sub={t.terrain?.split(" — ")[1]} />
           </div>
         ) : (
-          <p className="text-sm text-[#a9c2b9]">{kind === "závod" ? "Den závodu — žádné limity. Po závodě nechte tělo pár dní regenerovat." : "Odpočinek. Pokud chcete pohyb, zvolte lehkou chůzi, mobilitu nebo jiný sport bez nárazů a bez bolesti."}</p>
+          <p className="text-sm text-[#a9c2b9]">{kind === "závod" ? ((a.races?.warnings || []).some((w: any) => w.kind === "race_day") ? "Den závodu — ale tělo dnes nehlásí plnou připravenost (viz níže). Běžte s rezervou." : "Den závodu — žádné limity. Po závodě nechte tělo pár dní regenerovat.") : "Odpočinek. Pokud chcete pohyb, zvolte lehkou chůzi, mobilitu nebo jiný sport bez nárazů a bez bolesti."}</p>
         )}
         {t.notes?.length > 0 && (
           <ul className="mt-4 space-y-1 text-xs text-[#a9c2b9]">{t.notes.map((n: string, i: number) => <li key={i}>• {n}</li>)}</ul>
@@ -303,6 +395,7 @@ export function Training() {
 
       <TodayCapacity g={g} />
       <WeekPanel g={g} />
+      <RacesCard outlook={a.races} />
 
       <Card className="mt-4">
         <Label>Proč</Label>

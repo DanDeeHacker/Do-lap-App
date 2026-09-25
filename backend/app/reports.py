@@ -210,6 +210,7 @@ def _export_models():
         models.ActivityFeedback, models.DailyMetric, models.Checkin, models.InjuryReport,
         models.Assessment, models.Triage, models.Booking, models.Referral, models.Conclusion,
         models.ReturnToRun, models.RtrSession, models.Program, models.Message, models.CareAssignment,
+        models.Race,
     ]
 
 

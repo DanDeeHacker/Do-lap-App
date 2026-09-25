@@ -13,11 +13,11 @@ import {
 import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
 import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
-import { clamp, initials, QUAD, roleHome } from "@/lib"
+import { clamp, fmtD, initials, QUAD, roleHome } from "@/lib"
 import { Field, InfoDot, Sheet, ToastHost, useAsync, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { Load as LoadTab, Mechanics, Post } from "@/tabs"
-import { Care, WeeklyCheckButton } from "@/care"
+import { Care, InjurySheet, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
 import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
@@ -166,7 +166,8 @@ function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void })
       setF({
         birth_year: r.birth_year ?? "", sex: r.sex ?? "", city: r.city ?? "", device: r.device ?? "",
         goal_race: r.goal_race ?? "", goal_date: (r.goal_date ?? "").slice(0, 10),
-        prior_injury: r.prior_injury ?? "", prior_injury_months_ago: r.prior_injury_months_ago ?? "",
+        prior_injury: r.prior_injury ?? "", prior_injury_date: (r.prior_injury_date ?? "").slice(0, 10),
+        prior_injury_side: r.prior_injury_side ?? "", hr_max: r.hr_max ?? "",
       })
   }, [open, r])
   const set = (k: string, v: any) => setF((p) => ({ ...p, [k]: v }))
@@ -175,9 +176,11 @@ function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void })
       await api.updateProfile(me!.runner_id!, {
         ...f,
         birth_year: f.birth_year ? Number(f.birth_year) : null,
-        prior_injury_months_ago: f.prior_injury_months_ago !== "" ? Number(f.prior_injury_months_ago) : null,
         goal_date: f.goal_date || null,
         prior_injury: f.prior_injury || null,
+        prior_injury_date: f.prior_injury_date || null,
+        prior_injury_side: f.prior_injury_side || null,
+        hr_max: f.hr_max ? Number(f.hr_max) : null,
       })
       await refresh()
       onClose()
@@ -193,9 +196,11 @@ function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void })
         <Field label="Město"><input className={inp} value={f.city ?? ""} onChange={(e) => set("city", e.target.value)} /></Field>
         <Field label="Hodinky / zařízení"><input className={inp} value={f.device ?? ""} onChange={(e) => set("device", e.target.value)} /></Field>
         <Field label="Cílový závod"><input className={inp} value={f.goal_race ?? ""} onChange={(e) => set("goal_race", e.target.value)} placeholder="např. Pražský půlmaraton" /></Field>
-        <Field label="Datum závodu"><input type="date" className={inp} value={f.goal_date ?? ""} onChange={(e) => set("goal_date", e.target.value)} /></Field>
+        <Field label="Datum závodu" hint="další závody přidáte v Tréninku → Závody"><input type="date" className={inp} value={f.goal_date ?? ""} onChange={(e) => set("goal_date", e.target.value)} /></Field>
         <Field label="Dřívější zranění"><input className={inp} value={f.prior_injury ?? ""} onChange={(e) => set("prior_injury", e.target.value)} placeholder="např. Achillova šlacha" /></Field>
-        <Field label="Před kolika měsíci"><input className={inp} inputMode="numeric" value={f.prior_injury_months_ago ?? ""} onChange={(e) => set("prior_injury_months_ago", e.target.value)} /></Field>
+        <Field label="Kdy se zranění stalo" hint={f.prior_injury && !f.prior_injury_date ? "bez data ho engine počítá jako nedávné" : undefined}><input type="date" className={inp} value={f.prior_injury_date ?? ""} max={new Date().toISOString().slice(0, 10)} onChange={(e) => set("prior_injury_date", e.target.value)} /></Field>
+        <Field label="Maximální tep (změřený)" hint={f.hr_max ? "tepové zóny se počítají z něj" : "z testu nebo závodu do vrchu; bez něj zóny odhadujeme"}><input className={inp} inputMode="numeric" value={f.hr_max ?? ""} placeholder="např. 192" onChange={(e) => set("hr_max", e.target.value.replace(/\D/g, ""))} /></Field>
+        <Field label="Strana"><select className={inp} value={f.prior_injury_side ?? ""} onChange={(e) => set("prior_injury_side", e.target.value)}><option value="">—</option><option value="left">levá</option><option value="right">pravá</option><option value="both">obě</option></select></Field>
       </div>
       {err && <p className="mt-3 text-xs font-bold text-[#e77a59]">{err}</p>}
       <div className="mt-5 flex gap-2">
@@ -617,6 +622,37 @@ function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; l
     document.body,
   )
 }
+// Plan B3: pain that limits movement, keeps coming back, got worse overnight or
+// hit right after a run → ask whether it's an injury, with the OSTRC report
+// prefilled (sites, and "participation with problems" when movement is limited).
+function InjuryPrompt({ a }: { a: any }) {
+  const { me, refresh } = useApp()
+  const [open, setOpen] = useState(false)
+  const rid = me?.runner_id
+  if (!rid || !a || a.injury?.active) return null
+  const f = a.functionLimit, pm = a.painMonitor, ac = a.acuteOverload, rec = a.painRecurring
+  if (!f && !pm && !ac && !rec) return null
+  const split = (x?: string | null) => (x ? x.split(",").map((t) => t.trim()).filter(Boolean) : [])
+  const regions = [...new Set([...split(f?.site), ...(ac?.sites || []), ...split(pm?.morningWorse?.site), ...split(rec?.site)])]
+  const why = f ? "Bolest omezila pohyb nebo běh" : pm?.morningWorse ? "Bolest je ráno horší než při běhu" : pm?.trend ? "Bolest týden od týdne roste"
+    : ac ? "Přetížení hned po běhu" : `Stejné místo bolí opakovaně (${rec.days}× za 28 dní)`
+  const q: Record<string, number> = f?.severe ? { q_participation: 17, q_pain: 8 } : f?.runModified ? { q_participation: 8, q_volume: 8, q_pain: 8 } : { q_pain: 8 }
+  return (
+    <>
+      {open && <InjurySheet rid={rid} initialRegions={regions} initialQ={q} intro={`${why} — upravte odpovědi podle skutečnosti.`}
+        onClose={() => setOpen(false)} onDone={() => { setOpen(false); refresh() }} />}
+      <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[.03] p-4 text-[#e7efe9]">
+        <span className="text-lg leading-none">🩹</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold">Je to zranění?</p>
+          <p className="mt-0.5 text-xs leading-5 text-[#a9c2b9]">{why}. Když to omezuje trénink, nahlaste to — zapíše se to do historie zranění, přizpůsobí se plán a po zahojení vás aplikace vrátí k běhu postupně.</p>
+        </div>
+        <button onClick={() => setOpen(true)} className="shrink-0 rounded-full bg-[#e77a59] px-3.5 py-1.5 text-xs font-bold text-[#071313]">Nahlásit zranění</button>
+      </div>
+    </>
+  )
+}
+
 function TodayV2() {
   const { me, boot, refresh, error } = useApp()
   const a = boot?.assessment
@@ -743,6 +779,61 @@ function TodayV2() {
                 ? "Stejné místo bolí opakovaně během pár dní — varovný signál přetížení. Zvažte odpočinek a konzultaci s fyzioterapeutem, než přidáte objem."
                 : "Bolest nad 3/10 stojí za pozornost. Zvažte lehčí zátěž; pokud se vrátí na stejném místě, proberte to s fyzioterapeutem."}
             </p>
+          </div>
+        </div>
+      )}
+      {a?.functionLimit?.severe && (
+        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#e77a59]/60 bg-[#3c2922] p-4 text-[#ffc1ab]">
+          <span className="text-lg leading-none">⛔</span>
+          <div>
+            <p className="text-sm font-bold">Bolest omezuje pohyb — dnes neběhat</p>
+            <p className="mt-0.5 text-xs leading-5">{a.functionLimit.site ? `${a.functionLimit.site} · ` : ""}Omezený pohyb nebo kulhání je úroveň zranění, i když je číslo bolesti nízké. Hýbejte se jen tak, aby to nebolelo, a nechte to posoudit fyzioterapeutem do 48 hodin.</p>
+          </div>
+        </div>
+      )}
+      {a?.acuteOverload && !a?.functionLimit?.severe && (
+        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#f6d69a]/40 bg-[#33301f] p-4 text-[#f6e2b3]">
+          <span className="text-lg leading-none">⚠</span>
+          <div>
+            <p className="text-sm font-bold">Akutní přetížení po běhu</p>
+            <p className="mt-0.5 text-xs leading-5">{a.acuteOverload.reasons.join(", ")}. {a.acuteOverload.daysSince <= 1 ? "Den dva bez běhu, pak jen volně a krátce." : "Zatím jen volně a krátce, bez intenzity a dlouhého běhu."} Pokud bolest do 3 dnů neustoupí, proberte ji s fyzioterapeutem.</p>
+          </div>
+        </div>
+      )}
+      {a?.painMonitor?.morningWorse && !a?.functionLimit?.severe && (
+        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#e77a59]/50 bg-[#3c2922] p-4 text-[#ffc1ab]">
+          <span className="text-lg leading-none">⛔</span>
+          <div>
+            <p className="text-sm font-bold">Bolest je ráno horší než při běhu — dnes neběhat</p>
+            <p className="mt-0.5 text-xs leading-5">{a.painMonitor.morningWorse.site ? `${a.painMonitor.morningWorse.site} · ` : ""}ráno {a.painMonitor.morningWorse.morning}/10, při včerejším běhu {a.painMonitor.morningWorse.during}/10. Bolest má do rána odeznít — když je horší, byla zátěž moc. Další běh kratší a volnější; pokud se to zopakuje, k fyzioterapeutovi.</p>
+          </div>
+        </div>
+      )}
+      {a?.painMonitor?.trend && (
+        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#f6d69a]/40 bg-[#33301f] p-4 text-[#f6e2b3]">
+          <span className="text-lg leading-none">↗</span>
+          <div>
+            <p className="text-sm font-bold">Bolest týden od týdne roste</p>
+            <p className="mt-0.5 text-xs leading-5">Průměr za 7 dní {a.painMonitor.trend.now.toLocaleString("cs-CZ")}/10, týden předtím {a.painMonitor.trend.before.toLocaleString("cs-CZ")}/10. Bolest nemá z týdne na týden růst — odlehčujeme: bez intenzity a dlouhého běhu, dokud se neustálí.</p>
+          </div>
+        </div>
+      )}
+      <InjuryPrompt a={a} />
+      {a?.races?.warnings?.length > 0 && (
+        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#f6d69a]/40 bg-[#33301f] p-4 text-[#f6e2b3]">
+          <span className="text-lg leading-none">🏁</span>
+          <div>
+            <p className="text-sm font-bold">{a.races.warnings.some((w: any) => w.kind === "race_day") ? "Závod na hraně zotavení" : "Závod příliš blízko jinému úsilí"}</p>
+            {a.races.warnings.map((w: any, i: number) => <p key={i} className="mt-0.5 text-xs leading-5">{w.text}</p>)}
+          </div>
+        </div>
+      )}
+      {a?.raceRecovery && (
+        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#6ce6d3]/35 bg-[#102724] p-4 text-[#cfe9e2]">
+          <span className="text-lg leading-none">🏁</span>
+          <div>
+            <p className="text-sm font-bold">Zotavení po závodním úsilí · den {a.raceRecovery.daysSince + 1} z {a.raceRecovery.days}</p>
+            <p className="mt-0.5 text-xs leading-5">{a.raceRecovery.km} km ({fmtD(a.raceRecovery.date)}: {a.raceRecovery.why.join(", ")}). {a.raceRecovery.daysSince < a.raceRecovery.restDays ? "První dny odpočinek nebo velmi volný pohyb." : "Zatím bez intenzity a dlouhého běhu."}</p>
           </div>
         </div>
       )}
@@ -1032,6 +1123,7 @@ function AtlasBubble() {
   const [fatigue, setFatigue] = useState(2)
   const [note, setNote] = useState("")
   const [points, setPoints] = useState<BodyPoint[]>([])
+  const [fn, setFn] = useState<{ limits_movement: boolean; run_modified: boolean; limping: boolean }>({ limits_movement: false, run_modified: false, limping: false })
   const { me, boot, refresh } = useApp()
   const rid = me?.runner_id
   const rcv = boot?.assessment?.rcv
@@ -1047,10 +1139,13 @@ function AtlasBubble() {
     run(async () => {
       if (!rid) return
       const pts = points.map((p) => ({ region: p.region, side: p.side || null, type: p.kind }))
+      const hurts = pain > 0 || pts.length > 0
       await api.checkin(rid, {
         pain_score: pain, soreness, stress: fatigue, mood: score, notes: note || null,
         pain_points: pts, pain_site: pts.length ? pts.map((p) => p.region).join(", ") : null,
+        ...(hurts ? fn : {}),
       })
+      setFn({ limits_movement: false, run_modified: false, limping: false })
       toast({ title: "Check-in uložen" })
       refresh()
       setOpen(false)
@@ -1154,6 +1249,24 @@ function AtlasBubble() {
               </div>
               <p className="mt-1 text-xs text-[#71837b]">Klepněte na místa, která bolí — můžete vybrat víc.</p>
               <div className="mt-3"><MuscleAnatomy multi onSelect={setPoints} /></div>
+            </div>
+          )}
+          {pain > 0 && (
+            <div className="mt-5 rounded-2xl bg-[#071313] p-4">
+              <p className="font-mono text-[10px] uppercase tracking-[.16em] text-[#91b7a9]">Co bolest dělá</p>
+              <p className="mt-1 text-xs text-[#71837b]">Důležitější než číslo — omezený pohyb je úroveň zranění i při nízké bolesti.</p>
+              <div className="mt-3 space-y-2">
+                {([["limits_movement", "Omezuje mě v běžném pohybu nebo při chůzi"], ["limping", "Kulhám"], ["run_modified", "Kvůli bolesti jsem zkrátil(a) nebo upravil(a) běh"]] as const).map(([k, label]) => (
+                  <button key={k} type="button" role="switch" aria-checked={fn[k]} onClick={() => setFn((p) => ({ ...p, [k]: !p[k] }))}
+                    className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-xs transition ${fn[k] ? "border-[#e77a59]/60 bg-[#e77a59]/12 text-[#ffc1ab]" : "border-white/10 text-[#c9dcd4]"}`}>
+                    <span>{label}</span>
+                    <b className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${fn[k] ? "bg-[#e77a59] text-white" : "bg-white/[.06] text-[#91b7a9]"}`}>{fn[k] ? "ano" : "ne"}</b>
+                  </button>
+                ))}
+              </div>
+              {(fn.limits_movement || fn.limping) && (
+                <p className="mt-3 rounded-xl bg-[#3c2922] p-3 text-xs leading-5 text-[#ffc1ab]">Bolest, která omezuje pohyb, je signál zranění — dnes neběhejte a nechte to posoudit fyzioterapeutem (do 48 hodin).</p>
+              )}
             </div>
           )}
           {pain > 3 && (

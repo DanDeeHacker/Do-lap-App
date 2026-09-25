@@ -144,6 +144,7 @@ def approve_conclusion(cid: int, user: models.User = Depends(require_role("physi
         )
         db.add(rep)
         db.flush()
+        E.record_injury(db, c.runner_id, rep)   # plan B3: a confirmed injury becomes the injury history
         c.out_severity = severity
         c.injury_report_id = rep.id
 

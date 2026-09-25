@@ -28,7 +28,7 @@ PHYSIO_REFERRALS = ("physio_48h", "physio_7d")
 SURFACE = {"road": "silnice", "trail": "terén", "treadmill": "pás", "track": "dráha"}
 WEEK_MODE = {"deload": "odlehčovací týden (zvýšená zátěž)", "recovery": "odlehčovací týden cyklu",
              "build": "budovací týden cyklu", "taper": "ladění před závodem", "learning": "nastavování cyklu",
-             "hold": "udržovací týden"}
+             "hold": "udržovací týden", "return": "návrat po zranění (postupné navyšování)"}
 
 _DOT_DECIMAL = re.compile(r"(?<=\d)\.(?=\d)")
 
@@ -69,12 +69,55 @@ def _recovery(a: dict) -> dict:
             out[name] = {"now": G._cz(m["now"], dec), "usual": G._cz(m.get("base"), dec)}
     if (rcv.get("sleep") or {}).get("debt"):
         out["sleepDebtH"] = G._cz(rcv["sleep"]["debt"], 1)
+    se = a.get("sleepEff") or {}
+    if se.get("restNow") is not None:     # sleep quality: deep + REM share of the night, 7-night mean
+        out["deepRemSharePct"] = {"now": round(se["restNow"] * 100),
+                                  "usual": round(se["restBase"] * 100) if se.get("restBase") is not None else None}
     return out
 
 
 def _pain(a: dict):
     p = a.get("painWarn")
-    return {"score": p["score"], "site": p.get("site")} if p and p.get("score") else None
+    out = {"score": p["score"], "site": p.get("site")} if p and p.get("score") else {}
+    f = a.get("functionLimit")
+    if f:
+        out["function"] = ("bolest omezuje běžný pohyb" if f["limitsMovement"] else "kulhání" if f["limping"]
+                           else "běh zkrácen nebo upraven kvůli bolesti")
+        out.setdefault("site", f.get("site"))
+    ac = a.get("acuteOverload")
+    if ac:
+        out["acuteOverloadAfterRun"] = ", ".join(ac["reasons"])
+    rt = a.get("returnToRun")
+    if rt:
+        out["returnAfterInjury"] = {"site": rt["site"], "week": rt["week"], "ofWeeks": 3,
+                                    "percentOfPreInjuryWeek": round(rt["factor"] * 100),
+                                    "noIntensityUntil": cz_date(rt["noQualityUntil"]) if rt["noQuality"] else None}
+    pm = a.get("painMonitor") or {}
+    if pm.get("morningWorse"):
+        m = pm["morningWorse"]
+        out["morningWorseThanDuringRun"] = {"site": m["site"], "morning": m["morning"], "duringRun": m["during"]}
+    if pm.get("trend"):
+        out["weeklyPainRising"] = {"last7": G._cz(pm["trend"]["now"], 1), "previous7": G._cz(pm["trend"]["before"], 1)}
+    return out or None
+
+
+def _race_recovery(a: dict):
+    rr = a.get("raceRecovery")
+    if not rr:
+        return None
+    return {"date": cz_date(rr["date"]), "km": G._cz(rr["km"], 1), "why": ", ".join(w for w in rr["why"]),
+            "day": rr["daysSince"] + 1, "ofDays": rr["days"], "restDays": rr["restDays"]}
+
+
+def _races(a: dict):
+    """Plan B4 — the next races and what the calendar warns about."""
+    ro = a.get("races")
+    if not ro:
+        return None
+    up = [{"date": cz_date(x["date"]), "inDays": x["daysTo"], "name": x.get("name"), "km": G._cz(x["km"], 1) if x.get("km") else None,
+           "priority": {"A": "A — cílový závod (ladění před ním)", "B": "B — naplno bez ladění", "C": "C — jako trénink"}.get(x["priority"])}
+          for x in (ro.get("upcoming") or [])[:3]]
+    return {"upcoming": up, "warnings": [w["text"] for w in ro.get("warnings") or []]}
 
 
 def _load(a: dict) -> dict:
@@ -89,6 +132,10 @@ def _load(a: dict) -> dict:
             dec = 1 if key == "volume" else 0
             ch[key] = {"label": c.get("label"), "unit": c.get("unit"), "last7": G._cz(wk.get("now"), dec),
                        "weeklyCapacity": G._cz(wk.get("cap"), dec), "ratio": G._cz(wk.get("ratio"), 2)}
+            j = c.get("pendingJump")
+            if j:      # plan B1: a jump that doesn't count as capacity yet
+                ch[key]["jumpNotYetCapacity"] = {"date": cz_date(j["date"]), "countsFrom": cz_date(j["countsFrom"]),
+                                                 "confirmedPainFree": j["confirmed"]}
     if ch:
         out["vsCapacity"] = ch
     elif L.get("ratio") is not None:
@@ -138,7 +185,8 @@ def _today(a: dict):
 
 def _last_run(db, rid: str):
     a = (db.query(models.Activity)
-         .filter(models.Activity.runner_id == rid, (models.Activity.sport == "running") | (models.Activity.sport.is_(None)))
+         .filter(models.Activity.runner_id == rid, (models.Activity.sport == "running") | (models.Activity.sport.is_(None)),
+                 models.Activity.excluded.isnot(True))
          .order_by(models.Activity.started_at.desc(), models.Activity.id.desc()).first())
     if a is None:
         return None
@@ -172,6 +220,8 @@ def daily_facts(db, rid: str, a: dict) -> dict:
         "signals": _signals(a),
         "recovery": _recovery(a),
         "pain": _pain(a),
+        "raceRecovery": _race_recovery(a),
+        "races": _races(a),
         "load": _load(a),
         "lastRun": _last_run(db, rid),
         "today": _today(a),
@@ -238,6 +288,7 @@ def weekly_facts(db, rid: str, a: dict, week_start: date) -> dict:
         "referral": {"code": E.triage_decision(a), "text": E.DECISION_HEAD.get(E.triage_decision(a)),
                      "physio": E.triage_decision(a) in PHYSIO_REFERRALS},
         "signals": _signals(a, 4),
+        "races": _races(a),
         "thisWeekPlan": {"mode": WEEK_MODE.get((g.get("week") or {}).get("mode"), (g.get("week") or {}).get("mode")),
                          "volumeBudgetKm": G._cz((wk.get("volume") or {}).get("budget"), 1) if wk.get("volume") else None,
                          "hardMinutesBudget": G._cz((wk.get("intensity") or {}).get("budget"), 0) if wk.get("intensity") else None}

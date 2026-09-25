@@ -17,8 +17,11 @@ Capacity = demonstrated tolerance:
              count with a 30-day half-life), ignoring runs that were followed
              within 72 h by running-relevant pain ≥ 3/10 (not actually tolerated);
              needs ≥ 3 prior runs in 30 days, else "unknown" (not scored).
+             A jump (> 1.3× that run's own capacity) doesn't count for 14 days
+             and afterwards only fully when a pain-free report confirmed it.
   per week — max(the average week of the previous 4 weeks, 0.9 × the best
-             pain-free 7-day window of the previous 6 weeks); needs 3 weeks.
+             pain-free 7-day window of the previous 6 weeks, spike weeks
+             > 1.3× their preceding 4 weeks excluded); needs 3 weeks.
 
 Readiness (0.7–1.0) scales capacity DOWN on a poorly recovered day: that night's
 HRV and resting HR against the runner's own 28-day baseline, sleep shortfall and
@@ -61,6 +64,9 @@ MARGIN_WEEK = 0.15      # Nielsen 2014: > 30 %/week clearly risky; 10–15 % con
 CAP_WINDOW, CAP_MAX_AGE, CAP_HALF_LIFE = 30, 90, 30.0   # days
 MIN_PRIOR = 3           # prior runs in 30 days needed to know a per-run capacity
 PAIN_AFTER = 3          # days after a run in which reported pain marks it "not tolerated"
+JUMP_RATIO = 1.3        # a session / week this far over its capacity is a jump, not proof (prevention plan B1)
+JUMP_HOLD_DAYS = 14     # …a jump doesn't raise capacity for this long…
+JUMP_UNCONFIRMED = 0.5  # …and afterwards counts fully only when a pain-free report confirmed it
 READINESS_FLOOR = 0.7
 Z4_HRR = 0.80           # Z4 starts at 80 % heart-rate reserve (Karvonen)
 ECC_DEFAULT = 1.16      # descent weighting without a profile ≈ a typical −5 % descent
@@ -230,25 +236,41 @@ def tolerated(day: str, pain: set) -> bool:
     return not any((d0 + timedelta(days=k)).isoformat() in pain for k in range(PAIN_AFTER + 1))
 
 
+def report_dates(db, rid) -> set:
+    """Days with any check-in or run rating — what "confirmed tolerated" needs."""
+    out = {c.submitted_at[:10] for c in db.query(models.Checkin.submitted_at).filter(models.Checkin.runner_id == rid) if c.submitted_at}
+    out |= {f.submitted_at[:10] for f in db.query(models.ActivityFeedback.submitted_at).filter(models.ActivityFeedback.runner_id == rid) if f.submitted_at}
+    return out
+
+
+def confirmed(day: str, reports: set, pain: set) -> bool:
+    """A report within 72 h after the session and no running pain ≥ 3 in that time."""
+    d0 = _d(day)
+    days = [(d0 + timedelta(days=k)).isoformat() for k in range(PAIN_AFTER + 1)]
+    return any(d in reports for d in days) and not any(d in pain for d in days)
+
+
 # ------------------------------------------------------------------ capacity
 def _decay(age):
     return 1.0 if age <= CAP_WINDOW else 0.5 ** ((age - CAP_WINDOW) / CAP_HALF_LIFE)
 
 
-def channel_items(sessions, ch, pain: set, tol: dict | None = None):
-    """Sorted (date, value, tolerated) of every session carrying channel `ch` —
-    built once per assessment so capacity lookups are a bisect, not a full scan.
-    `tol` (day → tolerated) can be shared across channels."""
+def channel_items(sessions, ch, pain: set, tol: dict | None = None, reports: set | None = None):
+    """Sorted (date, value, tolerated, jump, confirmed) of every session carrying
+    channel `ch` — built once per assessment so capacity lookups are a bisect,
+    not a full scan. `jump` = the session was > JUMP_RATIO × its own capacity
+    that day (plan B1); `confirmed` = a pain-free report followed it. `tol`
+    (day → tolerated) can be shared across channels."""
     tol = {} if tol is None else tol
+    reports = reports or set()
     items = []
-    for s in sessions:
-        v = s["exp"].get(ch)
-        if v is None:
-            continue
+    for s in sorted((s for s in sessions if s["exp"].get(ch) is not None), key=lambda s: s["date"]):
+        v = s["exp"][ch]
         if s["date"] not in tol:
             tol[s["date"]] = tolerated(s["date"], pain)
-        items.append((s["date"], v, tol[s["date"]]))
-    items.sort(key=lambda t: t[0])
+        cap = session_capacity(items, s["date"], ch)        # capacity from everything before it
+        jump = cap is not None and v > JUMP_RATIO * cap
+        items.append((s["date"], v, tol[s["date"]], jump, confirmed(s["date"], reports, pain)))
     return items
 
 
@@ -263,12 +285,20 @@ def session_capacity(items, ref_day: str, ch):
     lo = bisect_left(items, ((ref - timedelta(days=CAP_MAX_AGE)).isoformat(),))
     hi = bisect_left(items, (ref_day,))
     vals, n30 = [], 0
-    for day, v, ok in items[lo:hi]:
+    for it in items[lo:hi]:
+        day, v, ok = it[0], it[1], it[2]
+        jump, conf = (it[3], it[4]) if len(it) > 3 else (False, True)
         age = (ref - _d(day)).days
         if age <= CAP_WINDOW:
             n30 += 1
-        if ok:
-            vals.append(v * _decay(age))
+        if not ok:
+            continue
+        if jump:                     # plan B1: a jump is not yet proof of capacity
+            if age < JUMP_HOLD_DAYS:
+                continue
+            if not conf:
+                v *= JUMP_UNCONFIRMED
+        vals.append(v * _decay(age))
     if n30 < MIN_PRIOR:
         return None
     vals.sort(reverse=True)
@@ -288,18 +318,28 @@ def _daily_sums(sessions, ch):
 
 def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch):
     """max(average week of the 4 weeks before the current 7-day window,
-    0.9 × best pain-free 7-day window of the 6 weeks before it)."""
+    0.9 × best pain-free 7-day window of the 6 weeks before it). A window more
+    than JUMP_RATIO × the average week before it is a spike, not demonstrated
+    tolerance, and is left out (plan B1)."""
     ref = _d(ref_day)
-    if (ref - _d(first_day)).days < 27:
+    known = (ref - _d(first_day)).days          # days of history before today
+    if known < 27:
         return None
-    iso = [(ref - timedelta(days=k)).isoformat() for k in range(49)]   # iso[k] = k days ago
+    iso = [(ref - timedelta(days=k)).isoformat() for k in range(77)]   # iso[k] = k days ago
     vals = [daily.get(d, 0.0) for d in iso]
     painful = [d in pain for d in iso]
     chronic = sum(vals[7:35]) / 4
     best = 0.0
     for back in range(7, 42):                 # window = days back … back+6
-        if not any(painful[back:back + 7]):
-            best = max(best, sum(vals[back:back + 7]))
+        if any(painful[back:back + 7]):
+            continue
+        w = sum(vals[back:back + 7])
+        prior = vals[back + 7:min(back + 35, known + 1)]     # up to 4 weeks before it, within the history
+        if len(prior) >= 14:
+            before = sum(prior) / (len(prior) / 7)
+            if before > 0 and w > JUMP_RATIO * before:
+                continue
+        best = max(best, w)
     return max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"])
 
 
@@ -307,6 +347,17 @@ READY_BASE = (8, 56)    # baseline nights: 8–56 days back (a strained stretch 
 READY_TOLERANCE = 0.5   # SD — ordinary night-to-night noise costs nothing
 READY_FULL = 3.0        # SD off the baseline = the whole deficit for that signal
 READY_WEEK_BOOST = 1.25 # a 7-night mean is less noisy than one night: its deviation counts 1.25×
+SLEEP_QUALITY_W = 0.5   # sleep quality (deep + REM share, efficiency) counts at most half a signal —
+                        # watch sleep staging is only moderately accurate against PSG (de Zambotti 2019)
+SLEEP_SD_FLOOR = {"rest_share": 0.03, "sleep_efficiency": 0.02}   # a near-constant baseline mustn't turn a 2 % dip into 4 SD
+
+
+def rest_share(row):
+    """Deep + REM share of the staged sleep (0–1), None without stages."""
+    parts = [getattr(row, k, None) for k in ("deep_min", "rem_min", "light_min")]
+    if any(p is None for p in parts) or sum(parts) <= 0:
+        return None
+    return (parts[0] + parts[1]) / sum(parts)
 
 
 def readiness_parts(night: dict, week: dict, base: dict) -> dict:
@@ -325,9 +376,18 @@ def readiness_parts(night: dict, week: dict, base: dict) -> dict:
         if views:
             d = E.clamp((max(views) - READY_TOLERANCE) / (READY_FULL - READY_TOLERANCE), 0, 1)
             parts["hrv" if key == "hrv_ms" else "rhr"] = round(d, 2)
+    dur = qual = None
     if "sleep_h" in base and night.get("sleep_h") is not None:
         short = base["sleep_h"][0] - night["sleep_h"]          # hours below the usual
-        parts["sleep"] = round(E.clamp((short - 0.5) / 2.0, 0, 1), 2)
+        dur = E.clamp((short - 0.5) / 2.0, 0, 1)
+    for key in ("rest_share", "sleep_efficiency"):             # quality: less deep + REM / more awake than usual
+        if key in base and night.get(key) is not None:
+            m, sdv = base[key]
+            z = (m - night[key]) / max(sdv, SLEEP_SD_FLOOR[key])
+            q = SLEEP_QUALITY_W * E.clamp((z - READY_TOLERANCE) / (READY_FULL - READY_TOLERANCE), 0, 1)
+            qual = max(qual or 0.0, q)
+    if dur is not None or qual is not None:                    # a long night of poor sleep still costs
+        parts["sleep"] = round(1 - (1 - (dur or 0.0)) * (1 - (qual or 0.0)), 2)
     return parts
 
 
@@ -348,7 +408,8 @@ def readiness_by_day(db, rid, days) -> dict:
         mean — the rolling mean is what HRV-guided training uses (Plews et al.
         2013) and what the watch's "HRV status" reflects; the mean's deviation
         counts 1.25× (it's less noisy than one night);
-      • sleep: hours below the usual;
+      • sleep: hours below the usual, compounded with its quality — a lower deep +
+        REM share or efficiency than usual (at most half a signal);
       • check-in soreness / fatigue 6–10.
     Each signal: nothing within ±0.5 SD (normal noise), the full deficit at 3 SD.
     The score (shown as "připravenost") = 100 − 80 × combined deficit: ~70 % when
@@ -375,16 +436,18 @@ def readiness_by_day(db, rid, days) -> dict:
         night = dm.get(day)
         if night is not None and len(base_rows) >= 14:
             base = {}
-            for fld in ("hrv_ms", "resting_hr", "sleep_h"):
-                vals = [getattr(b, fld) for b in base_rows if getattr(b, fld) is not None]
-                if len(vals) >= 10 and E.sd(vals):
-                    base[fld] = (E.mean(vals), E.sd(vals))
+            for fld in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency", "rest_share"):
+                vals = [v for v in ((rest_share(b) if fld == "rest_share" else getattr(b, fld)) for b in base_rows)
+                        if v is not None]
+                if len(vals) >= 10 and (E.sd(vals) or fld in SLEEP_SD_FLOOR):
+                    base[fld] = (E.mean(vals), E.sd(vals) or 0.0)
             wk = {}
             for fld in ("hrv_ms", "resting_hr"):
                 vals = [getattr(b, fld) for b in week_rows if getattr(b, fld) is not None]
                 if len(vals) >= 3:
                     wk[fld] = E.mean(vals)
-            parts = readiness_parts({f: getattr(night, f) for f in ("hrv_ms", "resting_hr", "sleep_h")}, wk, base)
+            parts = readiness_parts({**{f: getattr(night, f) for f in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency")},
+                                     "rest_share": rest_share(night)}, wk, base)
         for c in cks.get(day, []):
             if c.soreness is not None and c.soreness >= 6:
                 parts["soreness"] = max(parts.get("soreness", 0), round(E.clamp((c.soreness - 5) / 5, 0, 1), 2))
@@ -488,9 +551,11 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
     today = E.today_date()
     t_iso = today.isoformat()
     runs_only = E.acts(db, rid)
-    hrmax, rhr = E.hr_bounds(runs_only, E.daily(db, rid, 180), runner.birth_year if runner else None)
+    hrmax, rhr = E.hr_bounds(runs_only, E.daily(db, rid, 180), runner.birth_year if runner else None,
+                             runner.hr_max if runner else None)
     sessions = run_exposures(db, rid, hrmax, rhr)
     pain = pain_dates(db, rid)
+    reports = report_dates(db, rid)
     shrink = E.clamp(1 - 2.5 * (frailty - 1), 0.5, 1.0)
     m_s, m_w = MARGIN_SESSION * shrink, MARGIN_WEEK * shrink
     first_day = min((s["date"] for s in sessions), default=t_iso)
@@ -504,7 +569,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
     runs_pool = [s for s in sessions if s["run"]]
     for ch, spec in CHANNELS.items():
         pool = sessions if ch == "systemic" else runs_pool
-        items = channel_items(pool, ch, pain, tol)
+        items = channel_items(pool, ch, pain, tol, reports)
         # --- per session: the recent session furthest over ITS capacity that day
         worst = None
         worst_r = None          # unrounded, for the v3 sandbox's exact replay
@@ -549,6 +614,16 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
                     "ceiling": _fmt(ceil_w, ch), "left": _fmt(max(0.0, ceil_w - now_w), ch)}
         # --- today's per-run ceiling (capacity from everything before today)
         cap_today = session_capacity(items, (today + timedelta(days=1)).isoformat(), ch)
+        # --- the latest jump (plan B1) that doesn't count fully yet: held for
+        # JUMP_HOLD_DAYS, then half unless a pain-free report confirmed it
+        pending = None
+        for day, v, ok, jump, conf in items:
+            age = (today - _d(day)).days
+            if jump and ok and 0 <= age < 28 and (age < JUMP_HOLD_DAYS or not conf):
+                prev = session_capacity(items, day, ch)
+                pending = {"date": day, "value": _fmt(v, ch), "ratio": round(v / prev, 2) if prev else None,
+                           "countsFrom": (_d(day) + timedelta(days=JUMP_HOLD_DAYS)).isoformat(),
+                           "confirmed": conf, "weight": 1.0 if conf else JUMP_UNCONFIRMED}
         raw = max(p_s, p_w, latent[0])
         driver = "session" if raw == p_s and p_s > 0 else "week" if raw == p_w and p_w > 0 else "latent" if raw > 0 else None
         scores[ch] = raw * spec["w"]
@@ -558,7 +633,10 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
             "session": worst, "week": week,
             "ceilingToday": _fmt(cap_today * (1 + m_s) * r_today, ch) if cap_today is not None else None,
             "capSession": _fmt(cap_today, ch) if cap_today is not None else None,
+            # the per-run ceiling on a normally recovered day — "this week", not scaled by today's readiness
+            "ceilingSession": _fmt(cap_today * (1 + m_s), ch) if cap_today is not None else None,
             "latent": {"pts": round(latent[0], 1), "date": latent[1], "ratio": latent[2]} if latent[0] else None,
+            "pendingJump": pending,
             "raw": round(raw, 1), "driver": driver, "known": worst is not None or week is not None or cap_today is not None,
             "exact": {"rs": worst_r, "rw": rw, "lat": latent[0]},
         }
@@ -601,5 +679,6 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
         "readiness": {"today": r_today, "score": score_today, "parts": parts_today, "week": round(wk_ready, 3)},
         "margins": {"session": round(m_s, 3), "week": round(m_w, 3), "frailty": round(frailty, 2)},
         "zones": hr_zones(hrmax, rhr), "hrMax": E.rnd(hrmax), "hrRest": E.rnd(rhr),
+        "hrMaxMeasured": bool(runner and runner.hr_max),
         "relativeEffort": relative_effort(sessions, t_iso),
     }

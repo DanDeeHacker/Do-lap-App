@@ -285,6 +285,14 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
         db.add(models.DailyMetric(**row))
         added_d += 1
         existing_dates.add(d["date"])
+    # sleep stages / efficiency for days already stored: only into empty fields
+    fill = {f["date"]: f for f in seed.get("daily_fill") or []}
+    if fill:
+        for row in db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid,
+                                                       models.DailyMetric.date.in_(list(fill))):
+            for k, v in fill[row.date].items():
+                if k != "date" and v is not None and getattr(row, k, None) is None:
+                    setattr(row, k, v)
     db.flush()
 
     integ = db.query(models.Integration).filter(models.Integration.runner_id == rid).first()
@@ -318,8 +326,12 @@ def _prune_pending():
 
 def _download_and_merge(db: DBSession, rid: str, garmin) -> dict:
     skip_dates, since = _runner_history(db, rid)
+    # no sleep stages stored yet → pull 180 days of them once (feedback railway#33)
+    has_stages = db.query(models.DailyMetric.id).filter(models.DailyMetric.runner_id == rid,
+                                                         models.DailyMetric.deep_min.isnot(None)).first() is not None
     try:
-        seed = garmin_live.download_seed(garmin, skip_dates=skip_dates, since_date=since)
+        seed = garmin_live.download_seed(garmin, skip_dates=skip_dates, since_date=since,
+                                         sleep_backfill_days=0 if has_stages else 180)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Nepodařilo se stáhnout data z Garminu: {e}")
     added = _merge_seed(db, rid, seed, provider="garmin")

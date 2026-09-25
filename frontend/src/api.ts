@@ -84,6 +84,7 @@ export const api = {
   activities: (id: string, n = 10) => call("GET", `/api/runners/${id}/activities?limit=${n}`),
   unrated: (id: string) => call("GET", `/api/runners/${id}/activities/unrated`),
   rateActivity: (rid: string, aid: number, body: any) => call("POST", `/api/runners/${rid}/activities/${aid}/rate`, body),
+  excludeActivity: (rid: string, aid: number, excluded: boolean) => call("POST", `/api/runners/${rid}/activities/${aid}/exclude`, { excluded }),
   daily: (id: string, n = 14) => call("GET", `/api/runners/${id}/daily?days=${n}`),
   editDaily: (rid: string, date: string, patch: any, note?: string) => call("PATCH", `/api/runners/${rid}/daily/${date}`, { patch, note }),
   checkin: (id: string, body: any) => call("POST", `/api/runners/${id}/checkins`, body),
@@ -95,6 +96,9 @@ export const api = {
   runCompare: (id: string, aid: number) => call("GET", `/api/runners/${id}/run-compare/${aid}`),
   runSegmentTest: (id: string, aid: number) => call("GET", `/api/runners/${id}/run-segments/${aid}`),
   setCycle: (id: string, pos: number | null) => call("PUT", `/api/runners/${id}/cycle`, { pos }),
+  races: (id: string) => call("GET", `/api/runners/${id}/races`),
+  addRace: (id: string, body: { date: string; name?: string; distance_km?: number | null; priority: string }) => call("POST", `/api/runners/${id}/races`, body),
+  deleteRace: (id: string, raceId: number | string) => call("DELETE", `/api/runners/${id}/races/${raceId}`),
   engineCompare: (id: string) => call("GET", `/api/runners/${id}/engine-compare`),
   runHistory: (id: string, limit = 20) => call("GET", `/api/runners/${id}/run-history?limit=${limit}`),
 
