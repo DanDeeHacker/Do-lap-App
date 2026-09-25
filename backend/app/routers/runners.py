@@ -6,7 +6,7 @@ write on the runner's behalf) once they've claimed the case.
 """
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
 
 from .. import models, schemas
@@ -14,6 +14,7 @@ from ..db import get_db
 from ..deps import (
     ensure_runner_read_access, ensure_runner_self, get_current_user, or_404, verify_csrf,
 )
+from ..metrics import coach_texts
 from ..metrics import engine as E
 from ..serializers import to_dict, to_dicts
 
@@ -700,7 +701,8 @@ def report_injury(rid: str, body: schemas.InjuryReportRequest,
 
 
 @router.post("/{rid}/checkins", dependencies=[Depends(verify_csrf)])
-def create_checkin(rid: str, body: schemas.CheckinRequest, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+def create_checkin(rid: str, body: schemas.CheckinRequest, background: BackgroundTasks,
+                   user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_self(user, rid)
     pts = body.pain_points or []
     site = body.pain_site or (pts[0].get("region") if pts else None)
@@ -711,4 +713,6 @@ def create_checkin(rid: str, body: schemas.CheckinRequest, user: models.User = D
     )
     db.add(c)
     db.commit()
-    return E.recompute_assessment(db, rid)
+    out = E.recompute_assessment(db, rid)
+    background.add_task(coach_texts.refresh_bg, rid)   # pain / feeling changed → the day's AI texts follow
+    return out

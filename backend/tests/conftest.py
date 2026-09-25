@@ -20,6 +20,7 @@ os.environ["DOSSLAP_WEATHER"] = "off"   # no network in tests; weather tests ena
 os.environ["DOSSLAP_FEEDBACK_TOKEN"] = ""
 os.environ["DOSSLAP_OWNER_EMAILS"] = ""
 os.environ["DOSSLAP_PROD_URL"] = ""
+os.environ["NVIDIA_API_KEY"] = ""          # never call the hosted model from tests (coach tests fake it)
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

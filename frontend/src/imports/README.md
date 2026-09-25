@@ -56,8 +56,8 @@ $env:NVIDIA_API_KEY = "nvapi-..."          # PowerShell, jen pro tuhle relaci
 setx NVIDIA_API_KEY "nvapi-..."            # PowerShell, trvale pro nové okna
 ```
 
-Výchozí model je `meta/llama-3.3-70b-instruct`; jiný lze nastavit přes
-`NVIDIA_MODEL`. Bez klíče appka funguje úplně stejně jako předtím — jde o
+Výchozí model je `google/gemma-4-31b-it` (Llama 3.3 70B NVIDIA 26. 8. 2026
+vyřadila); jiný lze nastavit přes `NVIDIA_MODEL`. Bez klíče appka funguje úplně stejně jako předtím — jde o
 čistě přídavnou vrstvu.
 
 ### Závěr z prohlídky + přepis audia (v0.6)

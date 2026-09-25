@@ -14,8 +14,11 @@ Get a free key at https://build.nvidia.com/nim (sign in, pick a model,
 "Get API Key"). Then either:
     setx NVIDIA_API_KEY "nvapi-..."          (Windows, new shells)
     $env:NVIDIA_API_KEY = "nvapi-..."        (current PowerShell session)
-Optionally override the model (default is a solid general-purpose free-tier
-choice) with NVIDIA_MODEL, e.g. "meta/llama-3.1-70b-instruct".
+Optionally override the model with NVIDIA_MODEL. NVIDIA retires hosted models
+(Llama 3.3 70B went on 2026-08-26 and every call then failed with HTTP 410), so
+the default is the one that answered on the free tier in September 2026 — Gemma
+4 31B, open-weight like Llama, good Czech. List what's live with
+GET {NVIDIA_BASE_URL}/models.
 """
 import os
 
@@ -25,7 +28,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY")
-NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
+NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "google/gemma-4-31b-it")
 NVIDIA_BASE_URL = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
 
 # Speech-to-text for the post-visit conclusion. Kept separate from the chat
@@ -73,7 +76,7 @@ def transcribe(audio_bytes: bytes, filename: str = "session.webm",
         return None
 
 
-def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: int = 700):
+def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: int = 700, timeout: float = 60.0):
     """Same contract as chat() but takes a full messages list (system + any
     number of prior user/assistant turns) — what the multi-turn AI chat in
     ai_brief.chat_reply() needs; chat() is the single-turn special case.
@@ -94,7 +97,7 @@ def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: i
                 "max_tokens": max_tokens,
                 "stream": False,
             },
-            timeout=60.0,
+            timeout=timeout,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -104,12 +107,12 @@ def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: i
         return None
 
 
-def chat(system: str, user: str, temperature: float = 0.25, max_tokens: int = 700):
+def chat(system: str, user: str, temperature: float = 0.25, max_tokens: int = 700, timeout: float = 60.0):
     """Returns the model's reply text, or None if no key is configured or
     the call fails for any reason (network, quota, bad response shape) —
     callers must treat None as "fall back to the deterministic version",
     never as an error to surface to the user."""
     return chat_messages(
         [{"role": "system", "content": system}, {"role": "user", "content": user}],
-        temperature, max_tokens,
+        temperature, max_tokens, timeout,
     )

@@ -96,6 +96,11 @@ export const api = {
   runSegmentTest: (id: string, aid: number) => call("GET", `/api/runners/${id}/run-segments/${aid}`),
   runHistory: (id: string, limit = 20) => call("GET", `/api/runners/${id}/run-history?limit=${limit}`),
 
+  // AI summaries & training commentary (opt-in)
+  coach: (rid: string) => call("GET", `/api/runners/${rid}/coach`),
+  setCoachConsent: (rid: string, consent: boolean) => call("PUT", `/api/runners/${rid}/coach/consent`, { consent }),
+  refreshCoach: (rid: string) => call("POST", `/api/runners/${rid}/coach/refresh`),
+
   // annotation mode (in-app feedback notes)
   annotations: () => call("GET", "/api/annotations"),
   createAnnotation: (body: any) => call("POST", "/api/annotations", body),

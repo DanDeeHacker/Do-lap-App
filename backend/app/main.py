@@ -21,7 +21,7 @@ from . import db as dbmod
 from .db import Base, SessionLocal, engine
 from .metrics import engine as E
 from .routers import (
-    ai, annotations, auth, booking, conclusions, employers, integrations, partners, physios, programs, rtr,
+    ai, annotations, auth, booking, coach, conclusions, employers, integrations, partners, physios, programs, rtr,
     runners, simulate, triage,
 )
 
@@ -76,6 +76,8 @@ def _migrate(engine):
     add("activities", "start_lat", "start_lat FLOAT")
     add("activities", "start_lon", "start_lon FLOAT")
     add("activities", "weather_json", "weather_json JSON")
+    add("runners", "coach_consent", "coach_consent BOOLEAN", "UPDATE runners SET coach_consent = FALSE WHERE coach_consent IS NULL")
+    add("runners", "coach_consent_at", "coach_consent_at VARCHAR")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.
@@ -120,6 +122,10 @@ async def _garmin_autosync_loop():
         try:
             result = await asyncio.to_thread(auto_sync_all, SessionLocal)
             log.info("Garmin auto-sync: %s", result)
+            # fresh data → the day's AI texts for runners who opted in (metrics/coach_texts.py)
+            from .metrics.coach_texts import generate_all
+            coach = await asyncio.to_thread(generate_all, SessionLocal)
+            log.info("AI texts: %s runners", coach.get("runners"))
         except Exception:  # noqa: BLE001
             log.exception("Garmin auto-sync loop failed")
         await asyncio.sleep(60)  # step past the trigger minute so we don't re-fire
@@ -279,6 +285,7 @@ app.include_router(partners.router)
 app.include_router(integrations.router)
 app.include_router(simulate.router)
 app.include_router(annotations.router)
+app.include_router(coach.router)
 
 
 @app.get("/api/health")

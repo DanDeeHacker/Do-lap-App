@@ -15,13 +15,14 @@ import sys
 import tempfile
 import time
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, UploadFile, File
 from sqlalchemy import func
 from sqlalchemy.orm import Session as DBSession
 
 from .. import models
 from ..db import get_db
 from ..deps import require_role, verify_csrf
+from ..metrics import coach_texts
 from ..metrics import engine as E
 
 _BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -460,11 +461,12 @@ def garmin_status(user: models.User = Depends(require_role("runner")),
 
 
 @router.post("/garmin/sync", dependencies=[Depends(verify_csrf)])
-def garmin_sync(user: models.User = Depends(require_role("runner")),
+def garmin_sync(background: BackgroundTasks, user: models.User = Depends(require_role("runner")),
                 db: DBSession = Depends(get_db)):
     """One-tap 'Synchronizovat' — resume from the stored session token (no
     password) and pull anything new. Requires a prior connect with 'remember'."""
     result = _sync_from_stored(db, user.runner_id)
+    background.add_task(coach_texts.refresh_bg, user.runner_id)   # new data → the day's AI texts follow
     return {**result, "status": _garmin_status(db, user.runner_id)}
 
 

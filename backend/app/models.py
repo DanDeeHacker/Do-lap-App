@@ -82,6 +82,10 @@ class Runner(Base):
     # "v2" sensitive (per-run, robust noise scale) or "v3" capacity (v2 mechanics +
     # load scored against the runner's own capacity). Toggled in the app.
     engine_mode = Column(String, default="v1")
+    # AI summaries & training commentary (metrics/coach_texts.py): off until the runner
+    # opts in, because derived health data goes to an externally hosted model.
+    coach_consent = Column(Boolean, default=False)
+    coach_consent_at = Column(String)
 
 
 class Integration(Base):
@@ -581,3 +585,27 @@ class Annotation(Base):
     created_at = Column(String)
     updated_at = Column(String)
     resolved_at = Column(String)
+
+
+class CoachText(Base):
+    """One generated AI text — daily summary, daily training commentary or weekly
+    summary (metrics/coach_texts.py). Every generation is kept with the exact facts
+    it was written from, the prompt version and the validator's verdict, so prompt
+    changes can be evaluated against real cases later. `text` is what the runner
+    sees: the model's text when it passed validation, else the deterministic one."""
+    __tablename__ = "coach_texts"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    kind = Column(String, nullable=False)          # daily_summary | daily_commentary | weekly_summary
+    period = Column(String, nullable=False)        # the day, or the week's Monday
+    facts_json = Column(JSON)
+    facts_hash = Column(String)
+    prompt_version = Column(String)
+    model = Column(String)
+    llm_text = Column(Text)                        # the model's raw output, kept even when rejected
+    text = Column(Text, nullable=False)            # what is shown
+    source = Column(String)                        # llm | fallback
+    issues_json = Column(JSON)                     # validator findings / why the fallback was used
+    cards_json = Column(JSON)                      # literature cards used (phase 2)
+    latency_ms = Column(Integer)
+    created_at = Column(String)

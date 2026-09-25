@@ -243,6 +243,8 @@ export function DataView() {
         <p className="mt-2 text-[11px] leading-4 text-[#71837b]">Backtest = souhrn v1 vs v2. Detailní = rozpad skóre po jednotlivých signálech + drivery + legenda vzorců. Data = kompletní JSON <b>bez tokenů a hesel</b>.</p>
       </Card>
 
+      <CoachConsentCard rid={rid} />
+
       <Card className="mt-4">
         <div className="flex flex-wrap gap-2">
           {([["garmin", "Garmin – soubor"], ["garminlive", "Garmin – přihlášení"], ["apple", "Apple Health"]] as const).map(([k, l]) => (
@@ -366,5 +368,105 @@ export function DataView() {
         </Card>
       </div>
     </>
+  )
+}
+
+// AI summaries & training commentary (backend metrics/coach_texts.py) — opt-in,
+// because derived health data goes to an externally hosted model. Phase 1 only
+// switches it on and shows a preview; Dnes / Trénink show the texts later.
+const COACH_KIND: Record<string, string> = {
+  daily_summary: "Denní shrnutí", daily_commentary: "Komentář k tréninku", weekly_summary: "Týdenní shrnutí",
+}
+function CoachConsentCard({ rid }: { rid: string }) {
+  const toast = useToast()
+  const [st, setSt] = useState<any | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [show, setShow] = useState<string | null>(null)
+  const polls = useRef(0)
+  useEffect(() => {
+    let alive = true
+    let timer = 0
+    const load = () =>
+      api.coach(rid).then((d) => {
+        if (!alive) return
+        setSt(d)
+        // texts are written in the background (a hosted model takes a minute or more) — look again
+        if (d?.pending?.length && polls.current++ < 20) timer = window.setTimeout(load, 20000)
+      }).catch(() => alive && setSt(false))
+    load()
+    return () => { alive = false; window.clearTimeout(timer) }
+  }, [rid, st?.consent])
+  const toggle = async () => {
+    if (!st || busy) return
+    setBusy(true)
+    try {
+      const next = await api.setCoachConsent(rid, !st.consent)
+      polls.current = 0
+      setSt({ ...next, pending: next.consent ? ["daily_summary"] : [] })
+      toast({ title: next.consent ? "AI shrnutí zapnuta — první texty se připravují" : "AI shrnutí vypnuta, uložené texty smazány" })
+    } catch (e: any) {
+      toast({ title: e?.message || "Změna se nepodařila" })
+    } finally {
+      setBusy(false)
+    }
+  }
+  if (st === null) return null
+  if (st === false) return <Card className="mt-4"><Label>AI shrnutí a komentáře</Label><p className="mt-2 text-sm text-[#71837b]">Stav se nepodařilo načíst.</p></Card>
+  const texts = st.texts || {}
+  const kinds = Object.keys(COACH_KIND).filter((k) => texts[k])
+  return (
+    <Card className="mt-4">
+      <div className="flex items-center justify-between gap-3">
+        <span><Label>AI shrnutí a komentáře · beta</Label></span>
+        <button
+          role="switch"
+          aria-checked={!!st.consent}
+          aria-label="AI shrnutí a komentáře"
+          onClick={toggle}
+          disabled={busy}
+          className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${st.consent ? "bg-[#c7ff54]" : "bg-white/15"}`}
+        >
+          <span className={`absolute top-1 size-5 rounded-full bg-[#071313] transition-all ${st.consent ? "left-6" : "left-1"}`} />
+        </button>
+      </div>
+      <p className="mt-2 text-sm leading-6 text-[#a9c2b9]">
+        Denní shrnutí vašeho stavu, komentář k dnešnímu tréninku (engine Kapacitní) a každé pondělí shrnutí uplynulého týdne.
+        Píše je jazykový model jen z čísel, která spočítá aplikace. Doporučení nemění a každý text se automaticky kontroluje —
+        když kontrolou neprojde, dostanete místo něj text sestavený přímo aplikací.
+      </p>
+      <p className="mt-2 text-[11px] leading-5 text-[#71837b]">
+        <b className="text-[#a9c2b9]">Co se odesílá:</b> jen odvozené údaje — zátěž, regenerace, bolest a její místo, dnešní doporučení.
+        Žádné jméno, e-mail, město, poloha ani názvy aktivit. Zpracovává je hostovaný model u NVIDIA{st.model ? ` (${st.model})` : ""}.
+        Vypnutím se uložené texty smažou.
+      </p>
+      {st.consent && !st.llm && (
+        <p className="mt-2 text-[11px] text-[#f6d69a]">Model teď není nastavený — do té doby dostáváte texty sestavené aplikací.</p>
+      )}
+      {st.consent && (
+        <div className="mt-3 border-t border-white/10 pt-3">
+          {st.pending?.length > 0 && <p className="mb-2 text-[11px] text-[#91b7a9]">Připravuji texty… model na to potřebuje i pár minut.</p>}
+          {kinds.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {kinds.map((k) => (
+                <button key={k} onClick={() => setShow(show === k ? null : k)}
+                  className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition ${show === k ? "bg-[#c7ff54] text-[#071313]" : "border border-white/15 text-[#a9c2b9]"}`}>
+                  {COACH_KIND[k]} · {texts[k].source === "llm" ? "AI" : "z aplikace"}
+                </button>
+              ))}
+            </div>
+          ) : !st.pending?.length && <p className="text-[11px] text-[#71837b]">Zatím žádné texty.</p>}
+          {show && texts[show] && (
+            <div className="mt-3 rounded-2xl bg-black/20 p-3">
+              <p className="whitespace-pre-line text-sm leading-6 text-[#f1f8f1]">{texts[show].text}</p>
+              <p className="mt-2 text-[10px] text-[#71837b]">
+                {texts[show].source === "llm" ? `Napsal model ${texts[show].model}` : "Sestaveno aplikací (model nebyl k dispozici nebo text neprošel kontrolou)"}
+                {" · "}{new Date(texts[show].createdAt).toLocaleString("cs-CZ", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}
+              </p>
+            </div>
+          )}
+          <p className="mt-2 text-[10px] text-[#71837b]">Na záložkách Dnes a Trénink se texty objeví v další fázi; tady je zatím náhled.</p>
+        </div>
+      )}
+    </Card>
   )
 }
