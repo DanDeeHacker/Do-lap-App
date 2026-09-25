@@ -588,12 +588,81 @@ function TerrainMatrix({ acts }: { acts: any[] }) {
   )
 }
 
+// Terrain + weather context of one run (from /run-history), as one short line
+// for the collapsed row and a detail block for the expanded one.
+const cz1 = (v: number) => mfmt(1, v)
+function terrainLine(t: any) {
+  if (!t) return null
+  const parts = [t.surfaceLabel, t.gradeLabel !== "—" ? t.gradeLabel : null]
+  if (t.ascPerKm != null || t.descPerKm != null) parts.push(`↑${Math.round(t.ascPerKm ?? 0)} ↓${Math.round(t.descPerKm ?? 0)} m/km`)
+  return parts.filter(Boolean).join(" · ")
+}
+function weatherLine(w: any) {
+  if (!w) return null
+  const temp = w.precision === "hour" ? `${w.tempC} °C` : `${w.tMin}–${w.tMax} °C`
+  const extra = [w.windKmh != null && `${w.windKmh} km/h`, w.precipMm > 0 && `${cz1(w.precipMm)} mm`].filter(Boolean)
+  return `${w.icon} ${temp}${extra.length ? " · " + extra.join(" · ") : ""}`
+}
+function RunContext({ x }: { x: any }) {
+  const t = x.terrain
+  const w = x.weather
+  const row = (k: string, v: any) => v != null && v !== false && v !== "" && (
+    <div className="flex justify-between gap-3 border-t border-white/5 py-1.5 first:border-0">
+      <dt className="text-[#71837b]">{k}</dt><dd className="text-right font-mono text-[11px] text-[#f1f8f1]">{v}</dd>
+    </div>
+  )
+  return (
+    <div className="grid gap-3 border-t border-white/5 px-4 py-3 text-xs md:grid-cols-2">
+      <section className="min-w-0">
+        <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#91b7a9]">Terén</p>
+        {t ? (
+          <dl className="mt-1">
+            {row("Profil srovnání", t.bucketLabel)}
+            {row("Stoupání", t.ascentM != null && `${t.ascentM} m${t.ascPerKm != null ? ` · ${cz1(t.ascPerKm)} m/km` : ""}`)}
+            {row("Klesání", t.descentM != null && `${t.descentM} m${t.descPerKm != null ? ` · ${cz1(t.descPerKm)} m/km` : ""}`)}
+            {row("Strmé klesání (≤ −10 %)", t.steepDescentPct != null && `${t.steepDescentPct} % spádu`)}
+            {row("Náročnost terénu", t.demand != null && `×${mfmt(2, t.demand)} oproti rovině`)}
+            {row("Povrch z mapy", t.sampled && [t.sampled.surfaceLabel, t.sampled.onTrail && "stezka", t.sampled.forest && "les"].filter(Boolean).join(" · ") + (t.sampled.source ? ` (${t.sampled.source})` : ""))}
+          </dl>
+        ) : <p className="mt-1 text-[#71837b]">Bez údajů o terénu.</p>}
+      </section>
+      <section className="min-w-0">
+        <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#91b7a9]">Počasí</p>
+        {w ? (
+          <>
+            <dl className="mt-1">
+              {row("Podmínky", `${w.icon} ${w.label}`)}
+              {row("Teplota", w.precision === "hour" ? `${w.tempC} °C · pocitově ${w.feelsC} °C` : `${w.tMin}–${w.tMax} °C · pocitově až ${w.feelsC} °C`)}
+              {row("Vlhkost", w.humidity != null && `${w.humidity} %`)}
+              {row(w.precision === "hour" ? "Vítr" : "Vítr (max.)", w.windKmh != null && `${w.windKmh} km/h`)}
+              {row("Srážky", `${cz1(w.precipMm || 0)} mm`)}
+            </dl>
+            <p className="mt-1.5 text-[10px] leading-4 text-[#71837b]">
+              {w.precision === "hour" ? `Během běhu (start ${x.start_time}, ${Math.round(x.duration_min || 0)} min)` : "Denní souhrn (čas startu neznámý)"}
+              {" · "}{w.place === "city" ? `přibližně — podle města ${w.city}` : "v místě startu (±10 km)"} · {w.source}
+            </p>
+            {w.hot && w.precision === "hour" && <p className="mt-1.5 rounded-lg bg-[#3a2a12] px-2 py-1 text-[10px] leading-4 text-[#f6d69a]">Pocitově přes 24 °C — vyšší tep při obvyklém tempu je v tomhle počasí očekávaný.</p>}
+          </>
+        ) : <p className="mt-1 text-[#71837b]">{x.weatherNote || "Počasí není k dispozici."}</p>}
+      </section>
+    </div>
+  )
+}
+
 function RunHistoryReal({ acts }: { acts: any[] }) {
   const { me } = useApp()
   const rid = me?.runner_id
   const [open, setOpen] = useState(false)
   const [run, setRun] = useState<number | null>(null)
   const [cmp, setCmp] = useState<Record<number, any>>({})
+  const [ctx, setCtx] = useState<any[] | null | false>(null) // null = not loaded, false = failed
+  useEffect(() => {
+    if (!open || !rid || ctx !== null) return
+    let alive = true
+    api.runHistory(rid, 20).then((d) => alive && setCtx(Array.isArray(d) ? d : false)).catch(() => alive && setCtx(false))
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, rid])
   useEffect(() => {
     if (run == null || !rid || cmp[run] !== undefined) return
     let alive = true
@@ -602,24 +671,40 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [run, rid])
+  // the context endpoint when it answered, else the boot activities without context
+  const rows: any[] = ctx ? ctx : acts.slice().sort((a, b) => (b.started_at || "").localeCompare(a.started_at || "")).slice(0, 20)
   return (
     <>
       <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="mt-4 flex w-full items-center justify-between gap-4 rounded-[24px] border border-white/10 bg-[#102724] px-5 py-4 text-left text-[#f1f8f1] transition hover:border-[#6ce6d3]/40">
-        <span><span className="font-mono text-[10px] uppercase tracking-[.16em] text-[#91b7a9]">Historie běhů</span><span className="mt-1 block font-serif text-xl">Běhy s dynamikou — rozklikni pro srovnání s normou</span></span>
+        <span><span className="font-mono text-[10px] uppercase tracking-[.16em] text-[#91b7a9]">Historie běhů</span><span className="mt-1 block font-serif text-xl">Běhy s terénem a počasím — rozklikni pro srovnání s normou</span></span>
         <span className="text-[#6ce6d3]">{open ? "▴" : "▾"}</span>
       </button>
       {open && (
         <div className="mt-3 space-y-2">
-          {acts.slice().sort((a, b) => (b.started_at || "").localeCompare(a.started_at || "")).slice(0, 20).map((x) => {
+          {ctx === null && <p className="px-1 text-[10px] text-[#71837b]">Načítám terén a počasí…</p>}
+          {ctx === false && <p className="px-1 text-[10px] text-[#71837b]">Kontext terénu a počasí se nepodařilo načíst — zobrazuji jen statistiky.</p>}
+          {rows.map((x) => {
             const isOpen = run === x.id
             const d = cmp[x.id]
+            const tl = terrainLine(x.terrain)
+            const wl = weatherLine(x.weather)
             return (
               <div key={x.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#0c201d]">
                 <button onClick={() => setRun(isOpen ? null : x.id)} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 text-left">
                   <span className="grid size-9 place-items-center rounded-xl bg-[#17382f] text-[10px] font-bold text-[#6ce6d3]">{surf(x.surface)}</span>
-                  <span><b className="text-sm">{x.title}</b><em className="block text-xs not-italic text-[#71837b]">{fmtD(x.started_at)} · {x.distance_km} km · {paceStr(x.pace_s_km)}/km · {x.avg_hr} tep</em></span>
-                  <span className="font-mono text-xs text-[#9bb3aa]">VR {x.vert_ratio_pct} · {isOpen ? "▴" : "▾"}</span>
+                  <span className="min-w-0">
+                    <b className="text-sm">{x.title}</b>
+                    <em className="block text-xs not-italic text-[#71837b]">{fmtD(x.started_at)}{x.start_time ? ` ${x.start_time}` : ""} · {x.distance_km} km · {paceStr(x.pace_s_km)}/km · {x.avg_hr} tep</em>
+                    {(tl || wl) && (
+                      <span className="mt-1 flex flex-wrap gap-1.5">
+                        {tl && <span className="rounded-full bg-[#17382f] px-2 py-0.5 text-[10px] text-[#9bd8c6]">{tl}</span>}
+                        {wl && <span className={`rounded-full px-2 py-0.5 text-[10px] ${x.weather?.hot && x.weather.precision === "hour" ? "bg-[#3a2a12] text-[#f6d69a]" : "bg-[#152a36] text-[#a9cde0]"}`}>{wl}</span>}
+                      </span>
+                    )}
+                  </span>
+                  <span className="whitespace-nowrap font-mono text-xs text-[#9bb3aa]">VR {x.vert_ratio_pct ?? "—"} · {isOpen ? "▴" : "▾"}</span>
                 </button>
+                {isOpen && ctx && <RunContext x={x} />}
                 {isOpen && (
                   d && d.metrics?.length ? (
                     <CompareTable data={d} />

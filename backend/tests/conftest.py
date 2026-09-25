@@ -14,6 +14,7 @@ if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)
 
 os.environ["DOSSLAP_DB_PATH"] = os.path.join(tempfile.mkdtemp(prefix="dosslap_test_"), "test.db")
+os.environ["DOSSLAP_WEATHER"] = "off"   # no network in tests; weather tests enable it with a fake fetch
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

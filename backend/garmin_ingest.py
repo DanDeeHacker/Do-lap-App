@@ -61,6 +61,20 @@ def iso_of(ms_ts):
     return datetime.fromtimestamp(ms_ts / 1000, tz=timezone.utc).date().isoformat()
 
 
+def start_fields(a):
+    """Local start time (HH:MM) and start coordinates rounded to ~1 km.
+    startTimeLocal in the export is the local wall-clock time encoded as epoch ms,
+    so reading it as UTC yields the local HH:MM."""
+    out = {}
+    t = a.get('startTimeLocal')
+    if isinstance(t, (int, float)):
+        out['start_time'] = datetime.fromtimestamp(t / 1000, tz=timezone.utc).strftime('%H:%M')
+    lat, lon = a.get('startLatitude'), a.get('startLongitude')
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)) and (lat or lon):
+        out['start_lat'], out['start_lon'] = round(lat, 2), round(lon, 2)
+    return out
+
+
 # ---------------------------------------------------------------- activities
 SURFACE = {'trail_running': 'trail', 'treadmill_running': 'treadmill',
            'track_running': 'track', 'indoor_running': 'treadmill'}
@@ -156,6 +170,7 @@ def load_activities(root, runner_id):
                 'duration_min': r(dur_s / 60, 1),
                 'avg_hr': pos(a.get('avgHr'), 0),
                 'training_load': r(a.get('activityTrainingLoad'), 1),
+                **start_fields(a),
             })
             aid += 1
             continue
@@ -193,6 +208,7 @@ def load_activities(root, runner_id):
             'feel_garmin': round(feel / 20) if feel else None,   # 0–100 → 1–5
             'training_load': r(a.get('activityTrainingLoad'), 1),
             'vo2max': r(a.get('vO2MaxValue'), 1),
+            **start_fields(a),
         })
         aid += 1
 

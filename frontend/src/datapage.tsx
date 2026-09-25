@@ -136,7 +136,7 @@ export function DataView() {
   const engines: [EngineMode, string, string][] = [
     ["v1", "Standardní", "Vyhlazený průměr napříč běhy."],
     ["v2", "Citlivý", "Zachytí i malé změny mechaniky dřív."],
-    ["v3", "Kapacitní", "Citlivá mechanika + zátěž proti vaší vlastní kapacitě (objem, intenzita, klesání, stoupání). Záložka Trénink s denním doporučením přibude v další fázi."],
+    ["v3", "Kapacitní", "Citlivá mechanika + zátěž proti vaší vlastní kapacitě (objem, intenzita, klesání, stoupání). Odemkne záložku Trénink s denním doporučením."],
   ]
   const [btBusy, setBtBusy] = useState(false)
   const downloadBacktest = async () => {

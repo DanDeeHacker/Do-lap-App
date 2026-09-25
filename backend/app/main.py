@@ -71,6 +71,11 @@ def _migrate(engine):
     # activity_streams may pre-date these two columns on a Postgres provisioned at Phase 4.
     add("activity_streams", "segments_json", "segments_json JSON")
     add("activity_streams", "surface_json", "surface_json JSON")
+    # Run context: start time/place for weather, cached weather summary.
+    add("activities", "start_time", "start_time VARCHAR")
+    add("activities", "start_lat", "start_lat FLOAT")
+    add("activities", "start_lon", "start_lon FLOAT")
+    add("activities", "weather_json", "weather_json JSON")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.

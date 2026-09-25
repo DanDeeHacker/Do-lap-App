@@ -364,6 +364,15 @@ def quadrant_history(rid: str, days: int = QUAD_HISTORY_DAYS, user: models.User 
     return build()
 
 
+@router.get("/{rid}/run-history")
+def run_history(rid: str, limit: int = 20, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Latest runs with terrain and weather context (Pohyb → Historie běhů).
+    Weather is fetched once per run on first view and stored."""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import run_context
+    return run_context.run_history(db, rid, max(1, min(limit, 60)))
+
+
 @router.get("/{rid}/run-compare/{aid}")
 def run_compare(rid: str, aid: int, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     """One run's metrics vs. the baseline as of that run's day and a month before."""

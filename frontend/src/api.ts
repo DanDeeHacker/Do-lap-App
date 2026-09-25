@@ -93,6 +93,7 @@ export const api = {
   mechHistory: (id: string) => call("GET", `/api/runners/${id}/mech-history`),
   quadrantHistory: (id: string) => call("GET", `/api/runners/${id}/quadrant-history`),
   runCompare: (id: string, aid: number) => call("GET", `/api/runners/${id}/run-compare/${aid}`),
+  runHistory: (id: string, limit = 20) => call("GET", `/api/runners/${id}/run-history?limit=${limit}`),
 
   // engine sensitivity sandbox (Citlivostní analýza)
   engineKnobs: () => call("GET", "/api/engine/knobs"),

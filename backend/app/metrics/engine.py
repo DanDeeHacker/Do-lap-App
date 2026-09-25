@@ -2172,8 +2172,9 @@ def assess(db: DBSession, rid: str) -> dict:
         p = rnd(clamp((0.85 - seff["now"]) * 60, 0, 16))
         if p:
             symp_score += p
+            usual = f" (obvykle {round(seff['base'] * 100)} %)" if seff["base"] else ""  # no nested same-quote f-string (Python < 3.12)
             push("sleepeff", "Nízká efektivita spánku", "C", p, f"{round(seff['now'] * 100)} %",
-                 f"Ze spánku prospáno {round(seff['now'] * 100)} %{f' (obvykle {round(seff['base'] * 100)} %)' if seff['base'] else ''} — "
+                 f"Ze spánku prospáno {round(seff['now'] * 100)} %{usual} — "
                  "roztříštěný spánek zhoršuje regeneraci i nad rámec počtu hodin.")
     if fb and fb["n"] >= 6 and fb["feelingTrend"] <= -0.12:
         symp_score += 10

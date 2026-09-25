@@ -84,6 +84,19 @@ def _pos(v, nd=None):
     return round(v, nd) if nd is not None else round(v)
 
 
+def _start_fields(a: dict) -> dict:
+    """Local start time (HH:MM) and start coordinates rounded to ~1 km — the run
+    context the weather lookup needs. Empty when Garmin didn't record them."""
+    out = {}
+    t = a.get("startTimeLocal") or ""
+    if len(t) >= 16:
+        out["start_time"] = t[11:16]
+    lat, lon = a.get("startLatitude"), a.get("startLongitude")
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)) and (lat or lon):
+        out["start_lat"], out["start_lon"] = round(lat, 2), round(lon, 2)
+    return out
+
+
 def map_activity(a: dict) -> dict | None:
     """One Garmin Connect activity summary → platform activity dict, or None
     if it's not a real run. Distances are metres, durations seconds here."""
@@ -107,6 +120,7 @@ def map_activity(a: dict) -> dict | None:
             "duration_min": round(dur_s / 60, 1),
             "avg_hr": _pos(a.get("averageHR")),
             "training_load": _r(tl, 0),
+            **_start_fields(a),
         }
     if dist_m < 800 or dur_s < 240:            # drop warm-ups / GPS errors
         return None
@@ -133,6 +147,7 @@ def map_activity(a: dict) -> dict | None:
         "gct_balance_l": _pos(a.get("avgGroundContactBalance"), 1),
         "training_load": _r(tl, 0),
         "vo2max": _r(a.get("vO2MaxValue"), 1),
+        **_start_fields(a),
     }
 
 

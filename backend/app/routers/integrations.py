@@ -251,9 +251,10 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
     deleted or overwritten — re-running an export never duplicates rows and
     never clobbers a manually edited day (unlike _apply_seed's full replace,
     which is right for a one-shot file export but wrong for repeat syncs)."""
-    existing_ext = {
-        row[0] for row in db.query(models.Activity.external_id).filter(models.Activity.runner_id == rid).all() if row[0]
+    existing_rows = {
+        a.external_id: a for a in db.query(models.Activity).filter(models.Activity.runner_id == rid).all() if a.external_id
     }
+    existing_ext = set(existing_rows)
     existing_dates = {
         row[0] for row in db.query(models.DailyMetric.date).filter(models.DailyMetric.runner_id == rid).all()
     }
@@ -261,6 +262,13 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
     for a in seed.get("activities", []):
         ext = a.get("external_id")
         if ext and ext in existing_ext:
+            # Never overwrite an existing activity — but fill in run context it
+            # was imported without (start time / place arrived in a later version).
+            old = existing_rows.get(ext)
+            if old is not None:
+                for k in ("start_time", "start_lat", "start_lon"):
+                    if getattr(old, k, None) is None and a.get(k) is not None:
+                        setattr(old, k, a[k])
             continue
         row = {k: v for k, v in a.items() if k != "id"}
         row["runner_id"] = rid
@@ -483,6 +491,21 @@ def garmin_disconnect(user: models.User = Depends(require_role("runner")),
     return {"connected": False, "auto_sync": False, "last_sync_at": None, "last_error": None}
 
 
+def _backfill_start(a, records: list[dict]) -> None:
+    """Fill a run's missing start place (first GPS fix, rounded to ~1 km) and local
+    start time (first absolute timestamp) from its detail stream — gives older
+    runs the context the weather lookup needs."""
+    if a.start_lat is None:
+        fix = next((r for r in records if r.get("lat") is not None and r.get("lon") is not None), None)
+        if fix:
+            a.start_lat, a.start_lon = round(fix["lat"], 2), round(fix["lon"], 2)
+    if a.start_time is None:
+        t0 = next((r.get("t_ms") for r in records if r.get("t_ms")), None)
+        if t0:
+            from datetime import datetime
+            a.start_time = datetime.fromtimestamp(t0 / 1000, tz=E.LOCAL_TZ).strftime("%H:%M")
+
+
 def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap: int = 25, retry_failed: bool = False) -> dict:
     """Phase 4 — pull the 1 Hz stream for running activities that don't yet have
     one (oldest-first within the window), run Stage-S1 quality control, store the
@@ -570,6 +593,7 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
             db.add(st)
         if prof and not a.elevation_profile:
             a.elevation_profile = prof
+        _backfill_start(a, res.get("records") or [])
         stored += 1
     db.commit()
     if stored:

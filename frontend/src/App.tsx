@@ -22,6 +22,7 @@ import { DataView } from "@/datapage"
 import { EngineLab } from "@/enginelab"
 import { CapacityMini } from "@/capacity"
 import { Training } from "@/training"
+import { startUpdateWatcher } from "@/updateCheck"
 
 // Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
 // svou infrastrukturu; zaměstnavatelé a partneři se v této aplikaci nepřihlašují.
@@ -216,6 +217,10 @@ function useRunnerNav(): [string, string][] {
 }
 function Layout() {
   const { me, loading } = useApp()
+  // New deployments: reload when the app returns to the foreground, or offer a
+  // reload if one lands while it's in use (home-screen apps never reload alone).
+  const [updateReady, setUpdateReady] = useState(false)
+  useEffect(() => startUpdateWatcher(() => setUpdateReady(true)), [])
   if (loading)
     return (
       <div className="motion-shell grid min-h-screen place-items-center bg-[#e7e9e1] text-[#a9c2b9]">
@@ -232,6 +237,14 @@ function Layout() {
       </main>
       <AtlasBubble />
       <AtlasNav />
+      {updateReady && (
+        <div className="fixed inset-x-0 top-[calc(76px+env(safe-area-inset-top))] z-50 flex justify-center px-4">
+          <div className="flex items-center gap-3 rounded-full border border-[#c7ff54]/40 bg-[#0c201d] py-2 pl-4 pr-2 text-xs text-[#f1f8f1] shadow-lg">
+            <span>Je dostupná nová verze aplikace.</span>
+            <button onClick={() => location.reload()} className="rounded-full bg-[#c7ff54] px-3 py-1.5 font-bold text-[#071313]">Aktualizovat</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

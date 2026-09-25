@@ -200,6 +200,14 @@ class Activity(Base):
     feel_garmin = Column(Integer)
     training_load = Column(Float)
     vo2max = Column(Float)
+    # Run context (Pohyb → Historie běhů). started_at stays date-only (the engine
+    # compares dates as strings), so the local start time lives separately.
+    # Coordinates are stored rounded to 0.01° (~1 km) — enough for weather and
+    # terrain lookups without keeping a precise home location.
+    start_time = Column(String)      # local "HH:MM", Europe/Prague
+    start_lat = Column(Float)
+    start_lon = Column(Float)
+    weather_json = Column(JSON)      # metrics/weather.py summary, fetched once per run
 
 
 class ActivityFeedback(Base):
