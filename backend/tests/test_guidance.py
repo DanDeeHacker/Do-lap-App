@@ -299,3 +299,21 @@ def test_picking_this_weeks_place_in_the_cycle(client, db_session):
     register(client, "gc6@test.cz", "Other", "runner")
     client.post("/api/auth/session", json={"email": "gc6@test.cz", "password": "testpass123"})
     assert client.put(f"/api/runners/{rid}/cycle", json={"pos": 1}).status_code == 403
+
+
+def test_readiness_score_gates_hard_sessions_and_drift_trims_today(client, db_session):
+    rid, r = _runner(client, db_session, "gc7@test.cz")
+    with E.engine_pinned("v3"):
+        a = E.assess(db_session, rid)
+    a["capacity"]["readiness"].update({"score": 55, "parts": {"hrv": 0.4, "rhr": 0.3}})
+    g = G.build_guidance(db_session, rid, a, r)
+    assert g["readinessScore"] == 55 and not g["types"]["kvalitní"]["allowed"] and not g["types"]["dlouhý"]["allowed"]
+    assert any("Připravenost 55 %" in x and "nižší HRV" in x for x in g["reasons"])
+    a["capacity"]["readiness"]["score"] = 40
+    assert G.build_guidance(db_session, rid, a, r)["type"] in ("regenerace", "volno")
+    # mechanics over its threshold → today's volume / intensity / descent are cut, and say why
+    base = _guide(db_session, rid, r, quadrant="stable", mechFlag=False)
+    drift = _guide(db_session, rid, r, quadrant="silent")
+    bv, dv = base["week"]["channels"]["volume"], drift["week"]["channels"]["volume"]
+    assert dv["limitedBy"] == "mechanics" and dv["todayMax"] <= 0.8 * bv["todayMax"] + 0.05
+    assert drift["axes"]["threshold"] == 25 and "mech" in drift["axes"]

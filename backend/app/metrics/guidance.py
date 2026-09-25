@@ -53,8 +53,10 @@ WD = ("pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota", "neděl
 WD_IN = ("v pondělí", "v úterý", "ve středu", "ve čtvrtek", "v pátek", "v sobotu", "v neděli")
 HARD_Z4_MIN = 10        # a run with ≥ 10 min in Z4+ counts as a hard session
 HARD_GAP_DAYS = 2       # ≥ 48 h between hard sessions
-READY_QUALITY = 0.85    # readiness needed for a quality / long session
-READY_EASY_ONLY = 0.80  # below this the default is a regeneration run
+READY_QUALITY = 65      # readiness score (%) needed for a quality / long session
+READY_EASY_ONLY = 45    # below this readiness score the default is a regeneration run
+READY_EXTRA_EASY = 80   # the optional easy run after the week's target needs a well-recovered day
+DRIFT_CUT = {"volume": 0.8, "intensity": 0.5, "descent": 0.5}   # mechanics above threshold → less today
 LONG_SHARE = 0.30       # a long run ≤ 30 % of the weekly volume budget
 Z4_SESSION_MAX = 45     # a quality session's hard minutes are capped here whatever the capacity says
 MIN_RUN_KM = 2.0        # below this there's no meaningful run left today → volno
@@ -70,6 +72,7 @@ CHS = ("volume", "intensity", "descent", "ascent")
 # the exact percentages are convention, not trial-tested, so the capacity ceiling
 # (Zátěž) and daily readiness stay in charge (Kiely 2012: adapt to the response).
 CYCLE = {1: 0.90, 2: 1.00, 3: 1.10, 4: 0.55 * 1.10}
+CYCLE_PCT_OF = {1: 90, 2: 100, 3: 110, 4: 55}
 RECOVERY_BELOW = 0.70      # a completed week under 70 % of the 4 before it = a recovery week
 CYCLE_MIN_WEEKS = 4        # completed weeks with data needed to place the runner in the cycle
 Z4_TRIMP_PER_MIN = 0.85 * 0.64 * 2.718281828 ** (1.92 * 0.85)   # Banister TRIMP of a minute at 85 % HRR
@@ -241,7 +244,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     fit = C.hr_speed_fit(runs, t_iso, lo=1, hi=56)
     speeds = sorted(s["speed"] for s in hist if s["speed"])
     speed_range = (speeds[int(0.05 * (len(speeds) - 1))], speeds[int(0.95 * (len(speeds) - 1))]) if len(speeds) >= 5 else None
-    ready = cap["readiness"]["today"]
+    ready = cap["readiness"]["today"]                      # capacity factor 0.7–1.0 (scales sizes)
+    rscore = cap["readiness"].get("score", round(ready * 100))   # readiness shown to the runner, 20–100 %
     ch = cap["channels"]
 
     # ---- context ---------------------------------------------------------
@@ -341,11 +345,28 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     for c, cap_c in (("volume", km_by_sys), ("intensity", None if sys_left is None else sys_left / Z4_TRIMP_PER_MIN)):
         if cap_c is not None and (week[c]["todayMax"] is None or cap_c < week[c]["todayMax"]):
             week[c]["todayMax"], week[c]["limitedBy"] = cap_c, "systemic"
+    if drift:                                  # mechanics over its threshold: keep today well inside capacity
+        for c, f in DRIFT_CUT.items():
+            if week[c]["todayMax"] is not None:
+                week[c]["todayMax"] *= f
+                week[c]["limitedBy"] = "mechanics"
     for c, wc in week.items():
         dec = C.CHANNELS[c]["dec"]
         for k in ("capacity", "ceiling7", "done7", "left7", "budget", "done", "doneToday", "left", "todayMax"):
             wc[k] = _r(wc[k], dec)
+    nxt = None
+    if pos_now and mode in ("build", "recovery"):
+        p2 = pos_now % 4 + 1
+        ref_v = reference("volume") if cyc else week["volume"]["capacity"]
+        if ref_v is not None:
+            # after a recovery week a new cycle starts on its 3rd (peak) week
+            f2 = CYCLE[1] * CYCLE[3] if pos_now == 4 else CYCLE[p2]
+            km2 = ref_v * f2
+            if week["volume"]["ceiling7"] is not None:
+                km2 = min(km2, week["volume"]["ceiling7"])
+            nxt = {"pos": p2, "pct": CYCLE_PCT_OF[p2], "km": _r(km2)}
     cycle = {
+        "next": nxt,
         "pos": pos_now, "autoPos": cyc["pos"] if cyc else None, "manual": manual is not None and mode in ("build", "recovery"),
         "how": cyc["how"] if cyc else None, "factor": round(factor, 3),
         "refKm": _r(reference("volume")) if cyc else _r(week["volume"]["capacity"]),
@@ -373,7 +394,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     easy_room = [x for x in (vw["left7"], vw["ceilingRun"], km_by_sys7) if x is not None]
     easy_room = min(easy_room) if easy_room else None
     extra_easy = (vw["limitedBy"] == "week" and (vol_max or 0) < MIN_RUN_KM and easy_room is not None
-                  and easy_room >= MIN_RUN_KM and ready >= 0.90 and not pain_mod and pain < 3)
+                  and easy_room >= MIN_RUN_KM and rscore >= READY_EXTRA_EASY and not pain_mod and pain < 3)
 
     def cap_km(x):
         return x if vol_max is None else min(x, vol_max)
@@ -445,9 +466,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if pain_mod:
         block("dlouhý", f"{pain_why} — dnes bez dlouhého běhu.")
         block("kvalitní", f"{pain_why} — dnes bez intenzity.")
-    if ready < READY_QUALITY:
-        block("kvalitní", f"Připravenost {round(ready * 100)} % — na tvrdý trénink je potřeba aspoň {round(READY_QUALITY * 100)} %.")
-        block("dlouhý", f"Připravenost {round(ready * 100)} % — dlouhý běh přesuňte na odpočatější den.")
+    if rscore < READY_QUALITY:
+        block("kvalitní", f"Připravenost {rscore} % — na tvrdý trénink je potřeba aspoň {READY_QUALITY} %.")
+        block("dlouhý", f"Připravenost {rscore} % — dlouhý běh přesuňte na odpočatější den.")
     if load >= 25:
         block("kvalitní", "Zátěž je zvýšená — týden odlehčujeme, bez tvrdých úseků.")
         block("dlouhý", "Zátěž je zvýšená — bez dlouhého běhu, dokud neklesne.")
@@ -485,7 +506,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         typ = "volno"
     elif pain > 5:
         typ = "regenerace"
-    elif ready < READY_EASY_ONLY:
+    elif rscore < READY_EASY_ONLY:
         typ = "regenerace" if types["regenerace"]["allowed"] else "volno"
     elif pat["runDays"] and wd not in pat["runDays"] and runs_last6 >= pat["runsPerWeek"] - 1:
         typ = "volno"
@@ -530,10 +551,11 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     part_lbl = {"hrv": "nižší HRV", "rhr": "vyšší klidový tep", "sleep": "kratší spánek",
                 "soreness": "svalová bolest", "fatigue": "únava"}
     low = [part_lbl[k] for k, v in sorted(parts.items(), key=lambda kv: -kv[1]) if v > 0.1 and k in part_lbl]
-    if ready < 0.95 and low:
-        reasons.append(f"Připravenost {round(ready * 100)} % ({', '.join(low[:3])}) — dnešní stropy jsou úměrně nižší.")
-    elif typ == "volno" and not override and ready >= 0.90:
-        reasons.append(f"Připravenost {round(ready * 100)} % — tělo je zregenerované, volno je kvůli týdennímu plánu, "
+    if rscore < 90 and low:
+        reasons.append(f"Připravenost {rscore} % ({', '.join(low[:3])} proti vaší normě) — dnešní stropy jsou úměrně nižší"
+                       + (", bez tvrdého tréninku a dlouhého běhu." if rscore < READY_QUALITY else "."))
+    elif typ == "volno" and not override and rscore >= READY_EXTRA_EASY:
+        reasons.append(f"Připravenost {rscore} % — tělo je zregenerované, volno je kvůli týdennímu plánu, "
                        "ne kvůli únavě." + (f" Pokud máte chuť, krátký regenerační běh do {_cz(extra_cap)} km nic nezhorší."
                                             if extra_easy else ""))
     if provisional:
@@ -572,7 +594,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     return {
         "date": t_iso, "engine": "v3", "type": typ, "typeLabel": TYPE_LABEL[typ],
         "provisional": provisional, "override": override, "referral": decision if referral else None,
-        "pain": pain or 0, "readiness": ready, "types": types,
+        "pain": pain or 0, "readiness": ready, "readinessScore": rscore, "types": types,
+        "axes": {"load": load, "mech": a.get("mech") or 0, "threshold": E.QUAD_THRESHOLD},
         "week": {"channels": week, "mode": mode, "progression": round(factor, 3), "cycle": cycle},
         "pattern": {**pat, "runDayNames": [WD[w] for w in pat["runDays"]],
                     "longDayName": WD[pat["longDay"]] if pat["longDay"] is not None else None,

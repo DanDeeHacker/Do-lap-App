@@ -303,26 +303,63 @@ def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch):
     return max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"])
 
 
-def readiness_by_day(db, rid, days) -> dict:
-    """{iso day: (factor 0.7–1.0, parts)} — how recovered the runner is that day.
+READY_BASE = (8, 56)    # baseline nights: 8–56 days back (a strained stretch doesn't become its own norm)
+READY_TOLERANCE = 0.5   # SD — ordinary night-to-night noise costs nothing
+READY_FULL = 2.5        # SD off the baseline = the whole deficit for that signal
+READY_WEEK_BOOST = 1.6  # a 7-night mean is less noisy than one night: its deviation counts 1.6×
 
-    Parts (0–1 each):
-      hrv   — HRV below the runner's baseline (days −35…−8): the worse of that
-              night (z / 2) and the 7-night rolling mean (z / 1.25). The rolling
-              mean is what HRV-guided training uses (Plews et al. 2013) and what
-              watch "HRV status: strained / unbalanced" reflects, so a strained
-              week lowers readiness even after one decent night.
-      rhr   — resting HR above baseline, same two views.
-      sleep — that night's shortfall against the usual (2 h short = 1).
-      soreness / fatigue — from that day's check-in (6–10 → 0.2–1).
-    Combined as the largest part + half the second largest: independent signals
-    that agree (low HRV AND high resting HR) compound, and a good night's sleep
-    no longer averages a strained HRV away. Factor = 1 − 0.3 × that (floor 0.7).
-    1.0 when there isn't enough watch data to judge."""
+
+def readiness_parts(night: dict, week: dict, base: dict) -> dict:
+    """Per-signal deficits 0–1. `night` = that day's values, `week` = the last 7
+    nights' means, `base` = {field: (mean, sd)} of the runner's baseline nights."""
+    parts = {}
+    for key, sign in (("hrv_ms", -1), ("resting_hr", 1)):
+        if key not in base:
+            continue
+        m, s = base[key]
+        views = []
+        if night.get(key) is not None:
+            views.append(sign * (night[key] - m) / s)
+        if week.get(key) is not None:
+            views.append(sign * (week[key] - m) / s * READY_WEEK_BOOST)
+        if views:
+            d = E.clamp((max(views) - READY_TOLERANCE) / (READY_FULL - READY_TOLERANCE), 0, 1)
+            parts["hrv" if key == "hrv_ms" else "rhr"] = round(d, 2)
+    if "sleep_h" in base and night.get("sleep_h") is not None:
+        short = base["sleep_h"][0] - night["sleep_h"]          # hours below the usual
+        parts["sleep"] = round(E.clamp((short - 0.5) / 2.0, 0, 1), 2)
+    return parts
+
+
+def readiness_from(parts: dict) -> tuple[float, int]:
+    """(capacity factor 0.7–1.0, readiness score 20–100 %) from per-signal deficits.
+    Agreeing signals compound: the worst counts fully, the 2nd half, the 3rd a quarter."""
+    top = sorted(parts.values(), reverse=True) + [0.0, 0.0, 0.0]
+    deficit = E.clamp(top[0] + 0.5 * top[1] + 0.25 * top[2], 0, 1)
+    return round(1 - (1 - READINESS_FLOOR) * deficit, 3), round(100 * (1 - 0.8 * deficit))
+
+
+def readiness_by_day(db, rid, days) -> dict:
+    """{iso day: (capacity factor 0.7–1.0, parts, readiness score 20–100)}.
+
+    Readiness = how far this runner's own recovery markers sit from THEIR normal
+    (baseline nights 8–56 days back), scaled by the size of the deviation:
+      • HRV (low) and resting HR (high): the worse of last night and the 7-night
+        mean — the rolling mean is what HRV-guided training uses (Plews et al.
+        2013) and what the watch's "HRV status" reflects; the mean's deviation
+        counts 1.6× (it's far less noisy than one night);
+      • sleep: hours below the usual;
+      • check-in soreness / fatigue 6–10.
+    Each signal: nothing within ±0.5 SD (normal noise), the full deficit at 2.5 SD.
+    The score (shown as "připravenost") = 100 − 80 × combined deficit: it drops
+    under 70 % when HRV and resting HR are both ~1 SD off (or HRV alone ~1.25 SD
+    below normal), under 50 % at ~1.5 SD each. The capacity factor that scales
+    load capacity keeps the narrower 0.7–1.0 range. (1.0 / 100 without enough
+    watch data to judge.)"""
     days = sorted(set(days))
     if not days:
         return {}
-    lo = (_d(days[0]) - timedelta(days=36)).isoformat()
+    lo = (_d(days[0]) - timedelta(days=READY_BASE[1] + 1)).isoformat()
     dm = {d.date[:10]: d for d in db.query(models.DailyMetric).filter(
         models.DailyMetric.runner_id == rid, models.DailyMetric.date >= lo).all()}
     cks = {}
@@ -332,36 +369,29 @@ def readiness_by_day(db, rid, days) -> dict:
     out = {}
     for day in days:
         d0 = _d(day)
-        base = [dm[k] for k in ((d0 - timedelta(days=j)).isoformat() for j in range(8, 36)) if k in dm]
-        week = [dm[k] for k in ((d0 - timedelta(days=j)).isoformat() for j in range(0, 7)) if k in dm]
+        base_rows = [dm[k] for k in ((d0 - timedelta(days=j)).isoformat() for j in range(READY_BASE[0], READY_BASE[1] + 1)) if k in dm]
+        week_rows = [dm[k] for k in ((d0 - timedelta(days=j)).isoformat() for j in range(0, 7)) if k in dm]
         parts = {}
         night = dm.get(day)
-        if night is not None and len(base) >= 14:
-            for key, fld, sign in (("hrv", "hrv_ms", -1), ("rhr", "resting_hr", 1)):
-                vals = [getattr(b, fld) for b in base if getattr(b, fld) is not None]
-                if len(vals) < 10 or not E.sd(vals):
-                    continue
-                m, s = E.mean(vals), E.sd(vals)
-                views = []
-                v = getattr(night, fld)
-                if v is not None:
-                    views.append(sign * (v - m) / s / 2.0)
-                wk = [getattr(b, fld) for b in week if getattr(b, fld) is not None]
-                if len(wk) >= 3:
-                    views.append(sign * (E.mean(wk) - m) / s / 1.25)
-                if views:
-                    parts[key] = round(E.clamp(max(views), 0, 1), 2)
-            sl = [b.sleep_h for b in base if b.sleep_h is not None]
-            if night.sleep_h is not None and len(sl) >= 10:
-                parts["sleep"] = round(E.clamp((E.mean(sl) - night.sleep_h) / 2.0, 0, 1), 2)
+        if night is not None and len(base_rows) >= 14:
+            base = {}
+            for fld in ("hrv_ms", "resting_hr", "sleep_h"):
+                vals = [getattr(b, fld) for b in base_rows if getattr(b, fld) is not None]
+                if len(vals) >= 10 and E.sd(vals):
+                    base[fld] = (E.mean(vals), E.sd(vals))
+            wk = {}
+            for fld in ("hrv_ms", "resting_hr"):
+                vals = [getattr(b, fld) for b in week_rows if getattr(b, fld) is not None]
+                if len(vals) >= 3:
+                    wk[fld] = E.mean(vals)
+            parts = readiness_parts({f: getattr(night, f) for f in ("hrv_ms", "resting_hr", "sleep_h")}, wk, base)
         for c in cks.get(day, []):
             if c.soreness is not None and c.soreness >= 6:
                 parts["soreness"] = max(parts.get("soreness", 0), round(E.clamp((c.soreness - 5) / 5, 0, 1), 2))
             if c.stress is not None and c.stress >= 6:
                 parts["fatigue"] = max(parts.get("fatigue", 0), round(E.clamp((c.stress - 5) / 5, 0, 1), 2))
-        top = sorted(parts.values(), reverse=True)
-        deficit = E.clamp(top[0] + 0.5 * top[1], 0, 1) if len(top) >= 2 else (top[0] if top else 0.0)
-        out[day] = (round(1 - (1 - READINESS_FLOOR) * deficit, 3), parts)
+        factor, score = readiness_from(parts)
+        out[day] = (factor, parts, score)
     return out
 
 
@@ -466,7 +496,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
     first_day = min((s["date"] for s in sessions), default=t_iso)
     recent_days = [(today - timedelta(days=k)).isoformat() for k in range(0, 28)]
     ready = readiness_by_day(db, rid, recent_days)
-    r_today, parts_today = ready.get(t_iso, (1.0, {}))
+    r_today, parts_today, score_today = ready.get(t_iso, (1.0, {}, 100))
     wk_ready = E.mean([ready.get(d, (1.0, {}))[0] for d in recent_days[:7]]) or 1.0
 
     channels, scores, drivers = {}, {}, {}
@@ -489,13 +519,13 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
             cap = session_capacity(items, s["date"], ch)
             if cap is None:
                 continue
-            rd = ready.get(s["date"], (1.0, {}))[0]
+            rd, _parts, rd_score = ready.get(s["date"], (1.0, {}, 100))
             r = v / (cap * rd)
             if age <= 6:
                 if worst_r is None or r > worst_r:
                     worst_r = r
                     worst = {"ratio": round(r, 2), "value": _fmt(v, ch), "cap": _fmt(cap, ch), "date": s["date"],
-                             "title": s["title"], "readiness": rd}
+                             "title": s["title"], "readiness": rd, "readinessScore": rd_score}
             else:
                 lp = latent_points(r, age)
                 if lp > latent[0]:
@@ -548,7 +578,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
             s = info["session"]
             val = f"×{s['ratio']}"
             detail = (f"Nejnáročnější běh 7 dní ({_cz(s['date'])}): {s['value']} {unit} proti vaší prokázané "
-                      f"kapacitě {s['cap']} {unit}" + (f" · připravenost ten den {round(s['readiness'] * 100)} %" if s["readiness"] < 0.99 else ""))
+                      f"kapacitě {s['cap']} {unit}" + (f" · připravenost ten den {s['readinessScore']} %" if s["readinessScore"] < 97 else ""))
         elif drivers[ch] == "week":
             w = info["week"]
             val = f"×{w['ratio']}"
@@ -568,7 +598,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
              "runs": len(week7), "exact": all(s["zoneExact"] for s in week7)} if week7 else None
     return {
         "score": total, "signals": signals, "channels": channels, "zones7d": zone7,
-        "readiness": {"today": r_today, "parts": parts_today, "week": round(wk_ready, 3)},
+        "readiness": {"today": r_today, "score": score_today, "parts": parts_today, "week": round(wk_ready, 3)},
         "margins": {"session": round(m_s, 3), "week": round(m_w, 3), "frailty": round(frailty, 2)},
         "zones": hr_zones(hrmax, rhr), "hrMax": E.rnd(hrmax), "hrRest": E.rnd(rhr),
         "relativeEffort": relative_effort(sessions, t_iso),

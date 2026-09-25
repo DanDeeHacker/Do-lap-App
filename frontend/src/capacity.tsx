@@ -11,20 +11,23 @@ const num = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleStr
 const TONE = { ok: "#6ce6d3", watch: "#f6d69a", alert: "#e77a59", muted: "#71837b" }
 const toneOf = (ratio: number | null | undefined, margin: number) =>
   ratio == null ? "muted" : ratio <= 1 + margin ? "ok" : ratio <= 1.3 ? "watch" : "alert"
-const PART_LABEL: Record<string, string> = { hrv: "HRV", rhr: "klidový tep", sleep: "spánek", soreness: "svalová bolest", fatigue: "únava" }
+const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší spánek", soreness: "svalová bolest", fatigue: "únava" }
 const BAND: Record<string, [string, string]> = {
   pod: ["pod obvyklým", TONE.muted], "obvyklé": ["obvyklé", TONE.ok], nad: ["nad obvyklým", TONE.watch], "výrazně nad": ["výrazně nad", TONE.alert],
 }
 
+export const readinessPct = (r: any) => (r?.score ?? Math.round((r?.today ?? 1) * 100)) as number
+export const readinessCol = (pct: number) => (pct >= 80 ? TONE.ok : pct >= 60 ? TONE.watch : TONE.alert)
+
 function Readiness({ r }: { r: any }) {
-  const pct = Math.round((r?.today ?? 1) * 100)
+  const pct = readinessPct(r)
   const parts = Object.entries(r?.parts || {}).filter(([, v]) => (v as number) > 0.05) as [string, number][]
-  const col = pct >= 95 ? TONE.ok : pct >= 85 ? TONE.watch : TONE.alert
+  const col = readinessCol(pct)
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${col}1f`, color: col }}>Připravenost dnes {pct} %</span>
       {parts.length ? parts.map(([k, v]) => (
-        <span key={k} className="rounded-full bg-white/[.06] px-2 py-0.5 text-[10px] text-[#a9c2b9]" style={{ opacity: 0.55 + 0.45 * v }}>{PART_LABEL[k] || k} ↓</span>
+        <span key={k} className="rounded-full bg-white/[.06] px-2 py-0.5 text-[10px] text-[#a9c2b9]" style={{ opacity: 0.55 + 0.45 * v }}>{PART_LABEL[k] || k}</span>
       )) : <span className="text-[10px] text-[#71837b]">bez snížení</span>}
       <InfoDot text={MI.readiness} label="Připravenost" />
     </div>
@@ -72,7 +75,7 @@ function ChannelRow({ id, c, margins }: { id: string; c: any; margins: any }) {
             <>
               <p className="mt-1.5 text-[12px] text-[#a9c2b9]">
                 Týdenní kapacita <b className="text-[#f1f8f1]">{num(wk.cap)} {c.unit}</b>
-                <span className="text-[10px] text-[#71837b]"> · strop s rezervou {num(wk.ceiling)}</span>
+                <span className="text-[10px] text-[#71837b]"> · strop {num(wk.ceiling)}{wk.ceiling < wk.cap ? " (snížený připraveností)" : " s rezervou"}</span>
               </p>
               <div className="mt-2">
                 <div className="mb-1 flex justify-between text-[10px] text-[#71837b]">
@@ -86,7 +89,7 @@ function ChannelRow({ id, c, margins }: { id: string; c: any; margins: any }) {
           {ses && (
             <p className="mt-2 text-[10px] text-[#71837b]">
               Nejnáročnější běh 7 dní ({fmtD(ses.date)}): <b style={{ color: (TONE as any)[sTone] }}>{num(ses.value)} {c.unit} · ×{num(ses.ratio)}</b> proti kapacitě jednoho běhu {num(ses.cap)}
-              {ses.readiness < 0.99 ? ` · připravenost ${Math.round(ses.readiness * 100)} %` : ""}
+              {(ses.readinessScore ?? 100) < 97 ? ` · připravenost ${ses.readinessScore} %` : ""}
             </p>
           )}
           {c.latent && <p className="mt-1 text-[10px] text-[#f6d69a]">Doznívá skok ×{num(c.latent.ratio)} z {fmtD(c.latent.date)}</p>}
@@ -187,7 +190,7 @@ export function CapacityMini({ cap }: { cap: any }) {
     <div className="mt-4 border-t border-white/10 pt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-1.5"><p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#71837b]">Kapacita · posledních 7 dní vs. strop</p><InfoDot text={MI.capacity} label="Kapacita" /></span>
-        <span className="text-[10px] text-[#a9c2b9]">připravenost {Math.round((cap.readiness?.today ?? 1) * 100)} %</span>
+        <span className="text-[10px] font-bold" style={{ color: readinessCol(readinessPct(cap.readiness)) }}>připravenost {readinessPct(cap.readiness)} %</span>
       </div>
       <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
         {RUN_CH.map((id) => {

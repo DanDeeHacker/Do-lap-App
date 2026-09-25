@@ -8,6 +8,7 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { Card, InfoDot, Label, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
+import { readinessCol } from "@/capacity"
 import { fmtD, paceStr } from "@/lib"
 
 const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"]
@@ -17,7 +18,69 @@ const MODE: Record<string, [string, string]> = {
 }
 const CYCLE_PCT = [90, 100, 110, 55]
 const LIMIT: Record<string, string> = {
-  week: "zbytek týdenního cíle", "7d": "7denní strop kapacity", run: "strop jednoho běhu", systemic: "zbytek celkové zátěže",
+  week: "cíl tohoto týdne v cyklu", "7d": "týdenní kapacita (posledních 7 dní)", run: "strop jednoho běhu",
+  systemic: "celková zátěž", mechanics: "mechanika nad prahem",
+}
+const CH_ICON: Record<string, string> = { volume: "Objem", intensity: "Intenzita", descent: "Klesání", ascent: "Stoupání", systemic: "Celková zátěž" }
+
+// Today's capacity: what today can hold so that the last 7 days stay within the
+// weekly capacity the Zátěž tab shows, this week keeps to its place in the cycle,
+// no single run exceeds its own capacity and load / mechanics stay under the
+// threshold — each channel shows the numbers it was derived from.
+function TodayCapacity({ g }: { g: any }) {
+  const wk = g.week || {}
+  const cyc = wk.cycle || {}
+  const ax = g.axes || {}
+  const th = ax.threshold ?? 25
+  const loadHot = (ax.load ?? 0) >= th
+  const mechHot = (ax.mech ?? 0) >= th
+  const pct = Math.round((wk.progression ?? 1) * 100)
+  const status = loadHot
+    ? { col: "#e77a59", text: `Zátěž ${ax.load} je nad prahem ${th} — tento týden odlehčovací, bez tvrdých úseků a dlouhého běhu.` }
+    : mechHot
+      ? { col: "#f6d69a", text: `Mechanika ${ax.mech} je nad prahem ${th} — dnes o 20 % méně objemu, poloviční intenzita a klesání, raději rovina.` }
+      : { col: "#6ce6d3", text: `Zátěž ${ax.load ?? 0} a mechanika ${ax.mech ?? 0} jsou pod prahem ${th} — dnešní limity drží obě osy pod prahem i po tréninku.` }
+  return (
+    <section className="mt-4 rounded-[24px] border border-white/10 bg-[#0c201d] p-5 md:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5"><Label>Dnešní kapacita</Label><InfoDot text={MI.todayCapacity} label="Dnešní kapacita" /></span>
+        <span className="text-[11px] text-[#a9c2b9]">kolik si dnes můžete dovolit</span>
+      </div>
+      <p className="mt-2 flex items-start gap-2 text-xs leading-5 text-[#c9dcd4]"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {CH_ORDER.map((id) => {
+          const c = wk.channels?.[id]
+          if (!c) return null
+          const d = id === "volume" ? 1 : 0
+          const past6 = c.done7 != null ? c.done7 - (c.doneToday ?? 0) : null
+          return (
+            <div key={id} className="rounded-2xl border border-white/10 bg-white/[.02] p-3.5">
+              <p className="text-[11px] text-[#a9c2b9]">{CH_ICON[id]}</p>
+              <p className="mt-0.5 font-serif text-2xl leading-tight text-[#f1f8f1]">
+                {id === "systemic" ? (c.todayMax != null ? `${num(c.todayMax, 0)}` : "—") : c.todayMax != null ? `max ${num(c.todayMax, d)}` : "—"}
+                <span className="text-sm text-[#71837b]"> {c.unit}</span>
+              </p>
+              {c.limitedBy && <p className="text-[10px] text-[#f6d69a]">omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</p>}
+              <dl className="mt-2 space-y-0.5 text-[10px] leading-4 text-[#71837b]">
+                {c.capacity != null && <div className="flex justify-between gap-2"><dt>Týdenní kapacita (Zátěž)</dt><dd className="font-mono text-[#c9dcd4]">{num(c.capacity, d)} · strop {num(c.ceiling7, d)}{c.ceiling7 != null && c.ceiling7 < c.capacity ? " ↓" : ""}</dd></div>}
+                {past6 != null && <div className="flex justify-between gap-2"><dt>Posledních 6 dní{c.doneToday ? " + dnes" : ""}</dt><dd className="font-mono text-[#c9dcd4]">{num(c.done7, d)} → zbývá {num(c.left7, d)}</dd></div>}
+                {c.budget != null && <div className="flex justify-between gap-2"><dt>Tento týden v cyklu{cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden, ${pct} %)` : ""}</dt><dd className="font-mono text-[#c9dcd4]">{num(c.done, d)} / {num(c.budget, d)} → zbývá {num(c.left, d)}</dd></div>}
+                {c.ceilingRun != null && <div className="flex justify-between gap-2"><dt>Jeden běh</dt><dd className="font-mono text-[#c9dcd4]">max {num(c.ceilingRun, d)}</dd></div>}
+              </dl>
+            </div>
+          )
+        })}
+      </div>
+      {wk.channels?.volume?.ceiling7 != null && wk.channels.volume.ceiling7 < wk.channels.volume.capacity && (
+        <p className="mt-2 text-[10px] text-[#71837b]">↓ strop je nižší než kapacita: připravenost byla tento týden snížená (HRV / klidový tep / spánek mimo vaši normu), a tak se týdenní strop zmenšuje — nejvýš o 30 %.</p>
+      )}
+      {cyc.next && (
+        <p className="mt-3 text-xs leading-5 text-[#a9c2b9]">
+          <b className="text-[#f1f8f1]">Příští týden:</b> {cyc.next.pos}. týden cyklu ({cyc.next.pct} %) — cíl objemu ≈ {num(cyc.next.km)} km{cyc.next.pos === 1 ? ", nový cyklus na vyšší úrovni" : ""}. Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.
+        </p>
+      )}
+    </section>
+  )
 }
 const CH_ORDER = ["volume", "intensity", "descent", "ascent", "systemic"] as const
 const num = (v: number | null | undefined, d = 1) =>
@@ -31,31 +94,6 @@ function Stat({ label, value, sub, warn, text }: { label: string; value: string;
       <p className="font-mono text-[9px] uppercase tracking-[.14em] text-[#71837b]">{label}</p>
       <p className={`mt-1 leading-tight ${text ? "text-sm font-bold md:text-base" : "whitespace-nowrap font-serif text-xl md:text-2xl"}`} style={{ color: warn ? "#f6d69a" : "#f1f8f1" }}>{value}</p>
       {sub && <p className="mt-0.5 text-[11px] leading-4 text-[#a9c2b9]">{sub}</p>}
-    </div>
-  )
-}
-
-function WeekRow({ c, id }: { c: any; id: string }) {
-  const d = id === "volume" ? 1 : 0
-  if (c.budget == null) return (
-    <div><div className="mb-1 flex justify-between text-[11px]"><span className="text-[#e7efe9]">{c.label}</span><span className="text-[10px] text-[#71837b]">kapacitu poznáváme</span></div><div className="h-2 rounded-full bg-white/10" /></div>
-  )
-  const scale = Math.max(c.done ?? 0, c.budget) * 1.05 || 1
-  const over = (c.done ?? 0) > c.budget
-  return (
-    <div>
-      <div className="mb-1 flex justify-between gap-2 text-[11px]">
-        <span className="text-[#e7efe9]">{c.label}</span>
-        <span className="whitespace-nowrap font-mono text-[10px] text-[#9bb3aa]">{num(c.done, d)} / {num(c.budget, d)} {c.unit} · {over || c.left === 0 ? "splněno" : `zbývá ${num(c.left, d)}`}</span>
-      </div>
-      <div className="relative h-2 rounded-full bg-white/10">
-        <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${((c.done ?? 0) / scale) * 100}%`, background: over ? "#f6d69a" : "#6ce6d3" }} />
-        <i className="absolute -inset-y-1 w-0.5 bg-[#f1f8f1]" style={{ left: `calc(${(c.budget / scale) * 100}% - 1px)` }} />
-      </div>
-      <p className="mt-1 text-[10px] leading-4 text-[#71837b]">
-        7 dní {num(c.done7, d)} / strop {num(c.ceiling7, d)} {c.unit}
-        {id !== "systemic" && c.todayMax != null && <> · dnes max <b className="text-[#c9dcd4]">{num(c.todayMax, d)}</b>{c.limitedBy ? ` (${LIMIT[c.limitedBy] || c.limitedBy})` : ""}</>}
-      </p>
     </div>
   )
 }
@@ -119,7 +157,7 @@ function WeekPanel({ g }: { g: any }) {
   return (
     <section className="mt-4 rounded-[24px] border border-white/10 bg-[#0c201d] p-5 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><Label>Tento týden</Label><InfoDot text={MI.weekBudget} label="Týdenní cíl a cyklus" /></span>
+        <span className="flex items-center gap-1.5"><Label>Cyklus · tento týden</Label><InfoDot text={MI.weekBudget} label="Týdenní cíl a cyklus" /></span>
         <span className="rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: `${modeCol}1f`, color: modeCol }}>
           {cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? `${cyc.pos}. týden ze 4 · ` : ""}{modeLabel}
         </span>
@@ -155,14 +193,11 @@ function WeekPanel({ g }: { g: any }) {
         </p>
       )}
       <p className="mt-3 text-xs leading-5 text-[#a9c2b9]">
-        {how} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž ({num(vol.ceiling7)} km za 7 dní) — a dnešek hlídá obojí: zbytek týdenního cíle i 7denní strop.
+        {how} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž ({num(vol.ceiling7)} km za 7 dní).
       </p>
-      <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_1.3fr]">
-        <div>
-          <p className="mb-2 font-mono text-[9px] uppercase tracking-[.14em] text-[#71837b]">Objem po týdnech (od pondělí)</p>
-          <CycleStrip cyc={cyc} />
-        </div>
-        <div className="space-y-3">{CH_ORDER.map((id) => wk.channels?.[id] && <WeekRow key={id} c={wk.channels[id]} id={id} />)}</div>
+      <div className="mt-4">
+        <p className="mb-2 font-mono text-[9px] uppercase tracking-[.14em] text-[#71837b]">Objem po týdnech (od pondělí)</p>
+        <div className="max-w-md"><CycleStrip cyc={cyc} /></div>
       </div>
     </section>
   )
@@ -197,9 +232,15 @@ export function Training() {
         </div>
         <div className="flex flex-wrap gap-2">
           {g.provisional && <span className="rounded-full bg-[#f6d69a]/15 px-3 py-1.5 text-[11px] font-bold text-[#f6d69a]">předběžné · čeká na ranní data</span>}
-          <span className="flex items-center gap-1 rounded-full bg-white/[.06] py-1 pl-3 pr-1.5 text-[11px] font-bold text-[#a9c2b9]">
-            připravenost {Math.round((g.readiness ?? 1) * 100)} %<InfoDot text={MI.readinessTraining} label="Připravenost" />
-          </span>
+          {(() => {
+            const rp = g.readinessScore ?? Math.round((g.readiness ?? 1) * 100)
+            const col = readinessCol(rp)
+            return (
+              <span className="flex items-center gap-1 rounded-full py-1 pl-3 pr-1.5 text-[11px] font-bold" style={{ background: `${col}1f`, color: col }}>
+                připravenost {rp} %<InfoDot text={MI.readinessTraining} label="Připravenost" />
+              </span>
+            )
+          })()}
         </div>
       </div>
 
@@ -260,6 +301,7 @@ export function Training() {
         )}
       </section>
 
+      <TodayCapacity g={g} />
       <WeekPanel g={g} />
 
       <Card className="mt-4">

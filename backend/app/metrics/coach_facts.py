@@ -60,9 +60,9 @@ def _signals(a: dict, n: int = 5) -> list[dict]:
 def _recovery(a: dict) -> dict:
     rcv = a.get("rcv") or {}
     g = a.get("guidance") or {}
-    ready = g.get("readiness") if g.get("readiness") is not None else (a.get("capacity") or {}).get("readiness")
-    out = {"label": rcv.get("scoreLabel"),
-           "readinessPct": round(ready * 100) if isinstance(ready, (int, float)) else None}
+    cr = (a.get("capacity") or {}).get("readiness") or {}
+    ready = g.get("readinessScore") if g.get("readinessScore") is not None else cr.get("score")
+    out = {"label": rcv.get("scoreLabel"), "readinessPct": ready if isinstance(ready, (int, float)) else None}
     for key, name, dec in (("hrv", "hrvMs", 0), ("rhr", "restingHr", 0), ("sleep", "sleepH", 1)):
         m = rcv.get(key) or {}
         if m.get("now") is not None:

@@ -29,7 +29,10 @@ from ..serializers import to_dict
 # v0.7.1 — v3 guidance on a 4-week loading cycle (90/100/110/55 %), one weekly
 # budget across tabs, robust per-run intensity capacity (mean of the top 3),
 # zone minutes; repeated same-site pain lifts the tier to "watch" (odlehčit).
-ENGINE_VERSION = "v0.7.1"
+# v0.7.2 — readiness as a 20–100 % score from the size of HRV / resting-HR /
+# sleep deviations (8-week baseline); guidance gates on it; mechanics over its
+# threshold trims today's volume / intensity / descent.
+ENGINE_VERSION = "v0.7.2"
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -244,7 +247,7 @@ def _sensitive() -> bool:
     return _emode() in ("v2", "v3")
 
 
-# v1 → "v0.7.1", v2 → "v0.7.1-s" (citlivý), v3 → "v0.7.1-c" (kapacitní). The suffix
+# v1 → "v0.7.2", v2 → "v0.7.2-s" (citlivý), v3 → "v0.7.2-c" (kapacitní). The suffix
 # is how a stored assessment row remembers which engine produced it.
 _MODE_SUFFIX = {"v2": "-s", "v3": "-c"}
 
