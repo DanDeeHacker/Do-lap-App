@@ -21,7 +21,7 @@ from . import db as dbmod
 from .db import Base, SessionLocal, engine
 from .metrics import engine as E
 from .routers import (
-    ai, auth, booking, conclusions, employers, integrations, partners, physios, programs, rtr,
+    ai, annotations, auth, booking, conclusions, employers, integrations, partners, physios, programs, rtr,
     runners, simulate, triage,
 )
 
@@ -278,6 +278,7 @@ app.include_router(employers.router)
 app.include_router(partners.router)
 app.include_router(integrations.router)
 app.include_router(simulate.router)
+app.include_router(annotations.router)
 
 
 @app.get("/api/health")

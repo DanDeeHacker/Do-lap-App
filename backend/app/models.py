@@ -12,7 +12,7 @@ match the JS side, which always produces/consumes `new Date().toISOString()`
 or plain 'YYYY-MM-DD' date strings.
 """
 from sqlalchemy import (
-    Boolean, Column, Float, ForeignKey, Integer, JSON, String, UniqueConstraint,
+    Boolean, Column, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -559,3 +559,25 @@ class Settings(Base):
     employer_aggregate = Column(Boolean, default=True)
     notify_drift = Column(Boolean, default=True)
     notify_checkin = Column(Boolean, default=True)
+
+
+class Annotation(Base):
+    """A feedback note pinned to a spot in the app's UI (annotation mode in the top
+    bar). Anchored by route + CSS path + the element's visible text, so it can be
+    re-pinned on screen and found in the code. scripts/feedback_sync.py mirrors
+    these (Railway + local) for Claude Code, which implements them and marks them
+    resolved."""
+    __tablename__ = "annotations"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    route = Column(String, nullable=False)          # e.g. /app/mechanics
+    selector = Column(Text)                         # CSS path to the element
+    anchor_text = Column(String)                    # the element's visible text, trimmed
+    context_json = Column(JSON)                     # heading, click offset, page position, viewport, bundle
+    note = Column(Text, nullable=False)
+    kind = Column(String, default="idea")           # bug | idea | copy | other
+    status = Column(String, default="open")         # open | done | wontfix
+    resolution = Column(Text)                       # what was done about it (commit), from the sync script
+    created_at = Column(String)
+    updated_at = Column(String)
+    resolved_at = Column(String)

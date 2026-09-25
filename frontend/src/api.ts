@@ -93,7 +93,14 @@ export const api = {
   mechHistory: (id: string) => call("GET", `/api/runners/${id}/mech-history`),
   quadrantHistory: (id: string) => call("GET", `/api/runners/${id}/quadrant-history`),
   runCompare: (id: string, aid: number) => call("GET", `/api/runners/${id}/run-compare/${aid}`),
+  runSegmentTest: (id: string, aid: number) => call("GET", `/api/runners/${id}/run-segments/${aid}`),
   runHistory: (id: string, limit = 20) => call("GET", `/api/runners/${id}/run-history?limit=${limit}`),
+
+  // annotation mode (in-app feedback notes)
+  annotations: () => call("GET", "/api/annotations"),
+  createAnnotation: (body: any) => call("POST", "/api/annotations", body),
+  updateAnnotation: (id: number, patch: any) => call("PATCH", `/api/annotations/${id}`, patch),
+  deleteAnnotation: (id: number) => call("DELETE", `/api/annotations/${id}`),
 
   // engine sensitivity sandbox (Citlivostní analýza)
   engineKnobs: () => call("GET", "/api/engine/knobs"),
@@ -154,7 +161,6 @@ export const api = {
   // Switch the engine (v1 standard / v2 sensitive / v3 capacity) and recompute.
   setEngine: (rid: string, mode: "v1" | "v2" | "v3") => call("POST", `/api/runners/${rid}/engine`, { mode }),
   runSegments: (rid: string) => call("GET", `/api/runners/${rid}/run-segments`),
-  runSegmentSignificance: (rid: string, n = 3) => call("GET", `/api/runners/${rid}/run-segment-significance?n=${n}`),
 }
 
 export type Me = {

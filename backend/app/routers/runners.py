@@ -375,9 +375,17 @@ def run_history(rid: str, limit: int = 20, user: models.User = Depends(get_curre
 
 @router.get("/{rid}/run-compare/{aid}")
 def run_compare(rid: str, aid: int, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
-    """One run's metrics vs. the baseline as of that run's day and a month before."""
+    """One run's metrics vs. the comparable run from a month before."""
     ensure_runner_read_access(db, user, rid)
     return E.run_compare(db, rid, aid)
+
+
+@router.get("/{rid}/run-segments/{aid}")
+def run_segment_test(rid: str, aid: int, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Per-segment test of one run vs. the baseline as of that run's day
+    (Pohyb → Historie běhů). available=false until the run's detailed stream is fetched."""
+    ensure_runner_read_access(db, user, rid)
+    return E.run_segment_test(db, rid, aid)
 
 
 @router.get("/{rid}/access-log")

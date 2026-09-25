@@ -7,7 +7,7 @@
 
 const BUNDLE_RE = /<script[^>]+src="(\/assets\/[^"]+\.js)"/
 
-function runningBundle(): string | null {
+export function runningBundle(): string | null {
   const s = document.querySelector('script[type="module"][src*="/assets/"]') as HTMLScriptElement | null
   return s ? new URL(s.src, location.origin).pathname : null
 }

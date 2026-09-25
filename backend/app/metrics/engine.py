@@ -7,6 +7,7 @@ formula/why/limit/clear structure the prototype established.
 Nothing here is a diagnosis. See ai_brief.py's closing caveat, which every
 clinician-facing summary repeats verbatim.
 """
+import calendar
 import math
 import threading
 from collections import OrderedDict
@@ -669,53 +670,73 @@ def duty_factor(db: DBSession, rid: str):
     return _drift_z_core(A2, "duty", RECENT)
 
 
+MONTH_AGO_WINDOW_D = 7   # the comparable run may be up to a week younger than "a month ago", never older
+
+
+def month_before(d: date) -> date:
+    """Same day one calendar month earlier (31 Mar → 28/29 Feb)."""
+    y, m = (d.year, d.month - 1) if d.month > 1 else (d.year - 1, 12)
+    return date(y, m, min(d.day, calendar.monthrange(y, m)[1]))
+
+
+def comparable_month_ago(A: list, run):
+    """The comparable run from a month before `run`: same terrain bucket (surface ·
+    grade · pace class), dated from exactly one calendar month before up to
+    MONTH_AGO_WINDOW_D days later — never older than a month. Closest to the
+    one-month mark wins; a tie goes to the more similar distance. Returns
+    (run or None, window_from, window_to)."""
+    b = bucket(run)
+    rd = date.fromisoformat(run.started_at[:10])
+    lo = month_before(rd)
+    hi = min(lo + timedelta(days=MONTH_AGO_WINDOW_D), rd - timedelta(days=1))
+    cands = [x for x in A if x.id != run.id and x.started_at
+             and lo.isoformat() <= x.started_at[:10] <= hi.isoformat() and bucket(x) == b]
+    km = run.distance_km or 0
+
+    def key(x):
+        dist = abs(math.log((x.distance_km or 0.1) / km)) if km else 0.0
+        return ((date.fromisoformat(x.started_at[:10]) - lo).days, dist)
+    return (min(cands, key=key) if cands else None), lo, hi
+
+
 def run_compare(db: DBSession, rid: str, aid: int | None = None):
-    """A single run's key metrics next to the runner's own baseline *as of that
-    run's day* and the baseline a month before that day — so both how the run
-    sits on the norm and how the norm itself drifted are visible. Baselines are
-    always relative to the run's date, so any run in history is comparable.
-    Baseline = mean in the same terrain bucket over the 84→29-day window before
-    the run; the earlier one shifts that window +30 d. Falls back to all-terrain
-    when the exact bucket is too thin. `aid=None` → the most recent run."""
+    """A single run's key metrics next to the comparable run from a month before
+    (comparable_month_ago) — the same kind of run on the same kind of terrain, so
+    the difference is the runner, not the route. `aid=None` → the most recent run."""
     A = acts(db, rid)
     if not A:
         return None
     run = next((x for x in A if x.id == aid), None) if aid is not None else A[-1]
     if run is None:
         return None
-    b = bucket(run)
-    rd = datetime.fromisoformat(run.started_at[:10]).date()
-    ds = lambda n: iso_date(rd - timedelta(days=n))
-    win = lambda lo, hi: [x for x in A if lo < x.started_at[:10] <= hi]
-    base_now = win(ds(BASE_FROM), ds(BASE_TO))          # 84→29 d before the run
-    base_1mo = win(ds(BASE_FROM + 30), ds(BASE_TO + 30))  # a month earlier
-
-    def bmean(rows, field):
-        bv = [getattr(x, field) for x in rows if getattr(x, field) is not None and bucket(x) == b]
-        terrain = len(bv) >= 3
-        vals = bv if terrain else [getattr(x, field) for x in rows if getattr(x, field) is not None]
-        return (mean(vals), len(vals), terrain) if vals else (None, 0, False)
-
+    prev, lo, hi = comparable_month_ago(A, run)
+    rd = date.fromisoformat(run.started_at[:10])
     defs = [("pace_s_km", "Tempo", "s/km", 0), ("cadence_spm", "Kadence", "spm", 0),
             ("stride_len_m", "Délka kroku", "m", 2), ("vert_ratio_pct", "Vertikální poměr", "%", 1),
             ("gct_ms", "Kontakt se zemí", "ms", 0), ("vert_osc_cm", "Vertikální oscilace", "cm", 1)]
+    rnd_ = lambda v, dec: None if v is None else (round(v, dec) if dec else round(v))
     metrics = []
     for field, label, unit, dec in defs:
         v = getattr(run, field)
         if v is None:
             continue
-        bn, nn, tn = bmean(base_now, field)
-        b1, n1, _ = bmean(base_1mo, field)
+        pv = getattr(prev, field) if prev is not None else None
         metrics.append({
             "key": field, "label": label, "unit": unit, "dec": dec,
-            "value": round(v, dec) if dec else round(v),
-            "baseNow": round(bn, dec) if bn is not None else None, "nNow": nn, "terrain": tn,
-            "base1mo": round(b1, dec) if b1 is not None else None, "n1mo": n1,
+            "value": rnd_(v, dec), "prev": rnd_(pv, dec),
+            "diff": rnd_(v - pv, dec) if pv is not None else None,
         })
     return {
         "id": run.id, "date": run.started_at, "title": run.title, "surface": run.surface,
-        "bucketLabel": bucket_label(b), "distanceKm": run.distance_km,
-        "paceSKm": rnd(run.pace_s_km) if run.pace_s_km else None, "metrics": metrics,
+        "bucketLabel": bucket_label(bucket(run)), "distanceKm": run.distance_km,
+        "paceSKm": rnd(run.pace_s_km) if run.pace_s_km else None,
+        "prev": None if prev is None else {
+            "id": prev.id, "date": prev.started_at, "title": prev.title, "distanceKm": prev.distance_km,
+            "paceSKm": rnd(prev.pace_s_km) if prev.pace_s_km else None,
+            "daysBefore": (rd - date.fromisoformat(prev.started_at[:10])).days,
+        },
+        "window": {"from": lo.isoformat(), "to": hi.isoformat()},
+        "metrics": metrics,
     }
 
 
@@ -1598,6 +1619,96 @@ _SEG_METRIC_LABELS = {
 _BAND_LABELS = {"B1": "prudký sjezd", "B2": "sjezd", "B3": "rovina", "B4": "výjezd", "B5": "prudký výjezd"}
 
 
+def _seg_test_setup(db: DBSession, rid: str, rows: list[dict], min_base: int = 5):
+    """What each segment is tested against: the S4 context model per metric (when
+    the baseline has enough segments) and the per-(metric, surface, band) bucket
+    stats as fallback — both built from the 84→29-day baseline window relative to
+    the pinned "today" (wrap in today_pinned to test a historic run)."""
+    from . import segmentation as seg
+    base_rows = _baseline_rows(rows, _v2_baseline_exclusions(db, rid))
+    models_by = {f: _seg_fit(base_rows, f) for f in seg.MECH_FIELDS}
+    by = {}  # (field, surface, band) -> [values]
+    for r in base_rows:
+        for s in r["segs"]:
+            for f in seg.MECH_FIELDS:
+                if s.get(f) is not None:
+                    by.setdefault((f, s.get("surface") or "unknown", s.get("band")), []).append(s[f])
+    base = {}
+    for k, v in by.items():
+        if len(v) >= min_base:
+            m_, s_, n_ = inlier_mean_sd(v)
+            base[k] = (m_, max(s_, abs(m_) * 0.012, 1e-9), n_)
+    return base_rows, models_by, base
+
+
+def _seg_test_run(r: dict, models_by: dict, base: dict, all_findings: list) -> dict:
+    """Every segment × metric of one run vs the baseline's expectation for that
+    segment. Findings are appended to `all_findings` for the family-wide FDR."""
+    from . import regression as reg
+    from . import segmentation as seg
+    seg_out = []
+    for i, s in enumerate(r["segs"]):
+        findings = []
+        for f in seg.MECH_FIELDS:
+            v = s.get(f)
+            if v is None:
+                continue
+            model = models_by.get(f)
+            if model is not None:
+                if not reg.in_domain(model, s):
+                    continue
+                expected = reg.predict(model, s)
+                sdev = model["sigma"] * math.sqrt(1 + model["k"] / model["n"])
+                df, nb, method = model["n"] - model["k"], model["n"], "regression"
+            else:
+                st = base.get((f, s.get("surface") or "unknown", s.get("band")))
+                if not st:
+                    continue
+                expected, sd0, nb = st
+                sdev = sd0 * math.sqrt(1 + 1 / nb)
+                df, method = nb - 1, "bucket"
+            t = (v - expected) / sdev
+            p = t_two_sided_p(t, df)
+            fnd = {
+                "metric": f, "label": _SEG_METRIC_LABELS.get(f, f),
+                "value": r2(v), "base": r2(expected), "sd": r2(sdev), "baseN": nb, "method": method,
+                "z": r2(t), "_p": p, "p": round(p, 4), "sigRaw": p < 0.05,
+                "sig": False, "dir": "up" if t > 0 else "down",
+            }
+            findings.append(fnd)
+            all_findings.append(fnd)
+        spd = s.get("meanSpeed")
+        seg_out.append({
+            "idx": i, "band": s.get("band"), "bandLabel": _BAND_LABELS.get(s.get("band"), s.get("band")),
+            "surface": s.get("surface"), "elapsedMin": r1((s.get("elapsedS") or 0) / 60),
+            "startS": round(s.get("elapsedS") or 0), "durationS": s.get("durationS"),
+            "paceSKm": round(1000 / spd) if spd and spd > 0.5 else None,
+            "gradePct": r1((s.get("meanGradient") or 0) * 100),
+            "findings": findings, "sig": False,
+        })
+    return {
+        "aid": r["aid"], "date": r["started"], "title": r["title"], "distanceKm": r["distanceKm"],
+        "nSeg": len(r["segs"]), "sigCount": 0, "segments": seg_out,
+    }
+
+
+def _seg_fdr(all_findings: list, runs_out: list):
+    """Benjamini–Hochberg FDR at 5 % across ALL segment × metric tests, so
+    "significant" accounts for how many comparisons were run."""
+    ps = sorted(f["_p"] for f in all_findings)
+    thr = -1.0
+    for rank, pv in enumerate(ps, 1):
+        if pv <= (rank / len(ps)) * 0.05:
+            thr = pv
+    for f in all_findings:
+        f["sig"] = f.pop("_p") <= thr
+    for run in runs_out:
+        for sgm in run["segments"]:
+            sgm["sig"] = any(f["sig"] for f in sgm["findings"])
+        run["sigCount"] = sum(1 for sgm in run["segments"] for f in sgm["findings"] if f["sig"])
+        run["nTested"] = sum(len(sgm["findings"]) for sgm in run["segments"])
+
+
 def segment_significance(db: DBSession, rid: str, n_runs: int = 3, min_base: int = 5) -> dict:
     """Per-segment statistical test of the last `n_runs` runs against the runner's
     own baseline. Each segment × metric is compared with what the runner's
@@ -1615,82 +1726,39 @@ def segment_significance(db: DBSession, rid: str, n_runs: int = 3, min_base: int
     p-values come from Student's t (df from the baseline size), so a small baseline
     bucket is not over-trusted. "Significant" = Benjamini–Hochberg FDR 5 % across
     every segment × metric test shown. Uses stored segments (fetch Detailní data)."""
-    from . import regression as reg
-    from . import segmentation as seg
     rows = _stream_rows(db, rid, newest_first=True)
     if not rows:
         return {"runs": [], "note": "no_streams"}
-    base_rows = _baseline_rows(rows, _v2_baseline_exclusions(db, rid))
-    models_by = {f: _seg_fit(base_rows, f) for f in seg.MECH_FIELDS}
-    by = {}  # (field, surface, band) -> [values]
-    for r in base_rows:
-        for s in r["segs"]:
-            for f in seg.MECH_FIELDS:
-                if s.get(f) is not None:
-                    by.setdefault((f, s.get("surface") or "unknown", s.get("band")), []).append(s[f])
-    base = {}
-    for k, v in by.items():
-        if len(v) >= min_base:
-            m_, s_, n_ = inlier_mean_sd(v)
-            base[k] = (m_, max(s_, abs(m_) * 0.012, 1e-9), n_)
-    all_findings = []  # every (segment × metric) test, for a family-wide FDR
-    runs_out = []
-    for r in rows[:n_runs]:
-        seg_out = []
-        for i, s in enumerate(r["segs"]):
-            findings = []
-            for f in seg.MECH_FIELDS:
-                v = s.get(f)
-                if v is None:
-                    continue
-                model = models_by.get(f)
-                if model is not None:
-                    if not reg.in_domain(model, s):
-                        continue
-                    expected = reg.predict(model, s)
-                    sdev = model["sigma"] * math.sqrt(1 + model["k"] / model["n"])
-                    df, nb, method = model["n"] - model["k"], model["n"], "regression"
-                else:
-                    st = base.get((f, s.get("surface") or "unknown", s.get("band")))
-                    if not st:
-                        continue
-                    expected, sd0, nb = st
-                    sdev = sd0 * math.sqrt(1 + 1 / nb)
-                    df, method = nb - 1, "bucket"
-                t = (v - expected) / sdev
-                p = t_two_sided_p(t, df)
-                fnd = {
-                    "metric": f, "label": _SEG_METRIC_LABELS.get(f, f),
-                    "value": r2(v), "base": r2(expected), "sd": r2(sdev), "baseN": nb, "method": method,
-                    "z": r2(t), "_p": p, "p": round(p, 4), "sigRaw": p < 0.05,
-                    "sig": False, "dir": "up" if t > 0 else "down",
-                }
-                findings.append(fnd)
-                all_findings.append(fnd)
-            seg_out.append({
-                "idx": i, "band": s.get("band"), "bandLabel": _BAND_LABELS.get(s.get("band"), s.get("band")),
-                "surface": s.get("surface"), "elapsedMin": r1((s.get("elapsedS") or 0) / 60),
-                "durationS": s.get("durationS"), "findings": findings, "sig": False,
-            })
-        runs_out.append({
-            "date": r["started"], "title": r["title"], "distanceKm": r["distanceKm"],
-            "nSeg": len(r["segs"]), "sigCount": 0, "segments": seg_out,
-        })
-    # Benjamini–Hochberg FDR at 5% across ALL segment×metric tests, so "significant"
-    # accounts for how many comparisons were run (many segments × 6 metrics).
-    ps = sorted(f["_p"] for f in all_findings)
-    thr = -1.0
-    for rank, pv in enumerate(ps, 1):
-        if pv <= (rank / len(ps)) * 0.05:
-            thr = pv
-    for f in all_findings:
-        f["sig"] = f.pop("_p") <= thr
-    for run in runs_out:
-        for sgm in run["segments"]:
-            sgm["sig"] = any(f["sig"] for f in sgm["findings"])
-        run["sigCount"] = sum(1 for sgm in run["segments"] for f in sgm["findings"] if f["sig"])
+    _base_rows, models_by, base = _seg_test_setup(db, rid, rows, min_base)
+    all_findings: list = []
+    runs_out = [_seg_test_run(r, models_by, base, all_findings) for r in rows[:n_runs]]
+    _seg_fdr(all_findings, runs_out)
     return {"runs": runs_out, "baselineBuckets": len(base), "fdr": 0.05,
             "method": "regression" if any(models_by.values()) else "bucket"}
+
+
+def run_segment_test(db: DBSession, rid: str, aid: int, min_base: int = 5) -> dict:
+    """The per-segment test for ONE run (Pohyb → Historie běhů), against the
+    baseline as it stood on that run's day — the 84→29-day window before the run,
+    so an older run is never judged by a norm that contains itself or later runs.
+    FDR is controlled within the run."""
+    rows = _stream_rows(db, rid)
+    r = next((x for x in rows if x["aid"] == aid), None)
+    if r is None:
+        return {"available": False, "reason": "no_stream"}
+    rd = date.fromisoformat(r["started"][:10])
+    with today_pinned(rd):
+        base_rows, models_by, base = _seg_test_setup(db, rid, rows, min_base)
+        win = {"from": day_ago(BASE_FROM - 1), "to": day_ago(BASE_TO)}
+    all_findings: list = []
+    run = _seg_test_run(r, models_by, base, all_findings)
+    _seg_fdr(all_findings, [run])
+    return {
+        "available": True, "run": run, "fdr": 0.05,
+        "method": "regression" if any(models_by.values()) else "bucket",
+        "baseline": {"runs": len(base_rows), **win},
+        "reason": None if run["nTested"] else ("no_baseline" if len(base_rows) < _SEG_MIN_BASE_SESS else "out_of_domain"),
+    }
 
 
 def run_segment_breakdown(db: DBSession, rid: str, days: int = 60, limit: int = 12) -> list:

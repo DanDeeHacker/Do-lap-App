@@ -23,6 +23,7 @@ import { EngineLab } from "@/enginelab"
 import { CapacityMini } from "@/capacity"
 import { Training } from "@/training"
 import { startUpdateWatcher } from "@/updateCheck"
+import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 
 // Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
 // svou infrastrukturu; zaměstnavatelé a partneři se v této aplikaci nepřihlašují.
@@ -109,6 +110,7 @@ function Topbar() {
           })}
         </nav>
         <div className="relative flex shrink-0 items-center gap-2">
+          <AnnotateToggle />
           <button
             onClick={() => setProfileOpen(!profileOpen)}
             className="grid size-9 place-items-center rounded-full bg-[#dcece7] text-[10px] font-bold text-black"
@@ -230,22 +232,25 @@ function Layout() {
   if (!me) return <Navigate to="/auth" replace />
   if (me.role !== "runner") return <RunnerOnlyNotice />
   return (
-    <div className="motion-shell min-h-screen bg-[#e7e9e1] text-[#193431]">
-      <Topbar />
-      <main className="mx-auto min-h-screen max-w-[1180px] bg-[#f9f7f1] px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[calc(6rem+env(safe-area-inset-top))] md:rounded-b-[28px] md:px-9 md:pb-24 md:pt-24">
-        <Outlet />
-      </main>
-      <AtlasBubble />
-      <AtlasNav />
-      {updateReady && (
-        <div className="fixed inset-x-0 top-[calc(76px+env(safe-area-inset-top))] z-50 flex justify-center px-4">
-          <div className="flex items-center gap-3 rounded-full border border-[#c7ff54]/40 bg-[#0c201d] py-2 pl-4 pr-2 text-xs text-[#f1f8f1] shadow-lg">
-            <span>Je dostupná nová verze aplikace.</span>
-            <button onClick={() => location.reload()} className="rounded-full bg-[#c7ff54] px-3 py-1.5 font-bold text-[#071313]">Aktualizovat</button>
+    <AnnotateProvider>
+      <div className="motion-shell min-h-screen bg-[#e7e9e1] text-[#193431]">
+        <Topbar />
+        <main className="mx-auto min-h-screen max-w-[1180px] bg-[#f9f7f1] px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[calc(6rem+env(safe-area-inset-top))] md:rounded-b-[28px] md:px-9 md:pb-24 md:pt-24">
+          <Outlet />
+        </main>
+        <AtlasBubble />
+        <AtlasNav />
+        {updateReady && (
+          <div className="fixed inset-x-0 top-[calc(76px+env(safe-area-inset-top))] z-50 flex justify-center px-4">
+            <div className="flex items-center gap-3 rounded-full border border-[#c7ff54]/40 bg-[#0c201d] py-2 pl-4 pr-2 text-xs text-[#f1f8f1] shadow-lg">
+              <span>Je dostupná nová verze aplikace.</span>
+              <button onClick={() => location.reload()} className="rounded-full bg-[#c7ff54] px-3 py-1.5 font-bold text-[#071313]">Aktualizovat</button>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+        <AnnotationLayer />
+      </div>
+    </AnnotateProvider>
   )
 }
 

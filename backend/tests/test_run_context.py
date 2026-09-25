@@ -167,3 +167,98 @@ def test_heat_flag_only_when_the_run_hours_are_known(client, db_session, monkeyp
     W.enrich(db_session, runner, runs)
     by_precision = {a.weather_json["precision"]: a.weather_json["hot"] for a in runs}
     assert by_precision == {"hour": True, "day": False}   # a hot afternoon says nothing about a morning run
+
+
+# ---- comparable run a month ago (the comparison table in each expanded run) ----
+
+def _act(rid, day, km=10.0, surface="road", dur=55, ext=None, **kw):
+    return models.Activity(runner_id=rid, provider="garmin", external_id=ext or f"{rid}-{day}-{km}-{surface}-{dur}",
+                           started_at=day, sport="running", distance_km=km, duration_min=dur * km / 10,
+                           surface=surface, ascent_m=10, descent_m=10, **kw)
+
+
+def test_month_before_is_calendar_aware():
+    from datetime import date
+    assert E.month_before(date(2026, 9, 25)) == date(2026, 8, 25)
+    assert E.month_before(date(2026, 3, 31)) == date(2026, 2, 28)
+    assert E.month_before(date(2026, 1, 15)) == date(2025, 12, 15)
+
+
+def test_comparable_run_is_a_month_ago_never_older(client, db_session):
+    rid = register(client, "cmp1@test.cz", "Cmp", "runner").json()["runner_id"]
+    db = db_session
+    run = _act(rid, "2026-09-25", cadence_spm=176, gct_ms=250)
+    db.add_all([
+        run,
+        _act(rid, "2026-08-20", cadence_spm=170, gct_ms=262),                  # same kind, but 36 days old → never
+        _act(rid, "2026-08-24", cadence_spm=171, gct_ms=261),                  # one day older than a month → never
+        _act(rid, "2026-08-25", dur=40, cadence_spm=180, gct_ms=240),          # the mark, but a different pace class
+        _act(rid, "2026-08-26", surface="trail", cadence_spm=168, gct_ms=270),  # different surface
+        _act(rid, "2026-08-27", cadence_spm=174, gct_ms=255),                  # ✓ comparable, 2 days after the mark
+        _act(rid, "2026-08-29", cadence_spm=173, gct_ms=256),                  # comparable but further from the mark
+        _act(rid, "2026-09-10", cadence_spm=175, gct_ms=252),                  # too recent to be "a month ago"
+    ])
+    db.commit()
+    res = E.run_compare(db, rid, run.id)
+    assert res["prev"]["date"] == "2026-08-27" and res["prev"]["daysBefore"] == 29
+    assert res["window"] == {"from": "2026-08-25", "to": "2026-09-01"}
+    cad = next(m for m in res["metrics"] if m["key"] == "cadence_spm")
+    assert (cad["value"], cad["prev"], cad["diff"]) == (176, 174, 2)
+
+
+def test_comparable_run_tie_prefers_similar_distance_and_none_when_missing(client, db_session):
+    rid = register(client, "cmp2@test.cz", "Cmp2", "runner").json()["runner_id"]
+    db = db_session
+    run = _act(rid, "2026-09-25", km=20.0, gct_ms=250)
+    lonely = _act(rid, "2026-07-01", gct_ms=250)
+    db.add_all([run, lonely, _act(rid, "2026-08-26", km=6.0, gct_ms=240), _act(rid, "2026-08-26", km=18.0, gct_ms=245)])
+    db.commit()
+    assert E.run_compare(db, rid, run.id)["prev"]["distanceKm"] == 18.0
+    none = E.run_compare(db, rid, lonely.id)   # nothing between 1 and 8 June
+    assert none["prev"] is None and all(m["prev"] is None and m["diff"] is None for m in none["metrics"])
+
+
+# ---- per-segment test of any run in the history, vs the norm as of its own day ----
+
+def test_historic_run_segments_use_the_baseline_of_their_own_day(client, db_session):
+    import random
+    random.seed(7)
+    rid = register(client, "seghist@test.cz", "SegHist", "runner").json()["runner_id"]
+    db = db_session
+
+    def seg(band, gct, t):
+        return {"band": band, "surface": "road", "durationS": 60, "meanSpeed": 3.0,
+                "meanGradient": -0.12 if band == "B1" else 0.0, "elapsedS": t, "gct_ms": gct}
+
+    def add(day, gct_down):
+        a = _act(rid, E.day_ago(day), ext=f"sh{day}")
+        db.add(a)
+        db.flush()
+        db.add(models.ActivityStream(activity_id=a.id, runner_id=rid, external_id=a.external_id, created_at=E.now_iso(),
+                                     segments_json=[seg("B3", 240 + random.gauss(0, 4), 0), seg("B1", gct_down, 60)]))
+        return a
+    for day in range(130, 80, -6):              # the norm back then: downhill contact ~232 ms
+        add(day, 232 + random.gauss(0, 4))
+    old = add(50, 262)                          # the run in question: +30 ms downhill
+    for day in range(44, 26, -3):               # afterwards the runner stays at ~262 ms
+        add(day, 262 + random.gauss(0, 4))
+    db.commit()
+    res = E.run_segment_test(db, rid, old.id)
+    assert res["available"] and res["baseline"]["runs"] >= 5
+    assert res["baseline"]["to"] == E.iso_date(E.today_date() - timedelta(days=50 + 29))   # 29 days before the run
+    down = next(s for s in res["run"]["segments"] if s["band"] == "B1")
+    assert down["sig"] and down["startS"] == 60 and down["durationS"] == 60 and down["paceSKm"] == 333
+    assert down["gradePct"] == -12.0
+    # judged by TODAY's norm (which already contains ~262 ms runs) it would not stand out
+    today_view = E.segment_significance(db, rid, n_runs=20)
+    same = next(r for r in today_view["runs"] if r["aid"] == old.id)
+    assert not next(s for s in same["segments"] if s["band"] == "B1")["sig"]
+
+
+def test_run_segments_endpoint(client, db_session):
+    rid, _ = _runner_with_runs(client, db_session, "ctx6@test.cz")
+    client.post("/api/auth/session", json={"email": "ctx6@test.cz", "password": "testpass123"})
+    aid = db_session.query(models.Activity).filter(models.Activity.runner_id == rid).first().id
+    assert client.get(f"/api/runners/{rid}/run-segments/{aid}").json() == {"available": False, "reason": "no_stream"}
+    r = client.get(f"/api/runners/{rid}/run-compare/{aid}").json()
+    assert "window" in r and "prev" in r and "baseNow" not in (r["metrics"] or [{}])[0]
