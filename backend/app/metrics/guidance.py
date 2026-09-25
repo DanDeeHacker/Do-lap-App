@@ -570,11 +570,11 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     elif mode == "build":
         reasons.append(f"{cycle['pos']}. týden cyklu — cíl {round(factor * 100)} % referenčního týdne "
                        f"({_cz(cycle['refKm'])} km).")
+    elif mode == "learning":
+        reasons.append("Čtyřtýdenní cyklus nastavíme po 4 týdnech dat — zatím je cílem vaše týdenní kapacita.")
     if cycle["manual"]:
         reasons.append(f"Tento týden jste ručně zvolili {cycle['pos']}. týden cyklu — příští týden se cyklus nastaví "
                        "sám podle toho, jak týden skutečně proběhne.")
-    else:
-        reasons.append("Čtyřtýdenní cyklus nastavíme po 4 týdnech dat — zatím je cílem vaše týdenní kapacita.")
     if drift:
         reasons.append("Mechanika se odchyluje od vaší normy — bez intenzity a prudkých seběhů, raději rovina.")
     if vw["budget"] and not (typ == "volno" and vw["limitedBy"] == "week"):

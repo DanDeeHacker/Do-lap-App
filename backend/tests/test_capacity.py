@@ -173,8 +173,8 @@ def test_readiness_follows_a_strained_hrv_week_even_after_good_sleep(client, db_
         return C.readiness_by_day(db, rid, [E.day_ago(0)])[E.day_ago(0)]
     f_str, parts, strained = seed("rd1@test.cz", lambda k: 55, 55, 51)        # 7-day HRV ≈ 1.2 SD low, RHR up
     f_one, _, one_night = seed("rd2@test.cz", lambda k: 56 if k % 2 else 64, 55, 50)  # a normal week, one poor night
-    assert strained <= 40 and parts["hrv"] > 0.6 and parts.get("sleep", 0) == 0   # good sleep doesn't rescue it
-    assert strained < one_night < 100 and 55 <= one_night <= 85                    # the trend weighs more than one night
+    assert strained <= 60 and parts["hrv"] > 0.35 and parts.get("sleep", 0) == 0  # good sleep doesn't rescue it
+    assert strained < one_night < 100 and 65 <= one_night <= 85                    # the trend weighs more than one night
     assert f_str < f_one and 0.7 <= f_str                                           # capacity factor keeps its 0.7 floor
 
 
@@ -183,9 +183,9 @@ def test_how_far_off_hrv_and_resting_hr_must_be_to_drop_readiness():
     score = lambda hrv_sd, rhr_sd: C.readiness_from(C.readiness_parts(
         {"hrv_ms": 60 - hrv_sd * 5, "resting_hr": 50 + rhr_sd * 2, "sleep_h": 7.5}, {}, base))[1]
     assert score(0.4, 0.4) == 100                       # ordinary noise costs nothing
-    assert score(1.0, 1.0) == 70 and score(1.1, 1.1) < 70   # both ~1 SD off → under 70 %
-    assert score(1.25, 0) == 70 and score(1.5, 0) < 70  # HRV alone needs ~1.25 SD
-    assert score(1.5, 1.5) == 40                        # both 1.5 SD off → 40 %
+    assert score(1.0, 1.0) > 70 > score(1.2, 1.2)       # both ~1.1 SD off → ~70 %
+    assert score(1.45, 0) == 70 and score(1.6, 0) < 70  # HRV alone needs ~1.45 SD
+    assert score(1.75, 1.75) == 40                      # both 1.75 SD off → 40 %
     assert score(3, 3) == 20                            # the floor
     wk = C.readiness_from(C.readiness_parts({"hrv_ms": 60, "resting_hr": 50}, {"hrv_ms": 60 - 0.8 * 5}, base))[1]
-    assert wk < 80                                      # a 7-night HRV mean 0.8 SD low already costs
+    assert wk < 90                                      # a 7-night HRV mean 0.8 SD low already costs

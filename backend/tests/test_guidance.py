@@ -317,3 +317,10 @@ def test_readiness_score_gates_hard_sessions_and_drift_trims_today(client, db_se
     bv, dv = base["week"]["channels"]["volume"], drift["week"]["channels"]["volume"]
     assert dv["limitedBy"] == "mechanics" and dv["todayMax"] <= 0.8 * bv["todayMax"] + 0.05
     assert drift["axes"]["threshold"] == 25 and "mech" in drift["axes"]
+
+
+def test_learning_reason_only_while_the_cycle_is_unknown(client, db_session):
+    rid, r = _runner(client, db_session, "gc8@test.cz")
+    g = _guide(db_session, rid, r, load=0)
+    has = any("nastavíme po 4 týdnech" in x for x in g["reasons"])
+    assert has == (g["week"]["mode"] == "learning")

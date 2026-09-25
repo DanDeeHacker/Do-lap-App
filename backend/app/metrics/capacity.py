@@ -305,8 +305,8 @@ def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch):
 
 READY_BASE = (8, 56)    # baseline nights: 8–56 days back (a strained stretch doesn't become its own norm)
 READY_TOLERANCE = 0.5   # SD — ordinary night-to-night noise costs nothing
-READY_FULL = 2.5        # SD off the baseline = the whole deficit for that signal
-READY_WEEK_BOOST = 1.6  # a 7-night mean is less noisy than one night: its deviation counts 1.6×
+READY_FULL = 3.0        # SD off the baseline = the whole deficit for that signal
+READY_WEEK_BOOST = 1.25 # a 7-night mean is less noisy than one night: its deviation counts 1.25×
 
 
 def readiness_parts(night: dict, week: dict, base: dict) -> dict:
@@ -347,13 +347,13 @@ def readiness_by_day(db, rid, days) -> dict:
       • HRV (low) and resting HR (high): the worse of last night and the 7-night
         mean — the rolling mean is what HRV-guided training uses (Plews et al.
         2013) and what the watch's "HRV status" reflects; the mean's deviation
-        counts 1.6× (it's far less noisy than one night);
+        counts 1.25× (it's less noisy than one night);
       • sleep: hours below the usual;
       • check-in soreness / fatigue 6–10.
-    Each signal: nothing within ±0.5 SD (normal noise), the full deficit at 2.5 SD.
-    The score (shown as "připravenost") = 100 − 80 × combined deficit: it drops
-    under 70 % when HRV and resting HR are both ~1 SD off (or HRV alone ~1.25 SD
-    below normal), under 50 % at ~1.5 SD each. The capacity factor that scales
+    Each signal: nothing within ±0.5 SD (normal noise), the full deficit at 3 SD.
+    The score (shown as "připravenost") = 100 − 80 × combined deficit: ~70 % when
+    HRV and resting HR are both ~1.1 SD off (7-night means ~0.9 SD) or HRV alone
+    ~1.45 SD low, ~40 % at ~1.75 SD each, 20 % at the floor. The capacity factor that scales
     load capacity keeps the narrower 0.7–1.0 range. (1.0 / 100 without enough
     watch data to judge.)"""
     days = sorted(set(days))

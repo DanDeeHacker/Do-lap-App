@@ -32,7 +32,8 @@ from ..serializers import to_dict
 # v0.7.2 — readiness as a 20–100 % score from the size of HRV / resting-HR /
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
-ENGINE_VERSION = "v0.7.2"
+# v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
+ENGINE_VERSION = "v0.7.3"
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -247,7 +248,7 @@ def _sensitive() -> bool:
     return _emode() in ("v2", "v3")
 
 
-# v1 → "v0.7.2", v2 → "v0.7.2-s" (citlivý), v3 → "v0.7.2-c" (kapacitní). The suffix
+# v1 → "v0.7.3", v2 → "v0.7.3-s" (citlivý), v3 → "v0.7.3-c" (kapacitní). The suffix
 # is how a stored assessment row remembers which engine produced it.
 _MODE_SUFFIX = {"v2": "-s", "v3": "-c"}
 
