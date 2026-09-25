@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { Link } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Card, Chip, Field, Label, Metric, useAsync, useToast } from "@/ui"
@@ -232,6 +233,13 @@ export function DataView() {
             )
           })}
         </div>
+        <Link to="/engines" className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-[#c7ff54]/30 bg-[#c7ff54]/[.06] px-4 py-3 text-left transition hover:border-[#c7ff54]/60">
+          <span>
+            <b className="text-sm text-[#f1f8f1]">Porovnat enginy</b>
+            <span className="block text-[11px] text-[#a9c2b9]">Jaké skóre by dnes a za posledních 6 měsíců ukazoval každý engine a co do něj vstupuje.</span>
+          </span>
+          <span className="text-lg text-[#c7ff54]">→</span>
+        </Link>
         <p className="mt-3 text-[11px] leading-4 text-[#71837b]">
           Citlivý engine počítá odchylku každého běhu proti tvé vlastní typické chybě a váží čerstvé běhy víc, takže změnu zachytí dřív než průměrový Standardní — nastavený tak, aby bez skutečné změny ukázal signál zhruba jen v 5 % případů. Všechny enginy přepočítávají mechaniku na tvé obvyklé tempo, takže pomalejší klusy nevypadají jako drift. Kapacitní engine navíc hodnotí zátěž proti tomu, co jsi prokazatelně zvládl(a) bez obtíží — po jednotlivých bězích i týdnech, v objemu, intenzitě (tepové zóny), klesání a stoupání — a snižuje ji podle toho, jak ses vyspal(a). Experimentální — zatím nevalidované na reálných zraněních.
         </p>
@@ -270,11 +278,12 @@ export function DataView() {
                       <p className="font-mono text-[10px] uppercase tracking-[.16em] text-[#8fae52]">Garmin připojen</p>
                       <p className="mt-1 text-sm text-[#e6efdc]">Ranní synchronizace {gStatus.auto_sync ? <b className="text-[#c7ff54]">zapnutá</b> : <b>vypnutá</b>} · poslední: {gStatus.last_sync_at ? fmtD(gStatus.last_sync_at) : "—"}</p>
                       {gStatus.last_error && <p className="mt-1 text-xs text-[#e77a59]">{gStatus.last_error}</p>}
+                      <p className="mt-1 text-[11px] text-[#9bb3aa]">Detailní data (trať, výškový profil, mechanika po sekundách) nových běhů se stahují automaticky s každou synchronizací; tlačítko „Detailní data“ doplní starší historii.</p>
                       <p className="mt-1 text-[11px] text-[#7f938a]">Uložen je jen přístupový <b>token</b> (šifrovaný{gStatus.encrypted ? "" : " – bez klíče v této instanci"}), ne heslo. Token lze zrušit i v účtu Garmin.</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <button onClick={garminSyncNow} disabled={R?.loading} className="rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313] disabled:opacity-60">{R?.loading ? "Synchronizuji…" : "⟳ Synchronizovat teď"}</button>
-                      <button onClick={garminStreamsNow} disabled={R?.loading} title="Stáhne trať, výškový profil a mechaniku po sekundách pro VŠECHNY běhy v historii (po dávkách) — zapne terénní zátěž a segmenty" className="rounded-full border border-[#6ce6d3]/40 px-4 py-2 text-xs font-bold text-[#6ce6d3] disabled:opacity-60">⛰ Detailní data</button>
+                      <button onClick={garminStreamsNow} disabled={R?.loading} title="Doplní trať, výškový profil a mechaniku po sekundách i pro STARŠÍ běhy v historii (po dávkách). Nové běhy se stahují samy s každou synchronizací." className="rounded-full border border-[#6ce6d3]/40 px-4 py-2 text-xs font-bold text-[#6ce6d3] disabled:opacity-60">⛰ Detailní data</button>
                       <button onClick={garminTerrainNow} disabled={R?.loading} title="Z GPS trati nejnovějšího běhu určí povrch a terén (OpenStreetMap, v ČR ZABAGED)" className="rounded-full border border-[#6ce6d3]/40 px-4 py-2 text-xs font-bold text-[#6ce6d3] disabled:opacity-60">🗺 Povrch trasy</button>
                       <button onClick={() => garminToggleAuto(!gStatus.auto_sync)} className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-[#a9c2b9]">{gStatus.auto_sync ? "Vypnout ranní sync" : "Zapnout ranní sync"}</button>
                       <button onClick={garminDisconnect} className="rounded-full border border-[#e77a59]/40 px-4 py-2 text-xs font-bold text-[#e77a59]">Odpojit</button>

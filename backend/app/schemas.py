@@ -110,6 +110,10 @@ class EngineModeRequest(Lenient):
     mode: str  # "v1" standard | "v2" sensitive | "v3" capacity
 
 
+class CycleWeekRequest(Lenient):
+    pos: int | None = None  # 1–4 = this week's place in the 4-week cycle; None = automatic again
+
+
 class SlotBookRequest(Lenient):
     slot_id: int
     kind: str = "assessment"

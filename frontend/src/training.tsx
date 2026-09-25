@@ -4,8 +4,9 @@
 // ascent/descent, terrain, and why.
 import { useEffect, useState } from "react"
 import { Link } from "react-router"
+import { api } from "@/api"
 import { useApp } from "@/store"
-import { Card, InfoDot, Label } from "@/ui"
+import { Card, InfoDot, Label, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { fmtD, paceStr } from "@/lib"
 
@@ -82,8 +83,30 @@ function CycleStrip({ cyc }: { cyc: any }) {
 }
 
 function WeekPanel({ g }: { g: any }) {
+  const { me, refresh } = useApp()
+  const toast = useToast()
   const wk = g.week || {}
   const cyc = wk.cycle || {}
+  const [ask, setAsk] = useState<number | null>(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { setAsk(null) }, [cyc.pos, wk.mode])
+  const pick = async (pos: number | null) => {
+    if (!me?.runner_id || busy) return
+    setBusy(true)
+    try {
+      await api.setCycle(me.runner_id, pos)
+      await refresh()
+      toast({ title: pos ? `Tento týden: ${pos}. týden cyklu` : "Cyklus zase běží automaticky" })
+    } catch (e: any) {
+      toast({ title: e?.message || "Změna se nepodařila" })
+    } finally {
+      setBusy(false)
+      setAsk(null)
+    }
+  }
+  // before a race the taper decides; with elevated load only a recovery week can be picked
+  const locked = wk.mode === "taper"
+  const allowed = (p: number) => !locked && (wk.mode !== "deload" || p === 4)
   const [modeLabel, modeCol] = MODE[wk.mode] || MODE.build
   const pct = Math.round((wk.progression ?? 1) * 100)
   const vol = wk.channels?.volume || {}
@@ -101,14 +124,35 @@ function WeekPanel({ g }: { g: any }) {
           {cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? `${cyc.pos}. týden ze 4 · ` : ""}{modeLabel}
         </span>
       </div>
-      {cyc.pos != null && (
-        <div className="mt-3 flex gap-1.5" aria-label={`${cyc.pos}. týden čtyřtýdenního cyklu`}>
-          {CYCLE_PCT.map((p, i) => (
-            <span key={i} className={`flex-1 rounded-lg px-2 py-1 text-center text-[10px] font-bold ${cyc.pos === i + 1 ? "bg-[#c7ff54] text-[#071313]" : "bg-white/[.05] text-[#71837b]"}`}>
-              {i + 1}. týden · {p} %
-            </span>
-          ))}
+      <div className="mt-3 grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Týden čtyřtýdenního cyklu">
+        {CYCLE_PCT.map((p, i) => {
+          const n = i + 1
+          const on = cyc.pos === n
+          return (
+            <button key={n} role="radio" aria-checked={on} disabled={busy || on || !allowed(n)}
+              onClick={() => setAsk(n)}
+              title={locked ? "Před závodem řídí týden ladění formy." : !allowed(n) ? "Zátěž je zvýšená — nejdřív odlehčovací týden." : on ? "Aktuální týden cyklu" : "Přepnout tento týden"}
+              className={`rounded-lg px-1.5 py-1.5 text-center text-[10px] font-bold leading-tight transition ${on ? "bg-[#c7ff54] text-[#071313]" : allowed(n) ? "bg-white/[.06] text-[#c9dcd4] hover:bg-white/[.12]" : "bg-white/[.03] text-[#5f7268]"}`}>
+              {n}. týden<span className="block font-normal opacity-80">{p} %</span>
+            </button>
+          )
+        })}
+      </div>
+      {ask != null && (
+        <div className="mt-2 rounded-xl border border-[#c7ff54]/30 bg-[#c7ff54]/[.06] p-3 text-xs leading-5 text-[#e7efe9]">
+          Přepnout tento týden na <b>{ask}. týden cyklu ({CYCLE_PCT[ask - 1]} %)</b>{ask === 4 ? " — odlehčovací" : ""}? Týdenní cíle, dnešní limity i doporučení se hned přepočítají.
+          Příští týden se cyklus nastaví sám podle toho, jak tenhle týden skutečně proběhne.
+          <div className="mt-2 flex gap-2">
+            <button onClick={() => void pick(ask)} disabled={busy} className="rounded-full bg-[#c7ff54] px-3 py-1.5 text-[11px] font-bold text-[#071313] disabled:opacity-50">{busy ? "Přepočítávám…" : "Přepnout"}</button>
+            <button onClick={() => setAsk(null)} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-[#a9c2b9]">Zrušit</button>
+          </div>
         </div>
+      )}
+      {cyc.manual && (
+        <p className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#f6d69a]">
+          Ručně zvoleno pro tento týden{cyc.autoPos ? ` (automaticky by byl ${cyc.autoPos}. týden)` : ""}.
+          <button onClick={() => void pick(null)} disabled={busy} className="rounded-full border border-[#f6d69a]/40 px-2.5 py-0.5 font-bold">Vrátit automaticky</button>
+        </p>
       )}
       <p className="mt-3 text-xs leading-5 text-[#a9c2b9]">
         {how} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž ({num(vol.ceiling7)} km za 7 dní) — a dnešek hlídá obojí: zbytek týdenního cíle i 7denní strop.

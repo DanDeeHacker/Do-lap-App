@@ -94,6 +94,8 @@ export const api = {
   quadrantHistory: (id: string) => call("GET", `/api/runners/${id}/quadrant-history`),
   runCompare: (id: string, aid: number) => call("GET", `/api/runners/${id}/run-compare/${aid}`),
   runSegmentTest: (id: string, aid: number) => call("GET", `/api/runners/${id}/run-segments/${aid}`),
+  setCycle: (id: string, pos: number | null) => call("PUT", `/api/runners/${id}/cycle`, { pos }),
+  engineCompare: (id: string) => call("GET", `/api/runners/${id}/engine-compare`),
   runHistory: (id: string, limit = 20) => call("GET", `/api/runners/${id}/run-history?limit=${limit}`),
 
   // AI summaries & training commentary (opt-in)

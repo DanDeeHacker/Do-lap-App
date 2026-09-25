@@ -20,6 +20,7 @@ import { Load as LoadTab, Mechanics, Post } from "@/tabs"
 import { Care, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
 import { EngineLab } from "@/enginelab"
+import { EngineCompare } from "@/enginecompare"
 import { CapacityMini } from "@/capacity"
 import { Training } from "@/training"
 import { startUpdateWatcher } from "@/updateCheck"
@@ -1238,6 +1239,7 @@ const router = createBrowserRouter([
       { path: "/app/:tab", Component: RunnerPage },
       { path: "/data", Component: DataPage },
       { path: "/engine", Component: EngineLab },
+      { path: "/engines", Component: EngineCompare },
     ],
   },
 ])

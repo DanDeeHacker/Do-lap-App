@@ -349,11 +349,46 @@ def _store_session(db: DBSession, rid: str, garmin, auto_sync: bool = True) -> N
     db.commit()
 
 
-def _sync_from_stored(db: DBSession, rid: str) -> dict:
-    """Resume Garmin from the stored token, download+merge, then re-persist the
-    (possibly refreshed) token. Raises 409 if there's no stored session and
-    marks last_error + drops auto_sync on an auth failure so a revoked token
-    stops retrying every morning."""
+DETAIL_DAYS, DETAIL_CAP = 60, 12   # every sync also fetches detailed data for recent runs missing it
+
+
+def fetch_new_details(db: DBSession, rid: str, garmin=None) -> dict | None:
+    """Detailed per-second data (track, elevation, mechanics) for the last
+    DETAIL_DAYS of runs that don't have it yet — part of every sync, so segment
+    mechanics, terrain and weather context stay current without the "Detailní
+    data" button (which remains for backfilling older history). Never raises:
+    the sync itself has already succeeded."""
+    try:
+        own = None
+        if garmin is None:
+            own = db.query(models.GarminSession).filter(models.GarminSession.runner_id == rid).first()
+            if own is None:
+                return None
+            garmin = garmin_live.resume_session(own.token_blob, bool(own.encrypted))
+        out = _fetch_streams(db, rid, garmin, since_days=DETAIL_DAYS, cap=DETAIL_CAP)
+        if own is not None:
+            _store_session(db, rid, garmin, auto_sync=bool(own.auto_sync))   # keep a refreshed token
+        return out
+    except Exception:  # noqa: BLE001
+        db.rollback()
+        return None
+
+
+def fetch_new_details_bg(rid: str) -> None:
+    """BackgroundTasks wrapper for the one-tap sync: own session, never raises."""
+    from ..db import SessionLocal
+    db = SessionLocal()
+    try:
+        fetch_new_details(db, rid)
+    finally:
+        db.close()
+
+
+def _sync_from_stored(db: DBSession, rid: str, details: bool = True) -> dict:
+    """Resume Garmin from the stored token, download+merge, fetch detailed data
+    for new runs (details=True), then re-persist the (possibly refreshed) token.
+    Raises 409 if there's no stored session and marks last_error + drops
+    auto_sync on an auth failure so a revoked token stops retrying every morning."""
     row = db.query(models.GarminSession).filter(models.GarminSession.runner_id == rid).first()
     if row is None:
         raise HTTPException(status_code=409, detail="Garmin není připojen pro automatickou synchronizaci — připojte ho nejdřív na stránce Data.")
@@ -365,6 +400,8 @@ def _sync_from_stored(db: DBSession, rid: str) -> dict:
         db.commit()
         raise HTTPException(status_code=401, detail=row.last_error) from e
     result = _download_and_merge(db, rid, garmin)
+    if details:
+        result["details"] = fetch_new_details(db, rid, garmin)
     _store_session(db, rid, garmin, auto_sync=bool(row.auto_sync))
     return result
 
@@ -465,7 +502,8 @@ def garmin_sync(background: BackgroundTasks, user: models.User = Depends(require
                 db: DBSession = Depends(get_db)):
     """One-tap 'Synchronizovat' — resume from the stored session token (no
     password) and pull anything new. Requires a prior connect with 'remember'."""
-    result = _sync_from_stored(db, user.runner_id)
+    result = _sync_from_stored(db, user.runner_id, details=False)
+    background.add_task(fetch_new_details_bg, user.runner_id)     # detailed data for new runs, off the request
     background.add_task(coach_texts.refresh_bg, user.runner_id)   # new data → the day's AI texts follow
     return {**result, "status": _garmin_status(db, user.runner_id)}
 

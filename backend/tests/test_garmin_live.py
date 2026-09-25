@@ -241,3 +241,26 @@ def test_revoked_token_disables_autosync(client, monkeypatch):
     assert r.status_code == 401
     # a revoked token must stop the morning retries
     assert client.get("/api/integrations/garmin/status").json()["auto_sync"] is False
+
+
+def test_every_sync_also_fetches_details_for_new_runs(client, monkeypatch):
+    from app.db import SessionLocal
+    register(client, "gldet@test.cz", "GL Details", "runner")
+    monkeypatch.setattr(integrations.garmin_live, "begin_login", lambda e, p: (object(), False, None))
+    monkeypatch.setattr(integrations.garmin_live, "download_seed", lambda g, **k: _seed(_run(1, "2026-08-01")))
+    monkeypatch.setattr(integrations.garmin_live, "seal_token", lambda g: ("TOKENBLOB", False))
+    client.post("/api/integrations/garmin/connect", json={"email": "x@y.z", "password": "p", "remember": True})
+    monkeypatch.setattr(integrations.garmin_live, "resume_session", lambda blob, enc: object())
+    calls = []
+    monkeypatch.setattr(integrations, "_fetch_streams",
+                        lambda db, rid, g, since_days=0, cap=0, retry_failed=False: calls.append((since_days, cap)) or {})
+    assert client.post("/api/integrations/garmin/sync").status_code == 200     # one tap → details in the background
+    assert calls == [(integrations.DETAIL_DAYS, integrations.DETAIL_CAP)]
+    calls.clear()
+    assert integrations.auto_sync_all(SessionLocal)["synced"] >= 1              # 07:00 → details inline
+    assert (integrations.DETAIL_DAYS, integrations.DETAIL_CAP) in calls
+
+    def boom(*a, **k):
+        raise RuntimeError("garmin down")
+    monkeypatch.setattr(integrations, "_fetch_streams", boom)
+    assert client.post("/api/integrations/garmin/sync").status_code == 200     # a failed detail fetch never fails the sync

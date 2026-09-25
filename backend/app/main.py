@@ -78,6 +78,7 @@ def _migrate(engine):
     add("activities", "weather_json", "weather_json JSON")
     add("runners", "coach_consent", "coach_consent BOOLEAN", "UPDATE runners SET coach_consent = FALSE WHERE coach_consent IS NULL")
     add("runners", "coach_consent_at", "coach_consent_at VARCHAR")
+    add("runners", "cycle_override", "cycle_override JSON")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.

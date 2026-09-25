@@ -86,6 +86,9 @@ class Runner(Base):
     # opts in, because derived health data goes to an externally hosted model.
     coach_consent = Column(Boolean, default=False)
     coach_consent_at = Column(String)
+    # Trénink: the runner's own pick of this week's place in the 4-week cycle —
+    # {"week": Monday ISO, "pos": 1–4}; only applies to that calendar week.
+    cycle_override = Column(JSON)
 
 
 class Integration(Base):

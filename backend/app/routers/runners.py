@@ -54,6 +54,24 @@ def set_engine(rid: str, body: schemas.EngineModeRequest,
     return {"ok": True, "engine_mode": mode, "assessment": a}
 
 
+@router.put("/{rid}/cycle", dependencies=[Depends(verify_csrf)])
+def set_cycle_week(rid: str, body: schemas.CycleWeekRequest,
+                   user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Trénink: the runner picks this calendar week's place in the 4-week loading
+    cycle (e.g. a recovery week now) — targets, today's allowance and the
+    recommendation are recomputed right away. Applies to this week only; next
+    week the cycle re-anchors on what was actually run. pos=None → automatic."""
+    ensure_runner_self(user, rid)
+    if body.pos is not None and body.pos not in (1, 2, 3, 4):
+        raise HTTPException(status_code=422, detail="Týden cyklu musí být 1–4")
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    from ..metrics.guidance import week_start
+    r.cycle_override = None if body.pos is None else {
+        "week": week_start(E.today_date()).isoformat(), "pos": body.pos, "setAt": E.now_iso()}
+    db.commit()
+    return {"ok": True, "assessment": E.recompute_assessment(db, rid)}
+
+
 @router.patch("/{rid}", dependencies=[Depends(verify_csrf)])
 def update_runner(rid: str, body: schemas.RunnerProfilePatch,
                   user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
@@ -176,7 +194,7 @@ def bootstrap(rid: str, user: models.User = Depends(get_current_user), db: DBSes
     }
 
 
-def _engine_replay(db: DBSession, rid: str, asofs):
+def _engine_replay(db: DBSession, rid: str, asofs, mode: str | None = None):
     """Replay assess() as of each date in `asofs` (which MUST be ascending) with
     the engine 'today' pinned to it. Builds one throwaway in-memory DB and streams
     rows in as the pinned day advances — far cheaper than rebuilding the DB per
@@ -225,7 +243,7 @@ def _engine_replay(db: DBSession, rid: str, asofs):
         (sorted(rows_of(models.InjuryReport), key=lambda x: x.get("submitted_at") or ""), lambda x: kd(x.get("submitted_at")), models.InjuryReport, False),
     ]
     ptrs = [0] * len(streams)
-    mode = runner.engine_mode or "v1"
+    mode = mode or runner.engine_mode or "v1"
 
     eng = create_engine("sqlite://")
     Base.metadata.create_all(eng)
@@ -321,6 +339,51 @@ def mech_history(rid: str, user: models.User = Depends(get_current_user), db: DB
                  "overall": av["overall"], "quadrant": av["quadrant"]} for av in _engine_replay(db, rid, asofs)]
 
     return _cached_history(db, rid, "mech", build)
+
+
+ENGINE_MODES = ("v1", "v2", "v3")
+
+
+def _state(av: dict, n_signals: int = 0) -> dict:
+    out = {k: av.get(k) for k in ("overall", "load", "mech", "symp", "quadrant", "tier")}
+    if n_signals:
+        out["signals"] = [{"name": s["name"], "val": s.get("val"), "pts": s["pts"], "grade": s.get("grade")}
+                          for s in (av.get("signals") or [])[:n_signals]]
+        out["confidence"] = round(((av.get("confidence") or {}).get("value") or 0) * 100)
+    return out
+
+
+@router.get("/{rid}/engine-compare")
+def engine_compare(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Data a připojení → Porovnání enginů: what each engine — v1 standard, v2
+    sensitive, v3 capacity — scores for this runner today, what goes into it
+    (top signals), and its weekly history over ~6 months, all replayed on the
+    runner's own data. Nothing is persisted; cached per day like the other
+    histories (invalidated by any data change)."""
+    ensure_runner_read_access(db, user, rid)
+    from datetime import date, timedelta
+
+    def build():
+        acts_dates = [a[0][:10] for a in db.query(models.Activity.started_at).filter(models.Activity.runner_id == rid).all()]
+        if not acts_dates:
+            return {"today": {}, "series": []}
+        end = E.today_date()
+        ad = max(date.fromisoformat(min(acts_dates)), end - timedelta(days=7 * 25))
+        asofs = []
+        while ad < end:
+            asofs.append(ad)
+            ad += timedelta(days=7)
+        asofs.append(end)
+        replays = {m: _engine_replay(db, rid, asofs, mode=m) for m in ENGINE_MODES}
+        today = {}
+        for m in ENGINE_MODES:
+            with E.engine_pinned(m):
+                today[m] = {**_state(E.assess(db, rid), n_signals=6), "version": E.engine_version_for(m)}
+        series = [{"date": replays["v1"][i]["_cut"], **{m: _state(replays[m][i]) for m in ENGINE_MODES}}
+                  for i in range(len(asofs))]
+        return {"today": today, "series": series}
+
+    return _cached_history(db, rid, "engines", build)
 
 
 # ~6 months of daily state, so the quadrant strip shows the long arc, not just a

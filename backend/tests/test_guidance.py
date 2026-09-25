@@ -266,3 +266,36 @@ def test_repeated_mild_pain_means_odlehcit(client, db_session):
     g = a["guidance"]
     assert not g["types"]["dlouhý"]["allowed"] and not g["types"]["kvalitní"]["allowed"]
     assert any("Opakovaná bolest" in x and "odlehčit" in x for x in g["reasons"])
+
+
+def test_picking_this_weeks_place_in_the_cycle(client, db_session):
+    from datetime import date
+    rid = register(client, "gc5@test.cz", "Pick", "runner").json()["runner_id"]
+    r = db_session.query(models.Runner).filter(models.Runner.id == rid).first()
+    r.engine_mode = "v3"
+    db_session.commit()
+    with E.today_pinned(date(2026, 9, 23)):
+        _weeks_of_runs(db_session, rid, [40, 40, 40, 40, 40, 40, 40, 40, 22, 36])
+        auto = _guide(db_session, rid, r, load=0)
+        assert auto["week"]["cycle"]["pos"] == 2 and not auto["week"]["cycle"]["manual"]
+        r.cycle_override = {"week": "2026-09-21", "pos": 4}                  # "I need a recovery week now"
+        db_session.commit()
+        g = _guide(db_session, rid, r, load=0)
+        assert g["week"]["mode"] == "recovery" and g["week"]["cycle"]["manual"] and g["week"]["cycle"]["autoPos"] == 2
+        assert g["week"]["channels"]["volume"]["budget"] < auto["week"]["channels"]["volume"]["budget"]
+        assert any("ručně zvolili 4. týden" in x for x in g["reasons"])
+        r.cycle_override = {"week": "2026-09-14", "pos": 4}                  # last week's pick doesn't carry over
+        db_session.commit()
+        assert _guide(db_session, rid, r, load=0)["week"]["cycle"]["pos"] == 2
+    client.post("/api/auth/session", json={"email": "gc5@test.cz", "password": "testpass123"})
+    assert client.put(f"/api/runners/{rid}/cycle", json={"pos": 7}).status_code == 422
+    assert "assessment" in client.put(f"/api/runners/{rid}/cycle", json={"pos": 4}).json()
+    db_session.expire_all()
+    stored = db_session.query(models.Runner).filter(models.Runner.id == rid).first().cycle_override
+    assert stored["pos"] == 4 and stored["week"] == G.week_start(E.today_date()).isoformat()
+    client.put(f"/api/runners/{rid}/cycle", json={"pos": None})
+    db_session.expire_all()
+    assert db_session.query(models.Runner).filter(models.Runner.id == rid).first().cycle_override is None
+    register(client, "gc6@test.cz", "Other", "runner")
+    client.post("/api/auth/session", json={"email": "gc6@test.cz", "password": "testpass123"})
+    assert client.put(f"/api/runners/{rid}/cycle", json={"pos": 1}).status_code == 403

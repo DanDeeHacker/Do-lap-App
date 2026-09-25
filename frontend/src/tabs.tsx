@@ -1161,8 +1161,6 @@ export function Load() {
   const a = boot?.assessment
   const L = a?.loadDetail
   const rcv = a?.rcv
-  const dm = (boot?.daily_metrics || []) as any[]
-  const [edit, setEdit] = useState<{ date: string; field: string; val: number } | null>(null)
   const [hist, setHist] = useState<any[] | null>(null)
   useEffect(() => {
     if (!rid) return
@@ -1189,7 +1187,6 @@ export function Load() {
 
   return (
     <>
-      {edit && <EditDailySheet rid={rid} row={edit} onClose={() => setEdit(null)} onDone={() => { setEdit(null); refresh() }} />}
 
       <section className="mb-4 overflow-hidden rounded-[28px] border border-[#f6d69a]/20 bg-[#102724] p-5 md:p-7">
         <div className="grid gap-7 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
@@ -1251,15 +1248,6 @@ export function Load() {
       </section>
 
       {a.capacity && <CapacityPanel cap={a.capacity} />}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <Metric warm label="Zátěž 7 dní" value={`${L.acute}`} caption={`chronicky ${L.chronic} · j.z./týden`} info={MI.acute7} />
-        <Metric label="Poměr 7:28" value={L.valid ? `×${L.ratio}` : "—"} caption={L.valid ? "vč. jiného sportu" : "zatím málo dat"} info={MI.ratio728} />
-        <Metric label="Vysoká intenzita" value={L.valid && L.hiChronic ? `×${L.hiRatio}` : "—"} caption={L.valid && L.hiChronic ? `tvrdé běhy ${L.hiAcute}/${L.hiChronic}` : "žádné tvrdé běhy"} info={MI.hiIntensity} />
-        <Metric label="Monotónnost" value={`${L.monotony}`} caption={`strain ${L.strain}`} info={MI.monotony} />
-        <Metric label="Klesání 7 dní" value={`${L.descent7}`} caption={`obvykle ${L.descentBase} m${L.descentSpike ? ` · ×${L.descentSpike}` : ""}`} info={MI.descent7} />
-        {L.gradeAdjKm7 != null && <Metric label="Efektivní km" value={`${L.gradeAdjKm7}`} caption={`plochý ekvivalent · reálně ${L.runKm7} km`} info={MI.gradeAdj} />}
-        {L.downhillKm7 != null && <Metric label="Sbíhání" value={`${L.downhillKm7} km`} caption="v klesání ≥ 5 %" info={MI.downhill} />}
-      </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <Label>Týdenní objem běhu (Po–Ne), 12 týdnů</Label>
@@ -1290,23 +1278,6 @@ export function Load() {
           <Card className="md:col-span-3"><Empty>Chybí souvislá data z hodinek za posledních 35 dní.</Empty></Card>
         )}
       </div>
-      <Card className="mt-4">
-        <Label>Data z hodinek · klepnutím opravíte</Label>
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead><tr className="text-left font-mono text-[10px] uppercase text-[#71837b]"><th className="py-1">Datum</th><th>Spánek</th><th>HRV</th><th>Klid. tep</th><th>Zdroj</th></tr></thead>
-            <tbody>{dm.slice().reverse().slice(0, 14).map((d) => (
-              <tr key={d.date} className="border-t border-white/5">
-                <td className="py-2 font-mono text-xs">{fmtD(d.date)}</td>
-                <td><button onClick={() => setEdit({ date: d.date, field: "sleep_h", val: d.sleep_h })} className="font-mono text-[#6ce6d3]">{d.sleep_h} h</button></td>
-                <td><button onClick={() => setEdit({ date: d.date, field: "hrv_ms", val: d.hrv_ms })} className="font-mono text-[#6ce6d3]">{d.hrv_ms} ms</button></td>
-                <td><button onClick={() => setEdit({ date: d.date, field: "resting_hr", val: d.resting_hr })} className="font-mono text-[#6ce6d3]">{d.resting_hr}</button></td>
-                <td>{d.source === "manual" ? <Chip tone="watch">ručně</Chip> : <Chip>hodinky</Chip>}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
-      </Card>
     </>
   )
 }
@@ -1318,7 +1289,7 @@ function CrossTrainingCard({ L }: { L: any }) {
   const run = L.runLoad7 || 0
   const cross = L.crossLoad7 || 0
   if (!list.length) {
-    return <p className="mt-4 text-xs text-[#71837b]">Tento týden jen běh. Kolo, plavání nebo silovku z hodinek automaticky započítáme do zátěže jako tréninkovou zátěž (jednotky zátěže) — ovlivní poměr 7:28 dní i monotónnost, stejně jako běh.</p>
+    return <p className="mt-4 text-xs text-[#71837b]">Tento týden jen běh. Kolo, plavání nebo silovku z hodinek automaticky započítáme do celkové zátěže (tep × čas) stejně jako běh.</p>
   }
   const tot = run + cross || 1
   const runPct = Math.round((run / tot) * 100)
@@ -1352,28 +1323,6 @@ function CrossTrainingCard({ L }: { L: any }) {
       </div>
       <p className="mt-3 text-xs leading-5 text-[#71837b]">Neběžecké sporty nepočítáme do běžeckých kilometrů ani do mechaniky, ale přispívají do celkové tréninkové zátěže (poměr 7:28 dní, monotónnost) i únavy — proto je vidíte tady. Zátěž se počítá z tepové odezvy (TRIMP), takže je porovnatelná napříč sporty.</p>
     </Card>
-  )
-}
-
-function EditDailySheet({ rid, row, onClose, onDone }: { rid: string; row: { date: string; field: string; val: number }; onClose: () => void; onDone: () => void }) {
-  const LBL: any = { sleep_h: ["Spánek", "h"], hrv_ms: ["HRV", "ms"], resting_hr: ["Klidový tep", "tep/min"] }
-  const [val, setVal] = useState(String(row.val ?? ""))
-  const [note, setNote] = useState("")
-  const { busy, err, run } = useAsync()
-  const toast = useToast()
-  const [lab, unit] = LBL[row.field]
-  return (
-    <Sheet open onClose={onClose}>
-      <h2 className="font-serif text-2xl">Opravit: {lab}</h2>
-      <p className="mt-1 text-xs text-[#a9c2b9]">{fmtD(row.date)} · hodinky naměřily {row.val} {unit}.</p>
-      <Field label={`Skutečná hodnota (${unit})`}><input type="number" step="0.1" value={val} onChange={(e) => setVal(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm" /></Field>
-      <Field label="Proč opravujete" hint="uvidí fyzioterapeut"><input value={note} onChange={(e) => setNote(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="např. hodinky nezachytily usnutí" /></Field>
-      {err && <p className="mt-3 text-xs font-bold text-[#e77a59]">{err}</p>}
-      <div className="mt-5 flex gap-2">
-        <button disabled={busy} onClick={() => run(async () => { await api.editDaily(rid, row.date, { [row.field]: Number(val) }, note || undefined); toast({ title: "Hodnota přepsána, skóre přepočítáno" }); onDone() })} className="flex-1 rounded-full bg-[#c7ff54] py-3 text-sm font-bold text-[#071313] disabled:opacity-60">Uložit a přepočítat</button>
-        <button onClick={onClose} className="rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-[#a9c2b9]">Zrušit</button>
-      </div>
-    </Sheet>
   )
 }
 

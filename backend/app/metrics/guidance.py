@@ -21,6 +21,8 @@ Rules, in order:
      previous recovery week), then a recovery week at 55 % of week 3 (see
      CYCLE, cycle_position). Load ≥ 25 forces a recovery week (55 % of last
      week); taper 0.70 / 0.50 of the reference 8–14 / ≤ 7 days to the goal race.
+     The runner may pick this week's place in the cycle (Runner.cycle_override,
+     that calendar week only); next week the cycle re-anchors on what was run.
      A target never exceeds the capacity ceiling the Zátěž tab shows (weekly
      capacity × the week's readiness × (1 + margin)), so following the plan
      can't itself create a load exceedance.
@@ -279,14 +281,19 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         return sum(daily[c].get((start + timedelta(days=k)).isoformat(), 0.0) for k in range(7))
     past = {c: [week_sum(c, ws - timedelta(days=7 * k)) for k in range(1, 17)] for c in daily}
     cyc = cycle_position(past["volume"])
+    ov = (runner.cycle_override or {}) if runner is not None else {}
+    manual = ov.get("pos") if ov.get("week") == ws.isoformat() and ov.get("pos") in CYCLE else None
     if days_to_race is not None and 0 < days_to_race <= 14:
         mode, factor = "taper", (0.50 if days_to_race <= 7 else 0.70)
+    elif load >= 25 and (manual or (cyc or {}).get("pos")) != 4 and (cyc is not None or manual):
+        mode, factor = "deload", CYCLE[4]          # elevated load: recovery comes first, whatever was picked
+    elif manual is not None:
+        mode, factor = ("recovery" if manual == 4 else "build"), CYCLE[manual]
     elif cyc is None:
         mode, factor = "learning", 1.0
-    elif load >= 25 and cyc["pos"] != 4:
-        mode, factor = "deload", CYCLE[4]
     else:
         mode, factor = ("recovery" if cyc["pos"] == 4 else "build"), CYCLE[cyc["pos"]]
+    pos_now = manual if (manual is not None and mode in ("build", "recovery")) else (cyc or {}).get("pos")
 
     def reference(c):
         """The channel's reference week for the cycle (None → use the capacity)."""
@@ -294,7 +301,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
             return None
         w = past[c]
         if mode == "deload":                  # forced: 55 % of last week, whatever the cycle said
-            return w[0] / CYCLE[3]
+            return (w[0] / CYCLE[3]) if w[0] else None
         if cyc["refBack"]:
             return w[cyc["refBack"] - 1] * (cyc["refScale"] or 1.0)
         lo = cyc.get("recoveryBack") if cyc["how"] == "recovery" else 1
@@ -339,8 +346,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         for k in ("capacity", "ceiling7", "done7", "left7", "budget", "done", "doneToday", "left", "todayMax"):
             wc[k] = _r(wc[k], dec)
     cycle = {
-        "pos": cyc["pos"] if cyc else None, "how": cyc["how"] if cyc else None, "factor": round(factor, 3),
-        "refKm": _r(reference("volume")) if cyc else None,
+        "pos": pos_now, "autoPos": cyc["pos"] if cyc else None, "manual": manual is not None and mode in ("build", "recovery"),
+        "how": cyc["how"] if cyc else None, "factor": round(factor, 3),
+        "refKm": _r(reference("volume")) if cyc else _r(week["volume"]["capacity"]),
         "refWeek": (ws - timedelta(days=7 * cyc["refBack"])).isoformat() if cyc and cyc["refBack"] else None,
         "weeks": [{"start": (ws - timedelta(days=7 * k)).isoformat(), "km": _r(past["volume"][k - 1])} for k in (4, 3, 2, 1)]
         + [{"start": ws.isoformat(), "km": week["volume"]["done"], "target": week["volume"]["budget"], "current": True}],
@@ -540,6 +548,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     elif mode == "build":
         reasons.append(f"{cycle['pos']}. týden cyklu — cíl {round(factor * 100)} % referenčního týdne "
                        f"({_cz(cycle['refKm'])} km).")
+    if cycle["manual"]:
+        reasons.append(f"Tento týden jste ručně zvolili {cycle['pos']}. týden cyklu — příští týden se cyklus nastaví "
+                       "sám podle toho, jak týden skutečně proběhne.")
     else:
         reasons.append("Čtyřtýdenní cyklus nastavíme po 4 týdnech dat — zatím je cílem vaše týdenní kapacita.")
     if drift:

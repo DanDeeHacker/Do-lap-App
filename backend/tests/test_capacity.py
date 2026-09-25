@@ -156,3 +156,22 @@ def test_zone_minutes_add_up_to_the_z4_minutes():
     hist = {"130": 600, "150": 1200, "168": 600}               # bpm → seconds
     zh = C.zone_minutes(a, hist, 190, 50)
     assert zh[3] + zh[4] == pytest.approx(C.z4_minutes(a, hist, 190, 50))
+
+
+def test_readiness_follows_a_strained_hrv_week_even_after_good_sleep(client, db_session):
+    db = db_session
+
+    def seed(email, week_hrv, today_hrv, week_rhr):
+        rid = register(client, email, "Ready", "runner").json()["runner_id"]
+        for k in range(0, 36):
+            normal = k >= 8
+            hrv = (56 if k % 2 else 64) if normal else (today_hrv if k == 0 else week_hrv(k))
+            db.add(models.DailyMetric(runner_id=rid, date=E.day_ago(k), hrv_ms=hrv,
+                                      resting_hr=(49 if k % 2 else 51) if normal else week_rhr,
+                                      sleep_h=7.5 if normal else 7.8))       # slept well all week
+        db.commit()
+        return C.readiness_by_day(db, rid, [E.day_ago(0)])[E.day_ago(0)]
+    strained, parts = seed("rd1@test.cz", lambda k: 55, 55, 51)              # 7-day HRV ≈ 1.2 SD low, RHR up
+    one_night, _ = seed("rd2@test.cz", lambda k: 56 if k % 2 else 64, 55, 50)  # a normal week, one poor night
+    assert strained <= 0.80 and parts["hrv"] > 0.8 and parts.get("sleep", 0) == 0
+    assert strained < one_night < 1.0                                         # the trend weighs more than one night

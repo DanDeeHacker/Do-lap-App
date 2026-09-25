@@ -88,3 +88,24 @@ def test_v2_history_replays_segment_streams(client, db_session):
         assert hist[-1][axis] == live[axis], f"{axis}: history-end {hist[-1][axis]} != live {live[axis]}"
     mh = client.get(f"/api/runners/{rid}/mech-history").json()
     assert mh[-1]["mech"] == live["mech"]
+
+
+def test_engine_compare_today_and_six_months_for_all_three(client, db_session):
+    from app import models as M
+    from app.metrics import engine as EN
+    from tests.conftest import register as reg
+    from tests.synth import seed_runs as seed
+    rid = reg(client, "ecmp@test.cz", "Compare", "runner").json()["runner_id"]
+    seed(db_session, rid, days=100)
+    client.post("/api/auth/session", json={"email": "ecmp@test.cz", "password": "testpass123"})
+    out = client.get(f"/api/runners/{rid}/engine-compare").json()
+    assert set(out["today"]) == {"v1", "v2", "v3"}
+    assert all(v["version"] and "signals" in v and v["quadrant"] for v in out["today"].values())
+    assert out["series"][-1]["date"] == EN.iso_date(EN.today_date()) and 2 <= len(out["series"]) <= 27
+    assert all({"v1", "v2", "v3"} <= set(p) for p in out["series"])
+    db_session.expire_all()
+    assert db_session.query(M.EngineHistoryCache).filter_by(runner_id=rid, kind="engines").first() is not None
+    assert db_session.query(M.Runner).filter(M.Runner.id == rid).first().engine_mode in (None, "v1")   # untouched
+    reg(client, "ecmp2@test.cz", "Other", "runner")
+    client.post("/api/auth/session", json={"email": "ecmp2@test.cz", "password": "testpass123"})
+    assert client.get(f"/api/runners/{rid}/engine-compare").status_code in (403, 404)
