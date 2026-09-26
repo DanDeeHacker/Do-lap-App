@@ -213,8 +213,20 @@ const clipFor = (h: Hotspot) => (h.side !== "center" ? (h.left < CX ? "inset(0 5
 // Read-only body silhouette that highlights how often each region was marked
 // painful (counts keyed by region title). Intensity ∝ frequency. Front/back
 // auto-toggles to whichever side carries data.
+// Key for a stored pain point on the heatmap: paired regions carry their side in the
+// hotspot title ("Achillova šlacha (P)"), stored points keep region and side apart.
+export const painKey = (p: { region?: string; side?: string | null }) =>
+  p.side === "L" || p.side === "P" ? `${p.region} (${p.side})` : p.region || ""
+
 export function PainHeatmap({ counts }: { counts: Record<string, number> }) {
-  const withData = (v: "front" | "back") => hotspots[v].filter((h) => counts[h.title])
+  // exact (sided) match first; a side-less count lights both sides only when no sided count exists
+  const baseOf = (t: string) => t.replace(/ \((L|P)\)$/, "")
+  const val = (h: Hotspot): number | undefined => {
+    if (counts[h.title] != null) return counts[h.title]
+    const b = baseOf(h.title)
+    return b !== h.title && counts[`${b} (L)`] == null && counts[`${b} (P)`] == null ? counts[b] : undefined
+  }
+  const withData = (v: "front" | "back") => hotspots[v].filter((h) => val(h))
   const hasFront = withData("front").length > 0
   const [view, setView] = useState<"front" | "back">(hasFront ? "front" : "back")
   const pts = withData(view)
@@ -232,7 +244,7 @@ export function PainHeatmap({ counts }: { counts: Record<string, number> }) {
         <img src={bases[view]} alt="Silueta těla" className="absolute inset-0 h-full w-full object-cover opacity-20 grayscale" />
         <div className="absolute inset-0 bg-panel/50" />
         {pts.map((h) => {
-          const t = counts[h.title] / max
+          const t = (val(h) || 0) / max
           return (
             <span
               key={h.id}
@@ -255,7 +267,7 @@ export function PainHeatmap({ counts }: { counts: Record<string, number> }) {
             className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-[11px] font-bold text-white"
             style={{ top: `${(h.top / CANVAS_H) * 100}%`, left: `${(h.left / CANVAS_W) * 100}%`, textShadow: "0 1px 2px rgb(0 0 0 / .85)" }}
           >
-            {counts[h.title]}×
+            {val(h)}×
           </span>
         ))}
       </div>

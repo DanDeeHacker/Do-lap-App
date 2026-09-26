@@ -22,8 +22,12 @@ def test_quadrant_history_ends_today_and_matches_live(client):
     assert hist, "expected a non-empty quadrant history"
     today = E.iso_date(E.today_date())
     assert hist[-1]["date"] == today  # the strip ends on today
-    for k in ("quadrant", "overall", "tier", "mech", "load", "symp", "signals"):
+    for k in ("quadrant", "overall", "tier", "mech", "load", "symp", "signals", "rcv", "readiness", "painRecurring"):
         assert k in hist[-1]
+    # the Dnes overview in the history (railway#88) draws recovery and the drivers' values
+    live_rcv = client.get(f"/api/runners/{rid}/assessment").json().get("rcv") or {}
+    assert hist[-1]["rcv"] == live_rcv.get("score")
+    assert all({"id", "name", "pts", "grade", "val"} <= set(s) for s in hist[-1]["signals"])
 
     # The pinned last point is computed from the same data as the live assessment,
     # so the axis scores must line up (this is what makes the trend end coherent).

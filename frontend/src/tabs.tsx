@@ -6,7 +6,7 @@ import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight,
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
 import { clamp, czk, FEEL_LABEL, fmtD, fmtSlot, paceStr, PHASE, plural, QUAD, sgn } from "@/lib"
-import MuscleAnatomy, { PainHeatmap, type BodyPoint } from "@/components/MuscleAnatomy"
+import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/components/MuscleAnatomy"
 import { CAP_SIGNAL_IDS, CapacityPanel } from "@/capacity"
 import { C } from "@/tokens"
 
@@ -206,7 +206,7 @@ export function Post() {
                   <div className="mt-4 border-t border-white/[.08] pt-4">
                     <Label>Kde to nejčastěji bolí</Label>
                     <p className="mt-1 text-[12px] leading-5 text-fg-3">Podle zápisů za posledních 30 dní — čím výraznější místo, tím častěji jste ho označil jako bolestivé.</p>
-                    <div className="mt-3"><PainHeatmap counts={ov.painMap} /></div>
+                    <div className="mt-3"><PainHeatmap counts={ov.painSided} /></div>
                     <div className="mt-4 space-y-1.5">
                       {ov.topSites.slice(0, 5).map(([region, count]) => {
                         const w = Math.round((count / ov.topSites[0][1]) * 100)
@@ -295,8 +295,13 @@ function diaryOverview(fb: any[]) {
   // Frequency of each painful body region over the last 30 days, for the map.
   const cut30 = dayAgo(30)
   const painMap: Record<string, number> = {}
+  const painSided: Record<string, number> = {}   // keyed like the heatmap hotspots (region + side)
   rows.filter((f) => f.submitted_at >= cut30).forEach((f) => {
-    ((f.pain_points || []) as any[]).forEach((p) => { if (p?.region) painMap[p.region] = (painMap[p.region] || 0) + 1 })
+    ((f.pain_points || []) as any[]).forEach((p) => {
+      if (!p?.region) return
+      painMap[p.region] = (painMap[p.region] || 0) + 1
+      painSided[painKey(p)] = (painSided[painKey(p)] || 0) + 1
+    })
   })
   const topSites = Object.entries(painMap).sort((a, b) => b[1] - a[1])
   const topSite = topSites[0]
@@ -310,7 +315,7 @@ function diaryOverview(fb: any[]) {
   else if (feelingTrend >= 0.6) insights.push({ text: "Pocit z běhů roste, forma jde nahoru.", tone: "ok" })
   if (mean(legs) <= 2.4 && legs.length >= 4) insights.push({ text: "Nohy hodnotíte často jako těžké. Zkuste přidat regenerační den nebo zkrátit dlouhý běh.", tone: "watch" })
 
-  return { n: rows.length, n21, feelingMean, feelingTrend, legsMean: mean(legs), niggleCount, painMax, topSite, topSites, painMap, insights }
+  return { n: rows.length, n21, feelingMean, feelingTrend, legsMean: mean(legs), niggleCount, painMax, topSite, topSites, painMap, painSided, insights }
 }
 
 export function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; rid: string; initial?: any; onClose: () => void; onDone: () => void }) {

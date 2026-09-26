@@ -32,9 +32,15 @@ const TYPE_ICON: Record<string, LucideIcon> = { volno: Sofa, regenerace: Leaf, "
 // no single run exceeds its own capacity and load / mechanics stay under the
 // threshold — each channel shows the numbers it was derived from.
 // Half-gauge. Fill = the last 7 days; the scale runs from 0 to the highest of your
-// own rolling 7-day max, the ceiling and now. Ticks = your 25th percentile, median
-// and 75th percentile of rolling 7-day totals (feedback railway#43); the white
-// mark is the 7-day ceiling.
+// own rolling 7-day max, the ceiling and now. Marks (feedback railway#43/#87) stay
+// inside the arc band: 25th / 75th percentile of rolling 7-day totals dashed, the
+// median solid and thick, your max red and thick, the 7-day ceiling a hollow white mark.
+const MARK = {
+  pct: { col: C.fg, w: [1.5, 1], dash: [3, 2] as [number, number] | null },
+  med: { col: C.fg, w: [3.2, 2], dash: null },
+  max: { col: C.alert, w: [3.2, 2], dash: null },
+  ceil: { col: C.fg, w: [4, 2.6], dash: null },
+}
 function HalfGauge({ value, scale, ceiling, dist, col, size }: { value: number | null; scale: number; ceiling?: number | null; dist?: any; col: string; size: "lg" | "sm" }) {
   const lg = size === "lg"
   const W = lg ? 220 : 80, R = lg ? 90 : 32, SW = lg ? 14 : 7, cy = lg ? 108 : 40, x0 = (W - 2 * R) / 2
@@ -44,25 +50,47 @@ function HalfGauge({ value, scale, ceiling, dist, col, size }: { value: number |
   const f = fr(value)
   // point on the arc at fraction t (0 = left end, 1 = right end), at radius rr
   const pt = (t: number, rr: number) => { const ang = Math.PI * (1 - t); return [W / 2 + rr * Math.cos(ang), cy - rr * Math.sin(ang)] }
-  const tick = (t: number, key: string, color: string, len: number) => {
-    const [x1, y1] = pt(t, R - SW / 2 - 1), [x2, y2] = pt(t, R + SW / 2 + len)
-    return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={lg ? 2 : 1.5} strokeLinecap="round" />
+  // a radial mark spanning exactly the band (butt caps, so nothing pokes out of the arc)
+  const mark = (v: number | null | undefined, key: string, m: (typeof MARK)[keyof typeof MARK]) => {
+    if (v == null) return null
+    const t = fr(v)
+    const [x1, y1] = pt(t, R - SW / 2), [x2, y2] = pt(t, R + SW / 2)
+    const w = m.w[lg ? 0 : 1]
+    const dash = m.dash ? (lg ? m.dash.join(" ") : m.dash.map((x) => x * 0.6).join(" ")) : undefined
+    return (
+      <g key={key}>
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgb(6 16 16 / .4)" strokeWidth={w + (lg ? 1.4 : 0.9)} strokeLinecap="butt" />
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={m.col} strokeWidth={w} strokeLinecap="butt" strokeDasharray={dash} />
+        {m === MARK.ceil && <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgb(6 16 16)" strokeWidth={lg ? 1.4 : 0.9} strokeLinecap="butt" />}
+      </g>
+    )
   }
   return (
-    <svg viewBox={`${lg ? -6 : -4} ${lg ? -8 : -6} ${W + (lg ? 12 : 8)} ${lg ? 124 : 52}`} className={lg ? "w-full max-w-[230px]" : "w-[84px]"} aria-hidden>
-      <path d={arc} fill="none" stroke="rgb(255 255 255 / .08)" strokeWidth={SW} strokeLinecap="round" />
-      {f > 0 && <path d={arc} fill="none" stroke={col} strokeWidth={SW} strokeLinecap="round" strokeDasharray={`${L * f} ${L}`} />}
-      {dist && ["p25", "p50", "p75"].map((k) => tick(fr(dist[k]), k, C.fg2, lg ? 5 : 3))}
-      {ceiling != null && ceiling > 0 && tick(fr(ceiling), "ceil", C.fg, lg ? 7 : 4)}
+    <svg viewBox={`${lg ? -2 : -2} ${lg ? -2 : -2} ${W + (lg ? 4 : 4)} ${lg ? 116 : 46}`} className={lg ? "w-full max-w-[230px]" : "w-[84px]"} aria-hidden>
+      <path d={arc} fill="none" stroke="rgb(255 255 255 / .08)" strokeWidth={SW} strokeLinecap="butt" />
+      {f > 0 && <path d={arc} fill="none" stroke={col} strokeWidth={SW} strokeLinecap="butt" strokeDasharray={`${L * f} ${L}`} />}
+      {dist && mark(dist.p25, "p25", MARK.pct)}
+      {dist && mark(dist.p75, "p75", MARK.pct)}
+      {dist && mark(dist.p50, "p50", MARK.med)}
+      {dist && mark(dist.max, "max", MARK.max)}
+      {ceiling != null && ceiling > 0 && mark(ceiling, "ceil", MARK.ceil)}
     </svg>
   )
 }
-const pctRow = (dist: any, d: number) => dist && (
-  <span className="mt-1.5 flex flex-wrap justify-center gap-x-2 gap-y-0.5 tabular-nums text-[11px] text-fg-3">
-    <span>P25 <b className="font-bold text-fg-2">{num(dist.p25, d)}</b></span>
-    <span>medián <b className="font-bold text-fg-2">{num(dist.p50, d)}</b></span>
-    <span>P75 <b className="font-bold text-fg-2">{num(dist.p75, d)}</b></span>
-    <span>max <b className="font-bold text-fg-2">{num(dist.max, d)}</b></span>
+// legend swatches drawn like the marks on the arc
+const Sw = ({ kind }: { kind: keyof typeof MARK }) => (
+  <svg viewBox="0 0 5 10" className="h-2.5 w-[7px] shrink-0" aria-hidden>
+    <line x1="2.5" y1="0" x2="2.5" y2="10" stroke={MARK[kind].col} strokeWidth={kind === "pct" ? 1.2 : kind === "ceil" ? 3.6 : 2.6} strokeDasharray={MARK[kind].dash ? "2.4 1.6" : undefined} />
+    {kind === "ceil" && <line x1="2.5" y1="0" x2="2.5" y2="10" stroke="rgb(6 16 16)" strokeWidth="1.2" />}
+  </svg>
+)
+const pctRow = (dist: any, d: number, ceil?: number | null) => dist && (
+  <span className="mt-1.5 flex flex-wrap justify-center gap-x-2.5 gap-y-0.5 tabular-nums text-[11px] text-fg-3">
+    <span className="inline-flex items-center gap-1"><Sw kind="pct" />P25 <b className="font-bold text-fg-2">{num(dist.p25, d)}</b></span>
+    <span className="inline-flex items-center gap-1"><Sw kind="med" />medián <b className="font-bold text-fg-2">{num(dist.p50, d)}</b></span>
+    <span className="inline-flex items-center gap-1"><Sw kind="pct" />P75 <b className="font-bold text-fg-2">{num(dist.p75, d)}</b></span>
+    <span className="inline-flex items-center gap-1"><Sw kind="max" />max <b className="font-bold text-fg-2">{num(dist.max, d)}</b></span>
+    {ceil != null && <span className="inline-flex items-center gap-1"><Sw kind="ceil" />strop <b className="font-bold text-fg-2">{num(ceil, d)}</b></span>}
   </span>
 )
 // feedback railway#65 — one interval bar: used vs total, with the numbers
@@ -139,7 +167,7 @@ function TodayCapacity({ g }: { g: any }) {
     return (
       <div key={id} className={`nest ${big ? "p-4" : "p-3"}`}>
         <button type="button" onClick={() => setOpen((o) => ({ ...o, [id]: !o[id] }))} aria-expanded={isOpen}
-          title="Oblouk: posledních 7 dní · čárky: váš 25. percentil, medián a 75. percentil 7denních součtů · bílá: strop · klepnutím zobrazíte výpočet"
+          title="Oblouk: posledních 7 dní · čárkovaně 25. a 75. percentil 7denních součtů · silně medián · červeně maximum · dutá bílá: strop · klepnutím zobrazíte výpočet"
           className="grid w-full justify-items-center text-center">
           <span className={`flex w-full items-center justify-between ${big ? "" : "text-[12px]"}`}>
             <span className={big ? "t-label" : "font-bold text-fg-2"}>{CH_ICON[id]}</span>
@@ -161,7 +189,7 @@ function TodayCapacity({ g }: { g: any }) {
             </>
           )}
           {c.limitedBy ? <span className={`mt-2 text-[11px] font-semibold text-watch ${big ? "" : "leading-4"}`}>omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</span> : <span className="mt-2 h-4" />}
-          {pctRow(c.dist, d)}
+          {pctRow(c.dist, d, c.ceiling7)}
         </button>
         {isOpen && rows}
       </div>
@@ -189,9 +217,6 @@ function TodayCapacity({ g }: { g: any }) {
           {CH_ORDER.filter((id) => id !== "volume").map((id) => channel(id))}
         </div>
       </div>
-      {wk.channels?.volume?.ceiling7 != null && wk.channels.volume.ceiling7 < wk.channels.volume.capacity && (
-        <p className="mt-3 text-[11px] leading-4 text-fg-3">↓ strop je nižší než kapacita: připravenost byla tento týden snížená (HRV / klidový tep / spánek mimo vaši normu), a tak se týdenní strop zmenšuje — nejvýš o 30 %.</p>
-      )}
       {cyc.next && (
         <p className="mt-3 text-[13px] leading-5 text-fg-2">
           <b className="text-fg">Příští týden:</b> {cyc.next.pos}. týden cyklu ({cyc.next.pct} %) — cíl objemu ≈ {num(cyc.next.km)} km{cyc.next.pos === 1 ? ", nový cyklus na vyšší úrovni" : ""}. Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.
@@ -294,11 +319,15 @@ function WeekPanel({ g }: { g: any }) {
               className={`w-full rounded-[11px] px-1.5 py-2 text-center text-[12px] font-bold leading-tight transition disabled:cursor-not-allowed ${on ? "!cursor-default bg-fg text-ink" : allowed(n) ? "text-fg-soft hover:bg-white/[.08]" : "text-fg-4"}`}>
               {n}. týden<span className="block text-[11px] font-medium opacity-80">{p} %</span>
             </button>
-            {on && <InfoDot className="absolute right-1 top-1" variant="onLight" label={`${n}. týden cyklu`} text={`${how} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž (${num(vol.ceiling7)} km za 7 dní).`} />}
             </div>
           )
         })}
       </div>
+      {/* railway#86 — how this week's target is set, outside the selector */}
+      <p className="mt-1.5 flex items-center justify-end gap-1.5 text-[11px] text-fg-3">
+        Jak se počítá cíl {cyc.pos ? `${cyc.pos}. týdne` : "tohoto týdne"}
+        <InfoDot label="Cíl tohoto týdne" text={`${how} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž (${num(vol.ceiling7)} km za 7 dní).`} />
+      </p>
       {ask != null && (
         <div className="nest mt-2 !border-accent/35 !bg-accent/[.06] p-3 text-[13px] leading-5 text-fg">
           Přepnout tento týden na <b>{ask}. týden cyklu ({CYCLE_PCT[ask - 1]} %)</b>{ask === 4 ? " — odlehčovací" : ""}? Týdenní cíle, dnešní limity i doporučení se hned přepočítají.

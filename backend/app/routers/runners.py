@@ -353,7 +353,7 @@ def _engine_replay(db: DBSession, rid: str, asofs, mode: str | None = None):
 # Bump when the history *shape/window* logic changes (not the engine version) so
 # a deploy invalidates same-day cache rows written by the previous code — the
 # cache key otherwise only turns over on a data change or a new day.
-_HISTORY_VERSION = "h3"
+_HISTORY_VERSION = "h4"
 
 
 def _cached_history(db: DBSession, rid: str, kind: str, builder):
@@ -493,11 +493,18 @@ def quadrant_history(rid: str, days: int = QUAD_HISTORY_DAYS, user: models.User 
         while ad <= end:
             asofs.append(ad)
             ad += timedelta(days=1)
-        return [{"date": av["_cut"], "quadrant": av["quadrant"], "overall": av["overall"],
-                 "tier": av["tier"], "mech": av["mech"], "load": av["load"], "symp": av["symp"],
-                 "signals": [{"name": s["name"], "pts": s["pts"], "grade": s["grade"]}
-                             for s in (av.get("signals") or [])[:5]]}
-                for av in _engine_replay(db, rid, asofs)]
+        # Everything the Dnes overview draws (feedback railway#88), so a past day
+        # renders the same rings, verdict and drivers as today.
+        def row(av):
+            pr = av.get("painRecurring")
+            rs = ((av.get("capacity") or {}).get("readiness") or {}).get("score")
+            return {"date": av["_cut"], "quadrant": av["quadrant"], "overall": av["overall"],
+                    "tier": av["tier"], "mech": av["mech"], "load": av["load"], "symp": av["symp"],
+                    "rcv": (av.get("rcv") or {}).get("score"), "readiness": rs,
+                    "painRecurring": {"site": pr.get("site"), "days": pr.get("days")} if pr else None,
+                    "signals": [{"id": s.get("id"), "name": s["name"], "pts": s["pts"], "grade": s["grade"], "val": s.get("val")}
+                                for s in (av.get("signals") or [])[:5]]}
+        return [row(av) for av in _engine_replay(db, rid, asofs)]
 
     # Only the default full-range request is cached (what the app always sends);
     # a custom window is computed ad hoc so it can't poison the shared cache row.

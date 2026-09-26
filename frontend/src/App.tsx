@@ -10,7 +10,7 @@ import {
   useNavigate,
   useParams,
 } from "react-router"
-import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
+import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/components/MuscleAnatomy"
 import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
 import { clamp, fmtD, initials, QUAD, roleHome } from "@/lib"
@@ -452,17 +452,20 @@ function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, can
   )
 }
 // Compact 2×2: mechanika (sloupce) × zátěž (řádky). Aktivní buňka = reálný kvadrant; tap opens history.
-function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; onHistory: () => void }) {
+function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; onHistory?: () => void }) {
+  const Wrap = onHistory ? "button" : "div"
   return (
     <div>
       {/* railway#72 — the 6-month history opens from the quadrant graphic itself */}
-      <div className="mb-2.5 flex items-center justify-between gap-2">
+      <div className="mb-2.5 flex min-h-[30px] items-center justify-between gap-2">
         <p className="t-label !text-fg-3">Mechanika × zátěž</p>
-        <button type="button" onClick={onHistory} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/14 px-3 py-1.5 text-[12px] font-bold text-info transition hover:border-info/50 hover:bg-info/[.07]">
-          historie 6 měsíců <Maximize2 className="size-3.5" aria-hidden />
-        </button>
+        {onHistory && (
+          <button type="button" onClick={onHistory} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/14 px-3 py-1.5 text-[12px] font-bold text-info transition hover:border-info/50 hover:bg-info/[.07]">
+            historie 6 měsíců <Maximize2 className="size-3.5" aria-hidden />
+          </button>
+        )}
       </div>
-      <button type="button" onClick={onHistory} className="grid w-full grid-cols-2 gap-2 text-left" title="Zobrazit vývoj stavu za 6 měsíců">
+      <Wrap {...(onHistory ? { type: "button" as const, onClick: onHistory, title: "Zobrazit vývoj stavu za 6 měsíců" } : {})} className="grid w-full grid-cols-2 gap-2 text-left">
         {QCELLS.map(([key, label]) => {
           const active = key === quadrant
           const c = QCOL[key]
@@ -480,7 +483,7 @@ function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; o
             </span>
           )
         })}
-      </button>
+      </Wrap>
       <div className="mt-2 flex justify-between text-[11px] font-bold uppercase tracking-[.12em] text-fg-3">
         <span>← vodorovně: mechanika</span>
         <span>svisle: zátěž ↑</span>
@@ -492,122 +495,93 @@ function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; o
 // Large pop-out: daily state over the last ~6 months — bar height = overall
 // risk, color = quadrant. Hover a bar to see that day's date and the signals
 // that were influencing the state.
-function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; live?: any; onClose: () => void }) {
-  const raw = history || []
-  // Pin the final ("dnes") bar to the live assessment so the last day always
-  // equals the STAV / big numbers, even if this history fetch is a day stale.
-  const data =
-    raw.length && live
-      ? [
-          ...raw.slice(0, -1),
-          {
-            ...raw[raw.length - 1],
-            date: (live.computed_at || "").slice(0, 10) || raw[raw.length - 1].date,
-            quadrant: live.quadrant ?? raw[raw.length - 1].quadrant,
-            overall: live.overall ?? raw[raw.length - 1].overall,
-            mech: live.mech ?? raw[raw.length - 1].mech,
-            load: live.load ?? raw[raw.length - 1].load,
-            symp: live.symp ?? raw[raw.length - 1].symp,
-            signals: (live.signals || []).slice(0, 5),
-          },
-        ]
-      : raw
+function QuadrantHistory({ history, today, onClose }: { history?: any[] | null; today: OverviewDay; onClose: () => void }) {
+  const raw = (history || []) as OverviewDay[]
+  // Pin the final ("dnes") day to the live overview so it always equals the Dnes card.
+  const data: OverviewDay[] = raw.length ? [...raw.slice(0, -1), { ...raw[raw.length - 1], ...today, date: today.date || raw[raw.length - 1].date }] : raw
+  const n = data.length
   const [sel, setSel] = useState<number | null>(null)
-  const i = sel != null && sel < data.length ? sel : data.length - 1
+  const i = sel != null && sel < n ? sel : n - 1
   const cur = data[i]
   const maxOv = Math.max(20, ...data.map((d) => d.overall || 0))
-  const fmtShort = (s: string) => new Date(s).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })
-  const fmtLong = (s: string) => new Date(s).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
-  const gcol = (g: string) => (g === "A" ? C.alert : g === "B" ? C.watch : C.ok)
-  const axis = (label: string, v: number, tone: string) => (
-    <div>
-      <div className="flex justify-between text-[12px] text-fg-2"><span>{label}</span><b className="tabular-nums" style={{ color: v >= 25 ? tone : C.fg }}>{v}</b></div>
-      <div className="mt-1 h-1.5 rounded-full bg-white/[.08]"><i className="block h-full rounded-full" style={{ width: `${clamp(v, 0, 100)}%`, background: tone }} /></div>
-    </div>
-  )
+  const fmtShort = (s?: string) => (s ? new Date(s).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" }) : "")
+  const fmtLong = (s?: string) => (s ? new Date(s).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" }) : "")
+  const chartRef = useRef<HTMLDivElement>(null)
+  // drag / tap anywhere on the strip to pick a day (bars are ~2 px wide on a phone)
+  const pick = (clientX: number) => {
+    const el = chartRef.current
+    if (!el || !n) return
+    const r = el.getBoundingClientRect()
+    setSel(clamp(Math.floor(((clientX - r.left) / r.width) * n), 0, n - 1))
+  }
+  const step = (d: number) => setSel(clamp(i + d, 0, n - 1))
+  const q = cur ? QUAD[cur.quadrant || "stable"] || QUAD.stable : null
+  const qc = cur ? QCOL[cur.quadrant || "stable"] || C.ok : C.ok
   return createPortal(
     <>
       <div className="fixed inset-0 z-[80] bg-bg/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 top-[calc(68px+env(safe-area-inset-top))] z-[90] flex flex-col overflow-hidden border-t border-white/12 bg-raised pb-[env(safe-area-inset-bottom)] text-fg shadow-[0_-20px_60px_rgb(0_0_0_/_0.5)] lg:left-[220px]">
-        <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
-          <div>
+      <div className="fixed inset-x-0 bottom-0 top-[calc(56px+env(safe-area-inset-top))] z-[90] flex flex-col overflow-hidden rounded-t-[22px] border-t border-white/12 bg-raised pb-[env(safe-area-inset-bottom)] text-fg shadow-[0_-20px_60px_rgb(0_0_0_/_0.5)] md:top-[calc(68px+env(safe-area-inset-top))] lg:left-[220px]">
+        <div className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-3.5 md:p-5">
+          <div className="min-w-0">
             <p className="t-label !text-fg-3">Vývoj stavu · 6 měsíců</p>
-            <h2 className="mt-1 font-serif text-2xl">Kvadrant a rizikové skóre po dnech</h2>
+            <h2 className="mt-0.5 font-serif text-[20px] leading-tight md:text-2xl">Kvadrant a rizikové skóre po dnech</h2>
           </div>
           <button onClick={onClose} aria-label="Zavřít" className="grid size-9 shrink-0 place-items-center rounded-full border border-white/15 text-fg-2 hover:text-fg"><X className="size-4" aria-hidden /></button>
         </div>
 
-        {data.length < 2 ? (
+        {n < 2 ? (
           <p className="p-6 text-sm text-fg-3">{history == null ? "Počítám historii…" : "Zatím málo historie."}</p>
         ) : (
-          <div className="mx-auto grid w-full max-w-[1180px] flex-1 gap-5 overflow-auto p-5 md:grid-cols-[1.5fr_1fr]">
-            {/* chart */}
-            <div className="flex flex-col">
-              <div className="flex h-[46vh] min-h-[220px] items-end gap-px rounded-[14px] bg-ink p-2">
-                {data.map((d, idx) => {
-                  const h = Math.max(6, ((d.overall || 0) / maxOv) * 100)
-                  const on = idx === i
-                  return (
-                    <button
-                      key={d.date}
-                      onMouseEnter={() => setSel(idx)}
-                      onFocus={() => setSel(idx)}
-                      onClick={() => setSel(idx)}
-                      title={`${fmtShort(d.date)} · ${(QUAD[d.quadrant] || QUAD.stable).t} · skóre ${d.overall}`}
-                      className="flex h-full flex-1 items-end"
-                    >
-                      <i className="block w-full rounded-sm transition-opacity" style={{ height: `${h}%`, background: QCOL[d.quadrant] || C.fg4, opacity: on ? 1 : 0.7, outline: on ? `1px solid ${C.fg}` : "none" }} />
-                    </button>
-                  )
-                })}
+          <div className="flex-1 overflow-y-auto overscroll-contain">
+            <div className="mx-auto w-full max-w-[1180px] px-4 pb-8 md:px-5">
+              {/* strip + day picker stay pinned while the overview scrolls under them (phone) */}
+              <div className="sticky top-0 z-10 -mx-4 bg-raised px-4 pb-3 pt-4 shadow-[0_10px_18px_-14px_rgb(0_0_0_/_.8)] md:-mx-5 md:px-5">
+              {/* day strip: height = score, colour = quadrant */}
+              <div
+                ref={chartRef}
+                role="slider" tabIndex={0} aria-label="Vybraný den" aria-valuemin={0} aria-valuemax={n - 1} aria-valuenow={i} aria-valuetext={fmtLong(cur?.date)}
+                onKeyDown={(e) => { if (e.key === "ArrowLeft") { e.preventDefault(); step(-1) } if (e.key === "ArrowRight") { e.preventDefault(); step(1) } }}
+                onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); pick(e.clientX) }}
+                onPointerMove={(e) => { if (e.buttons || e.pointerType === "mouse") pick(e.clientX) }}
+                className="relative flex h-[112px] cursor-crosshair select-none items-end rounded-[14px] bg-ink p-1.5 outline-none focus-visible:ring-2 focus-visible:ring-accent md:h-[170px] md:gap-px md:p-2"
+                style={{ touchAction: "pan-y" }}
+              >
+                {data.map((d, idx) => (
+                  <i key={d.date || idx} className="block flex-1 rounded-[1px]" style={{ height: `${Math.max(5, ((d.overall || 0) / maxOv) * 100)}%`, background: QCOL[d.quadrant || "stable"] || C.fg4, opacity: idx === i ? 1 : 0.62 }} />
+                ))}
+                <i className="pointer-events-none absolute inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-fg shadow-[0_0_0_2px_rgb(6_16_16_/_.6)]" style={{ left: `calc(${((i + 0.5) / n) * 100}% )` }} aria-hidden />
               </div>
               <div className="mt-1 flex justify-between tabular-nums text-[11px] text-fg-3">
                 <span>{fmtShort(data[0].date)}</span>
-                <span>výška = skóre 0–{maxOv}</span>
+                <span>výška = skóre · barva = kvadrant</span>
                 <span>dnes</span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px] text-fg-2">
-                {(["stable", "overreaching", "silent", "critical"] as const).map((k) => (
-                  <span key={k} className="inline-flex items-center gap-1.5">
-                    <i className="size-2.5 rounded-sm" style={{ background: QCOL[k] }} />
-                    {(QUAD[k] || QUAD.stable).t}
-                  </span>
-                ))}
-              </div>
-              <p className="mt-3 text-[11px] leading-4 text-fg-3">Denní přehrání enginu z dat do daného dne (objektivní signály z hodinek — self-report se nepřehrává). Najeď na sloupec.</p>
-            </div>
 
-            {/* selected-day detail */}
-            {cur && (
-              <div className="nest p-4">
-                <p className="t-label !text-fg-3">{fmtLong(cur.date)}</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="size-3 rounded-full" style={{ background: QCOL[cur.quadrant] }} />
-                  <h3 className="font-serif text-xl">{(QUAD[cur.quadrant] || QUAD.stable).t}</h3>
-                  <span className="t-num ml-auto text-[26px]">{cur.overall}<small className="text-xs font-semibold text-fg-3">/100</small></span>
+              {/* day picker for thumbs */}
+              <div className="mt-3 flex items-center gap-2">
+                <button type="button" onClick={() => step(-1)} disabled={i <= 0} aria-label="Předchozí den" className="grid size-10 shrink-0 place-items-center rounded-full border border-white/14 text-fg-2 transition enabled:hover:text-fg disabled:opacity-30"><ChevronLeft className="size-4" aria-hidden /></button>
+                <div className="min-w-0 flex-1 text-center">
+                  <p className="truncate text-[14px] font-bold text-fg first-letter:uppercase" data-day>{i === n - 1 ? "Dnes · " : ""}{fmtLong(cur?.date)}</p>
+                  {q && (
+                    <p className="mt-0.5 inline-flex flex-wrap items-center justify-center gap-x-1.5 text-[12px] font-semibold text-fg-2">
+                      <i className="size-2 rounded-full" style={{ background: qc }} />{q.t}
+                      {i !== n - 1 && <><span className="text-fg-4">·</span><button type="button" onClick={() => setSel(n - 1)} className="font-bold text-info hover:underline">zpět na dnešek</button></>}
+                    </p>
+                  )}
                 </div>
-                <p className="mt-1 text-[12px] leading-4 text-fg-2">{(QUAD[cur.quadrant] || QUAD.stable).d}</p>
-                <div className="mt-4 space-y-2.5">
-                  {axis("Mechanika", cur.mech, C.info)}
-                  {axis("Zátěž", cur.load, C.load)}
-                  {axis("Příznaky", cur.symp, C.alert)}
-                </div>
-                <p className="t-label mt-4 !text-fg-3">Co ovlivňovalo stav</p>
-                {cur.signals && cur.signals.length ? (
-                  <div className="mt-2 space-y-1.5">
-                    {cur.signals.map((s: any, k: number) => (
-                      <div key={k} className="flex items-center gap-2 text-[12px]">
-                        <span className="grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-extrabold" style={{ background: `${gcol(s.grade)}26`, color: gcol(s.grade) }}>{s.grade}</span>
-                        <span className="flex-1 truncate text-fg">{s.name}</span>
-                        <span className="tabular-nums text-fg-2">+{s.pts}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-2 text-xs text-fg-3">Nic nad prahem — stav držel na normě.</p>
-                )}
+                <button type="button" onClick={() => step(1)} disabled={i >= n - 1} aria-label="Další den" className="grid size-10 shrink-0 place-items-center rounded-full border border-white/14 text-fg-2 transition enabled:hover:text-fg disabled:opacity-30"><ChevronRight className="size-4" aria-hidden /></button>
               </div>
-            )}
+              </div>
+
+              {/* railway#88 — the same overview as on Dnes, for the picked day */}
+              {cur && (
+                <div className="nest mt-4 p-4 md:p-6">
+                  {q && <p className="mb-4 max-w-xl text-[13px] leading-5 text-fg-2">{q.d}</p>}
+                  <StateOverview d={cur} />
+                </div>
+              )}
+              <p className="mt-3 text-[11px] leading-4 text-fg-3">Denní přehrání enginu z dat do daného dne, včetně check-inů a hodnocení běhů. Tažením po pásu nebo šipkami vyberete den.</p>
+            </div>
           </div>
         )}
       </div>
@@ -696,6 +670,158 @@ function MiniRing({ label, value, col, onClick, open }: { label: string; value: 
     : <div className="flex flex-col items-center p-1">{body}</div>
 }
 
+// railway#88 — the Dnes overview (rings, readiness, verdict, quadrant, drivers) as one
+// component, so the 6-month history shows any past day exactly like today.
+type PanelKey = "mech" | "load" | "recovery" | "readiness" | "symp"
+type OverviewDay = {
+  date?: string; quadrant?: string; overall?: number; tier?: string
+  mech?: number | null; load?: number | null; symp?: number | null; rcv?: number | null; readiness?: number | null
+  painRecurring?: { site: string; days: number } | null; signals?: any[]
+}
+const axisCol = (v: number | null | undefined, hot: string) => (v == null ? C.fg3 : v >= 25 ? hot : v >= 12 ? C.watch : C.fg)
+const gradeTone = (g: string) => (g === "A" ? "alert" : g === "B" ? "watch" : "ok") as "alert" | "watch" | "ok"
+function StateOverview({ d, open = null, onToggle, panel, onHistory, note }: { d: OverviewDay; open?: PanelKey | null; onToggle?: (k: PanelKey) => void; panel?: React.ReactNode; onHistory?: () => void; note?: React.ReactNode }) {
+  const overall = d.overall ?? 0
+  const RING = 2 * Math.PI * 44
+  const score = d.rcv ?? null
+  const scoreCol = score == null ? C.fg3 : score >= 67 ? C.ok : score >= 34 ? C.watch : C.alert
+  const tierCol = d.tier === "alert" ? C.alert : d.tier === "watch" ? C.watch : C.ok
+  const tierWord = d.tier === "alert" ? "vysoké riziko" : d.tier === "watch" ? "sledovat" : "nízké riziko"
+  const recur = d.painRecurring
+  // FIX-4: the quadrant name lives in the chip; the verdict carries the priority
+  const priority = d.tier === "alert" || recur ? "Prioritou je odlehčení" : d.tier === "watch" ? "Sledujte zátěž" : "Trénink sedí"
+  const verdict = recur && d.tier !== "alert" ? "Odlehčit — opakovaná bolest" : priority
+  const signals = d.signals || []
+  const tg = (k: PanelKey) => (onToggle ? () => onToggle(k) : undefined)
+  return (
+    <div className="grid gap-6 md:grid-cols-2 md:gap-8">
+      <div>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          <div className="grid justify-items-center gap-2">
+            <MiniRing label="Regenerace" value={score} col={scoreCol} onClick={tg("recovery")} open={open === "recovery"} />
+            <MiniRing label="Příznaky" value={d.symp} col={axisCol(d.symp, C.alert)} onClick={tg("symp")} open={open === "symp"} />
+          </div>
+          <div className="relative grid size-[132px] place-items-center">
+            <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
+              <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(255 255 255 / .09)" strokeWidth="8" />
+              <circle cx="50" cy="50" r="44" fill="none" stroke={tierCol} strokeWidth="8" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
+            </svg>
+            <span className="text-center">
+              <b className="t-num block text-[40px] leading-none text-fg">{overall}</b>
+              <span className="mt-1 block text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">Skóre</span>
+            </span>
+            <span className="absolute -right-1 top-1"><InfoDot text={MI.overall} label="Skóre" /></span>
+          </div>
+          <div className="grid justify-items-center gap-2">
+            <MiniRing label="Zátěž" value={d.load} col={C.load} onClick={tg("load")} open={open === "load"} />
+            <MiniRing label="Mechanika" value={d.mech} col={axisCol(d.mech, C.alert)} onClick={tg("mech")} open={open === "mech"} />
+          </div>
+        </div>
+        {d.readiness != null && (
+          <div className="mt-3 flex justify-center">
+            <SideStat label="Připravenost" value={d.readiness} unit=" %" col={readinessCol(d.readiness)} align="center" onClick={tg("readiness")} open={open === "readiness"} />
+          </div>
+        )}
+        <div className="mt-4 text-center">
+          <h3 className="font-serif text-[21px] leading-tight text-fg">{verdict}</h3>
+          <p className="mt-1 flex items-center justify-center gap-1.5 text-[13px] font-bold" style={{ color: tierCol }}>
+            {tierWord}
+            {/* railway#77 — the recurring-pain note opens from the ! next to the risk word */}
+            {recur && <InfoDot variant="watch" label="Opakovaná bolest" text={`${recur.site} · ${recur.days}× za 28 dní — i mírná bolest na stejném místě je vzorec přetížení. Kratší a volnější běhy, bez dlouhého běhu a intenzity.`} />}
+          </p>
+        </div>
+      </div>
+      {panel}
+      <div>
+        <QuadrantGrid quadrant={d.quadrant} onHistory={onHistory} />
+        <div className="mt-5">
+          <p className="t-label !text-fg-3">Co {onToggle ? "teď nejvíc ovlivňuje" : "nejvíc ovlivňovalo"} stav</p>
+          {signals.length ? <ImpactPyramid signals={signals} tone={gradeTone} />
+            : <p className="mt-2 text-sm text-fg-2">Nic nad prahem — zátěž i mechanika {onToggle ? "sedí" : "seděly"} na vaší normě.</p>}
+          {note}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// railway#84 — Příznaky: where it hurts (runs and daily check-ins, 30 days), the last
+// daily check-in in short and what feeds the symptom score.
+function SymptomPanel({ signals }: { signals: any[] }) {
+  const { boot } = useApp()
+  const since = (days: number) => new Date(Date.now() - days * 864e5).toISOString()
+  const cut30 = since(30), cut7 = since(7)
+  const fb = (boot?.activity_feedback || []) as any[]
+  const cis = ((boot?.checkins || []) as any[]).slice().sort((x, y) => (y.submitted_at || "").localeCompare(x.submitted_at || ""))
+  const counts: Record<string, number> = {}, sided: Record<string, number> = {}
+  const add = (pts: any[]) => (pts || []).forEach((p: any) => {
+    if (!p?.region) return
+    counts[p.region] = (counts[p.region] || 0) + 1
+    sided[painKey(p)] = (sided[painKey(p)] || 0) + 1
+  })
+  fb.filter((f) => (f.submitted_at || "") >= cut30).forEach((f) => add(f.pain_points))
+  cis.filter((c) => (c.submitted_at || "") >= cut30).forEach((c) => add(c.pain_points))
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4)
+  const last = cis[0]
+  const wk = cis.filter((c) => (c.submitted_at || "") >= cut7)
+  const avg = (k: string) => { const v = wk.map((c) => c[k]).filter((x) => x != null) as number[]; return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null }
+  const f1 = (v: number | null | undefined) => (v == null ? "—" : (Math.round(v * 10) / 10).toLocaleString("cs-CZ"))
+  const sympSig = signals.filter((x) => !MECH_IDS.has(x.id) && !LOAD_IDS.has(x.id))
+  const maxPts = Math.max(1, ...sympSig.map((x) => x.pts || 0))
+  const cell = (label: string, v: number | null | undefined, max: number, warnAt: number) => (
+    <div className="nest px-2 py-2.5 text-center">
+      <p className="t-num text-[20px] leading-none" style={{ color: v != null && v >= warnAt ? C.alert : C.fg }}>{v == null ? "—" : v}<small className="text-[11px] font-semibold text-fg-3">/{max}</small></p>
+      <p className="mt-1 text-[11px] text-fg-3">{label}</p>
+    </div>
+  )
+  return (
+    <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:gap-8">
+      <div>
+        <div className="flex items-center justify-between gap-2">
+          <p className="t-label">Kde to bolí · 30 dní</p>
+          <Link to="/app/post" className="inline-flex items-center gap-1 text-[12px] font-bold text-accent hover:underline">Deník<ChevronRight className="size-3.5" aria-hidden /></Link>
+        </div>
+        {top.length ? (
+          <>
+            <div className="mx-auto mt-3 max-w-[190px]"><PainHeatmap counts={sided} /></div>
+            <div className="mt-3 space-y-1.5">
+              {top.map(([region, n]) => (
+                <div key={region} className="flex items-center gap-2 text-[12px]">
+                  <span className="w-32 shrink-0 truncate text-fg-soft">{region}</span>
+                  <div className="h-1.5 flex-1 rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-alert" style={{ width: `${Math.round((n / top[0][1]) * 100)}%` }} /></div>
+                  <span className="tabular-nums text-fg-2">{n}×</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-fg-3">z hodnocení běhů i denních check-inů</p>
+          </>
+        ) : <p className="mt-2 text-[12px] text-fg-2">Za posledních 30 dní žádné označené bolestivé místo.</p>}
+      </div>
+      <div>
+        <p className="t-label">Denní check-in</p>
+        {last ? (
+          <>
+            <p className="mt-1 text-[12px] text-fg-3">poslední {fmtD(last.submitted_at)}{last.notes ? ` · „${String(last.notes).slice(0, 60)}${String(last.notes).length > 60 ? "…" : ""}“` : ""}</p>
+            <div className="mt-2.5 grid grid-cols-4 gap-2">
+              {cell("bolest", last.pain_score, 10, 4)}
+              {cell("ztuhlost", last.soreness, 10, 6)}
+              {cell("únava", last.stress, 10, 6)}
+              {cell("nálada", last.mood, 4, 99)}
+            </div>
+            <p className="mt-2 text-[11px] text-fg-3">{wk.length ? `za 7 dní ${wk.length}× · ø bolest ${f1(avg("pain_score"))}/10 · ø únava ${f1(avg("stress"))}/10` : "za posledních 7 dní žádný check-in"}</p>
+          </>
+        ) : <p className="mt-2 text-[12px] text-fg-2">Zatím žádný denní check-in — přidáte ho tlačítkem Check-in.</p>}
+        <p className="t-label mt-4 !text-fg-3">Co tvoří skóre příznaků</p>
+        {sympSig.length ? (
+          <div className="mt-2.5 space-y-2.5">
+            {sympSig.map((x) => <FactorBar key={x.id} label={x.name} value={x.val} pts={x.pts} tone="alert" pct={((x.pts || 0) / maxPts) * 100} />)}
+          </div>
+        ) : <p className="mt-2 text-[12px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
+      </div>
+    </div>
+  )
+}
+
 function SideStat({ label, value, col, align = "left", unit, onClick, open }: { label: string; value: number | null | undefined; col: string; align?: "left" | "right" | "center"; unit?: string; onClick?: () => void; open?: boolean }) {
   const body = (
     <>
@@ -723,8 +849,8 @@ function TodayV2() {
   const [alertsOpen, setAlertsOpen] = useState(false)
   // feedback railway#69/#70 — tap Mechanika / Zátěž for its trend + what drives it
   // railway#79–#81 — Regenerace and Připravenost open their detail the same way
-  const [statPanel, setStatPanel] = useState<"mech" | "load" | "recovery" | "readiness" | null>(null)
-  const togglePanel = (k: "mech" | "load" | "recovery" | "readiness") => setStatPanel(statPanel === k ? null : k)
+  const [statPanel, setStatPanel] = useState<PanelKey | null>(null)
+  const togglePanel = (k: PanelKey) => setStatPanel(statPanel === k ? null : k)
   const [axisHist, setAxisHist] = useState<any[] | null>(null)
   useEffect(() => {
     if ((statPanel !== "mech" && statPanel !== "load") || !rid || axisHist !== null) return
@@ -809,17 +935,6 @@ function TodayV2() {
   const wkly = (L?.weekly || []) as number[]
   const typicalKm = wkly.length > 1 ? Math.round(wkly.slice(0, -1).reduce((s, x) => s + x, 0) / (wkly.length - 1)) : (L?.runKm7 ?? 0)
   const signals = (a?.signals || []) as any[]
-  const tierWord = a?.tier === "alert" ? "vysoké riziko" : a?.tier === "watch" ? "sledovat" : "nízké riziko"
-  const recur = a?.painRecurring as { site: string; days: number } | null | undefined
-  const tierCol = a?.tier === "alert" ? C.alert : a?.tier === "watch" ? C.watch : C.ok
-  const gradeTone = (g: string) => (g === "A" ? "alert" : g === "B" ? "watch" : "ok") as "alert" | "watch" | "ok"
-  const overall = a?.overall ?? 0
-  const RING = 2 * Math.PI * 44
-  const priority = a?.tier === "alert" || a?.painRecurring ? "Prioritou je odlehčení" : a?.tier === "watch" ? "Sledujte zátěž" : "Trénink sedí"
-  // FIX-4: the quadrant name lives in the chip; the ring title carries the verdict
-  // (the recurring-pain override stays as it was).
-  const verdict = recur && a?.tier !== "alert" ? "Odlehčit — opakovaná bolest" : priority
-  const axisCol = (v: number | null | undefined, hot: string) => (v == null ? C.fg3 : v >= 25 ? hot : v >= 12 ? C.watch : C.fg)
 
   // Alert stack — same conditions and order as before; stop-level items are always open,
   // of the rest the first is open and the others collapse (one open at a time).
@@ -872,6 +987,11 @@ function TodayV2() {
   const panelSig = statPanel === "mech" || statPanel === "load" ? signals.filter((s: any) => (statPanel === "mech" ? MECH_IDS : LOAD_IDS).has(s.id)) : []
   const axisPoints = (axisHist || []).map((h: any) => ({ t: h.date, v: statPanel === "mech" ? h.mech : h.load }))
   if (axisPoints.length && a) axisPoints[axisPoints.length - 1] = { t: (a.computed_at || "").slice(0, 10) || axisPoints[axisPoints.length - 1].t, v: (statPanel === "mech" ? a.mech : a.load) ?? axisPoints[axisPoints.length - 1].v }
+  const todayDay: OverviewDay = {
+    date: (a?.computed_at || "").slice(0, 10), quadrant: a?.quadrant, overall: a?.overall ?? 0, tier: a?.tier,
+    mech: a ? a.mech : null, load: a ? a.load : null, symp: a ? a.symp : null, rcv: score, readiness,
+    painRecurring: a?.painRecurring ?? null, signals,
+  }
   const firstCollapsible = alerts.find((x) => x.tone !== "stop")?.key ?? null
   const [openAlert, setOpenAlert] = useState<string | null | undefined>(undefined)
   const openKey = openAlert === undefined ? firstCollapsible : openAlert
@@ -912,45 +1032,12 @@ function TodayV2() {
         )}
         <RecommendationStrip a={a} />
         {/* „Stav" — co jde do kvadrantu — je součástí boxu s kvadrantem */}
-        <div className="mt-5 grid gap-6 border-t border-white/[.08] pt-5 md:grid-cols-2 md:gap-8">
-          <div>
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <div className="grid justify-items-center gap-2">
-                <MiniRing label="Regenerace" value={score} col={scoreCol} onClick={() => togglePanel("recovery")} open={statPanel === "recovery"} />
-                <MiniRing label="Příznaky" value={a ? a.symp : null} col={axisCol(a?.symp, C.alert)} />
-              </div>
-              <div className="relative grid size-[132px] place-items-center">
-                <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
-                  <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(255 255 255 / .09)" strokeWidth="8" />
-                  <circle cx="50" cy="50" r="44" fill="none" stroke={tierCol} strokeWidth="8" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
-                </svg>
-                <span className="text-center">
-                  <b className="t-num block text-[40px] leading-none text-fg">{overall}</b>
-                  <span className="mt-1 block text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">Skóre</span>
-                </span>
-                <span className="absolute -right-1 top-1"><InfoDot text={MI.overall} label="Skóre" /></span>
-              </div>
-              <div className="grid justify-items-center gap-2">
-                <MiniRing label="Zátěž" value={a ? a.load : null} col={C.load} onClick={() => togglePanel("load")} open={statPanel === "load"} />
-                <MiniRing label="Mechanika" value={a ? a.mech : null} col={axisCol(a?.mech, C.alert)} onClick={() => togglePanel("mech")} open={statPanel === "mech"} />
-              </div>
-            </div>
-            {readiness != null && (
-              <div className="mt-3 flex justify-center">
-                <SideStat label="Připravenost" value={readiness} unit=" %" col={readinessCol(readiness)} align="center" onClick={() => togglePanel("readiness")} open={statPanel === "readiness"} />
-              </div>
-            )}
-            <div className="mt-4 text-center">
-              <h3 className="font-serif text-[21px] leading-tight text-fg">{verdict}</h3>
-              <p className="mt-1 flex items-center justify-center gap-1.5 text-[13px] font-bold" style={{ color: tierCol }}>
-                {tierWord}
-                {/* railway#77 — the recurring-pain note opens from the ! next to the risk word */}
-                {recur && <InfoDot variant="watch" label="Opakovaná bolest" text={`${recur.site} · ${recur.days}× za 28 dní — i mírná bolest na stejném místě je vzorec přetížení. Kratší a volnější běhy, bez dlouhého běhu a intenzity.`} />}
-              </p>
-            </div>
-          </div>
-          {statPanel && (
+        <div className="mt-5 border-t border-white/[.08] pt-5">
+          <StateOverview d={todayDay} open={statPanel} onToggle={togglePanel} onHistory={() => setHistOpen(true)}
+            note={gated && <p className="mt-3 text-[11px] text-fg-3">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>}
+            panel={statPanel && (
             <div className="nest origin-top animate-[careReveal_.28s_ease-out] p-3.5 md:order-last md:col-span-2 md:p-5">
+              {statPanel === "symp" && <SymptomPanel signals={signals} />}
               {(statPanel === "mech" || statPanel === "load") && (
                 <>
                   <div className="flex items-center justify-between gap-2">
@@ -1060,21 +1147,9 @@ function TodayV2() {
                 </div>
               )}
             </div>
-          )}
-          <div>
-            <QuadrantGrid quadrant={a?.quadrant} onHistory={() => setHistOpen(true)} />
-            <div className="mt-5">
-              <p className="t-label !text-fg-3">Co teď nejvíc ovlivňuje stav</p>
-              {signals.length ? (
-                <ImpactPyramid signals={signals} tone={gradeTone} />
-              ) : (
-                <p className="mt-2 text-sm text-fg-2">Nic nad prahem — zátěž i mechanika sedí na vaší normě.</p>
-              )}
-              {gated && <p className="mt-3 text-[11px] text-fg-3">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>}
-            </div>
-          </div>
+          )} />
         </div>
-        {histOpen && <QuadrantHistory history={quadHist} live={a} onClose={() => setHistOpen(false)} />}
+        {histOpen && <QuadrantHistory history={quadHist} today={todayDay} onClose={() => setHistOpen(false)} />}
       </section>
     </>
   )
