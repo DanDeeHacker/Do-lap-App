@@ -3,17 +3,18 @@
 // to the dark theme automatically.
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
+import { C } from "@/tokens"
 
 export function Label({ children }: { children: ReactNode }) {
   return (
-    <p className="font-mono text-[10px] font-medium uppercase tracking-[.16em] text-[#a8c7bd]">{children}</p>
+    <p className="t-label">{children}</p>
   )
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <section
-      className={`group rounded-[24px] border border-[#dfe2da] bg-white p-5 transition duration-200 ${className}`}
+      className={`group rounded-[24px] border border-line bg-panel p-5 transition duration-200 ${className}`}
     >
       {children}
     </section>
@@ -70,7 +71,7 @@ export function InfoDot({ text, label, className = "" }: { text: ReactNode; labe
         type="button"
         aria-label={label ? `Co znamená: ${label}` : "Nápověda k metrice"}
         onClick={(e) => { e.stopPropagation(); e.preventDefault(); open ? setOpen(false) : show() }}
-        className="grid size-[18px] place-items-center rounded-full border border-[#8fb0a5]/50 text-[10px] font-bold leading-none text-[#8fb0a5] transition hover:border-[#c7ff54] hover:text-[#c7ff54] active:scale-90"
+        className="grid size-[18px] place-items-center rounded-full border border-fg-2/50 text-[11px] font-bold leading-none text-fg-2 transition hover:border-accent hover:text-accent active:scale-90"
       >
         ?
       </button>
@@ -80,9 +81,9 @@ export function InfoDot({ text, label, className = "" }: { text: ReactNode; labe
           role="tooltip"
           onClick={(e) => e.stopPropagation()}
           style={{ position: "fixed", left: pos.left, top: pos.top, width: pos.width, transform: pos.below ? undefined : "translateY(-100%)" }}
-          className="z-[130] animate-[infoPop_.14s_ease-out] rounded-2xl border border-white/12 bg-[#0c201d] p-3 text-left text-[11px] font-normal normal-case leading-[1.45] tracking-normal text-[#cfe2da] shadow-[0_16px_44px_rgba(0,0,0,.55)]"
+          className="z-[130] animate-[infoPop_.14s_ease-out] rounded-2xl border border-white/12 bg-panel p-3 text-left text-[11px] font-normal normal-case leading-[1.45] tracking-normal text-fg-soft shadow-[0_16px_44px_rgba(0,0,0,.55)]"
         >
-          {label && <b className="mb-1 block text-[13px] text-[#f1f8f1]">{label}</b>}
+          {label && <b className="mb-1 block text-[13px] text-fg">{label}</b>}
           {text}
         </span>,
         document.body,
@@ -105,13 +106,13 @@ export function Metric({
   info?: ReactNode
 }) {
   return (
-    <Card className={warm ? "border-0 bg-[#235e59] text-[#f8f7f1]" : ""}>
+    <Card className={warm ? "border-0 bg-panel-2 text-fg" : ""}>
       <span className="flex items-center gap-1.5">
         <Label>{label}</Label>
         {info && <InfoDot text={info} label={label} />}
       </span>
       <p className={`mt-4 font-serif text-4xl tracking-[-.07em] ${warm ? "text-white" : ""}`}>{value}</p>
-      {caption && <p className={`mt-2 text-xs ${warm ? "text-[#c9dfd8]" : "text-[#6b7b76]"}`}>{caption}</p>}
+      {caption && <p className={`mt-2 text-xs ${warm ? "text-fg-soft" : "text-fg-2"}`}>{caption}</p>}
     </Card>
   )
 }
@@ -119,14 +120,14 @@ export function Metric({
 export function Chip({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "ok" | "watch" | "alert" | "accent" }) {
   const cls =
     tone === "ok"
-      ? "bg-[#17382f] text-[#6ce6d3]"
+      ? "bg-info-bg text-info"
       : tone === "watch"
-        ? "bg-[#3c2922] text-[#ffc1ab]"
+        ? "bg-alert-bg text-alert-soft"
         : tone === "alert"
-          ? "bg-[#3c2922] text-[#e77a59]"
+          ? "bg-alert-bg text-alert"
           : tone === "accent"
-            ? "bg-[#c7ff54] text-[#071313]"
-            : "bg-[#edf0e9] text-[#64736e]"
+            ? "bg-accent text-ink"
+            : "bg-panel-2 text-fg-2"
   return <span className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-bold ${cls}`}>{children}</span>
 }
 
@@ -134,7 +135,7 @@ export function Ring({ value, label, max = 100, size = 64 }: { value: number; la
   const pct = Math.max(0, Math.min(1, value / max))
   const r = 42
   const c = 2 * Math.PI * r
-  const col = pct >= 0.7 ? "#6ce6d3" : pct >= 0.4 ? "#c7ff54" : pct >= 0.2 ? "#f6d69a" : "#e77a59"
+  const col = pct >= 0.7 ? C.ok : pct >= 0.4 ? C.accent : pct >= 0.2 ? C.watch : C.alert
   return (
     <div className="flex items-center gap-3">
       <svg width={size} height={size} viewBox="0 0 100 100" className="shrink-0">
@@ -151,16 +152,16 @@ export function Ring({ value, label, max = 100, size = 64 }: { value: number; la
           strokeDashoffset={c * (1 - pct)}
           transform="rotate(-90 50 50)"
         />
-        <text x="50" y="58" textAnchor="middle" fontSize="30" fontWeight="700" fill="#f1f8f1" fontFamily="serif">
+        <text x="50" y="58" textAnchor="middle" fontSize="30" fontWeight="700" fill={C.fg} fontFamily="serif">
           {Math.round(value)}
         </text>
       </svg>
-      {label && <div className="text-sm text-[#a9c2b9]">{label}</div>}
+      {label && <div className="text-sm text-fg-2">{label}</div>}
     </div>
   )
 }
 
-export function Sparkline({ vals, color = "#6ce6d3", h = 48 }: { vals: number[]; color?: string; h?: number }) {
+export function Sparkline({ vals, color = C.info, h = 48 }: { vals: number[]; color?: string; h?: number }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   if (!vals || vals.length < 2) return null
@@ -194,19 +195,19 @@ export function Sparkline({ vals, color = "#6ce6d3", h = 48 }: { vals: number[];
         <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
         {act != null && <line x1={pts[act][0]} y1={0} x2={pts[act][0]} y2={h} stroke={color} strokeOpacity=".4" />}
         <circle cx={pts.at(-1)![0]} cy={pts.at(-1)![1]} r="3.5" fill={color} />
-        {act != null && <circle cx={pts[act][0]} cy={pts[act][1]} r="4" fill={color} stroke="#0c201d" strokeWidth="1.5" />}
+        {act != null && <circle cx={pts[act][0]} cy={pts[act][1]} r="4" fill={color} stroke={C.panel} strokeWidth="1.5" />}
       </svg>
       {act != null && (
         <div
-          className="pointer-events-none absolute top-0 z-10 rounded-md border border-white/12 bg-[#0c201d] px-1.5 py-0.5 font-mono text-[10px] shadow-lg"
+          className="pointer-events-none absolute top-0 z-10 rounded-md border border-white/12 bg-panel px-1.5 py-0.5 tabular-nums text-[11px] shadow-lg"
           style={{ left: `${aPct}%`, color, transform: `translateX(${aPct > 74 ? "-100%" : aPct < 26 ? "0%" : "-50%"})` }}
         >
           {fnum(vals[act])}
         </div>
       )}
-      <div className="mt-1 flex justify-between font-mono text-[9px] text-[#71837b]">
+      <div className="mt-1 flex justify-between tabular-nums text-[11px] text-fg-3">
         <span>min {fnum(mn)}</span>
-        <span className="font-bold text-[#c7ff54]">nyní {fnum(vals.at(-1)!)}</span>
+        <span className="font-bold text-accent">nyní {fnum(vals.at(-1)!)}</span>
         <span>max {fnum(mx)}</span>
       </div>
     </div>
@@ -235,7 +236,7 @@ export function Bars({ vals, unit = "km", labels }: { vals: number[]; unit?: str
     <div className="mt-6">
       <div
         ref={wrapRef}
-        className="relative flex h-32 select-none items-end gap-1.5 border-b border-[#dae2dd] pb-1"
+        className="relative flex h-32 select-none items-end gap-1.5 border-b border-line pb-1"
         style={{ touchAction: "pan-y" }}
         onPointerMove={(e) => pick(e.clientX)}
         onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); pick(e.clientX) }}
@@ -250,19 +251,19 @@ export function Bars({ vals, unit = "km", labels }: { vals: number[]; unit?: str
           return (
             <div key={i} className="relative flex h-full min-w-0 flex-1 items-end">
               {on && (
-                <div className="pointer-events-none absolute -top-6 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/12 bg-[#0c201d] px-1.5 py-0.5 font-mono text-[10px] text-[#f1f8f1] shadow-lg">
+                <div className="pointer-events-none absolute -top-6 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/12 bg-panel px-1.5 py-0.5 tabular-nums text-[11px] text-fg shadow-lg">
                   {xlab(i) ? `${xlab(i)}: ` : ""}{num(v)} {unit}
                 </div>
               )}
-              {showv && <span className={`absolute left-1/2 top-0 -translate-x-1/2 text-[9px] font-bold ${last ? "text-[#e77a59]" : "text-[#9bb3aa]"}`}>{num(v)}</span>}
-              <i className={`block min-h-1 w-full self-end rounded-t-sm ${on ? "bg-[#c7ff54]" : last ? "bg-[#cf6542]" : "bg-[#b5d3ca]"}`} style={{ height: `${Math.max(3, (v / mx) * 88)}%` }} />
+              {showv && <span className={`absolute left-1/2 top-0 -translate-x-1/2 text-[11px] font-bold ${last ? "text-alert" : "text-fg-2"}`}>{num(v)}</span>}
+              <i className={`block min-h-1 w-full self-end rounded-t-sm ${on ? "bg-accent" : last ? "bg-alert" : "bg-viz"}`} style={{ height: `${Math.max(3, (v / mx) * 88)}%` }} />
             </div>
           )
         })}
       </div>
       <div className="mt-1 flex gap-1.5">
         {vals.map((_, i) => (
-          <span key={i} className="min-w-0 flex-1 text-center font-mono text-[9px] text-[#71837b]">{xlab(i)}</span>
+          <span key={i} className="min-w-0 flex-1 text-center tabular-nums text-[11px] text-fg-3">{xlab(i)}</span>
         ))}
       </div>
     </div>
@@ -279,7 +280,7 @@ export function AxisLineChart({
   thresholdLabel,
   unit = "",
   dec = 0,
-  color = "#6ce6d3",
+  color = C.info,
   height = 128,
   band,
 }: {
@@ -297,7 +298,7 @@ export function AxisLineChart({
 }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
-  if (!points || points.length < 2) return <p className="mt-2 text-xs text-[#71837b]">Zatím málo dat pro trend v čase.</p>
+  if (!points || points.length < 2) return <p className="mt-2 text-xs text-fg-3">Zatím málo dat pro trend v čase.</p>
   const W = 320
   const H = height
   const padL = 32
@@ -345,43 +346,46 @@ export function AxisLineChart({
       onPointerCancel={() => setAct(null)}
       onPointerLeave={() => setAct(null)}
     >
-      <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" style={{ height }} preserveAspectRatio="none">
+      {/* Lines/areas stretch with the container; every label and dot is HTML on top,
+          so text is never distorted (FIX-2) and strokes keep their width. */}
+      <svg viewBox={`0 0 ${W} ${H}`} className="block w-full" style={{ height }} preserveAspectRatio="none" aria-hidden="true">
         {ticks.map((t, i) => (
-          <g key={i}>
-            <line x1={padL} y1={y(t)} x2={W - padR} y2={y(t)} stroke="#6ce6d3" strokeOpacity=".1" />
-            <text x={padL - 5} y={y(t) + 3} textAnchor="end" fill="#71837b" fontSize="8">{nf(t)}</text>
-          </g>
+          <line key={i} x1={padL} y1={y(t)} x2={W - padR} y2={y(t)} stroke={C.info} strokeOpacity=".1" vectorEffect="non-scaling-stroke" />
         ))}
         {band && (
           <g>
             <rect x={padL} y={y(band.hi)} width={W - padL - padR} height={Math.max(1, y(band.lo) - y(band.hi))} fill={color} opacity=".09" />
-            <line x1={padL} y1={y(band.hi)} x2={W - padR} y2={y(band.hi)} stroke={color} strokeOpacity=".35" strokeWidth="0.8" />
-            <line x1={padL} y1={y(band.lo)} x2={W - padR} y2={y(band.lo)} stroke={color} strokeOpacity=".35" strokeWidth="0.8" />
-            {band.mid != null && <line x1={padL} y1={y(band.mid)} x2={W - padR} y2={y(band.mid)} stroke={color} strokeOpacity=".5" strokeDasharray="3 3" strokeWidth="0.8" />}
+            <line x1={padL} y1={y(band.hi)} x2={W - padR} y2={y(band.hi)} stroke={color} strokeOpacity=".35" vectorEffect="non-scaling-stroke" />
+            <line x1={padL} y1={y(band.lo)} x2={W - padR} y2={y(band.lo)} stroke={color} strokeOpacity=".35" vectorEffect="non-scaling-stroke" />
+            {band.mid != null && <line x1={padL} y1={y(band.mid)} x2={W - padR} y2={y(band.mid)} stroke={color} strokeOpacity=".5" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />}
           </g>
         )}
         {threshold != null && threshold >= mn && threshold <= mx && (
-          <g>
-            <line x1={padL} y1={y(threshold)} x2={W - padR} y2={y(threshold)} stroke="#e77a59" strokeOpacity=".55" strokeDasharray="4 3" />
-            {thresholdLabel && <text x={W - padR} y={y(threshold) - 3} textAnchor="end" fill="#e77a59" fontSize="8">{thresholdLabel}</text>}
-          </g>
+          <line x1={padL} y1={y(threshold)} x2={W - padR} y2={y(threshold)} stroke={C.alert} strokeOpacity=".55" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
         )}
         <path d={area} fill={color} opacity=".12" />
-        <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        {act != null && <line x1={x(act)} y1={padT} x2={x(act)} y2={H - padB} stroke={color} strokeOpacity=".45" strokeWidth="1" />}
-        <circle cx={x(points.length - 1)} cy={y(points.at(-1)!.v)} r="3.5" fill={color} />
-        {act != null && (
-          <circle cx={x(act)} cy={y(points[act].v)} r="4" fill={color} stroke="#0c201d" strokeWidth="1.5" />
-        )}
-        {act == null && (
-          <text x={x(points.length - 1)} y={y(points.at(-1)!.v) - 6} textAnchor="end" fill={color} fontSize="9" fontWeight="bold">{nf(points.at(-1)!.v)}{unit}</text>
-        )}
-        {xi.map((idx, i) => (
-          <text key={i} x={x(idx)} y={H - 6} textAnchor={i === 0 ? "start" : i === xi.length - 1 ? "end" : "middle"} fill="#71837b" fontSize="8">{fmt(points[idx].t)}</text>
-        ))}
+        <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        {act != null && <line x1={x(act)} y1={padT} x2={x(act)} y2={H - padB} stroke={color} strokeOpacity=".45" vectorEffect="non-scaling-stroke" />}
       </svg>
+      {ticks.map((t, i) => (
+        <span key={i} className="t-axis pointer-events-none absolute left-0 -translate-y-1/2 leading-none" style={{ top: (y(t) / H) * height, width: `${((padL - 4) / W) * 100}%`, textAlign: "right" }}>{nf(t)}</span>
+      ))}
+      {threshold != null && threshold >= mn && threshold <= mx && thresholdLabel && (
+        <span className="pointer-events-none absolute right-0 -translate-y-full pb-0.5 text-[11px] leading-none text-alert" style={{ top: (y(threshold) / H) * height }}>{thresholdLabel}</span>
+      )}
+      {xi.map((idx, i) => (
+        <span key={i} className="t-axis pointer-events-none absolute whitespace-nowrap leading-none" style={{ top: ((H - 12) / H) * height, left: `${(x(idx) / W) * 100}%`, transform: i === 0 ? "none" : i === xi.length - 1 ? "translateX(-100%)" : "translateX(-50%)" }}>{fmt(points[idx].t)}</span>
+      ))}
+      {/* endpoint + scrub dots as HTML so they stay round */}
+      <i className="pointer-events-none absolute size-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${(x(points.length - 1) / W) * 100}%`, top: (y(points.at(-1)!.v) / H) * height, background: color }} />
+      {act != null && (
+        <i className="pointer-events-none absolute size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${aPct}%`, top: (y(points[act].v) / H) * height, background: color, boxShadow: `0 0 0 2px ${C.panel}` }} />
+      )}
+      {act == null && (
+        <span className="pointer-events-none absolute -translate-x-full -translate-y-full pb-1 pr-1 text-[11px] font-bold leading-none tabular-nums" style={{ left: `${(x(points.length - 1) / W) * 100}%`, top: (y(points.at(-1)!.v) / H) * height, color }}>{nf(points.at(-1)!.v)}{unit}</span>
+      )}
       {band?.label && (
-        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[#71837b]">
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-fg-3">
           <span className="inline-flex items-center gap-1.5">
             <i className="inline-block h-2.5 w-4 rounded-sm border" style={{ background: `${color}22`, borderColor: `${color}66` }} />
             {band.label} {nf(band.lo)}–{nf(band.hi)}{unit}
@@ -395,11 +399,11 @@ export function AxisLineChart({
       )}
       {act != null && (
         <div
-          className="pointer-events-none absolute top-0 z-10 rounded-lg border border-white/12 bg-[#0c201d] px-2 py-1 text-center shadow-lg"
+          className="pointer-events-none absolute top-0 z-10 rounded-lg border border-white/12 bg-panel px-2 py-1 text-center shadow-lg"
           style={{ left: `${aPct}%`, transform: `translateX(${aPct > 74 ? "-100%" : aPct < 26 ? "0%" : "-50%"})` }}
         >
-          <b className="block font-mono text-[11px] leading-tight" style={{ color }}>{nf(points[act].v)}{unit}</b>
-          <span className="block font-mono text-[9px] leading-tight text-[#71837b]">{fmt(points[act].t)}</span>
+          <b className="block tabular-nums text-[11px] leading-tight" style={{ color }}>{nf(points[act].v)}{unit}</b>
+          <span className="block tabular-nums text-[11px] leading-tight text-fg-3">{fmt(points[act].t)}</span>
         </div>
       )}
     </div>
@@ -430,9 +434,9 @@ export function Slider({
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-1.5 flex-1 accent-[#c7ff54]"
+        className="h-1.5 flex-1 accent-accent"
       />
-      <span className="w-16 shrink-0 text-right font-mono text-sm text-[#c7ff54]">{labels ? labels[value] ?? value : value}</span>
+      <span className="w-16 shrink-0 text-right tabular-nums text-sm text-accent">{labels ? labels[value] ?? value : value}</span>
     </div>
   )
 }
@@ -440,8 +444,8 @@ export function Slider({
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="mt-4 block">
-      <span className="text-xs font-bold text-[#a9c2b9]">
-        {label} {hint && <span className="font-normal text-[#71837b]">{hint}</span>}
+      <span className="text-xs font-bold text-fg-2">
+        {label} {hint && <span className="font-normal text-fg-3">{hint}</span>}
       </span>
       <div className="mt-2">{children}</div>
     </label>
@@ -456,7 +460,7 @@ export function Sheet({ open, onClose, children, footer }: { open: boolean; onCl
       onClick={onClose}
     >
       <div
-        className="flex max-h-[93dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[28px] border border-white/10 bg-[#0c201d] text-[#f1f8f1] shadow-[0_-8px_40px_rgba(0,0,0,.5)] animate-[sheetUp_.28s_cubic-bezier(.22,1,.36,1)] md:max-h-[88dvh] md:rounded-[28px] md:animate-[fadeIn_.2s_ease-out]"
+        className="flex max-h-[93dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[28px] border border-white/10 bg-panel text-fg shadow-[0_-8px_40px_rgba(0,0,0,.5)] animate-[sheetUp_.28s_cubic-bezier(.22,1,.36,1)] md:max-h-[88dvh] md:rounded-[28px] md:animate-[fadeIn_.2s_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* grab handle (phone) */}
@@ -466,7 +470,7 @@ export function Sheet({ open, onClose, children, footer }: { open: boolean; onCl
           {!footer && <div className="h-[max(1.25rem,env(safe-area-inset-bottom))]" />}
         </div>
         {footer && (
-          <div className="shrink-0 border-t border-white/10 bg-[#0c201d]/95 px-5 py-3 pb-[max(.85rem,env(safe-area-inset-bottom))] backdrop-blur md:px-6">
+          <div className="shrink-0 border-t border-white/10 bg-panel/95 px-5 py-3 pb-[max(.85rem,env(safe-area-inset-bottom))] backdrop-blur md:px-6">
             {footer}
           </div>
         )}
@@ -493,9 +497,9 @@ export function ToastHost({ children }: { children: ReactNode }) {
       {children}
       <div className="fixed bottom-5 left-1/2 z-[60] flex w-[min(92vw,26rem)] -translate-x-1/2 flex-col gap-2">
         {items.map((t) => (
-          <div key={t.id} className="animate-[careReveal_.28s_ease-out] rounded-2xl border border-white/10 bg-[#102724] px-4 py-3 text-[#f1f8f1] shadow-2xl">
+          <div key={t.id} className="animate-[careReveal_.28s_ease-out] rounded-2xl border border-white/10 bg-panel-2 px-4 py-3 text-fg shadow-2xl">
             <b className="text-sm">{t.title}</b>
-            {t.msg && <p className="mt-0.5 text-xs text-[#a9c2b9]">{t.msg}</p>}
+            {t.msg && <p className="mt-0.5 text-xs text-fg-2">{t.msg}</p>}
           </div>
         ))}
       </div>

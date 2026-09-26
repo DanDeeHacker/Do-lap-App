@@ -10,12 +10,13 @@ import { Card, InfoDot, Label, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { readinessCol } from "@/capacity"
 import { fmtD, paceStr } from "@/lib"
+import { C } from "@/tokens"
 
 const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"]
 const MODE: Record<string, [string, string]> = {
-  build: ["Budovací týden", "#6ce6d3"], recovery: ["Odlehčovací týden", "#f6d69a"], deload: ["Odlehčovací · zvýšená zátěž", "#e77a59"],
-  taper: ["Ladění před závodem", "#c7ff54"], learning: ["Nastavuji cyklus", "#9bb3aa"], hold: ["Udržení", "#f6d69a"],
-  return: ["Návrat po zranění", "#f6d69a"],
+  build: ["Budovací týden", C.ok], recovery: ["Odlehčovací týden", C.watch], deload: ["Odlehčovací · zvýšená zátěž", C.alert],
+  taper: ["Ladění před závodem", C.accent], learning: ["Nastavuji cyklus", C.fg2], hold: ["Udržení", C.watch],
+  return: ["Návrat po zranění", C.watch],
 }
 const CYCLE_PCT = [90, 100, 110, 55]
 const LIMIT: Record<string, string> = {
@@ -37,17 +38,17 @@ function TodayCapacity({ g }: { g: any }) {
   const mechHot = (ax.mech ?? 0) >= th
   const pct = Math.round((wk.progression ?? 1) * 100)
   const status = loadHot
-    ? { col: "#e77a59", text: `Zátěž ${ax.load} je nad prahem ${th} — tento týden odlehčovací, bez tvrdých úseků a dlouhého běhu.` }
+    ? { col: C.alert, text: `Zátěž ${ax.load} je nad prahem ${th} — tento týden odlehčovací, bez tvrdých úseků a dlouhého běhu.` }
     : mechHot
-      ? { col: "#f6d69a", text: `Mechanika ${ax.mech} je nad prahem ${th} — dnes o 20 % méně objemu, poloviční intenzita a klesání, raději rovina.` }
-      : { col: "#6ce6d3", text: `Zátěž ${ax.load ?? 0} a mechanika ${ax.mech ?? 0} jsou pod prahem ${th} — dnešní limity drží obě osy pod prahem i po tréninku.` }
+      ? { col: C.watch, text: `Mechanika ${ax.mech} je nad prahem ${th} — dnes o 20 % méně objemu, poloviční intenzita a klesání, raději rovina.` }
+      : { col: C.ok, text: `Zátěž ${ax.load ?? 0} a mechanika ${ax.mech ?? 0} jsou pod prahem ${th} — dnešní limity drží obě osy pod prahem i po tréninku.` }
   return (
-    <section className="mt-4 rounded-[24px] border border-white/10 bg-[#0c201d] p-5 md:p-6">
+    <section className="mt-4 rounded-[24px] border border-white/10 bg-panel p-5 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-1.5"><Label>Dnešní kapacita</Label><InfoDot text={MI.todayCapacity} label="Dnešní kapacita" /></span>
-        <span className="text-[11px] text-[#a9c2b9]">kolik si dnes můžete dovolit</span>
+        <span className="text-[11px] text-fg-2">kolik si dnes můžete dovolit</span>
       </div>
-      <p className="mt-2 flex items-start gap-2 text-xs leading-5 text-[#c9dcd4]"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>
+      <p className="mt-2 flex items-start gap-2 text-xs leading-5 text-fg-soft"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {CH_ORDER.map((id) => {
           const c = wk.channels?.[id]
@@ -56,28 +57,28 @@ function TodayCapacity({ g }: { g: any }) {
           const past6 = c.done7 != null ? c.done7 - (c.doneToday ?? 0) : null
           return (
             <div key={id} className="rounded-2xl border border-white/10 bg-white/[.02] p-3.5">
-              <p className="text-[11px] text-[#a9c2b9]">{CH_ICON[id]}</p>
-              <p className="mt-0.5 font-serif text-2xl leading-tight text-[#f1f8f1]">
+              <p className="text-[11px] text-fg-2">{CH_ICON[id]}</p>
+              <p className="mt-0.5 font-serif text-2xl leading-tight text-fg">
                 {id === "systemic" ? (c.todayMax != null ? `${num(c.todayMax, 0)}` : "—") : c.todayMax != null ? `max ${num(c.todayMax, d)}` : "—"}
-                <span className="text-sm text-[#71837b]"> {c.unit}</span>
+                <span className="text-sm text-fg-3"> {c.unit}</span>
               </p>
-              {c.limitedBy && <p className="text-[10px] text-[#f6d69a]">omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</p>}
-              <dl className="mt-2 space-y-0.5 text-[10px] leading-4 text-[#71837b]">
-                {c.capacity != null && <div className="flex justify-between gap-2"><dt>Týdenní kapacita (Zátěž)</dt><dd className="font-mono text-[#c9dcd4]">{num(c.capacity, d)} · strop {num(c.ceiling7, d)}{c.ceiling7 != null && c.ceiling7 < c.capacity ? " ↓" : ""}</dd></div>}
-                {past6 != null && <div className="flex justify-between gap-2"><dt>Posledních 6 dní{c.doneToday ? " + dnes" : ""}</dt><dd className="font-mono text-[#c9dcd4]">{num(c.done7, d)} → zbývá {num(c.left7, d)}</dd></div>}
-                {c.budget != null && <div className="flex justify-between gap-2"><dt>Tento týden v cyklu{cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden, ${pct} %)` : ""}</dt><dd className="font-mono text-[#c9dcd4]">{num(c.done, d)} / {num(c.budget, d)} → zbývá {num(c.left, d)}</dd></div>}
-                {c.ceilingRun != null && <div className="flex justify-between gap-2"><dt>Jeden běh</dt><dd className="font-mono text-[#c9dcd4]">max {num(c.ceilingRun, d)}</dd></div>}
+              {c.limitedBy && <p className="text-[11px] text-watch">omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</p>}
+              <dl className="mt-2 space-y-0.5 text-[11px] leading-4 text-fg-3">
+                {c.capacity != null && <div className="flex justify-between gap-2"><dt>Týdenní kapacita (Zátěž)</dt><dd className="tabular-nums text-fg-soft">{num(c.capacity, d)} · strop {num(c.ceiling7, d)}{c.ceiling7 != null && c.ceiling7 < c.capacity ? " ↓" : ""}</dd></div>}
+                {past6 != null && <div className="flex justify-between gap-2"><dt>Posledních 6 dní{c.doneToday ? " + dnes" : ""}</dt><dd className="tabular-nums text-fg-soft">{num(c.done7, d)} → zbývá {num(c.left7, d)}</dd></div>}
+                {c.budget != null && <div className="flex justify-between gap-2"><dt>Tento týden v cyklu{cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden, ${pct} %)` : ""}</dt><dd className="tabular-nums text-fg-soft">{num(c.done, d)} / {num(c.budget, d)} → zbývá {num(c.left, d)}</dd></div>}
+                {c.ceilingRun != null && <div className="flex justify-between gap-2"><dt>Jeden běh</dt><dd className="tabular-nums text-fg-soft">max {num(c.ceilingRun, d)}</dd></div>}
               </dl>
             </div>
           )
         })}
       </div>
       {wk.channels?.volume?.ceiling7 != null && wk.channels.volume.ceiling7 < wk.channels.volume.capacity && (
-        <p className="mt-2 text-[10px] text-[#71837b]">↓ strop je nižší než kapacita: připravenost byla tento týden snížená (HRV / klidový tep / spánek mimo vaši normu), a tak se týdenní strop zmenšuje — nejvýš o 30 %.</p>
+        <p className="mt-2 text-[11px] text-fg-3">↓ strop je nižší než kapacita: připravenost byla tento týden snížená (HRV / klidový tep / spánek mimo vaši normu), a tak se týdenní strop zmenšuje — nejvýš o 30 %.</p>
       )}
       {cyc.next && (
-        <p className="mt-3 text-xs leading-5 text-[#a9c2b9]">
-          <b className="text-[#f1f8f1]">Příští týden:</b> {cyc.next.pos}. týden cyklu ({cyc.next.pct} %) — cíl objemu ≈ {num(cyc.next.km)} km{cyc.next.pos === 1 ? ", nový cyklus na vyšší úrovni" : ""}. Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.
+        <p className="mt-3 text-xs leading-5 text-fg-2">
+          <b className="text-fg">Příští týden:</b> {cyc.next.pos}. týden cyklu ({cyc.next.pct} %) — cíl objemu ≈ {num(cyc.next.km)} km{cyc.next.pos === 1 ? ", nový cyklus na vyšší úrovni" : ""}. Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.
         </p>
       )}
     </section>
@@ -92,9 +93,9 @@ const range = (lo?: number | null, hi?: number | null, d = 1) =>
 function Stat({ label, value, sub, warn, text }: { label: string; value: string; sub?: string; warn?: boolean; text?: boolean }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[.03] p-3.5">
-      <p className="font-mono text-[9px] uppercase tracking-[.14em] text-[#71837b]">{label}</p>
-      <p className={`mt-1 leading-tight ${text ? "text-sm font-bold md:text-base" : "whitespace-nowrap font-serif text-xl md:text-2xl"}`} style={{ color: warn ? "#f6d69a" : "#f1f8f1" }}>{value}</p>
-      {sub && <p className="mt-0.5 text-[11px] leading-4 text-[#a9c2b9]">{sub}</p>}
+      <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">{label}</p>
+      <p className={`mt-1 leading-tight ${text ? "text-sm font-bold md:text-base" : "whitespace-nowrap font-serif text-xl md:text-2xl"}`} style={{ color: warn ? C.watch : C.fg }}>{value}</p>
+      {sub && <p className="mt-0.5 text-[11px] leading-4 text-fg-2">{sub}</p>}
     </div>
   )
 }
@@ -109,12 +110,12 @@ function CycleStrip({ cyc }: { cyc: any }) {
         <div key={w.start} className="min-w-0 text-center">
           <div className="relative mx-auto flex h-16 w-full max-w-[46px] items-end overflow-hidden rounded-md bg-white/[.04]">
             {w.current && w.target != null && (
-              <i className="absolute inset-x-0 bottom-0 rounded-md border border-dashed border-[#c7ff54]/80" style={{ height: `${(w.target / max) * 100}%` }} />
+              <i className="absolute inset-x-0 bottom-0 rounded-md border border-dashed border-accent/80" style={{ height: `${(w.target / max) * 100}%` }} />
             )}
-            <i className="relative block w-full rounded-md" style={{ height: `${((w.km || 0) / max) * 100}%`, background: w.current ? "#c7ff54" : "#6ce6d3", opacity: w.current ? 1 : 0.5 }} />
+            <i className="relative block w-full rounded-md" style={{ height: `${((w.km || 0) / max) * 100}%`, background: w.current ? C.accent : C.ok, opacity: w.current ? 1 : 0.5 }} />
           </div>
-          <p className="mt-1 whitespace-nowrap font-mono text-[10px] text-[#f1f8f1]">{num(w.km)} km</p>
-          <p className="truncate text-[9px] text-[#71837b]">{w.current ? (w.target != null ? `cíl ${num(w.target)}` : "tento týden") : `od ${fmtD(w.start)}`}</p>
+          <p className="mt-1 whitespace-nowrap tabular-nums text-[11px] text-fg">{num(w.km)} km</p>
+          <p className="truncate text-[11px] text-fg-3">{w.current ? (w.target != null ? `cíl ${num(w.target)}` : "tento týden") : `od ${fmtD(w.start)}`}</p>
         </div>
       ))}
     </div>
@@ -158,10 +159,10 @@ function WeekPanel({ g }: { g: any }) {
               : wk.novice ? `Prvních 6 týdnů (do ${fmtD(wk.novice.until)}): cíl = minulý týden + 10 %, dlouhý běh nejvýš o 10 % delší než nejdelší za 30 dní. Cyklus a osobní kapacitu nastavíme potom.`
             : "Cyklus nastavíme, až budou aspoň 4 týdny dat — do té doby je cílem vaše týdenní kapacita."
   return (
-    <section className="mt-4 rounded-[24px] border border-white/10 bg-[#0c201d] p-5 md:p-6">
+    <section className="mt-4 rounded-[24px] border border-white/10 bg-panel p-5 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-1.5"><Label>Cyklus · tento týden</Label><InfoDot text={MI.weekBudget} label="Týdenní cíl a cyklus" /></span>
-        <span className="rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: `${modeCol}1f`, color: modeCol }}>
+        <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${modeCol}1f`, color: modeCol }}>
           {cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? `${cyc.pos}. týden ze 4 · ` : ""}{modeLabel}
         </span>
       </div>
@@ -173,33 +174,33 @@ function WeekPanel({ g }: { g: any }) {
             <button key={n} role="radio" aria-checked={on} disabled={busy || on || !allowed(n)}
               onClick={() => setAsk(n)}
               title={locked ? (wk.novice ? "Prvních 6 týdnů běží bez cyklu." : wk.mode === "return" ? "Návrat po zranění řídí týden sám." : "Před závodem řídí týden ladění formy.") : !allowed(n) ? "Zátěž je zvýšená — nejdřív odlehčovací týden." : on ? "Aktuální týden cyklu" : "Přepnout tento týden"}
-              className={`rounded-lg px-1.5 py-1.5 text-center text-[10px] font-bold leading-tight transition ${on ? "bg-[#c7ff54] text-[#071313]" : allowed(n) ? "bg-white/[.06] text-[#c9dcd4] hover:bg-white/[.12]" : "bg-white/[.03] text-[#5f7268]"}`}>
+              className={`rounded-lg px-1.5 py-1.5 text-center text-[11px] font-bold leading-tight transition ${on ? "bg-accent text-ink" : allowed(n) ? "bg-white/[.06] text-fg-soft hover:bg-white/[.12]" : "bg-white/[.03] text-fg-4"}`}>
               {n}. týden<span className="block font-normal opacity-80">{p} %</span>
             </button>
           )
         })}
       </div>
       {ask != null && (
-        <div className="mt-2 rounded-xl border border-[#c7ff54]/30 bg-[#c7ff54]/[.06] p-3 text-xs leading-5 text-[#e7efe9]">
+        <div className="mt-2 rounded-xl border border-accent/30 bg-accent/[.06] p-3 text-xs leading-5 text-fg">
           Přepnout tento týden na <b>{ask}. týden cyklu ({CYCLE_PCT[ask - 1]} %)</b>{ask === 4 ? " — odlehčovací" : ""}? Týdenní cíle, dnešní limity i doporučení se hned přepočítají.
           Příští týden se cyklus nastaví sám podle toho, jak tenhle týden skutečně proběhne.
           <div className="mt-2 flex gap-2">
-            <button onClick={() => void pick(ask)} disabled={busy} className="rounded-full bg-[#c7ff54] px-3 py-1.5 text-[11px] font-bold text-[#071313] disabled:opacity-50">{busy ? "Přepočítávám…" : "Přepnout"}</button>
-            <button onClick={() => setAsk(null)} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-[#a9c2b9]">Zrušit</button>
+            <button onClick={() => void pick(ask)} disabled={busy} className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-bold text-ink disabled:opacity-50">{busy ? "Přepočítávám…" : "Přepnout"}</button>
+            <button onClick={() => setAsk(null)} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-fg-2">Zrušit</button>
           </div>
         </div>
       )}
       {cyc.manual && (
-        <p className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[#f6d69a]">
+        <p className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-watch">
           Ručně zvoleno pro tento týden{cyc.autoPos ? ` (automaticky by byl ${cyc.autoPos}. týden)` : ""}.
-          <button onClick={() => void pick(null)} disabled={busy} className="rounded-full border border-[#f6d69a]/40 px-2.5 py-0.5 font-bold">Vrátit automaticky</button>
+          <button onClick={() => void pick(null)} disabled={busy} className="rounded-full border border-watch/40 px-2.5 py-0.5 font-bold">Vrátit automaticky</button>
         </p>
       )}
-      <p className="mt-3 text-xs leading-5 text-[#a9c2b9]">
+      <p className="mt-3 text-xs leading-5 text-fg-2">
         {how} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž ({num(vol.ceiling7)} km za 7 dní).
       </p>
       <div className="mt-4">
-        <p className="mb-2 font-mono text-[9px] uppercase tracking-[.14em] text-[#71837b]">Objem po týdnech (od pondělí)</p>
+        <p className="mb-2 font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Objem po týdnech (od pondělí)</p>
         <div className="max-w-md"><CycleStrip cyc={cyc} /></div>
       </div>
     </section>
@@ -209,7 +210,7 @@ function WeekPanel({ g }: { g: any }) {
 // Plan B4 — the race calendar. A = the goal race (taper before it), B = run hard
 // without a taper, C = run as training. The profile's goal race shows here too.
 const PRIO: Record<string, [string, string]> = {
-  A: ["A · cílový", "#c7ff54"], B: ["B · naplno bez ladění", "#6ce6d3"], C: ["C · jako trénink", "#9bb3aa"],
+  A: ["A · cílový", C.accent], B: ["B · naplno bez ladění", C.ok], C: ["C · jako trénink", C.fg2],
 }
 const DIST = [["5", "5 km"], ["10", "10 km"], ["21.1", "půlmaraton"], ["42.2", "maraton"]]
 
@@ -239,32 +240,32 @@ function RacesCard({ outlook }: { outlook: any }) {
   }
   const list = (races || []).filter((x) => x.daysTo >= -30)
   const warns = (outlook?.warnings || []).filter((w: any) => w.kind !== "race_day")
-  const inp = "w-full rounded-xl border border-white/10 bg-white/[.04] px-3 py-2 text-sm text-[#f1f8f1]"
+  const inp = "w-full rounded-xl border border-white/10 bg-white/[.04] px-3 py-2 text-sm text-fg"
   return (
     <Card className="mt-4">
       <div className="flex items-center justify-between gap-2">
         <Label>Závody</Label>
-        {!adding && <button onClick={() => setAdding(true)} className="rounded-full border border-white/15 px-3 py-1 text-[11px] font-bold text-[#c7ff54]">+ Přidat závod</button>}
+        {!adding && <button onClick={() => setAdding(true)} className="rounded-full border border-white/15 px-3 py-1 text-[11px] font-bold text-accent">+ Přidat závod</button>}
       </div>
       {warns.map((w: any, i: number) => (
-        <p key={i} className="mt-3 rounded-xl border border-[#f6d69a]/35 bg-[#33301f] px-3 py-2 text-xs leading-5 text-[#f6e2b3]">⚠ {w.text}</p>
+        <p key={i} className="mt-3 rounded-xl border border-watch/35 bg-watch-bg px-3 py-2 text-xs leading-5 text-watch-soft">⚠ {w.text}</p>
       ))}
-      {races === null ? <p className="mt-2 text-sm text-[#71837b]">Načítám…</p> : list.length === 0 && !adding ? (
-        <p className="mt-2 text-sm text-[#a9c2b9]">Zatím žádný závod. Přidejte ho — před cílovým závodem (A) plán zařadí ladění formy a hlídá, aby závod nepřišel moc brzy po jiném maximálním úsilí.</p>
+      {races === null ? <p className="mt-2 text-sm text-fg-3">Načítám…</p> : list.length === 0 && !adding ? (
+        <p className="mt-2 text-sm text-fg-2">Zatím žádný závod. Přidejte ho — před cílovým závodem (A) plán zařadí ladění formy a hlídá, aby závod nepřišel moc brzy po jiném maximálním úsilí.</p>
       ) : (
         <ul className="mt-3 divide-y divide-white/5">
           {list.map((x) => {
             const [pl, pc] = PRIO[x.priority] || PRIO.B
             return (
               <li key={x.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 ${x.daysTo < 0 ? "opacity-50" : ""}`}>
-                <span className="w-16 shrink-0 font-mono text-xs text-[#9bb3aa]">{fmtD(x.date)}</span>
-                <span className="min-w-0 flex-1 text-sm text-[#f1f8f1]">
-                  {x.name || (x.priority === "A" ? "Cílový závod" : "Závod")}{x.km ? <span className="text-[#71837b]"> · {num(x.km)} km</span> : null}
-                  {x.source === "profile" && <span className="text-[10px] text-[#71837b]"> · z profilu</span>}
+                <span className="w-16 shrink-0 tabular-nums text-xs text-fg-2">{fmtD(x.date)}</span>
+                <span className="min-w-0 flex-1 text-sm text-fg">
+                  {x.name || (x.priority === "A" ? "Cílový závod" : "Závod")}{x.km ? <span className="text-fg-3"> · {num(x.km)} km</span> : null}
+                  {x.source === "profile" && <span className="text-[11px] text-fg-3"> · z profilu</span>}
                 </span>
-                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${pc}1f`, color: pc }}>{pl}</span>
-                <span className="w-16 text-right text-[11px] text-[#9bb3aa]">{x.daysTo === 0 ? "dnes" : x.daysTo > 0 ? `za ${x.daysTo} d` : "proběhl"}</span>
-                <button disabled={busy} onClick={() => del(x.id)} aria-label="Smazat závod" className="text-xs text-[#71837b] hover:text-[#e77a59]">✕</button>
+                <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `${pc}1f`, color: pc }}>{pl}</span>
+                <span className="w-16 text-right text-[11px] text-fg-2">{x.daysTo === 0 ? "dnes" : x.daysTo > 0 ? `za ${x.daysTo} d` : "proběhl"}</span>
+                <button disabled={busy} onClick={() => del(x.id)} aria-label="Smazat závod" className="text-xs text-fg-3 hover:text-alert">✕</button>
               </li>
             )
           })}
@@ -272,22 +273,22 @@ function RacesCard({ outlook }: { outlook: any }) {
       )}
       {adding && (
         <div className="mt-3 grid gap-2 rounded-2xl border border-white/10 p-3 sm:grid-cols-2">
-          <label className="text-[11px] text-[#9bb3aa]">Datum<input type="date" className={inp} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
-          <label className="text-[11px] text-[#9bb3aa]">Název<input className={inp} value={f.name} placeholder="např. Pražský půlmaraton" maxLength={80} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
-          <label className="text-[11px] text-[#9bb3aa]">Délka (km)
+          <label className="text-[11px] text-fg-2">Datum<input type="date" className={inp} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
+          <label className="text-[11px] text-fg-2">Název<input className={inp} value={f.name} placeholder="např. Pražský půlmaraton" maxLength={80} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
+          <label className="text-[11px] text-fg-2">Délka (km)
             <input className={inp} inputMode="decimal" value={f.km} onChange={(e) => setF({ ...f, km: e.target.value })} />
-            <span className="mt-1 flex flex-wrap gap-1">{DIST.map(([v, l]) => <button key={v} type="button" onClick={() => setF({ ...f, km: v })} className="rounded-full bg-white/[.06] px-2 py-0.5 text-[10px] text-[#a9c2b9]">{l}</button>)}</span>
+            <span className="mt-1 flex flex-wrap gap-1">{DIST.map(([v, l]) => <button key={v} type="button" onClick={() => setF({ ...f, km: v })} className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] text-fg-2">{l}</button>)}</span>
           </label>
-          <div className="text-[11px] text-[#9bb3aa]">Priorita
+          <div className="text-[11px] text-fg-2">Priorita
             <div className="mt-1 flex flex-wrap gap-1">{Object.entries(PRIO).map(([k, [l, c]]) => (
-              <button key={k} type="button" onClick={() => setF({ ...f, priority: k })} className="rounded-full border px-2.5 py-1 text-[10px] font-bold"
-                style={f.priority === k ? { borderColor: c, color: c, background: `${c}1f` } : { borderColor: "rgb(255 255 255 / .12)", color: "#a9c2b9" }}>{l}</button>
+              <button key={k} type="button" onClick={() => setF({ ...f, priority: k })} className="rounded-full border px-2.5 py-1 text-[11px] font-bold"
+                style={f.priority === k ? { borderColor: c, color: c, background: `${c}1f` } : { borderColor: "rgb(255 255 255 / .12)", color: C.fg2 }}>{l}</button>
             ))}</div>
-            <p className="mt-1 text-[10px] leading-4 text-[#71837b]">A = hlavní cíl, 2 týdny před ním ladění formy. B = naplno, bez ladění. C = jako trénink.</p>
+            <p className="mt-1 text-[11px] leading-4 text-fg-3">A = hlavní cíl, 2 týdny před ním ladění formy. B = naplno, bez ladění. C = jako trénink.</p>
           </div>
           <div className="flex gap-2 sm:col-span-2">
-            <button disabled={busy || !f.date} onClick={save} className="rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313] disabled:opacity-50">Uložit</button>
-            <button onClick={() => setAdding(false)} className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-[#a9c2b9]">Zrušit</button>
+            <button disabled={busy || !f.date} onClick={save} className="rounded-full bg-accent px-4 py-2 text-xs font-bold text-ink disabled:opacity-50">Uložit</button>
+            <button onClick={() => setAdding(false)} className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-fg-2">Zrušit</button>
           </div>
         </div>
       )}
@@ -301,12 +302,12 @@ export function Training() {
   const g = a?.guidance
   const [sel, setSel] = useState<string | null>(null)
   useEffect(() => { setSel(null) }, [g?.date, g?.type])
-  if (!a) return <p className="text-sm text-[#71837b]">Načítám…</p>
+  if (!a) return <p className="text-sm text-fg-3">Načítám…</p>
   if (a.engineMode !== "v3" || !g) {
     return (
       <Card>
         <Label>Trénink</Label>
-        <p className="mt-2 text-sm text-[#a9c2b9]">Denní doporučení počítá Kapacitní engine. Zapnete ho v <Link to="/data" className="font-bold text-[#c7ff54]">Data a propojení → Engine hodnocení → Kapacitní</Link>.</p>
+        <p className="mt-2 text-sm text-fg-2">Denní doporučení počítá Kapacitní engine. Zapnete ho v <Link to="/data" className="font-bold text-accent">Data a propojení → Engine hodnocení → Kapacitní</Link>.</p>
       </Card>
     )
   }
@@ -323,7 +324,7 @@ export function Training() {
           <h1 className="mt-1 font-serif text-4xl tracking-[-.06em]">{t.label}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          {g.provisional && <span className="rounded-full bg-[#f6d69a]/15 px-3 py-1.5 text-[11px] font-bold text-[#f6d69a]">předběžné · čeká na ranní data</span>}
+          {g.provisional && <span className="rounded-full bg-watch/15 px-3 py-1.5 text-[11px] font-bold text-watch">předběžné · čeká na ranní data</span>}
           {(() => {
             const rp = g.readinessScore ?? Math.round((g.readiness ?? 1) * 100)
             const col = readinessCol(rp)
@@ -337,17 +338,17 @@ export function Training() {
       </div>
 
       {g.override && (
-        <div className="mt-5 rounded-2xl border border-[#e77a59]/45 bg-[#3c2922] p-4 text-[#ffc1ab]">
+        <div className="mt-5 rounded-2xl border border-alert/45 bg-alert-bg p-4 text-alert-soft">
           <p className="text-sm font-bold">⚠ {g.override.title}</p>
           <p className="mt-1 text-xs leading-5">{g.override.text}</p>
           {(g.override.kind === "physio" || g.override.kind === "function") && (
-            <Link to="/app/messages" className="mt-3 inline-block rounded-full bg-[#c7ff54] px-4 py-2 text-xs font-bold text-[#071313]">Objednat fyzioterapeuta</Link>
+            <Link to="/app/messages" className="mt-3 inline-block rounded-full bg-accent px-4 py-2 text-xs font-bold text-ink">Objednat fyzioterapeuta</Link>
           )}
         </div>
       )}
 
       {g.done && (
-        <div className="mt-4 rounded-2xl border border-[#6ce6d3]/30 bg-[#6ce6d3]/[.06] p-3.5 text-xs text-[#cfe9e2]">
+        <div className="mt-4 rounded-2xl border border-info/30 bg-info/[.06] p-3.5 text-xs text-fg-soft">
           Dnes už máte hotovo: <b>{num(g.done.volume)} km</b>{g.done.intensity ? ` · ${num(g.done.intensity, 0)} min v Z4+` : ""}{g.done.descent ? ` · klesání ${num(g.done.descent, 0)} m` : ""}. Limity níže ukazují, co ještě dnes zbývá.
         </div>
       )}
@@ -359,16 +360,16 @@ export function Training() {
           const ok = g.types[k].allowed
           return (
             <button key={k} onClick={() => setSel(k)}
-              className={`rounded-full border px-3.5 py-2 text-xs font-bold transition ${on ? "border-[#c7ff54] bg-[#c7ff54]/12 text-[#f1f8f1]" : "border-white/12 text-[#a9c2b9] hover:border-white/25"} ${ok ? "" : "opacity-55"}`}>
+              className={`rounded-full border px-3.5 py-2 text-xs font-bold transition ${on ? "border-accent bg-accent/12 text-fg" : "border-white/12 text-fg-2 hover:border-white/25"} ${ok ? "" : "opacity-55"}`}>
               {g.types[k].label}{rec ? " · doporučeno" : ""}{!ok ? " ⊘" : ""}
             </button>
           )
         })}
       </div>
 
-      <section className="mt-4 rounded-[24px] border border-white/10 bg-[#0c201d] p-5 md:p-6">
+      <section className="mt-4 rounded-[24px] border border-white/10 bg-panel p-5 md:p-6">
         {!t.allowed && (
-          <p className="mb-4 rounded-xl bg-[#3c2922] px-3 py-2 text-xs font-bold text-[#ffc1ab]">Dnes nedoporučujeme: {t.why}</p>
+          <p className="mb-4 rounded-xl bg-alert-bg px-3 py-2 text-xs font-bold text-alert-soft">Dnes nedoporučujeme: {t.why}</p>
         )}
         {run ? (
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -386,10 +387,10 @@ export function Training() {
             <Stat label="Terén" text value={t.terrain ? t.terrain.split(" — ")[0] : "—"} sub={t.terrain?.split(" — ")[1]} />
           </div>
         ) : (
-          <p className="text-sm text-[#a9c2b9]">{kind === "závod" ? ((a.races?.warnings || []).some((w: any) => w.kind === "race_day") ? "Den závodu — ale tělo dnes nehlásí plnou připravenost (viz níže). Běžte s rezervou." : "Den závodu — žádné limity. Po závodě nechte tělo pár dní regenerovat.") : "Odpočinek. Pokud chcete pohyb, zvolte lehkou chůzi, mobilitu nebo jiný sport bez nárazů a bez bolesti."}</p>
+          <p className="text-sm text-fg-2">{kind === "závod" ? ((a.races?.warnings || []).some((w: any) => w.kind === "race_day") ? "Den závodu — ale tělo dnes nehlásí plnou připravenost (viz níže). Běžte s rezervou." : "Den závodu — žádné limity. Po závodě nechte tělo pár dní regenerovat.") : "Odpočinek. Pokud chcete pohyb, zvolte lehkou chůzi, mobilitu nebo jiný sport bez nárazů a bez bolesti."}</p>
         )}
         {t.notes?.length > 0 && (
-          <ul className="mt-4 space-y-1 text-xs text-[#a9c2b9]">{t.notes.map((n: string, i: number) => <li key={i}>• {n}</li>)}</ul>
+          <ul className="mt-4 space-y-1 text-xs text-fg-2">{t.notes.map((n: string, i: number) => <li key={i}>• {n}</li>)}</ul>
         )}
       </section>
 
@@ -400,16 +401,16 @@ export function Training() {
       <Card className="mt-4">
         <Label>Proč</Label>
         {g.reasons?.length ? (
-          <ul className="mt-2 space-y-2 text-sm text-[#e7efe9]">{g.reasons.map((r: string, i: number) => <li key={i} className="flex gap-2"><span className="text-[#6ce6d3]">›</span><span>{r}</span></li>)}</ul>
-        ) : <p className="mt-2 text-sm text-[#a9c2b9]">Vše v normě — běžný tréninkový den.</p>}
-        <p className="mt-4 text-[11px] leading-4 text-[#71837b]">
+          <ul className="mt-2 space-y-2 text-sm text-fg">{g.reasons.map((r: string, i: number) => <li key={i} className="flex gap-2"><span className="text-info">›</span><span>{r}</span></li>)}</ul>
+        ) : <p className="mt-2 text-sm text-fg-2">Vše v normě — běžný tréninkový den.</p>}
+        <p className="mt-4 text-[11px] leading-4 text-fg-3">
           {pat.runDayNames?.length ? `Obvykle běháte: ${pat.runDayNames.join(", ")}` : "Pravidelné dny zatím nepoznáváme"}
           {pat.longDayName ? ` · dlouhý běh ${pat.longDayName}` : ""}
           {pat.hardDayNames?.length ? ` · tvrdé tréninky: ${pat.hardDayNames.join(", ")}` : ""}
           {pat.easyKm ? ` · typický lehký běh ${num(pat.easyKm)} km` : ""}
         </p>
       </Card>
-      <p className="mt-4 text-[10px] leading-4 text-[#71837b]">Došlap není zdravotnický prostředek. Doporučení jsou ochranné mantinely z vašich dat, ne léčba ani diagnóza. Při bolesti, která se vrací nebo zhoršuje, se poraďte s fyzioterapeutem.</p>
+      <p className="mt-4 text-[11px] leading-4 text-fg-3">Došlap není zdravotnický prostředek. Doporučení jsou ochranné mantinely z vašich dat, ne léčba ani diagnóza. Při bolesti, která se vrací nebo zhoršuje, se poraďte s fyzioterapeutem.</p>
     </>
   )
 }

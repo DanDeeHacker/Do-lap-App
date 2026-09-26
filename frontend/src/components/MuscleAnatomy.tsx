@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { C } from "@/tokens"
 
 export type BodyPoint = { region: string; side: string; kind: string }
 
@@ -223,13 +224,13 @@ export function PainHeatmap({ counts }: { counts: Record<string, number> }) {
       {hasFront && withData("back").length > 0 && (
         <div className="mb-3 flex items-center justify-center gap-2">
           {(["front", "back"] as const).map((v) => (
-            <button key={v} onClick={() => setView(v)} className={`rounded-full px-3 py-1 text-[10px] font-bold transition ${view === v ? "bg-[#e77a59] text-[#0c1f1c]" : "border border-white/10 text-[#a9c2b9] hover:border-[#e77a59]/40"}`}>{v === "front" ? "Zepředu" : "Zezadu"}</button>
+            <button key={v} onClick={() => setView(v)} className={`rounded-full px-3 py-1 text-[11px] font-bold transition ${view === v ? "bg-alert text-ink" : "border border-white/10 text-fg-2 hover:border-alert/40"}`}>{v === "front" ? "Zepředu" : "Zezadu"}</button>
           ))}
         </div>
       )}
-      <div className="relative w-full overflow-hidden rounded-[22px] border border-white/10 bg-[#0c211e]" style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}>
+      <div className="relative w-full overflow-hidden rounded-[22px] border border-white/10 bg-panel" style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}>
         <img src={bases[view]} alt="Silueta těla" className="absolute inset-0 h-full w-full object-cover opacity-20 grayscale" />
-        <div className="absolute inset-0 bg-[#0c211e]/50" />
+        <div className="absolute inset-0 bg-panel/50" />
         {pts.map((h) => {
           const t = counts[h.title] / max
           return (
@@ -251,7 +252,7 @@ export function PainHeatmap({ counts }: { counts: Record<string, number> }) {
         {pts.map((h) => (
           <span
             key={`${h.id}-n`}
-            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-[9px] font-bold text-white"
+            className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-[11px] font-bold text-white"
             style={{ top: `${(h.top / CANVAS_H) * 100}%`, left: `${(h.left / CANVAS_W) * 100}%`, textShadow: "0 1px 2px rgb(0 0 0 / .85)" }}
           >
             {counts[h.title]}×
@@ -311,8 +312,8 @@ export default function MuscleAnatomy({
             onClick={() => setView(v)}
             className={`rounded-full px-4 py-1.5 text-[11px] font-bold tracking-wide transition ${
               view === v
-                ? "bg-[#6ce6d3] text-[#0c1f1c]"
-                : "border border-white/10 text-[#a9c2b9] hover:border-[#6ce6d3]/40"
+                ? "bg-info text-ink"
+                : "border border-white/10 text-fg-2 hover:border-info/40"
             }`}
           >
             {v === "front" ? "Zepředu" : "Zezadu"}
@@ -321,7 +322,7 @@ export default function MuscleAnatomy({
       </div>
 
       <div
-        className="relative w-full overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-b from-[#12312c] to-[#0c211e]"
+        className="relative w-full overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-b from-panel-2 to-panel"
         style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}
       >
         <img
@@ -369,7 +370,7 @@ export default function MuscleAnatomy({
         {list.map((h) => {
           const isSel = selected.has(h.id)
           const isTendon = h.kind === "tendon"
-          const base = isTendon ? "#f6b26b" : "#6ce6d3"
+          const base = isTendon ? "#f6b26b" : C.info
           return (
             <button
               key={h.id}
@@ -385,7 +386,7 @@ export default function MuscleAnatomy({
               style={{
                 top: `${(h.top / CANVAS_H) * 100}%`,
                 left: `${(h.left / CANVAS_W) * 100}%`,
-                backgroundColor: isSel ? "#e77a59" : base,
+                backgroundColor: isSel ? C.alert : base,
                 boxShadow: isSel ? "0 0 0 6px rgb(228 125 81 / .25)" : undefined,
                 zIndex: isSel ? 20 : 10,
               }}
@@ -394,13 +395,13 @@ export default function MuscleAnatomy({
         })}
       </div>
 
-      <div className="mt-4 flex items-center justify-center gap-4 text-[10px] text-[#8ba59d]">
+      <div className="mt-4 flex items-center justify-center gap-4 text-[11px] text-fg-2">
         <span className="inline-flex items-center gap-1.5">
-          <i className="size-2.5 rounded-full bg-[#6ce6d3]" />
+          <i className="size-2.5 rounded-full bg-info" />
           Svaly · {muscleCount}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <i className="size-2.5 rotate-45 rounded-[2px] bg-[#f6b26b]" />
+          <i className="size-2.5 rotate-45 rounded-[2px] bg-watch" />
           Šlachy a chodidla · {tendonCount}
         </span>
       </div>
@@ -408,27 +409,27 @@ export default function MuscleAnatomy({
       {multi ? (
         selected.size ? (
           <div className="mt-3">
-            <p className="text-center text-[10px] text-[#8ba59d]">Vybraná místa · {selected.size}{selected.size > selectedHere.length ? " (i v druhém pohledu)" : ""}</p>
+            <p className="text-center text-[11px] text-fg-2">Vybraná místa · {selected.size}{selected.size > selectedHere.length ? " (i v druhém pohledu)" : ""}</p>
             <div className="mt-2 flex flex-wrap justify-center gap-1.5">
               {[...selected].map((id) => {
                 const h = byId.get(id)!
                 return (
-                  <button key={id} onClick={() => toggle(id)} className="inline-flex items-center gap-1 rounded-full bg-[#e77a59]/15 px-2.5 py-1 text-[11px] font-semibold text-[#ffc1ab]">
-                    {h.title} <span className="text-[#ffc1ab]/60">×</span>
+                  <button key={id} onClick={() => toggle(id)} className="inline-flex items-center gap-1 rounded-full bg-alert/15 px-2.5 py-1 text-[11px] font-semibold text-alert-soft">
+                    {h.title} <span className="text-alert-soft/60">×</span>
                   </button>
                 )
               })}
             </div>
           </div>
         ) : (
-          <p className="mt-2 text-center text-xs text-[#a9c2b9]">Klepněte na místa, která bolí – můžete jich vybrat víc (i zepředu i zezadu).</p>
+          <p className="mt-2 text-center text-xs text-fg-2">Klepněte na místa, která bolí – můžete jich vybrat víc (i zepředu i zezadu).</p>
         )
       ) : (
-        <p className="mt-2 text-center text-xs text-[#a9c2b9]">
+        <p className="mt-2 text-center text-xs text-fg-2">
           {selectedHere[0] ? (
             <>
               {selectedHere[0].kind === "muscle" ? "Sval: " : selectedHere[0].id.includes("foot") ? "Oblast chodidla: " : "Šlacha / úpon: "}
-              <b className="text-[#f1f8f1]">{selectedHere[0].title}</b>
+              <b className="text-fg">{selectedHere[0].title}</b>
             </>
           ) : (
             "Klepněte na bod – vyberte stranu (L/P), sval, šlachu nebo chodidlo"

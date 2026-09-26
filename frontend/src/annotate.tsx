@@ -63,14 +63,14 @@ export function AnnotateToggle() {
       aria-pressed={on}
       aria-label={on ? "Ukončit režim poznámek" : "Režim poznámek"}
       title={on ? "Ukončit režim poznámek (Esc)" : "Režim poznámek — klikněte kamkoli v aplikaci a nechte poznámku"}
-      className={`relative grid size-9 place-items-center rounded-full transition ${on ? "bg-[#c7ff54] text-[#071313] ring-2 ring-[#071313]/15" : "bg-[#dcece7] text-[#193431] hover:bg-[#c7ff54]/70"}`}
+      className={`relative grid size-9 place-items-center rounded-full transition ${on ? "bg-accent text-ink ring-2 ring-ink/15" : "bg-accent text-fg hover:bg-accent/70"}`}
     >
       <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z" />
         <path d="M9 9.5h6M12 6.5v6" />
       </svg>
       {here > 0 && (
-        <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#e77a59] px-1 text-[9px] font-bold leading-none text-white">{here}</span>
+        <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-alert px-1 text-[11px] font-bold leading-none text-white">{here}</span>
       )}
     </button>
   )
@@ -147,7 +147,7 @@ function popoverStyle(x: number, y: number, h = 250): React.CSSProperties {
   return { left, top, width: w }
 }
 const popoverCls =
-  "fixed z-[80] rounded-2xl border border-white/10 bg-[#102724] p-3 text-[#f1f8f1] shadow-[0_18px_50px_rgb(0_0_0_/_0.45)] max-sm:inset-x-2 max-sm:bottom-[calc(76px+env(safe-area-inset-bottom))]"
+  "fixed z-[80] rounded-2xl border border-white/10 bg-panel-2 p-3 text-fg shadow-[0_18px_50px_rgb(0_0_0_/_0.45)] max-sm:inset-x-2 max-sm:bottom-[calc(76px+env(safe-area-inset-bottom))]"
 
 // ---- the overlay ----------------------------------------------------------------
 export function AnnotationLayer() {
@@ -261,29 +261,29 @@ export function AnnotationLayer() {
   return (
     <>
       <div {...{ [UI]: "" }} className="fixed inset-x-0 top-[calc(76px+env(safe-area-inset-top))] z-[75] flex justify-center px-3">
-        <div className="flex max-w-full items-center gap-2 rounded-full border border-[#c7ff54]/40 bg-[#0c201d] py-1.5 pl-3.5 pr-1.5 text-[11px] text-[#f1f8f1] shadow-lg">
-          <span className="size-2 shrink-0 animate-pulse rounded-full bg-[#c7ff54]" />
+        <div className="flex max-w-full items-center gap-2 rounded-full border border-accent/40 bg-panel py-1.5 pl-3.5 pr-1.5 text-[11px] text-fg shadow-lg">
+          <span className="size-2 shrink-0 animate-pulse rounded-full bg-accent" />
           <span className="min-w-0 truncate"><b>Režim poznámek</b><span className="hidden sm:inline"> — klikněte na libovolné místo a napište, co změnit</span></span>
-          <label className="flex shrink-0 cursor-pointer items-center gap-1 text-[10px] text-[#a9c2b9]">
-            <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} className="accent-[#c7ff54]" />vyřešené
+          <label className="flex shrink-0 cursor-pointer items-center gap-1 text-[11px] text-fg-2">
+            <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} className="accent-accent" />vyřešené
           </label>
-          <button onClick={() => setOn(false)} className="shrink-0 rounded-full bg-[#c7ff54] px-3 py-1 font-bold text-[#071313]">Hotovo</button>
+          <button onClick={() => setOn(false)} className="shrink-0 rounded-full bg-accent px-3 py-1 font-bold text-ink">Hotovo</button>
         </div>
       </div>
 
       {hover && !draft && (
-        <div className="pointer-events-none fixed z-[70] rounded-lg border-2 border-[#c7ff54] bg-[#c7ff54]/[.06] transition-all duration-75"
+        <div className="pointer-events-none fixed z-[70] rounded-lg border-2 border-accent bg-accent/[.06] transition-all duration-75"
           style={{ left: hover.left - 3, top: hover.top - 3, width: hover.width + 6, height: hover.height + 6 }} />
       )}
       {draftRect && (
-        <div className="pointer-events-none fixed z-[70] rounded-lg border-2 border-dashed border-[#c7ff54]"
+        <div className="pointer-events-none fixed z-[70] rounded-lg border-2 border-dashed border-accent"
           style={{ left: draftRect.left - 3, top: draftRect.top - 3, width: draftRect.width + 6, height: draftRect.height + 6 }} />
       )}
 
       {shown.map(({ n, num }) => {
         const p = pinPoint(n)
         if (!p || p.y < 60 || p.y > innerHeight + 20) return null
-        const col = n.status === "open" ? (n.own === false ? "bg-[#f6d69a] text-[#3a2a12]" : "bg-[#c7ff54] text-[#071313]") : "bg-[#5f7268] text-white"
+        const col = n.status === "open" ? (n.own === false ? "bg-watch text-ink" : "bg-accent text-ink") : "bg-fg-4 text-white"
         return (
           <button
             key={n.id}
@@ -291,7 +291,7 @@ export function AnnotationLayer() {
             onClick={() => { setDraft(null); setOpenId(openId === n.id ? null : n.id) }}
             title={n.note}
             aria-label={`Poznámka ${num}`}
-            className={`fixed z-[72] grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full rounded-bl-none text-[11px] font-extrabold shadow-[0_4px_14px_rgb(0_0_0_/_0.35)] ring-2 ring-[#071313]/70 ${col} ${p.moved ? "outline-dashed outline-2 outline-offset-2 outline-[#c7ff54]/60" : ""} ${openId === n.id ? "scale-110" : ""}`}
+            className={`fixed z-[72] grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full rounded-bl-none text-[11px] font-extrabold shadow-[0_4px_14px_rgb(0_0_0_/_0.35)] ring-2 ring-ink/70 ${col} ${p.moved ? "outline-dashed outline-2 outline-offset-2 outline-accent/60" : ""} ${openId === n.id ? "scale-110" : ""}`}
             style={{ left: p.x, top: p.y }}
           >
             {n.status === "done" ? "✓" : num}
@@ -331,7 +331,7 @@ function KindPicker({ kind, setKind }: { kind: string; setKind: (k: string) => v
     <div className="flex gap-1" role="radiogroup" aria-label="Typ poznámky">
       {KINDS.map(([k, label]) => (
         <button key={k} role="radio" aria-checked={kind === k} onClick={() => setKind(k)}
-          className={`rounded-full px-2.5 py-1 text-[10px] font-bold transition ${kind === k ? "bg-[#c7ff54] text-[#071313]" : "bg-white/[.06] text-[#a9c2b9] hover:bg-white/[.1]"}`}>
+          className={`rounded-full px-2.5 py-1 text-[11px] font-bold transition ${kind === k ? "bg-accent text-ink" : "bg-white/[.06] text-fg-2 hover:bg-white/[.1]"}`}>
           {label}
         </button>
       ))}
@@ -361,10 +361,10 @@ function DraftCard({ at, anchor, onCancel, onSave }: {
   }
   return (
     <>
-      <span {...{ [UI]: "" }} className="pointer-events-none fixed z-[72] size-3 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-[#c7ff54]" style={{ left: at.x, top: at.y }} />
+      <span {...{ [UI]: "" }} className="pointer-events-none fixed z-[72] size-3 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full bg-accent" style={{ left: at.x, top: at.y }} />
       <div {...{ [UI]: "" }} className={popoverCls} style={popoverStyle(at.x, at.y)} role="dialog" aria-label="Nová poznámka">
-        <p className="font-mono text-[9px] uppercase tracking-[.16em] text-[#91b7a9]">Nová poznámka</p>
-        <p className="mt-1 truncate text-[11px] text-[#a9c2b9]" title={anchor}>k prvku „{anchor}“</p>
+        <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">Nová poznámka</p>
+        <p className="mt-1 truncate text-[11px] text-fg-2" title={anchor}>k prvku „{anchor}“</p>
         <div className="mt-2"><KindPicker kind={kind} setKind={setKind} /></div>
         <textarea
           ref={ta}
@@ -374,14 +374,14 @@ function DraftCard({ at, anchor, onCancel, onSave }: {
           maxLength={4000}
           rows={4}
           placeholder="Co tu změnit, co nefunguje, co chybí…"
-          className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-black/25 p-2.5 text-[13px] leading-5 text-[#f1f8f1] placeholder:text-[#5f7268] focus:border-[#c7ff54]/60 focus:outline-none"
+          className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-black/25 p-2.5 text-[13px] leading-5 text-fg placeholder:text-fg-4 focus:border-accent/60 focus:outline-none"
         />
-        {err && <p className="mt-1 text-[11px] text-[#f6b89f]">{err}</p>}
+        {err && <p className="mt-1 text-[11px] text-alert-soft">{err}</p>}
         <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="hidden text-[9px] text-[#5f7268] sm:inline">⌘/Ctrl + Enter uloží</span>
+          <span className="hidden text-[11px] text-fg-4 sm:inline">⌘/Ctrl + Enter uloží</span>
           <span className="ml-auto flex gap-2">
-            <button onClick={onCancel} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-[#a9c2b9]">Zrušit</button>
-            <button onClick={() => void save()} disabled={!text.trim() || busy} className="rounded-full bg-[#c7ff54] px-3.5 py-1.5 text-[11px] font-bold text-[#071313] disabled:opacity-40">{busy ? "Ukládám…" : "Uložit"}</button>
+            <button onClick={onCancel} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-fg-2">Zrušit</button>
+            <button onClick={() => void save()} disabled={!text.trim() || busy} className="rounded-full bg-accent px-3.5 py-1.5 text-[11px] font-bold text-ink disabled:opacity-40">{busy ? "Ukládám…" : "Uložit"}</button>
           </span>
         </div>
       </div>
@@ -420,42 +420,42 @@ function NoteCard({ note, num, at, showAuthor, onClose, onChange, onDelete }: {
   return (
     <div {...{ [UI]: "" }} className={popoverCls} style={at ? popoverStyle(at.x, at.y, 220) : { left: 16, top: 96, width: 320 }} role="dialog" aria-label={`Poznámka ${num}`}>
       <div className="flex items-center gap-2">
-        <span className="grid size-6 place-items-center rounded-full bg-[#c7ff54] text-[11px] font-extrabold text-[#071313]">{num}</span>
-        <span className="rounded-full bg-white/[.06] px-2 py-0.5 text-[10px] font-bold text-[#c9dcd4]">{KIND_LABEL[note.kind] || note.kind}</span>
-        <span className={`text-[10px] ${note.status === "open" ? "text-[#c7ff54]" : "text-[#91b7a9]"}`}>{STATUS_LABEL[note.status]}</span>
-        <button onClick={onClose} aria-label="Zavřít" className="ml-auto grid size-6 place-items-center rounded-full text-[#91b7a9] hover:bg-white/[.06]">×</button>
+        <span className="grid size-6 place-items-center rounded-full bg-accent text-[11px] font-extrabold text-ink">{num}</span>
+        <span className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] font-bold text-fg-soft">{KIND_LABEL[note.kind] || note.kind}</span>
+        <span className={`text-[11px] ${note.status === "open" ? "text-accent" : "text-fg-2"}`}>{STATUS_LABEL[note.status]}</span>
+        <button onClick={onClose} aria-label="Zavřít" className="ml-auto grid size-6 place-items-center rounded-full text-fg-2 hover:bg-white/[.06]">×</button>
       </div>
       {editing ? (
         <>
           <div className="mt-2"><KindPicker kind={kind} setKind={setKind} /></div>
           <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={4000} rows={4} autoFocus
-            className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-black/25 p-2.5 text-[13px] leading-5 text-[#f1f8f1] focus:border-[#c7ff54]/60 focus:outline-none" />
+            className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-black/25 p-2.5 text-[13px] leading-5 text-fg focus:border-accent/60 focus:outline-none" />
         </>
       ) : (
         <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-[13px] leading-5">{note.note}</p>
       )}
-      {note.resolution && <p className="mt-2 rounded-lg bg-black/25 px-2 py-1.5 text-[11px] leading-4 text-[#9bd8c6]">Vyřešeno: {note.resolution}</p>}
-      <p className="mt-2 text-[10px] text-[#71837b]">{when}{showAuthor ? ` · ${note.author.name || "?"} (${note.author.role || "?"})` : ""}{note.anchorText ? ` · „${note.anchorText.slice(0, 40)}${note.anchorText.length > 40 ? "…" : ""}“` : ""}</p>
-      {err && <p className="mt-1 text-[11px] text-[#f6b89f]">{err}</p>}
+      {note.resolution && <p className="mt-2 rounded-lg bg-black/25 px-2 py-1.5 text-[11px] leading-4 text-info">Vyřešeno: {note.resolution}</p>}
+      <p className="mt-2 text-[11px] text-fg-3">{when}{showAuthor ? ` · ${note.author.name || "?"} (${note.author.role || "?"})` : ""}{note.anchorText ? ` · „${note.anchorText.slice(0, 40)}${note.anchorText.length > 40 ? "…" : ""}“` : ""}</p>
+      {err && <p className="mt-1 text-[11px] text-alert-soft">{err}</p>}
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
         {editing ? (
           <>
-            <button onClick={() => void patch({ note: text.trim(), kind })} disabled={!text.trim()} className="rounded-full bg-[#c7ff54] px-3 py-1.5 text-[11px] font-bold text-[#071313] disabled:opacity-40">Uložit</button>
-            <button onClick={() => { setEditing(false); setText(note.note); setKind(note.kind) }} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-[#a9c2b9]">Zrušit</button>
+            <button onClick={() => void patch({ note: text.trim(), kind })} disabled={!text.trim()} className="rounded-full bg-accent px-3 py-1.5 text-[11px] font-bold text-ink disabled:opacity-40">Uložit</button>
+            <button onClick={() => { setEditing(false); setText(note.note); setKind(note.kind) }} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-fg-2">Zrušit</button>
           </>
         ) : confirmDel ? (
           <>
-            <span className="text-[11px] text-[#f6b89f]">Opravdu smazat?</span>
-            <button onClick={() => void del()} className="rounded-full bg-[#e77a59] px-3 py-1.5 text-[11px] font-bold text-white">Smazat</button>
-            <button onClick={() => setConfirmDel(false)} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-[#a9c2b9]">Ne</button>
+            <span className="text-[11px] text-alert-soft">Opravdu smazat?</span>
+            <button onClick={() => void del()} className="rounded-full bg-alert px-3 py-1.5 text-[11px] font-bold text-white">Smazat</button>
+            <button onClick={() => setConfirmDel(false)} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-fg-2">Ne</button>
           </>
         ) : (
           <>
-            <button onClick={() => setEditing(true)} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-[#c9dcd4]">Upravit</button>
-            <button onClick={() => void patch({ status: note.status === "open" ? "done" : "open" })} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-[#c9dcd4]">
+            <button onClick={() => setEditing(true)} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-fg-soft">Upravit</button>
+            <button onClick={() => void patch({ status: note.status === "open" ? "done" : "open" })} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-fg-soft">
               {note.status === "open" ? "Označit vyřešené" : "Znovu otevřít"}
             </button>
-            <button onClick={() => setConfirmDel(true)} className="ml-auto rounded-full px-2.5 py-1.5 text-[11px] font-bold text-[#e77a59] hover:bg-[#e77a59]/10">Smazat</button>
+            <button onClick={() => setConfirmDel(true)} className="ml-auto rounded-full px-2.5 py-1.5 text-[11px] font-bold text-alert hover:bg-alert/10">Smazat</button>
           </>
         )}
       </div>

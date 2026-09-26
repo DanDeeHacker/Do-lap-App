@@ -37,9 +37,9 @@ export function Care() {
 
       <div className="mb-6">
         <Label>Péče</Label>
-        <div className="mt-3 inline-flex flex-wrap gap-2 rounded-full border border-white/10 bg-[#0c201d] p-1 text-xs font-semibold">
+        <div className="mt-3 inline-flex flex-wrap gap-2 rounded-full border border-white/10 bg-panel p-1 text-xs font-semibold">
           {subtabs.map(([k, l]) => (
-            <button key={k} onClick={() => setSub(k)} className={`rounded-full px-4 py-1.5 transition ${sub === k ? "bg-[#c7ff54] text-[#071313]" : "text-[#9bb3aa] hover:text-[#f1f8f1]"}`}>
+            <button key={k} onClick={() => setSub(k)} className={`rounded-full px-4 py-1.5 transition ${sub === k ? "bg-accent text-ink" : "text-fg-2 hover:text-fg"}`}>
               {l}
             </button>
           ))}
@@ -74,26 +74,26 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
         <Card className="self-start">
           <Label>Schůzka</Label>
           {reminders.map((rm) => (
-            <div key={rm.booking_id} className="mt-3 rounded-xl bg-[#3c2922] p-3 text-sm text-[#ffc1ab]">
+            <div key={rm.booking_id} className="mt-3 rounded-xl bg-alert-bg p-3 text-sm text-alert-soft">
               <b>Zítra máte termín</b> · {fmtSlot(rm.slot_at)}{rm.physio_name ? ` · ${rm.physio_name}` : ""}
               {rm.prep_info && <p className="mt-1 text-xs">{rm.prep_info}</p>}
             </div>
           ))}
           {!r?.physio_interest ? (
             <>
-              <p className="mt-2 text-sm text-[#64736e]">Chcete probrat svá data s fyzioterapeutem? Nejdřív potvrďte zájem — teprve pak vás uvidí a nabídne termíny.</p>
-              <button onClick={async () => { await api.setInterest(rid, true); toast({ title: "Zájem potvrzen" }); refresh() }} className="mt-4 w-full rounded-full bg-[#c7ff54] py-2.5 text-sm font-bold text-[#071313]">Mám zájem o fyzioterapii</button>
+              <p className="mt-2 text-sm text-fg-2">Chcete probrat svá data s fyzioterapeutem? Nejdřív potvrďte zájem — teprve pak vás uvidí a nabídne termíny.</p>
+              <button onClick={async () => { await api.setInterest(rid, true); toast({ title: "Zájem potvrzen" }); refresh() }} className="mt-4 w-full rounded-full bg-accent py-2.5 text-sm font-bold text-ink">Mám zájem o fyzioterapii</button>
             </>
           ) : (
             <>
-              <p className="mt-2 text-sm text-[#64736e]">Zájem potvrzen ✓ <button onClick={async () => { await api.setInterest(rid, false); refresh() }} className="ml-1 text-xs font-bold text-[#71837b] underline">zrušit</button></p>
-              <button onClick={onFind} className="mt-3 w-full rounded-full bg-[#c7ff54] py-2.5 text-sm font-bold text-[#071313]">Naplánovat schůzku</button>
+              <p className="mt-2 text-sm text-fg-2">Zájem potvrzen ✓ <button onClick={async () => { await api.setInterest(rid, false); refresh() }} className="ml-1 text-xs font-bold text-fg-3 underline">zrušit</button></p>
+              <button onClick={onFind} className="mt-3 w-full rounded-full bg-accent py-2.5 text-sm font-bold text-ink">Naplánovat schůzku</button>
               {bookings.length > 0 && (
                 <div className="mt-3 divide-y divide-white/10">{bookings.map((b: any) => (
                   <div key={b.id} className="flex items-center gap-2 py-2 text-sm">
-                    <span className="flex-1"><b>{pn(b.physio_id)}</b><em className="block text-xs not-italic text-[#71837b]">{fmtSlot(b.slot_at)} · {b.status === "requested" ? "čeká na potvrzení" : "potvrzeno"}</em></span>
+                    <span className="flex-1"><b>{pn(b.physio_id)}</b><em className="block text-xs not-italic text-fg-3">{fmtSlot(b.slot_at)} · {b.status === "requested" ? "čeká na potvrzení" : "potvrzeno"}</em></span>
                     <Chip tone={b.status === "confirmed" ? "ok" : "watch"}>{b.status === "requested" ? "čeká" : "potvrzeno"}</Chip>
-                    <button onClick={async () => { await api.cancelBooking(rid, b.id); refresh() }} className="text-xs font-bold text-[#71837b]">Zrušit</button>
+                    <button onClick={async () => { await api.cancelBooking(rid, b.id); refresh() }} className="text-xs font-bold text-fg-3">Zrušit</button>
                   </div>
                 ))}</div>
               )}
@@ -101,7 +101,7 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
                 <div className="mt-3 border-t border-white/10 pt-3">
                   <Label>Spolupráce</Label>
                   {[...carePids].map((pid) => (
-                    <div key={pid} className="mt-2 flex items-center gap-2 text-sm"><b className="flex-1">{pn(pid)}</b><button onClick={async () => { await api.declinePhysio(rid, pid); toast({ title: "Spolupráce odvolána" }); refresh() }} className="rounded-full border border-white/15 px-3 py-1 text-xs font-bold text-[#71837b]">Odvolat</button></div>
+                    <div key={pid} className="mt-2 flex items-center gap-2 text-sm"><b className="flex-1">{pn(pid)}</b><button onClick={async () => { await api.declinePhysio(rid, pid); toast({ title: "Spolupráce odvolána" }); refresh() }} className="rounded-full border border-white/15 px-3 py-1 text-xs font-bold text-fg-3">Odvolat</button></div>
                   ))}
                 </div>
               )}
@@ -124,19 +124,19 @@ function PhysioChat() {
   return (
     <Card className="flex flex-col">
       <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-        <span className="grid size-10 place-items-center rounded-full bg-[#c7ff54] text-xs font-bold text-[#071313]">{physioName ? initials(physioName) : "?"}</span>
-        <div><b className="text-sm text-[#f1f8f1]">{physioName || "Zatím bez fyzioterapeuta"}</b><p className="text-xs text-[#71837b]">{physioName ? "vede vaši péči" : "chat se otevře po převzetí případu"}</p></div>
+        <span className="grid size-10 place-items-center rounded-full bg-accent text-xs font-bold text-ink">{physioName ? initials(physioName) : "?"}</span>
+        <div><b className="text-sm text-fg">{physioName || "Zatím bez fyzioterapeuta"}</b><p className="text-xs text-fg-3">{physioName ? "vede vaši péči" : "chat se otevře po převzetí případu"}</p></div>
       </div>
       <div className="mt-4 flex max-h-[52vh] min-h-[180px] flex-1 flex-col gap-2 overflow-y-auto pr-1">
         {ms.length ? ms.map((m) => (
-          <div key={m.id} className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${m.sender === "runner" ? "ml-auto rounded-tr-sm bg-[#c7ff54] text-[#071313]" : m.sender === "system" ? "mx-auto bg-white/5 text-[#a9c2b9]" : "rounded-tl-sm bg-[#17382f] text-[#f1f8f1]"}`}>
-            {m.body}<span className="mt-1 block text-[10px] opacity-60">{fmtDT(m.created_at)}</span>
+          <div key={m.id} className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${m.sender === "runner" ? "ml-auto rounded-tr-sm bg-accent text-ink" : m.sender === "system" ? "mx-auto bg-white/5 text-fg-2" : "rounded-tl-sm bg-info-bg text-fg"}`}>
+            {m.body}<span className="mt-1 block text-[11px] opacity-60">{fmtDT(m.created_at)}</span>
           </div>
-        )) : <p className="m-auto text-sm text-[#71837b]">Zatím žádné zprávy. Napište první.</p>}
+        )) : <p className="m-auto text-sm text-fg-3">Zatím žádné zprávy. Napište první.</p>}
       </div>
       <div className="mt-4 flex gap-2">
         <input value={body} onChange={(e) => setBody(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Napsat zprávu…" className="flex-1 rounded-xl border px-3 py-2.5 text-sm" />
-        <button onClick={send} className="rounded-full bg-[#c7ff54] px-5 text-sm font-bold text-[#071313]">Odeslat</button>
+        <button onClick={send} className="rounded-full bg-accent px-5 text-sm font-bold text-ink">Odeslat</button>
       </div>
     </Card>
   )
@@ -157,16 +157,16 @@ function HealthSection({ onReport, onRtr }: { onReport: () => void; onRtr: () =>
         {injActive ? (
           <Card>
             <Label>Nahlášené zranění</Label>
-            <div className="mt-2 rounded-xl bg-[#3c2922] p-3 text-sm text-[#ffc1ab]"><b>{injActive.site}</b> · OSTRC {injActive.severity}/100<br />
+            <div className="mt-2 rounded-xl bg-alert-bg p-3 text-sm text-alert-soft"><b>{injActive.site}</b> · OSTRC {injActive.severity}/100<br />
               <button onClick={async () => { await api.reportInjury(rid, { resolve: true }); refresh() }} className="mt-2 rounded-full border border-white/15 px-3 py-1 text-xs font-bold">Označit jako zahojené</button>
-              <p className="mt-2 text-[11px] leading-4 text-[#ffc1ab]/80">Pak následují 3 týdny postupného návratu (50 → 75 → 90 % týdne před zraněním), první 2 týdny bez intenzity.</p></div>
-            <button onClick={onReport} className="mt-3 text-xs font-bold text-[#71837b] underline">Nahlásit další obtíže</button>
+              <p className="mt-2 text-[11px] leading-4 text-alert-soft/80">Pak následují 3 týdny postupného návratu (50 → 75 → 90 % týdne před zraněním), první 2 týdny bez intenzity.</p></div>
+            <button onClick={onReport} className="mt-3 text-xs font-bold text-fg-3 underline">Nahlásit další obtíže</button>
           </Card>
         ) : (
           <Card>
             <Label>Nahlásit obtíže</Label>
-            <p className="mt-2 text-sm text-[#64736e]">Něco vás začalo bolet? Nahlaste to — pomůže to kalibrovat riziko i vašemu fyzioterapeutovi.</p>
-            <button onClick={onReport} className="mt-3 rounded-full bg-[#e77a59] px-4 py-2 text-xs font-bold text-[#071313]">Nahlásit obtíže</button>
+            <p className="mt-2 text-sm text-fg-2">Něco vás začalo bolet? Nahlaste to — pomůže to kalibrovat riziko i vašemu fyzioterapeutovi.</p>
+            <button onClick={onReport} className="mt-3 rounded-full bg-alert px-4 py-2 text-xs font-bold text-ink">Nahlásit obtíže</button>
           </Card>
         )}
 
@@ -174,8 +174,8 @@ function HealthSection({ onReport, onRtr }: { onReport: () => void; onRtr: () =>
           <Card>
             <div className="flex items-center justify-between"><Label>Návrat k běhu</Label><Chip>úroveň {rtr.current_level}/{rtr.level_count}</Chip></div>
             <p className="mt-2 font-serif text-lg">{rtr.current?.label}</p>
-            <p className="text-xs text-[#71837b]">Splněno {rtr.cleared_at_current}/{rtr.sessions_per_level} sezení · bolest do {rtr.pain_threshold}/10 posune dál.</p>
-            <button onClick={onRtr} className="mt-3 w-full rounded-full border border-white/15 py-2 text-sm font-bold text-[#c7ff54]">Zaznamenat sezení</button>
+            <p className="text-xs text-fg-3">Splněno {rtr.cleared_at_current}/{rtr.sessions_per_level} sezení · bolest do {rtr.pain_threshold}/10 posune dál.</p>
+            <button onClick={onRtr} className="mt-3 w-full rounded-full border border-white/15 py-2 text-sm font-bold text-accent">Zaznamenat sezení</button>
           </Card>
         )}
 
@@ -183,7 +183,7 @@ function HealthSection({ onReport, onRtr }: { onReport: () => void; onRtr: () =>
           <Card className="lg:col-span-2">
             <Label>Závěr z prohlídky</Label>
             {conclusion.finding && <p className="mt-2 font-serif text-lg">{conclusion.finding}</p>}
-            <p className="mt-1 whitespace-pre-wrap text-sm text-[#64736e]">{conclusion.summary}</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-fg-2">{conclusion.summary}</p>
           </Card>
         )}
       </div>
@@ -203,9 +203,9 @@ export function WeeklyCheckButton() {
     <>
       {open && <InjurySheet rid={rid} onClose={() => setOpen(false)} onDone={() => { setOpen(false); refresh() }} />}
       <div className="flex items-center gap-1.5">
-        <span className="hidden text-[10px] text-[#71837b] sm:inline">týdenní check-in:</span>
-        <button onClick={async () => { await api.reportInjury(rid, { kind: "weekly" }); toast({ title: "Díky — zaznamenáno" }); refresh() }} className="rounded-full bg-[#c7ff54] px-2.5 py-1 text-[10px] font-bold text-[#071313]">Bez obtíží</button>
-        <button onClick={() => setOpen(true)} className="rounded-full border border-[#e77a59]/50 px-2.5 py-1 text-[10px] font-bold text-[#ffc1ab]">Obtíže</button>
+        <span className="hidden text-[11px] text-fg-3 sm:inline">týdenní check-in:</span>
+        <button onClick={async () => { await api.reportInjury(rid, { kind: "weekly" }); toast({ title: "Díky — zaznamenáno" }); refresh() }} className="rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-ink">Bez obtíží</button>
+        <button onClick={() => setOpen(true)} className="rounded-full border border-alert/50 px-2.5 py-1 text-[11px] font-bold text-alert-soft">Obtíže</button>
       </div>
     </>
   )
@@ -224,18 +224,18 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
   return (
     <Sheet open onClose={onClose}>
       <h2 className="font-serif text-2xl">Najít termín</h2>
-      <p className="mt-1 text-xs text-[#a9c2b9]">Vyberte, kdy se vám hodí. Termín potvrdí fyzio, pak vám přijde do kalendáře a den předem připomenutí.</p>
-      <div className="mt-4"><Label>Dny</Label><div className="mt-2 flex flex-wrap gap-2">{DOW.map(([k, l]) => <button key={k} onClick={() => load(toggle(dow, setDow, k), part)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${dow.has(k) ? "bg-[#c7ff54] text-[#071313]" : "border border-white/15 text-[#a9c2b9]"}`}>{l}</button>)}</div></div>
-      <div className="mt-3"><Label>Část dne</Label><div className="mt-2 flex flex-wrap gap-2">{DAYPART.map(([k, l]) => <button key={k} onClick={() => load(dow, toggle(part, setPart, k))} className={`rounded-full px-3 py-1.5 text-xs font-bold ${part.has(k) ? "bg-[#c7ff54] text-[#071313]" : "border border-white/15 text-[#a9c2b9]"}`}>{l}</button>)}</div></div>
+      <p className="mt-1 text-xs text-fg-2">Vyberte, kdy se vám hodí. Termín potvrdí fyzio, pak vám přijde do kalendáře a den předem připomenutí.</p>
+      <div className="mt-4"><Label>Dny</Label><div className="mt-2 flex flex-wrap gap-2">{DOW.map(([k, l]) => <button key={k} onClick={() => load(toggle(dow, setDow, k), part)} className={`rounded-full px-3 py-1.5 text-xs font-bold ${dow.has(k) ? "bg-accent text-ink" : "border border-white/15 text-fg-2"}`}>{l}</button>)}</div></div>
+      <div className="mt-3"><Label>Část dne</Label><div className="mt-2 flex flex-wrap gap-2">{DAYPART.map(([k, l]) => <button key={k} onClick={() => load(dow, toggle(part, setPart, k))} className={`rounded-full px-3 py-1.5 text-xs font-bold ${part.has(k) ? "bg-accent text-ink" : "border border-white/15 text-fg-2"}`}>{l}</button>)}</div></div>
       <div className="mt-5 space-y-3">
-        {busy && <p className="text-sm text-[#71837b]">Načítám…</p>}
-        {opts && opts.length === 0 && <p className="text-sm text-[#71837b]">Žádné volné termíny pro tenhle filtr.</p>}
+        {busy && <p className="text-sm text-fg-3">Načítám…</p>}
+        {opts && opts.length === 0 && <p className="text-sm text-fg-3">Žádné volné termíny pro tenhle filtr.</p>}
         {opts?.map((pp) => (
           <div key={pp.id} className="rounded-2xl border border-white/10 p-4">
-            <div className="flex items-start justify-between"><div><b>{pp.name}</b><p className="text-xs text-[#71837b]">{pp.clinic?.name || ""}{pp.clinic?.city ? ` · ${pp.clinic.city}` : ""} · {pp.years_exp || "—"} let · ★ {pp.rating || "—"}</p></div>{pp.price_czk ? <Chip>{czk(pp.price_czk)}</Chip> : null}</div>
-            {pp.bio && <p className="mt-2 text-xs text-[#64736e]">{pp.bio}</p>}
+            <div className="flex items-start justify-between"><div><b>{pp.name}</b><p className="text-xs text-fg-3">{pp.clinic?.name || ""}{pp.clinic?.city ? ` · ${pp.clinic.city}` : ""} · {pp.years_exp || "—"} let · ★ {pp.rating || "—"}</p></div>{pp.price_czk ? <Chip>{czk(pp.price_czk)}</Chip> : null}</div>
+            {pp.bio && <p className="mt-2 text-xs text-fg-2">{pp.bio}</p>}
             <div className="mt-3 flex flex-wrap gap-2">{pp.slots.map((s: any) => (
-              <button key={s.id} onClick={() => run(async () => { await api.requestSlot(s.id); toast({ title: "Požádáno — čeká na potvrzení" }); onDone() })} className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-[#c7ff54]">{fmtSlot(s.slot_at)}</button>
+              <button key={s.id} onClick={() => run(async () => { await api.requestSlot(s.id); toast({ title: "Požádáno — čeká na potvrzení" }); onDone() })} className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-accent">{fmtSlot(s.slot_at)}</button>
             ))}</div>
           </div>
         ))}
@@ -254,8 +254,8 @@ export function InjurySheet({ rid, onClose, onDone, initialRegions = [], initial
   return (
     <Sheet open onClose={onClose}>
       <h2 className="font-serif text-2xl">Nahlásit obtíže (OSTRC)</h2>
-      {intro && <p className="mt-1 text-xs leading-5 text-[#a9c2b9]">{intro}</p>}
-      <p className="mt-1 text-[11px] leading-4 text-[#71837b]">Obtíže s dopadem na trénink se zapíšou do historie zranění v profilu (datum a strana). Po označení „zahojené" vás aplikace vrátí k běhu postupně: 50 → 75 → 90 % běžného týdne, první 2 týdny bez intenzity.</p>
+      {intro && <p className="mt-1 text-xs leading-5 text-fg-2">{intro}</p>}
+      <p className="mt-1 text-[11px] leading-4 text-fg-3">Obtíže s dopadem na trénink se zapíšou do historie zranění v profilu (datum a strana). Po označení „zahojené" vás aplikace vrátí k běhu postupně: 50 → 75 → 90 % běžného týdne, první 2 týdny bez intenzity.</p>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="grid gap-3">
           {OSTRC.map(([name, label, opts]) => (
@@ -264,16 +264,16 @@ export function InjurySheet({ rid, onClose, onDone, initialRegions = [], initial
         </div>
         <div>
           <Label>Kde to bolí</Label>
-          <p className="mt-1 text-xs text-[#71837b]">Klepněte na všechna místa, která bolí — silueta rozliší levou a pravou stranu.</p>
+          <p className="mt-1 text-xs text-fg-3">Klepněte na všechna místa, která bolí — silueta rozliší levou a pravou stranu.</p>
           <div className="mt-3"><MuscleAnatomy multi onSelect={setPoints} initialRegions={initialRegions} /></div>
         </div>
       </div>
-      {err && <p className="mt-3 text-xs font-bold text-[#e77a59]">{err}</p>}
+      {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
       <button disabled={busy} onClick={() => run(async () => {
         const pts = points.map((p) => ({ region: p.region, side: p.side || null, type: p.kind }))
         await api.reportInjury(rid, { kind: "adhoc", ...q, pain_points: pts })
         toast({ title: "Nahlášeno" }); onDone()
-      })} className="mt-5 w-full rounded-full bg-[#c7ff54] py-3 text-sm font-bold text-[#071313] disabled:opacity-60">Nahlásit</button>
+      })} className="mt-5 w-full rounded-full bg-accent py-3 text-sm font-bold text-ink disabled:opacity-60">Nahlásit</button>
     </Sheet>
   )
 }
@@ -287,12 +287,12 @@ function RtrSheet({ plan, onClose, onDone }: { plan: any; onClose: () => void; o
   return (
     <Sheet open onClose={onClose}>
       <h2 className="font-serif text-2xl">Sezení návratu k běhu</h2>
-      <p className="mt-1 text-xs text-[#a9c2b9]">Úroveň {plan.current_level}: <b>{plan.current?.label}</b>. Bolest do {plan.pain_threshold}/10 vás posune dál.</p>
-      <Field label="Dokončil/a jsem sezení"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} className="accent-[#c7ff54]" /> odškrtněte, pokud jste musel/a přerušit</label></Field>
+      <p className="mt-1 text-xs text-fg-2">Úroveň {plan.current_level}: <b>{plan.current?.label}</b>. Bolest do {plan.pain_threshold}/10 vás posune dál.</p>
+      <Field label="Dokončil/a jsem sezení"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} className="accent-accent" /> odškrtněte, pokud jste musel/a přerušit</label></Field>
       <Field label="Bolest během sezení" hint="0 žádná"><Slider name="pain" min={0} max={10} value={pain} onChange={setPain} /></Field>
       <Field label="Vnímaná námaha (RPE)"><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>
-      {err && <p className="mt-3 text-xs font-bold text-[#e77a59]">{err}</p>}
-      <button disabled={busy} onClick={() => run(async () => { const p = await api.logRtrSession(plan.id, { pain, rpe, completed }); toast({ title: p.status === "completed" ? "Návrat k běhu dokončen! 🎉" : `Úroveň ${p.current_level}/${p.level_count}` }); onDone() })} className="mt-5 w-full rounded-full bg-[#c7ff54] py-3 text-sm font-bold text-[#071313] disabled:opacity-60">Uložit sezení</button>
+      {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
+      <button disabled={busy} onClick={() => run(async () => { const p = await api.logRtrSession(plan.id, { pain, rpe, completed }); toast({ title: p.status === "completed" ? "Návrat k běhu dokončen! 🎉" : `Úroveň ${p.current_level}/${p.level_count}` }); onDone() })} className="mt-5 w-full rounded-full bg-accent py-3 text-sm font-bold text-ink disabled:opacity-60">Uložit sezení</button>
     </Sheet>
   )
 }
