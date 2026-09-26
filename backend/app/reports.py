@@ -66,7 +66,7 @@ LEGEND = [
     ("symp", "sleep", "Spánkový dluh", "clamp(dluh×2,5,0..16) (≥4 h/týden)"),
     ("symp", "feel", "Zhoršující se pocit z běhu", "+10"),
     ("symp", "stiffness", "Ztuhlost nohou před během", "+10 / eskalace"),
-    ("symp", "hist", "Zranění v anamnéze", "dle měsíců od zranění (A)"),
+    ("symp", "pain_prior", "Bolest v místě dřívějšího zranění", "6–18 b dle měsíců × 1/1,5/2 dle dní s označením za 14 dní (A)"),
     ("symp", "injury", "Nahlášené/potvrzené zranění", "dle OSTRC/100 (A/B)"),
     ("*", "osa/celkem", "Skládání", "osa = Σbody×frailty, ořez 0–100; celkem = mech·0,38+zátěž·0,30+příznaky·0,52"),
 ]

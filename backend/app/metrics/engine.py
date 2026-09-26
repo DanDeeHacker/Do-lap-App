@@ -1447,6 +1447,88 @@ def recurring_pain(db: DBSession, rid: str, window: int = 28):
     return best
 
 
+PRIOR_HIT_WINDOW = 14     # feedback railway#91: a mark at a previously injured site counts for 14 days
+_SIDE_KEY = {"left": "L", "right": "P", "L": "L", "P": "P"}
+
+
+def _region_aliases(x) -> set:
+    """Lower-case names a region may go by: the key ("achilles"), its Czech label and
+    the raw text, so a profile entry "ITB" matches a diary point "IT pás"."""
+    x = (x or "").strip().lower()
+    out = {x} if x else set()
+    for k, lbl in _REGION_LABEL.items():
+        lb = lbl.lower()
+        if x == k or x == lb or lb in x or (len(k) >= 4 and k in x):
+            out |= {k, lb}
+    return out
+
+
+def _site_matches(region, side, site) -> bool:
+    r = (region or "").strip().lower()
+    if not r:
+        return False
+    hit = any(a == r or (len(a) >= 4 and a in r) for a in site["aliases"])
+    if not hit:
+        return False
+    s1, s2 = _SIDE_KEY.get(side or ""), site.get("side")
+    return not (s1 and s2 and s1 != s2)
+
+
+def prior_injury_sites(db: DBSession, r, rid: str) -> list[dict]:
+    """Previously injured sites: the profile's prior injury and injury reports from
+    the last 12 months, each with its side and months since the injury."""
+    sites = []
+    if r and r.prior_injury:
+        al = _region_aliases(r.prior_injury)
+        low = r.prior_injury.lower()
+        for key, lbl in _REGION_LABEL.items():
+            if key in low or lbl.lower() in low:
+                al |= {key, lbl.lower()}
+        sites.append({"aliases": al, "side": _SIDE_KEY.get(getattr(r, "prior_injury_side", None) or ""),
+                      "months": injury_months(r), "label": r.prior_injury, "profile": True})
+    for rep in db.query(models.InjuryReport).filter(
+        models.InjuryReport.runner_id == rid, models.InjuryReport.submitted_at > day_ago(365)
+    ):
+        try:
+            months = max(0, (today_date() - date.fromisoformat(str(rep.submitted_at)[:10])).days // 30)
+        except ValueError:
+            months = 0
+        regs = [(rep.body_region, rep.body_side)] + [(pp.get("region"), pp.get("side")) for pp in (rep.pain_points or [])]
+        for reg, sd in regs:
+            if reg:
+                sites.append({"aliases": _region_aliases(reg), "side": _SIDE_KEY.get(sd or ""), "months": months,
+                              "label": _REGION_LABEL.get(reg, reg), "profile": False})
+    return sites
+
+
+def prior_site_hits(db: DBSession, rid: str, sites: list[dict], window: int = PRIOR_HIT_WINDOW) -> dict | None:
+    """Pain marked at a previously injured site in check-ins or run ratings within the
+    window: any intensity, even once (a new site needs recurrence or pain ≥ 3 first)."""
+    if not sites:
+        return None
+    cut = day_ago(window)
+    days, labels, weights = set(), [], []
+
+    def scan(points, when):
+        for p in (points or []):
+            for site in sites:
+                if _site_matches(p.get("region"), p.get("side"), site):
+                    days.add((when or "")[:10])
+                    if p.get("region") not in labels:
+                        labels.append(p.get("region"))
+                    m = site["months"] if site["months"] is not None else PRIOR_UNKNOWN_MONTHS
+                    weights.append((clamp(18 * (1 - m / 12), 6, 18), site))
+
+    for ck in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at > cut):
+        scan(ck.pain_points, ck.submitted_at)
+    for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid, models.ActivityFeedback.submitted_at > cut):
+        scan(f.pain_points, f.submitted_at)
+    if not days:
+        return None
+    w, site = max(weights, key=lambda x: x[0])
+    return {"days": len(days), "weight": w, "labels": labels, "site": site}
+
+
 def injury_months(r) -> int | None:
     """Months since the runner's prior injury: from its date, else the months
     they entered, else PRIOR_UNKNOWN_MONTHS — an injury with no date is treated
@@ -2612,13 +2694,8 @@ def assess(db: DBSession, rid: str) -> dict:
                 nm = "Bolest při běhu" if base == 44 else "Přetrvávající bolest" if base == 26 else "Mírný diskomfort"
                 push("pain", nm, "A", p, f"{ci.pain_score}/10", site)
             symp_score += p
-            # v0.6 — region weighting: pain at a previously injured site is the
-            # classic recurrence pattern and the strongest evidence-backed flag.
-            if run_rel and any(rg in prior_regions for rg in ci_regions):
-                pb = 8
-                symp_score += pb
-                push("pain_prior", "Bolest v místě dřívějšího zranění", "A", pb, site,
-                     "Aktuální bolest je na místě dřívějšího zranění — recidiva ve stejné oblasti je klasický vzorec a v literatuře nejsilnější rizikový faktor.")
+            # (pain at a previously injured site is scored below as "pain_prior",
+            #  from any mark in the last 14 days, feedback railway#91)
             # Warn the runner to reconsider when pain is above 3/10.
             if (ci.pain_score or 0) > 3:
                 pain_warn = {"score": ci.pain_score, "site": site, "backToBack": back_to_back}
@@ -2665,14 +2742,25 @@ def assess(db: DBSession, rid: str) -> dict:
         symp_score += 10
         push("stiffness", "Rostoucí ztuhlost nohou před během", "C", 10, f"{stiff['mean']}/5",
              "Sebehodnocená ztuhlost nohou před během roste napříč posledními 21 dny")
-    if r and r.prior_injury and prior_months is not None and prior_months <= 12:
-        p = rnd(clamp(18 * (1 - prior_months / 12), 6, 18))
+    # Feedback railway#91 — the injury history no longer adds points on its own
+    # (it used to add 6–18 every day for 12 months, so the symptom axis never
+    # cleared). It keeps lowering load tolerance (frailty), and it multiplies the
+    # response when the runner marks that site again: one mark at any intensity
+    # is enough (a new site needs recurrence or pain ≥ 3 first), and the points
+    # grow with the number of days it was marked in the last 14.
+    ph = prior_site_hits(db, rid, prior_injury_sites(db, r, rid))
+    if ph:
+        mult = 1.0 if ph["days"] == 1 else 1.5 if ph["days"] == 2 else 2.0
+        p = rnd(ph["weight"] * mult)
         symp_score += p
-        side = _SIDE_CZ.get(getattr(r, "prior_injury_side", None) or "", "")
-        push("hist", "Zranění v anamnéze", "A", p, "datum neznámé" if prior_unknown else f"{prior_months} měs.",
-             f"{r.prior_injury}{f' ({side})' if side else ''} — nejrobustnější rizikový faktor napříč literaturou; "
-             f"váha klesá s časem od zranění a snižuje toleranci zátěže (×{r2(frailty)})."
-             + (" Datum zranění chybí — počítáme ho jako nedávné; doplňte ho v profilu." if prior_unknown else ""))
+        st = ph["site"]
+        side = _SIDE_CZ.get(getattr(r, "prior_injury_side", None) or "", "") if st.get("profile") else ""
+        push("pain_prior", "Bolest v místě dřívějšího zranění", "A", p, f"{ph['days']}× / {PRIOR_HIT_WINDOW} dní",
+             f"{', '.join(x for x in ph['labels'] if x)} — místo dřívějšího zranění ({st['label']}{f', {side}' if side else ''}) "
+             f"jste označil {ph['days']}× za {PRIOR_HIT_WINDOW} dní. U dříve zraněného místa stačí jediné označení "
+             f"bez ohledu na intenzitu a váha roste s počtem dní (×{mult:g}). Samotné zranění v anamnéze body "
+             f"nepřidává, jen snižuje toleranci zátěže (×{r2(frailty)})."
+             + (" Datum zranění chybí — počítáme ho jako nedávné, doplňte ho v profilu." if prior_unknown and st.get("profile") else ""))
 
     # v0.6 — a live reported/confirmed injury (OSTRC-H). Weighted on the
     # symptom axis on a par with an in-run pain report, scaled by severity;

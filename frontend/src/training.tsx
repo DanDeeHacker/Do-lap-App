@@ -31,68 +31,77 @@ const TYPE_ICON: Record<string, LucideIcon> = { volno: Sofa, regenerace: Leaf, "
 // weekly capacity the Zátěž tab shows, this week keeps to its place in the cycle,
 // no single run exceeds its own capacity and load / mechanics stay under the
 // threshold — each channel shows the numbers it was derived from.
-// Half-gauge. Fill = the last 7 days; the scale runs from 0 to the highest of your
-// own rolling 7-day max, the ceiling and now. Marks (feedback railway#43/#87) stay
-// inside the arc band: 25th / 75th percentile of rolling 7-day totals dashed, the
-// median solid and thick, your max red and thick, the 7-day ceiling a hollow white mark.
-const MARK = {
-  pct: { col: C.fg, w: [1.5, 1], dash: [3, 2] as [number, number] | null },
-  med: { col: C.fg, w: [3.2, 2], dash: null },
-  max: { col: C.alert, w: [3.2, 2], dash: null },
-  ceil: { col: C.fg, w: [4, 2.6], dash: null },
-}
-function HalfGauge({ value, scale, ceiling, dist, col, size }: { value: number | null; scale: number; ceiling?: number | null; dist?: any; col: string; size: "lg" | "sm" }) {
+// Half-gauge. Fill = the last 7 days on a scale from 0 to the higher of the 7-day
+// ceiling and now. The only mark is the ceiling, a hollow white tick that stays
+// inside the arc band (feedback railway#87/#92, percentile marks removed).
+function HalfGauge({ value, scale, ceiling, col, size }: { value: number | null; scale: number; ceiling?: number | null; col: string; size: "lg" | "sm" }) {
   const lg = size === "lg"
   const W = lg ? 220 : 80, R = lg ? 90 : 32, SW = lg ? 14 : 7, cy = lg ? 108 : 40, x0 = (W - 2 * R) / 2
   const arc = `M${x0} ${cy} A${R} ${R} 0 0 1 ${x0 + 2 * R} ${cy}`
   const L = Math.PI * R
   const fr = (v: number | null | undefined) => (v == null || scale <= 0 ? 0 : Math.max(0, Math.min(1, v / scale)))
   const f = fr(value)
-  // point on the arc at fraction t (0 = left end, 1 = right end), at radius rr
   const pt = (t: number, rr: number) => { const ang = Math.PI * (1 - t); return [W / 2 + rr * Math.cos(ang), cy - rr * Math.sin(ang)] }
-  // a radial mark spanning exactly the band (butt caps, so nothing pokes out of the arc)
-  const mark = (v: number | null | undefined, key: string, m: (typeof MARK)[keyof typeof MARK]) => {
-    if (v == null) return null
-    const t = fr(v)
+  const ceil = (() => {
+    if (ceiling == null || ceiling <= 0) return null
+    const t = fr(ceiling)
     const [x1, y1] = pt(t, R - SW / 2), [x2, y2] = pt(t, R + SW / 2)
-    const w = m.w[lg ? 0 : 1]
-    const dash = m.dash ? (lg ? m.dash.join(" ") : m.dash.map((x) => x * 0.6).join(" ")) : undefined
     return (
-      <g key={key}>
-        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgb(6 16 16 / .4)" strokeWidth={w + (lg ? 1.4 : 0.9)} strokeLinecap="butt" />
-        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={m.col} strokeWidth={w} strokeLinecap="butt" strokeDasharray={dash} />
-        {m === MARK.ceil && <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgb(6 16 16)" strokeWidth={lg ? 1.4 : 0.9} strokeLinecap="butt" />}
+      <g>
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgb(6 16 16 / .4)" strokeWidth={lg ? 5.4 : 3.5} strokeLinecap="butt" />
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={C.fg} strokeWidth={lg ? 4 : 2.6} strokeLinecap="butt" />
+        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgb(6 16 16)" strokeWidth={lg ? 1.4 : 0.9} strokeLinecap="butt" />
       </g>
     )
-  }
+  })()
   return (
-    <svg viewBox={`${lg ? -2 : -2} ${lg ? -2 : -2} ${W + (lg ? 4 : 4)} ${lg ? 116 : 46}`} className={lg ? "w-full max-w-[230px]" : "w-[84px]"} aria-hidden>
+    <svg viewBox={`-2 -2 ${W + 4} ${lg ? 116 : 46}`} className={lg ? "w-full max-w-[230px]" : "w-[84px]"} aria-hidden>
       <path d={arc} fill="none" stroke="rgb(255 255 255 / .08)" strokeWidth={SW} strokeLinecap="butt" />
       {f > 0 && <path d={arc} fill="none" stroke={col} strokeWidth={SW} strokeLinecap="butt" strokeDasharray={`${L * f} ${L}`} />}
-      {dist && mark(dist.p25, "p25", MARK.pct)}
-      {dist && mark(dist.p75, "p75", MARK.pct)}
-      {dist && mark(dist.p50, "p50", MARK.med)}
-      {dist && mark(dist.max, "max", MARK.max)}
-      {ceiling != null && ceiling > 0 && mark(ceiling, "ceil", MARK.ceil)}
+      {ceil}
     </svg>
   )
 }
-// legend swatches drawn like the marks on the arc
-const Sw = ({ kind }: { kind: keyof typeof MARK }) => (
+// legend swatch for the hollow ceiling mark
+const CeilSw = () => (
   <svg viewBox="0 0 5 10" className="h-2.5 w-[7px] shrink-0" aria-hidden>
-    <line x1="2.5" y1="0" x2="2.5" y2="10" stroke={MARK[kind].col} strokeWidth={kind === "pct" ? 1.2 : kind === "ceil" ? 3.6 : 2.6} strokeDasharray={MARK[kind].dash ? "2.4 1.6" : undefined} />
-    {kind === "ceil" && <line x1="2.5" y1="0" x2="2.5" y2="10" stroke="rgb(6 16 16)" strokeWidth="1.2" />}
+    <line x1="2.5" y1="0" x2="2.5" y2="10" stroke={C.fg} strokeWidth="3.6" />
+    <line x1="2.5" y1="0" x2="2.5" y2="10" stroke="rgb(6 16 16)" strokeWidth="1.2" />
   </svg>
 )
-const pctRow = (dist: any, d: number, ceil?: number | null) => dist && (
-  <span className="mt-1.5 flex flex-wrap justify-center gap-x-2.5 gap-y-0.5 tabular-nums text-[11px] text-fg-3">
-    <span className="inline-flex items-center gap-1"><Sw kind="pct" />P25 <b className="font-bold text-fg-2">{num(dist.p25, d)}</b></span>
-    <span className="inline-flex items-center gap-1"><Sw kind="med" />medián <b className="font-bold text-fg-2">{num(dist.p50, d)}</b></span>
-    <span className="inline-flex items-center gap-1"><Sw kind="pct" />P75 <b className="font-bold text-fg-2">{num(dist.p75, d)}</b></span>
-    <span className="inline-flex items-center gap-1"><Sw kind="max" />max <b className="font-bold text-fg-2">{num(dist.max, d)}</b></span>
-    {ceil != null && <span className="inline-flex items-center gap-1"><Sw kind="ceil" />strop <b className="font-bold text-fg-2">{num(ceil, d)}</b></span>}
-  </span>
-)
+
+// feedback railway#93 — the longest safe run inside the Objem detail: every limit
+// on one scale, the binding (shortest) one highlighted.
+function SafeRunLimits({ limits, today }: { limits: [number, string][]; today: number | null }) {
+  if (!limits.length) return null
+  const bind = limits.reduce((m, x) => (x[0] < m[0] ? x : m))
+  const scale = Math.max(...limits.map((x) => x[0]), 0.1)
+  return (
+    <div className="rounded-[14px] border border-white/[.07] bg-white/[.02] p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <span className="flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold text-fg-2"><MoveDiagonal className="size-3.5 text-info" aria-hidden />Nejdelší bezpečný běh</span>
+        <span className="whitespace-nowrap tabular-nums text-[12px] text-fg-3">
+          týden <b className="text-[15px] text-fg">≈ {num(bind[0])} km</b>{today != null ? <> · dnes <b className="text-fg">≈ {num(today)} km</b></> : null}
+        </span>
+      </div>
+      <div className="mt-2.5 space-y-1.5">
+        {limits.map(([v, label]) => {
+          const on = label === bind[1]
+          return (
+            <div key={label} className="grid grid-cols-[1fr_auto] items-center gap-x-2 text-[11px]">
+              <span className={on ? "font-semibold text-watch" : "text-fg-3"}>{label}{on ? " · omezuje" : ""}</span>
+              <span className={`tabular-nums ${on ? "font-bold text-watch" : "text-fg-2"}`}>{num(v)} km</span>
+              <div className="col-span-2 h-1.5 rounded-full bg-white/[.06]">
+                <i className="block h-full rounded-full" style={{ width: `${Math.max(2, (v / scale) * 100)}%`, background: on ? C.watch : "rgb(181 211 202 / .45)" }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // feedback railway#65 — one interval bar: used vs total, with the numbers
 function UsageBar({ label, used, total, unit, d, note, col }: { label: string; used: number | null | undefined; total: number | null | undefined; unit: string; d: number; note?: string; col?: string }) {
   if (total == null) return null
@@ -132,29 +141,32 @@ function TodayCapacity({ g }: { g: any }) {
   const safe = (() => {
     const base = capVol?.ceilingSession ?? boot?.assessment?.loadDetail?.safeLongRunKm
     if (base == null) return null
-    const caps: [number, string][] = [[base, capVol?.ceilingSession != null ? "vaše prokázaná kapacita jednoho běhu + 10 %" : "≈ +10 % nad váš nejdelší běh 30 dní"]]
-    if (vol.left != null) caps.push([vol.left, "zbytek cíle tohoto týdne v cyklu"])
-    if (vol.left7 != null) caps.push([vol.left7, "zbytek stropu 7 dní"])
-    const [week, why] = caps.reduce((m, x) => (x[0] < m[0] ? x : m))
+    const limits: [number, string][] = [[base, capVol?.ceilingSession != null ? "kapacita jednoho běhu + 10 %" : "nejdelší běh 30 dní + 10 %"]]
+    if (vol.left != null) limits.push([vol.left, "zbytek cíle tohoto týdne"])
+    if (vol.left7 != null) limits.push([vol.left7, "zbytek stropu 7 dní"])
+    const week = Math.min(...limits.map((x) => x[0]))
     const todayCaps = [capVol?.ceilingToday, vol.todayMax].filter((v) => v != null) as number[]
-    return { week, why: caps.length > 1 && why !== caps[0][1] ? `omezeno: ${why}` : why, today: todayCaps.length ? Math.min(week, ...todayCaps) : null }
+    return { limits, today: todayCaps.length ? Math.min(week, ...todayCaps) : null }
   })()
   const status = loadHot
     ? { col: C.alert, text: `Zátěž ${ax.load} je nad prahem ${th} — tento týden odlehčovací, bez tvrdých úseků a dlouhého běhu.` }
     : mechHot
       ? { col: C.watch, text: `Mechanika ${ax.mech} je nad prahem ${th} — dnes o 20 % méně objemu, poloviční intenzita a klesání, raději rovina.` }
       : { col: C.ok, text: `Zátěž ${ax.load ?? 0} a mechanika ${ax.mech ?? 0} jsou pod prahem ${th} — dnešní limity drží obě osy pod prahem i po tréninku.` }
+  // feedback railway#94 — the channels sit one under another, each a full-width row
   const channel = (id: (typeof CH_ORDER)[number]) => {
     const c = wk.channels?.[id]
     if (!c) return null
     const d = id === "volume" ? 1 : 0
     const past6 = c.done7 != null ? c.done7 - (c.doneToday ?? 0) : null
     const ratio = c.done7 != null && c.ceiling7 ? c.done7 / c.ceiling7 : null
-    const scale = Math.max(c.dist?.max || 0, c.ceiling7 || 0, c.done7 || 0) * 1.05
+    const scale = Math.max(c.ceiling7 || 0, c.done7 || 0) * 1.08
     const col = id === "systemic" ? C.load : ratio == null ? C.fg3 : ratio > 1 ? C.alert : ratio > 0.85 ? C.watch : C.ok
     const big = id === "volume"
     const value = id === "systemic" ? (c.todayMax != null ? `${num(c.todayMax, 0)}` : "—") : c.todayMax != null ? `max ${num(c.todayMax, d)}` : "—"
     const isOpen = !!open[id]
+    const limit = c.limitedBy ? <span className="text-[11px] font-semibold leading-4 text-watch">omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</span> : null
+    const ceilNote = c.ceiling7 != null && <span className="inline-flex items-center gap-1 tabular-nums text-[11px] text-fg-3"><CeilSw />strop 7 dní {num(c.ceiling7, d)} · teď {num(c.done7, d)}</span>
     const rows = (
       <div className="mt-3 w-full space-y-2.5 border-t border-white/[.07] pt-3 text-left">
         <UsageBar label="Posledních 7 dní · strop" used={c.done7} total={c.ceiling7} unit={c.unit} d={d}
@@ -162,34 +174,39 @@ function TodayCapacity({ g }: { g: any }) {
         <UsageBar label={`Tento týden v cyklu${cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden, ${pct} %)` : ""}`} used={c.done} total={c.budget} unit={c.unit} d={d} />
         {c.ceilingRun != null && <UsageBar label="Jeden běh · dnes max" used={c.todayMax} total={c.ceilingRun} unit={c.unit} d={d} col={C.info} />}
         {past6 != null && c.doneToday ? <p className="text-[11px] text-fg-3">z toho dnes {num(c.doneToday, d)} {c.unit}</p> : null}
+        {id === "volume" && safe && <SafeRunLimits limits={safe.limits} today={safe.today} />}
       </div>
     )
     return (
-      <div key={id} className={`nest ${big ? "p-4" : "p-3"}`}>
+      <div key={id} className={`nest ${big ? "p-4" : "px-3.5 py-3"}`}>
         <button type="button" onClick={() => setOpen((o) => ({ ...o, [id]: !o[id] }))} aria-expanded={isOpen}
-          title="Oblouk: posledních 7 dní · čárkovaně 25. a 75. percentil 7denních součtů · silně medián · červeně maximum · dutá bílá: strop · klepnutím zobrazíte výpočet"
-          className="grid w-full justify-items-center text-center">
-          <span className={`flex w-full items-center justify-between ${big ? "" : "text-[12px]"}`}>
-            <span className={big ? "t-label" : "font-bold text-fg-2"}>{CH_ICON[id]}</span>
-            <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180" : ""}`} aria-hidden />
-          </span>
+          title="Oblouk: posledních 7 dní · dutá bílá čárka: strop 7 dní · klepnutím zobrazíte výpočet" className="w-full text-left">
           {big ? (
-            <span className="relative mt-1 grid w-full justify-items-center">
-              <HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} dist={c.dist} col={col} size="lg" />
-              <span className="absolute inset-x-0 bottom-1 text-center">
-                <b className="t-num text-[28px] leading-none text-fg">{value}</b>
-                <span className="text-[13px] font-semibold text-fg-3"> {c.unit}</span>
+            <span className="grid justify-items-center text-center">
+              <span className="flex w-full items-center justify-between">
+                <span className="t-label">{CH_ICON[id]}</span>
+                <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180" : ""}`} aria-hidden />
               </span>
+              <span className="relative mt-1 grid w-full justify-items-center">
+                <HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} col={col} size="lg" />
+                <span className="absolute inset-x-0 bottom-1 text-center">
+                  <b className="t-num text-[28px] leading-none text-fg">{value}</b>
+                  <span className="text-[13px] font-semibold text-fg-3"> {c.unit}</span>
+                </span>
+              </span>
+              <span className="mt-2 flex flex-col items-center gap-1">{limit}{ceilNote}</span>
             </span>
           ) : (
-            <>
-              <span className="mt-2"><HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} dist={c.dist} col={col} size="sm" /></span>
-              <b className="t-num mt-1 text-[16px] leading-none text-fg">{value}</b>
-              <span className="mt-0.5 text-[11px] font-semibold text-fg-3">{c.unit}</span>
-            </>
+            <span className="flex items-center gap-3.5">
+              <HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} col={col} size="sm" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[12px] font-bold text-fg-2">{CH_ICON[id]}</span>
+                <span className="mt-0.5 block"><b className="t-num text-[18px] leading-none text-fg">{value}</b> <span className="text-[11px] font-semibold text-fg-3">{c.unit}</span></span>
+                <span className="mt-1 flex flex-col gap-0.5">{limit}{ceilNote}</span>
+              </span>
+              <ChevronDown className={`size-4 shrink-0 text-fg-3 transition ${isOpen ? "rotate-180" : ""}`} aria-hidden />
+            </span>
           )}
-          {c.limitedBy ? <span className={`mt-2 text-[11px] font-semibold text-watch ${big ? "" : "leading-4"}`}>omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</span> : <span className="mt-2 h-4" />}
-          {pctRow(c.dist, d, c.ceiling7)}
         </button>
         {isOpen && rows}
       </div>
@@ -202,20 +219,8 @@ function TodayCapacity({ g }: { g: any }) {
         <span className="text-[12px] text-fg-2">kolik si dnes můžete dovolit</span>
       </div>
       <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>
-      {safe && (
-        <div className="nest mt-3 flex items-center gap-3 px-3.5 py-3">
-          <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><MoveDiagonal className="size-4" aria-hidden /></span>
-          <p className="text-[13px] leading-5 text-fg-2">
-            Bezpečný nejdelší běh tento týden: <b className="text-fg">≈ {num(safe.week)} km</b>
-            <span className="block text-[11px] text-fg-3">{safe.why}{safe.today != null ? ` · dnes ≈ ${num(safe.today)} km` : ""}</span>
-          </p>
-        </div>
-      )}
-      <div className="mt-4 grid items-start gap-3 md:grid-cols-[1.1fr_1fr]">
-        {channel("volume")}
-        <div className="grid grid-cols-2 items-start gap-3">
-          {CH_ORDER.filter((id) => id !== "volume").map((id) => channel(id))}
-        </div>
+      <div className="mt-4 grid gap-3">
+        {CH_ORDER.map((id) => channel(id))}
       </div>
       {cyc.next && (
         <p className="mt-3 text-[13px] leading-5 text-fg-2">

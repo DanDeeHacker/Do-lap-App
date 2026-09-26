@@ -170,11 +170,11 @@ SIG_DOC = {
     },
     "pain_prior": {
         "t": "Bolest v místě dřívějšího zranění", "g": "A",
-        "fx": "+8 b, když aktuální bolest padne na dříve zraněnou oblast",
+        "fx": "váha 6–18 b (klesá s měsíci od zranění) × 1 / 1,5 / 2 podle počtu dní s označením za 14 dní",
         "why": "Předchozí zranění je nejrobustnější rizikový faktor napříč literaturou (Hulme 2017; van Poppel "
                "2021); recidiva ve stejné oblasti je jeho nejsilnější projev.",
         "limit": "Závisí na kvalitě záznamu dřívějších zranění a na spolehlivé lokalizaci (koleno se sjednocuje).",
-        "clear": "Zmizí, když bolest v daném místě ustoupí.",
+        "clear": "Zmizí 14 dní po posledním označení dříve zraněného místa.",
     },
     "ewma": {
         "t": "EWMA poměr zátěže (ACWR) — jen kontext", "g": "C",
@@ -416,8 +416,8 @@ SIG_DOC = {
     "hist": {
         "t": "Zranění v anamnéze", "g": "A", "fx": None,
         "why": "Předchozí zranění je konzistentně nejsilnější prediktor dalšího zranění napříč studiemi.",
-        "limit": "Neměnný faktor. Nedá se odstranit, jen zohlednit ve váze ostatních signálů.",
-        "clear": "Po 12 měsících bez recidivy váha klesá.",
+        "limit": "Sám body nepřidává (od railway#91). Snižuje toleranci zátěže a násobí signál „Bolest v místě dřívějšího zranění“.",
+        "clear": "Vliv na toleranci zátěže klesá do 12 měsíců od zranění.",
     },
 }
 

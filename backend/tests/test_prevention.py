@@ -154,13 +154,43 @@ def test_prior_injury_without_a_date_counts_as_recent(client, db_session):
     db_session.commit()
     assert E.injury_months(r) == E.PRIOR_UNKNOWN_MONTHS
     a = _assess(db_session, rid)
-    hist = next(s for s in a["signals"] if s["id"] == "hist")
-    assert hist["val"] == "datum neznámé" and "doplňte ho v profilu" in hist["detail"]
+    # railway#91: the history alone adds no symptom points, it only lowers tolerance
+    assert not any(s["id"] in ("hist", "pain_prior") for s in a["signals"]) and a["frailty"] > 1
+    # one mild mark at the injured site is enough, weighted as a recent injury
+    db_session.add(models.Checkin(runner_id=rid, submitted_at=E.day_ago(1), pain_score=1,
+                                  pain_points=[{"region": "IT pás", "side": "P"}]))
+    db_session.commit()
+    pp = next(s for s in _assess(db_session, rid)["signals"] if s["id"] == "pain_prior")
+    assert pp["val"] == "1× / 14 dní" and pp["pts"] == 9 and "doplňte ho v profilu" in pp["detail"]
     r.prior_injury_date, r.prior_injury_side = E.day_ago(150), "right"
     db_session.commit()
     assert E.injury_months(r) == 5
-    hist = next(s for s in _assess(db_session, rid)["signals"] if s["id"] == "hist")
-    assert hist["val"] == "5 měs." and "(vpravo)" in hist["detail"]
+    pp = next(s for s in _assess(db_session, rid)["signals"] if s["id"] == "pain_prior")
+    assert "vpravo" in pp["detail"] and pp["pts"] == 10
+
+
+def test_prior_site_mark_multiplies_and_clears(client, db_session):
+    rid, r = _runner(client, db_session, "pa10b@test.cz")
+    r.prior_injury, r.prior_injury_date, r.prior_injury_side = "Achillova šlacha", E.day_ago(60), "right"
+    db_session.commit()
+    w = 15  # 18 × (1 − 2/12)
+    # the other side is a different site
+    db_session.add(models.Checkin(runner_id=rid, submitted_at=E.day_ago(2), pain_score=2,
+                                  pain_points=[{"region": "Achillova šlacha", "side": "L"}]))
+    db_session.commit()
+    assert not any(s["id"] == "pain_prior" for s in _assess(db_session, rid)["signals"])
+    # three different days on the injured side: ×2
+    for d in (1, 3, 5):
+        db_session.add(models.Checkin(runner_id=rid, submitted_at=E.day_ago(d), pain_score=1,
+                                      pain_points=[{"region": "Achillova šlacha", "side": "P"}]))
+    db_session.commit()
+    pp = next(s for s in _assess(db_session, rid)["signals"] if s["id"] == "pain_prior")
+    assert pp["val"] == "3× / 14 dní" and pp["pts"] == 2 * w
+    # marks older than 14 days no longer count
+    for ck in db_session.query(models.Checkin).filter(models.Checkin.runner_id == rid):
+        ck.submitted_at = E.day_ago(20)
+    db_session.commit()
+    assert not any(s["id"] == "pain_prior" for s in _assess(db_session, rid)["signals"])
 
 
 def test_profile_validates_injury_date_and_side(client, db_session):

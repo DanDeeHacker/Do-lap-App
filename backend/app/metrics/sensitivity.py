@@ -147,7 +147,7 @@ KNOBS = [
      "desc": "Počet dní s bolestí (jakékoli místo) za 28 dní. Citlivější (méně specifický) signál než recidiva."},
     {"id": "priorInjuryMonths", "axis": "symp", "label": "Zranění v anamnéze (před měsíci)", "grade": "A", "unit": "měs.",
      "min": -1, "max": 24, "step": 1, "default": -1, "thr": 12, "dir": "below",
-     "desc": "−1 = žádné. ≤ 12 měsíců přidává body a zvyšuje křehkost (frailty) — násobí zátěž i mechaniku."},
+     "desc": "−1 = žádné. ≤ 12 měsíců zvyšuje křehkost (frailty), sama body nepřidává. Váží signál „Bolest v místě dřívějšího zranění“."},
 ]
 
 # `engine`: "v12" = only the Standardní/Citlivý load axis, "v3" = only the Kapacitní
@@ -343,8 +343,6 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
         else:
             nm = "Bolest při běhu" if base == 44 else "Přetrvávající bolest" if base == 26 else "Mírný diskomfort"
             push("pain", "symp", nm, "A", base, f"{int(pain)}/10")
-        if run_rel and bool(g["priorRegionOverlap"]):
-            push("pain_prior", "symp", "Bolest v místě dřívějšího zranění", "A", 8, f"{int(pain)}/10", "Recidiva ve stejné oblasti.")
     if g["soreness"] >= 7:
         push("sore", "symp", "Vysoká svalová únava", "B", 10, f"{int(g['soreness'])}/10")
     if g["stress"] >= 6:
@@ -361,8 +359,11 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
         push("stiffness", "symp", "Trénink navzdory ztuhlosti nohou", "C", clamp(g["stiffnessIgnore"] * 20, 0, 18), f"{round(g['stiffnessIgnore'] * 100)} %")
     pm = g["priorInjuryMonths"]
     has_prior = pm is not None and 0 <= pm <= 12
-    if has_prior:
-        push("hist", "symp", "Zranění v anamnéze", "A", clamp(18 * (1 - pm / 12), 6, 18), f"{int(pm)} měs.")
+    # railway#91 — the history alone adds nothing; a mark at the injured site (any
+    # intensity, even once) scores the history weight
+    if bool(g["priorRegionOverlap"]):
+        w = clamp(18 * (1 - pm / 12), 6, 18) if has_prior else 6
+        push("pain_prior", "symp", "Bolest v místě dřívějšího zranění", "A", w, f"{int(pm)} měs." if has_prior else "—", "Označené místo dřívějšího zranění.")
     sev = g["injurySeverity"]
     if sev > 0:
         if bool(g["injuryConfirmed"]):

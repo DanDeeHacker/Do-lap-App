@@ -228,7 +228,9 @@ export function PainHeatmap({ counts }: { counts: Record<string, number> }) {
   }
   const withData = (v: "front" | "back") => hotspots[v].filter((h) => val(h))
   const hasFront = withData("front").length > 0
-  const [view, setView] = useState<"front" | "back">(hasFront ? "front" : "back")
+  // railway#89 — open on the side with the most marked pain
+  const load = (v: "front" | "back") => withData(v).reduce((t, h) => t + (val(h) || 0), 0)
+  const [view, setView] = useState<"front" | "back">(load("back") > load("front") ? "back" : "front")
   const pts = withData(view)
   const max = Math.max(1, ...Object.values(counts))
   return (

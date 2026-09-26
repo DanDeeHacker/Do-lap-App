@@ -647,6 +647,38 @@ function RecommendationStrip({ a }: { a: any }) {
   )
 }
 
+// railway#90 — a detail panel that pulls down like a drawer (height from 0) and brings
+// itself into view, instead of appearing below without the page following it.
+function Drawer({ open, className = "", children }: { open: boolean; className?: string; children: React.ReactNode }) {
+  const [render, setRender] = useState(open)
+  const [shown, setShown] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (open) {
+      setRender(true)
+      let r2 = 0
+      const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setShown(true)) })
+      return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2) }
+    }
+    setShown(false)
+    const t = setTimeout(() => setRender(false), 340)
+    return () => clearTimeout(t)
+  }, [open])
+  useEffect(() => {
+    if (!shown || !ref.current) return
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    const t = setTimeout(() => ref.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }), reduce ? 0 : 90)
+    return () => clearTimeout(t)
+  }, [shown])
+  if (!render) return null
+  return (
+    <div ref={ref} className={`grid scroll-mt-[84px] transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${className}`}
+      style={{ gridTemplateRows: shown ? "1fr" : "0fr", opacity: shown ? 1 : 0 }}>
+      <div className="min-h-0 overflow-hidden">{children}</div>
+    </div>
+  )
+}
+
 // railway#76 — Regenerace, Příznaky, Zátěž and Mechanika as small rings around the score;
 // the ones with a detail open a panel under the card.
 function MiniRing({ label, value, col, onClick, open }: { label: string; value: number | null | undefined; col: string; onClick?: () => void; open?: boolean }) {
@@ -851,6 +883,9 @@ function TodayV2() {
   // railway#79–#81 — Regenerace and Připravenost open their detail the same way
   const [statPanel, setStatPanel] = useState<PanelKey | null>(null)
   const togglePanel = (k: PanelKey) => setStatPanel(statPanel === k ? null : k)
+  const lastPanel = useRef<PanelKey | null>(null)
+  if (statPanel) lastPanel.current = statPanel
+  const pk = statPanel ?? lastPanel.current
   const [axisHist, setAxisHist] = useState<any[] | null>(null)
   useEffect(() => {
     if ((statPanel !== "mech" && statPanel !== "load") || !rid || axisHist !== null) return
@@ -984,9 +1019,9 @@ function TodayV2() {
   const hasStop = alerts.some((x) => x.tone === "stop")
   const worstTone = alerts.some((x) => x.tone === "alert") ? "alert" : "watch"
   const readiness: number | null = a?.capacity?.readiness ? readinessPct(a.capacity.readiness) : a?.guidance ? (a.guidance.readinessScore ?? Math.round((a.guidance.readiness ?? 1) * 100)) : null
-  const panelSig = statPanel === "mech" || statPanel === "load" ? signals.filter((s: any) => (statPanel === "mech" ? MECH_IDS : LOAD_IDS).has(s.id)) : []
-  const axisPoints = (axisHist || []).map((h: any) => ({ t: h.date, v: statPanel === "mech" ? h.mech : h.load }))
-  if (axisPoints.length && a) axisPoints[axisPoints.length - 1] = { t: (a.computed_at || "").slice(0, 10) || axisPoints[axisPoints.length - 1].t, v: (statPanel === "mech" ? a.mech : a.load) ?? axisPoints[axisPoints.length - 1].v }
+  const panelSig = pk === "mech" || pk === "load" ? signals.filter((s: any) => (pk === "mech" ? MECH_IDS : LOAD_IDS).has(s.id)) : []
+  const axisPoints = (axisHist || []).map((h: any) => ({ t: h.date, v: pk === "mech" ? h.mech : h.load }))
+  if (axisPoints.length && a) axisPoints[axisPoints.length - 1] = { t: (a.computed_at || "").slice(0, 10) || axisPoints[axisPoints.length - 1].t, v: (pk === "mech" ? a.mech : a.load) ?? axisPoints[axisPoints.length - 1].v }
   const todayDay: OverviewDay = {
     date: (a?.computed_at || "").slice(0, 10), quadrant: a?.quadrant, overall: a?.overall ?? 0, tier: a?.tier,
     mech: a ? a.mech : null, load: a ? a.load : null, symp: a ? a.symp : null, rcv: score, readiness,
@@ -1035,33 +1070,34 @@ function TodayV2() {
         <div className="mt-5 border-t border-white/[.08] pt-5">
           <StateOverview d={todayDay} open={statPanel} onToggle={togglePanel} onHistory={() => setHistOpen(true)}
             note={gated && <p className="mt-3 text-[11px] text-fg-3">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>}
-            panel={statPanel && (
-            <div className="nest origin-top animate-[careReveal_.28s_ease-out] p-3.5 md:order-last md:col-span-2 md:p-5">
-              {statPanel === "symp" && <SymptomPanel signals={signals} />}
-              {(statPanel === "mech" || statPanel === "load") && (
+            panel={pk && (
+            <Drawer key={pk} open={!!statPanel} className="md:order-last md:col-span-2">
+            <div className="nest p-3.5 md:p-5">
+              {pk === "symp" && <SymptomPanel signals={signals} />}
+              {(pk === "mech" || pk === "load") && (
                 <>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="t-label">{statPanel === "mech" ? "Mechanika — trend" : "Zátěž — trend"}</p>
-                    <Link to={statPanel === "mech" ? "/app/mechanics" : "/app/load"} className="inline-flex items-center gap-1 text-[12px] font-bold text-accent hover:underline">{statPanel === "mech" ? "Pohyb" : "Zátěž"}<ChevronRight className="size-3.5" aria-hidden /></Link>
+                    <p className="t-label">{pk === "mech" ? "Mechanika — trend" : "Zátěž — trend"}</p>
+                    <Link to={pk === "mech" ? "/app/mechanics" : "/app/load"} className="inline-flex items-center gap-1 text-[12px] font-bold text-accent hover:underline">{pk === "mech" ? "Pohyb" : "Zátěž"}<ChevronRight className="size-3.5" aria-hidden /></Link>
                   </div>
                   <div className="grid gap-x-8 md:grid-cols-[1.3fr_1fr]">
                     <div>
                       {axisHist === null ? <p className="mt-2 text-[12px] text-fg-3">Počítám trend v čase…</p>
-                        : axisPoints.length > 1 ? <AxisLineChart points={axisPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh" color={statPanel === "mech" ? (a?.mech >= 25 ? C.alert : C.ok) : C.load} height={130} zone />
+                        : axisPoints.length > 1 ? <AxisLineChart points={axisPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh" color={pk === "mech" ? (a?.mech >= 25 ? C.alert : C.ok) : C.load} height={130} zone />
                         : <p className="mt-2 text-[12px] text-fg-3">Na trend je zatím málo historie.</p>}
                     </div>
                     <div>
-                      <p className="t-label mt-3 !text-fg-3">{statPanel === "mech" ? "Co tvoří skóre mechaniky" : "Co tvoří skóre zátěže"}</p>
+                      <p className="t-label mt-3 !text-fg-3">{pk === "mech" ? "Co tvoří skóre mechaniky" : "Co tvoří skóre zátěže"}</p>
                       {panelSig.length ? (
                         <div className="mt-2.5 space-y-2.5">
-                          {panelSig.map((s: any) => <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} tone={statPanel === "mech" ? "info" : "load"} pct={(s.pts / Math.max(1, ...panelSig.map((x: any) => x.pts || 0))) * 100} />)}
+                          {panelSig.map((s: any) => <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} tone={pk === "mech" ? "info" : "load"} pct={(s.pts / Math.max(1, ...panelSig.map((x: any) => x.pts || 0))) * 100} />)}
                         </div>
                       ) : <p className="mt-2 text-[12px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
                     </div>
                   </div>
                 </>
               )}
-              {statPanel === "recovery" && (
+              {pk === "recovery" && (
                 <div className="grid gap-6 md:grid-cols-2 md:gap-8">
                   {/* railway#79 — Regenerace přes noc */}
                   <div>
@@ -1116,7 +1152,7 @@ function TodayV2() {
                   </div>
                 </div>
               )}
-              {statPanel === "readiness" && (
+              {pk === "readiness" && (
                 <div>
                   {/* railway#81 — Připravenost opens the training load: why readiness is what it is, the weeks, today vs. the 7-day room */}
                   {a?.capacity?.readiness && <Readiness r={a.capacity.readiness} />}
@@ -1147,6 +1183,7 @@ function TodayV2() {
                 </div>
               )}
             </div>
+            </Drawer>
           )} />
         </div>
         {histOpen && <QuadrantHistory history={quadHist} today={todayDay} onClose={() => setHistOpen(false)} />}
