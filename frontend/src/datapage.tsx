@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { Card, Chip, Field, Label, Metric, useAsync, useToast } from "@/ui"
+import { Card, Chip, Field, Label, Metric, Segmented, useAsync, useToast } from "@/ui"
 import { fmtD } from "@/lib"
 
 type Result = { ok?: boolean; loading?: boolean; error?: string; activities?: number; addedDaily?: number; meta?: any; source?: string; mfa?: boolean; mfaToken?: string }
@@ -254,11 +254,7 @@ export function DataView() {
       <CoachConsentCard rid={rid} />
 
       <Card className="mt-4">
-        <div className="flex flex-wrap gap-2">
-          {([["garmin", "Garmin – soubor"], ["garminlive", "Garmin – přihlášení"], ["apple", "Apple Health"]] as const).map(([k, l]) => (
-            <button key={k} onClick={() => setSource(k)} className={`rounded-full px-4 py-2 text-xs font-bold ${source === k ? "bg-accent text-ink" : "border border-white/15 text-fg-2"}`}>{l}</button>
-          ))}
-        </div>
+        <Segmented ariaLabel="Zdroj dat" options={[["garmin", "Garmin – soubor"], ["garminlive", "Garmin – přihlášení"], ["apple", "Apple Health"]] as const} value={source} onChange={setSource} />
 
         <div className="mt-6">
           {source === "garmin" && (

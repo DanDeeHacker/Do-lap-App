@@ -1,26 +1,40 @@
-// Shared presentational primitives, styled with the same light-hex Tailwind
-// classes the v2 mockup uses so the Motion Atlas skin (index.css) remaps them
-// to the dark theme automatically.
+// Shared presentational primitives (redesign v2 — DOSLAP_REDESIGN_BRIEF.md §4).
+// Every colour comes from the design tokens (index.css @theme / tokens.ts).
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
+import { ChevronDown, CircleMinus, Info, LoaderCircle, TriangleAlert, type LucideIcon } from "lucide-react"
 import { C } from "@/tokens"
 
+export type Tone = "ok" | "watch" | "alert" | "muted" | "accent" | "info" | "load" | "self"
+const TONE_COL: Record<Tone, string> = { ok: C.ok, watch: C.watch, alert: C.alert, muted: C.fg3, accent: C.accent, info: C.info, load: C.load, self: C.self }
+export const toneCol = (t: Tone) => TONE_COL[t] || C.fg3
+
 export function Label({ children }: { children: ReactNode }) {
-  return (
-    <p className="t-label">{children}</p>
-  )
+  return <p className="t-label">{children}</p>
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <section className={`group card p-4 transition duration-200 md:p-5 ${className}`}>{children}</section>
+}
+
+/* ---------- Button ---------- */
+type BtnVariant = "primary" | "secondary" | "outline" | "danger"
+// full class names (Tailwind only generates utilities it can find verbatim in source)
+const BTN: Record<BtnVariant, string> = { primary: "btn btn-primary", secondary: "btn btn-secondary", outline: "btn btn-outline", danger: "btn btn-danger" }
+export function Button({
+  children, variant = "primary", size = "md", busy = false, icon: Icon, className = "", type = "button", ...rest
+}: {
+  children?: ReactNode; variant?: BtnVariant; size?: "md" | "sm"; busy?: boolean; icon?: LucideIcon; className?: string
+} & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children">) {
   return (
-    <section
-      className={`group rounded-[24px] border border-line bg-panel p-5 transition duration-200 ${className}`}
-    >
+    <button type={type} className={`${BTN[variant]} ${size === "sm" ? "btn-sm" : ""} ${className}`} aria-busy={busy || undefined} {...rest}>
+      {busy ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : Icon ? <Icon className="size-4" aria-hidden /> : null}
       {children}
-    </section>
+    </button>
   )
 }
 
+/* ---------- InfoDot ---------- */
 // Small "?" affordance: shows what a metric measures + how to read it against
 // your own baseline. Works on desktop (hover) and phones (tap toggles; tapping
 // elsewhere closes). The bubble is portaled to <body> and fixed-positioned next
@@ -61,17 +75,14 @@ export function InfoDot({ text, label, className = "" }: { text: ReactNode; labe
   }, [open])
 
   return (
-    <span
-      className={`relative inline-flex shrink-0 align-middle ${className}`}
-      onMouseEnter={show}
-      onMouseLeave={() => setOpen(false)}
-    >
+    <span className={`relative inline-flex shrink-0 align-middle ${className}`} onMouseEnter={show} onMouseLeave={() => setOpen(false)}>
       <button
         ref={btnRef}
         type="button"
         aria-label={label ? `Co znamená: ${label}` : "Nápověda k metrice"}
+        aria-expanded={open}
         onClick={(e) => { e.stopPropagation(); e.preventDefault(); open ? setOpen(false) : show() }}
-        className="grid size-[18px] place-items-center rounded-full border border-fg-2/50 text-[11px] font-bold leading-none text-fg-2 transition hover:border-accent hover:text-accent active:scale-90"
+        className={`grid size-5 place-items-center rounded-full border text-[11px] font-extrabold leading-none transition active:scale-90 ${open ? "border-accent bg-accent/15 text-accent" : "border-accent/60 text-accent/90 hover:border-accent hover:text-accent"}`}
       >
         ?
       </button>
@@ -81,9 +92,9 @@ export function InfoDot({ text, label, className = "" }: { text: ReactNode; labe
           role="tooltip"
           onClick={(e) => e.stopPropagation()}
           style={{ position: "fixed", left: pos.left, top: pos.top, width: pos.width, transform: pos.below ? undefined : "translateY(-100%)" }}
-          className="z-[130] animate-[infoPop_.14s_ease-out] rounded-2xl border border-white/12 bg-panel p-3 text-left text-[11px] font-normal normal-case leading-[1.45] tracking-normal text-fg-soft shadow-[0_16px_44px_rgba(0,0,0,.55)]"
+          className="z-[130] animate-[infoPop_.14s_ease-out] rounded-xl border border-white/14 bg-raised p-3 text-left text-[12px] font-normal normal-case leading-[1.5] tracking-normal text-fg-soft shadow-[0_16px_44px_rgba(0,0,0,.55)]"
         >
-          {label && <b className="mb-1 block text-[13px] text-fg">{label}</b>}
+          {label && <b className="mb-1 block text-[13px] font-bold text-fg">{label}</b>}
           {text}
         </span>,
         document.body,
@@ -92,43 +103,125 @@ export function InfoDot({ text, label, className = "" }: { text: ReactNode; labe
   )
 }
 
-export function Metric({
-  label,
-  value,
-  caption,
-  warm = false,
-  info,
-}: {
-  label: string
-  value: ReactNode
-  caption?: string
-  warm?: boolean
-  info?: ReactNode
-}) {
+export function Metric({ label, value, caption, warm = false, info }: { label: string; value: ReactNode; caption?: string; warm?: boolean; info?: ReactNode }) {
   return (
-    <Card className={warm ? "border-0 bg-panel-2 text-fg" : ""}>
+    <Card className={warm ? "!bg-panel-2" : ""}>
       <span className="flex items-center gap-1.5">
         <Label>{label}</Label>
         {info && <InfoDot text={info} label={label} />}
       </span>
-      <p className={`mt-4 font-serif text-4xl tracking-[-.07em] ${warm ? "text-white" : ""}`}>{value}</p>
-      {caption && <p className={`mt-2 text-xs ${warm ? "text-fg-soft" : "text-fg-2"}`}>{caption}</p>}
+      <p className="t-num mt-3 text-4xl text-fg">{value}</p>
+      {caption && <p className="mt-2 text-xs text-fg-2">{caption}</p>}
     </Card>
   )
 }
 
-export function Chip({ children, tone = "muted" }: { children: ReactNode; tone?: "muted" | "ok" | "watch" | "alert" | "accent" }) {
-  const cls =
-    tone === "ok"
-      ? "bg-info-bg text-info"
-      : tone === "watch"
-        ? "bg-alert-bg text-alert-soft"
-        : tone === "alert"
-          ? "bg-alert-bg text-alert"
-          : tone === "accent"
-            ? "bg-accent text-ink"
-            : "bg-panel-2 text-fg-2"
-  return <span className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-bold ${cls}`}>{children}</span>
+/* ---------- Chip ---------- */
+const CHIP: Record<Tone, string> = {
+  ok: "bg-ok/15 text-ok", watch: "bg-watch/15 text-watch", alert: "bg-alert/16 text-alert-soft", accent: "bg-accent text-ink",
+  muted: "bg-white/[.07] text-fg-2", info: "bg-info/14 text-info", load: "bg-load/18 text-load", self: "bg-self/16 text-self",
+}
+export function Chip({ children, tone = "muted", className = "" }: { children: ReactNode; tone?: Tone; className?: string }) {
+  return <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold leading-none ${CHIP[tone]} ${className}`}>{children}</span>
+}
+
+/* ---------- Segmented ---------- */
+// One segmented control for Pohyb (terrain), Péče sub-tabs, Data sources, sheet toggles.
+export function Segmented<K extends string>({ options, value, onChange, ariaLabel, className = "", size = "md" }: {
+  options: readonly (readonly [K, string])[]; value: K; onChange: (k: K) => void; ariaLabel?: string; className?: string; size?: "md" | "sm"
+}) {
+  return (
+    <div role="group" aria-label={ariaLabel} className={`inline-flex max-w-full gap-0.5 overflow-x-auto rounded-full bg-white/[.06] p-[3px] ${className}`}>
+      {options.map(([k, l]) => {
+        const on = k === value
+        return (
+          <button key={k} type="button" aria-pressed={on} onClick={() => onChange(k)}
+            className={`whitespace-nowrap rounded-full font-bold transition ${size === "sm" ? "px-3 py-1.5 text-[11px]" : "px-4 py-2 text-[12px]"} ${on ? "bg-fg text-ink" : "text-fg-2 hover:text-fg"}`}>
+            {l}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ---------- Switch ---------- */
+export function Switch({ checked, onChange, label, tone = "accent", disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; tone?: "accent" | "alert"; disabled?: boolean }) {
+  return (
+    <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)}
+      className={`relative h-6 w-10 shrink-0 rounded-full transition disabled:opacity-50 ${checked ? (tone === "alert" ? "bg-alert" : "bg-accent") : "bg-white/15"}`}>
+      <span className={`absolute top-[3px] size-[18px] rounded-full transition-all ${checked ? "left-[19px] bg-ink" : "left-[3px] bg-fg-2"}`} />
+    </button>
+  )
+}
+
+/* ---------- AlertBanner ---------- */
+// Tones: stop (always open, "dnes neběhat"), alert, watch, info. Collapsible banners
+// show only the title when closed; the chevron toggles the text in place.
+const AB: Record<string, { box: string; ico: string; Icon: LucideIcon }> = {
+  stop: { box: "border-alert/60 bg-alert/16 text-[#ffd2c4]", ico: "bg-alert/20 text-alert-soft", Icon: CircleMinus },
+  alert: { box: "border-alert/35 bg-alert/10 text-[#ffc9b9]", ico: "bg-alert/16 text-alert-soft", Icon: TriangleAlert },
+  watch: { box: "border-watch/30 bg-watch/[.08] text-watch-soft", ico: "bg-watch/15 text-watch", Icon: TriangleAlert },
+  info: { box: "border-info/28 bg-info/[.07] text-fg-soft", ico: "bg-info/13 text-info", Icon: Info },
+}
+export function AlertBanner({ tone = "alert", icon, title, children, action, collapsible = false, open = true, onToggle, className = "" }: {
+  tone?: "stop" | "alert" | "watch" | "info"; icon?: LucideIcon; title: ReactNode; children?: ReactNode; action?: ReactNode
+  collapsible?: boolean; open?: boolean; onToggle?: () => void; className?: string
+}) {
+  const t = AB[tone] || AB.alert
+  const Icon = icon || t.Icon
+  const expanded = !collapsible || open
+  const head = (
+    <>
+      <span className={`grid size-[30px] shrink-0 place-items-center rounded-[10px] ${t.ico}`}><Icon className="size-4" aria-hidden /></span>
+      <span className="min-w-0 flex-1 text-left">
+        <b className="block text-[13px] font-bold leading-5">{title}</b>
+        {expanded && children && <span className="mt-0.5 block text-xs leading-5 opacity-90">{children}</span>}
+      </span>
+    </>
+  )
+  return (
+    <div className={`rounded-2xl border ${t.box} ${className}`}>
+      {collapsible ? (
+        <button type="button" onClick={onToggle} aria-expanded={expanded} className="flex w-full items-start gap-3 p-3 text-left">
+          {head}
+          <ChevronDown className={`mt-1.5 size-4 shrink-0 transition ${expanded ? "rotate-180" : ""}`} aria-hidden />
+        </button>
+      ) : (
+        <div className="flex items-start gap-3 p-3">{head}</div>
+      )}
+      {expanded && action && <div className="-mt-1 px-3 pb-3 pl-[54px]">{action}</div>}
+    </div>
+  )
+}
+
+/* ---------- FactorBar ---------- */
+// "Co tvoří skóre …" rows: label, value, +points, bar relative to the largest factor.
+export function FactorBar({ label, value, pts, pct, tone = "info", grade }: { label: ReactNode; value?: ReactNode; pts?: number; pct: number; tone?: Tone; grade?: string }) {
+  const col = toneCol(tone)
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        {grade && <span className="grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-extrabold" style={{ background: `${col}26`, color: col }}>{grade}</span>}
+        <span className="min-w-0 flex-1 truncate text-[13px] text-fg">{label}</span>
+        {value != null && <span className="tabular-nums text-[12px] text-fg-2">{value}</span>}
+        {pts != null && <b className="tabular-nums text-[12px]" style={{ color: col }}>+{pts}</b>}
+      </div>
+      <div className={`mt-1.5 h-1.5 rounded-full bg-white/[.08] ${grade ? "ml-7" : ""}`}>
+        <i className="block h-full rounded-full" style={{ width: `${Math.max(6, Math.min(100, pct))}%`, background: col }} />
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Empty ---------- */
+export function Empty({ children, icon: Icon }: { children: ReactNode; icon?: LucideIcon }) {
+  return (
+    <div className="grid justify-items-center gap-2 rounded-[14px] border border-dashed border-white/15 p-6 text-center text-sm text-fg-2">
+      {Icon && <Icon className="size-6 text-fg-3" aria-hidden />}
+      <div>{children}</div>
+    </div>
+  )
 }
 
 export function Ring({ value, label, max = 100, size = 64 }: { value: number; label?: string; max?: number; size?: number }) {
@@ -139,24 +232,22 @@ export function Ring({ value, label, max = 100, size = 64 }: { value: number; la
   return (
     <div className="flex items-center gap-3">
       <svg width={size} height={size} viewBox="0 0 100 100" className="shrink-0">
-        <circle cx="50" cy="50" r={r} fill="none" stroke="rgb(255 255 255 / .12)" strokeWidth="10" />
-        <circle
-          cx="50"
-          cy="50"
-          r={r}
-          fill="none"
-          stroke={col}
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - pct)}
-          transform="rotate(-90 50 50)"
-        />
-        <text x="50" y="58" textAnchor="middle" fontSize="30" fontWeight="700" fill={C.fg} fontFamily="serif">
-          {Math.round(value)}
-        </text>
+        <circle cx="50" cy="50" r={r} fill="none" stroke="rgb(255 255 255 / .1)" strokeWidth="10" />
+        <circle cx="50" cy="50" r={r} fill="none" stroke={col} strokeWidth="10" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} transform="rotate(-90 50 50)" />
+        <text x="50" y="60" textAnchor="middle" fontSize="30" fontWeight="800" fill={C.fg} fontFamily="Manrope, Arial, sans-serif">{Math.round(value)}</text>
       </svg>
       {label && <div className="text-sm text-fg-2">{label}</div>}
+    </div>
+  )
+}
+
+/* shared tooltip card used by every chart scrub */
+export function ChartTip({ value, sub, color, leftPct, top = 0 }: { value: ReactNode; sub?: ReactNode; color?: string; leftPct: number; top?: number }) {
+  return (
+    <div className="pointer-events-none absolute z-10 rounded-[10px] border border-white/14 bg-raised px-2 py-1 text-center shadow-[0_10px_28px_rgba(0,0,0,.5)]"
+      style={{ top, left: `${leftPct}%`, transform: `translateX(${leftPct > 74 ? "-100%" : leftPct < 26 ? "0%" : "-50%"})` }}>
+      <b className="block whitespace-nowrap text-[12px] font-extrabold leading-tight tabular-nums" style={{ color: color || C.fg }}>{value}</b>
+      {sub != null && <span className="t-axis block whitespace-nowrap leading-tight">{sub}</span>}
     </div>
   )
 }
@@ -171,7 +262,7 @@ export function Sparkline({ vals, color = C.info, h = 48 }: { vals: number[]; co
   const rg = mx - mn || 1
   const pts = vals.map((v, i) => [(i / (vals.length - 1)) * w, h - ((v - mn) / rg) * (h - 8) - 4])
   const d = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" ")
-  const fnum = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1))
+  const fnum = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1).replace(".", ","))
   const pick = (clientX: number) => {
     const el = wrapRef.current
     if (!el) return
@@ -179,6 +270,7 @@ export function Sparkline({ vals, color = C.info, h = 48 }: { vals: number[]; co
     setAct(Math.max(0, Math.min(vals.length - 1, i)))
   }
   const aPct = act != null ? (pts[act][0] / w) * 100 : 0
+  const last = pts.at(-1)!
   return (
     <div
       ref={wrapRef}
@@ -190,33 +282,28 @@ export function Sparkline({ vals, color = C.info, h = 48 }: { vals: number[]; co
       onPointerCancel={() => setAct(null)}
       onPointerLeave={() => setAct(null)}
     >
-      <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="block h-12 w-full">
-        <path d={`M0 ${h} L${pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" L")} L${w} ${h} Z`} fill={color} opacity="0.12" />
-        <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-        {act != null && <line x1={pts[act][0]} y1={0} x2={pts[act][0]} y2={h} stroke={color} strokeOpacity=".4" />}
-        <circle cx={pts.at(-1)![0]} cy={pts.at(-1)![1]} r="3.5" fill={color} />
-        {act != null && <circle cx={pts[act][0]} cy={pts[act][1]} r="4" fill={color} stroke={C.panel} strokeWidth="1.5" />}
-      </svg>
-      {act != null && (
-        <div
-          className="pointer-events-none absolute top-0 z-10 rounded-md border border-white/12 bg-panel px-1.5 py-0.5 tabular-nums text-[11px] shadow-lg"
-          style={{ left: `${aPct}%`, color, transform: `translateX(${aPct > 74 ? "-100%" : aPct < 26 ? "0%" : "-50%"})` }}
-        >
-          {fnum(vals[act])}
-        </div>
-      )}
-      <div className="mt-1 flex justify-between tabular-nums text-[11px] text-fg-3">
+      <div className="relative h-12">
+        <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="block h-12 w-full" aria-hidden="true">
+          <path d={`M0 ${h} L${pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(" L")} L${w} ${h} Z`} fill={color} opacity="0.12" />
+          <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          {act != null && <line x1={pts[act][0]} y1={0} x2={pts[act][0]} y2={h} stroke={color} strokeOpacity=".45" vectorEffect="non-scaling-stroke" />}
+        </svg>
+        <i className="pointer-events-none absolute size-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${(last[0] / w) * 100}%`, top: `${(last[1] / h) * 100}%`, background: color }} />
+        {act != null && <i className="pointer-events-none absolute size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${aPct}%`, top: `${(pts[act][1] / h) * 100}%`, background: color, boxShadow: `0 0 0 2px ${C.panel}` }} />}
+        {act != null && <ChartTip value={fnum(vals[act])} color={color} leftPct={aPct} top={-30} />}
+      </div>
+      <div className="mt-1 flex justify-between text-[11px] tabular-nums text-fg-3">
         <span>min {fnum(mn)}</span>
-        <span className="font-bold text-accent">nyní {fnum(vals.at(-1)!)}</span>
+        <span className="font-bold text-fg">nyní {fnum(vals.at(-1)!)}</span>
         <span>max {fnum(mx)}</span>
       </div>
     </div>
   )
 }
 
-// Numbered bar chart in the v2 design language: value above each bar, light
-// teal fills, the current bar in warm accent, a drawn baseline axis.
-export function Bars({ vals, unit = "km", labels }: { vals: number[]; unit?: string; labels?: string[] }) {
+// Numbered bar chart: value above each bar, the scrubbed bar in lime, the current
+// bar in alert (or per-bar status tones when the caller passes them).
+export function Bars({ vals, unit = "km", labels, tones }: { vals: number[]; unit?: string; labels?: string[]; tones?: Tone[] }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   if (!vals?.length) return null
@@ -224,13 +311,20 @@ export function Bars({ vals, unit = "km", labels }: { vals: number[]; unit?: str
   const mx = Math.max(...vals, 1)
   const dense = n > 14
   const per = n <= 13 ? "t" : "d"
-  const num = (v: number) => (Number.isInteger(v) ? v : Math.round(v * 10) / 10)
+  const num = (v: number) => (Number.isInteger(v) ? v : String(Math.round(v * 10) / 10).replace(".", ","))
   const xlab = (i: number) => (labels ? labels[i] || "" : i === n - 1 ? "teď" : i === 0 ? `−${n - 1}${per}` : i === Math.floor((n - 1) / 2) ? `−${n - 1 - i}${per}` : "")
+  // FIX-8: with many custom labels, show every other one on narrow screens
+  const thinLabels = !!labels && n > 8
   const pick = (clientX: number) => {
     const el = wrapRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
     setAct(Math.max(0, Math.min(n - 1, Math.floor(((clientX - r.left) / r.width) * n))))
+  }
+  const fill = (i: number) => {
+    if (act === i) return C.accent
+    if (tones?.[i]) return tones[i] === "muted" ? "rgb(181 211 202 / .55)" : toneCol(tones[i])
+    return i === n - 1 ? C.alert : "rgb(181 211 202 / .6)"
   }
   return (
     <div className="mt-6">
@@ -251,19 +345,19 @@ export function Bars({ vals, unit = "km", labels }: { vals: number[]; unit?: str
           return (
             <div key={i} className="relative flex h-full min-w-0 flex-1 items-end">
               {on && (
-                <div className="pointer-events-none absolute -top-6 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/12 bg-panel px-1.5 py-0.5 tabular-nums text-[11px] text-fg shadow-lg">
-                  {xlab(i) ? `${xlab(i)}: ` : ""}{num(v)} {unit}
+                <div className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[10px] border border-white/14 bg-raised px-2 py-1 text-[12px] font-extrabold tabular-nums text-fg shadow-[0_10px_28px_rgba(0,0,0,.5)]">
+                  {num(v)} {unit}{xlab(i) ? <span className="t-axis ml-1 font-normal">{xlab(i)}</span> : null}
                 </div>
               )}
-              {showv && <span className={`absolute left-1/2 top-0 -translate-x-1/2 text-[11px] font-bold ${last ? "text-alert" : "text-fg-2"}`}>{num(v)}</span>}
-              <i className={`block min-h-1 w-full self-end rounded-t-sm ${on ? "bg-accent" : last ? "bg-alert" : "bg-viz"}`} style={{ height: `${Math.max(3, (v / mx) * 88)}%` }} />
+              {showv && !on && <span className={`absolute left-1/2 top-0 -translate-x-1/2 text-[11px] font-bold tabular-nums ${last ? "text-alert" : "text-fg-2"} ${!last && v !== mx && n > 8 ? "hidden sm:block" : ""}`}>{num(v)}</span>}
+              <i className="block min-h-1 w-full self-end rounded-t-[3px] transition-colors" style={{ height: `${Math.max(3, (v / mx) * 88)}%`, background: fill(i) }} />
             </div>
           )
         })}
       </div>
       <div className="mt-1 flex gap-1.5">
         {vals.map((_, i) => (
-          <span key={i} className="min-w-0 flex-1 text-center tabular-nums text-[11px] text-fg-3">{xlab(i)}</span>
+          <span key={i} className={`t-axis min-w-0 flex-1 whitespace-nowrap text-center ${i === 0 && !labels ? "text-left" : i === n - 1 && !labels ? "text-right" : ""} ${thinLabels ? "truncate" : ""} ${thinLabels && i % 2 === 1 ? "invisible sm:visible" : ""}`}>{xlab(i)}</span>
         ))}
       </div>
     </div>
@@ -397,15 +491,7 @@ export function AxisLineChart({
           )}
         </p>
       )}
-      {act != null && (
-        <div
-          className="pointer-events-none absolute top-0 z-10 rounded-lg border border-white/12 bg-panel px-2 py-1 text-center shadow-lg"
-          style={{ left: `${aPct}%`, transform: `translateX(${aPct > 74 ? "-100%" : aPct < 26 ? "0%" : "-50%"})` }}
-        >
-          <b className="block tabular-nums text-[11px] leading-tight" style={{ color }}>{nf(points[act].v)}{unit}</b>
-          <span className="block tabular-nums text-[11px] leading-tight text-fg-3">{fmt(points[act].t)}</span>
-        </div>
-      )}
+      {act != null && <ChartTip value={<>{nf(points[act].v)}{unit}</>} sub={fmt(points[act].t)} color={color} leftPct={aPct} top={-6} />}
     </div>
   )
 }
@@ -417,6 +503,7 @@ export function Slider({
   value,
   onChange,
   labels,
+  tone,
 }: {
   name: string
   min: number
@@ -424,7 +511,11 @@ export function Slider({
   value: number
   onChange: (v: number) => void
   labels?: string[]
+  /** "pain": fill runs ok → watch → alert with the value; default lime */
+  tone?: "pain"
 }) {
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0
+  const fillCol = tone === "pain" ? (pct >= 50 ? C.alert : pct >= 25 ? C.watch : C.ok) : C.accent
   return (
     <div className="flex items-center gap-3">
       <input
@@ -434,9 +525,10 @@ export function Slider({
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-1.5 flex-1 accent-accent"
+        className="range flex-1"
+        style={{ ["--fill" as any]: `${pct}%`, ["--fill-color" as any]: fillCol }}
       />
-      <span className="w-16 shrink-0 text-right tabular-nums text-sm text-accent">{labels ? labels[value] ?? value : value}</span>
+      <span className="w-16 shrink-0 text-right text-sm font-extrabold tabular-nums" style={{ color: fillCol }}>{labels ? labels[value] ?? value : value}</span>
     </div>
   )
 }
@@ -444,8 +536,8 @@ export function Slider({
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="mt-4 block">
-      <span className="text-xs font-bold text-fg-2">
-        {label} {hint && <span className="font-normal text-fg-3">{hint}</span>}
+      <span className="text-[13px] font-bold text-fg-soft">
+        {label} {hint && <span className="text-xs font-normal text-fg-3">{hint}</span>}
       </span>
       <div className="mt-2">{children}</div>
     </label>
@@ -460,17 +552,17 @@ export function Sheet({ open, onClose, children, footer }: { open: boolean; onCl
       onClick={onClose}
     >
       <div
-        className="flex max-h-[93dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[28px] border border-white/10 bg-panel text-fg shadow-[0_-8px_40px_rgba(0,0,0,.5)] animate-[sheetUp_.28s_cubic-bezier(.22,1,.36,1)] md:max-h-[88dvh] md:rounded-[28px] md:animate-[fadeIn_.2s_ease-out]"
+        className="flex max-h-[93dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[26px] border border-white/12 bg-raised text-fg shadow-[0_-12px_48px_rgba(0,0,0,.55)] animate-[sheetUp_.28s_cubic-bezier(.22,1,.36,1)] md:max-h-[88dvh] md:rounded-[26px] md:animate-[fadeIn_.2s_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* grab handle (phone) */}
-        <span className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-white/20 md:hidden" />
+        <span className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-white/25 md:hidden" aria-hidden="true" />
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-3 md:px-6 md:pt-4" style={{ overscrollBehavior: "contain" }}>
           {children}
           {!footer && <div className="h-[max(1.25rem,env(safe-area-inset-bottom))]" />}
         </div>
         {footer && (
-          <div className="shrink-0 border-t border-white/10 bg-panel/95 px-5 py-3 pb-[max(.85rem,env(safe-area-inset-bottom))] backdrop-blur md:px-6">
+          <div className="shrink-0 border-t border-white/10 bg-raised/95 px-5 py-3 pb-[max(.85rem,env(safe-area-inset-bottom))] backdrop-blur md:px-6">
             {footer}
           </div>
         )}
@@ -495,9 +587,9 @@ export function ToastHost({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="fixed bottom-5 left-1/2 z-[60] flex w-[min(92vw,26rem)] -translate-x-1/2 flex-col gap-2">
+      <div className="fixed bottom-5 left-1/2 z-[60] flex w-[min(92vw,26rem)] -translate-x-1/2 flex-col gap-2" role="status" aria-live="polite">
         {items.map((t) => (
-          <div key={t.id} className="animate-[careReveal_.28s_ease-out] rounded-2xl border border-white/10 bg-panel-2 px-4 py-3 text-fg shadow-2xl">
+          <div key={t.id} className="animate-[careReveal_.28s_ease-out] rounded-2xl border border-white/14 bg-raised px-4 py-3 text-fg shadow-[0_16px_44px_rgba(0,0,0,.55)]">
             <b className="text-sm">{t.title}</b>
             {t.msg && <p className="mt-0.5 text-xs text-fg-2">{t.msg}</p>}
           </div>

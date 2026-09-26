@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { AxisLineChart, Bars, Card, Chip, Field, InfoDot, Label, Metric, Ring, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
+import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, Field, InfoDot, Label, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
+import { FileText, LoaderCircle } from "lucide-react"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
 import { clamp, czk, FEEL_LABEL, fmtD, fmtSlot, paceStr, PHASE, QUAD, sgn } from "@/lib"
 import MuscleAnatomy, { PainHeatmap, type BodyPoint } from "@/components/MuscleAnatomy"
@@ -21,7 +22,7 @@ export function Head({ kicker, title, sub }: { kicker: string; title: string; su
   )
 }
 function Empty({ children }: { children: any }) {
-  return <div className="rounded-2xl border border-dashed border-white/15 p-6 text-center text-sm text-fg-3">{children}</div>
+  return <UiEmpty icon={FileText}>{children}</UiEmpty>
 }
 
 // A page gate that tells "still loading" apart from "the fetch failed". Without
@@ -29,13 +30,11 @@ function Empty({ children }: { children: any }) {
 // null. Surfaces store.error and offers a retry.
 function LoadGate({ label = "Načítám…" }: { label?: string }) {
   const { error, refresh } = useApp()
-  if (!error) return <Empty>{label}</Empty>
+  if (!error) return <UiEmpty icon={LoaderCircle}>{label}</UiEmpty>
   return (
-    <div className="rounded-2xl border border-alert/40 bg-alert-bg p-6 text-center">
-      <p className="text-sm font-bold text-alert-soft">Data se nepodařilo načíst</p>
-      <p className="mt-1 text-xs leading-5 text-alert-soft/80">{error}</p>
-      <button onClick={() => refresh()} className="mt-4 rounded-full bg-accent px-4 py-2 text-xs font-bold text-ink">Zkusit znovu</button>
-    </div>
+    <AlertBanner tone="alert" title="Data se nepodařilo načíst" action={<Button size="sm" onClick={() => refresh()}>Zkusit znovu</Button>}>
+      {error}
+    </AlertBanner>
   )
 }
 
@@ -1155,11 +1154,7 @@ export function Mechanics() {
       </section>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-full border border-white/10 bg-panel p-1 text-xs font-semibold">
-          {([["all", "Všechen terén"], ["terr", "Podle profilu terénu"]] as const).map(([k, l]) => (
-            <button key={k} onClick={() => setTerr(k === "terr")} className={`rounded-full px-4 py-1.5 transition ${(terr ? "terr" : "all") === k ? "bg-info text-ink" : "text-fg-2 hover:text-fg"}`}>{l}</button>
-          ))}
-        </div>
+        <Segmented ariaLabel="Srovnání metrik" options={[["all", "Všechen terén"], ["terr", "Podle profilu terénu"]] as const} value={terr ? "terr" : "all"} onChange={(k) => setTerr(k === "terr")} />
         <span className="tabular-nums text-[11px] text-fg-3">{terr ? "srovnání metrik napříč profily terénu" : "každá metrika proti vaší celkové normě"}</span>
       </div>
 

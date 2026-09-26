@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
   createBrowserRouter,
@@ -294,7 +294,7 @@ function Card({
 }) {
   return (
     <section
-      className={`group rounded-[24px] border border-line bg-panel p-5 transition duration-200 hover:-translate-y-0.5 hover:border-info/45 hover:shadow-[0_14px_34px_rgb(15_40_36_/_0.12)] ${className}`}
+      className={`group card p-4 transition duration-200 md:p-5 hover:-translate-y-0.5 hover:border-info/45 hover:shadow-[0_14px_34px_rgb(0_0_0_/_0.35)] ${className}`}
     >
       {children}
     </section>
@@ -1344,7 +1344,10 @@ function AtlasNav() {
     </nav>
   )
 }
+// Dev-only component gallery (/ui) — tree-shaken out of production builds.
+const DevGallery = import.meta.env.DEV ? lazy(() => import("@/dev/Gallery")) : null
 const router = createBrowserRouter([
+  ...(DevGallery ? [{ path: "/ui", Component: () => <Suspense fallback={null}><DevGallery /></Suspense> }] : []),
   { path: "/", Component: () => <Navigate to="/app/today" replace /> },
   { path: "/auth", Component: Auth },
   {

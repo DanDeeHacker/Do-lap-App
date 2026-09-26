@@ -59,6 +59,35 @@ button { cursor:pointer; }
 @utility surface { background:linear-gradient(160deg, rgb(255 255 255 / .055), rgb(255 255 255 / .015)); border:1px solid rgb(255 255 255 / .08); }
 @utility surface-2 { background:rgb(255 255 255 / .035); border:1px solid rgb(255 255 255 / .07); }
 
+/* ---- Component utilities (redesign v2, section 4) ---- */
+@utility btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:.4rem; white-space:nowrap;
+  border-radius:999px; padding:.625rem 1rem; font-size:13px; line-height:1.2; font-weight:800;
+  &:disabled { opacity:.4; cursor:not-allowed; }
+}
+@utility btn-sm { padding:.4rem .75rem; font-size:12px; }
+@utility btn-primary { background:var(--color-accent); color:var(--color-ink);
+  @media (hover:hover) { &:hover:not(:disabled) { filter:brightness(1.07); box-shadow:0 8px 18px rgb(199 255 84 / .18); } } }
+@utility btn-secondary { background:rgb(255 255 255 / .08); color:var(--color-fg);
+  @media (hover:hover) { &:hover:not(:disabled) { background:rgb(255 255 255 / .13); } } }
+@utility btn-outline { border:1px solid rgb(255 255 255 / .2); color:var(--color-fg);
+  @media (hover:hover) { &:hover:not(:disabled) { border-color:rgb(255 255 255 / .4); } } }
+@utility btn-danger { background:var(--color-alert); color:#140806;
+  @media (hover:hover) { &:hover:not(:disabled) { filter:brightness(1.07); } } }
+@utility card { border-radius:var(--radius-card); background:linear-gradient(160deg, rgb(255 255 255 / .055), rgb(255 255 255 / .015)); border:1px solid rgb(255 255 255 / .08); }
+@utility nest { border-radius:var(--radius-nest); background:rgb(255 255 255 / .035); border:1px solid rgb(255 255 255 / .07); }
+
+/* Styled native range input (Slider): 8px track, 22px thumb; fill via --fill / --fill-color */
+.range { -webkit-appearance:none; appearance:none; width:100%; height:22px; background:transparent; cursor:pointer; }
+.range::-webkit-slider-runnable-track { height:8px; border-radius:99px; background:linear-gradient(90deg, var(--fill-color, var(--color-accent)) 0 var(--fill, 0%), rgb(255 255 255 / .09) var(--fill, 0%) 100%); }
+.range::-moz-range-track { height:8px; border-radius:99px; background:rgb(255 255 255 / .09); }
+.range::-moz-range-progress { height:8px; border-radius:99px; background:var(--fill-color, var(--color-accent)); }
+.range::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; margin-top:-7px; border-radius:50%; background:var(--color-fg); box-shadow:0 0 0 4px rgb(255 255 255 / .1); border:0; }
+.range::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:var(--color-fg); box-shadow:0 0 0 4px rgb(255 255 255 / .1); border:0; }
+.range:focus-visible { outline:none; }
+.range:focus-visible::-webkit-slider-thumb { box-shadow:0 0 0 3px var(--color-bg), 0 0 0 5px var(--color-accent); }
+.range:focus-visible::-moz-range-thumb { box-shadow:0 0 0 3px var(--color-bg), 0 0 0 5px var(--color-accent); }
+
 /* --- iPhone 15+ / mobile-web hardening ---------------------------------- */
 html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
 /* Kill the grey tap flash and the 300ms double-tap delay on touch. */
@@ -105,7 +134,7 @@ html, body { overscroll-behavior-y:none; }
     animation-range:entry 2% cover 26%;
   }
 }
-.motion-shell input, .motion-shell textarea, .motion-shell select { background:var(--color-panel-2); color:var(--color-fg); border-color:rgb(255 255 255 / .16); }
+.motion-shell input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), .motion-shell textarea, .motion-shell select { background:var(--color-panel-2); color:var(--color-fg); border-color:rgb(255 255 255 / .16); }
 .motion-shell input::placeholder, .motion-shell textarea::placeholder { color:var(--color-fg-3); }
 .motion-shell button, .motion-shell a { transition:transform .18s ease, background-color .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease; }
 @media (hover:hover) { .motion-shell :is(button,a):hover { transform:translateY(-1px); } }

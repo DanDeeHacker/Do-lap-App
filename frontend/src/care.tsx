@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { Card, Chip, Field, Label, Sheet, Slider, useAsync, useToast } from "@/ui"
+import { Card, Chip, Field, Label, Segmented, Sheet, Slider, useAsync, useToast } from "@/ui"
 import { fmtSlot, fmtDT, initials, czk } from "@/lib"
 import { Head, Program } from "@/tabs"
 import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
@@ -37,13 +37,7 @@ export function Care() {
 
       <div className="mb-6">
         <Label>Péče</Label>
-        <div className="mt-3 inline-flex flex-wrap gap-2 rounded-full border border-white/10 bg-panel p-1 text-xs font-semibold">
-          {subtabs.map(([k, l]) => (
-            <button key={k} onClick={() => setSub(k)} className={`rounded-full px-4 py-1.5 transition ${sub === k ? "bg-accent text-ink" : "text-fg-2 hover:text-fg"}`}>
-              {l}
-            </button>
-          ))}
-        </div>
+        <Segmented className="mt-3" ariaLabel="Péče" options={subtabs} value={sub} onChange={setSub} />
       </div>
 
       {sub === "physio" && <PhysioSection onFind={() => setFindOpen(true)} />}
