@@ -14,19 +14,19 @@ import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
 import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
 import { clamp, fmtD, initials, QUAD, roleHome } from "@/lib"
-import { Field, InfoDot, Sheet, ToastHost, useAsync, useToast } from "@/ui"
+import { AlertBanner, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, useAsync, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { Load as LoadTab, Mechanics, Post } from "@/tabs"
 import { Care, InjurySheet, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
 import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
-import { CapacityMini } from "@/capacity"
+import { CapacityMini, readinessCol } from "@/capacity"
 import { Training } from "@/training"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C } from "@/tokens"
-import { Heart, Database, LogOut, SlidersHorizontal, UserPen } from "lucide-react"
+import { Bandage, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 
 // Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
@@ -333,7 +333,9 @@ function Metric({
     </Card>
   )
 }
-function NumberedChart({ vals }: { vals?: number[] }) {
+// Weekly km bars (Dnes → Tréninková zátěž). Scrub = pointer capture; the scrubbed
+// bar is lime, the current week takes the load-status colour.
+function NumberedChart({ vals, lastCol = C.alert }: { vals?: number[]; lastCol?: string }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   // No invented bars: until real weekly km arrive (boot loading / no loadDetail),
@@ -342,7 +344,7 @@ function NumberedChart({ vals }: { vals?: number[] }) {
   const n = volume.length
   if (!n)
     return (
-      <div className="mt-7 grid h-32 place-items-center rounded-xl border border-dashed border-line text-xs text-fg-3">
+      <div className="mt-7 grid h-32 place-items-center rounded-xl border border-dashed border-white/15 text-xs text-fg-3">
         Zatím není dost dat pro týdenní přehled.
       </div>
     )
@@ -357,7 +359,7 @@ function NumberedChart({ vals }: { vals?: number[] }) {
   return (
     <div
       ref={wrapRef}
-      className="relative mt-7 flex h-32 select-none items-end gap-1.5 border-b border-line pb-1"
+      className="relative mt-7 flex h-32 select-none items-end gap-1.5 border-b border-white/10 pb-1"
       style={{ touchAction: "pan-y" }}
       onPointerMove={(e) => pick(e.clientX)}
       onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); pick(e.clientX) }}
@@ -367,17 +369,18 @@ function NumberedChart({ vals }: { vals?: number[] }) {
     >
       {volume.map((km, i) => {
         const on = act === i
+        const last = i === n - 1
         return (
           <div key={i} className="relative flex h-full flex-1 items-end">
             {on && (
-              <div className="pointer-events-none absolute -top-6 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md border border-white/12 bg-panel px-1.5 py-0.5 tabular-nums text-[11px] text-fg shadow-lg">
-                {lab(i)}: {km} km
+              <div className="pointer-events-none absolute -top-7 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[10px] border border-white/14 bg-raised px-2 py-1 tabular-nums text-[11px] text-fg shadow-[0_10px_28px_rgb(0_0_0_/_0.5)]">
+                {lab(i)}: <b className="text-accent">{km} km</b>
               </div>
             )}
-            <span className="absolute left-1/2 top-0 -translate-x-1/2 text-[11px] font-bold text-fg-2">{km}</span>
+            <span className={`absolute left-1/2 top-0 -translate-x-1/2 tabular-nums text-[11px] font-bold ${last ? "text-fg" : "text-fg-2"}`}>{km}</span>
             <i
-              style={{ height: `${Math.max(3, (km / mx) * 88)}%` }}
-              className={`block min-h-1 w-full self-end rounded-t-sm ${on ? "bg-accent" : i === n - 1 ? "bg-alert" : "bg-viz"}`}
+              style={{ height: `${Math.max(3, (km / mx) * 88)}%`, background: on ? C.accent : last ? lastCol : undefined }}
+              className={`block min-h-1 w-full self-end rounded-t-[5px] transition-colors ${on || last ? "" : "bg-viz/70"}`}
             />
           </div>
         )
@@ -387,7 +390,8 @@ function NumberedChart({ vals }: { vals?: number[] }) {
 }
 function RecoveryRanges({ rows }: { rows?: any[] }) {
   const col = (t: string) => (t === "ok" ? C.ok : t === "watch" ? C.watch : t === "alert" ? C.alert : C.fg2)
-  const word = (t: string) => (t === "ok" ? "v normě" : t === "watch" ? "sledovat" : t === "alert" ? "pod normou" : "—")
+  // Plain status words; an alert above the usual level (resting HR) reads "nad normou".
+  const word = (r: any) => (r.tone === "ok" ? "v normě" : r.tone === "watch" ? "sledovat" : r.tone === "alert" ? (r.valNum > r.baseNum ? "nad normou" : "pod normou") : "—")
   const fmt = (n: number) => (Number.isInteger(n) ? `${n}` : `${Math.round(n * 10) / 10}`.replace(".", ","))
   if (!rows || !rows.length) return <p className="mt-4 text-sm text-fg-3">Chybí souvislá data z hodinek za posledních 35 dní.</p>
   return (
@@ -398,23 +402,24 @@ function RecoveryRanges({ rows }: { rows?: any[] }) {
         const dHi = Math.max(r.hi, r.valNum) + sd * 0.8
         const P = (x: number) => clamp(((x - dLo) / (dHi - dLo)) * 100, 3, 97)
         const bandL = P(r.lo), bandR = P(r.hi), mk = P(r.valNum), c = col(r.tone)
+        const Icon = r.icon as LucideIcon
         return (
           <div key={r.label}>
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-fg-2"><span className="mr-1.5 text-info">{r.icon}</span>{r.label}</span>
-              <span className="font-bold" style={{ color: c }}>{word(r.tone)}</span>
+              <span className="flex items-center gap-2 text-sm text-fg-soft"><Icon className="size-4 text-info" aria-hidden />{r.label}</span>
+              <span className="text-[13px] font-bold" style={{ color: c }}>{word(r)}</span>
             </div>
-            <div className="relative mt-5 h-2 rounded-full bg-white/[.06]">
+            <div className="relative mt-6 h-2 rounded-full bg-white/[.06]">
               {/* usual range (baseline ± 1 SD) */}
-              <i className="absolute top-0 h-full rounded-full bg-white/[.1]" style={{ left: `${bandL}%`, width: `${bandR - bandL}%` }} />
+              <i className="absolute top-0 h-full rounded-full" style={{ left: `${bandL}%`, width: `${bandR - bandL}%`, background: `${C.ok}52` }} />
               {/* baseline center tick */}
-              <i className="absolute top-[-2px] h-3 w-px bg-fg-2/70" style={{ left: `${P(r.baseNum)}%` }} />
+              <i className="absolute top-[-3px] h-3.5 w-px bg-fg-2/80" style={{ left: `${P(r.baseNum)}%` }} />
               {/* current-value marker + its number */}
-              <b className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${mk}%`, backgroundColor: c, boxShadow: `0 0 0 5px ${c}2e` }} />
-              <span className="absolute -top-5 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold" style={{ left: `${mk}%`, color: c }}>{fmt(r.valNum)}{r.unit ? ` ${r.unit}` : ""}</span>
+              <b className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${mk}%`, backgroundColor: c, boxShadow: `0 0 0 3px ${C.bg}, 0 0 0 6px ${c}40` }} />
+              <span className="absolute -top-6 -translate-x-1/2 whitespace-nowrap tabular-nums text-[12px] font-extrabold" style={{ left: `${mk}%`, color: c }}>{fmt(r.valNum)}{r.unit ? ` ${r.unit}` : ""}</span>
             </div>
             {/* numeric axis: usual-range bounds under the band edges */}
-            <div className="relative mt-1.5 h-3 text-[11px] text-fg-3">
+            <div className="relative mt-1.5 h-3.5 tabular-nums text-[11px] text-fg-3">
               <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${bandL}%` }}>{fmt(r.lo)}</span>
               <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${bandR}%` }}>{fmt(r.hi)}</span>
             </div>
@@ -426,29 +431,31 @@ function RecoveryRanges({ rows }: { rows?: any[] }) {
   )
 }
 const QCOL: Record<string, string> = { stable: C.ok, overreaching: C.watch, silent: C.self, critical: C.alert }
-function Quadrant({ quadrant = "stable", history, live, onSync, syncing, syncMsg, canSync }: { quadrant?: string; history?: any[] | null; live?: any; onSync?: () => void; syncing?: boolean; syncMsg?: string | null; canSync?: boolean }) {
-  // 2×2: mechanika (sloupce) × zátěž (řádky). Aktivní buňka = reálný kvadrant.
-  const cells: [string, string][] = [
-    ["stable", "Stabilní"],
-    ["silent", "Tichý drift"],
-    ["overreaching", "Přetížení"],
-    ["critical", "Kritická"],
-  ]
+const QCELLS: [string, string][] = [
+  ["stable", "Stabilní"],
+  ["silent", "Tichý drift"],
+  ["overreaching", "Přetížení"],
+  ["critical", "Kritická"],
+]
+// State card, top row: quadrant chip (the only place the quadrant name appears, FIX-4),
+// the Garmin sync button and the 6-month history button.
+function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, canSync, onHistory }: { quadrant?: string; live?: any; onSync?: () => void; syncing?: boolean; syncMsg?: string | null; canSync?: boolean; onHistory: () => void }) {
   const q = QUAD[quadrant] || QUAD.stable
   const col = QCOL[quadrant] || C.ok
-  const [open, setOpen] = useState(false)
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="size-3 shrink-0 rounded-[4px]" style={{ background: col, boxShadow: `0 0 0 4px ${col}22` }} />
-          <div className="min-w-0">
-            <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Kvadrant stavu</p>
-            <h3 className="truncate font-serif text-lg leading-tight text-fg">{q.t}</h3>
+        <div className="min-w-0">
+          <p className="t-label !text-fg-3">Kvadrant stavu</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full py-1.5 pl-2.5 pr-3.5 font-serif text-[17px] leading-none" style={{ background: `${col}1f`, color: C.fg, boxShadow: `inset 0 0 0 1px ${col}55` }}>
+              <i className="size-2.5 shrink-0 rounded-full" style={{ background: col, boxShadow: `0 0 0 3px ${col}33` }} />
+              {q.t}
+            </span>
             {(live?.engineMode === "v2" || live?.engineMode === "v3") && (live?.mechFlag || live?.mechWatch) && (
               <span
-                className="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold"
-                style={live?.mechFlag ? { background: `${C.alert}20`, color: C.alertSoft } : { background: "#ffffff12", color: C.fg2 }}
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                style={live?.mechFlag ? { background: `${C.alert}20`, color: C.alertSoft } : { background: "rgb(255 255 255 / .07)", color: C.fg2 }}
                 title={live?.mechFlag ? "Citlivý engine: mechanika se v rizikovém směru drží mimo vaši normu napříč běhy, nebo se to ukazuje ve dvou nezávislých skupinách metrik" : "Citlivý engine: jedna skupina metrik mechaniky se výrazně odchýlila — zatím jen sledujeme"}
               >
                 {live?.mechFlag ? "⚑ mechanika přetrvává" : "◔ sledovat mechaniku"}
@@ -462,41 +469,49 @@ function Quadrant({ quadrant = "stable", history, live, onSync, syncing, syncMsg
               onClick={onSync}
               disabled={syncing || !canSync}
               title={canSync ? "Stáhnout nová data z Garminu" : "Nejdřív připojte Garmin pro automatickou synchronizaci na stránce Data"}
-              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 tabular-nums text-[11px] font-bold text-accent transition enabled:hover:border-accent enabled:hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-accent/40 bg-accent/10 px-3 py-1.5 text-[12px] font-bold text-accent transition enabled:hover:border-accent enabled:hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <span className={syncing ? "inline-block animate-spin" : ""}>⟳</span>
+              <RefreshCw className={`size-3.5 ${syncing ? "animate-spin" : ""}`} aria-hidden />
               {syncing ? "Synchronizuji…" : "Synchronizovat"}
             </button>
           )}
-          <button onClick={() => setOpen(true)} className="whitespace-nowrap rounded-full border border-white/12 px-3 py-1.5 tabular-nums text-[11px] font-bold text-info transition hover:border-info/50 hover:text-accent">historie 6 měsíců ⤢</button>
+          <button onClick={onHistory} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/14 px-3 py-1.5 text-[12px] font-bold text-info transition hover:border-info/50 hover:bg-info/[.07]">
+            historie 6 měsíců <Maximize2 className="size-3.5" aria-hidden />
+          </button>
         </div>
       </div>
-      {syncMsg && <p className="mt-2 text-[11px] font-medium text-fg-2">{syncMsg}</p>}
-      <p className="mt-2 max-w-md text-xs leading-5 text-fg-2">{q.d}</p>
-      <button type="button" onClick={() => setOpen(true)} className="mt-4 grid w-full grid-cols-2 gap-2 text-left" title="Zobrazit vývoj stavu za 6 měsíců">
-        {cells.map(([key, label]) => {
+      {syncMsg && <p className="mt-2 text-[12px] font-medium text-fg-2" role="status">{syncMsg}</p>}
+      <p className="mt-2 max-w-xl text-[13px] leading-5 text-fg-2">{q.d}</p>
+    </div>
+  )
+}
+// Compact 2×2: mechanika (sloupce) × zátěž (řádky). Aktivní buňka = reálný kvadrant; tap opens history.
+function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; onHistory: () => void }) {
+  return (
+    <div>
+      <button type="button" onClick={onHistory} className="grid w-full grid-cols-2 gap-2 text-left" title="Zobrazit vývoj stavu za 6 měsíců">
+        {QCELLS.map(([key, label]) => {
           const active = key === quadrant
           const c = QCOL[key]
           return (
             <span
               key={key}
-              className="relative overflow-hidden rounded-xl border p-3.5 transition"
-              style={{ borderColor: active ? c : "rgba(255,255,255,.08)", background: active ? `${c}20` : "rgba(255,255,255,.03)" }}
+              className="relative overflow-hidden rounded-[14px] border px-3 py-2.5 transition"
+              style={{ borderColor: active ? c : "rgb(255 255 255 / .08)", background: active ? `${c}1f` : "rgb(255 255 255 / .03)" }}
             >
               <span className="flex items-center gap-2">
-                <i className={`size-2 rounded-full ${active ? "atlas-point" : ""}`} style={{ background: active ? c : `${c}55` }} />
+                <i className={`size-2 rounded-full ${active ? "atlas-point" : ""}`} style={{ background: active ? c : `${c}66` }} />
                 <b className="text-[13px]" style={{ color: active ? C.fg : C.fg2 }}>{label}</b>
               </span>
-              {active && <small className="mt-1.5 block text-[11px] font-bold uppercase tracking-wide" style={{ color: c }}>vy jste zde</small>}
+              {active && <small className="mt-1 block text-[11px] font-bold uppercase tracking-wide" style={{ color: c }}>vy jste zde</small>}
             </span>
           )
         })}
       </button>
-      <div className="mt-2 flex justify-between font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-4">
+      <div className="mt-2 flex justify-between text-[11px] font-bold uppercase tracking-[.12em] text-fg-3">
         <span>← vodorovně: mechanika</span>
         <span>svisle: zátěž ↑</span>
       </div>
-      {open && <QuadrantHistory history={history} live={live} onClose={() => setOpen(false)} />}
     </div>
   )
 }
@@ -533,20 +548,20 @@ function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; l
   const gcol = (g: string) => (g === "A" ? C.alert : g === "B" ? C.watch : C.ok)
   const axis = (label: string, v: number, tone: string) => (
     <div>
-      <div className="flex justify-between text-[11px] text-fg-2"><span>{label}</span><b style={{ color: v >= 25 ? tone : C.fg }}>{v}</b></div>
-      <div className="mt-1 h-1.5 rounded-full bg-white/10"><i className="block h-full rounded-full" style={{ width: `${clamp(v, 0, 100)}%`, background: tone }} /></div>
+      <div className="flex justify-between text-[12px] text-fg-2"><span>{label}</span><b className="tabular-nums" style={{ color: v >= 25 ? tone : C.fg }}>{v}</b></div>
+      <div className="mt-1 h-1.5 rounded-full bg-white/[.08]"><i className="block h-full rounded-full" style={{ width: `${clamp(v, 0, 100)}%`, background: tone }} /></div>
     </div>
   )
   return createPortal(
     <>
       <div className="fixed inset-0 z-[80] bg-bg/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 top-[calc(68px+env(safe-area-inset-top))] z-[90] flex lg:left-[220px] flex-col overflow-hidden border-t border-white/12 bg-panel pb-[env(safe-area-inset-bottom)] text-fg shadow-2xl">
+      <div className="fixed inset-x-0 bottom-0 top-[calc(68px+env(safe-area-inset-top))] z-[90] flex flex-col overflow-hidden border-t border-white/12 bg-raised pb-[env(safe-area-inset-bottom)] text-fg shadow-[0_-20px_60px_rgb(0_0_0_/_0.5)] lg:left-[220px]">
         <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
           <div>
-            <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Vývoj stavu · 6 měsíců</p>
+            <p className="t-label !text-fg-3">Vývoj stavu · 6 měsíců</p>
             <h2 className="mt-1 font-serif text-2xl">Kvadrant a rizikové skóre po dnech</h2>
           </div>
-          <button onClick={onClose} className="grid size-9 shrink-0 place-items-center rounded-full border border-white/15 text-lg">×</button>
+          <button onClick={onClose} aria-label="Zavřít" className="grid size-9 shrink-0 place-items-center rounded-full border border-white/15 text-fg-2 hover:text-fg"><X className="size-4" aria-hidden /></button>
         </div>
 
         {data.length < 2 ? (
@@ -555,7 +570,7 @@ function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; l
           <div className="mx-auto grid w-full max-w-[1180px] flex-1 gap-5 overflow-auto p-5 md:grid-cols-[1.5fr_1fr]">
             {/* chart */}
             <div className="flex flex-col">
-              <div className="flex h-[46vh] min-h-[220px] items-end gap-px rounded-xl bg-ink p-2">
+              <div className="flex h-[46vh] min-h-[220px] items-end gap-px rounded-[14px] bg-ink p-2">
                 {data.map((d, idx) => {
                   const h = Math.max(6, ((d.overall || 0) / maxOv) * 100)
                   const on = idx === i
@@ -568,7 +583,7 @@ function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; l
                       title={`${fmtShort(d.date)} · ${(QUAD[d.quadrant] || QUAD.stable).t} · skóre ${d.overall}`}
                       className="flex h-full flex-1 items-end"
                     >
-                      <i className="block w-full rounded-sm transition-opacity" style={{ height: `${h}%`, background: QCOL[d.quadrant] || "#3a4a45", opacity: on ? 1 : 0.72, outline: on ? "1px solid #f1f8f1" : "none" }} />
+                      <i className="block w-full rounded-sm transition-opacity" style={{ height: `${h}%`, background: QCOL[d.quadrant] || C.fg4, opacity: on ? 1 : 0.7, outline: on ? `1px solid ${C.fg}` : "none" }} />
                     </button>
                   )
                 })}
@@ -578,7 +593,7 @@ function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; l
                 <span>výška = skóre 0–{maxOv}</span>
                 <span>dnes</span>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-fg-2">
+              <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[12px] text-fg-2">
                 {(["stable", "overreaching", "silent", "critical"] as const).map((k) => (
                   <span key={k} className="inline-flex items-center gap-1.5">
                     <i className="size-2.5 rounded-sm" style={{ background: QCOL[k] }} />
@@ -591,25 +606,25 @@ function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; l
 
             {/* selected-day detail */}
             {cur && (
-              <div className="rounded-2xl border border-white/10 bg-panel-2 p-4">
-                <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">{fmtLong(cur.date)}</p>
+              <div className="nest p-4">
+                <p className="t-label !text-fg-3">{fmtLong(cur.date)}</p>
                 <div className="mt-1 flex items-center gap-2">
-                  <span className="size-3 rounded-sm" style={{ background: QCOL[cur.quadrant] }} />
+                  <span className="size-3 rounded-full" style={{ background: QCOL[cur.quadrant] }} />
                   <h3 className="font-serif text-xl">{(QUAD[cur.quadrant] || QUAD.stable).t}</h3>
-                  <span className="ml-auto font-serif text-2xl">{cur.overall}<small className="text-xs text-fg-3">/100</small></span>
+                  <span className="t-num ml-auto text-[26px]">{cur.overall}<small className="text-xs font-semibold text-fg-3">/100</small></span>
                 </div>
-                <p className="mt-1 text-[11px] leading-4 text-fg-2">{(QUAD[cur.quadrant] || QUAD.stable).d}</p>
-                <div className="mt-4 space-y-2">
+                <p className="mt-1 text-[12px] leading-4 text-fg-2">{(QUAD[cur.quadrant] || QUAD.stable).d}</p>
+                <div className="mt-4 space-y-2.5">
                   {axis("Mechanika", cur.mech, C.info)}
-                  {axis("Zátěž", cur.load, C.watch)}
+                  {axis("Zátěž", cur.load, C.load)}
                   {axis("Příznaky", cur.symp, C.alert)}
                 </div>
-                <p className="mt-4 font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Co ovlivňovalo stav</p>
+                <p className="t-label mt-4 !text-fg-3">Co ovlivňovalo stav</p>
                 {cur.signals && cur.signals.length ? (
                   <div className="mt-2 space-y-1.5">
                     {cur.signals.map((s: any, k: number) => (
                       <div key={k} className="flex items-center gap-2 text-[12px]">
-                        <span className="grid size-4 shrink-0 place-items-center rounded-full text-[11px] font-bold" style={{ background: `${gcol(s.grade)}26`, color: gcol(s.grade) }}>{s.grade}</span>
+                        <span className="grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-extrabold" style={{ background: `${gcol(s.grade)}26`, color: gcol(s.grade) }}>{s.grade}</span>
                         <span className="flex-1 truncate text-fg">{s.name}</span>
                         <span className="tabular-nums text-fg-2">+{s.pts}</span>
                       </div>
@@ -646,18 +661,70 @@ function InjuryPrompt({ a }: { a: any }) {
     <>
       {open && <InjurySheet rid={rid} initialRegions={regions} initialQ={q} intro={`${why} — upravte odpovědi podle skutečnosti.`}
         onClose={() => setOpen(false)} onDone={() => { setOpen(false); refresh() }} />}
-      <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[.03] p-4 text-fg">
-        <span className="text-lg leading-none">🩹</span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold">Je to zranění?</p>
-          <p className="mt-0.5 text-xs leading-5 text-fg-2">{why}. Když to omezuje trénink, nahlaste to — zapíše se to do historie zranění, přizpůsobí se plán a po zahojení vás aplikace vrátí k běhu postupně.</p>
-        </div>
-        <button onClick={() => setOpen(true)} className="shrink-0 rounded-full bg-alert px-3.5 py-1.5 text-xs font-bold text-ink">Nahlásit zranění</button>
-      </div>
+      <AlertBanner tone="info" icon={Bandage} title="Je to zranění?"
+        action={<Button size="sm" variant="danger" onClick={() => setOpen(true)}>Nahlásit zranění</Button>}>
+        {why}. Když to omezuje trénink, nahlaste to — zapíše se to do historie zranění, přizpůsobí se plán a po zahojení vás aplikace vrátí k běhu postupně.
+      </AlertBanner>
     </>
   )
 }
 
+// OPT-1 · decision card at the top of Dnes: repeats today's Trénink guidance
+// (Kapacitní engine only — without it there is no guidance to repeat).
+const kmFmt = (v: number) => v.toLocaleString("cs-CZ", { maximumFractionDigits: 1 })
+function DecisionCard({ a }: { a: any }) {
+  const g = a?.guidance
+  if (a?.engineMode !== "v3" || !g) return null
+  const t = g.types?.[g.type]
+  if (!t) return null
+  const rp = g.readinessScore ?? Math.round((g.readiness ?? 1) * 100)
+  const rc = readinessCol(rp)
+  const ov = g.override
+  const physio = ov && (ov.kind === "physio" || ov.kind === "function")
+  const run = g.type !== "volno" && g.type !== "závod"
+  const col = ov ? C.alert : C.accent
+  const facts = run
+    ? [t.km && t.km.hi ? `${t.km.lo === t.km.hi ? kmFmt(t.km.lo) : `${kmFmt(t.km.lo)}–${kmFmt(t.km.hi)}`} km` : null, t.hr ? `${t.hr[0]}–${t.hr[1]} tep/min` : null, t.durationMin ? `≈ ${t.durationMin[0]}–${t.durationMin[1]} min` : null].filter(Boolean).join(" · ")
+    : t.notes?.[0]
+  const R = 2 * Math.PI * 42
+  return (
+    <section className="card relative mt-5 overflow-hidden p-4 md:p-5" style={{ borderColor: `${col}55`, backgroundImage: `linear-gradient(120deg, ${col}1c, transparent 55%)` }} aria-label="Doporučení na dnes">
+      <div className="flex items-center gap-4">
+        <div className="grid shrink-0 justify-items-center gap-1">
+        <div className="relative grid size-[64px] place-items-center" title={`připravenost ${rp} %`}>
+          <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
+            <circle cx="50" cy="50" r="42" fill="none" stroke="rgb(255 255 255 / .1)" strokeWidth="9" />
+            <circle cx="50" cy="50" r="42" fill="none" stroke={rc} strokeWidth="9" strokeLinecap="round" strokeDasharray={R} strokeDashoffset={R * (1 - clamp(rp, 0, 100) / 100)} />
+          </svg>
+          <b className="t-num text-[19px] leading-none" style={{ color: rc }}>{rp}<small className="text-[11px] font-semibold text-fg-3"> %</small></b>
+        </div>
+        <span className="text-[11px] font-semibold text-fg-3">připravenost</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="t-label">Doporučení na dnes</p>
+          <h2 className="mt-1 font-serif text-[26px] leading-tight tracking-[-.02em]" style={{ color: ov ? C.alertSoft : C.fg }}>{t.label}</h2>
+          {(ov?.title || facts) && <p className="mt-0.5 text-[13px] leading-5 text-fg-soft">{ov ? ov.title : facts}</p>}
+        </div>
+      </div>
+      <div className="mt-3.5 flex flex-wrap items-center gap-2 sm:pl-[80px]">
+        {physio && <Link to="/app/messages" className="btn btn-primary btn-sm">Objednat fyzioterapeuta</Link>}
+        <Link to="/app/training" className="btn btn-outline btn-sm">Detail tréninku <ChevronRight className="size-3.5" aria-hidden /></Link>
+        {g.provisional && <Chip tone="watch">předběžné · čeká na ranní data</Chip>}
+      </div>
+    </section>
+  )
+}
+
+function SideStat({ label, value, col, align = "left" }: { label: string; value: number | null | undefined; col: string; align?: "left" | "right" }) {
+  return (
+    <div className={align === "right" ? "text-right" : ""}>
+      <p className="text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">{label}</p>
+      <p className="t-num mt-0.5 text-[24px] leading-none" style={{ color: value == null ? C.fg3 : col }}>{value ?? "—"}</p>
+    </div>
+  )
+}
+
+type AlertRow = { key: string; tone: "stop" | "alert" | "watch" | "info"; icon?: LucideIcon; title: React.ReactNode; body: React.ReactNode }
 function TodayV2() {
   const { me, boot, refresh, error } = useApp()
   const a = boot?.assessment
@@ -665,6 +732,7 @@ function TodayV2() {
   const rcv = a?.rcv
   const rid = me?.runner_id
   const [quadHist, setQuadHist] = useState<any[] | null>(null)
+  const [histOpen, setHistOpen] = useState(false)
   useEffect(() => {
     if (!rid) return
     let alive = true
@@ -708,25 +776,23 @@ function TodayV2() {
   const deltaUp = (scoreDelta ?? 0) > 0
   const deltaDown = (scoreDelta ?? 0) < 0
   const deltaCol = deltaUp ? C.ok : deltaDown ? C.alert : C.fg2
+  const scoreCol = score == null ? C.fg3 : score >= 67 ? C.ok : score >= 34 ? C.watch : C.alert
   const gated = (a?.confidence?.value ?? 0) < 0.6
-  const mech = a?.mech ?? 0
   const quad = a?.quadrant ? QUAD[a.quadrant] : null
-  const tavr = a?.tavr
-  const pos = (p: number) => clamp(p, 10, 90)
   const sleepTone = rcv ? ((rcv.sleep?.debt || 0) >= 4 ? "alert" : (rcv.sleep?.debt || 0) >= 1 ? "watch" : "ok") : "muted"
   const hrvTone = rcv ? ((rcv.hrv?.z ?? 0) <= -1 ? "alert" : (rcv.hrv?.z ?? 0) < -0.3 ? "watch" : "ok") : "muted"
   const rhrTone = rcv ? ((rcv.rhr?.z ?? 0) >= 1.2 ? "alert" : (rcv.rhr?.z ?? 0) > 0.5 ? "watch" : "ok") : "muted"
   const rstd = (arr: number[]) => { if (!arr || arr.length < 2) return 0; const m = arr.reduce((s, x) => s + x, 0) / arr.length; return Math.sqrt(arr.reduce((s, x) => s + (x - m) ** 2, 0) / (arr.length - 1)) }
   // Numeric usual range = baseline ± 1 SD, so the interval bar can carry a real
   // axis (band bounds + the current value at the marker) instead of a bare dot.
-  const rrow = (label: string, icon: string, unit: string, o: any, tone: string) => {
+  const rrow = (label: string, icon: LucideIcon, unit: string, o: any, tone: string) => {
     const series = (o?.series || []) as number[]
     const base = o?.base ?? 0, val = o?.now ?? 0
     const sd = rstd(series) || Math.max(Math.abs(base) * 0.06, 0.1)
     return { label, icon, unit, tone, valNum: val, baseNum: base, lo: base - sd, hi: base + sd }
   }
   const recoveryRows = rcv
-    ? [rrow("Spánek", "☾", "h", rcv.sleep, sleepTone), rrow("HRV", "♡", "ms", rcv.hrv, hrvTone), rrow("Klidový tep", "⏱", "", rcv.rhr, rhrTone)]
+    ? [rrow("Spánek", Moon, "h", rcv.sleep, sleepTone), rrow("HRV", HeartPulse, "ms", rcv.hrv, hrvTone), rrow("Klidový tep", Timer, "", rcv.rhr, rhrTone)]
     : undefined
   // Keep this box in sync with the Zátěž tab + quadrant: the load *axis* is a
   // composite (descent spike, high-intensity, load creep, monotony…), not just
@@ -742,187 +808,184 @@ function TodayV2() {
         : (L.ratio ?? 1) < 0.8
           ? { t: "Nižší než obvykle", tone: "muted", d: "Objem klesl pod vaši obvyklou úroveň." }
           : { t: "V pohodě", tone: "ok", d: "Zátěž sedí na vaší obvyklé úrovni." }
-  const toneChip = (t: string) => (t === "ok" ? "bg-info-bg text-info" : t === "watch" ? "bg-alert-bg text-watch" : t === "alert" ? "bg-alert-bg text-alert" : "bg-white/[.06] text-fg-2")
+  const loadCol = loadStatus.tone === "ok" ? C.ok : loadStatus.tone === "watch" ? C.watch : loadStatus.tone === "alert" ? C.alert : C.fg3
   const wkly = (L?.weekly || []) as number[]
   const typicalKm = wkly.length > 1 ? Math.round(wkly.slice(0, -1).reduce((s, x) => s + x, 0) / (wkly.length - 1)) : (L?.runKm7 ?? 0)
   const signals = (a?.signals || []) as any[]
   const tierWord = a?.tier === "alert" ? "vysoké riziko" : a?.tier === "watch" ? "sledovat" : "nízké riziko"
   const recur = a?.painRecurring as { site: string; days: number } | null | undefined
   const tierCol = a?.tier === "alert" ? C.alert : a?.tier === "watch" ? C.watch : C.ok
-  const gradeCol = (g: string) => (g === "A" ? C.alert : g === "B" ? C.watch : C.ok)
+  const gradeTone = (g: string) => (g === "A" ? "alert" : g === "B" ? "watch" : "ok") as "alert" | "watch" | "ok"
   const overall = a?.overall ?? 0
   const RING = 2 * Math.PI * 44
+  const priority = a?.tier === "alert" || a?.painRecurring ? "Prioritou je odlehčení" : a?.tier === "watch" ? "Sledujte zátěž" : "Trénink sedí"
+  // FIX-4: the quadrant name lives in the chip; the ring title carries the verdict
+  // (the recurring-pain override stays as it was).
+  const verdict = recur && a?.tier !== "alert" ? "Odlehčit — opakovaná bolest" : priority
+  const axisCol = (v: number | null | undefined, hot: string) => (v == null ? C.fg3 : v >= 25 ? hot : v >= 12 ? C.watch : C.fg)
+
+  // Alert stack — same conditions and order as before; stop-level items are always open,
+  // of the rest the first is open and the others collapse (one open at a time).
+  const alerts: AlertRow[] = []
+  if (a?.painWarn)
+    alerts.push({
+      key: "pain", tone: "alert",
+      title: a.painWarn.backToBack ? "Neustupující bolest — zvažte situaci" : `Nahlásil jste bolest ${a.painWarn.score}/10`,
+      body: <>{a.painWarn.site && a.painWarn.site !== "—" ? `${a.painWarn.site} · ` : ""}{a.painWarn.backToBack
+        ? "Stejné místo bolí opakovaně během pár dní — varovný signál přetížení. Zvažte odpočinek a konzultaci s fyzioterapeutem, než přidáte objem."
+        : "Bolest nad 3/10 stojí za pozornost. Zvažte lehčí zátěž; pokud se vrátí na stejném místě, proberte to s fyzioterapeutem."}</>,
+    })
+  if (a?.functionLimit?.severe)
+    alerts.push({
+      key: "function", tone: "stop", title: "Bolest omezuje pohyb — dnes neběhat",
+      body: <>{a.functionLimit.site ? `${a.functionLimit.site} · ` : ""}Omezený pohyb nebo kulhání je úroveň zranění, i když je číslo bolesti nízké. Hýbejte se jen tak, aby to nebolelo, a nechte to posoudit fyzioterapeutem do 48 hodin.</>,
+    })
+  if (a?.acuteOverload && !a?.functionLimit?.severe)
+    alerts.push({
+      key: "acute", tone: "watch", icon: Zap, title: "Akutní přetížení po běhu",
+      body: <>{a.acuteOverload.reasons.join(", ")}. {a.acuteOverload.daysSince <= 1 ? "Den dva bez běhu, pak jen volně a krátce." : "Zatím jen volně a krátce, bez intenzity a dlouhého běhu."} Pokud bolest do 3 dnů neustoupí, proberte ji s fyzioterapeutem.</>,
+    })
+  if (a?.painMonitor?.morningWorse && !a?.functionLimit?.severe)
+    alerts.push({
+      key: "morning", tone: "stop", title: "Bolest je ráno horší než při běhu — dnes neběhat",
+      body: <>{a.painMonitor.morningWorse.site ? `${a.painMonitor.morningWorse.site} · ` : ""}ráno {a.painMonitor.morningWorse.morning}/10, při včerejším běhu {a.painMonitor.morningWorse.during}/10. Bolest má do rána odeznít — když je horší, byla zátěž moc. Další běh kratší a volnější; pokud se to zopakuje, k fyzioterapeutovi.</>,
+    })
+  if (a?.painMonitor?.trend)
+    alerts.push({
+      key: "trend", tone: "watch", icon: TrendingUp, title: "Bolest týden od týdne roste",
+      body: <>Průměr za 7 dní {a.painMonitor.trend.now.toLocaleString("cs-CZ")}/10, týden předtím {a.painMonitor.trend.before.toLocaleString("cs-CZ")}/10. Bolest nemá z týdne na týden růst — odlehčujeme: bez intenzity a dlouhého běhu, dokud se neustálí.</>,
+    })
+  if (a?.races?.warnings?.length > 0)
+    alerts.push({
+      key: "race", tone: "watch", icon: Flag,
+      title: a.races.warnings.some((w: any) => w.kind === "race_day") ? "Závod na hraně zotavení" : "Závod příliš blízko jinému úsilí",
+      body: <>{a.races.warnings.map((w: any, i: number) => <span key={i} className="block">{w.text}</span>)}</>,
+    })
+  if (a?.raceRecovery)
+    alerts.push({
+      key: "raceRecovery", tone: "info", icon: Flag,
+      title: `Zotavení po závodním úsilí · den ${a.raceRecovery.daysSince + 1} z ${a.raceRecovery.days}`,
+      body: <>{a.raceRecovery.km} km ({fmtD(a.raceRecovery.date)}: {a.raceRecovery.why.join(", ")}). {a.raceRecovery.daysSince < a.raceRecovery.restDays ? "První dny odpočinek nebo velmi volný pohyb." : "Zatím bez intenzity a dlouhého běhu."}</>,
+    })
+  const firstCollapsible = alerts.find((x) => x.tone !== "stop")?.key ?? null
+  const [openAlert, setOpenAlert] = useState<string | null | undefined>(undefined)
+  const openKey = openAlert === undefined ? firstCollapsible : openAlert
 
   return (
     <>
       <div className="flex items-end justify-between">
         <div>
           <Label>{today}</Label>
-          <h1 className="mt-1 font-serif text-4xl tracking-[-.06em]">
+          <h1 className="mt-1 font-serif text-[30px] tracking-[-.03em] md:text-4xl">
             {greet}, {firstName}.
           </h1>
         </div>
       </div>
       {error && !a && (
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-alert/40 bg-alert-bg p-4 text-alert-soft">
-          <span className="text-lg leading-none">⚠</span>
-          <div className="flex-1">
-            <p className="text-sm font-bold">Data se nepodařilo načíst</p>
-            <p className="mt-0.5 text-xs leading-5">{error}</p>
-          </div>
-          <button onClick={() => refresh()} className="shrink-0 self-center rounded-full bg-accent px-3 py-1.5 text-xs font-bold text-ink">Zkusit znovu</button>
+        <AlertBanner tone="alert" className="mt-5" title="Data se nepodařilo načíst"
+          action={<Button size="sm" onClick={() => refresh()}>Zkusit znovu</Button>}>
+          {error}
+        </AlertBanner>
+      )}
+      <DecisionCard a={a} />
+      {(alerts.length > 0 || a) && (
+        <div className="mt-4 grid gap-2.5 empty:hidden">
+          {alerts.map((x) =>
+            x.tone === "stop" ? (
+              <AlertBanner key={x.key} tone="stop" icon={x.icon} title={x.title}>{x.body}</AlertBanner>
+            ) : (
+              <AlertBanner key={x.key} tone={x.tone} icon={x.icon} title={x.title} collapsible open={openKey === x.key}
+                onToggle={() => setOpenAlert(openKey === x.key ? null : x.key)}>{x.body}</AlertBanner>
+            ),
+          )}
+          <InjuryPrompt a={a} />
         </div>
       )}
-      {a?.painWarn && (
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-alert/40 bg-alert-bg p-4 text-alert-soft">
-          <span className="text-lg leading-none">⚠</span>
+      <section className="card mt-6 p-4 text-fg md:p-6">
+        <QuadrantHead quadrant={a?.quadrant} live={a} onSync={doSync} syncing={syncing} syncMsg={syncMsg} canSync={!!gStatus?.connected} onHistory={() => setHistOpen(true)} />
+        {/* „Stav" — co jde do kvadrantu — je součástí boxu s kvadrantem */}
+        <div className="mt-5 grid gap-6 border-t border-white/[.08] pt-5 md:grid-cols-2 md:gap-8">
           <div>
-            <p className="text-sm font-bold">{a.painWarn.backToBack ? "Neustupující bolest — zvažte situaci" : `Nahlásil jste bolest ${a.painWarn.score}/10`}</p>
-            <p className="mt-0.5 text-xs leading-5">
-              {a.painWarn.site && a.painWarn.site !== "—" ? `${a.painWarn.site} · ` : ""}
-              {a.painWarn.backToBack
-                ? "Stejné místo bolí opakovaně během pár dní — varovný signál přetížení. Zvažte odpočinek a konzultaci s fyzioterapeutem, než přidáte objem."
-                : "Bolest nad 3/10 stojí za pozornost. Zvažte lehčí zátěž; pokud se vrátí na stejném místě, proberte to s fyzioterapeutem."}
-            </p>
-          </div>
-        </div>
-      )}
-      {a?.functionLimit?.severe && (
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-alert/60 bg-alert-bg p-4 text-alert-soft">
-          <span className="text-lg leading-none">⛔</span>
-          <div>
-            <p className="text-sm font-bold">Bolest omezuje pohyb — dnes neběhat</p>
-            <p className="mt-0.5 text-xs leading-5">{a.functionLimit.site ? `${a.functionLimit.site} · ` : ""}Omezený pohyb nebo kulhání je úroveň zranění, i když je číslo bolesti nízké. Hýbejte se jen tak, aby to nebolelo, a nechte to posoudit fyzioterapeutem do 48 hodin.</p>
-          </div>
-        </div>
-      )}
-      {a?.acuteOverload && !a?.functionLimit?.severe && (
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-watch/40 bg-watch-bg p-4 text-watch-soft">
-          <span className="text-lg leading-none">⚠</span>
-          <div>
-            <p className="text-sm font-bold">Akutní přetížení po běhu</p>
-            <p className="mt-0.5 text-xs leading-5">{a.acuteOverload.reasons.join(", ")}. {a.acuteOverload.daysSince <= 1 ? "Den dva bez běhu, pak jen volně a krátce." : "Zatím jen volně a krátce, bez intenzity a dlouhého běhu."} Pokud bolest do 3 dnů neustoupí, proberte ji s fyzioterapeutem.</p>
-          </div>
-        </div>
-      )}
-      {a?.painMonitor?.morningWorse && !a?.functionLimit?.severe && (
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-alert/50 bg-alert-bg p-4 text-alert-soft">
-          <span className="text-lg leading-none">⛔</span>
-          <div>
-            <p className="text-sm font-bold">Bolest je ráno horší než při běhu — dnes neběhat</p>
-            <p className="mt-0.5 text-xs leading-5">{a.painMonitor.morningWorse.site ? `${a.painMonitor.morningWorse.site} · ` : ""}ráno {a.painMonitor.morningWorse.morning}/10, při včerejším běhu {a.painMonitor.morningWorse.during}/10. Bolest má do rána odeznít — když je horší, byla zátěž moc. Další běh kratší a volnější; pokud se to zopakuje, k fyzioterapeutovi.</p>
-          </div>
-        </div>
-      )}
-      {a?.painMonitor?.trend && (
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-watch/40 bg-watch-bg p-4 text-watch-soft">
-          <span className="text-lg leading-none">↗</span>
-          <div>
-            <p className="text-sm font-bold">Bolest týden od týdne roste</p>
-            <p className="mt-0.5 text-xs leading-5">Průměr za 7 dní {a.painMonitor.trend.now.toLocaleString("cs-CZ")}/10, týden předtím {a.painMonitor.trend.before.toLocaleString("cs-CZ")}/10. Bolest nemá z týdne na týden růst — odlehčujeme: bez intenzity a dlouhého běhu, dokud se neustálí.</p>
-          </div>
-        </div>
-      )}
-      <InjuryPrompt a={a} />
-      {a?.races?.warnings?.length > 0 && (
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-watch/40 bg-watch-bg p-4 text-watch-soft">
-          <span className="text-lg leading-none">🏁</span>
-          <div>
-            <p className="text-sm font-bold">{a.races.warnings.some((w: any) => w.kind === "race_day") ? "Závod na hraně zotavení" : "Závod příliš blízko jinému úsilí"}</p>
-            {a.races.warnings.map((w: any, i: number) => <p key={i} className="mt-0.5 text-xs leading-5">{w.text}</p>)}
-          </div>
-        </div>
-      )}
-      {a?.raceRecovery && (
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-info/35 bg-panel-2 p-4 text-fg-soft">
-          <span className="text-lg leading-none">🏁</span>
-          <div>
-            <p className="text-sm font-bold">Zotavení po závodním úsilí · den {a.raceRecovery.daysSince + 1} z {a.raceRecovery.days}</p>
-            <p className="mt-0.5 text-xs leading-5">{a.raceRecovery.km} km ({fmtD(a.raceRecovery.date)}: {a.raceRecovery.why.join(", ")}). {a.raceRecovery.daysSince < a.raceRecovery.restDays ? "První dny odpočinek nebo velmi volný pohyb." : "Zatím bez intenzity a dlouhého běhu."}</p>
-          </div>
-        </div>
-      )}
-      <section className="mt-7 rounded-[24px] border border-white/10 bg-gradient-to-br from-panel to-bg p-6 text-fg">
-        <Quadrant quadrant={a?.quadrant} history={quadHist} live={a} onSync={doSync} syncing={syncing} syncMsg={syncMsg} canSync={!!gStatus?.connected} />
-        {/* „Stav" — co jde do kvadrantu — je teď součástí boxu s kvadrantem */}
-        <div className="mt-6 border-t border-white/10 pt-5">
-          <div className="flex items-center gap-4">
-            <div className="relative grid size-16 shrink-0 place-items-center">
-              <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90">
-                <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(255 255 255 / .1)" strokeWidth="9" />
-                <circle cx="50" cy="50" r="44" fill="none" stroke={tierCol} strokeWidth="9" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
-              </svg>
-              <b className="font-serif text-2xl text-fg">{overall}</b>
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+              <div className="grid gap-5">
+                <SideStat label="Regenerace" value={score} col={scoreCol} />
+                <SideStat label="Mechanika" value={a ? a.mech : null} col={axisCol(a?.mech, C.alert)} />
+              </div>
+              <div className="relative grid size-[132px] place-items-center">
+                <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
+                  <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(255 255 255 / .09)" strokeWidth="8" />
+                  <circle cx="50" cy="50" r="44" fill="none" stroke={tierCol} strokeWidth="8" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
+                </svg>
+                <span className="text-center">
+                  <b className="t-num block text-[40px] leading-none text-fg">{overall}</b>
+                  <span className="mt-1 flex items-center justify-center gap-1"><span className="text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">Celkový stav</span></span>
+                </span>
+                <span className="absolute -right-1 top-1"><InfoDot text={MI.overall} label="Celkový stav" /></span>
+              </div>
+              <div className="grid gap-5">
+                <SideStat label="Zátěž" value={a ? a.load : null} col={C.load} align="right" />
+                <SideStat label="Příznaky" value={a ? a.symp : null} col={axisCol(a?.symp, C.alert)} align="right" />
+              </div>
             </div>
-            <div>
-              <span className="flex items-center gap-1.5"><p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Celkový stav</p><InfoDot text={MI.overall} label="Celkový stav" /></span>
-              <h3 className="font-serif text-xl text-fg">{recur && a?.tier !== "alert" ? "Odlehčit — opakovaná bolest" : quad?.t}</h3>
-              <p className="mt-0.5 text-xs font-bold" style={{ color: tierCol }}>{tierWord}</p>
+            <div className="mt-4 text-center">
+              <h3 className="font-serif text-[21px] leading-tight text-fg">{verdict}</h3>
+              <p className="mt-1 text-[13px] font-bold" style={{ color: tierCol }}>{tierWord}</p>
               {recur && (
-                <p className="mt-1 text-[11px] leading-4 text-watch">
+                <p className="mx-auto mt-2 max-w-sm text-[12px] leading-5 text-watch">
                   {recur.site} · {recur.days}× za 28 dní — i mírná bolest na stejném místě je vzorec přetížení. Kratší a volnější běhy, bez dlouhého běhu a intenzity.
                 </p>
               )}
             </div>
           </div>
-          <div className="mt-5">
-            <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Co teď nejvíc ovlivňuje stav</p>
-            {signals.length ? (
-              <div className="mt-2.5 space-y-2.5">
-                {signals.slice(0, 4).map((s) => {
-                  const gc = gradeCol(s.grade)
-                  const w = Math.max(10, (s.pts / (signals[0].pts || 1)) * 100)
-                  return (
-                    <div key={s.id}>
-                      <div className="flex items-center gap-2">
-                        <span className="grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold" style={{ background: `${gc}26`, color: gc }}>{s.grade}</span>
-                        <span className="flex-1 truncate text-[13px] text-fg">{s.name}</span>
-                        <span className="tabular-nums text-[11px] text-fg-2">{s.val}</span>
-                      </div>
-                      <div className="ml-7 mt-1 h-1 rounded-full bg-white/10">
-                        <i className="block h-full rounded-full" style={{ width: `${w}%`, background: gc }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-fg-2">Nic nad prahem — zátěž i mechanika sedí na vaší normě.</p>
-            )}
-            {gated && <p className="mt-2 text-[11px] text-fg-3">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>}
-          </div>
-        </div>
-      </section>
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_.8fr]">
-        <section className="rounded-[24px] border border-white/10 bg-panel p-6 text-fg">
-          <span className="flex items-center gap-1.5"><Label>Regenerace přes noc</Label><InfoDot text={MI.recoveryScore} label="Regenerace přes noc" /></span>
-          <div className="mt-3 flex items-end justify-between">
-            <b className="text-4xl">
-              {score ?? "—"}{" "}
-              <small className="text-sm font-normal text-fg-2">/ 100</small>
-            </b>
-            <div className="text-right">
-              <span className="block text-sm text-accent">{scoreLabel}</span>
-              {scoreDelta != null && (
-                <span className="mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold" style={{ background: `${deltaCol}1f`, color: deltaCol }}>
-                  <span>{deltaUp ? "▲" : deltaDown ? "▼" : "▬"}</span>
-                  <span>{scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta < 0 ? scoreDelta : "beze změny"}</span>
-                  <span className="font-normal opacity-70">{scoreDelta !== 0 ? "přes noc" : "oproti včera"}</span>
-                </span>
+          <div>
+            <QuadrantGrid quadrant={a?.quadrant} onHistory={() => setHistOpen(true)} />
+            <div className="mt-5">
+              <p className="t-label !text-fg-3">Co teď nejvíc ovlivňuje stav</p>
+              {signals.length ? (
+                <div className="mt-3 space-y-3">
+                  {signals.slice(0, 4).map((s) => (
+                    <FactorBar key={s.id} grade={s.grade} tone={gradeTone(s.grade)} label={s.name} value={s.val} pct={(s.pts / (signals[0].pts || 1)) * 100} />
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-fg-2">Nic nad prahem — zátěž i mechanika sedí na vaší normě.</p>
               )}
+              {gated && <p className="mt-3 text-[11px] text-fg-3">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>}
             </div>
           </div>
-          <div className="relative mt-4 h-7 overflow-hidden rounded-md border border-accent/35 bg-ink">
-            <i className="absolute inset-y-0 left-0 bg-accent/40" style={{ width: `${clamp(score ?? 0, 0, 100)}%` }} />
+        </div>
+        {histOpen && <QuadrantHistory history={quadHist} live={a} onClose={() => setHistOpen(false)} />}
+      </section>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_.8fr]">
+        <section className="card p-4 text-fg md:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <span className="flex items-center gap-1.5"><Label>Regenerace přes noc</Label><InfoDot text={MI.recoveryScore} label="Regenerace přes noc" /></span>
+            {scoreDelta != null && (
+              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-bold" style={{ background: `${deltaCol}1f`, color: deltaCol }}>
+                <span>{deltaUp ? "▲" : deltaDown ? "▼" : "▬"}</span>
+                <span>{scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta < 0 ? scoreDelta : "beze změny"}</span>
+                <span className="font-medium opacity-80">{scoreDelta !== 0 ? "přes noc" : "oproti včera"}</span>
+              </span>
+            )}
+          </div>
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <b className="t-num text-[44px] leading-none" style={{ color: scoreCol }}>
+              {score ?? "—"}
+              <small className="ml-1 text-sm font-semibold tracking-normal text-fg-3">/ 100</small>
+            </b>
+            <span className="pb-1 text-right text-[14px] font-bold text-fg">{scoreLabel}</span>
+          </div>
+          <div className="relative mt-4 h-3 overflow-hidden rounded-full bg-white/[.07]">
+            <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${clamp(score ?? 0, 0, 100)}%`, background: `${scoreCol}88` }} />
             {scorePrev != null && !!scoreDelta && (
               <i className="absolute inset-y-0" style={{ left: `${clamp(Math.min(score ?? 0, scorePrev), 0, 100)}%`, width: `${Math.abs((score ?? 0) - scorePrev)}%`, background: deltaCol, opacity: 0.85 }} />
             )}
             {scorePrev != null && (
               <i className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `calc(${clamp(scorePrev, 0, 100)}% - 1px)` }} />
             )}
-            <i className="absolute inset-y-0 left-1/4 w-px bg-ink/50" />
-            <i className="absolute inset-y-0 left-1/2 w-px bg-ink/50" />
-            <i className="absolute inset-y-0 left-3/4 w-px bg-ink/50" />
+            <i className="absolute inset-y-0 left-1/4 w-px bg-bg/60" />
+            <i className="absolute inset-y-0 left-1/2 w-px bg-bg/60" />
+            <i className="absolute inset-y-0 left-3/4 w-px bg-bg/60" />
           </div>
           <div className="mt-2 flex justify-between text-[11px] text-fg-3">
             <span>nízká</span>
@@ -930,32 +993,32 @@ function TodayV2() {
             <span>plná</span>
           </div>
           {scorePrev != null && (
-            <p className="mt-2 text-[11px] text-fg-3">
+            <p className="mt-2 text-[12px] text-fg-3">
               <span className="mr-1 inline-block h-2 w-0.5 translate-y-px bg-fg" /> včera {scorePrev}
               {scoreDelta ? <> · <span style={{ color: deltaCol }}>{deltaUp ? "regenerace přes noc stoupla" : "regenerace přes noc klesla"} o {Math.abs(scoreDelta)}</span></> : " · přes noc beze změny"}
             </p>
           )}
-          <div className="mt-5 grid gap-2 border-t border-white/10 pt-4 text-xs">
+          <div className="mt-5 grid gap-2.5 border-t border-white/[.08] pt-4 text-[13px]">
             {rcv && (
               <div className="flex items-center gap-3">
-                <span className="grid size-6 place-items-center rounded-full bg-info/15 text-info">☾</span>
+                <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><Moon className="size-4" aria-hidden /></span>
                 <span>
                   <b>HRV {rcv.hrv?.now} ms</b>
-                  <small className="ml-2 text-fg-2">baseline {rcv.hrv?.base} ms · spánek {rcv.sleep?.now} h</small>
+                  <small className="ml-2 text-[12px] text-fg-2">baseline {rcv.hrv?.base} ms · spánek {rcv.sleep?.now} h</small>
                 </span>
               </div>
             )}
             <div className="flex items-center gap-3">
-              <span className="grid size-6 place-items-center rounded-full bg-accent/15 text-accent">↗</span>
+              <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-accent/15 text-accent"><TrendingUp className="size-4" aria-hidden /></span>
               <span>
-                <b>{a?.tier === "alert" || a?.painRecurring ? "Prioritou je odlehčení" : a?.tier === "watch" ? "Sledujte zátěž" : "Trénink sedí"}</b>
-                <small className="ml-2 text-fg-2">{quad?.d}</small>
+                <b>{priority}</b>
+                <small className="ml-2 text-[12px] text-fg-2">{quad?.d}</small>
               </span>
             </div>
           </div>
         </section>
         <Card>
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <Label>Regenerace vs. norma</Label>
             <WeeklyCheckButton />
           </div>
@@ -969,15 +1032,15 @@ function TodayV2() {
               <Label>Tréninková zátěž</Label>
               <h2 className="mt-1 font-serif text-2xl">{loadStatus.t}</h2>
             </div>
-            <span className={`rounded-full px-3 py-1 text-[11px] font-bold ${toneChip(loadStatus.tone)}`}>tento týden</span>
+            <Chip tone={loadStatus.tone as any}>tento týden</Chip>
           </div>
-          <p className="mt-1 text-xs text-fg-2">{loadStatus.d}</p>
-          <p className="mt-4 font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Kilometry po kalendářních týdnech (Po–Ne)</p>
-          <NumberedChart vals={L?.weekly} />
-          <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-fg-2">
-            <span>Tento týden <small className="text-fg-3">(Po–Ne)</small> <b className="block text-base text-fg">{L?.weekKm ?? "—"} km</b></span>
-            <span>Posledních 7 dní <b className="block text-base text-fg">{L?.runKm7 ?? "—"} km</b></span>
-            <span className="text-right">Obvykle / týden <b className="block text-base text-fg">{typicalKm} km</b></span>
+          <p className="mt-1 text-[13px] text-fg-2">{loadStatus.d}</p>
+          <p className="t-label mt-4 !text-fg-3">Kilometry po kalendářních týdnech (Po–Ne)</p>
+          <NumberedChart vals={L?.weekly} lastCol={loadStatus.tone === "muted" ? C.fg2 : loadCol} />
+          <div className="mt-3 grid grid-cols-3 gap-2 text-[12px] text-fg-2">
+            <span>Tento týden <small className="text-fg-3">(Po–Ne)</small> <b className="t-num block text-[18px] text-fg">{L?.weekKm ?? "—"} km</b></span>
+            <span>Posledních 7 dní <b className="t-num block text-[18px] text-fg">{L?.runKm7 ?? "—"} km</b></span>
+            <span className="text-right">Obvykle / týden <b className="t-num block text-[18px] text-fg">{typicalKm} km</b></span>
           </div>
           {a?.capacity && <CapacityMini cap={a.capacity} />}
         </Card>

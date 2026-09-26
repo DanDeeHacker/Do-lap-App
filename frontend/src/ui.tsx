@@ -159,8 +159,8 @@ export function Switch({ checked, onChange, label, tone = "accent", disabled }: 
 // Tones: stop (always open, "dnes neběhat"), alert, watch, info. Collapsible banners
 // show only the title when closed; the chevron toggles the text in place.
 const AB: Record<string, { box: string; ico: string; Icon: LucideIcon }> = {
-  stop: { box: "border-alert/60 bg-alert/16 text-[#ffd2c4]", ico: "bg-alert/20 text-alert-soft", Icon: CircleMinus },
-  alert: { box: "border-alert/35 bg-alert/10 text-[#ffc9b9]", ico: "bg-alert/16 text-alert-soft", Icon: TriangleAlert },
+  stop: { box: "border-alert/60 bg-alert/16 text-alert-soft", ico: "bg-alert/20 text-alert-soft", Icon: CircleMinus },
+  alert: { box: "border-alert/35 bg-alert/10 text-alert-soft", ico: "bg-alert/16 text-alert-soft", Icon: TriangleAlert },
   watch: { box: "border-watch/30 bg-watch/[.08] text-watch-soft", ico: "bg-watch/15 text-watch", Icon: TriangleAlert },
   info: { box: "border-info/28 bg-info/[.07] text-fg-soft", ico: "bg-info/13 text-info", Icon: Info },
 }
