@@ -27,7 +27,7 @@ import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C } from "@/tokens"
-import { Bandage, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, UserPen, X, Zap, type LucideIcon } from "lucide-react"
+import { Bandage, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 
 // Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
@@ -104,7 +104,7 @@ function Topbar() {
             )
           })}
         </nav>
-        <p className="hidden text-[15px] font-extrabold tracking-[-.02em] text-fg lg:block">{navItems.find(([id]) => pathname === `/app/${id}` || pathname.startsWith(`/app/${id}/`))?.[1] ?? (pathname === "/data" ? "Data a připojení" : pathname.startsWith("/engine") ? "Citlivostní analýza" : "")}</p>
+        <p className="hidden text-[15px] font-extrabold tracking-[-.02em] text-fg lg:block">{navItems.find(([id]) => pathname === `/app/${id}` || pathname.startsWith(`/app/${id}/`))?.[1] ?? (pathname === "/data" ? "Data a připojení" : pathname === "/engines" ? "Porovnání enginů" : pathname.startsWith("/engine") ? "Citlivostní analýza" : "")}</p>
         <div className="relative flex shrink-0 items-center gap-2">
           <AnnotateToggle />
           <button
@@ -1110,14 +1110,14 @@ function Auth() {
 
   return (
     <div className="motion-shell min-h-screen bg-bg p-5 md:grid md:grid-cols-2 md:gap-8 md:p-8">
-      <aside className="hidden rounded-[30px] bg-panel-2 p-10 text-white md:flex md:flex-col">
-        <div className="flex items-center gap-2 font-bold">
+      <aside className="card relative hidden overflow-hidden p-10 text-fg md:flex md:flex-col" style={{ backgroundImage: `radial-gradient(circle at 85% 12%, ${C.accent}1a, transparent 22rem), radial-gradient(circle at 10% 90%, ${C.info}14, transparent 20rem)` }}>
+        <div className="flex items-center gap-2.5 text-lg font-extrabold tracking-[-.04em]">
           <Mark />
           došlap
         </div>
         <div className="my-auto">
           <Label>Bezpečný přístup</Label>
-          <h1 className="mt-4 max-w-md font-serif text-5xl leading-[.95]">
+          <h1 className="mt-4 max-w-md font-serif text-5xl leading-[1.02] tracking-[-.02em]">
             Změny ve vaší zátěži a mechanice vidíte včas.
           </h1>
           <p className="mt-5 max-w-md text-sm leading-6 text-fg-soft">
@@ -1127,12 +1127,12 @@ function Auth() {
         </div>
       </aside>
       <section className="mx-auto flex w-full max-w-md flex-col justify-center py-8">
-        <span className="mb-10 flex items-center gap-2 font-bold md:hidden">
+        <span className="mb-10 flex items-center gap-2.5 text-lg font-extrabold tracking-[-.04em] md:hidden">
           <Mark />
           došlap
         </span>
         <Label>Přístup pro běžce</Label>
-        <h1 className="mt-1 font-serif text-4xl tracking-[-.06em]">
+        <h1 className="mt-1 font-serif text-[34px] tracking-[-.03em] md:text-4xl">
           {mode === "login" ? "Přihlášení" : "Nová registrace"}
         </h1>
         <Card className="mt-5">
@@ -1141,32 +1141,39 @@ function Auth() {
           </p>
           {mode === "register" && (
             <input
-              className="mt-5 w-full rounded-xl border border-line px-3 py-3 text-sm"
+              className="mt-5 w-full rounded-xl border px-3.5 py-3 text-sm"
+              aria-label="Jméno"
+              autoComplete="name"
               placeholder="Jméno"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           )}
           <input
-            className="mt-3 w-full rounded-xl border border-line px-3 py-3 text-sm"
+            className="mt-3 w-full rounded-xl border px-3.5 py-3 text-sm"
+            aria-label="E-mail"
+            type="email"
+            autoComplete="email"
             placeholder="E-mail"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
           <input
             type="password"
-            className="mt-3 w-full rounded-xl border border-line px-3 py-3 text-sm"
+            className="mt-3 w-full rounded-xl border px-3.5 py-3 text-sm"
+            aria-label="Heslo"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
             placeholder="Heslo"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
           />
           {mode === "register" && <p className="mt-2 text-[11px] text-fg-2">Heslo alespoň 8 znaků.</p>}
-          {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
+          {err && <p role="alert" className="mt-3 text-[13px] font-bold text-alert">{err}</p>}
           <button
             onClick={submit}
             disabled={busy}
-            className="mt-5 w-full rounded-full bg-accent py-3 text-sm font-bold text-ink disabled:opacity-60"
+            className="btn btn-primary mt-5 w-full py-3 text-sm"
           >
             {busy ? "Přihlašuji…" : mode === "login" ? "Přihlásit se" : "Vytvořit účet"}
           </button>
@@ -1175,7 +1182,7 @@ function Auth() {
               setMode(mode === "login" ? "register" : "login")
               setErr(null)
             }}
-            className="mt-3 w-full text-center text-xs font-bold text-fg-2"
+            className="mt-3 w-full text-center text-[13px] font-bold text-fg-2 hover:text-accent"
           >
             {mode === "login" ? "Nemáte účet? Registrovat se" : "Už máte účet? Přihlásit se"}
           </button>
@@ -1184,6 +1191,8 @@ function Auth() {
     </div>
   )
 }
+const STEP_TITLE = ["Jak se dnes cítí tělo?", "Kde to bolí?", "Ještě něco?"]
+const STEP_SHORT = ["Pocity", "Bolest", "Poznámka"]
 function AtlasBubble() {
   const [open, setOpen] = useState(false)
   const [score, setScore] = useState<number | null>(null)
@@ -1193,6 +1202,11 @@ function AtlasBubble() {
   const [note, setNote] = useState("")
   const [points, setPoints] = useState<BodyPoint[]>([])
   const [fn, setFn] = useState<{ limits_movement: boolean; run_modified: boolean; limping: boolean }>({ limits_movement: false, run_modified: false, limping: false })
+  const [step, setStep] = useState(1)
+  useEffect(() => { if (open) setStep(1) }, [open])
+  // Step 2 (where it hurts) is only asked when there is pain; otherwise it's skipped.
+  const next = () => setStep((st) => (st === 1 ? (pain > 0 ? 2 : 3) : 3))
+  const back = () => setStep((st) => (st === 3 ? (pain > 0 ? 2 : 1) : 1))
   const { me, boot, refresh } = useApp()
   const rid = me?.runner_id
   const rcv = boot?.assessment?.rcv
@@ -1207,7 +1221,8 @@ function AtlasBubble() {
   const save = () =>
     run(async () => {
       if (!rid) return
-      const pts = points.map((p) => ({ region: p.region, side: p.side || null, type: p.kind }))
+      // as before: the body map only counts while pain > 0 (it was hidden at 0)
+      const pts = (pain > 0 ? points : []).map((p) => ({ region: p.region, side: p.side || null, type: p.kind }))
       const hurts = pain > 0 || pts.length > 0
       await api.checkin(rid, {
         pain_score: pain, soreness, stress: fatigue, mood: score, notes: note || null,
@@ -1239,148 +1254,162 @@ function AtlasBubble() {
       {open && (
         <div
           data-auto-reveal
-          className="fixed inset-x-0 bottom-[calc(4.4rem+env(safe-area-inset-bottom))] z-[70] mx-auto max-h-[calc(100dvh-6rem)] max-w-[480px] overflow-y-auto rounded-t-[28px] border border-white/10 bg-raised p-5 text-fg shadow-[0_24px_60px_rgb(0_0_0_/_0.5)] md:bottom-7 md:right-7 md:left-auto md:rounded-[26px]"
+          role="dialog"
+          aria-label="Denní check-in"
+          className="fixed inset-x-0 bottom-[calc(4.4rem+env(safe-area-inset-bottom))] z-[70] mx-auto flex max-h-[calc(100dvh-6rem)] max-w-[480px] flex-col overflow-hidden rounded-t-[28px] border border-white/10 bg-raised text-fg shadow-[0_24px_60px_rgb(0_0_0_/_0.5)] md:bottom-7 md:right-7 md:left-auto md:rounded-[26px]"
         >
-          <div className="flex justify-between">
-            <div>
-              <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">
-                Denní check-in
-              </p>
-              <h2 className="mt-1 text-2xl">Jak se dnes cítí tělo?</h2>
-            </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="grid size-9 place-items-center rounded-full border border-white/15"
-            >
-              ×
-            </button>
-          </div>
-          <p className="mt-5 font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">
-            Nálada
-          </p>
-          <div className="mt-2 grid grid-cols-5 gap-2">
-            {[
-              ["😣", "těžká"],
-              ["😕", "nejistá"],
-              ["😐", "neutrální"],
-              ["🙂", "dobrá"],
-              ["😄", "skvělá"],
-            ].map(([face, label], index) => (
-              <button
-                onClick={() => setScore(index)}
-                key={face}
-                aria-label={`Nálada: ${label}`}
-                className={`flex aspect-square flex-col items-center justify-center rounded-2xl border text-xl ${
-                  score === index
-                    ? "border-accent bg-accent/15"
-                    : "border-white/10 bg-ink"
-                }`}
-              >
-                {face}
-                <span className="mt-1 text-[11px] text-fg-2">{label}</span>
+          <div className="shrink-0 px-5 pt-5">
+            <div className="flex justify-between gap-3">
+              <div>
+                <p className="t-label">Denní check-in · krok {step} ze 3</p>
+                <h2 className="mt-1 font-serif text-[24px] leading-tight">{STEP_TITLE[step - 1]}</h2>
+              </div>
+              <button onClick={() => setOpen(false)} aria-label="Zavřít check-in" className="grid size-9 shrink-0 place-items-center rounded-full border border-white/15 text-fg-2 hover:text-fg">
+                <X className="size-4" aria-hidden />
               </button>
-            ))}
-          </div>
-          <div className="mt-6 space-y-5 rounded-2xl bg-ink p-4">
-            <div className="flex items-center justify-between">
-              <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">
-                Tělesné pocity
-              </p>
-              <span className="text-[11px] text-fg-3">0 nic 10 silné</span>
             </div>
-            {bodySignals.map(([label, value, setValue, low]) => (
-              <div key={label}>
-                <div className="mb-2 flex justify-between text-xs">
-                  <span>{label}</span>
-                  <b className="text-accent">{value}/10</b>
-                </div>
-                <input
-                  aria-label={label}
-                  type="range"
-                  min="0"
-                  max="10"
-                  value={value}
-                  onChange={(event) => setValue(Number(event.target.value))}
-                  className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-line accent-accent"
-                />
-                <div className="mt-1 flex justify-between text-[11px] text-fg-3">
-                  <span>{low}</span>
-                  <span>silné</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          {pain > 0 && (
-            <div className="mt-5 rounded-2xl bg-ink p-4">
-              <div className="flex items-center justify-between">
-                <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">Kde to bolí</p>
-                <span className="text-[11px] text-fg-3">bolest {pain}/10</span>
-              </div>
-              <p className="mt-1 text-xs text-fg-3">Klepněte na místa, která bolí — můžete vybrat víc.</p>
-              <div className="mt-3"><MuscleAnatomy multi onSelect={setPoints} /></div>
+            {/* OPT-3: three steps — feelings → where it hurts → note (same payload as before) */}
+            <div className="mt-3 grid grid-cols-3 gap-1.5" aria-hidden>
+              {[1, 2, 3].map((n) => (
+                <span key={n} className="grid gap-1">
+                  <i className={`block h-1 rounded-full ${n <= step ? "bg-accent" : "bg-white/[.1]"} ${n === 2 && pain === 0 && step === 3 ? "opacity-40" : ""}`} />
+                  <span className={`text-[11px] font-semibold ${n === step ? "text-fg" : "text-fg-3"}`}>{STEP_SHORT[n - 1]}{n === 2 && pain === 0 && step > 1 ? " · přeskočeno" : ""}</span>
+                </span>
+              ))}
             </div>
-          )}
-          {pain > 0 && (
-            <div className="mt-5 rounded-2xl bg-ink p-4">
-              <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">Co bolest dělá</p>
-              <p className="mt-1 text-xs text-fg-3">Důležitější než číslo — omezený pohyb je úroveň zranění i při nízké bolesti.</p>
-              <div className="mt-3 space-y-2">
-                {([["limits_movement", "Omezuje mě v běžném pohybu nebo při chůzi"], ["limping", "Kulhám"], ["run_modified", "Kvůli bolesti jsem zkrátil(a) nebo upravil(a) běh"]] as const).map(([k, label]) => (
-                  <button key={k} type="button" role="switch" aria-checked={fn[k]} onClick={() => setFn((p) => ({ ...p, [k]: !p[k] }))}
-                    className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left text-xs transition ${fn[k] ? "border-alert/60 bg-alert/12 text-alert-soft" : "border-white/10 text-fg-soft"}`}>
-                    <span>{label}</span>
-                    <b className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${fn[k] ? "bg-alert text-white" : "bg-white/[.06] text-fg-2"}`}>{fn[k] ? "ano" : "ne"}</b>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-4" style={{ overscrollBehavior: "contain" }}>
+            {/* step 1 — feelings */}
+            <div className={step === 1 ? "" : "hidden"}>
+              <p className="t-label">Nálada</p>
+              <div className="mt-2 grid grid-cols-5 gap-2">
+                {[
+                  ["😣", "těžká"],
+                  ["😕", "nejistá"],
+                  ["😐", "neutrální"],
+                  ["🙂", "dobrá"],
+                  ["😄", "skvělá"],
+                ].map(([face, label], index) => (
+                  <button
+                    onClick={() => setScore(index)}
+                    key={face}
+                    aria-label={`Nálada: ${label}`}
+                    aria-pressed={score === index}
+                    className={`flex aspect-square flex-col items-center justify-center rounded-[16px] border text-xl transition ${
+                      score === index ? "border-accent bg-accent/15" : "border-white/[.08] bg-white/[.04] hover:border-white/20"
+                    }`}
+                  >
+                    {face}
+                    <span className="mt-1 text-[11px] text-fg-2">{label}</span>
                   </button>
                 ))}
               </div>
-              {(fn.limits_movement || fn.limping) && (
-                <p className="mt-3 rounded-xl bg-alert-bg p-3 text-xs leading-5 text-alert-soft">Bolest, která omezuje pohyb, je signál zranění — dnes neběhejte a nechte to posoudit fyzioterapeutem (do 48 hodin).</p>
+              <div className="nest mt-5 space-y-5 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="t-label">Tělesné pocity</p>
+                  <span className="text-[11px] text-fg-3">0 nic 10 silné</span>
+                </div>
+                {bodySignals.map(([label, value, setValue, low]) => {
+                  const isPain = label === "Bolest"
+                  const col = isPain ? (value >= 4 ? C.alert : value >= 1 ? C.watch : C.ok) : C.accent
+                  return (
+                    <div key={label}>
+                      <div className="mb-1 flex justify-between text-[13px]">
+                        <span className="font-semibold">{label}</span>
+                        <b className="tabular-nums" style={{ color: col }}>{value}/10</b>
+                      </div>
+                      <input
+                        aria-label={label}
+                        type="range"
+                        min="0"
+                        max="10"
+                        value={value}
+                        onChange={(event) => setValue(Number(event.target.value))}
+                        className="range"
+                        style={{ ["--fill" as any]: `${value * 10}%`, ["--fill-color" as any]: col }}
+                      />
+                      <div className="mt-0.5 flex justify-between text-[11px] text-fg-3">
+                        <span>{low}</span>
+                        <span>silné</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            {/* step 2 — where it hurts (only asked when pain > 0) */}
+            <div className={step === 2 ? "" : "hidden"}>
+              <div className="nest p-4">
+                <div className="flex items-center justify-between">
+                  <p className="t-label">Kde to bolí</p>
+                  <span className="text-[11px] text-fg-3">bolest {pain}/10</span>
+                </div>
+                <p className="mt-1 text-[12px] text-fg-3">Klepněte na místa, která bolí — můžete vybrat víc.</p>
+                <div className="mt-3"><MuscleAnatomy multi onSelect={setPoints} /></div>
+              </div>
+              <div className="nest mt-4 p-4">
+                <p className="t-label">Co bolest dělá</p>
+                <p className="mt-1 text-[12px] text-fg-3">Důležitější než číslo — omezený pohyb je úroveň zranění i při nízké bolesti.</p>
+                <div className="mt-3 space-y-2">
+                  {([["limits_movement", "Omezuje mě v běžném pohybu nebo při chůzi"], ["limping", "Kulhám"], ["run_modified", "Kvůli bolesti jsem zkrátil(a) nebo upravil(a) běh"]] as const).map(([k, label]) => (
+                    <button key={k} type="button" role="switch" aria-checked={fn[k]} onClick={() => setFn((p) => ({ ...p, [k]: !p[k] }))}
+                      className={`flex w-full items-center justify-between gap-3 rounded-[12px] border px-3 py-2.5 text-left text-[13px] transition ${fn[k] ? "border-alert/60 bg-alert/12 text-alert-soft" : "border-white/10 text-fg-soft hover:border-white/20"}`}>
+                      <span>{label}</span>
+                      <span className={`relative h-6 w-10 shrink-0 rounded-full transition ${fn[k] ? "bg-alert" : "bg-white/15"}`}><i className={`absolute top-[3px] size-[18px] rounded-full transition-all ${fn[k] ? "left-[19px] bg-ink" : "left-[3px] bg-fg-2"}`} /></span>
+                    </button>
+                  ))}
+                </div>
+                {(fn.limits_movement || fn.limping) && (
+                  <p className="mt-3 rounded-[12px] border border-alert/40 bg-alert/10 p-3 text-[12px] leading-5 text-alert-soft">Bolest, která omezuje pohyb, je signál zranění — dnes neběhejte a nechte to posoudit fyzioterapeutem (do 48 hodin).</p>
+                )}
+              </div>
+              {pain > 3 && (
+                <div className="mt-4 rounded-[16px] border border-alert/40 bg-alert/10 p-4 text-alert-soft">
+                  <p className="flex items-center gap-2 text-sm font-bold"><TriangleAlert className="size-4" aria-hidden />Bolest {pain}/10 — zvažte situaci</p>
+                  <p className="mt-1 text-[12px] leading-5">Bolest nad 3/10 není jen diskomfort. Zvažte odpočinek nebo lehčí zátěž, a pokud se ozve i u dalšího běhu na stejném místě, raději to proberte s fyzioterapeutem, než přidáte objem.</p>
+                </div>
               )}
             </div>
-          )}
-          {pain > 3 && (
-            <div className="mt-5 rounded-2xl border border-alert/40 bg-alert-bg p-4 text-alert-soft">
-              <p className="text-sm font-bold">⚠ Bolest {pain}/10 — zvažte situaci</p>
-              <p className="mt-1 text-xs leading-5">Bolest nad 3/10 není jen diskomfort. Zvažte odpočinek nebo lehčí zátěž, a pokud se ozve i u dalšího běhu na stejném místě, raději to proberte s fyzioterapeutem, než přidáte objem.</p>
-            </div>
-          )}
-          <label className="mt-5 block">
-            <span className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">
-              Poznámka
-            </span>
-            <textarea
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="Co by měl váš fyzioterapeut vědět?"
-              className="mt-2 min-h-20 w-full rounded-xl border border-white/10 bg-ink p-3 text-sm text-fg placeholder:text-fg-3"
-            />
-          </label>
-          <div className="mt-5 grid grid-cols-3 gap-2 rounded-2xl bg-ink p-3 text-center">
-            <div className="rounded-xl bg-white/[.035] px-2 py-2.5">
-              <b className="block font-serif text-lg text-fg">{rcv?.score ?? "—"}<small className="text-[11px] font-normal text-fg-3">/100</small></b>
-              <span className="mt-1 block font-sans text-[11px] text-fg-2">regenerace</span>
-              <span className="mt-1 block text-[11px]" style={{ color: (rcv?.scoreDelta ?? 0) > 0 ? C.ok : (rcv?.scoreDelta ?? 0) < 0 ? C.alert : C.fg3 }}>
-                {rcv?.scoreDelta == null ? (rcv?.scoreLabel || "—") : rcv.scoreDelta === 0 ? "beze změny" : `${rcv.scoreDelta > 0 ? "+" : ""}${rcv.scoreDelta} přes noc`}
-              </span>
-            </div>
-            <div className="rounded-xl bg-white/[.035] px-2 py-2.5">
-              <b className="block font-serif text-lg text-fg">{rcv?.sleep?.now ?? "—"}<small className="text-[11px] font-normal text-fg-3"> h</small></b>
-              <span className="mt-1 block font-sans text-[11px] text-fg-2">spánek</span>
-              <span className="mt-1 block text-[11px] text-fg-3">obvykle {rcv?.sleep?.base ?? "—"} h</span>
-            </div>
-            <div className="rounded-xl bg-white/[.035] px-2 py-2.5">
-              <b className="block font-serif text-lg text-fg">{L?.valid ? `×${L.ratio}` : "—"}</b>
-              <span className="mt-1 block font-sans text-[11px] text-fg-2">poměr zátěže</span>
-              <span className="mt-1 block text-[11px] text-fg-3">{L?.valid ? "7:28 dní · vč. sportu" : "zatím málo dat"}</span>
+            {/* step 3 — note + context */}
+            <div className={step === 3 ? "" : "hidden"}>
+              <label className="block">
+                <span className="t-label">Poznámka</span>
+                <textarea
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder="Co by měl váš fyzioterapeut vědět?"
+                  className="mt-2 min-h-24 w-full rounded-[12px] border p-3 text-sm text-fg"
+                />
+              </label>
+              <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                <div className="nest px-2 py-2.5">
+                  <b className="t-num block text-[18px] text-fg">{rcv?.score ?? "—"}<small className="text-[11px] font-semibold text-fg-3">/100</small></b>
+                  <span className="mt-1 block text-[11px] text-fg-2">regenerace</span>
+                  <span className="mt-1 block text-[11px]" style={{ color: (rcv?.scoreDelta ?? 0) > 0 ? C.ok : (rcv?.scoreDelta ?? 0) < 0 ? C.alert : C.fg3 }}>
+                    {rcv?.scoreDelta == null ? (rcv?.scoreLabel || "—") : rcv.scoreDelta === 0 ? "beze změny" : `${rcv.scoreDelta > 0 ? "+" : ""}${rcv.scoreDelta} přes noc`}
+                  </span>
+                </div>
+                <div className="nest px-2 py-2.5">
+                  <b className="t-num block text-[18px] text-fg">{rcv?.sleep?.now ?? "—"}<small className="text-[11px] font-semibold text-fg-3"> h</small></b>
+                  <span className="mt-1 block text-[11px] text-fg-2">spánek</span>
+                  <span className="mt-1 block text-[11px] text-fg-3">obvykle {rcv?.sleep?.base ?? "—"} h</span>
+                </div>
+                <div className="nest px-2 py-2.5">
+                  <b className="t-num block text-[18px] text-fg">{L?.valid ? `×${L.ratio}` : "—"}</b>
+                  <span className="mt-1 block text-[11px] text-fg-2">poměr zátěže</span>
+                  <span className="mt-1 block text-[11px] text-fg-3">{L?.valid ? "7:28 dní · vč. sportu" : "zatím málo dat"}</span>
+                </div>
+              </div>
             </div>
           </div>
-          <button
-            onClick={save}
-            disabled={busy}
-            className="mt-5 w-full rounded-full bg-accent py-3 text-sm font-bold text-ink disabled:opacity-40"
-          >
-            {busy ? "Ukládám…" : "Uložit check-in"}
-          </button>
+          <div className="flex shrink-0 gap-2 border-t border-white/[.08] bg-raised px-5 py-3.5">
+            {step > 1 && <button onClick={back} className="btn btn-outline px-5 py-3 text-sm"><ChevronLeft className="size-4" aria-hidden />Zpět</button>}
+            {step < 3 ? (
+              <button onClick={next} className="btn btn-primary flex-1 py-3 text-sm">Pokračovat<ChevronRight className="size-4" aria-hidden /></button>
+            ) : (
+              <button onClick={save} disabled={busy} className="btn btn-primary flex-1 py-3 text-sm">{busy ? "Ukládám…" : "Uložit check-in"}</button>
+            )}
+          </div>
         </div>
       )}
     </>

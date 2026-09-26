@@ -136,6 +136,10 @@ html, body { overscroll-behavior-y:none; }
 }
 .motion-shell input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), .motion-shell textarea, .motion-shell select { background:var(--color-panel-2); color:var(--color-fg); border-color:rgb(255 255 255 / .16); }
 .motion-shell input::placeholder, .motion-shell textarea::placeholder { color:var(--color-fg-3); }
+/* Focused text fields: lime border + soft glow (replaces the offset ring on fields) */
+.motion-shell :is(input:not([type="range"]):not([type="checkbox"]):not([type="radio"]), textarea, select):focus-visible {
+  outline:none; border-color:var(--color-accent); box-shadow:0 0 0 3px rgb(199 255 84 / .16);
+}
 .motion-shell button, .motion-shell a { transition:transform .18s ease, background-color .18s ease, border-color .18s ease, color .18s ease, box-shadow .18s ease; }
 @media (hover:hover) { .motion-shell :is(button,a):hover { transform:translateY(-1px); } }
 .motion-shell :is(button,a):active { transform:scale(.97); }

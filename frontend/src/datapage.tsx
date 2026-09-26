@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { Card, Chip, Field, Label, Metric, Segmented, useAsync, useToast } from "@/ui"
-import { fmtD } from "@/lib"
+import { Button, Card, Chip, Field, Label, ListRow, Segmented, Switch, useAsync, useToast } from "@/ui"
+import { ArrowRight, Copy, Database, Download, Eye, Map as MapIcon, Mountain, Pencil, Power, RefreshCw, Smartphone, Sunrise, Unplug, Upload, Watch } from "lucide-react"
+import { fmtD, initials } from "@/lib"
 
 type Result = { ok?: boolean; loading?: boolean; error?: string; activities?: number; addedDaily?: number; meta?: any; source?: string; mfa?: boolean; mfaToken?: string }
 
@@ -202,17 +203,27 @@ export function DataView() {
 
   return (
     <>
-      <div className="mb-6"><Label>Data a připojení</Label><h1 className="mt-1 font-serif text-4xl tracking-[-.06em]">{integ?.status === "connected" ? "Zdroj připojen" : "Zatím nepřipojeno"}</h1></div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <Metric warm label="Aktivit v účtu" value={`${acts.length}`} caption={acts.length ? `${fmtD(acts.at(-1)?.started_at)} → ${fmtD(acts[0]?.started_at)}` : "zatím bez importu"} />
-        <Metric label="Stav" value={integ?.status === "connected" ? "připojeno" : "nepřipojeno"} caption={integ?.provider ? `zdroj ${integ.provider}` : "—"} />
-        <Metric label="Profil" value={(me?.name || "").split(" ")[0]} caption="běžec / pacient" />
+      <div className="mb-6"><Label>Data a připojení</Label><h1 className="mt-1 font-serif text-[30px] tracking-[-.03em] md:text-4xl">{integ?.status === "connected" ? "Zdroj připojen" : "Zatím nepřipojeno"}</h1></div>
+      {/* One status strip (same values as the former three tiles) */}
+      <div className="card grid divide-y divide-white/[.07] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="flex items-center gap-3 p-4">
+          <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><Database className="size-4" aria-hidden /></span>
+          <span className="min-w-0"><span className="t-label block !text-fg-3">Aktivit v účtu</span><b className="t-num block text-[22px] leading-tight">{acts.length}</b><span className="block truncate text-[12px] text-fg-3">{acts.length ? `${fmtD(acts.at(-1)?.started_at)} → ${fmtD(acts[0]?.started_at)}` : "zatím bez importu"}</span></span>
+        </div>
+        <div className="flex items-center gap-3 p-4">
+          <span className={`grid size-[34px] shrink-0 place-items-center rounded-[10px] ${integ?.status === "connected" ? "bg-ok/15 text-ok" : "bg-watch/15 text-watch"}`}><Watch className="size-4" aria-hidden /></span>
+          <span className="min-w-0"><span className="t-label block !text-fg-3">Stav</span><b className={`block text-[17px] font-bold leading-tight ${integ?.status === "connected" ? "text-ok" : "text-watch"}`}>{integ?.status === "connected" ? "připojeno" : "nepřipojeno"}</b><span className="block truncate text-[12px] text-fg-3">{integ?.provider ? `zdroj ${integ.provider}` : "—"}</span></span>
+        </div>
+        <div className="flex items-center gap-3 p-4">
+          <span className="grid size-[34px] shrink-0 place-items-center rounded-full bg-accent text-[11px] font-extrabold text-ink">{initials(me?.name)}</span>
+          <span className="min-w-0"><span className="t-label block !text-fg-3">Profil</span><b className="block text-[17px] font-bold leading-tight">{(me?.name || "").split(" ")[0]}</b><span className="block truncate text-[12px] text-fg-3">běžec / pacient</span></span>
+        </div>
       </div>
 
       <Card className="mt-4">
         <div className="flex items-center justify-between gap-2">
           <Label>Engine hodnocení</Label>
-          <span className="rounded-full bg-accent/15 px-2.5 py-1 text-[11px] font-bold text-accent">{ENGINE_NAME[engineMode] || "Standardní"}</span>
+          <Chip tone="accent">{ENGINE_NAME[engineMode] || "Standardní"}</Chip>
         </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           {engines.map(([id, name, desc]) => {
@@ -222,31 +233,33 @@ export function DataView() {
                 key={id}
                 onClick={() => switchEngine(id)}
                 disabled={engBusy}
-                className={`rounded-2xl border p-4 text-left transition disabled:opacity-60 ${on ? "border-accent bg-accent/10" : "border-white/12 bg-white/[.03] hover:border-white/25"}`}
+                aria-pressed={on}
+                className={`rounded-[16px] border p-4 text-left transition disabled:opacity-60 ${on ? "border-accent bg-accent/[.08]" : "border-white/[.1] bg-white/[.03] hover:border-white/25"}`}
               >
                 <span className="flex items-center gap-2">
-                  <i className={`size-2.5 rounded-full ${on ? "bg-accent" : "bg-white/25"}`} />
-                  <b className="text-sm text-fg">{name}{id !== "v1" ? " · beta" : ""}</b>
+                  <i className={`grid size-4 place-items-center rounded-full border-2 ${on ? "border-accent" : "border-white/30"}`}>{on && <i className="size-1.5 rounded-full bg-accent" />}</i>
+                  <b className="text-sm font-bold text-fg">{name}</b>
+                  {id !== "v1" && <span className="rounded-full bg-white/[.07] px-1.5 py-0.5 text-[11px] font-bold text-fg-2">beta</span>}
                 </span>
-                <p className="mt-1.5 text-xs leading-4 text-fg-2">{desc}</p>
+                <p className="mt-1.5 text-[12px] leading-5 text-fg-2">{desc}</p>
               </button>
             )
           })}
         </div>
-        <Link to="/engines" className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent/[.06] px-4 py-3 text-left transition hover:border-accent/60">
+        <Link to="/engines" className="nest mt-3 flex items-center justify-between gap-3 px-4 py-3 text-left transition hover:border-accent/50">
           <span>
-            <b className="text-sm text-fg">Porovnat enginy</b>
-            <span className="block text-[11px] text-fg-2">Jaké skóre by dnes a za posledních 6 měsíců ukazoval každý engine a co do něj vstupuje.</span>
+            <b className="text-sm font-bold text-fg">Porovnat enginy</b>
+            <span className="block text-[12px] text-fg-2">Jaké skóre by dnes a za posledních 6 měsíců ukazoval každý engine a co do něj vstupuje.</span>
           </span>
-          <span className="text-lg text-accent">→</span>
+          <ArrowRight className="size-5 shrink-0 text-accent" aria-hidden />
         </Link>
         <p className="mt-3 text-[11px] leading-4 text-fg-3">
           Citlivý engine počítá odchylku každého běhu proti tvé vlastní typické chybě a váží čerstvé běhy víc, takže změnu zachytí dřív než průměrový Standardní — nastavený tak, aby bez skutečné změny ukázal signál zhruba jen v 5 % případů. Všechny enginy přepočítávají mechaniku na tvé obvyklé tempo, takže pomalejší klusy nevypadají jako drift. Kapacitní engine navíc hodnotí zátěž proti tomu, co jsi prokazatelně zvládl(a) bez obtíží — po jednotlivých bězích i týdnech, v objemu, intenzitě (tepové zóny), klesání a stoupání — a snižuje ji podle toho, jak ses vyspal(a). Experimentální — zatím nevalidované na reálných zraněních.
         </p>
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
-          <button onClick={downloadBacktest} disabled={btBusy} className="rounded-full bg-accent px-4 py-2 text-xs font-bold text-ink disabled:opacity-60">{btBusy ? "Připravuji…" : "⬇ Backtest (v1 vs v2)"}</button>
-          <button onClick={downloadDetailed} disabled={dtBusy} className="rounded-full border border-accent/40 px-4 py-2 text-xs font-bold text-accent disabled:opacity-60">{dtBusy ? "Připravuji…" : "⬇ Detailní backtest"}</button>
-          <button onClick={downloadData} disabled={expBusy} className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-fg-2 disabled:opacity-60">{expBusy ? "Připravuji…" : "⬇ Moje data (JSON)"}</button>
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/[.08] pt-4">
+          <Button size="sm" icon={Download} onClick={downloadBacktest} disabled={btBusy}>{btBusy ? "Připravuji…" : "Backtest (v1 vs v2)"}</Button>
+          <Button size="sm" variant="outline" icon={Download} onClick={downloadDetailed} disabled={dtBusy}>{dtBusy ? "Připravuji…" : "Detailní backtest"}</Button>
+          <Button size="sm" variant="outline" icon={Download} onClick={downloadData} disabled={expBusy}>{expBusy ? "Připravuji…" : "Moje data (JSON)"}</Button>
         </div>
         <p className="mt-2 text-[11px] leading-4 text-fg-3">Backtest = souhrn v1 vs v2. Detailní = rozpad skóre po jednotlivých signálech + drivery + legenda vzorců. Data = kompletní JSON <b>bez tokenů a hesel</b>.</p>
       </Card>
@@ -262,28 +275,28 @@ export function DataView() {
               <h2 className="font-serif text-2xl">Nahrát export z Garmin Connect</h2>
               <p className="mt-2 text-sm text-fg-2">Garmin Connect → Účet → Export Your Data. Přijde ZIP e-mailem — nahrajte ho celý, nebo jen <span className="tabular-nums">summarizedActivities.json</span>.</p>
               <input ref={file} type="file" accept=".zip,.json" className="hidden" onChange={(e) => upload(e.target.files?.[0], "garmin")} />
-              <button onClick={() => file.current?.click()} className="mt-4 w-full rounded-2xl border-2 border-dashed border-info p-8 text-sm font-bold text-accent">↑ Vybrat ZIP nebo JSON</button>
+              <button onClick={() => file.current?.click()} className="mt-4 flex w-full items-center justify-center gap-2 rounded-[16px] border-2 border-dashed border-info/50 p-8 text-sm font-bold text-accent transition hover:border-accent hover:bg-accent/[.04]"><Upload className="size-5" aria-hidden />Vybrat ZIP nebo JSON</button>
             </>
           )}
           {source === "garminlive" && (
             <>
               {gStatus?.connected && (
-                <div className="mb-5 rounded-2xl border border-accent/30 bg-accent/[.06] p-4">
+                <div className="nest mb-5 !border-accent/30 !bg-accent/[.05] p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-accent">Garmin připojen</p>
+                      <p className="t-label !text-accent">Garmin připojen</p>
                       <p className="mt-1 text-sm text-fg">Ranní synchronizace {gStatus.auto_sync ? <b className="text-accent">zapnutá</b> : <b>vypnutá</b>} · poslední: {gStatus.last_sync_at ? fmtD(gStatus.last_sync_at) : "—"}</p>
                       {gStatus.last_error && <p className="mt-1 text-xs text-alert">{gStatus.last_error}</p>}
                       <p className="mt-1 text-[11px] text-fg-2">Detailní data (trať, výškový profil, mechanika po sekundách) nových běhů se stahují automaticky s každou synchronizací; tlačítko „Detailní data“ doplní starší historii.</p>
                       <p className="mt-1 text-[11px] text-fg-3">Uložen je jen přístupový <b>token</b> (šifrovaný{gStatus.encrypted ? "" : " – bez klíče v této instanci"}), ne heslo. Token lze zrušit i v účtu Garmin.</p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button onClick={garminSyncNow} disabled={R?.loading} className="rounded-full bg-accent px-4 py-2 text-xs font-bold text-ink disabled:opacity-60">{R?.loading ? "Synchronizuji…" : "⟳ Synchronizovat teď"}</button>
-                      <button onClick={garminStreamsNow} disabled={R?.loading} title="Doplní trať, výškový profil a mechaniku po sekundách i pro STARŠÍ běhy v historii (po dávkách). Nové běhy se stahují samy s každou synchronizací." className="rounded-full border border-info/40 px-4 py-2 text-xs font-bold text-info disabled:opacity-60">⛰ Detailní data</button>
-                      <button onClick={garminTerrainNow} disabled={R?.loading} title="Z GPS trati nejnovějšího běhu určí povrch a terén (OpenStreetMap, v ČR ZABAGED)" className="rounded-full border border-info/40 px-4 py-2 text-xs font-bold text-info disabled:opacity-60">🗺 Povrch trasy</button>
-                      <button onClick={() => garminToggleAuto(!gStatus.auto_sync)} className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-fg-2">{gStatus.auto_sync ? "Vypnout ranní sync" : "Zapnout ranní sync"}</button>
-                      <button onClick={garminDisconnect} className="rounded-full border border-alert/40 px-4 py-2 text-xs font-bold text-alert">Odpojit</button>
-                    </div>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 border-t border-white/[.08] pt-3">
+                      <button onClick={garminSyncNow} disabled={R?.loading} className="btn btn-sm btn-primary"><RefreshCw className={`size-3.5 ${R?.loading ? "animate-spin" : ""}`} aria-hidden />{R?.loading ? "Synchronizuji…" : "Synchronizovat teď"}</button>
+                      <button onClick={garminStreamsNow} disabled={R?.loading} title="Doplní trať, výškový profil a mechaniku po sekundách i pro STARŠÍ běhy v historii (po dávkách). Nové běhy se stahují samy s každou synchronizací." className="btn btn-sm btn-outline"><Mountain className="size-3.5" aria-hidden />Detailní data</button>
+                      <button onClick={garminTerrainNow} disabled={R?.loading} title="Z GPS trati nejnovějšího běhu určí povrch a terén (OpenStreetMap, v ČR ZABAGED)" className="btn btn-sm btn-outline"><MapIcon className="size-3.5" aria-hidden />Povrch trasy</button>
+                      <button onClick={() => garminToggleAuto(!gStatus.auto_sync)} className="btn btn-sm btn-secondary"><Sunrise className="size-3.5" aria-hidden />{gStatus.auto_sync ? "Vypnout ranní sync" : "Zapnout ranní sync"}</button>
+                      <button onClick={garminDisconnect} className="btn btn-sm border border-alert/45 text-alert hover:bg-alert/10"><Unplug className="size-3.5" aria-hidden />Odpojit</button>
                   </div>
                 </div>
               )}
@@ -297,12 +310,12 @@ export function DataView() {
                     <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="mt-0.5 size-4 accent-accent" />
                     <span>Zůstat připojený a <b>stahovat data automaticky každé ráno</b> (a tlačítkem „Synchronizovat" na Dnes). Uloží se jen přístupový token, ne heslo.</span>
                   </label>
-                  <button onClick={garminLogin} disabled={R?.loading} className="mt-4 w-full rounded-full bg-accent py-3 text-sm font-bold text-ink disabled:opacity-60">{R?.loading ? "Stahuji…" : "Stáhnout data z Garminu"}</button>
+                  <button onClick={garminLogin} disabled={R?.loading} className="btn btn-primary mt-4 w-full py-3 text-sm">{R?.loading ? "Stahuji…" : "Stáhnout data z Garminu"}</button>
                 </>
               ) : (
                 <>
                   <Field label="Ověřovací kód (dvoufázové ověření)" hint="z aplikace / SMS / e-mailu"><input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" className="w-full rounded-xl border px-3 py-2.5 text-sm" placeholder="123456" /></Field>
-                  <button onClick={garminMfa} disabled={R?.loading} className="mt-4 w-full rounded-full bg-accent py-3 text-sm font-bold text-ink disabled:opacity-60">Ověřit a stáhnout</button>
+                  <button onClick={garminMfa} disabled={R?.loading} className="btn btn-primary mt-4 w-full py-3 text-sm">Ověřit a stáhnout</button>
                 </>
               )}
             </>
@@ -316,29 +329,29 @@ export function DataView() {
                   <Label>URL (POST)</Label>
                   <div className="mt-1 flex gap-2">
                     <input readOnly value={pushUrl} className="w-full rounded-xl border px-3 py-2.5 tabular-nums text-[11px]" />
-                    <button onClick={() => copy(pushUrl)} className="shrink-0 rounded-xl border border-white/15 px-3 text-xs font-bold text-fg-2">Kopírovat</button>
+                    <button onClick={() => copy(pushUrl)} className="btn btn-sm btn-outline shrink-0 !rounded-xl"><Copy className="size-3.5" aria-hidden />Kopírovat</button>
                   </div>
                 </div>
                 <div>
                   <Label>Hlavička (Header)</Label>
                   <div className="mt-1 flex gap-2">
                     <input readOnly value={appleTok ? `Authorization: Bearer ${appleTok.token}` : "…"} className="w-full rounded-xl border px-3 py-2.5 tabular-nums text-[11px]" />
-                    <button onClick={() => appleTok && copy(`Authorization: Bearer ${appleTok.token}`)} className="shrink-0 rounded-xl border border-white/15 px-3 text-xs font-bold text-fg-2">Kopírovat</button>
+                    <button onClick={() => appleTok && copy(`Authorization: Bearer ${appleTok.token}`)} className="btn btn-sm btn-outline shrink-0 !rounded-xl"><Copy className="size-3.5" aria-hidden />Kopírovat</button>
                   </div>
                 </div>
-                <p className="text-xs text-fg-3">Vyberte metriky (HRV, klidový tep, spánek, kroky) i cvičení (běhy). {appleTok?.last_used_at ? `Naposledy přijato ${fmtD(appleTok.last_used_at)}.` : "Zatím bez příjmu — po prvním odeslání z telefonu se tu objeví běhy."}</p>
-                <button onClick={rotateAppleTok} className="text-xs font-bold text-alert">Obnovit token (zneplatní starý)</button>
+                <p className="text-[12px] leading-5 text-fg-3">Vyberte metriky (HRV, klidový tep, spánek, kroky) i cvičení (běhy). {appleTok?.last_used_at ? `Naposledy přijato ${fmtD(appleTok.last_used_at)}.` : "Zatím bez příjmu — po prvním odeslání z telefonu se tu objeví běhy."}</p>
+                <button onClick={rotateAppleTok} className="text-[12px] font-bold text-alert underline-offset-2 hover:underline">Obnovit token (zneplatní starý)</button>
               </div>
-              <div className="mt-6 border-t border-white/10 pt-4">
+              <div className="mt-6 border-t border-white/[.08] pt-4">
                 <p className="text-sm text-fg-2">Nechcete tu aplikaci? Nahrajte ruční export: iPhone → Zdraví → profil → Exportovat všechna data (<span className="tabular-nums">export.zip</span>).</p>
                 <input ref={afile} type="file" accept=".zip,.xml" className="hidden" onChange={(e) => upload(e.target.files?.[0], "apple")} />
-                <button onClick={() => afile.current?.click()} className="mt-3 w-full rounded-2xl border-2 border-dashed border-info p-6 text-sm font-bold text-accent">↑ Vybrat ZIP nebo XML</button>
+                <button onClick={() => afile.current?.click()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-[16px] border-2 border-dashed border-info/50 p-6 text-sm font-bold text-accent transition hover:border-accent hover:bg-accent/[.04]"><Upload className="size-5" aria-hidden />Vybrat ZIP nebo XML</button>
               </div>
             </>
           )}
 
           {R && (
-            <div className="mt-5 border-t border-white/10 pt-4">
+            <div className="mt-5 border-t border-white/[.08] pt-4">
               {R.loading && <p className="text-sm text-fg-3">Zpracovávám…</p>}
               {R.error && <p className="text-sm font-bold text-alert">{R.error}</p>}
               {R.ok && (
@@ -356,18 +369,20 @@ export function DataView() {
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <Label>Kdo přistupoval k vašim datům</Label>
-          <p className="mt-1 text-xs text-fg-3">Transparentnost podle GDPR — zaznamenává se přístup fyzioterapeuta, ne váš vlastní.</p>
+          <p className="mt-1 text-[12px] text-fg-3">Transparentnost podle GDPR — zaznamenává se přístup fyzioterapeuta, ne váš vlastní.</p>
           {(boot?.access_log || []).length ? (
-            <div className="mt-3 divide-y divide-white/10">{(boot.access_log as any[]).map((x) => (
-              <div key={x.id} className="flex items-center justify-between py-2 text-sm"><span><b>{x.physio_name || "Fyzioterapeut"}</b><em className="block text-xs not-italic text-fg-3">{fmtD(x.date)} · {x.access_count}× {x.action === "read" ? "čtení" : "zápis"}</em></span><Chip tone={x.action === "read" ? "muted" : "watch"}>{x.action === "read" ? "čtení" : "zápis"}</Chip></div>
+            <div className="mt-2 divide-y divide-white/[.07]">{(boot.access_log as any[]).map((x) => (
+              <ListRow key={x.id} icon={x.action === "read" ? Eye : Pencil} tone={x.action === "read" ? "muted" : "watch"} title={x.physio_name || "Fyzioterapeut"}
+                meta={`${fmtD(x.date)} · ${x.access_count}× ${x.action === "read" ? "čtení" : "zápis"}`}
+                trailing={<Chip tone={x.action === "read" ? "muted" : "watch"}>{x.action === "read" ? "čtení" : "zápis"}</Chip>} />
             ))}</div>
           ) : <p className="mt-3 text-sm text-fg-3">Zatím k vašim datům nikdo nepřistupoval.</p>}
         </Card>
         <Card>
           <Label>Historie zařízení</Label>
           {(boot?.device_history || []).length ? (
-            <div className="mt-3 divide-y divide-white/10">{(boot.device_history as any[]).slice().reverse().map((h, i) => (
-              <div key={i} className="py-2 text-sm"><b>{h.device}</b><em className="block text-xs not-italic text-fg-3">{i === 0 ? "aktuální" : "starší"} · od {fmtD(h.recorded_at)}</em></div>
+            <div className="mt-2 divide-y divide-white/[.07]">{(boot.device_history as any[]).slice().reverse().map((h, i) => (
+              <ListRow key={i} icon={i === 0 ? Watch : Smartphone} tone={i === 0 ? "ok" : "muted"} title={h.device} meta={`${i === 0 ? "aktuální" : "starší"} · od ${fmtD(h.recorded_at)}`} />
             ))}</div>
           ) : <p className="mt-3 text-sm text-fg-3">Zatím bez záznamu.</p>}
         </Card>
@@ -423,16 +438,7 @@ function CoachConsentCard({ rid }: { rid: string }) {
     <Card className="mt-4">
       <div className="flex items-center justify-between gap-3">
         <span><Label>AI shrnutí a komentáře · beta</Label></span>
-        <button
-          role="switch"
-          aria-checked={!!st.consent}
-          aria-label="AI shrnutí a komentáře"
-          onClick={toggle}
-          disabled={busy}
-          className={`relative h-7 w-12 shrink-0 rounded-full transition disabled:opacity-60 ${st.consent ? "bg-accent" : "bg-white/15"}`}
-        >
-          <span className={`absolute top-1 size-5 rounded-full bg-ink transition-all ${st.consent ? "left-6" : "left-1"}`} />
-        </button>
+        <Switch checked={!!st.consent} onChange={() => toggle()} label="AI shrnutí a komentáře" disabled={busy} />
       </div>
       <p className="mt-2 text-sm leading-6 text-fg-2">
         Denní shrnutí vašeho stavu, komentář k dnešnímu tréninku (engine Kapacitní) a každé pondělí shrnutí uplynulého týdne.
@@ -448,20 +454,20 @@ function CoachConsentCard({ rid }: { rid: string }) {
         <p className="mt-2 text-[11px] text-watch">Model teď není nastavený — do té doby dostáváte texty sestavené aplikací.</p>
       )}
       {st.consent && (
-        <div className="mt-3 border-t border-white/10 pt-3">
+        <div className="mt-3 border-t border-white/[.08] pt-3">
           {st.pending?.length > 0 && <p className="mb-2 text-[11px] text-fg-2">Připravuji texty… model na to potřebuje i pár minut.</p>}
           {kinds.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {kinds.map((k) => (
                 <button key={k} onClick={() => setShow(show === k ? null : k)}
-                  className={`rounded-full px-3 py-1.5 text-[11px] font-bold transition ${show === k ? "bg-accent text-ink" : "border border-white/15 text-fg-2"}`}>
+                  aria-pressed={show === k} className={`rounded-full px-3 py-1.5 text-[12px] font-bold transition ${show === k ? "bg-fg text-ink" : "border border-white/15 text-fg-2 hover:border-white/30"}`}>
                   {COACH_KIND[k]} · {texts[k].source === "llm" ? "AI" : "z aplikace"}
                 </button>
               ))}
             </div>
           ) : !st.pending?.length && <p className="text-[11px] text-fg-3">Zatím žádné texty.</p>}
           {show && texts[show] && (
-            <div className="mt-3 rounded-2xl bg-black/20 p-3">
+            <div className="nest mt-3 p-3">
               <p className="whitespace-pre-line text-sm leading-6 text-fg">{texts[show].text}</p>
               <p className="mt-2 text-[11px] text-fg-3">
                 {texts[show].source === "llm" ? `Napsal model ${texts[show].model}` : "Sestaveno aplikací (model nebyl k dispozici nebo text neprošel kontrolou)"}

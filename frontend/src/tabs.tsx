@@ -1478,7 +1478,7 @@ export function Program() {
     return (
       <>
         <Head kicker="Program" title="Zatím vám nikdo program neposlal" sub="Program vzniká na straně fyzioterapeuta poté, co převezme váš případ. Objeví se tady i s pokyny u jednotlivých cviků." />
-        <Card><Empty>Žádný aktivní program.</Empty></Card>
+        <Card><UiEmpty icon={Dumbbell}>Žádný aktivní program.</UiEmpty></Card>
       </>
     )
   const ex = (p.exercises || []) as any[]
@@ -1489,16 +1489,17 @@ export function Program() {
       <div className="grid gap-4 lg:grid-cols-[1.5fr_.8fr]">
         <Card>
           <div className="flex items-center justify-between"><Label>Cviky</Label><Chip tone={adh >= 60 ? "ok" : "watch"}>{adh} % splněno</Chip></div>
-          <div className="mt-3 divide-y divide-white/10">
+          <div className="mt-2 divide-y divide-white/[.07]">
             {ex.map((e) => (
               <div key={e.id} className="flex items-center gap-3 py-3">
-                <div className="flex-1">
-                  <b className="text-sm">{e.name}</b>
-                  <em className="block text-xs not-italic text-fg-3">{e.dose} · {e.per_week}× týdně — {e.cue}</em>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/10"><i className="block h-full rounded-full bg-accent" style={{ width: `${Math.round(((e.done_count || 0) / (e.target_count || 12)) * 100)}%` }} /></div>
+                <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-accent/15 text-accent"><Dumbbell className="size-4" aria-hidden /></span>
+                <div className="min-w-0 flex-1">
+                  <b className="text-sm font-bold">{e.name}</b>
+                  <span className="block text-[12px] text-fg-3">{e.dose} · {e.per_week}× týdně — {e.cue}</span>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-accent" style={{ width: `${Math.round(((e.done_count || 0) / (e.target_count || 12)) * 100)}%` }} /></div>
                 </div>
-                <span className="tabular-nums text-xs text-fg-2">{e.done_count}/{e.target_count}</span>
-                <button onClick={async () => { await api.logEx(rid, e.id); toast({ title: "Zapsáno" }); refresh() }} className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-accent">Hotovo</button>
+                <span className="tabular-nums text-[12px] text-fg-2">{e.done_count}/{e.target_count}</span>
+                <Button size="sm" variant="outline" onClick={async () => { await api.logEx(rid, e.id); toast({ title: "Zapsáno" }); refresh() }}>Hotovo</Button>
               </div>
             ))}
           </div>
@@ -1507,7 +1508,7 @@ export function Program() {
           <Card><Label>Jak to funguje</Label><p className="mt-2 text-sm text-fg-2">Cíl je 12 opakování každého cviku za 4 týdny. Když cvik provokuje bolest nad 3/10, je to informace pro fyzioterapeuta, ne důvod ho zatnout zuby dodělat.</p></Card>
           {(p.revisions || []).length > 0 && (
             <Card><Label>Změny v programu</Label><div className="mt-2 space-y-3">{p.revisions.slice().reverse().map((rv: any) => (
-              <div key={rv.id}><b className="text-sm">{fmtD(rv.at)}</b><p className="text-xs text-fg-3">{rv.note}</p>{(rv.changes || []).map((c: string, i: number) => <div key={i} className="mt-1"><Chip>{c}</Chip></div>)}</div>
+              <div key={rv.id}><b className="text-sm">{fmtD(rv.at)}</b><p className="text-[12px] text-fg-3">{rv.note}</p>{(rv.changes || []).map((c: string, i: number) => <div key={i} className="mt-1"><Chip>{c}</Chip></div>)}</div>
             ))}</div></Card>
           )}
         </div>
