@@ -5,6 +5,7 @@ runner may only ever touch their own runner_id; a physio may read (never
 write on the runner's behalf) once they've claimed the case.
 """
 from datetime import date, datetime, timedelta, timezone
+from sqlalchemy.exc import IntegrityError
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
@@ -376,7 +377,16 @@ def _cached_history(db: DBSession, rid: str, kind: str, builder):
         row = models.EngineHistoryCache(runner_id=rid, kind=kind)
         db.add(row)
     row.engine_version, row.computed_for, row.payload_json, row.updated_at = ev, today, payload, E.now_iso()
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Two requests rebuilt the same cold cache at once and the other one inserted
+        # first — the payload is already computed, so update that row instead of 500-ing.
+        db.rollback()
+        (db.query(models.EngineHistoryCache)
+           .filter(models.EngineHistoryCache.runner_id == rid, models.EngineHistoryCache.kind == kind)
+           .update({"engine_version": ev, "computed_for": today, "payload_json": payload, "updated_at": E.now_iso()}))
+        db.commit()
     return payload
 
 

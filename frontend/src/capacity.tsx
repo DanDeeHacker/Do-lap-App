@@ -22,7 +22,7 @@ const BAND: Record<string, [string, string]> = {
 export const readinessPct = (r: any) => (r?.score ?? Math.round((r?.today ?? 1) * 100)) as number
 export const readinessCol = (pct: number) => (pct >= 80 ? TONE.ok : pct >= 60 ? TONE.watch : TONE.alert)
 
-function Readiness({ r }: { r: any }) {
+export function Readiness({ r }: { r: any }) {
   const pct = readinessPct(r)
   const parts = Object.entries(r?.parts || {}).filter(([, v]) => (v as number) > 0.05) as [string, number][]
   const col = readinessCol(pct)
@@ -230,30 +230,66 @@ export function CapacityPanel({ cap, extra = {} }: { cap: any; extra?: Record<st
   )
 }
 
-// Compact weekly headroom for Dnes — placed under the quadrant / recovery.
-export function CapacityMini({ cap }: { cap: any }) {
+// Feedback railway#83 — Dnes: today's room against the 7-day room, per run channel.
+// One bar per channel on the 7-day scale: what the last 7 days used (solid), what
+// today may still add (lime, = the Trénink "dnes max"), what is left of the 7-day
+// ceiling after that (faint), and the ceiling itself (white tick).
+export function CapacityMini({ cap, week, className = "mt-4 border-t border-white/10 pt-4" }: { cap: any; week?: any; className?: string }) {
   if (!cap?.channels) return null
   return (
-    <div className="mt-4 border-t border-white/10 pt-4">
+    <div className={className}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><p className="t-label !text-fg-3">Kapacita · posledních 7 dní vs. strop</p><InfoDot text={MI.capacity} label="Kapacita" /></span>
+        <span className="flex items-center gap-1.5"><p className="t-label !text-fg-3">Kapacita · dnes vs. 7 dní</p><InfoDot text={MI.capacity} label="Kapacita" /></span>
         <span className="text-[11px] font-bold" style={{ color: readinessCol(readinessPct(cap.readiness)) }}>připravenost {readinessPct(cap.readiness)} %</span>
       </div>
-      <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+      <div className="mt-3 grid gap-3.5 sm:grid-cols-2">
         {RUN_CH.map((id) => {
           const c = cap.channels[id]
           if (!c) return null
+          const g = week?.[id]
           const wk = c.week
+          const done = g?.done7 ?? wk?.now ?? null
+          const ceil = g?.ceiling7 ?? wk?.ceiling ?? null
+          const today = g?.todayMax ?? null
+          if (done == null || ceil == null || ceil <= 0) {
+            return (
+              <div key={id}>
+                <div className="mb-1 flex justify-between text-[11px]"><span className="text-fg">{c.label}</span><span className="text-fg-3">poznáváme</span></div>
+                <div className="h-2.5 rounded-full bg-white/[.08]" />
+              </div>
+            )
+          }
+          const scale = Math.max(ceil, done + (today ?? 0)) * 1.06
+          const W = (v: number) => `${Math.max(0, (v / scale) * 100)}%`
+          const over = done > ceil
+          const col = (TONE as any)[toneOf(ceil ? done / ceil : null, 0)] || TONE.ok
+          const rest = Math.max(0, ceil - done - (today ?? 0))
           return (
             <div key={id}>
-              <div className="mb-1 flex justify-between text-[11px]">
-                <span className="text-fg">{c.label}</span>
-                <span className="tabular-nums text-[11px] text-fg-2">{wk ? `${num(wk.now)} / ${num(wk.ceiling)} ${c.unit}` : "poznáváme"}</span>
+              <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[11px]">
+                <span className="text-[12px] font-semibold text-fg">{c.label}</span>
+                <span className="tabular-nums">
+                  {today != null
+                    ? <><span className="text-fg-3">dnes až </span><b className="text-[13px] text-accent">{num(today)}</b> <span className="text-fg-3">{c.unit}</span></>
+                    : <span className="text-fg-3">{over ? "strop vyčerpán" : `zbývá ${num(Math.max(0, ceil - done))} ${c.unit}`}</span>}
+                </span>
               </div>
-              <HeadroomBar now={wk?.now ?? null} ceiling={wk?.ceiling ?? null} tone={toneOf(wk?.ratio, cap.margins?.week ?? 0.15)} />
+              <div className="relative flex h-2.5 overflow-hidden rounded-full bg-white/[.06]">
+                <i className="block h-full" style={{ width: W(Math.min(done, scale)), background: over ? TONE.alert : col, opacity: 0.9 }} />
+                {today != null && today > 0 && <i className="block h-full" style={{ width: W(today), background: C.accent, backgroundImage: "repeating-linear-gradient(135deg, rgb(0 0 0 / .18) 0 3px, transparent 3px 6px)" }} />}
+                {rest > 0 && <i className="block h-full bg-white/[.14]" style={{ width: W(rest) }} />}
+                <i className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `calc(${(ceil / scale) * 100}% - 1px)` }} title="strop 7 dní" />
+              </div>
+              <p className="mt-1 tabular-nums text-[11px] text-fg-3">7 dní {num(done)} / strop {num(ceil)} {c.unit}{g?.left7 != null ? ` · zbývá ${num(g.left7)}` : ""}</p>
             </div>
           )
         })}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-fg-3">
+        <span className="flex items-center gap-1.5"><i className="h-2 w-3 rounded-sm" style={{ background: TONE.ok }} />posledních 7 dní</span>
+        <span className="flex items-center gap-1.5"><i className="h-2 w-3 rounded-sm" style={{ background: C.accent }} />dnes k dispozici</span>
+        <span className="flex items-center gap-1.5"><i className="h-2 w-3 rounded-sm bg-white/[.14]" />zbytek do stropu</span>
+        <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 bg-fg" />strop 7 dní</span>
       </div>
     </div>
   )

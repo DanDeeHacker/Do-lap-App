@@ -1260,14 +1260,24 @@ function RatioBar({ ratio }: { ratio: number }) {
     </div>
   )
 }
-// Weekly bar colour: each week against the mean of the four weeks before it (same bands as the 7:28 ratio).
-function weekTones(w: number[]): Tone[] {
+// Weekly bar colour: each week against the mean of the four weeks before it (same bands
+// as the 7:28 ratio). Below ×0,8 is its own colour (railway#82), grey = too little history.
+export function weekTones(w: number[]): Tone[] {
   return w.map((v, i) => {
     const prev = w.slice(Math.max(0, i - 4), i).filter((x) => x > 0)
     if (prev.length < 2) return "muted"
     const t = ratioTone(v / mean(prev))
-    return t === "ok" ? "info" : t
+    return t === "ok" ? "info" : t === "muted" ? "self" : t
   })
+}
+export function WeekToneLegend() {
+  const items: [string, string][] = [[C.self, "pod obvyklým (< ×0,8)"], [C.info, "v normě"], [C.watch, "mírně nad (> ×1,3)"], [C.alert, "výrazně nad (> ×1,5)"]]
+  return (
+    <div className="mt-2 flex flex-wrap gap-x-3.5 gap-y-1 text-[11px] text-fg-3">
+      {items.map(([c, l]) => <span key={l} className="flex items-center gap-1.5"><i className="size-2 rounded-sm" style={{ background: c }} />{l}</span>)}
+      <span className="w-full">týden proti průměru 4 předchozích</span>
+    </div>
+  )
 }
 // OPT-7 · the 13 descent bins (2,5 % steps) grouped into 4 slope bands; ≥ 10 % matches the "steep" total.
 const SLOPE_BANDS: [string, number, number, Tone][] = [["0–5 %", 0, 2, "muted"], ["5–10 %", 2, 4, "info"], ["10–20 %", 4, 8, "watch"], ["20 % +", 8, 13, "alert"]]
@@ -1377,7 +1387,7 @@ export function Load() {
                 <Label>Týdenní objem běhu (Po–Ne), 12 týdnů</Label>
                 <Bars vals={L.weekly || []} tones={weekTones(L.weekly || [])} />
                 <p className="mt-2 text-[12px] text-fg-3">Tento týden (Po–Ne) <b className="text-fg">{L.weekKm ?? "—"} km</b> · posledních 7 dní <b className="text-fg">{L.runKm7 ?? "—"} km</b></p>
-                <p className="mt-1 text-[11px] text-fg-3">barva = týden proti průměru 4 předchozích (nad ×1,3 žlutě, nad ×1,5 červeně)</p>
+                <WeekToneLegend />
               </div>
               <div>
                 <Label>Denní objem běhu, 28 dní</Label>

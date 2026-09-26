@@ -14,14 +14,14 @@ import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
 import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
 import { clamp, fmtD, initials, QUAD, roleHome } from "@/lib"
-import { AlertBanner, AxisLineChart, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, useAsync, useToast } from "@/ui"
+import { AlertBanner, AxisLineChart, Bars, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, toneCol, useAsync, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
-import { Load as LoadTab, LOAD_IDS, MECH_IDS, Mechanics, Post } from "@/tabs"
+import { Load as LoadTab, LOAD_IDS, MECH_IDS, Mechanics, Post, weekTones, WeekToneLegend } from "@/tabs"
 import { Care, InjurySheet, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
 import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
-import { CapacityMini, readinessCol, readinessPct } from "@/capacity"
+import { CapacityMini, Readiness, readinessCol, readinessPct } from "@/capacity"
 import { Training } from "@/training"
 import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
@@ -355,61 +355,6 @@ function Metric({
     </Card>
   )
 }
-// Weekly km bars (Dnes → Tréninková zátěž). Scrub = pointer capture; the scrubbed
-// bar is lime, the current week takes the load-status colour.
-function NumberedChart({ vals, lastCol = C.alert }: { vals?: number[]; lastCol?: string }) {
-  const [act, setAct] = useState<number | null>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  // No invented bars: until real weekly km arrive (boot loading / no loadDetail),
-  // show an honest empty state instead of a hardcoded fake series.
-  const volume = (vals || []).map((v) => Math.round(v))
-  const n = volume.length
-  if (!n)
-    return (
-      <div className="mt-7 grid h-32 place-items-center rounded-xl border border-dashed border-white/15 text-xs text-fg-3">
-        Zatím není dost dat pro týdenní přehled.
-      </div>
-    )
-  const mx = Math.max(...volume, 1)
-  const lab = (i: number) => (i === n - 1 ? "tento týden" : `−${n - 1 - i} t`)
-  const pick = (clientX: number) => {
-    const el = wrapRef.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    setAct(Math.max(0, Math.min(n - 1, Math.floor(((clientX - r.left) / r.width) * n))))
-  }
-  return (
-    <div
-      ref={wrapRef}
-      className="relative mt-7 flex h-32 select-none items-end gap-1.5 border-b border-white/10 pb-1"
-      style={{ touchAction: "pan-y" }}
-      onPointerMove={(e) => pick(e.clientX)}
-      onPointerDown={(e) => { (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId); pick(e.clientX) }}
-      onPointerUp={() => setAct(null)}
-      onPointerCancel={() => setAct(null)}
-      onPointerLeave={() => setAct(null)}
-    >
-      {volume.map((km, i) => {
-        const on = act === i
-        const last = i === n - 1
-        return (
-          <div key={i} className="relative flex h-full flex-1 items-end">
-            {on && (
-              <div className="pointer-events-none absolute -top-7 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-[10px] border border-white/14 bg-raised px-2 py-1 tabular-nums text-[11px] text-fg shadow-[0_10px_28px_rgb(0_0_0_/_0.5)]">
-                {lab(i)}: <b className="text-accent">{km} km</b>
-              </div>
-            )}
-            <span className={`absolute left-1/2 top-0 -translate-x-1/2 tabular-nums text-[11px] font-bold ${last ? "text-fg" : "text-fg-2"}`}>{km}</span>
-            <i
-              style={{ height: `${Math.max(3, (km / mx) * 88)}%`, background: on ? C.accent : last ? lastCol : undefined }}
-              className={`block min-h-1 w-full self-end rounded-t-[5px] transition-colors ${on || last ? "" : "bg-viz/70"}`}
-            />
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 function RecoveryRanges({ rows }: { rows?: any[] }) {
   const col = (t: string) => (t === "ok" ? C.ok : t === "watch" ? C.watch : t === "alert" ? C.alert : C.fg2)
   // Plain status words; an alert above the usual level (resting HR) reads "nad normou".
@@ -461,12 +406,13 @@ const QCELLS: [string, string][] = [
 ]
 // State card, top row: quadrant chip (the only place the quadrant name appears, FIX-4),
 // the Garmin sync button and the 6-month history button.
-function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, canSync, onHistory, alertSlot }: { quadrant?: string; live?: any; onSync?: () => void; syncing?: boolean; syncMsg?: string | null; canSync?: boolean; onHistory: () => void; alertSlot?: React.ReactNode }) {
+function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, canSync, alertSlot }: { quadrant?: string; live?: any; onSync?: () => void; syncing?: boolean; syncMsg?: string | null; canSync?: boolean; alertSlot?: React.ReactNode }) {
   const q = QUAD[quadrant] || QUAD.stable
   const col = QCOL[quadrant] || C.ok
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+      {/* railway#73 — the sync button always sits on the right, even on a phone */}
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="t-label !text-fg-3">Kvadrant stavu</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -486,7 +432,7 @@ function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, can
             )}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {onSync && (
             <button
               onClick={onSync}
@@ -498,9 +444,6 @@ function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, can
               {syncing ? "Synchronizuji…" : "Synchronizovat"}
             </button>
           )}
-          <button onClick={onHistory} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/14 px-3 py-1.5 text-[12px] font-bold text-info transition hover:border-info/50 hover:bg-info/[.07]">
-            historie 6 měsíců <Maximize2 className="size-3.5" aria-hidden />
-          </button>
         </div>
       </div>
       {syncMsg && <p className="mt-2 text-[12px] font-medium text-fg-2" role="status">{syncMsg}</p>}
@@ -512,6 +455,13 @@ function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, can
 function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; onHistory: () => void }) {
   return (
     <div>
+      {/* railway#72 — the 6-month history opens from the quadrant graphic itself */}
+      <div className="mb-2.5 flex items-center justify-between gap-2">
+        <p className="t-label !text-fg-3">Mechanika × zátěž</p>
+        <button type="button" onClick={onHistory} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/14 px-3 py-1.5 text-[12px] font-bold text-info transition hover:border-info/50 hover:bg-info/[.07]">
+          historie 6 měsíců <Maximize2 className="size-3.5" aria-hidden />
+        </button>
+      </div>
       <button type="button" onClick={onHistory} className="grid w-full grid-cols-2 gap-2 text-left" title="Zobrazit vývoj stavu za 6 měsíců">
         {QCELLS.map(([key, label]) => {
           const active = key === quadrant
@@ -708,19 +658,42 @@ function RecommendationStrip({ a }: { a: any }) {
     ? [t.km && t.km.hi ? `${t.km.lo === t.km.hi ? kmFmt(t.km.lo) : `${kmFmt(t.km.lo)}–${kmFmt(t.km.hi)}`} km` : null, t.hr ? `${t.hr[0]}–${t.hr[1]} tep/min` : null, t.durationMin ? `≈ ${t.durationMin[0]}–${t.durationMin[1]} min` : null].filter(Boolean).join(" · ")
     : t.notes?.[0]
   return (
-    <div className="nest mt-5 flex flex-wrap items-center gap-x-4 gap-y-3 p-3.5" style={{ borderColor: `${col}55`, backgroundImage: `linear-gradient(120deg, ${col}17, transparent 60%)` }} aria-label="Doporučení na dnes">
-      <div className="min-w-0 flex-1">
-        <p className="t-label">Doporučení na dnes</p>
-        <p className="mt-0.5 font-serif text-[22px] leading-tight" style={{ color: ov ? C.alertSoft : C.fg }}>{t.label}</p>
-        {(ov?.title || facts) && <p className="mt-0.5 text-[13px] leading-5 text-fg-soft">{ov ? ov.title : facts}</p>}
-      </div>
+    // railway#75 — only the verdict and the way to Trénink, on one short row
+    <div className="nest mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5" style={{ borderColor: `${col}55`, backgroundImage: `linear-gradient(120deg, ${col}17, transparent 60%)` }}
+      aria-label={`Doporučení na dnes: ${t.label}${ov?.title ? ` — ${ov.title}` : facts ? ` — ${facts}` : ""}`} title={ov?.title || facts || undefined}>
+      <p className="min-w-[7rem] flex-1 font-serif text-[20px] leading-tight" style={{ color: ov ? C.alertSoft : C.fg }}>
+        {t.label}
+        {g.provisional && <i className="ml-2 inline-block size-2 -translate-y-0.5 rounded-full bg-watch" title="předběžné · čeká na ranní data" />}
+      </p>
       <div className="flex flex-wrap items-center gap-2">
         {physio && <Link to="/app/messages" className="btn btn-primary btn-sm">Objednat fyzioterapeuta</Link>}
         <Link to="/app/training" className="btn btn-outline btn-sm">Trénink <ChevronRight className="size-3.5" aria-hidden /></Link>
-        {g.provisional && <Chip tone="watch">předběžné · čeká na ranní data</Chip>}
       </div>
     </div>
   )
+}
+
+// railway#76 — Regenerace, Příznaky, Zátěž and Mechanika as small rings around the score;
+// the ones with a detail open a panel under the card.
+function MiniRing({ label, value, col, onClick, open }: { label: string; value: number | null | undefined; col: string; onClick?: () => void; open?: boolean }) {
+  const R = 2 * Math.PI * 42
+  const body = (
+    <>
+      <span className="relative grid size-[58px] place-items-center">
+        <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
+          <circle cx="50" cy="50" r="42" fill="none" stroke="rgb(255 255 255 / .09)" strokeWidth="9" />
+          {value != null && <circle cx="50" cy="50" r="42" fill="none" stroke={col} strokeWidth="9" strokeLinecap="round" strokeDasharray={R} strokeDashoffset={R * (1 - clamp(value, 0, 100) / 100)} />}
+        </svg>
+        <b className="t-num text-[18px] leading-none" style={{ color: value == null ? C.fg3 : C.fg }}>{value ?? "—"}</b>
+      </span>
+      <span className="mt-1 flex items-center justify-center gap-0.5 whitespace-nowrap text-[10px] font-bold uppercase tracking-[.08em] text-fg-2">
+        {label}{onClick && <ChevronDown className={`size-3 transition ${open ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />}
+      </span>
+    </>
+  )
+  return onClick
+    ? <button type="button" onClick={onClick} aria-expanded={!!open} className={`flex flex-col items-center rounded-[14px] p-1 transition hover:bg-white/[.05] ${open ? "bg-white/[.07] ring-1 ring-accent/50" : ""}`}>{body}</button>
+    : <div className="flex flex-col items-center p-1">{body}</div>
 }
 
 function SideStat({ label, value, col, align = "left", unit, onClick, open }: { label: string; value: number | null | undefined; col: string; align?: "left" | "right" | "center"; unit?: string; onClick?: () => void; open?: boolean }) {
@@ -749,10 +722,12 @@ function TodayV2() {
   const [histOpen, setHistOpen] = useState(false)
   const [alertsOpen, setAlertsOpen] = useState(false)
   // feedback railway#69/#70 — tap Mechanika / Zátěž for its trend + what drives it
-  const [statPanel, setStatPanel] = useState<"mech" | "load" | null>(null)
+  // railway#79–#81 — Regenerace and Připravenost open their detail the same way
+  const [statPanel, setStatPanel] = useState<"mech" | "load" | "recovery" | "readiness" | null>(null)
+  const togglePanel = (k: "mech" | "load" | "recovery" | "readiness") => setStatPanel(statPanel === k ? null : k)
   const [axisHist, setAxisHist] = useState<any[] | null>(null)
   useEffect(() => {
-    if (!statPanel || !rid || axisHist !== null) return
+    if ((statPanel !== "mech" && statPanel !== "load") || !rid || axisHist !== null) return
     let alive = true
     api.mechHistory(rid).then((h) => alive && setAxisHist(Array.isArray(h) ? h : [])).catch(() => alive && setAxisHist([]))
     return () => { alive = false }
@@ -802,7 +777,6 @@ function TodayV2() {
   const deltaCol = deltaUp ? C.ok : deltaDown ? C.alert : C.fg2
   const scoreCol = score == null ? C.fg3 : score >= 67 ? C.ok : score >= 34 ? C.watch : C.alert
   const gated = (a?.confidence?.value ?? 0) < 0.6
-  const quad = a?.quadrant ? QUAD[a.quadrant] : null
   const sleepTone = rcv ? ((rcv.sleep?.debt || 0) >= 4 ? "alert" : (rcv.sleep?.debt || 0) >= 1 ? "watch" : "ok") : "muted"
   const hrvTone = rcv ? ((rcv.hrv?.z ?? 0) <= -1 ? "alert" : (rcv.hrv?.z ?? 0) < -0.3 ? "watch" : "ok") : "muted"
   const rhrTone = rcv ? ((rcv.rhr?.z ?? 0) >= 1.2 ? "alert" : (rcv.rhr?.z ?? 0) > 0.5 ? "watch" : "ok") : "muted"
@@ -832,7 +806,6 @@ function TodayV2() {
         : (L.ratio ?? 1) < 0.8
           ? { t: "Nižší než obvykle", tone: "muted", d: "Objem klesl pod vaši obvyklou úroveň." }
           : { t: "V pohodě", tone: "ok", d: "Zátěž sedí na vaší obvyklé úrovni." }
-  const loadCol = loadStatus.tone === "ok" ? C.ok : loadStatus.tone === "watch" ? C.watch : loadStatus.tone === "alert" ? C.alert : C.fg3
   const wkly = (L?.weekly || []) as number[]
   const typicalKm = wkly.length > 1 ? Math.round(wkly.slice(0, -1).reduce((s, x) => s + x, 0) / (wkly.length - 1)) : (L?.runKm7 ?? 0)
   const signals = (a?.signals || []) as any[]
@@ -896,7 +869,7 @@ function TodayV2() {
   const hasStop = alerts.some((x) => x.tone === "stop")
   const worstTone = alerts.some((x) => x.tone === "alert") ? "alert" : "watch"
   const readiness: number | null = a?.capacity?.readiness ? readinessPct(a.capacity.readiness) : a?.guidance ? (a.guidance.readinessScore ?? Math.round((a.guidance.readiness ?? 1) * 100)) : null
-  const panelSig = statPanel ? signals.filter((s: any) => (statPanel === "mech" ? MECH_IDS : LOAD_IDS).has(s.id)) : []
+  const panelSig = statPanel === "mech" || statPanel === "load" ? signals.filter((s: any) => (statPanel === "mech" ? MECH_IDS : LOAD_IDS).has(s.id)) : []
   const axisPoints = (axisHist || []).map((h: any) => ({ t: h.date, v: statPanel === "mech" ? h.mech : h.load }))
   if (axisPoints.length && a) axisPoints[axisPoints.length - 1] = { t: (a.computed_at || "").slice(0, 10) || axisPoints[axisPoints.length - 1].t, v: (statPanel === "mech" ? a.mech : a.load) ?? axisPoints[axisPoints.length - 1].v }
   const firstCollapsible = alerts.find((x) => x.tone !== "stop")?.key ?? null
@@ -920,7 +893,7 @@ function TodayV2() {
         </AlertBanner>
       )}
       <section className="card mt-6 p-4 text-fg md:p-6">
-        <QuadrantHead quadrant={a?.quadrant} live={a} onSync={doSync} syncing={syncing} syncMsg={syncMsg} canSync={!!gStatus?.connected} onHistory={() => setHistOpen(true)}
+        <QuadrantHead quadrant={a?.quadrant} live={a} onSync={doSync} syncing={syncing} syncMsg={syncMsg} canSync={!!gStatus?.connected}
           alertSlot={alertCount > 0 && (
             <button type="button" onClick={() => setAlertsOpen((v) => !v)} aria-expanded={alertsOpen} aria-label={`Upozornění (${alertCount})`} title="Upozornění"
               className={`relative inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-extrabold transition ${hasStop ? "bg-alert text-ink motion-safe:animate-pulse" : worstTone === "alert" ? "bg-alert/15 text-alert-soft ring-1 ring-alert/40" : "bg-watch/15 text-watch ring-1 ring-watch/40"}`}>
@@ -941,10 +914,10 @@ function TodayV2() {
         {/* „Stav" — co jde do kvadrantu — je součástí boxu s kvadrantem */}
         <div className="mt-5 grid gap-6 border-t border-white/[.08] pt-5 md:grid-cols-2 md:gap-8">
           <div>
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-              <div className="grid gap-5">
-                <SideStat label="Regenerace" value={score} col={scoreCol} />
-                <SideStat label="Příznaky" value={a ? a.symp : null} col={axisCol(a?.symp, C.alert)} />
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+              <div className="grid justify-items-center gap-2">
+                <MiniRing label="Regenerace" value={score} col={scoreCol} onClick={() => togglePanel("recovery")} open={statPanel === "recovery"} />
+                <MiniRing label="Příznaky" value={a ? a.symp : null} col={axisCol(a?.symp, C.alert)} />
               </div>
               <div className="relative grid size-[132px] place-items-center">
                 <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
@@ -953,57 +926,147 @@ function TodayV2() {
                 </svg>
                 <span className="text-center">
                   <b className="t-num block text-[40px] leading-none text-fg">{overall}</b>
-                  <span className="mt-1 flex items-center justify-center gap-1"><span className="text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">Celkové skóre</span></span>
+                  <span className="mt-1 block text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">Skóre</span>
                 </span>
-                <span className="absolute -right-1 top-1"><InfoDot text={MI.overall} label="Celkové skóre" /></span>
+                <span className="absolute -right-1 top-1"><InfoDot text={MI.overall} label="Skóre" /></span>
               </div>
-              <div className="grid justify-items-end gap-5">
-                <SideStat label="Zátěž" value={a ? a.load : null} col={C.load} align="right" onClick={() => setStatPanel(statPanel === "load" ? null : "load")} open={statPanel === "load"} />
-                <SideStat label="Mechanika" value={a ? a.mech : null} col={axisCol(a?.mech, C.alert)} align="right" onClick={() => setStatPanel(statPanel === "mech" ? null : "mech")} open={statPanel === "mech"} />
+              <div className="grid justify-items-center gap-2">
+                <MiniRing label="Zátěž" value={a ? a.load : null} col={C.load} onClick={() => togglePanel("load")} open={statPanel === "load"} />
+                <MiniRing label="Mechanika" value={a ? a.mech : null} col={axisCol(a?.mech, C.alert)} onClick={() => togglePanel("mech")} open={statPanel === "mech"} />
               </div>
             </div>
             {readiness != null && (
               <div className="mt-3 flex justify-center">
-                <SideStat label="Připravenost" value={readiness} unit=" %" col={readinessCol(readiness)} align="center" />
-              </div>
-            )}
-            {statPanel && (
-              <div className="nest mt-4 origin-top animate-[careReveal_.28s_ease-out] p-3.5">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="t-label">{statPanel === "mech" ? "Mechanika — trend" : "Zátěž — trend"}</p>
-                  <Link to={statPanel === "mech" ? "/app/mechanics" : "/app/load"} className="inline-flex items-center gap-1 text-[12px] font-bold text-accent hover:underline">{statPanel === "mech" ? "Pohyb" : "Zátěž"}<ChevronRight className="size-3.5" aria-hidden /></Link>
-                </div>
-                {axisHist === null ? <p className="mt-2 text-[12px] text-fg-3">Počítám trend v čase…</p>
-                  : axisPoints.length > 1 ? <AxisLineChart points={axisPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh" color={statPanel === "mech" ? (a?.mech >= 25 ? C.alert : C.ok) : C.load} height={130} zone />
-                  : <p className="mt-2 text-[12px] text-fg-3">Na trend je zatím málo historie.</p>}
-                <p className="t-label mt-3 !text-fg-3">{statPanel === "mech" ? "Co tvoří skóre mechaniky" : "Co tvoří skóre zátěže"}</p>
-                {panelSig.length ? (
-                  <div className="mt-2.5 space-y-2.5">
-                    {panelSig.map((s: any) => <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} tone={statPanel === "mech" ? "info" : "load"} pct={(s.pts / Math.max(1, ...panelSig.map((x: any) => x.pts || 0))) * 100} />)}
-                  </div>
-                ) : <p className="mt-2 text-[12px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
+                <SideStat label="Připravenost" value={readiness} unit=" %" col={readinessCol(readiness)} align="center" onClick={() => togglePanel("readiness")} open={statPanel === "readiness"} />
               </div>
             )}
             <div className="mt-4 text-center">
               <h3 className="font-serif text-[21px] leading-tight text-fg">{verdict}</h3>
-              <p className="mt-1 text-[13px] font-bold" style={{ color: tierCol }}>{tierWord}</p>
-              {recur && (
-                <p className="mx-auto mt-3 max-w-sm rounded-[12px] border border-watch/35 bg-watch/[.07] px-3 py-2.5 text-[12px] leading-5 text-watch">
-                  {recur.site} · {recur.days}× za 28 dní — i mírná bolest na stejném místě je vzorec přetížení. Kratší a volnější běhy, bez dlouhého běhu a intenzity.
-                </p>
-              )}
+              <p className="mt-1 flex items-center justify-center gap-1.5 text-[13px] font-bold" style={{ color: tierCol }}>
+                {tierWord}
+                {/* railway#77 — the recurring-pain note opens from the ! next to the risk word */}
+                {recur && <InfoDot variant="watch" label="Opakovaná bolest" text={`${recur.site} · ${recur.days}× za 28 dní — i mírná bolest na stejném místě je vzorec přetížení. Kratší a volnější běhy, bez dlouhého běhu a intenzity.`} />}
+              </p>
             </div>
           </div>
+          {statPanel && (
+            <div className="nest origin-top animate-[careReveal_.28s_ease-out] p-3.5 md:order-last md:col-span-2 md:p-5">
+              {(statPanel === "mech" || statPanel === "load") && (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="t-label">{statPanel === "mech" ? "Mechanika — trend" : "Zátěž — trend"}</p>
+                    <Link to={statPanel === "mech" ? "/app/mechanics" : "/app/load"} className="inline-flex items-center gap-1 text-[12px] font-bold text-accent hover:underline">{statPanel === "mech" ? "Pohyb" : "Zátěž"}<ChevronRight className="size-3.5" aria-hidden /></Link>
+                  </div>
+                  <div className="grid gap-x-8 md:grid-cols-[1.3fr_1fr]">
+                    <div>
+                      {axisHist === null ? <p className="mt-2 text-[12px] text-fg-3">Počítám trend v čase…</p>
+                        : axisPoints.length > 1 ? <AxisLineChart points={axisPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh" color={statPanel === "mech" ? (a?.mech >= 25 ? C.alert : C.ok) : C.load} height={130} zone />
+                        : <p className="mt-2 text-[12px] text-fg-3">Na trend je zatím málo historie.</p>}
+                    </div>
+                    <div>
+                      <p className="t-label mt-3 !text-fg-3">{statPanel === "mech" ? "Co tvoří skóre mechaniky" : "Co tvoří skóre zátěže"}</p>
+                      {panelSig.length ? (
+                        <div className="mt-2.5 space-y-2.5">
+                          {panelSig.map((s: any) => <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} tone={statPanel === "mech" ? "info" : "load"} pct={(s.pts / Math.max(1, ...panelSig.map((x: any) => x.pts || 0))) * 100} />)}
+                        </div>
+                      ) : <p className="mt-2 text-[12px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
+                    </div>
+                  </div>
+                </>
+              )}
+              {statPanel === "recovery" && (
+                <div className="grid gap-6 md:grid-cols-2 md:gap-8">
+                  {/* railway#79 — Regenerace přes noc */}
+                  <div>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <span className="flex items-center gap-1.5"><p className="t-label">Regenerace přes noc</p><InfoDot text={MI.recoveryScore} label="Regenerace přes noc" /></span>
+                      {scoreDelta != null && (
+                        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-bold" style={{ background: `${deltaCol}1f`, color: deltaCol }}>
+                          <span>{deltaUp ? "▲" : deltaDown ? "▼" : "▬"}</span>
+                          <span>{scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta < 0 ? scoreDelta : "beze změny"}</span>
+                          <span className="font-medium opacity-80">{scoreDelta !== 0 ? "přes noc" : "oproti včera"}</span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2 flex items-end justify-between gap-3">
+                      <b className="t-num text-[40px] leading-none" style={{ color: scoreCol }}>
+                        {score ?? "—"}
+                        <small className="ml-1 text-sm font-semibold tracking-normal text-fg-3">/ 100</small>
+                      </b>
+                      <span className="pb-1 text-right text-[14px] font-bold text-fg">{scoreLabel}</span>
+                    </div>
+                    <div className="relative mt-4 h-3 overflow-hidden rounded-full bg-white/[.07]">
+                      <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${clamp(score ?? 0, 0, 100)}%`, background: `${scoreCol}88` }} />
+                      {scorePrev != null && !!scoreDelta && (
+                        <i className="absolute inset-y-0" style={{ left: `${clamp(Math.min(score ?? 0, scorePrev), 0, 100)}%`, width: `${Math.abs((score ?? 0) - scorePrev)}%`, background: deltaCol, opacity: 0.85 }} />
+                      )}
+                      {scorePrev != null && <i className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `calc(${clamp(scorePrev, 0, 100)}% - 1px)` }} />}
+                      <i className="absolute inset-y-0 left-1/4 w-px bg-bg/60" />
+                      <i className="absolute inset-y-0 left-1/2 w-px bg-bg/60" />
+                      <i className="absolute inset-y-0 left-3/4 w-px bg-bg/60" />
+                    </div>
+                    <div className="mt-2 flex justify-between text-[11px] text-fg-3"><span>nízká</span><span>vyvážená</span><span>plná</span></div>
+                    {scorePrev != null && (
+                      <p className="mt-2 text-[12px] text-fg-3">
+                        <span className="mr-1 inline-block h-2 w-0.5 translate-y-px bg-fg" /> včera {scorePrev}
+                        {scoreDelta ? <> · <span style={{ color: deltaCol }}>{deltaUp ? "regenerace přes noc stoupla" : "regenerace přes noc klesla"} o {Math.abs(scoreDelta)}</span></> : " · přes noc beze změny"}
+                      </p>
+                    )}
+                    {rcv && (
+                      <div className="mt-4 flex items-center gap-3 border-t border-white/[.08] pt-3.5 text-[13px]">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><Moon className="size-4" aria-hidden /></span>
+                        <span><b>HRV {rcv.hrv?.now} ms</b><small className="ml-2 text-[12px] text-fg-2">baseline {rcv.hrv?.base} ms · spánek {rcv.sleep?.now} h</small></span>
+                      </div>
+                    )}
+                  </div>
+                  {/* railway#80 — Regenerace vs. norma */}
+                  <div>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="t-label">Regenerace vs. norma</p>
+                      <WeeklyCheckButton />
+                    </div>
+                    <RecoveryRanges rows={recoveryRows} />
+                  </div>
+                </div>
+              )}
+              {statPanel === "readiness" && (
+                <div>
+                  {/* railway#81 — Připravenost opens the training load: why readiness is what it is, the weeks, today vs. the 7-day room */}
+                  {a?.capacity?.readiness && <Readiness r={a.capacity.readiness} />}
+                  <div className="mt-4 grid gap-6 md:grid-cols-2 md:gap-8">
+                    <div>
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="t-label">Tréninková zátěž</p>
+                          <h2 className="mt-1 font-serif text-2xl">{loadStatus.t}</h2>
+                        </div>
+                        <Chip tone={loadStatus.tone as any}>tento týden</Chip>
+                      </div>
+                      <p className="mt-1 text-[13px] text-fg-2">{loadStatus.d}</p>
+                      <p className="t-label mt-4 !text-fg-3">Kilometry po kalendářních týdnech (Po–Ne)</p>
+                      {/* railway#82 — same colours as the weekly volume chart on Zátěž */}
+                      {wkly.length ? <><Bars vals={wkly.map((v) => Math.round(v))} tones={weekTones(wkly)} /><WeekToneLegend /></>
+                        : <p className="mt-3 text-[12px] text-fg-3">Zatím není dost dat pro týdenní přehled.</p>}
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-[12px] text-fg-2">
+                        <span>Tento týden <small className="text-fg-3">(Po–Ne)</small> <b className="t-num block text-[18px] text-fg">{L?.weekKm ?? "—"} km</b></span>
+                        <span>Posledních 7 dní <b className="t-num block text-[18px] text-fg">{L?.runKm7 ?? "—"} km</b></span>
+                        <span className="text-right">Obvykle / týden <b className="t-num block text-[18px] text-fg">{typicalKm} km</b></span>
+                      </div>
+                    </div>
+                    <div>
+                      {a?.capacity ? <CapacityMini cap={a.capacity} week={a?.guidance?.week?.channels} className="border-t border-white/10 pt-4 md:border-t-0 md:pt-0" /> : <p className="text-[12px] text-fg-3">Kapacitu zatím poznáváme.</p>}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <div>
             <QuadrantGrid quadrant={a?.quadrant} onHistory={() => setHistOpen(true)} />
             <div className="mt-5">
               <p className="t-label !text-fg-3">Co teď nejvíc ovlivňuje stav</p>
               {signals.length ? (
-                <div className="mt-3 space-y-3">
-                  {signals.slice(0, 4).map((s) => (
-                    <FactorBar key={s.id} grade={s.grade} tone={gradeTone(s.grade)} label={s.name} value={s.val} pct={(s.pts / (signals[0].pts || 1)) * 100} />
-                  ))}
-                </div>
+                <ImpactPyramid signals={signals} tone={gradeTone} />
               ) : (
                 <p className="mt-2 text-sm text-fg-2">Nic nad prahem — zátěž i mechanika sedí na vaší normě.</p>
               )}
@@ -1013,96 +1076,35 @@ function TodayV2() {
         </div>
         {histOpen && <QuadrantHistory history={quadHist} live={a} onClose={() => setHistOpen(false)} />}
       </section>
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1.45fr_.8fr]">
-        <section className="card p-4 text-fg md:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <span className="flex items-center gap-1.5"><Label>Regenerace přes noc</Label><InfoDot text={MI.recoveryScore} label="Regenerace přes noc" /></span>
-            {scoreDelta != null && (
-              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-bold" style={{ background: `${deltaCol}1f`, color: deltaCol }}>
-                <span>{deltaUp ? "▲" : deltaDown ? "▼" : "▬"}</span>
-                <span>{scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta < 0 ? scoreDelta : "beze změny"}</span>
-                <span className="font-medium opacity-80">{scoreDelta !== 0 ? "přes noc" : "oproti včera"}</span>
-              </span>
-            )}
-          </div>
-          <div className="mt-2 flex items-end justify-between gap-3">
-            <b className="t-num text-[44px] leading-none" style={{ color: scoreCol }}>
-              {score ?? "—"}
-              <small className="ml-1 text-sm font-semibold tracking-normal text-fg-3">/ 100</small>
-            </b>
-            <span className="pb-1 text-right text-[14px] font-bold text-fg">{scoreLabel}</span>
-          </div>
-          <div className="relative mt-4 h-3 overflow-hidden rounded-full bg-white/[.07]">
-            <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${clamp(score ?? 0, 0, 100)}%`, background: `${scoreCol}88` }} />
-            {scorePrev != null && !!scoreDelta && (
-              <i className="absolute inset-y-0" style={{ left: `${clamp(Math.min(score ?? 0, scorePrev), 0, 100)}%`, width: `${Math.abs((score ?? 0) - scorePrev)}%`, background: deltaCol, opacity: 0.85 }} />
-            )}
-            {scorePrev != null && (
-              <i className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `calc(${clamp(scorePrev, 0, 100)}% - 1px)` }} />
-            )}
-            <i className="absolute inset-y-0 left-1/4 w-px bg-bg/60" />
-            <i className="absolute inset-y-0 left-1/2 w-px bg-bg/60" />
-            <i className="absolute inset-y-0 left-3/4 w-px bg-bg/60" />
-          </div>
-          <div className="mt-2 flex justify-between text-[11px] text-fg-3">
-            <span>nízká</span>
-            <span>vyvážená</span>
-            <span>plná</span>
-          </div>
-          {scorePrev != null && (
-            <p className="mt-2 text-[12px] text-fg-3">
-              <span className="mr-1 inline-block h-2 w-0.5 translate-y-px bg-fg" /> včera {scorePrev}
-              {scoreDelta ? <> · <span style={{ color: deltaCol }}>{deltaUp ? "regenerace přes noc stoupla" : "regenerace přes noc klesla"} o {Math.abs(scoreDelta)}</span></> : " · přes noc beze změny"}
-            </p>
-          )}
-          <div className="mt-5 grid gap-2.5 border-t border-white/[.08] pt-4 text-[13px]">
-            {rcv && (
-              <div className="flex items-center gap-3">
-                <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><Moon className="size-4" aria-hidden /></span>
-                <span>
-                  <b>HRV {rcv.hrv?.now} ms</b>
-                  <small className="ml-2 text-[12px] text-fg-2">baseline {rcv.hrv?.base} ms · spánek {rcv.sleep?.now} h</small>
-                </span>
-              </div>
-            )}
-            <div className="flex items-center gap-3">
-              <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-accent/15 text-accent"><TrendingUp className="size-4" aria-hidden /></span>
-              <span>
-                <b>{priority}</b>
-                <small className="ml-2 text-[12px] text-fg-2">{quad?.d}</small>
-              </span>
-            </div>
-          </div>
-        </section>
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Label>Regenerace vs. norma</Label>
-            <WeeklyCheckButton />
-          </div>
-          <RecoveryRanges rows={recoveryRows} />
-        </Card>
-      </div>
-      <div className="mt-4">
-        <Card>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <Label>Tréninková zátěž</Label>
-              <h2 className="mt-1 font-serif text-2xl">{loadStatus.t}</h2>
-            </div>
-            <Chip tone={loadStatus.tone as any}>tento týden</Chip>
-          </div>
-          <p className="mt-1 text-[13px] text-fg-2">{loadStatus.d}</p>
-          <p className="t-label mt-4 !text-fg-3">Kilometry po kalendářních týdnech (Po–Ne)</p>
-          <NumberedChart vals={L?.weekly} lastCol={loadStatus.tone === "muted" ? C.fg2 : loadCol} />
-          <div className="mt-3 grid grid-cols-3 gap-2 text-[12px] text-fg-2">
-            <span>Tento týden <small className="text-fg-3">(Po–Ne)</small> <b className="t-num block text-[18px] text-fg">{L?.weekKm ?? "—"} km</b></span>
-            <span>Posledních 7 dní <b className="t-num block text-[18px] text-fg">{L?.runKm7 ?? "—"} km</b></span>
-            <span className="text-right">Obvykle / týden <b className="t-num block text-[18px] text-fg">{typicalKm} km</b></span>
-          </div>
-          {a?.capacity && <CapacityMini cap={a.capacity} />}
-        </Card>
-      </div>
     </>
+  )
+}
+
+// railway#78 — what drives the state as an inverted pyramid: the biggest impact on top
+// and widest, each lower row narrower.
+function ImpactPyramid({ signals, tone }: { signals: any[]; tone: (g: string) => "alert" | "watch" | "ok" }) {
+  const top = [...signals].sort((x, y) => (y.pts || 0) - (x.pts || 0)).slice(0, 4)
+  const n = top.length
+  const maxPts = Math.max(1, top[0]?.pts || 0)
+  return (
+    <div className="mt-3 flex flex-col items-center gap-1.5">
+      {top.map((s, i) => {
+        const col = toneCol(tone(s.grade))
+        const w = n > 1 ? 100 - (i * 44) / (n - 1) : 100
+        return (
+          <div key={s.id} className="relative overflow-hidden rounded-[12px] border px-3 py-2 text-center" style={{ width: `${w}%`, borderColor: `${col}55`, background: `${col}14` }}
+            title={`${s.name}${s.val ? ` · ${s.val}` : ""}${s.pts != null ? ` · ${s.pts} b` : ""}`}>
+            <i className="absolute inset-y-0 left-0" style={{ width: `${((s.pts || 0) / maxPts) * 100}%`, background: `${col}1c` }} aria-hidden />
+            <span className="relative flex items-center justify-center gap-1.5">
+              {s.grade && <span className="grid size-[18px] shrink-0 place-items-center rounded-full text-[10px] font-extrabold" style={{ background: `${col}30`, color: col }}>{s.grade}</span>}
+              <span className="min-w-0 text-balance text-[12.5px] font-semibold leading-4 text-fg">{s.name}</span>
+            </span>
+            {s.val && <span className="relative mt-0.5 block truncate tabular-nums text-[11px] text-fg-2">{s.val}</span>}
+          </div>
+        )
+      })}
+      <div className="mt-1 flex w-full justify-between text-[10px] font-bold uppercase tracking-[.1em] text-fg-3"><span>↑ největší vliv</span><span>nejmenší ↓</span></div>
+    </div>
   )
 }
 function RunnerPage() {
