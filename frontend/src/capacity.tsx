@@ -26,9 +26,9 @@ function Readiness({ r }: { r: any }) {
   const col = readinessCol(pct)
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${col}1f`, color: col }}>Připravenost dnes {pct} %</span>
+      <span className="rounded-full px-2.5 py-1 text-[12px] font-bold" style={{ background: `${col}1f`, color: col }}>Připravenost dnes {pct} %</span>
       {parts.length ? parts.map(([k, v]) => (
-        <span key={k} className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] text-fg-2" style={{ opacity: 0.55 + 0.45 * v }}>{PART_LABEL[k] || k}</span>
+        <span key={k} className="rounded-full bg-white/[.06] px-2.5 py-1 text-[11px] font-semibold text-fg-2" style={{ opacity: 0.6 + 0.4 * v }}>{PART_LABEL[k] || k}</span>
       )) : <span className="text-[11px] text-fg-3">bez snížení</span>}
       <InfoDot text={MI.readiness} label="Připravenost" />
     </div>
@@ -37,13 +37,13 @@ function Readiness({ r }: { r: any }) {
 
 // now vs ceiling on one bar; the ceiling marker sits where the bar would hit it
 function HeadroomBar({ now, ceiling, tone }: { now: number | null; ceiling: number | null; tone: string }) {
-  if (now == null || ceiling == null || ceiling <= 0) return <div className="h-2 rounded-full bg-white/10" />
+  if (now == null || ceiling == null || ceiling <= 0) return <div className="h-2 rounded-full bg-white/[.08]" />
   const scale = Math.max(now, ceiling) * 1.08
   const col = (TONE as any)[tone] || TONE.ok
   return (
-    <div className="relative h-2 rounded-full bg-white/10">
+    <div className="relative h-2 rounded-full bg-white/[.08]">
       <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${(now / scale) * 100}%`, background: col }} />
-      <i className="absolute -inset-y-1 w-0.5 bg-fg" style={{ left: `calc(${(ceiling / scale) * 100}% - 1px)` }} title="strop" />
+      <i className="absolute -inset-y-1 w-0.5 rounded-full bg-fg" style={{ left: `calc(${(ceiling / scale) * 100}% - 1px)` }} title="strop" />
     </div>
   )
 }
@@ -59,13 +59,13 @@ function ChannelRow({ id, c, margins }: { id: string; c: any; margins: any }) {
   const sTone = toneOf(ses?.ratio, margins.session)
   const why = !c.pts ? null : c.driver === "session" ? "body za jeden běh nad kapacitou" : c.driver === "week" ? "body za 7 dní nad kapacitou" : c.driver === "latent" ? "body doznívajícího skoku" : null
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[.02] p-3.5">
+    <div className="nest p-3.5">
       <div className="flex items-center gap-2">
-        <b className="text-sm text-fg">{c.label}</b>
-        <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[11px] font-bold text-fg-2">{c.grade}</span>
-        <span className="ml-auto text-right tabular-nums text-[11px]" style={{ color: c.pts ? C.watch : C.fg3 }}>
+        <b className="text-sm font-bold text-fg">{c.label}</b>
+        <span className="grid size-5 place-items-center rounded-full bg-white/[.07] text-[11px] font-extrabold text-fg-2">{c.grade}</span>
+        <span className="ml-auto text-right tabular-nums text-[12px] font-bold" style={{ color: c.pts ? C.watch : C.fg3 }}>
           {c.pts ? `+${c.pts} b` : "0 b"}
-          {why && <span className="block font-sans text-[11px] text-fg-3">{why}</span>}
+          {why && <span className="block font-sans text-[11px] font-normal text-fg-3">{why}</span>}
         </span>
       </div>
       {!c.known ? (
@@ -129,10 +129,10 @@ function ZoneTime({ cap }: { cap: any }) {
           const hard = z.z === "Z4" || z.z === "Z5"
           const m = mins[z.z]
           return (
-            <div key={z.z} className={`flex flex-col rounded-lg px-1 py-1.5 ${hard ? "bg-alert/15" : "bg-white/[.05]"}`}>
+            <div key={z.z} className={`flex flex-col rounded-[12px] border px-1 py-2 ${hard ? "border-alert/25 bg-alert/10" : "border-white/[.06] bg-white/[.04]"}`}>
               <b className="block text-[11px] text-fg">{z.z}</b>
               <span className="tabular-nums text-[11px] text-fg-2">{z.lo}–{z.hi}</span>
-              <div className="mx-auto mt-1.5 flex h-10 w-3 items-end rounded-full bg-white/10">
+              <div className="mx-auto mt-1.5 flex h-12 w-3 items-end overflow-hidden rounded-full bg-white/[.08]">
                 <i className="block w-full rounded-full" style={{ height: `${((m || 0) / max) * 100}%`, background: hard ? C.alert : C.ok }} />
               </div>
               <span className="mt-1 tabular-nums text-[11px] font-bold text-fg">{m != null ? `${m} min` : "—"}</span>
@@ -152,25 +152,25 @@ export function CapacityPanel({ cap }: { cap: any }) {
   if (!cap) return null
   const re = cap.relativeEffort || {}
   return (
-    <section className="mb-4 rounded-[24px] border border-watch/20 bg-panel p-5 md:p-6">
+    <section className="card mb-4 p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <span className="flex items-center gap-1.5"><Label>Týdenní kapacita</Label><InfoDot text={MI.capacity} label="Kapacita" /></span>
-          <p className="mt-1 max-w-xl text-xs leading-5 text-fg-2">Posledních 7 dní proti tomu, co za týden prokazatelně zvládáte bez obtíží. Bílá čárka = strop (kapacita + 15 % rezerva, podle připravenosti v týdnu). Kolik z toho je v plánu na tento týden a na dnešek, ukazuje Trénink.</p>
+          <p className="mt-1 max-w-xl text-[13px] leading-5 text-fg-2">Posledních 7 dní proti tomu, co za týden prokazatelně zvládáte bez obtíží. Bílá čárka = strop (kapacita + 15 % rezerva, podle připravenosti v týdnu). Kolik z toho je v plánu na tento týden a na dnešek, ukazuje Trénink.</p>
         </div>
         <Readiness r={cap.readiness} />
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 min-[1600px]:grid-cols-3">
         {CH_ORDER.map((id) => cap.channels?.[id] && <ChannelRow key={id} id={id} c={cap.channels[id]} margins={cap.margins} />)}
       </div>
       {cap.margins?.frailty > 1 && (
         <p className="mt-3 text-[11px] text-fg-3">Zranění v posledních 12 měsících zmenšuje rezervu nad kapacitou (na běh +{Math.round(cap.margins.session * 100)} %, na týden +{Math.round(cap.margins.week * 100)} %).</p>
       )}
-      <div className="mt-5 grid gap-4 border-t border-white/10 pt-4 lg:grid-cols-[1.4fr_1fr]">
+      <div className="mt-5 grid gap-5 border-t border-white/[.08] pt-4 lg:grid-cols-[1.4fr_1fr]">
         <div>
           <span className="flex items-center gap-1.5"><Label>Relativní úsilí posledních běhů</Label><InfoDot text={MI.relEffort} label="Relativní úsilí" /></span>
           {re.runs?.length ? (
-            <div className="mt-2 divide-y divide-white/10">
+            <div className="mt-2 divide-y divide-white/[.06]">
               {re.runs.map((r: any, i: number) => {
                 const [bl, bc] = BAND[r.band] || ["málo historie", TONE.muted]
                 return (
@@ -179,7 +179,7 @@ export function CapacityPanel({ cap }: { cap: any }) {
                     <span className="min-w-0 flex-1 truncate text-fg">{r.title || "Běh"}{r.km ? ` · ${num(r.km)} km` : ""}</span>
                     <span className="flex shrink-0 items-center gap-2">
                       <span className="w-16 whitespace-nowrap text-right tabular-nums text-[11px] text-fg-2">{r.effort} j.z.</span>
-                      <span className="w-[5.5rem] text-center"><span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `${bc}1f`, color: bc }}>{bl}</span></span>
+                      <span className="min-w-[6.5rem] text-center"><span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `${bc}1f`, color: bc }}>{bl}</span></span>
                       <span className="w-[5.5rem] whitespace-nowrap text-[11px]" style={{ color: (r.hrDelta ?? 0) > 0 ? TONE.watch : TONE.ok }}>
                         {r.hrDelta != null && Math.abs(r.hrDelta) >= 5 ? `tep při tempu ${r.hrDelta > 0 ? "+" : ""}${r.hrDelta}` : ""}
                       </span>
@@ -205,7 +205,7 @@ export function CapacityMini({ cap }: { cap: any }) {
   return (
     <div className="mt-4 border-t border-white/10 pt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Kapacita · posledních 7 dní vs. strop</p><InfoDot text={MI.capacity} label="Kapacita" /></span>
+        <span className="flex items-center gap-1.5"><p className="t-label !text-fg-3">Kapacita · posledních 7 dní vs. strop</p><InfoDot text={MI.capacity} label="Kapacita" /></span>
         <span className="text-[11px] font-bold" style={{ color: readinessCol(readinessPct(cap.readiness)) }}>připravenost {readinessPct(cap.readiness)} %</span>
       </div>
       <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">

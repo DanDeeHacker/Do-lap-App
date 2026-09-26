@@ -329,7 +329,7 @@ export function Sparkline({ vals, color = C.info, h = 48 }: { vals: number[]; co
 
 // Numbered bar chart: value above each bar, the scrubbed bar in lime, the current
 // bar in alert (or per-bar status tones when the caller passes them).
-export function Bars({ vals, unit = "km", labels, tones }: { vals: number[]; unit?: string; labels?: string[]; tones?: Tone[] }) {
+export function Bars({ vals, unit = "km", labels, axisLabels, tones }: { vals: number[]; unit?: string; labels?: string[]; axisLabels?: string[]; tones?: Tone[] }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
   if (!vals?.length) return null
@@ -375,7 +375,7 @@ export function Bars({ vals, unit = "km", labels, tones }: { vals: number[]; uni
                   {num(v)} {unit}{xlab(i) ? <span className="t-axis ml-1 font-normal">{xlab(i)}</span> : null}
                 </div>
               )}
-              {showv && !on && <span className={`absolute left-1/2 top-0 -translate-x-1/2 text-[11px] font-bold tabular-nums ${last ? "text-alert" : "text-fg-2"} ${!last && v !== mx && n > 8 ? "hidden sm:block" : ""}`}>{num(v)}</span>}
+              {showv && !on && <span className={`absolute left-1/2 top-0 -translate-x-1/2 text-[11px] font-bold tabular-nums ${!last && v !== mx && n > 8 ? "hidden sm:block" : ""}`} style={{ color: last ? (tones?.[i] && tones[i] !== "muted" ? toneCol(tones[i]) : tones?.[i] ? C.fg : C.alert) : C.fg2 }}>{num(v)}</span>}
               <i className="block min-h-1 w-full self-end rounded-t-[3px] transition-colors" style={{ height: `${Math.max(3, (v / mx) * 88)}%`, background: fill(i) }} />
             </div>
           )
@@ -383,7 +383,7 @@ export function Bars({ vals, unit = "km", labels, tones }: { vals: number[]; uni
       </div>
       <div className="mt-1 flex gap-1.5">
         {vals.map((_, i) => (
-          <span key={i} className={`t-axis min-w-0 flex-1 whitespace-nowrap text-center ${i === 0 && !labels ? "text-left" : i === n - 1 && !labels ? "text-right" : ""} ${thinLabels ? "truncate" : ""} ${thinLabels && i % 2 === 1 ? "invisible sm:visible" : ""}`}>{xlab(i)}</span>
+          <span key={i} className={`t-axis min-w-0 flex-1 whitespace-nowrap text-center ${i === 0 && !labels ? "text-left" : i === n - 1 && !labels ? "text-right" : ""} ${thinLabels && !axisLabels ? "truncate" : ""} ${thinLabels && i % 2 === 1 ? "invisible sm:visible" : ""}`}>{axisLabels ? axisLabels[i] : xlab(i)}</span>
         ))}
       </div>
     </div>

@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, FactorBar, Field, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
-import { Activity as ActivityIcon, ChevronDown, ChevronLeft, ChevronRight, CloudSun, FileText, Footprints, Gauge, History, LoaderCircle, Mountain } from "lucide-react"
+import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, FactorBar, toneCol, type Tone, Field, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
+import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, MoveDiagonal, Mountain, Orbit, Ship, Waves, type LucideIcon } from "lucide-react"
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
 import { clamp, czk, FEEL_LABEL, fmtD, fmtSlot, paceStr, PHASE, plural, QUAD, sgn } from "@/lib"
@@ -1210,6 +1210,63 @@ const LOAD_IDS = new Set([
   // engine v3 — load against the runner's own capacity, per channel
   ...CAP_SIGNAL_IDS,
 ])
+// ADD · 7:28 load ratio on a graded bar: <0,8 nízká · 0,8–1,3 v normě · 1,3–1,5 zvýšená · >1,5 vysoká.
+const RATIO_SEG: [number, number, string][] = [[0.4, 0.8, C.self], [0.8, 1.3, C.ok], [1.3, 1.5, C.watch], [1.5, 2.2, C.alert]]
+const ratioTone = (r: number): Tone => (r < 0.8 ? "muted" : r <= 1.3 ? "ok" : r <= 1.5 ? "watch" : "alert")
+function RatioBar({ ratio }: { ratio: number }) {
+  const lo = 0.4, hi = 2.2
+  const P = (v: number) => clamp(((v - lo) / (hi - lo)) * 100, 1.5, 98.5)
+  const tone = ratioTone(ratio)
+  const col = tone === "muted" ? C.self : toneCol(tone)
+  const word = ratio < 0.8 ? "nižší než obvykle" : ratio <= 1.3 ? "v normě" : ratio <= 1.5 ? "zvýšená" : "vysoká"
+  return (
+    <div className="nest p-3.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="t-label !text-fg-3">Poměr zátěže 7 : 28 dní</span>
+        <span className="text-[13px] font-bold" style={{ color: col }}><span className="t-num text-[18px]">×{mfmt(2, ratio)}</span> · {word}</span>
+      </div>
+      <div className="relative mt-3 h-2.5">
+        <div className="absolute inset-0 flex gap-0.5 overflow-hidden rounded-full">
+          {RATIO_SEG.map(([a, b, c]) => <i key={a} className="block h-full" style={{ width: `${((b - a) / (hi - lo)) * 100}%`, background: c, opacity: 0.55 }} />)}
+        </div>
+        <i className="absolute top-1/2 h-4.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg shadow-[0_0_0_3px_rgb(6_16_16_/_0.9)]" style={{ left: `${P(ratio)}%`, height: 18 }} />
+      </div>
+      <div className="relative mt-1.5 h-3.5 tabular-nums text-[11px] text-fg-3">
+        {[0.8, 1.3, 1.5].map((v) => <span key={v} className="absolute -translate-x-1/2" style={{ left: `${P(v)}%` }}>{mfmt(1, v)}</span>)}
+      </div>
+    </div>
+  )
+}
+// Weekly bar colour: each week against the mean of the four weeks before it (same bands as the 7:28 ratio).
+function weekTones(w: number[]): Tone[] {
+  return w.map((v, i) => {
+    const prev = w.slice(Math.max(0, i - 4), i).filter((x) => x > 0)
+    if (prev.length < 2) return "muted"
+    const t = ratioTone(v / mean(prev))
+    return t === "ok" ? "info" : t
+  })
+}
+// OPT-7 · the 13 descent bins (2,5 % steps) grouped into 4 slope bands; ≥ 10 % matches the "steep" total.
+const SLOPE_BANDS: [string, number, number, Tone][] = [["0–5 %", 0, 2, "muted"], ["5–10 %", 2, 4, "info"], ["10–20 %", 4, 8, "watch"], ["20 % +", 8, 13, "alert"]]
+function DescentBySlope({ g }: { g: any }) {
+  const [detail, setDetail] = useState(false)
+  const b: number[] = g.buckets || []
+  const bands = SLOPE_BANDS.map(([l, a, z, t]) => ({ l, t, v: b.slice(a, z).reduce((s: number, x: number) => s + (x || 0), 0) }))
+  return (
+    <Card className="mt-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label>Klesání za 7 dní podle sklonu</Label>
+        <Segmented size="sm" ariaLabel="Rozlišení sklonu" options={[["bands", "4 pásma"], ["bins", "po 2,5 %"]] as const} value={detail ? "bins" : "bands"} onChange={(k) => setDetail(k === "bins")} />
+      </div>
+      {detail
+        ? <Bars vals={b} unit="m" labels={g.labels} axisLabels={(g.labels || []).map((l: string) => (l.includes("–") ? l.split("–")[0] : l))}
+            tones={b.map((_, i) => SLOPE_BANDS.find(([, a, z]) => i >= a && i < z)?.[3] || "muted")} />
+        : <Bars vals={bands.map((x) => x.v)} unit="m" labels={bands.map((x) => x.l)} tones={bands.map((x) => x.t)} />}
+      <p className="mt-2 text-[12px] text-fg-3">{g.total7} m celkem · {g.steep7} m na sklonu ≥10 %.</p>
+    </Card>
+  )
+}
+
 export function Load() {
   const { me, boot, refresh } = useApp()
   const rid = me!.runner_id!
@@ -1241,54 +1298,52 @@ export function Load() {
     <>
 
       {/* Signál zátěže: the score and its trend first, then what makes it up (feedback railway#34/#35) */}
-      <section className="mb-4 overflow-hidden rounded-[28px] border border-watch/20 bg-panel-2 p-5 md:p-7">
+      <section className="card mb-4 overflow-hidden p-4 md:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <Label>Signál zátěže</Label>
-            <h2 className="mt-2 font-serif text-3xl leading-tight text-fg">{loadHeadline}</h2>
+            <h2 className="mt-2 font-serif text-[28px] leading-tight tracking-[-.02em] text-fg">{loadHeadline}</h2>
           </div>
-          <div className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-bold ${loadHot ? "bg-alert/12 text-alert-soft" : "bg-accent/12 text-accent"}`}>
-            <i className={`size-2 rounded-full ${loadHot ? "bg-alert" : "bg-accent"}`} />
+          <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-bold ${loadHot ? "bg-alert/12 text-alert-soft" : "bg-ok/12 text-ok"}`}>
+            <i className={`size-2 rounded-full ${loadHot ? "bg-alert" : "bg-ok"}`} />
             {loadHot ? "nad obvyklou úrovní" : "v obvyklém rozsahu"}
           </div>
         </div>
-        <div className="mt-5 rounded-[22px] border border-white/10 bg-panel p-5">
+        <div className="nest mt-5 p-4 md:p-5">
           <div className="flex items-center justify-between">
             <Label>Skóre zátěže — trend</Label>
-            <span className="tabular-nums text-[11px] text-fg-3">0–100</span>
+            <span className="text-[12px] text-fg-3">0–100</span>
           </div>
           <div className="mt-2 flex items-end gap-2">
-            <b className="font-serif text-4xl text-fg">{a.load}</b>
-            <small className="pb-1 text-xs text-fg-2">/ 100 · {loadHot ? "zvýšená" : "v normě"}</small>
+            <b className="t-num text-[40px] leading-none" style={{ color: loadHot ? C.alert : C.load }}>{a.load}</b>
+            <small className="pb-1 text-[13px] text-fg-2">/ 100 · {loadHot ? "zvýšená" : "v normě"}</small>
           </div>
           {hist === null ? (
             <p className="mt-3 text-sm text-fg-3">Počítám trend v čase…</p>
           ) : hist.length > 1 ? (
-            <AxisLineChart points={loadPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh" color={loadHot ? C.alert : C.watch} height={140} />
+            <AxisLineChart points={loadPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh" color={C.load} height={150} zone />
           ) : (
             <p className="mt-3 text-sm text-fg-3">Na trend je zatím málo historie.</p>
           )}
           <p className="mt-1 text-[11px] text-fg-3">skóre zátěže po týdnech · nad prahem 25 = zvýšená (vstupuje do kvadrantu)</p>
         </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <div>
-            <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Co tvoří skóre zátěže</p>
+            <p className="t-label !text-fg-3">Co tvoří skóre zátěže</p>
             {loadSig.length > 0 ? (
-              <div className="mt-2 space-y-1.5">
+              <div className="mt-3 space-y-3">
                 {loadSig.map((s) => (
-                  <div key={s.id} className="flex items-center gap-2 text-[12px]">
-                    <span className="flex-1 truncate text-fg">{s.name}</span>
-                    <span className="tabular-nums text-fg-2">{s.val}</span>
-                    <span className="tabular-nums text-watch">+{s.pts}</span>
-                  </div>
+                  <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} tone="load" pct={(s.pts / Math.max(1, ...loadSig.map((x) => x.pts || 0))) * 100} />
                 ))}
               </div>
-            ) : <p className="mt-2 text-[12px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
+            ) : <p className="mt-2 text-[13px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
           </div>
+          <div className="grid content-start gap-3">
+          {L.valid && L.ratio != null && <RatioBar ratio={L.ratio} />}
           {(capVol?.ceilingSession != null || L?.safeLongRunKm) && (
-            <div className="flex items-center gap-2 self-start rounded-xl bg-white/[.04] px-3 py-2.5">
-              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-info-bg text-info">⤢</span>
-              <p className="text-[11px] leading-4 text-fg-2">
+            <div className="nest flex items-center gap-3 px-3.5 py-3">
+              <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><MoveDiagonal className="size-4" aria-hidden /></span>
+              <p className="text-[13px] leading-5 text-fg-2">
                 Bezpečný nejdelší běh tento týden: <b className="text-fg">≈ {(capVol?.ceilingSession ?? L.safeLongRunKm).toLocaleString("cs-CZ")} km</b>
                 <span className="block text-[11px] text-fg-3">
                   {capVol?.ceilingSession != null
@@ -1298,6 +1353,7 @@ export function Load() {
               </p>
             </div>
           )}
+          </div>
         </div>
       </section>
 
@@ -1305,25 +1361,24 @@ export function Load() {
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <Label>Týdenní objem běhu (Po–Ne), 12 týdnů</Label>
-          <Bars vals={L.weekly || []} />
-          <p className="mt-2 text-xs text-fg-3">Tento týden (Po–Ne) <b className="text-fg">{L.weekKm ?? "—"} km</b> · posledních 7 dní <b className="text-fg">{L.runKm7 ?? "—"} km</b></p>
+          <Bars vals={L.weekly || []} tones={weekTones(L.weekly || [])} />
+          <p className="mt-2 text-[12px] text-fg-3">Tento týden (Po–Ne) <b className="text-fg">{L.weekKm ?? "—"} km</b> · posledních 7 dní <b className="text-fg">{L.runKm7 ?? "—"} km</b></p>
+          <p className="mt-1 text-[11px] text-fg-3">barva = týden proti průměru 4 předchozích (nad ×1,3 žlutě, nad ×1,5 červeně)</p>
         </Card>
-        <Card><Label>Denní objem běhu, 28 dní</Label><Bars vals={L.daily || []} /></Card>
+        <Card>
+          <Label>Denní objem běhu, 28 dní</Label>
+          <Bars vals={L.daily || []} tones={(L.daily || []).map((_: number, i: number, arr: number[]) => (i >= arr.length - 7 ? (L.valid && L.ratio != null ? (ratioTone(L.ratio) === "ok" ? "info" : ratioTone(L.ratio)) : "info") : "muted"))} />
+          <p className="mt-2 text-[11px] text-fg-3">barevně posledních 7 dní podle poměru 7 : 28</p>
+        </Card>
       </div>
       <CrossTrainingCard L={L} />
-      {a?.gradientDescent?.buckets?.some((v: number) => v > 0) && (
-        <Card className="mt-4">
-          <Label>Klesání za 7 dní podle sklonu</Label>
-          <Bars vals={a.gradientDescent.buckets} unit="m" labels={a.gradientDescent.labels} />
-          <p className="mt-2 text-xs text-fg-3">{a.gradientDescent.total7} m celkem · {a.gradientDescent.steep7} m na sklonu ≥10 %.</p>
-        </Card>
-      )}
+      {a?.gradientDescent?.buckets?.some((v: number) => v > 0) && <DescentBySlope g={a.gradientDescent} />}
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         {rcv ? (
           <>
-            <Card><span className="flex items-center gap-1.5"><Label>HRV 7 dní</Label><InfoDot text={MI.hrv} label="HRV 7 dní" /></span><p className="mt-2 font-serif text-3xl">{rcv.hrv.now}<small className="text-sm"> ms</small></p><p className="text-xs text-fg-3">baseline {rcv.hrv.base} ms · z {sgn(rcv.hrv.z)}</p><div className="mt-3"><Sparkline vals={rcv.hrv.series} color={rcv.hrv.z <= -1 ? C.alert : C.ok} /></div></Card>
-            <Card><span className="flex items-center gap-1.5"><Label>Klidový tep</Label><InfoDot text={MI.rhr} label="Klidový tep" /></span><p className="mt-2 font-serif text-3xl">{rcv.rhr.now}</p><p className="text-xs text-fg-3">baseline {rcv.rhr.base} · z {sgn(rcv.rhr.z)}</p><div className="mt-3"><Sparkline vals={rcv.rhr.series} color={rcv.rhr.z >= 1.2 ? C.alert : C.ok} /></div></Card>
-            <Card><span className="flex items-center gap-1.5"><Label>Spánek</Label><InfoDot text={MI.sleep} label="Spánek" /></span><p className="mt-2 font-serif text-3xl">{rcv.sleep.now}<small className="text-sm"> h</small></p><p className="text-xs text-fg-3">obvykle {rcv.sleep.base} h{rcv.sleep.debt > 0 ? ` · dluh ${rcv.sleep.debt} h/týd` : ""}</p><div className="mt-3"><Sparkline vals={rcv.sleep.series} color={rcv.sleep.debt >= 4 ? C.alert : C.ok} /></div></Card>
+            <Card><span className="flex items-center gap-1.5"><Label>HRV 7 dní</Label><InfoDot text={MI.hrv} label="HRV 7 dní" /></span><p className="t-num mt-2 text-[30px]" style={{ color: rcv.hrv.z <= -1 ? C.alert : C.fg }}>{rcv.hrv.now}<small className="text-sm font-semibold text-fg-3"> ms</small></p><p className="text-[12px] text-fg-3">baseline {rcv.hrv.base} ms · z {sgn(rcv.hrv.z)}</p><div className="mt-3"><Sparkline vals={rcv.hrv.series} color={rcv.hrv.z <= -1 ? C.alert : C.ok} /></div></Card>
+            <Card><span className="flex items-center gap-1.5"><Label>Klidový tep</Label><InfoDot text={MI.rhr} label="Klidový tep" /></span><p className="t-num mt-2 text-[30px]" style={{ color: rcv.rhr.z >= 1.2 ? C.alert : C.fg }}>{rcv.rhr.now}</p><p className="text-[12px] text-fg-3">baseline {rcv.rhr.base} · z {sgn(rcv.rhr.z)}</p><div className="mt-3"><Sparkline vals={rcv.rhr.series} color={rcv.rhr.z >= 1.2 ? C.alert : C.ok} /></div></Card>
+            <Card><span className="flex items-center gap-1.5"><Label>Spánek</Label><InfoDot text={MI.sleep} label="Spánek" /></span><p className="t-num mt-2 text-[30px]" style={{ color: rcv.sleep.debt >= 4 ? C.alert : C.fg }}>{rcv.sleep.now}<small className="text-sm font-semibold text-fg-3"> h</small></p><p className="text-[12px] text-fg-3">obvykle {rcv.sleep.base} h{rcv.sleep.debt > 0 ? ` · dluh ${rcv.sleep.debt} h/týd` : ""}</p><div className="mt-3"><Sparkline vals={rcv.sleep.series} color={rcv.sleep.debt >= 4 ? C.alert : C.ok} /></div></Card>
             {a.sleepEff && <SleepQualityCard s={a.sleepEff} />}
           </>
         ) : (
@@ -1349,17 +1404,17 @@ function SleepQualityCard({ s }: { s: any }) {
       <span className="flex items-center gap-1.5"><Label>Kvalita spánku</Label><InfoDot text={MI.sleepQuality} label="Kvalita spánku" /></span>
       <div className="mt-2 flex items-end gap-4">
         <div>
-          <p className="font-serif text-3xl" style={{ color: restLow ? C.alert : undefined }}>{pct(s.restNow)}</p>
+          <p className="t-num text-[30px]" style={{ color: restLow ? C.alert : undefined }}>{pct(s.restNow)}</p>
           <p className="text-[11px] text-fg-3">hluboký + REM{s.restBase != null ? ` · obvykle ${pct(s.restBase)}` : ""}</p>
         </div>
         <div>
-          <p className="font-serif text-2xl" style={{ color: effLow ? C.alert : undefined }}>{pct(s.now)}</p>
+          <p className="t-num text-[24px]" style={{ color: effLow ? C.alert : undefined }}>{pct(s.now)}</p>
           <p className="text-[11px] text-fg-3">efektivita{s.base != null ? ` · obvykle ${pct(s.base)}` : ""}</p>
         </div>
       </div>
       {ln && total > 0 && (
         <div className="mt-3">
-          <div className="flex h-2 overflow-hidden rounded-full bg-white/10">
+          <div className="flex h-2 gap-px overflow-hidden rounded-full bg-white/[.08]">
             {seg(ln.deepMin, C.info, "d")}{seg(ln.remMin, C.accent, "r")}{seg(ln.lightMin, C.fg3, "l")}
           </div>
           <p className="mt-1 text-[11px] text-fg-3">poslední noc: hluboký {ln.deepMin} min · REM {ln.remMin} min · lehký {ln.lightMin} min{ln.awakeMin ? ` · vzhůru ${ln.awakeMin} min` : ""}</p>
@@ -1373,14 +1428,14 @@ function SleepQualityCard({ s }: { s: any }) {
   )
 }
 
-const SPORT_ICON: Record<string, string> = { cycling: "🚴", swimming: "🏊", strength: "🏋", rowing: "🚣", elliptical: "🌀", hiking: "🥾", walking: "🚶", other: "•" }
+const SPORT_ICON: Record<string, LucideIcon> = { cycling: Bike, swimming: Waves, strength: Dumbbell, rowing: Ship, elliptical: Orbit, hiking: Mountain, walking: Footprints, other: ActivityIcon }
 
 function CrossTrainingCard({ L }: { L: any }) {
   const list = (L.crossList || []) as any[]
   const run = L.runLoad7 || 0
   const cross = L.crossLoad7 || 0
   if (!list.length) {
-    return <p className="mt-4 text-xs text-fg-3">Tento týden jen běh. Kolo, plavání nebo silovku z hodinek automaticky započítáme do celkové zátěže (tep × čas) stejně jako běh.</p>
+    return <p className="mt-4 text-[12px] text-fg-3">Tento týden jen běh. Kolo, plavání nebo silovku z hodinek automaticky započítáme do celkové zátěže (tep × čas) stejně jako běh.</p>
   }
   const tot = run + cross || 1
   const runPct = Math.round((run / tot) * 100)
@@ -1388,31 +1443,26 @@ function CrossTrainingCard({ L }: { L: any }) {
     <Card className="mt-4">
       <div className="flex items-center justify-between">
         <Label>Křížový trénink (7 dní)</Label>
-        <span className="tabular-nums text-[11px] text-fg-3">započítáno do zátěže · j.z.</span>
+        <span className="text-[12px] text-fg-3">započítáno do zátěže · j.z.</span>
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-1">
-        <p className="font-serif text-3xl text-accent">{L.runLoad7}<small className="text-sm text-fg-3"> běh</small></p>
+        <p className="t-num text-[30px] text-accent">{L.runLoad7}<small className="text-sm font-semibold text-fg-3"> běh</small></p>
         <span className="pb-2 text-lg text-fg-3">+</span>
-        <p className="font-serif text-3xl text-info">{L.crossLoad7}<small className="text-sm text-fg-3"> jiný sport</small></p>
+        <p className="t-num text-[30px] text-info">{L.crossLoad7}<small className="text-sm font-semibold text-fg-3"> jiný sport</small></p>
         <span className="pb-1 text-xs text-fg-3">j.z. za 7 dní · {L.crossCount7} {L.crossCount7 === 1 ? "aktivita" : L.crossCount7 < 5 ? "aktivity" : "aktivit"}</span>
       </div>
-      <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-white/10" title={`běh ${run} · jiný sport ${cross} j.z.`}>
+      <div className="mt-3 flex h-2.5 gap-px overflow-hidden rounded-full bg-white/[.08]" title={`běh ${run} · jiný sport ${cross} j.z.`}>
         <i style={{ width: `${runPct}%` }} className="bg-accent" />
         <i style={{ width: `${100 - runPct}%` }} className="bg-info" />
       </div>
-      <div className="mt-4 divide-y divide-white/10">
+      <div className="mt-3 divide-y divide-white/[.07]">
         {list.map((c, i) => (
-          <div key={i} className="flex items-center gap-3 py-2.5 text-sm">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-info-bg text-base">{SPORT_ICON[c.sport] || "•"}</span>
-            <span className="min-w-0 flex-1">
-              <b className="text-fg">{c.sportLabel}</b>
-              <em className="block truncate text-xs not-italic text-fg-3">{fmtD(c.date)} · {c.durationMin} min{c.avgHr ? ` · ⌀ ${c.avgHr} tep` : ""}</em>
-            </span>
-            <span className="tabular-nums text-sm text-info">{c.load} j.z.</span>
-          </div>
+          <ListRow key={i} icon={SPORT_ICON[c.sport] || ActivityIcon} tone="info" title={c.sportLabel}
+            meta={`${fmtD(c.date)} · ${c.durationMin} min${c.avgHr ? ` · ⌀ ${c.avgHr} tep` : ""}`}
+            trailing={<span className="shrink-0 tabular-nums text-sm font-bold text-info">{c.load} j.z.</span>} />
         ))}
       </div>
-      <p className="mt-3 text-xs leading-5 text-fg-3">Neběžecké sporty nepočítáme do běžeckých kilometrů ani do mechaniky, ale přispívají do celkové tréninkové zátěže (poměr 7:28 dní, monotónnost) i únavy — proto je vidíte tady. Zátěž se počítá z tepové odezvy (TRIMP), takže je porovnatelná napříč sporty.</p>
+      <p className="mt-3 text-[12px] leading-5 text-fg-3">Neběžecké sporty nepočítáme do běžeckých kilometrů ani do mechaniky, ale přispívají do celkové tréninkové zátěže (poměr 7:28 dní, monotónnost) i únavy — proto je vidíte tady. Zátěž se počítá z tepové odezvy (TRIMP), takže je porovnatelná napříč sporty.</p>
     </Card>
   )
 }
