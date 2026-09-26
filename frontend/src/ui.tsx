@@ -214,6 +214,32 @@ export function FactorBar({ label, value, pts, pct, tone = "info", grade }: { la
   )
 }
 
+/* ---------- ListRow ---------- */
+// 34 px icon tile, title, meta line, trailing slot. Button when onClick is given.
+const LR_TONE: Record<string, string> = {
+  info: "bg-info/15 text-info", ok: "bg-ok/15 text-ok", alert: "bg-alert/15 text-alert", watch: "bg-watch/15 text-watch",
+  self: "bg-self/15 text-self", accent: "bg-accent/15 text-accent", muted: "bg-white/[.06] text-fg-2",
+}
+export function ListRow({ icon: Icon, tileText, tone = "info", title, meta, extra, trailing, onClick, className = "" }: {
+  icon?: LucideIcon; tileText?: ReactNode; tone?: string; title: ReactNode; meta?: ReactNode; extra?: ReactNode; trailing?: ReactNode; onClick?: () => void; className?: string
+}) {
+  const inner = (
+    <>
+      <span className={`grid size-[34px] shrink-0 place-items-center rounded-[10px] text-[11px] font-extrabold ${LR_TONE[tone] || LR_TONE.info}`}>
+        {Icon ? <Icon className="size-4" aria-hidden /> : tileText}
+      </span>
+      <span className="min-w-0 flex-1">
+        <b className="block truncate text-sm font-bold text-fg">{title}</b>
+        {meta && <span className="mt-0.5 block truncate text-[12px] text-fg-3">{meta}</span>}
+        {extra}
+      </span>
+      {trailing}
+    </>
+  )
+  const cls = `flex w-full min-w-0 items-center gap-3 py-3 text-left ${className}`
+  return onClick ? <button type="button" onClick={onClick} className={`group ${cls}`}>{inner}</button> : <div className={cls}>{inner}</div>
+}
+
 /* ---------- Empty ---------- */
 export function Empty({ children, icon: Icon }: { children: ReactNode; icon?: LucideIcon }) {
   return (
@@ -546,7 +572,9 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 
 export function Sheet({ open, onClose, children, footer }: { open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
   if (!open) return null
-  return (
+  // Portalled to <body>: inside <main> (isolation: isolate) the sheet sat under the
+  // fixed tab bar and Check-in button, which covered its footer on phones.
+  return createPortal(
     <div
       className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_.2s_ease-out] md:items-center md:p-6"
       onClick={onClose}
@@ -567,7 +595,8 @@ export function Sheet({ open, onClose, children, footer }: { open: boolean; onCl
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

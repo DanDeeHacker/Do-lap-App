@@ -34,7 +34,7 @@ export function Mark({ size = 36 }: { size?: number }) {
 export function Sidebar({ items }: { items: [string, string][] }) {
   const { pathname } = useLocation()
   const link = (to: string, label: string, Icon: LucideIcon, key: string) => {
-    const on = pathname === to
+    const on = pathname === to || pathname.startsWith(to + "/")
     return (
       <Link key={key} to={to} aria-current={on ? "page" : undefined}
         className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-bold transition ${on ? "bg-accent/12 text-accent" : "text-fg-2 hover:bg-white/[.05] hover:text-fg"}`}>

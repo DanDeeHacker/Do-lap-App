@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, Field, InfoDot, Label, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
-import { FileText, LoaderCircle } from "lucide-react"
+import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, Field, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
+import { Activity as ActivityIcon, ChevronRight, FileText, Footprints, LoaderCircle, Mountain } from "lucide-react"
+import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
-import { clamp, czk, FEEL_LABEL, fmtD, fmtSlot, paceStr, PHASE, QUAD, sgn } from "@/lib"
+import { clamp, czk, FEEL_LABEL, fmtD, fmtSlot, paceStr, PHASE, plural, QUAD, sgn } from "@/lib"
 import MuscleAnatomy, { PainHeatmap, type BodyPoint } from "@/components/MuscleAnatomy"
 import { CAP_SIGNAL_IDS, CapacityPanel } from "@/capacity"
 import { C } from "@/tokens"
@@ -16,7 +17,7 @@ export function Head({ kicker, title, sub }: { kicker: string; title: string; su
   return (
     <div className="mb-6">
       <Label>{kicker}</Label>
-      <h1 className="mt-1 font-serif text-4xl tracking-[-.06em]">{title}</h1>
+      <h1 className="mt-1 font-serif text-[30px] tracking-[-.03em] md:text-4xl">{title}</h1>
       {sub && <p className="mt-3 max-w-2xl text-sm leading-6 text-fg-2">{sub}</p>}
     </div>
   )
@@ -98,24 +99,20 @@ export function Post() {
     <>
       <Head
         kicker="Deník běhů"
-        title={unrated.length ? `${unrated.length} běhů čeká na zápis` : "Deník máte kompletní"}
+        title={unrated.length ? `${unrated.length} ${plural(unrated.length, "běh čeká", "běhy čekají", "běhů čeká")} na zápis` : "Deník máte kompletní"}
       />
       {rate && <RateSheet act={rate.act} initial={rate.initial} rid={rid} onClose={() => setRate(null)} onDone={() => { setRate(null); refresh() }} />}
       <div className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
-        <div className="grid gap-4">
+        <div className="grid content-start gap-4">
           <Card>
             <Label>Čeká na zápis</Label>
             {unrated.length ? (
-              <div className="mt-3 divide-y divide-white/10">
+              <div className="mt-2 divide-y divide-white/[.07]">
                 {unrated.map((x) => (
-                  <button key={x.id} onClick={() => setRate({ act: x })} className="flex w-full items-center gap-3 py-3 text-left">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-info-bg text-[11px] font-bold text-info">{surf(x.surface)}</span>
-                    <span className="min-w-0 flex-1">
-                      <b className="block truncate text-sm">{x.title} · {x.distance_km} km</b>
-                      <em className="block truncate text-xs not-italic text-fg-3">{fmtD(x.started_at)} · {paceStr(x.pace_s_km)}/km · {x.descent_m} m klesání</em>
-                    </span>
-                    <span className="shrink-0 text-info">›</span>
-                  </button>
+                  <ListRow key={x.id} onClick={() => setRate({ act: x })} icon={x.surface === "trail" ? Mountain : Footprints} tone="info"
+                    title={`${x.title} · ${x.distance_km} km`}
+                    meta={`${fmtD(x.started_at)} · ${surf(x.surface)} · ${paceStr(x.pace_s_km)}/km · ${x.descent_m} m klesání`}
+                    trailing={<span className="btn btn-primary btn-sm shrink-0">Zapsat</span>} />
                 ))}
               </div>
             ) : (
@@ -125,26 +122,33 @@ export function Post() {
           <Card>
             <div className="flex items-center justify-between">
               <Label>Poslední zápisy</Label>
-              {fb.length > 0 && <span className="tabular-nums text-[11px] text-fg-3">klepnutím upravíte</span>}
+              {fb.length > 0 && <span className="text-[12px] text-fg-3">klepnutím upravíte</span>}
             </div>
             {sorted.length ? (
-              <div className="mt-3 divide-y divide-white/10">
+              <div className="mt-2 divide-y divide-white/[.07]">
                 {sorted.slice(0, 10).map((f) => {
                   const act = actById.get(f.activity_id)
                   const hurt = f.pain_during >= 4
                   return (
-                    <button key={f.id} onClick={() => editEntry(f)} className="group flex w-full items-center gap-3 py-3 text-left">
-                      <span className="grid size-9 shrink-0 place-items-center rounded-xl text-[11px] font-bold" style={{ background: hurt ? "#3a1f18" : "#17382f", color: hurt ? C.alert : C.ok }}>{surf(act?.surface)}</span>
-                      <span className="min-w-0 flex-1">
-                        <b className="block truncate text-sm">{act ? `${act.title} · ${act.distance_km} km` : "Běh"}</b>
-                        <em className="mt-0.5 block truncate text-xs not-italic text-fg-3">
-                          {fmtD(f.submitted_at)} · pocit {FEEL_LABEL[f.feeling] || "—"} · nohy {f.legs}/5
-                          {f.pain_during > 0 ? ` · bolest ${f.pain_during}/10` : ""}
-                        </em>
-                      </span>
-                      {f.pain_site && <span className="hidden sm:block"><Chip tone="alert">{f.pain_site}</Chip></span>}
-                      <span className="shrink-0 text-xs text-fg-3 transition group-hover:text-info"><span className="hidden sm:inline">Upravit</span><span className="sm:hidden">›</span></span>
-                    </button>
+                    <div key={f.id} className="flex items-center gap-1">
+                      <ListRow onClick={() => editEntry(f)} icon={act?.surface === "trail" ? Mountain : Footprints} tone={hurt ? "alert" : "ok"}
+                        title={act ? `${act.title} · ${act.distance_km} km` : "Běh"}
+                        meta={<>{fmtD(f.submitted_at)}{act?.surface ? ` · ${surf(act.surface)}` : ""} · pocit {FEEL_LABEL[f.feeling] || "—"} · nohy {f.legs}/5{f.pain_during > 0 ? ` · bolest ${f.pain_during}/10` : ""}</>}
+                        extra={f.pain_site ? <span className="mt-1.5 block sm:hidden"><Chip tone="alert">{f.pain_site}</Chip></span> : undefined}
+                        trailing={<>
+                          {f.pain_site && <span className="hidden shrink-0 sm:block"><Chip tone="alert">{f.pain_site}</Chip></span>}
+                          <span className="flex shrink-0 items-center gap-1 text-[12px] font-bold text-fg-3 transition group-hover:text-info">
+                            <span className="hidden opacity-0 transition group-hover:opacity-100 md:inline">Upravit</span>
+                            <ChevronRight className="size-4" aria-hidden />
+                          </span>
+                        </>} />
+                      {act && (
+                        <Link to={`/app/post/${act.id}`} aria-label="Detail běhu" title="Detail běhu"
+                          className="grid size-9 shrink-0 place-items-center rounded-full text-fg-3 hover:bg-info/10 hover:text-info">
+                          <ActivityIcon className="size-4" aria-hidden />
+                        </Link>
+                      )}
+                    </div>
                   )
                 })}
               </div>
@@ -155,64 +159,58 @@ export function Post() {
           <Card>
             <div className="flex items-center justify-between">
               <Label>Check-iny (denní a týdenní)</Label>
-              <span className="tabular-nums text-[11px] text-fg-3">samostatně od běhů</span>
+              <span className="text-[12px] text-fg-3">samostatně od běhů</span>
             </div>
-            <p className="mt-1 text-xs text-fg-3">Váš self-report mimo konkrétní běh — denní pocit/bolest a týdenní kontrola (OSTRC). Přidáte je přes tlačítko Check-in.</p>
+            <p className="mt-1 text-[12px] leading-5 text-fg-3">Váš self-report mimo konkrétní běh — denní pocit/bolest a týdenní kontrola (OSTRC). Přidáte je přes tlačítko Check-in.</p>
             {checkinItems.length ? (
-              <div className="mt-3 divide-y divide-white/10">
+              <div className="mt-2 divide-y divide-white/[.07]">
                 {checkinItems.slice(0, 10).map((x: any) => {
                   const daily = x.kind === "daily"
                   const hurt = daily ? (x.pain || 0) >= 4 : (x.severity || 0) >= 40
                   return (
-                    <div key={x.id} className="flex items-center gap-3 py-3">
-                      <span className={`grid size-9 shrink-0 place-items-center rounded-xl text-[11px] font-bold ${daily ? "bg-info-bg text-info" : "bg-self-bg text-self"}`}>{daily ? "DEN" : "TÝD"}</span>
-                      <span className="min-w-0 flex-1">
-                        <b className="text-sm">{daily ? "Denní check-in" : x.adhoc ? "Týdenní check-in · mimořádný" : "Týdenní check-in"}</b>
-                        <em className="mt-0.5 block truncate text-xs not-italic text-fg-3">
-                          {fmtD(x.at)}
-                          {daily
-                            ? `${x.pain != null ? ` · bolest ${x.pain}/10` : ""}${x.mood != null ? ` · nálada ${x.mood}/4` : ""}${x.fatigue != null ? ` · únava ${x.fatigue}` : ""}`
-                            : ` · OSTRC ${x.severity ?? 0}/100 · ${x.status === "active" ? "aktivní" : x.status === "resolved" ? "odezněl" : "bez potíží"}`}
-                        </em>
-                      </span>
-                      {x.regions.length > 0 && <Chip tone={hurt ? "alert" : "muted"}>{x.regions.slice(0, 2).join(", ")}{x.regions.length > 2 ? "…" : ""}</Chip>}
-                    </div>
+                    <ListRow key={x.id} tileText={daily ? "DEN" : "TÝD"} tone={daily ? "info" : "self"}
+                      title={daily ? "Denní check-in" : x.adhoc ? "Týdenní check-in · mimořádný" : "Týdenní check-in"}
+                      meta={<>{fmtD(x.at)}{daily
+                        ? `${x.pain != null ? ` · bolest ${x.pain}/10` : ""}${x.mood != null ? ` · nálada ${x.mood}/4` : ""}${x.fatigue != null ? ` · únava ${x.fatigue}` : ""}`
+                        : ` · OSTRC ${x.severity ?? 0}/100 · ${x.status === "active" ? "aktivní" : x.status === "resolved" ? "odezněl" : "bez potíží"}`}</>}
+                      extra={x.regions.length > 0 ? <span className="mt-1.5 block sm:hidden"><Chip tone={hurt ? "alert" : "muted"}>{x.regions.slice(0, 2).join(", ")}{x.regions.length > 2 ? "…" : ""}</Chip></span> : undefined}
+                      trailing={x.regions.length > 0 ? <span className="hidden shrink-0 sm:block"><Chip tone={hurt ? "alert" : "muted"}>{x.regions.slice(0, 2).join(", ")}{x.regions.length > 2 ? "…" : ""}</Chip></span> : undefined} />
                   )
                 })}
               </div>
             ) : (
-              <div className="mt-3"><Empty>Zatím žádné check-iny. Přidejte první přes záložku Check-in na pravém okraji.</Empty></div>
+              <div className="mt-3"><Empty>Zatím žádné check-iny. Přidejte první přes tlačítko Check-in vpravo dole.</Empty></div>
             )}
           </Card>
         </div>
-        <div className="grid gap-4">
+        <div className="grid content-start gap-4">
           {ov ? (
             <>
               <Card>
                 <Label>Souhrn deníku</Label>
                 <div className="mt-3 flex items-baseline gap-2">
-                  <p className="font-serif text-4xl">{mfmt(1, ov.feelingMean)}</p>
+                  <p className="t-num text-[44px] leading-none">{mfmt(1, ov.feelingMean)}</p>
                   <span className="text-sm text-fg-3">/5 pocit</span>
-                  {ov.feelingTrend !== 0 && <span className="ml-auto tabular-nums text-xs" style={{ color: ov.feelingTrend > 0 ? C.ok : C.alert }}>{sgn(ov.feelingTrend)} trend</span>}
+                  {ov.feelingTrend !== 0 && <span className="ml-auto rounded-full px-2.5 py-1 tabular-nums text-[12px] font-bold" style={{ color: ov.feelingTrend > 0 ? C.ok : C.alert, background: `${ov.feelingTrend > 0 ? C.ok : C.alert}1f` }}>{sgn(ov.feelingTrend)} trend</span>}
                 </div>
-                <p className="mt-1 text-xs text-fg-3">{ov.n} zápisů · nohy v průměru {mfmt(1, ov.legsMean)}/5</p>
-                <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/10 pt-4 text-center">
-                  <div><p className="font-serif text-2xl">{ov.n21}</p><p className="text-[11px] text-fg-3">za 21 dní</p></div>
-                  <div><p className="font-serif text-2xl" style={{ color: ov.niggleCount >= 3 ? C.alert : undefined }}>{ov.niggleCount}×</p><p className="text-[11px] text-fg-3">s bolestí</p></div>
-                  <div><p className="font-serif text-2xl" style={{ color: ov.painMax >= 4 ? C.alert : undefined }}>{ov.painMax}</p><p className="text-[11px] text-fg-3">max bolest</p></div>
+                <p className="mt-1.5 text-[12px] text-fg-3">{ov.n} {plural(ov.n, "zápis", "zápisy", "zápisů")} · nohy v průměru {mfmt(1, ov.legsMean)}/5</p>
+                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                  <div className="nest px-2 py-3"><p className="t-num text-[22px]">{ov.n21}</p><p className="text-[11px] text-fg-3">za 21 dní</p></div>
+                  <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ov.niggleCount >= 3 ? C.alert : undefined }}>{ov.niggleCount}×</p><p className="text-[11px] text-fg-3">s bolestí</p></div>
+                  <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ov.painMax >= 4 ? C.alert : undefined }}>{ov.painMax}</p><p className="text-[11px] text-fg-3">max bolest</p></div>
                 </div>
                 {Object.keys(ov.painMap).length > 0 && (
                   <div className="mt-4 border-t border-white/10 pt-4">
                     <Label>Kde to nejčastěji bolí</Label>
-                    <p className="mt-1 text-xs text-fg-3">Podle zápisů za posledních 30 dní — čím výraznější místo, tím častěji jste ho označil jako bolestivé.</p>
+                    <p className="mt-1 text-[12px] leading-5 text-fg-3">Podle zápisů za posledních 30 dní — čím výraznější místo, tím častěji jste ho označil jako bolestivé.</p>
                     <div className="mt-3"><PainHeatmap counts={ov.painMap} /></div>
                     <div className="mt-4 space-y-1.5">
                       {ov.topSites.slice(0, 5).map(([region, count]) => {
                         const w = Math.round((count / ov.topSites[0][1]) * 100)
                         return (
-                          <div key={region} className="flex items-center gap-2 text-xs">
+                          <div key={region} className="flex items-center gap-2 text-[12px]">
                             <span className="w-32 shrink-0 truncate text-fg-soft">{region}</span>
-                            <div className="h-1.5 flex-1 rounded-full bg-white/10"><i className="block h-full rounded-full bg-alert" style={{ width: `${w}%` }} /></div>
+                            <div className="h-1.5 flex-1 rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-alert" style={{ width: `${w}%` }} /></div>
                             <span className="tabular-nums text-fg-2">{count}×</span>
                           </div>
                         )
@@ -225,8 +223,8 @@ export function Post() {
                 <Label>Co z toho čteme</Label>
                 <ul className="mt-3 space-y-2.5">
                   {ov.insights.map((t, i) => (
-                    <li key={i} className="flex gap-2 text-sm leading-5">
-                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full" style={{ background: t.tone === "alert" ? C.alert : t.tone === "watch" ? C.watch : C.ok }} />
+                    <li key={i} className="flex gap-2.5 text-sm leading-5">
+                      <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: t.tone === "alert" ? C.alert : t.tone === "watch" ? C.watch : C.ok }} />
                       <span className="text-fg-soft">{t.text}</span>
                     </li>
                   ))}
@@ -239,24 +237,22 @@ export function Post() {
           {ciSum && (
             <Card>
               <Label>Souhrn check-inů</Label>
-              <p className="mt-1 text-xs text-fg-3">Odděleně od běhů · poslední {fmtD(ciSum.lastAt)}</p>
+              <p className="mt-1 text-[12px] text-fg-3">Odděleně od běhů · poslední {fmtD(ciSum.lastAt)}</p>
               <div className="mt-3 grid grid-cols-2 gap-2 text-center">
-                <div><p className="font-serif text-2xl text-info">{ciSum.nDaily}</p><p className="text-[11px] text-fg-3">denních</p></div>
-                <div><p className="font-serif text-2xl text-self">{ciSum.nWeekly}</p><p className="text-[11px] text-fg-3">týdenních{ciSum.activeWeekly ? ` · ${ciSum.activeWeekly} akt.` : ""}</p></div>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 border-t border-white/10 pt-3 text-center">
-                <div><p className="font-serif text-2xl" style={{ color: ciSum.painMean != null && ciSum.painMean >= 4 ? C.alert : undefined }}>{ciSum.painMean != null ? mfmt(1, ciSum.painMean) : "—"}</p><p className="text-[11px] text-fg-3">ø bolest /10</p></div>
-                <div><p className="font-serif text-2xl">{ciSum.moodMean != null ? mfmt(1, ciSum.moodMean) : "—"}</p><p className="text-[11px] text-fg-3">ø nálada /4</p></div>
+                <div className="nest px-2 py-3"><p className="t-num text-[22px] text-info">{ciSum.nDaily}</p><p className="text-[11px] text-fg-3">denních</p></div>
+                <div className="nest px-2 py-3"><p className="t-num text-[22px] text-self">{ciSum.nWeekly}</p><p className="text-[11px] text-fg-3">týdenních{ciSum.activeWeekly ? ` · ${ciSum.activeWeekly} akt.` : ""}</p></div>
+                <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ciSum.painMean != null && ciSum.painMean >= 4 ? C.alert : undefined }}>{ciSum.painMean != null ? mfmt(1, ciSum.painMean) : "—"}</p><p className="text-[11px] text-fg-3">ø bolest /10</p></div>
+                <div className="nest px-2 py-3"><p className="t-num text-[22px]">{ciSum.moodMean != null ? mfmt(1, ciSum.moodMean) : "—"}</p><p className="text-[11px] text-fg-3">ø nálada /4</p></div>
               </div>
               {ciSum.top.length > 0 && (
-                <div className="mt-4 border-t border-white/10 pt-3">
+                <div className="mt-4 border-t border-white/[.07] pt-3">
                   <Label>Nejčastější místo v check-inech</Label>
                   <p className="mt-1 text-[11px] text-fg-3">Za posledních 30 dní napříč denními i týdenními check-iny.</p>
                   <div className="mt-2 space-y-1.5">
                     {ciSum.top.slice(0, 4).map(([region, count]) => (
-                      <div key={region} className="flex items-center gap-2 text-xs">
+                      <div key={region} className="flex items-center gap-2 text-[12px]">
                         <span className="w-32 shrink-0 truncate text-fg-soft">{region}</span>
-                        <div className="h-1.5 flex-1 rounded-full bg-white/10"><i className="block h-full rounded-full bg-self" style={{ width: `${Math.round((count / ciSum.top[0][1]) * 100)}%` }} /></div>
+                        <div className="h-1.5 flex-1 rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-self" style={{ width: `${Math.round((count / ciSum.top[0][1]) * 100)}%` }} /></div>
                         <span className="tabular-nums text-fg-2">{count}×</span>
                       </div>
                     ))}
@@ -310,7 +306,7 @@ function diaryOverview(fb: any[]) {
   return { n: rows.length, n21, feelingMean, feelingTrend, legsMean: mean(legs), niggleCount, painMax, topSite, topSites, painMap, insights }
 }
 
-function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; rid: string; initial?: any; onClose: () => void; onDone: () => void }) {
+export function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; rid: string; initial?: any; onClose: () => void; onDone: () => void }) {
   const edit = !!initial
   const [feeling, setFeeling] = useState(initial?.feeling ?? 3)
   const [legs, setLegs] = useState(initial?.legs ?? 3)
@@ -342,27 +338,27 @@ function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; rid: stri
       onClose={onClose}
       footer={
         <div className="flex gap-2">
-          <button onClick={submit} disabled={busy} className="flex-1 rounded-full bg-accent py-3 text-sm font-bold text-ink disabled:opacity-60">{busy ? "Ukládám…" : edit ? "Uložit změny" : "Uložit zápis"}</button>
-          <button onClick={onClose} className="rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-fg-2">Zrušit</button>
+          <button onClick={submit} disabled={busy} className="btn btn-primary flex-1 py-3 text-sm">{busy ? "Ukládám…" : edit ? "Uložit změny" : "Uložit zápis"}</button>
+          <button onClick={onClose} className="btn btn-outline px-5 py-3 text-sm">Zrušit</button>
         </div>
       }
     >
       <h2 className="font-serif text-2xl leading-tight">{edit ? "Upravit zápis" : `${act.title}${act.distance_km ? ` · ${act.distance_km} km` : ""}`}</h2>
-      <p className="mt-1 text-xs text-fg-2">{fmtD(act.started_at)}{act.pace_s_km ? ` · ${paceStr(act.pace_s_km)}/km` : ""}{act.surface ? ` · ${surf(act.surface)}` : ""}{act.descent_m ? ` · ${act.descent_m} m sklesáno` : ""}</p>
+      <p className="mt-1 text-[13px] text-fg-2">{fmtD(act.started_at)}{act.pace_s_km ? ` · ${paceStr(act.pace_s_km)}/km` : ""}{act.surface ? ` · ${surf(act.surface)}` : ""}{act.descent_m ? ` · ${act.descent_m} m sklesáno` : ""}</p>
       <div className="mt-4 grid gap-x-6 gap-y-4 md:grid-cols-2">
         <div>
           <Field label="Jak ztuhlé byly nohy PŘED během" hint="1 uvolněné · 5 ztuhlé"><Slider name="stiff" min={1} max={5} value={stiff} onChange={setStiff} /></Field>
           <Field label="Jak vám bylo"><Slider name="feeling" min={1} max={5} value={feeling} onChange={setFeeling} labels={FEEL_LABEL} /></Field>
           <Field label="Nohy" hint="1 těžké · 5 svěží"><Slider name="legs" min={1} max={5} value={legs} onChange={setLegs} /></Field>
           <Field label="Vnímaná námaha (RPE)" hint={`hodinky ${act.rpe || "—"}/10`}><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>
-          <Field label="Bolest během běhu" hint="0 žádná"><Slider name="pain" min={0} max={10} value={pain} onChange={setPain} /></Field>
+          <Field label="Bolest během běhu" hint="0 žádná"><Slider name="pain" min={0} max={10} value={pain} onChange={setPain} tone="pain" /></Field>
           <Field label="Poznámka">
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="Kdy se to ozvalo, co to zhoršilo…" />
           </Field>
         </div>
         <div className="min-w-0">
           <Label>Kde to bolelo</Label>
-          <p className="mt-1 text-xs text-fg-3">Klepněte na všechna místa, která bolela — můžete vybrat víc, silueta rozliší levou a pravou stranu.</p>
+          <p className="mt-1 text-[12px] leading-5 text-fg-3">Klepněte na všechna místa, která bolela — můžete vybrat víc, silueta rozliší levou a pravou stranu.</p>
           <div className="mx-auto mt-3 max-w-[280px] md:max-w-none"><MuscleAnatomy multi onSelect={setPoints} initialRegions={initialRegions} /></div>
         </div>
       </div>

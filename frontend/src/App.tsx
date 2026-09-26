@@ -23,6 +23,7 @@ import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
 import { CapacityMini, readinessCol } from "@/capacity"
 import { Training } from "@/training"
+import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C } from "@/tokens"
@@ -88,7 +89,7 @@ function Topbar() {
         <nav className="hidden flex-1 items-center justify-center gap-1 md:flex lg:hidden" aria-label="Hlavní navigace">
           {navItems.map(([id, label]) => {
             const to = `/app/${id}`
-            const active = pathname === to
+            const active = pathname === to || pathname.startsWith(to + "/")
             return (
               <Link
                 key={id}
@@ -103,7 +104,7 @@ function Topbar() {
             )
           })}
         </nav>
-        <p className="hidden text-[15px] font-extrabold tracking-[-.02em] text-fg lg:block">{navItems.find(([id]) => pathname === `/app/${id}`)?.[1] ?? (pathname === "/data" ? "Data a připojení" : pathname.startsWith("/engine") ? "Citlivostní analýza" : "")}</p>
+        <p className="hidden text-[15px] font-extrabold tracking-[-.02em] text-fg lg:block">{navItems.find(([id]) => pathname === `/app/${id}` || pathname.startsWith(`/app/${id}/`))?.[1] ?? (pathname === "/data" ? "Data a připojení" : pathname.startsWith("/engine") ? "Citlivostní analýza" : "")}</p>
         <div className="relative flex shrink-0 items-center gap-2">
           <AnnotateToggle />
           <button
@@ -1394,7 +1395,7 @@ function AtlasNav() {
     <nav aria-label="Hlavní navigace" className="fixed inset-x-0 bottom-0 z-50 flex border-t border-white/[.08] bg-ink/95 px-1.5 pb-[max(.7rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md md:hidden">
       {navItems.map(([id, label]) => {
         const to = `/app/${id}`
-        const on = pathname === to
+        const on = pathname === to || pathname.startsWith(to + "/")
         const Icon = NAV_ICON[id]
         return (
           <Link
@@ -1423,6 +1424,7 @@ const router = createBrowserRouter([
     Component: Layout,
     children: [
       { path: "/app/:tab", Component: RunnerPage },
+      { path: "/app/post/:aid", Component: RunDetail },
       { path: "/data", Component: DataPage },
       { path: "/engine", Component: EngineLab },
       { path: "/engines", Component: EngineCompare },
