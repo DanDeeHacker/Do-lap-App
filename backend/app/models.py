@@ -582,6 +582,8 @@ class Settings(Base):
     employer_aggregate = Column(Boolean, default=True)
     notify_drift = Column(Boolean, default=True)
     notify_checkin = Column(Boolean, default=True)
+    # desktop stat rail (redesign OPT-5): ordered list of card ids the runner chose
+    rail_cards = Column(JSON, nullable=True)
 
 
 class Annotation(Base):

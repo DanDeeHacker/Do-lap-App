@@ -26,6 +26,8 @@ import { Training } from "@/training"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C } from "@/tokens"
+import { Heart, Database, LogOut, SlidersHorizontal, UserPen } from "lucide-react"
+import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 
 // Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
 // svou infrastrukturu; zaměstnavatelé a partneři se v této aplikaci nepřihlašují.
@@ -67,17 +69,6 @@ function useDynamicReveal() {
   }, [])
 }
 
-function Mark() {
-  return (
-    <span className="grid size-9 place-items-center rounded-xl bg-ink">
-      <svg viewBox="0 0 64 64" className="size-7" aria-hidden="true">
-        <circle cx="32" cy="32" r="28" fill="none" stroke={C.accent} strokeWidth="2" strokeOpacity=".5" />
-        <path d="M12 44 C12 34 19 13 37 13 C49 13 56 23 56 34 C56 46 45 54 34 54 C24 54 14 52 12 44 Z" fill={C.accent} />
-        <path d="M27 42 C27 36 31 23 41 23 C48 23 52 29 52 35 C52 42 45 47 38 47 C31 47 28 46 27 42 Z" fill={C.ink} />
-      </svg>
-    </span>
-  )
-}
 function Topbar() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -88,13 +79,13 @@ function Topbar() {
   const ini = initials(me?.name)
   const navItems = useRunnerNav()
   return (
-    <header className="fixed inset-x-0 top-0 z-40 border-b border-line/80 bg-bg/95 pt-[env(safe-area-inset-top)] backdrop-blur">
-      <div className="mx-auto flex h-[68px] max-w-[1180px] items-center justify-between gap-4 px-5">
-        <Link to="/app/today" className="flex shrink-0 items-center gap-2.5 text-lg font-bold tracking-[-.04em]">
+    <header className="fixed inset-x-0 top-0 z-40 border-b border-white/[.07] bg-bg/[.92] pt-[env(safe-area-inset-top)] backdrop-blur-md lg:left-[220px]">
+      <div className="mx-auto flex h-[68px] max-w-[1180px] items-center justify-between gap-4 px-5 lg:max-w-none lg:px-9">
+        <Link to="/app/today" className="flex shrink-0 items-center gap-2.5 text-lg font-extrabold tracking-[-.04em] lg:hidden">
           <Mark />
           <span className="hidden sm:inline">došlap</span>
         </Link>
-        <nav className="hidden flex-1 items-center justify-center gap-1 md:flex">
+        <nav className="hidden flex-1 items-center justify-center gap-1 md:flex lg:hidden" aria-label="Hlavní navigace">
           {navItems.map(([id, label]) => {
             const to = `/app/${id}`
             const active = pathname === to
@@ -102,8 +93,9 @@ function Topbar() {
               <Link
                 key={id}
                 to={to}
+                aria-current={active ? "page" : undefined}
                 className={`rounded-full px-3.5 py-1.5 text-[13px] font-bold transition ${
-                  active ? "bg-accent text-ink" : "text-fg-2 hover:text-accent"
+                  active ? "bg-accent text-ink" : "text-fg-2 hover:bg-white/[.06] hover:text-fg"
                 }`}
               >
                 {label}
@@ -111,11 +103,12 @@ function Topbar() {
             )
           })}
         </nav>
+        <p className="hidden text-[15px] font-extrabold tracking-[-.02em] text-fg lg:block">{navItems.find(([id]) => pathname === `/app/${id}`)?.[1] ?? (pathname === "/data" ? "Data a připojení" : pathname.startsWith("/engine") ? "Citlivostní analýza" : "")}</p>
         <div className="relative flex shrink-0 items-center gap-2">
           <AnnotateToggle />
           <button
             onClick={() => setProfileOpen(!profileOpen)}
-            className="grid size-9 place-items-center rounded-full bg-accent text-[11px] font-bold text-black"
+            className="grid size-9 place-items-center rounded-full bg-accent text-[11px] font-extrabold text-ink"
             aria-expanded={profileOpen}
             aria-label="Otevřít profil"
           >
@@ -124,7 +117,7 @@ function Topbar() {
           {profileOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
-              <div className="absolute right-0 top-12 z-20 w-72 origin-top animate-[careReveal_.28s_ease-out] rounded-2xl border border-white/10 bg-panel-2 p-4 text-fg shadow-2xl">
+              <div className="absolute right-0 top-12 z-20 w-72 origin-top animate-[careReveal_.28s_ease-out] rounded-[20px] border border-white/10 bg-raised p-4 text-fg shadow-[0_24px_60px_rgb(0_0_0_/_0.5)]">
                 <div className="flex items-center gap-3">
                   <span className="grid size-10 place-items-center rounded-full bg-accent text-xs font-bold text-ink">{ini}</span>
                   <div>
@@ -137,15 +130,15 @@ function Topbar() {
                   {runner?.goal_race && <p className="mt-1">Cíl: {runner.goal_race}</p>}
                 </div>
                 <div className="mt-3 grid gap-1.5">
-                  <button onClick={() => { setProfileOpen(false); setEditOpen(true) }} className="rounded-xl bg-white/[.05] px-3 py-2 text-left text-xs font-bold hover:bg-white/[.09]">Upravit profil</button>
-                  <Link to="/data" onClick={() => setProfileOpen(false)} className="rounded-xl bg-white/[.05] px-3 py-2 text-left text-xs font-bold hover:bg-white/[.09]">Data a připojení</Link>
-                  <Link to="/engine" onClick={() => setProfileOpen(false)} className="rounded-xl bg-white/[.05] px-3 py-2 text-left text-xs font-bold hover:bg-white/[.09]">Citlivostní analýza</Link>
+                  <button onClick={() => { setProfileOpen(false); setEditOpen(true) }} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><UserPen className="size-4 text-fg-2" aria-hidden />Upravit profil</button>
+                  <Link to="/data" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Database className="size-4 text-fg-2" aria-hidden />Data a připojení</Link>
+                  <Link to="/engine" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><SlidersHorizontal className="size-4 text-fg-2" aria-hidden />Citlivostní analýza</Link>
                 </div>
                 <button
                   onClick={async () => { setProfileOpen(false); await logout(); nav("/auth") }}
-                  className="mt-3 block w-full rounded-full bg-accent px-3 py-2 text-center text-xs font-bold text-ink"
+                  className="btn btn-primary mt-3 w-full"
                 >
-                  Odhlásit se
+                  <LogOut className="size-4" aria-hidden />Odhlásit se
                 </button>
               </div>
             </>
@@ -205,8 +198,8 @@ function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void })
       </div>
       {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
       <div className="mt-5 flex gap-2">
-        <button onClick={save} disabled={busy} className="flex-1 rounded-full bg-accent py-3 text-sm font-bold text-ink disabled:opacity-60">{busy ? "Ukládám…" : "Uložit profil"}</button>
-        <button onClick={onClose} className="rounded-full border border-white/15 px-5 py-3 text-sm font-bold text-fg-2">Zavřít</button>
+        <button onClick={save} disabled={busy} className="btn btn-primary flex-1 py-3 text-sm">{busy ? "Ukládám…" : "Uložit profil"}</button>
+        <button onClick={onClose} className="btn btn-outline px-5 py-3 text-sm">Zavřít</button>
       </div>
     </Sheet>
   )
@@ -230,10 +223,12 @@ function Layout() {
   // reload if one lands while it's in use (home-screen apps never reload alone).
   const [updateReady, setUpdateReady] = useState(false)
   useEffect(() => startUpdateWatcher(() => setUpdateReady(true)), [])
+  const navItems = useRunnerNav()
+  const rail = useLocation().pathname.startsWith("/app/")
   if (loading)
     return (
-      <div className="motion-shell grid min-h-screen place-items-center bg-bg text-fg-2">
-        <span className="font-sans font-bold text-xs uppercase tracking-[.12em]">načítám…</span>
+      <div className="motion-shell grid min-h-screen place-items-center bg-bg text-fg-2" role="status">
+        <span className="flex flex-col items-center gap-3"><Mark size={44} /><span className="t-label">načítám…</span></span>
       </div>
     )
   if (!me) return <Navigate to="/auth" replace />
@@ -241,17 +236,26 @@ function Layout() {
   return (
     <AnnotateProvider>
       <div className="motion-shell min-h-screen bg-bg text-fg">
+        <Sidebar items={navItems} />
         <Topbar />
-        <main className="mx-auto min-h-screen max-w-[1180px] bg-bg px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-[calc(6rem+env(safe-area-inset-top))] md:rounded-b-[28px] md:px-9 md:pb-24 md:pt-24">
-          <Outlet />
-        </main>
+        {/* FIX-5: bottom padding = tab bar + Check-in button + 16 px, so the button never covers content. */}
+        <div className="lg:pl-[220px]">
+          <main className="mx-auto min-h-screen max-w-[1180px] bg-bg px-5 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[calc(6rem+env(safe-area-inset-top))] md:px-9 md:pb-28 md:pt-24">
+            {rail ? (
+              <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_280px] xl:gap-7">
+                <div className="min-w-0"><Outlet /></div>
+                <StatRail />
+              </div>
+            ) : <Outlet />}
+          </main>
+        </div>
         <AtlasBubble />
         <AtlasNav />
         {updateReady && (
-          <div className="fixed inset-x-0 top-[calc(76px+env(safe-area-inset-top))] z-50 flex justify-center px-4">
-            <div className="flex items-center gap-3 rounded-full border border-accent/40 bg-panel py-2 pl-4 pr-2 text-xs text-fg shadow-lg">
+          <div className="fixed inset-x-0 top-[calc(76px+env(safe-area-inset-top))] z-50 flex justify-center px-4 lg:left-[220px]" role="status">
+            <div className="flex items-center gap-3 rounded-full border border-white/10 bg-raised py-2 pl-4 pr-2 text-[13px] text-fg shadow-[0_16px_40px_rgb(0_0_0_/_0.45)]">
               <span>Je dostupná nová verze aplikace.</span>
-              <button onClick={() => location.reload()} className="rounded-full bg-accent px-3 py-1.5 font-bold text-ink">Aktualizovat</button>
+              <button onClick={() => location.reload()} className="btn btn-primary btn-sm">Aktualizovat</button>
             </div>
           </div>
         )}
@@ -266,14 +270,14 @@ function RunnerOnlyNotice() {
   const { me, logout } = useApp()
   return (
     <div className="motion-shell grid min-h-screen place-items-center bg-bg p-6 text-fg">
-      <div className="max-w-md rounded-[28px] bg-bg p-8 text-center">
+      <div className="card max-w-md p-8 text-center">
         <div className="mx-auto flex w-fit items-center gap-2 font-bold"><Mark /> došlap</div>
         <h1 className="mt-6 font-serif text-3xl">Zatím jen pro běžce</h1>
         <p className="mt-3 text-sm leading-6 text-fg-2">
           Účet <b>{me?.email}</b> má roli „{me?.role}". Rozhraní pro fyzioterapeuty a partnery se teprve připravuje —
           přihlaste se prosím běžeckým účtem.
         </p>
-        <button onClick={logout} className="mt-6 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-ink">Odhlásit se</button>
+        <button onClick={logout} className="btn btn-primary mt-6">Odhlásit se</button>
       </div>
     </div>
   )
@@ -536,7 +540,7 @@ function QuadrantHistory({ history, live, onClose }: { history?: any[] | null; l
   return createPortal(
     <>
       <div className="fixed inset-0 z-[80] bg-bg/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 top-[calc(68px+env(safe-area-inset-top))] z-[90] flex flex-col overflow-hidden border-t border-white/12 bg-panel pb-[env(safe-area-inset-bottom)] text-fg shadow-2xl">
+      <div className="fixed inset-x-0 bottom-0 top-[calc(68px+env(safe-area-inset-top))] z-[90] flex lg:left-[220px] flex-col overflow-hidden border-t border-white/12 bg-panel pb-[env(safe-area-inset-bottom)] text-fg shadow-2xl">
         <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
           <div>
             <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Vývoj stavu · 6 měsíců</p>
@@ -1162,16 +1166,16 @@ function AtlasBubble() {
         <button
           onClick={() => setOpen(true)}
           aria-label="Otevřít check-in"
-          className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[55] flex items-center gap-2 rounded-full bg-accent py-3 pl-3 pr-4 text-sm font-bold text-ink shadow-[0_12px_30px_rgba(0,0,0,.45)] md:bottom-7 md:right-7"
+          className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[55] flex items-center gap-2 rounded-full bg-accent py-3 pl-3 pr-4 text-sm font-extrabold text-ink shadow-[0_12px_30px_rgb(0_0_0_/_0.45),0_0_0_1px_rgb(0_0_0_/_0.1)] hover:brightness-105 md:bottom-7 md:right-7"
         >
-          <span className="grid size-6 place-items-center rounded-full bg-ink/10 text-base">♡</span>
+          <span className="grid size-6 place-items-center rounded-full bg-ink/10"><Heart className="size-4" strokeWidth={2.4} aria-hidden /></span>
           <span className="whitespace-nowrap">Check-in</span>
         </button>
       )}
       {open && (
         <div
           data-auto-reveal
-          className="fixed inset-x-0 bottom-[calc(4.4rem+env(safe-area-inset-bottom))] z-[70] mx-auto max-h-[calc(100dvh-6rem)] max-w-[480px] overflow-y-auto rounded-t-[28px] border border-white/10 bg-panel-2 p-5 text-fg shadow-2xl md:bottom-7 md:right-7 md:left-auto md:rounded-[28px]"
+          className="fixed inset-x-0 bottom-[calc(4.4rem+env(safe-area-inset-bottom))] z-[70] mx-auto max-h-[calc(100dvh-6rem)] max-w-[480px] overflow-y-auto rounded-t-[28px] border border-white/10 bg-raised p-5 text-fg shadow-[0_24px_60px_rgb(0_0_0_/_0.5)] md:bottom-7 md:right-7 md:left-auto md:rounded-[26px]"
         >
           <div className="flex justify-between">
             <div>
@@ -1318,25 +1322,27 @@ function AtlasBubble() {
     </>
   )
 }
-const NAV_ICON: Record<string, string> = { today: "⌂", training: "◎", post: "▤", mechanics: "◌", load: "⌁", messages: "◔" }
 function AtlasNav() {
   const { pathname } = useLocation()
   const navItems = useRunnerNav()
   // Single source of truth = runnerNav, so the mobile bar can never drift from
   // the desktop tabs again (previously missing "Deník" and in wrong order).
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 flex border-t border-white/10 bg-ink/95 px-2 pb-[max(.8rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:hidden">
+    <nav aria-label="Hlavní navigace" className="fixed inset-x-0 bottom-0 z-50 flex border-t border-white/[.08] bg-ink/95 px-1.5 pb-[max(.7rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md md:hidden">
       {navItems.map(([id, label]) => {
         const to = `/app/${id}`
+        const on = pathname === to
+        const Icon = NAV_ICON[id]
         return (
           <Link
             key={id}
             to={to}
-            className={`flex flex-1 flex-col items-center gap-1 text-[11px] ${
-              pathname === to ? "text-accent" : "text-fg-3"
-            }`}
+            aria-current={on ? "page" : undefined}
+            className={`flex min-h-[48px] flex-1 flex-col items-center justify-center gap-1 text-[11px] font-bold ${on ? "text-accent" : "text-fg-3"}`}
           >
-            <span className="text-lg">{NAV_ICON[id] || "•"}</span>
+            <span className={`grid h-[26px] w-10 place-items-center rounded-full transition-colors ${on ? "bg-accent/[.14]" : ""}`}>
+              {Icon ? <Icon className="size-[19px]" strokeWidth={on ? 2.4 : 2} aria-hidden /> : "•"}
+            </span>
             {label}
           </Link>
         )

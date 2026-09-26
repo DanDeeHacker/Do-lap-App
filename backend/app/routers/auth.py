@@ -141,6 +141,10 @@ def me(user: models.User = Depends(get_current_user), db: DBSession = Depends(ge
     return _user_dict(db, user)
 
 
+# Card ids the desktop stat rail understands (frontend Layout → StatRail).
+RAIL_CARD_IDS = {"recovery", "week", "load", "mech", "hrv", "rhr", "sleep", "readiness", "race"}
+
+
 @router.get("/settings")
 def get_settings(user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     s = db.query(models.Settings).filter(models.Settings.user_id == user.id).first()
@@ -152,7 +156,7 @@ def get_settings(user: models.User = Depends(get_current_user), db: DBSession = 
     return {
         "share_with_physio": s.share_with_physio, "share_bodymap": s.share_bodymap,
         "employer_aggregate": s.employer_aggregate, "notify_drift": s.notify_drift,
-        "notify_checkin": s.notify_checkin,
+        "notify_checkin": s.notify_checkin, "rail_cards": s.rail_cards,
     }
 
 
@@ -163,11 +167,13 @@ def patch_settings(body: schemas.SettingsPatch, user: models.User = Depends(get_
         s = models.Settings(user_id=user.id)
         db.add(s)
     for k, v in body.model_dump(exclude_unset=True).items():
+        if k == "rail_cards" and v is not None:
+            v = [c for c in dict.fromkeys(v) if c in RAIL_CARD_IDS][:8]
         setattr(s, k, v)
     db.commit()
     db.refresh(s)
     return {
         "share_with_physio": s.share_with_physio, "share_bodymap": s.share_bodymap,
         "employer_aggregate": s.employer_aggregate, "notify_drift": s.notify_drift,
-        "notify_checkin": s.notify_checkin,
+        "notify_checkin": s.notify_checkin, "rail_cards": s.rail_cards,
     }

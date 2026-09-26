@@ -89,6 +89,7 @@ def _migrate(engine):
     add("checkins", "limits_movement", "limits_movement BOOLEAN")
     add("checkins", "run_modified", "run_modified BOOLEAN")
     add("checkins", "limping", "limping BOOLEAN")
+    add("settings", "rail_cards", "rail_cards JSON")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.

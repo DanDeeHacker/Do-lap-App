@@ -219,3 +219,4 @@ class SettingsPatch(Lenient):
     employer_aggregate: Optional[bool] = None
     notify_drift: Optional[bool] = None
     notify_checkin: Optional[bool] = None
+    rail_cards: Optional[list[str]] = None

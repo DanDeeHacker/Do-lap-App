@@ -63,7 +63,7 @@ export function AnnotateToggle() {
       aria-pressed={on}
       aria-label={on ? "Ukončit režim poznámek" : "Režim poznámek"}
       title={on ? "Ukončit režim poznámek (Esc)" : "Režim poznámek — klikněte kamkoli v aplikaci a nechte poznámku"}
-      className={`relative grid size-9 place-items-center rounded-full transition ${on ? "bg-accent text-ink ring-2 ring-ink/15" : "bg-accent text-fg hover:bg-accent/70"}`}
+      className={`relative grid size-9 place-items-center rounded-full transition ${on ? "bg-accent text-ink ring-2 ring-ink/15" : "bg-white/[.07] text-fg-2 hover:bg-white/[.12] hover:text-fg"}`}
     >
       <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z" />
