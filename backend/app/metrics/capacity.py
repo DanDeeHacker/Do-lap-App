@@ -179,7 +179,7 @@ def _ecc_factor(profile, key=None):
 
 def run_exposures(db, rid, hrmax, rhr):
     """Every session → {id, date, run, title, km, exp{channel: value|None}}."""
-    acts = E.all_acts(db, rid)
+    acts = E.all_acts(db, rid, "load")
     hists = {}
     for aid, q in db.query(models.ActivityStream.activity_id, models.ActivityStream.quality_json).filter(
             models.ActivityStream.runner_id == rid).all():
@@ -550,7 +550,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
     {score, signals[], channels{}, readiness{}, zones[], relativeEffort{}, margins{}}."""
     today = E.today_date()
     t_iso = today.isoformat()
-    runs_only = E.acts(db, rid)
+    runs_only = E.acts(db, rid, "load")
     hrmax, rhr = E.hr_bounds(runs_only, E.daily(db, rid, 180), runner.birth_year if runner else None,
                              runner.hr_max if runner else None)
     sessions = run_exposures(db, rid, hrmax, rhr)

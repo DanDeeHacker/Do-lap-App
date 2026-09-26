@@ -644,12 +644,16 @@ def exclude_activity(rid: str, aid: int, body: schemas.ExcludeActivityRequest, b
     ensure_runner_self(user, rid)
     a = or_404(db.query(models.Activity).filter(models.Activity.id == aid, models.Activity.runner_id == rid).first(),
                "Aktivita nenalezena")
+    scope = (body.scope or "all") if body.excluded else None
+    if scope is not None and scope not in E.EXCLUDE_SCOPES:
+        raise HTTPException(status_code=422, detail="Neplatný rozsah vyřazení")
     a.excluded = bool(body.excluded)
     a.excluded_at = E.now_iso() if body.excluded else None
+    a.excluded_scope = scope
     db.commit()
     out = E.recompute_assessment(db, rid)
     background.add_task(coach_texts.refresh_bg, rid)
-    return {"ok": True, "id": aid, "excluded": a.excluded, "assessment": out}
+    return {"ok": True, "id": aid, "excluded": a.excluded, "scope": scope, "assessment": out}
 
 
 @router.post("/{rid}/activities/{aid}/rate", dependencies=[Depends(verify_csrf)])

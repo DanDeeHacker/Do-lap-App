@@ -80,6 +80,7 @@ def _migrate(engine):
     add("activities", "weather_json", "weather_json JSON")
     add("activities", "excluded", "excluded BOOLEAN")
     add("activities", "excluded_at", "excluded_at VARCHAR")
+    add("activities", "excluded_scope", "excluded_scope VARCHAR")
     add("runners", "coach_consent", "coach_consent BOOLEAN", "UPDATE runners SET coach_consent = FALSE WHERE coach_consent IS NULL")
     add("runners", "coach_consent_at", "coach_consent_at VARCHAR")
     add("runners", "cycle_override", "cycle_override JSON")

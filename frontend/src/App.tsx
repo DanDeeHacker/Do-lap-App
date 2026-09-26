@@ -14,20 +14,20 @@ import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
 import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
 import { clamp, fmtD, initials, QUAD, roleHome } from "@/lib"
-import { AlertBanner, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, useAsync, useToast } from "@/ui"
+import { AlertBanner, AxisLineChart, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, useAsync, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
-import { Load as LoadTab, Mechanics, Post } from "@/tabs"
+import { Load as LoadTab, LOAD_IDS, MECH_IDS, Mechanics, Post } from "@/tabs"
 import { Care, InjurySheet, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
 import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
-import { CapacityMini, readinessCol } from "@/capacity"
+import { CapacityMini, readinessCol, readinessPct } from "@/capacity"
 import { Training } from "@/training"
 import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C } from "@/tokens"
-import { Bandage, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
+import { Bandage, ChevronDown, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 
 // Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
@@ -218,8 +218,29 @@ function useRunnerNav(): [string, string][] {
   const v3 = (boot?.assessment?.engineMode || boot?.runner?.engine_mode) === "v3"
   return v3 ? [runnerNav[0], ["training", "Trénink"], ...runnerNav.slice(1)] : runnerNav
 }
+// feedback railway#38 — sync Garmin automatically when the runner opens / logs in
+// to the app (once per page load); the Synchronizovat button stays for manual use.
+let autoSyncDone = false
+function useAutoGarminSync(active: boolean) {
+  const { refresh } = useApp()
+  const toast = useToast()
+  useEffect(() => {
+    if (!active || autoSyncDone) return
+    autoSyncDone = true
+    ;(async () => {
+      try {
+        const st: any = await api.garminStatus()
+        if (!st?.connected) return
+        const r: any = await api.garminSync()
+        const na = r?.added_activities ?? 0, nd = r?.added_daily ?? 0
+        if (na || nd) { toast({ title: "Garmin synchronizován", msg: `Staženo: ${na} aktivit, ${nd} dní dat.` }); refresh() }
+      } catch { /* silent: the manual button still shows errors */ }
+    })()
+  }, [active]) // eslint-disable-line react-hooks/exhaustive-deps
+}
 function Layout() {
   const { me, loading } = useApp()
+  useAutoGarminSync(!!me && me.role === "runner")
   // New deployments: reload when the app returns to the foreground, or offer a
   // reload if one lands while it's in use (home-screen apps never reload alone).
   const [updateReady, setUpdateReady] = useState(false)
@@ -440,7 +461,7 @@ const QCELLS: [string, string][] = [
 ]
 // State card, top row: quadrant chip (the only place the quadrant name appears, FIX-4),
 // the Garmin sync button and the 6-month history button.
-function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, canSync, onHistory }: { quadrant?: string; live?: any; onSync?: () => void; syncing?: boolean; syncMsg?: string | null; canSync?: boolean; onHistory: () => void }) {
+function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, canSync, onHistory, alertSlot }: { quadrant?: string; live?: any; onSync?: () => void; syncing?: boolean; syncMsg?: string | null; canSync?: boolean; onHistory: () => void; alertSlot?: React.ReactNode }) {
   const q = QUAD[quadrant] || QUAD.stable
   const col = QCOL[quadrant] || C.ok
   return (
@@ -453,6 +474,7 @@ function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, can
               <i className="size-2.5 shrink-0 rounded-full" style={{ background: col, boxShadow: `0 0 0 3px ${col}33` }} />
               {q.t}
             </span>
+            {alertSlot}
             {(live?.engineMode === "v2" || live?.engineMode === "v3") && (live?.mechFlag || live?.mechWatch) && (
               <span
                 className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold"
@@ -497,14 +519,14 @@ function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; o
           return (
             <span
               key={key}
-              className="relative overflow-hidden rounded-[14px] border px-3 py-2.5 transition"
-              style={{ borderColor: active ? c : "rgb(255 255 255 / .08)", background: active ? `${c}1f` : "rgb(255 255 255 / .03)" }}
+              aria-current={active ? "true" : undefined}
+              className="relative overflow-hidden rounded-[14px] border px-3 py-3 transition"
+              style={{ borderColor: active ? c : "rgb(255 255 255 / .08)", background: active ? `${c}24` : "rgb(255 255 255 / .03)", boxShadow: active ? `inset 0 0 0 1px ${c}` : undefined }}
             >
               <span className="flex items-center gap-2">
                 <i className={`size-2 rounded-full ${active ? "atlas-point" : ""}`} style={{ background: active ? c : `${c}66` }} />
                 <b className="text-[13px]" style={{ color: active ? C.fg : C.fg2 }}>{label}</b>
               </span>
-              {active && <small className="mt-1 block text-[11px] font-bold uppercase tracking-wide" style={{ color: c }}>vy jste zde</small>}
             </span>
           )
         })}
@@ -670,16 +692,14 @@ function InjuryPrompt({ a }: { a: any }) {
   )
 }
 
-// OPT-1 · decision card at the top of Dnes: repeats today's Trénink guidance
-// (Kapacitní engine only — without it there is no guidance to repeat).
+// OPT-1 + feedback railway#42 · today's Trénink guidance as a strip inside the
+// state card, above the overall score, linking to the Trénink tab (v3 only).
 const kmFmt = (v: number) => v.toLocaleString("cs-CZ", { maximumFractionDigits: 1 })
-function DecisionCard({ a }: { a: any }) {
+function RecommendationStrip({ a }: { a: any }) {
   const g = a?.guidance
   if (a?.engineMode !== "v3" || !g) return null
   const t = g.types?.[g.type]
   if (!t) return null
-  const rp = g.readinessScore ?? Math.round((g.readiness ?? 1) * 100)
-  const rc = readinessCol(rp)
   const ov = g.override
   const physio = ov && (ov.kind === "physio" || ov.kind === "function")
   const run = g.type !== "volno" && g.type !== "závod"
@@ -687,42 +707,35 @@ function DecisionCard({ a }: { a: any }) {
   const facts = run
     ? [t.km && t.km.hi ? `${t.km.lo === t.km.hi ? kmFmt(t.km.lo) : `${kmFmt(t.km.lo)}–${kmFmt(t.km.hi)}`} km` : null, t.hr ? `${t.hr[0]}–${t.hr[1]} tep/min` : null, t.durationMin ? `≈ ${t.durationMin[0]}–${t.durationMin[1]} min` : null].filter(Boolean).join(" · ")
     : t.notes?.[0]
-  const R = 2 * Math.PI * 42
   return (
-    <section className="card relative mt-5 overflow-hidden p-4 md:p-5" style={{ borderColor: `${col}55`, backgroundImage: `linear-gradient(120deg, ${col}1c, transparent 55%)` }} aria-label="Doporučení na dnes">
-      <div className="flex items-center gap-4">
-        <div className="grid shrink-0 justify-items-center gap-1">
-        <div className="relative grid size-[64px] place-items-center" title={`připravenost ${rp} %`}>
-          <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
-            <circle cx="50" cy="50" r="42" fill="none" stroke="rgb(255 255 255 / .1)" strokeWidth="9" />
-            <circle cx="50" cy="50" r="42" fill="none" stroke={rc} strokeWidth="9" strokeLinecap="round" strokeDasharray={R} strokeDashoffset={R * (1 - clamp(rp, 0, 100) / 100)} />
-          </svg>
-          <b className="t-num text-[19px] leading-none" style={{ color: rc }}>{rp}<small className="text-[11px] font-semibold text-fg-3"> %</small></b>
-        </div>
-        <span className="text-[11px] font-semibold text-fg-3">připravenost</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="t-label">Doporučení na dnes</p>
-          <h2 className="mt-1 font-serif text-[26px] leading-tight tracking-[-.02em]" style={{ color: ov ? C.alertSoft : C.fg }}>{t.label}</h2>
-          {(ov?.title || facts) && <p className="mt-0.5 text-[13px] leading-5 text-fg-soft">{ov ? ov.title : facts}</p>}
-        </div>
+    <div className="nest mt-5 flex flex-wrap items-center gap-x-4 gap-y-3 p-3.5" style={{ borderColor: `${col}55`, backgroundImage: `linear-gradient(120deg, ${col}17, transparent 60%)` }} aria-label="Doporučení na dnes">
+      <div className="min-w-0 flex-1">
+        <p className="t-label">Doporučení na dnes</p>
+        <p className="mt-0.5 font-serif text-[22px] leading-tight" style={{ color: ov ? C.alertSoft : C.fg }}>{t.label}</p>
+        {(ov?.title || facts) && <p className="mt-0.5 text-[13px] leading-5 text-fg-soft">{ov ? ov.title : facts}</p>}
       </div>
-      <div className="mt-3.5 flex flex-wrap items-center gap-2 sm:pl-[80px]">
+      <div className="flex flex-wrap items-center gap-2">
         {physio && <Link to="/app/messages" className="btn btn-primary btn-sm">Objednat fyzioterapeuta</Link>}
-        <Link to="/app/training" className="btn btn-outline btn-sm">Detail tréninku <ChevronRight className="size-3.5" aria-hidden /></Link>
+        <Link to="/app/training" className="btn btn-outline btn-sm">Trénink <ChevronRight className="size-3.5" aria-hidden /></Link>
         {g.provisional && <Chip tone="watch">předběžné · čeká na ranní data</Chip>}
       </div>
-    </section>
+    </div>
   )
 }
 
-function SideStat({ label, value, col, align = "left" }: { label: string; value: number | null | undefined; col: string; align?: "left" | "right" }) {
-  return (
-    <div className={align === "right" ? "text-right" : ""}>
-      <p className="text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">{label}</p>
-      <p className="t-num mt-0.5 text-[24px] leading-none" style={{ color: value == null ? C.fg3 : col }}>{value ?? "—"}</p>
-    </div>
+function SideStat({ label, value, col, align = "left", unit, onClick, open }: { label: string; value: number | null | undefined; col: string; align?: "left" | "right" | "center"; unit?: string; onClick?: () => void; open?: boolean }) {
+  const body = (
+    <>
+      <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[.1em] text-fg-2" style={{ justifyContent: align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start" }}>
+        {label}{onClick && <ChevronDown className={`size-3.5 text-fg-3 transition ${open ? "rotate-180 text-accent" : ""}`} aria-hidden />}
+      </span>
+      <span className="t-num mt-0.5 block text-[24px] leading-none" style={{ color: value == null ? C.fg3 : col }}>{value ?? "—"}{value != null && unit && <small className="text-[13px] font-semibold text-fg-3">{unit}</small>}</span>
+    </>
   )
+  const cls = align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"
+  return onClick
+    ? <button type="button" onClick={onClick} aria-expanded={!!open} className={`${cls} -m-1.5 rounded-[12px] p-1.5 transition hover:bg-white/[.05] ${open ? "bg-white/[.06]" : ""}`}>{body}</button>
+    : <div className={cls}>{body}</div>
 }
 
 type AlertRow = { key: string; tone: "stop" | "alert" | "watch" | "info"; icon?: LucideIcon; title: React.ReactNode; body: React.ReactNode }
@@ -734,6 +747,16 @@ function TodayV2() {
   const rid = me?.runner_id
   const [quadHist, setQuadHist] = useState<any[] | null>(null)
   const [histOpen, setHistOpen] = useState(false)
+  const [alertsOpen, setAlertsOpen] = useState(false)
+  // feedback railway#69/#70 — tap Mechanika / Zátěž for its trend + what drives it
+  const [statPanel, setStatPanel] = useState<"mech" | "load" | null>(null)
+  const [axisHist, setAxisHist] = useState<any[] | null>(null)
+  useEffect(() => {
+    if (!statPanel || !rid || axisHist !== null) return
+    let alive = true
+    api.mechHistory(rid).then((h) => alive && setAxisHist(Array.isArray(h) ? h : [])).catch(() => alive && setAxisHist([]))
+    return () => { alive = false }
+  }, [statPanel, rid, axisHist])
   useEffect(() => {
     if (!rid) return
     let alive = true
@@ -868,6 +891,14 @@ function TodayV2() {
       title: `Zotavení po závodním úsilí · den ${a.raceRecovery.daysSince + 1} z ${a.raceRecovery.days}`,
       body: <>{a.raceRecovery.km} km ({fmtD(a.raceRecovery.date)}: {a.raceRecovery.why.join(", ")}). {a.raceRecovery.daysSince < a.raceRecovery.restDays ? "První dny odpočinek nebo velmi volný pohyb." : "Zatím bez intenzity a dlouhého běhu."}</>,
     })
+  const injuryPromptShown = !!(rid && a && !a.injury?.active && (a.functionLimit || a.painMonitor || a.acuteOverload || a.painRecurring))
+  const alertCount = alerts.length + (injuryPromptShown ? 1 : 0)
+  const hasStop = alerts.some((x) => x.tone === "stop")
+  const worstTone = alerts.some((x) => x.tone === "alert") ? "alert" : "watch"
+  const readiness: number | null = a?.capacity?.readiness ? readinessPct(a.capacity.readiness) : a?.guidance ? (a.guidance.readinessScore ?? Math.round((a.guidance.readiness ?? 1) * 100)) : null
+  const panelSig = statPanel ? signals.filter((s: any) => (statPanel === "mech" ? MECH_IDS : LOAD_IDS).has(s.id)) : []
+  const axisPoints = (axisHist || []).map((h: any) => ({ t: h.date, v: statPanel === "mech" ? h.mech : h.load }))
+  if (axisPoints.length && a) axisPoints[axisPoints.length - 1] = { t: (a.computed_at || "").slice(0, 10) || axisPoints[axisPoints.length - 1].t, v: (statPanel === "mech" ? a.mech : a.load) ?? axisPoints[axisPoints.length - 1].v }
   const firstCollapsible = alerts.find((x) => x.tone !== "stop")?.key ?? null
   const [openAlert, setOpenAlert] = useState<string | null | undefined>(undefined)
   const openKey = openAlert === undefined ? firstCollapsible : openAlert
@@ -888,29 +919,32 @@ function TodayV2() {
           {error}
         </AlertBanner>
       )}
-      <DecisionCard a={a} />
-      {(alerts.length > 0 || a) && (
-        <div className="mt-4 grid gap-2.5 empty:hidden">
-          {alerts.map((x) =>
-            x.tone === "stop" ? (
-              <AlertBanner key={x.key} tone="stop" icon={x.icon} title={x.title}>{x.body}</AlertBanner>
-            ) : (
-              <AlertBanner key={x.key} tone={x.tone} icon={x.icon} title={x.title} collapsible open={openKey === x.key}
-                onToggle={() => setOpenAlert(openKey === x.key ? null : x.key)}>{x.body}</AlertBanner>
-            ),
-          )}
-          <InjuryPrompt a={a} />
-        </div>
-      )}
       <section className="card mt-6 p-4 text-fg md:p-6">
-        <QuadrantHead quadrant={a?.quadrant} live={a} onSync={doSync} syncing={syncing} syncMsg={syncMsg} canSync={!!gStatus?.connected} onHistory={() => setHistOpen(true)} />
+        <QuadrantHead quadrant={a?.quadrant} live={a} onSync={doSync} syncing={syncing} syncMsg={syncMsg} canSync={!!gStatus?.connected} onHistory={() => setHistOpen(true)}
+          alertSlot={alertCount > 0 && (
+            <button type="button" onClick={() => setAlertsOpen((v) => !v)} aria-expanded={alertsOpen} aria-label={`Upozornění (${alertCount})`} title="Upozornění"
+              className={`relative inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-extrabold transition ${hasStop ? "bg-alert text-ink motion-safe:animate-pulse" : worstTone === "alert" ? "bg-alert/15 text-alert-soft ring-1 ring-alert/40" : "bg-watch/15 text-watch ring-1 ring-watch/40"}`}>
+              <TriangleAlert className="size-4" aria-hidden />{alertCount}
+            </button>
+          )} />
+        {/* feedback railway#37 — every alert sits behind the ! icon in this box */}
+        {alertsOpen && alertCount > 0 && (
+          <div className="mt-4 grid origin-top animate-[careReveal_.28s_ease-out] gap-2.5">
+            {alerts.map((x) => (
+              <AlertBanner key={x.key} tone={x.tone} icon={x.icon} title={x.title} collapsible open={x.tone === "stop" || openKey === x.key}
+                onToggle={() => setOpenAlert(openKey === x.key ? null : x.key)}>{x.body}</AlertBanner>
+            ))}
+            <InjuryPrompt a={a} />
+          </div>
+        )}
+        <RecommendationStrip a={a} />
         {/* „Stav" — co jde do kvadrantu — je součástí boxu s kvadrantem */}
         <div className="mt-5 grid gap-6 border-t border-white/[.08] pt-5 md:grid-cols-2 md:gap-8">
           <div>
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
               <div className="grid gap-5">
                 <SideStat label="Regenerace" value={score} col={scoreCol} />
-                <SideStat label="Mechanika" value={a ? a.mech : null} col={axisCol(a?.mech, C.alert)} />
+                <SideStat label="Příznaky" value={a ? a.symp : null} col={axisCol(a?.symp, C.alert)} />
               </div>
               <div className="relative grid size-[132px] place-items-center">
                 <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
@@ -919,20 +953,42 @@ function TodayV2() {
                 </svg>
                 <span className="text-center">
                   <b className="t-num block text-[40px] leading-none text-fg">{overall}</b>
-                  <span className="mt-1 flex items-center justify-center gap-1"><span className="text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">Celkový stav</span></span>
+                  <span className="mt-1 flex items-center justify-center gap-1"><span className="text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">Celkové skóre</span></span>
                 </span>
-                <span className="absolute -right-1 top-1"><InfoDot text={MI.overall} label="Celkový stav" /></span>
+                <span className="absolute -right-1 top-1"><InfoDot text={MI.overall} label="Celkové skóre" /></span>
               </div>
-              <div className="grid gap-5">
-                <SideStat label="Zátěž" value={a ? a.load : null} col={C.load} align="right" />
-                <SideStat label="Příznaky" value={a ? a.symp : null} col={axisCol(a?.symp, C.alert)} align="right" />
+              <div className="grid justify-items-end gap-5">
+                <SideStat label="Zátěž" value={a ? a.load : null} col={C.load} align="right" onClick={() => setStatPanel(statPanel === "load" ? null : "load")} open={statPanel === "load"} />
+                <SideStat label="Mechanika" value={a ? a.mech : null} col={axisCol(a?.mech, C.alert)} align="right" onClick={() => setStatPanel(statPanel === "mech" ? null : "mech")} open={statPanel === "mech"} />
               </div>
             </div>
+            {readiness != null && (
+              <div className="mt-3 flex justify-center">
+                <SideStat label="Připravenost" value={readiness} unit=" %" col={readinessCol(readiness)} align="center" />
+              </div>
+            )}
+            {statPanel && (
+              <div className="nest mt-4 origin-top animate-[careReveal_.28s_ease-out] p-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="t-label">{statPanel === "mech" ? "Mechanika — trend" : "Zátěž — trend"}</p>
+                  <Link to={statPanel === "mech" ? "/app/mechanics" : "/app/load"} className="inline-flex items-center gap-1 text-[12px] font-bold text-accent hover:underline">{statPanel === "mech" ? "Pohyb" : "Zátěž"}<ChevronRight className="size-3.5" aria-hidden /></Link>
+                </div>
+                {axisHist === null ? <p className="mt-2 text-[12px] text-fg-3">Počítám trend v čase…</p>
+                  : axisPoints.length > 1 ? <AxisLineChart points={axisPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh" color={statPanel === "mech" ? (a?.mech >= 25 ? C.alert : C.ok) : C.load} height={130} zone />
+                  : <p className="mt-2 text-[12px] text-fg-3">Na trend je zatím málo historie.</p>}
+                <p className="t-label mt-3 !text-fg-3">{statPanel === "mech" ? "Co tvoří skóre mechaniky" : "Co tvoří skóre zátěže"}</p>
+                {panelSig.length ? (
+                  <div className="mt-2.5 space-y-2.5">
+                    {panelSig.map((s: any) => <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} tone={statPanel === "mech" ? "info" : "load"} pct={(s.pts / Math.max(1, ...panelSig.map((x: any) => x.pts || 0))) * 100} />)}
+                  </div>
+                ) : <p className="mt-2 text-[12px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
+              </div>
+            )}
             <div className="mt-4 text-center">
               <h3 className="font-serif text-[21px] leading-tight text-fg">{verdict}</h3>
               <p className="mt-1 text-[13px] font-bold" style={{ color: tierCol }}>{tierWord}</p>
               {recur && (
-                <p className="mx-auto mt-2 max-w-sm text-[12px] leading-5 text-watch">
+                <p className="mx-auto mt-3 max-w-sm rounded-[12px] border border-watch/35 bg-watch/[.07] px-3 py-2.5 text-[12px] leading-5 text-watch">
                   {recur.site} · {recur.days}× za 28 dní — i mírná bolest na stejném místě je vzorec přetížení. Kratší a volnější běhy, bez dlouhého běhu a intenzity.
                 </p>
               )}

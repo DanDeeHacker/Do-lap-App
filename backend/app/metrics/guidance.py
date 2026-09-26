@@ -67,6 +67,7 @@ NOVICE_Z4 = 10          # …and a generic 10 min of hard work in a quality sess
 # heart-rate-reserve bands per session type (Karvonen)
 HRR = {"regenerace": (0.50, 0.65), "lehký": (0.60, 0.72), "dlouhý": (0.60, 0.75), "kvalitní": (0.80, 0.92)}
 PACE_FALLBACK = {"regenerace": (1.06, 1.15), "lehký": (0.97, 1.05), "dlouhý": (1.00, 1.08)}
+DIST_DAYS = 84        # feedback railway#43: window for the rolling 7-day percentiles
 CHS = ("volume", "intensity", "descent", "ascent")
 # 4-week loading cycle (3 build weeks on a reference week + 1 recovery week), as
 # asked by the product owner: 90 % / 100 % / 110 % of the last loaded week before
@@ -237,6 +238,27 @@ def _latest_pain(db, rid, today):
     return best, site
 
 
+def _rolling7_dist(day_vals: dict, today, first_day, days: int = DIST_DAYS) -> dict | None:
+    """feedback railway#43 — the runner's own rolling 7-day totals over the last
+    `days` days (windows that start after the first recorded session): 25th
+    percentile, median, 75th percentile and max, for the Trénink gauges."""
+    tot = []
+    for back in range(days):
+        end = today - timedelta(days=back)
+        if end - timedelta(days=6) < first_day:
+            break
+        tot.append(sum(day_vals.get((end - timedelta(days=k)).isoformat(), 0.0) for k in range(7)))
+    if len(tot) < 14:
+        return None
+    v = sorted(tot)
+
+    def q(p):
+        i = p * (len(v) - 1)
+        lo, hi = int(i), min(int(i) + 1, len(v) - 1)
+        return v[lo] + (v[hi] - v[lo]) * (i - lo)
+    return {"p25": q(0.25), "p50": q(0.5), "p75": q(0.75), "max": v[-1], "n": len(v)}
+
+
 def build_guidance(db, rid, a, runner=None) -> dict | None:
     cap = a.get("capacity")
     if not cap:
@@ -338,6 +360,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         vals = w[lo:lo + 4]
         return sum(vals) / len(vals) if vals else None
 
+    first_day = _d(min((s["date"] for s in sessions if s["date"] <= t_iso), default=t_iso))
     week = {}
     for c in (*CHS, "systemic"):
         info = ch.get(c) or {}
@@ -362,7 +385,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         week[c] = {"label": info.get("label", C.CHANNELS[c]["label"]), "unit": info.get("unit", C.CHANNELS[c]["unit"]),
                    "capacity": wcap.get("cap"), "ceiling7": ceil7, "done7": done6 + done_today, "left7": left7,
                    "budget": target, "done": done_week, "doneToday": done_today, "left": left_week,
-                   "ceilingRun": ceil_run, "todayMax": limits[lim] if lim else None, "limitedBy": lim}
+                   "ceilingRun": ceil_run, "todayMax": limits[lim] if lim else None, "limitedBy": lim,
+                   "dist": _rolling7_dist(daily[c], today, first_day)}
     # Celková zátěž (HR × time, all sports) is volume × intensity in one number —
     # what's left of it also bounds today's kilometres and hard minutes
     sys_left = week["systemic"]["todayMax"]
@@ -382,6 +406,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         dec = C.CHANNELS[c]["dec"]
         for k in ("capacity", "ceiling7", "done7", "left7", "budget", "done", "doneToday", "left", "todayMax"):
             wc[k] = _r(wc[k], dec)
+        if wc.get("dist"):
+            wc["dist"] = {k: (_r(v, dec) if k != "n" else v) for k, v in wc["dist"].items()}
     nxt = None
     if pos_now and mode in ("build", "recovery"):
         p2 = pos_now % 4 + 1

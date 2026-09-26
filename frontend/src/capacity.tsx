@@ -1,6 +1,8 @@
 // Engine v3 ("Kapacitní") views of the per-runner capacity model: the full panel
 // on the Zátěž tab and a compact weekly strip on Dnes (below the quadrant, which
 // stays the first thing on the page).
+import { useState, type ReactNode } from "react"
+import { ChevronDown } from "lucide-react"
 import { InfoDot, Label } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { fmtD } from "@/lib"
@@ -52,14 +54,19 @@ const CH_NOTE: Record<string, string> = {
   systemic: "Tep × čas ze všech aktivit (běh i jiné sporty) — objem a intenzita v jednom čísle. Co z ní zbývá, omezuje v Tréninku i dnešní kilometry a minuty v Z4+.",
 }
 
-function ChannelRow({ id, c, margins }: { id: string; c: any; margins: any }) {
+// Feedback railway#53 — each channel box shows its headline (capacity vs 7 days) and
+// keeps the rest behind a detail arrow. railway#56–#61: the charts that feed a channel
+// (volume bars, HR zones and relative effort, cross-training, descent by slope) live in
+// that channel's detail rather than as separate cards further down the page.
+function ChannelRow({ id, c, margins, extra, open, onToggle }: { id: string; c: any; margins: any; extra?: ReactNode; open: boolean; onToggle: () => void }) {
   const wk = c.week
   const ses = c.session
   const wTone = toneOf(wk?.ratio, margins.week)
   const sTone = toneOf(ses?.ratio, margins.session)
   const why = !c.pts ? null : c.driver === "session" ? "body za jeden běh nad kapacitou" : c.driver === "week" ? "body za 7 dní nad kapacitou" : c.driver === "latent" ? "body doznívajícího skoku" : null
+  const hasDetail = !!(extra || (c.known && (ses || c.latent || c.pendingJump || CH_NOTE[id])))
   return (
-    <div className="nest p-3.5">
+    <div className={`nest p-3.5 transition ${open ? "md:col-span-full !border-accent/60" : ""}`}>
       <div className="flex items-center gap-2">
         <b className="text-sm font-bold text-fg">{c.label}</b>
         <span className="grid size-5 place-items-center rounded-full bg-white/[.07] text-[11px] font-extrabold text-fg-2">{c.grade}</span>
@@ -70,33 +77,41 @@ function ChannelRow({ id, c, margins }: { id: string; c: any; margins: any }) {
       </div>
       {!c.known ? (
         <p className="mt-2 text-[11px] text-fg-3">Kapacitu teprve poznáváme — stačí pár běhů{id === "intensity" ? " s tepem" : ""}.</p>
-      ) : (
+      ) : wk && (
         <>
-          {wk && (
-            <>
-              <p className="mt-1.5 text-[12px] text-fg-2">
-                Týdenní kapacita <b className="text-fg">{num(wk.cap)} {c.unit}</b>
-                <span className="text-[11px] text-fg-3"> · strop {num(wk.ceiling)}{wk.ceiling < wk.cap ? " (snížený připraveností)" : " s rezervou"}</span>
-              </p>
-              <div className="mt-2">
-                <div className="mb-1 flex justify-between text-[11px] text-fg-3">
-                  <span>posledních 7 dní <b className="text-fg">{num(wk.now)}</b> {c.unit}</span>
-                  <span>{wk.left > 0 ? `do stropu zbývá ${num(wk.left)}` : "strop vyčerpán"}</span>
-                </div>
-                <HeadroomBar now={wk.now} ceiling={wk.ceiling} tone={wTone} />
-              </div>
-            </>
-          )}
-          {ses && (
-            <p className="mt-2 text-[11px] text-fg-3">
+          <p className="mt-1.5 text-[12px] text-fg-2">
+            Týdenní kapacita <b className="text-fg">{num(wk.cap)} {c.unit}</b>
+            <span className="text-[11px] text-fg-3"> · strop {num(wk.ceiling)}{wk.ceiling < wk.cap ? " (snížený připraveností)" : " s rezervou"}</span>
+          </p>
+          <div className="mt-2">
+            <div className="mb-1 flex justify-between text-[11px] text-fg-3">
+              <span>posledních 7 dní <b className="text-fg">{num(wk.now)}</b> {c.unit}</span>
+              <span>{wk.left > 0 ? `do stropu zbývá ${num(wk.left)}` : "strop vyčerpán"}</span>
+            </div>
+            <HeadroomBar now={wk.now} ceiling={wk.ceiling} tone={wTone} />
+          </div>
+        </>
+      )}
+      {hasDetail && (
+        <button type="button" onClick={onToggle} aria-expanded={open}
+          className="mt-3 flex w-full items-center justify-between gap-2 border-t border-white/[.07] pt-2.5 text-left text-[12px] font-semibold text-fg-2 transition hover:text-fg">
+          <span>{open ? "Skrýt detail" : "Detail"}</span>
+          <ChevronDown className={`size-4 transition ${open ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />
+        </button>
+      )}
+      {open && hasDetail && (
+        <div className="origin-top animate-[careReveal_.28s_ease-out] pt-2">
+          {c.known && ses && (
+            <p className="text-[11px] text-fg-3">
               Nejnáročnější běh 7 dní ({fmtD(ses.date)}): <b style={{ color: (TONE as any)[sTone] }}>{num(ses.value)} {c.unit} · ×{num(ses.ratio)}</b> proti kapacitě jednoho běhu {num(ses.cap)}
               {(ses.readinessScore ?? 100) < 97 ? ` · připravenost ${ses.readinessScore} %` : ""}
             </p>
           )}
-          {c.latent && <p className="mt-1 text-[11px] text-watch">Doznívá skok ×{num(c.latent.ratio)} z {fmtD(c.latent.date)}</p>}
-          {c.pendingJump && <PendingJump j={c.pendingJump} unit={c.unit} />}
-          {CH_NOTE[id] && <p className="mt-2 text-[11px] leading-4 text-fg-3">{CH_NOTE[id]}</p>}
-        </>
+          {c.known && c.latent && <p className="mt-1 text-[11px] text-watch">Doznívá skok ×{num(c.latent.ratio)} z {fmtD(c.latent.date)}</p>}
+          {c.known && c.pendingJump && <PendingJump j={c.pendingJump} unit={c.unit} />}
+          {c.known && CH_NOTE[id] && <p className="mt-2 text-[11px] leading-4 text-fg-3">{CH_NOTE[id]}</p>}
+          {extra && <div className="mt-4">{extra}</div>}
+        </div>
       )}
     </div>
   )
@@ -148,9 +163,51 @@ function ZoneTime({ cap }: { cap: any }) {
   )
 }
 
-export function CapacityPanel({ cap }: { cap: any }) {
+function RelativeEffort({ re }: { re: any }) {
+  return (
+    <div>
+      <span className="flex items-center gap-1.5"><Label>Relativní úsilí posledních běhů</Label><InfoDot text={MI.relEffort} label="Relativní úsilí" /></span>
+      {re.runs?.length ? (
+        <div className="mt-2 divide-y divide-white/[.06]">
+          {re.runs.map((r: any, i: number) => {
+            const [bl, bc] = BAND[r.band] || ["málo historie", TONE.muted]
+            return (
+              <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-[12px]">
+                <span className="w-14 shrink-0 whitespace-nowrap tabular-nums text-[11px] text-fg-3">{fmtD(r.date)}</span>
+                <span className="min-w-0 flex-1 truncate text-fg">{r.title || "Běh"}{r.km ? ` · ${num(r.km)} km` : ""}</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="w-16 whitespace-nowrap text-right tabular-nums text-[11px] text-fg-2">{r.effort} j.z.</span>
+                  <span className="min-w-[6.5rem] text-center"><span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `${bc}1f`, color: bc }}>{bl}</span></span>
+                  <span className="w-[5.5rem] whitespace-nowrap text-[11px]" style={{ color: (r.hrDelta ?? 0) > 0 ? TONE.watch : TONE.ok }}>
+                    {r.hrDelta != null && Math.abs(r.hrDelta) >= 5 ? `tep při tempu ${r.hrDelta > 0 ? "+" : ""}${r.hrDelta}` : ""}
+                  </span>
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      ) : <p className="mt-2 text-xs text-fg-3">Zatím málo běhů s tepem.</p>}
+      {re.week && (
+        <p className="mt-2 text-[11px] text-fg-2">Týden: <b className="text-fg">{re.week.now} j.z.</b> · obvykle {re.week.lo}–{re.week.hi} · <b style={{ color: (BAND[re.week.band] || [])[1] }}>{(BAND[re.week.band] || [re.week.band])[0]}</b></p>
+      )}
+    </div>
+  )
+}
+
+export function CapacityPanel({ cap, extra = {} }: { cap: any; extra?: Record<string, ReactNode> }) {
+  const [open, setOpen] = useState("")
   if (!cap) return null
   const re = cap.relativeEffort || {}
+  // intensity = minutes in Z4+, so its detail carries the HR zones and relative effort (railway#56/#57)
+  const extras: Record<string, ReactNode> = {
+    ...extra,
+    intensity: (
+      <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+        <RelativeEffort re={re} />
+        <ZoneTime cap={cap} />
+      </div>
+    ),
+  }
   return (
     <section className="card mb-4 p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -161,40 +218,14 @@ export function CapacityPanel({ cap }: { cap: any }) {
         <Readiness r={cap.readiness} />
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2 min-[1600px]:grid-cols-3">
-        {CH_ORDER.map((id) => cap.channels?.[id] && <ChannelRow key={id} id={id} c={cap.channels[id]} margins={cap.margins} />)}
+        {CH_ORDER.map((id) => cap.channels?.[id] && (
+          <ChannelRow key={id} id={id} c={cap.channels[id]} margins={cap.margins} extra={extras[id]}
+            open={open === id} onToggle={() => setOpen(open === id ? "" : id)} />
+        ))}
       </div>
       {cap.margins?.frailty > 1 && (
         <p className="mt-3 text-[11px] text-fg-3">Zranění v posledních 12 měsících zmenšuje rezervu nad kapacitou (na běh +{Math.round(cap.margins.session * 100)} %, na týden +{Math.round(cap.margins.week * 100)} %).</p>
       )}
-      <div className="mt-5 grid gap-5 border-t border-white/[.08] pt-4 lg:grid-cols-[1.4fr_1fr]">
-        <div>
-          <span className="flex items-center gap-1.5"><Label>Relativní úsilí posledních běhů</Label><InfoDot text={MI.relEffort} label="Relativní úsilí" /></span>
-          {re.runs?.length ? (
-            <div className="mt-2 divide-y divide-white/[.06]">
-              {re.runs.map((r: any, i: number) => {
-                const [bl, bc] = BAND[r.band] || ["málo historie", TONE.muted]
-                return (
-                  <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-[12px]">
-                    <span className="w-14 shrink-0 whitespace-nowrap tabular-nums text-[11px] text-fg-3">{fmtD(r.date)}</span>
-                    <span className="min-w-0 flex-1 truncate text-fg">{r.title || "Běh"}{r.km ? ` · ${num(r.km)} km` : ""}</span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <span className="w-16 whitespace-nowrap text-right tabular-nums text-[11px] text-fg-2">{r.effort} j.z.</span>
-                      <span className="min-w-[6.5rem] text-center"><span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `${bc}1f`, color: bc }}>{bl}</span></span>
-                      <span className="w-[5.5rem] whitespace-nowrap text-[11px]" style={{ color: (r.hrDelta ?? 0) > 0 ? TONE.watch : TONE.ok }}>
-                        {r.hrDelta != null && Math.abs(r.hrDelta) >= 5 ? `tep při tempu ${r.hrDelta > 0 ? "+" : ""}${r.hrDelta}` : ""}
-                      </span>
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          ) : <p className="mt-2 text-xs text-fg-3">Zatím málo běhů s tepem.</p>}
-          {re.week && (
-            <p className="mt-2 text-[11px] text-fg-2">Týden: <b className="text-fg">{re.week.now} j.z.</b> · obvykle {re.week.lo}–{re.week.hi} · <b style={{ color: (BAND[re.week.band] || [])[1] }}>{(BAND[re.week.band] || [re.week.band])[0]}</b></p>
-          )}
-        </div>
-        <ZoneTime cap={cap} />
-      </div>
     </section>
   )
 }

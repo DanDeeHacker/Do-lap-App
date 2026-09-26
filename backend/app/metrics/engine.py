@@ -342,21 +342,39 @@ def is_run(a) -> bool:
     return (a.sport or "running") == "running"
 
 
-def all_acts(db: DBSession, rid: str):
-    """Every activity the engine counts — without the ones the runner excluded."""
-    return (
+EXCLUDE_SCOPES = ("all", "mech", "load")
+
+
+def counts_for(a, purpose: str = "all") -> bool:
+    """Does this activity count for `purpose`? A run excluded with scope "all"
+    (or the legacy NULL) counts nowhere; scope "mech" / "load" only takes it out of
+    that side (feedback railway#47). purpose "all" = strictest (any exclusion)."""
+    if not a.excluded:
+        return True
+    scope = a.excluded_scope or "all"
+    if purpose == "all" or scope == "all":
+        return False
+    return scope != purpose
+
+
+def all_acts(db: DBSession, rid: str, purpose: str = "load"):
+    """Every activity the engine counts — without the ones the runner excluded
+    for this purpose. All sports feed systemic load, so the default is "load"."""
+    rows = (
         db.query(models.Activity)
-        .filter(models.Activity.runner_id == rid, models.Activity.excluded.isnot(True))
+        .filter(models.Activity.runner_id == rid)
         .order_by(models.Activity.started_at.asc(), models.Activity.id.asc())
         .all()
     )
+    return [a for a in rows if counts_for(a, purpose)]
 
 
-def acts(db: DBSession, rid: str):
+def acts(db: DBSession, rid: str, purpose: str = "mech"):
     """Running activities only — the mechanics engine (cadence, vertical ratio,
     ground contact, descent, terrain buckets) is running-specific. Cross-training
-    reaches load() via all_acts()/running-equivalent km, not here."""
-    return [a for a in all_acts(db, rid) if is_run(a)]
+    reaches load() via all_acts()/running-equivalent km, not here. Pass
+    purpose="load" for the running km / descent that feed the load axis."""
+    return [a for a in all_acts(db, rid, purpose) if is_run(a)]
 
 
 # Fallback load per minute by sport, used only when a session has neither heart
@@ -844,7 +862,7 @@ def _descent_gradient_totals(activities) -> list[float]:
 
 
 def descent_by_gradient(db: DBSession, rid: str):
-    A = [a for a in acts(db, rid) if a.elevation_profile]
+    A = [a for a in acts(db, rid, "load") if a.elevation_profile]
     recent = [a for a in A if a.started_at > day_ago(7)]
     base = [a for a in A if a.started_at <= day_ago(BASE_TO) and a.started_at > day_ago(BASE_FROM)]
     if not recent and not base:
@@ -873,8 +891,8 @@ def decouple(db: DBSession, rid: str):
 
 
 def load(db: DBSession, rid: str):
-    A = acts(db, rid)                    # running only — km volume bars, descent, mechanics
-    ALL = all_acts(db, rid)              # every sport — drives systemic training load
+    A = acts(db, rid, "load")            # running only — km volume bars, descent (load side)
+    ALL = all_acts(db, rid, "load")      # every sport — drives systemic training load
     CROSS = [a for a in ALL if not is_run(a)]
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
     hrmax, rhr = hr_bounds(A, daily(db, rid, 180), r.birth_year if r else None, r.hr_max if r else None)
@@ -1083,7 +1101,7 @@ def load(db: DBSession, rid: str):
 
 def aerobic(db: DBSession, rid: str):
     cutoff = day_ago(21)
-    A = [a for a in acts(db, rid) if a.hr_thirds and a.pace_thirds and a.started_at > cutoff]
+    A = [a for a in acts(db, rid, "load") if a.hr_thirds and a.pace_thirds and a.started_at > cutoff]
     A = sorted(A, key=lambda a: a.started_at)[-5:]
     if len(A) < 3:
         return None
@@ -1838,7 +1856,7 @@ def _stream_rows(db: DBSession, rid: str, newest_first: bool = False) -> list[di
                  models.Activity.surface)
         .join(models.Activity, models.ActivityStream.activity_id == models.Activity.id)
         .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.segments_json.isnot(None),
-                models.Activity.excluded.isnot(True))
+                (models.Activity.excluded.isnot(True)) | (models.Activity.excluded_scope == "load"))
         .order_by(order, models.Activity.id.asc())
     )
     out = []
@@ -2315,19 +2333,28 @@ def assess(db: DBSession, rid: str) -> dict:
     def _pace_note(m):
         return " · přepočteno na vaše obvyklé tempo" if (m or {}).get("paceAdjusted") else ""
 
+    # feedback railway#50 — show the change as a percentage of the runner's own
+    # baseline (baseMean → recMean), not a z-score; the z still drives the points.
+    def _pct(m):
+        b, r = (m or {}).get("baseMean"), (m or {}).get("recMean")
+        if b in (None, 0) or r is None:
+            return f"{sgn(m['z'])} σ" if m and m.get("z") is not None else "—"
+        v = round((r - b) / abs(b) * 100, 1)
+        return f"{'+' if v > 0 else '−' if v < 0 else '±'}{str(abs(v)).replace('.', ',')} %"
+
     mech_terms = []
     if tv:
         d = _seg_detail(tv) if tv.get("segment") else f"{tv['baseMean']} % → {tv['recMean']} % · {tv['buckets']} shodných profilů terénu{_pace_note(tv)}"
-        mech_terms.append(("tavr", "Vertikální poměr roste", "B", tv["z"], 0.2, 17, 4.0, 0.6, f"z {sgn(tv['z'])}", d))
+        mech_terms.append(("tavr", "Vertikální poměr roste", "B", tv["z"], 0.2, 17, 4.0, 0.6, _pct(tv), d))
     if gc:
         d = _seg_detail(gc) if gc.get("segment") else f"{gc['baseMean']} ms → {gc['recMean']} ms po normalizaci na kadenci{_pace_note(gc)}"
-        mech_terms.append(("gct", "Prodloužený kontakt se zemí", "B", gc["z"], 0.2, 13, 4.0, 0.6, f"z {sgn(gc['z'])}", d))
+        mech_terms.append(("gct", "Prodloužený kontakt se zemí", "B", gc["z"], 0.2, 13, 4.0, 0.6, _pct(gc), d))
     if cad:
         d = _seg_detail(cad) if cad.get("segment") else f"{cad['baseMean']} → {cad['recMean']} spm · {cad['buckets']} shodných profilů terénu{_pace_note(cad)}"
-        mech_terms.append(("cad", "Klesající kadence", "C", -cad["z"], 0.2, 10, 4.0, 0.6, f"z {sgn(cad['z'])}", d))
+        mech_terms.append(("cad", "Klesající kadence", "C", -cad["z"], 0.2, 10, 4.0, 0.6, _pct(cad), d))
     if vosc:
         d = _seg_detail(vosc) if vosc.get("segment") else f"{vosc['baseMean']} → {vosc['recMean']} cm · {vosc['buckets']} shodných profilů terénu{_pace_note(vosc)}"
-        mech_terms.append(("vosc", "Vyšší vertikální oscilace", "C", vosc["z"], 0.2, 10, 4.0, 0.6, f"z {sgn(vosc['z'])}", d))
+        mech_terms.append(("vosc", "Vyšší vertikální oscilace", "C", vosc["z"], 0.2, 10, 4.0, 0.6, _pct(vosc), d))
     if bal:
         mech_terms.append(("bal", "Posun v symetrii kontaktu", "B", bal["excursion"], 0.4, 22, 3.0, 0.8, f"{sgn(bal['excursion'])} p.b.",
                            f"{bal['baseline']} % → {bal['now']} % vlevo · {bal['direction']}"))
@@ -2496,12 +2523,12 @@ def assess(db: DBSession, rid: str) -> dict:
             p = rnd(clamp(-rcv["hrv"]["z"] * 10, 0, 22))
             load_score += p
             push("hrv", "Potlačená HRV", "B", p, f"{rcv['hrv']['now']} ms",
-                 f"Baseline {rcv['hrv']['base']} ms · z {rcv['hrv']['z']} za posledních 7 dní")
+                 f"Baseline {rcv['hrv']['base']} ms · {_pct({'baseMean': rcv['hrv']['base'], 'recMean': rcv['hrv']['now'], 'z': rcv['hrv']['z']})} za posledních 7 dní")
         if rcv and rcv["rhr"]["z"] >= 1.2:
             p = rnd(clamp(rcv["rhr"]["z"] * 8, 0, 18))
             load_score += p
             push("rhr", "Zvýšený klidový tep", "B", p, f"{rcv['rhr']['now']} tep/min",
-                 f"Baseline {rcv['rhr']['base']} · z {sgn(rcv['rhr']['z'])}")
+                 f"Baseline {rcv['rhr']['base']} · {_pct({'baseMean': rcv['rhr']['base'], 'recMean': rcv['rhr']['now'], 'z': rcv['rhr']['z']})}")
         if hcv and hcv["ratio"] is not None and hcv["ratio"] >= 1.4:
             p = rnd(clamp((hcv["ratio"] - 1.4) * 14, 0, 10))
             load_score += p

@@ -11,7 +11,7 @@ import { METRIC_INFO as MI } from "@/metricinfo"
 import { readinessCol } from "@/capacity"
 import { fmtD, paceStr } from "@/lib"
 import { C } from "@/tokens"
-import { ChevronDown, ChevronRight, CircleCheck, Flag, Footprints, Leaf, Plus, Route, Sofa, X, Zap, type LucideIcon } from "lucide-react"
+import { ChevronDown, ChevronRight, CircleCheck, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, X, Zap, type LucideIcon } from "lucide-react"
 
 const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"]
 const MODE: Record<string, [string, string]> = {
@@ -31,19 +31,59 @@ const TYPE_ICON: Record<string, LucideIcon> = { volno: Sofa, regenerace: Leaf, "
 // weekly capacity the Zátěž tab shows, this week keeps to its place in the cycle,
 // no single run exceeds its own capacity and load / mechanics stay under the
 // threshold — each channel shows the numbers it was derived from.
-// Half-gauge. Fill = the last 7 days against this channel's 7-day ceiling (how full the
-// weekly capacity is); the centre shows what today can still hold.
-function HalfGauge({ ratio, col, size }: { ratio: number | null; col: string; size: "lg" | "sm" }) {
+// Half-gauge. Fill = the last 7 days; the scale runs from 0 to the highest of your
+// own rolling 7-day max, the ceiling and now. Ticks = your 25th percentile, median
+// and 75th percentile of rolling 7-day totals (feedback railway#43); the white
+// mark is the 7-day ceiling.
+function HalfGauge({ value, scale, ceiling, dist, col, size }: { value: number | null; scale: number; ceiling?: number | null; dist?: any; col: string; size: "lg" | "sm" }) {
   const lg = size === "lg"
   const W = lg ? 220 : 80, R = lg ? 90 : 32, SW = lg ? 14 : 7, cy = lg ? 108 : 40, x0 = (W - 2 * R) / 2
   const arc = `M${x0} ${cy} A${R} ${R} 0 0 1 ${x0 + 2 * R} ${cy}`
   const L = Math.PI * R
-  const f = ratio == null ? 0 : Math.max(0, Math.min(1, ratio))
+  const fr = (v: number | null | undefined) => (v == null || scale <= 0 ? 0 : Math.max(0, Math.min(1, v / scale)))
+  const f = fr(value)
+  // point on the arc at fraction t (0 = left end, 1 = right end), at radius rr
+  const pt = (t: number, rr: number) => { const ang = Math.PI * (1 - t); return [W / 2 + rr * Math.cos(ang), cy - rr * Math.sin(ang)] }
+  const tick = (t: number, key: string, color: string, len: number) => {
+    const [x1, y1] = pt(t, R - SW / 2 - 1), [x2, y2] = pt(t, R + SW / 2 + len)
+    return <line key={key} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth={lg ? 2 : 1.5} strokeLinecap="round" />
+  }
   return (
-    <svg viewBox={`0 0 ${W} ${lg ? 116 : 46}`} className={lg ? "w-full max-w-[220px]" : "w-[76px]"} aria-hidden>
+    <svg viewBox={`${lg ? -6 : -4} ${lg ? -8 : -6} ${W + (lg ? 12 : 8)} ${lg ? 124 : 52}`} className={lg ? "w-full max-w-[230px]" : "w-[84px]"} aria-hidden>
       <path d={arc} fill="none" stroke="rgb(255 255 255 / .08)" strokeWidth={SW} strokeLinecap="round" />
       {f > 0 && <path d={arc} fill="none" stroke={col} strokeWidth={SW} strokeLinecap="round" strokeDasharray={`${L * f} ${L}`} />}
+      {dist && ["p25", "p50", "p75"].map((k) => tick(fr(dist[k]), k, C.fg2, lg ? 5 : 3))}
+      {ceiling != null && ceiling > 0 && tick(fr(ceiling), "ceil", C.fg, lg ? 7 : 4)}
     </svg>
+  )
+}
+const pctRow = (dist: any, d: number) => dist && (
+  <span className="mt-1.5 flex flex-wrap justify-center gap-x-2 gap-y-0.5 tabular-nums text-[11px] text-fg-3">
+    <span>P25 <b className="font-bold text-fg-2">{num(dist.p25, d)}</b></span>
+    <span>medián <b className="font-bold text-fg-2">{num(dist.p50, d)}</b></span>
+    <span>P75 <b className="font-bold text-fg-2">{num(dist.p75, d)}</b></span>
+    <span>max <b className="font-bold text-fg-2">{num(dist.max, d)}</b></span>
+  </span>
+)
+// feedback railway#65 — one interval bar: used vs total, with the numbers
+function UsageBar({ label, used, total, unit, d, note, col }: { label: string; used: number | null | undefined; total: number | null | undefined; unit: string; d: number; note?: string; col?: string }) {
+  if (total == null) return null
+  const over = used != null && used > total
+  const scale = Math.max(total, used || 0) || 1
+  const c = col || (over ? C.alert : (used || 0) / (total || 1) > 0.85 ? C.watch : C.ok)
+  const left = Math.max(0, total - (used || 0))
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-2 text-[11px]">
+        <span className="text-fg-2">{label}</span>
+        <span className="tabular-nums text-fg-3"><b className="text-fg">{num(used ?? 0, d)}</b> / {num(total, d)} {unit}</span>
+      </div>
+      <div className="relative mt-1 h-2 rounded-full bg-white/[.08]">
+        <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, ((used || 0) / scale) * 100)}%`, background: c }} />
+        <i className="absolute -inset-y-1 w-0.5 rounded-full bg-fg" style={{ left: `calc(${(total / scale) * 100}% - 1px)` }} />
+      </div>
+      <p className="mt-0.5 text-right tabular-nums text-[11px]" style={{ color: over ? C.alert : C.fg3 }}>{over ? `přes o ${num((used || 0) - total, d)}` : `zbývá ${num(left, d)}`}{note ? ` · ${note}` : ""}</p>
+    </div>
   )
 }
 function TodayCapacity({ g }: { g: any }) {
@@ -55,6 +95,22 @@ function TodayCapacity({ g }: { g: any }) {
   const mechHot = (ax.mech ?? 0) >= th
   const pct = Math.round((wk.progression ?? 1) * 100)
   const [open, setOpen] = useState<Record<string, boolean>>({})
+  // feedback railway#52 — the safe longest run lives here now and follows the plan:
+  // the proven single-run capacity + 10 %, never above what this week / 7 days /
+  // today still allow.
+  const { boot } = useApp()
+  const capVol = boot?.assessment?.capacity?.channels?.volume
+  const vol = wk.channels?.volume || {}
+  const safe = (() => {
+    const base = capVol?.ceilingSession ?? boot?.assessment?.loadDetail?.safeLongRunKm
+    if (base == null) return null
+    const caps: [number, string][] = [[base, capVol?.ceilingSession != null ? "vaše prokázaná kapacita jednoho běhu + 10 %" : "≈ +10 % nad váš nejdelší běh 30 dní"]]
+    if (vol.left != null) caps.push([vol.left, "zbytek cíle tohoto týdne v cyklu"])
+    if (vol.left7 != null) caps.push([vol.left7, "zbytek stropu 7 dní"])
+    const [week, why] = caps.reduce((m, x) => (x[0] < m[0] ? x : m))
+    const todayCaps = [capVol?.ceilingToday, vol.todayMax].filter((v) => v != null) as number[]
+    return { week, why: caps.length > 1 && why !== caps[0][1] ? `omezeno: ${why}` : why, today: todayCaps.length ? Math.min(week, ...todayCaps) : null }
+  })()
   const status = loadHot
     ? { col: C.alert, text: `Zátěž ${ax.load} je nad prahem ${th} — tento týden odlehčovací, bez tvrdých úseků a dlouhého běhu.` }
     : mechHot
@@ -66,24 +122,24 @@ function TodayCapacity({ g }: { g: any }) {
     const d = id === "volume" ? 1 : 0
     const past6 = c.done7 != null ? c.done7 - (c.doneToday ?? 0) : null
     const ratio = c.done7 != null && c.ceiling7 ? c.done7 / c.ceiling7 : null
+    const scale = Math.max(c.dist?.max || 0, c.ceiling7 || 0, c.done7 || 0) * 1.05
     const col = id === "systemic" ? C.load : ratio == null ? C.fg3 : ratio > 1 ? C.alert : ratio > 0.85 ? C.watch : C.ok
     const big = id === "volume"
     const value = id === "systemic" ? (c.todayMax != null ? `${num(c.todayMax, 0)}` : "—") : c.todayMax != null ? `max ${num(c.todayMax, d)}` : "—"
     const isOpen = !!open[id]
-    // Small tiles stack label over value so narrow columns stay readable.
-    const rowCls = big ? "flex justify-between gap-2" : "grid gap-0.5"
     const rows = (
-      <dl className="mt-3 w-full space-y-1 border-t border-white/[.07] pt-2.5 text-left text-[11px] leading-4 text-fg-3">
-        {c.capacity != null && <div className={rowCls}><dt>Týdenní kapacita (Zátěž)</dt><dd className="tabular-nums text-fg-soft">{num(c.capacity, d)} · strop {num(c.ceiling7, d)}{c.ceiling7 != null && c.ceiling7 < c.capacity ? " ↓" : ""}</dd></div>}
-        {past6 != null && <div className={rowCls}><dt>Posledních 6 dní{c.doneToday ? " + dnes" : ""}</dt><dd className="tabular-nums text-fg-soft">{num(c.done7, d)} → zbývá {num(c.left7, d)}</dd></div>}
-        {c.budget != null && <div className={rowCls}><dt>Tento týden v cyklu{cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden, ${pct} %)` : ""}</dt><dd className="tabular-nums text-fg-soft">{num(c.done, d)} / {num(c.budget, d)} → zbývá {num(c.left, d)}</dd></div>}
-        {c.ceilingRun != null && <div className={rowCls}><dt>Jeden běh</dt><dd className="tabular-nums text-fg-soft">max {num(c.ceilingRun, d)}</dd></div>}
-      </dl>
+      <div className="mt-3 w-full space-y-2.5 border-t border-white/[.07] pt-3 text-left">
+        <UsageBar label="Posledních 7 dní · strop" used={c.done7} total={c.ceiling7} unit={c.unit} d={d}
+          note={c.capacity != null ? `kapacita ${num(c.capacity, d)}${c.ceiling7 != null && c.ceiling7 < c.capacity ? " ↓" : ""}` : undefined} />
+        <UsageBar label={`Tento týden v cyklu${cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden, ${pct} %)` : ""}`} used={c.done} total={c.budget} unit={c.unit} d={d} />
+        {c.ceilingRun != null && <UsageBar label="Jeden běh · dnes max" used={c.todayMax} total={c.ceilingRun} unit={c.unit} d={d} col={C.info} />}
+        {past6 != null && c.doneToday ? <p className="text-[11px] text-fg-3">z toho dnes {num(c.doneToday, d)} {c.unit}</p> : null}
+      </div>
     )
     return (
       <div key={id} className={`nest ${big ? "p-4" : "p-3"}`}>
         <button type="button" onClick={() => setOpen((o) => ({ ...o, [id]: !o[id] }))} aria-expanded={isOpen}
-          title="Oblouk: posledních 7 dní proti týdennímu stropu · klepnutím zobrazíte výpočet"
+          title="Oblouk: posledních 7 dní · čárky: váš 25. percentil, medián a 75. percentil 7denních součtů · bílá: strop · klepnutím zobrazíte výpočet"
           className="grid w-full justify-items-center text-center">
           <span className={`flex w-full items-center justify-between ${big ? "" : "text-[12px]"}`}>
             <span className={big ? "t-label" : "font-bold text-fg-2"}>{CH_ICON[id]}</span>
@@ -91,7 +147,7 @@ function TodayCapacity({ g }: { g: any }) {
           </span>
           {big ? (
             <span className="relative mt-1 grid w-full justify-items-center">
-              <HalfGauge ratio={ratio} col={col} size="lg" />
+              <HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} dist={c.dist} col={col} size="lg" />
               <span className="absolute inset-x-0 bottom-1 text-center">
                 <b className="t-num text-[28px] leading-none text-fg">{value}</b>
                 <span className="text-[13px] font-semibold text-fg-3"> {c.unit}</span>
@@ -99,12 +155,13 @@ function TodayCapacity({ g }: { g: any }) {
             </span>
           ) : (
             <>
-              <span className="mt-2"><HalfGauge ratio={ratio} col={col} size="sm" /></span>
+              <span className="mt-2"><HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} dist={c.dist} col={col} size="sm" /></span>
               <b className="t-num mt-1 text-[16px] leading-none text-fg">{value}</b>
               <span className="mt-0.5 text-[11px] font-semibold text-fg-3">{c.unit}</span>
             </>
           )}
           {c.limitedBy ? <span className={`mt-2 text-[11px] font-semibold text-watch ${big ? "" : "leading-4"}`}>omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</span> : <span className="mt-2 h-4" />}
+          {pctRow(c.dist, d)}
         </button>
         {isOpen && rows}
       </div>
@@ -117,6 +174,15 @@ function TodayCapacity({ g }: { g: any }) {
         <span className="text-[12px] text-fg-2">kolik si dnes můžete dovolit</span>
       </div>
       <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>
+      {safe && (
+        <div className="nest mt-3 flex items-center gap-3 px-3.5 py-3">
+          <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><MoveDiagonal className="size-4" aria-hidden /></span>
+          <p className="text-[13px] leading-5 text-fg-2">
+            Bezpečný nejdelší běh tento týden: <b className="text-fg">≈ {num(safe.week)} km</b>
+            <span className="block text-[11px] text-fg-3">{safe.why}{safe.today != null ? ` · dnes ≈ ${num(safe.today)} km` : ""}</span>
+          </p>
+        </div>
+      )}
       <div className="mt-4 grid items-start gap-3 md:grid-cols-[1.1fr_1fr]">
         {channel("volume")}
         <div className="grid grid-cols-2 items-start gap-3">
@@ -221,12 +287,15 @@ function WeekPanel({ g }: { g: any }) {
           const n = i + 1
           const on = cyc.pos === n
           return (
-            <button key={n} role="radio" aria-checked={on} disabled={busy || on || !allowed(n)}
+            <div key={n} className="relative">
+            <button role="radio" aria-checked={on} disabled={busy || on || !allowed(n)}
               onClick={() => setAsk(n)}
               title={locked ? (wk.novice ? "Prvních 6 týdnů běží bez cyklu." : wk.mode === "return" ? "Návrat po zranění řídí týden sám." : "Před závodem řídí týden ladění formy.") : !allowed(n) ? "Zátěž je zvýšená — nejdřív odlehčovací týden." : on ? "Aktuální týden cyklu" : "Přepnout tento týden"}
-              className={`rounded-[11px] px-1.5 py-2 text-center text-[12px] font-bold leading-tight transition disabled:cursor-not-allowed ${on ? "!cursor-default bg-fg text-ink" : allowed(n) ? "text-fg-soft hover:bg-white/[.08]" : "text-fg-4"}`}>
+              className={`w-full rounded-[11px] px-1.5 py-2 text-center text-[12px] font-bold leading-tight transition disabled:cursor-not-allowed ${on ? "!cursor-default bg-fg text-ink" : allowed(n) ? "text-fg-soft hover:bg-white/[.08]" : "text-fg-4"}`}>
               {n}. týden<span className="block text-[11px] font-medium opacity-80">{p} %</span>
             </button>
+            {on && <InfoDot className="absolute right-1 top-1" variant="onLight" label={`${n}. týden cyklu`} text={`${how} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž (${num(vol.ceiling7)} km za 7 dní).`} />}
+            </div>
           )
         })}
       </div>
@@ -246,9 +315,6 @@ function WeekPanel({ g }: { g: any }) {
           <button onClick={() => void pick(null)} disabled={busy} className="rounded-full border border-watch/40 px-2.5 py-1 font-bold hover:bg-watch/10">Vrátit automaticky</button>
         </p>
       )}
-      <p className="mt-3 text-[13px] leading-5 text-fg-2">
-        {how} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž ({num(vol.ceiling7)} km za 7 dní).
-      </p>
       <div className="mt-4">
         <p className="t-label mb-2 !text-fg-3">Objem po týdnech (od pondělí)</p>
         <div className="max-w-md"><CycleStrip cyc={cyc} /></div>
@@ -290,16 +356,17 @@ function RacesCard({ outlook }: { outlook: any }) {
   }
   const list = (races || []).filter((x) => x.daysTo >= -30)
   const warns = (outlook?.warnings || []).filter((w: any) => w.kind !== "race_day")
+  const warnsFor = (date: string) => warns.filter((w: any) => w.race === date)
+  const orphanWarns = warns.filter((w: any) => !(races || []).some((x: any) => x.date === w.race && x.daysTo >= -30))
   const inp = "mt-1 w-full rounded-xl border px-3 py-2.5 text-sm text-fg"
   return (
     <Card className="mt-4">
       <div className="flex items-center justify-between gap-2">
-        <Label>Závody</Label>
+        <span className="flex items-center gap-1.5"><Label>Závody</Label>
+          {orphanWarns.length > 0 && <InfoDot variant="watch" label="Závody" text={<>{orphanWarns.map((w: any, i: number) => <span key={i} className="block">{w.text}</span>)}</>} />}
+        </span>
         {!adding && <Button size="sm" variant="outline" icon={Plus} onClick={() => setAdding(true)}>Přidat závod</Button>}
       </div>
-      {warns.map((w: any, i: number) => (
-        <AlertBanner key={i} tone="watch" className="mt-3" title={w.text} />
-      ))}
       {races === null ? <p className="mt-2 text-sm text-fg-3">Načítám…</p> : list.length === 0 && !adding ? (
         <p className="mt-2 text-sm text-fg-2">Zatím žádný závod. Přidejte ho — před cílovým závodem (A) plán zařadí ladění formy a hlídá, aby závod nepřišel moc brzy po jiném maximálním úsilí.</p>
       ) : (
@@ -310,7 +377,8 @@ function RacesCard({ outlook }: { outlook: any }) {
               <li key={x.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1 py-3 ${x.daysTo < 0 ? "opacity-50" : ""}`}>
                 <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-white/[.05]" style={{ color: pc }}><Flag className="size-4" aria-hidden /></span>
                 <span className="min-w-0 flex-1">
-                  <b className="block truncate text-sm font-bold text-fg">{x.name || (x.priority === "A" ? "Cílový závod" : "Závod")}</b>
+                  <b className="flex items-center gap-1.5 text-sm font-bold text-fg"><span className="truncate">{x.name || (x.priority === "A" ? "Cílový závod" : "Závod")}</span>
+                    {warnsFor(x.date).length > 0 && <InfoDot variant="watch" label={x.name || "Závod"} text={<>{warnsFor(x.date).map((w: any, i: number) => <span key={i} className="block">{w.text}</span>)}</>} />}</b>
                   <span className="block text-[12px] text-fg-2"><span className="tabular-nums">{fmtD(x.date)}</span>{x.km ? <> · {num(x.km)} km</> : null}{x.source === "profile" && <> · z profilu</>} · {x.daysTo === 0 ? "dnes" : x.daysTo > 0 ? `za ${x.daysTo} d` : "proběhl"}</span>
                 </span>
                 <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${pc}1f`, color: pc }}>{pl}</span>
@@ -367,7 +435,20 @@ export function Training() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <Label>{`Trénink · ${today}`}</Label>
-          <h1 className="mt-1 font-serif text-[30px] tracking-[-.03em] md:text-4xl">{t.label}</h1>
+          <h1 className="mt-1 flex items-center gap-2 font-serif text-[30px] tracking-[-.03em] md:text-4xl">{t.label}
+            <InfoDot wide label="Proč" text={
+              <span className="block">
+                {g.reasons?.length ? (
+                  <span className="grid gap-1.5">{g.reasons.map((r: string, i: number) => <span key={i} className="flex gap-1.5"><ChevronRight className="mt-0.5 size-3.5 shrink-0 text-info" aria-hidden /><span>{r}</span></span>)}</span>
+                ) : "Vše v normě — běžný tréninkový den."}
+                <span className="mt-2 block border-t border-white/10 pt-2 text-[11px] text-fg-3">
+                  {pat.runDayNames?.length ? `Obvykle běháte: ${pat.runDayNames.join(", ")}` : "Pravidelné dny zatím nepoznáváme"}
+                  {pat.longDayName ? ` · dlouhý běh ${pat.longDayName}` : ""}
+                  {pat.hardDayNames?.length ? ` · tvrdé tréninky: ${pat.hardDayNames.join(", ")}` : ""}
+                  {pat.easyKm ? ` · typický lehký běh ${num(pat.easyKm)} km` : ""}
+                </span>
+              </span>} />
+          </h1>
         </div>
         <div className="flex flex-wrap gap-2">
           {g.provisional && <Chip tone="watch">předběžné · čeká na ranní data</Chip>}
@@ -440,8 +521,8 @@ export function Training() {
         ) : (
           <p className="text-[14px] leading-6 text-fg-soft">{kind === "závod" ? ((a.races?.warnings || []).some((w: any) => w.kind === "race_day") ? "Den závodu — ale tělo dnes nehlásí plnou připravenost (viz níže). Běžte s rezervou." : "Den závodu — žádné limity. Po závodě nechte tělo pár dní regenerovat.") : "Odpočinek. Pokud chcete pohyb, zvolte lehkou chůzi, mobilitu nebo jiný sport bez nárazů a bez bolesti."}</p>
         )}
-        {t.notes?.length > 0 && (
-          <ul className="mt-4 space-y-1.5 text-[13px] text-fg-2">{t.notes.map((n: string, i: number) => <li key={i} className="flex gap-2"><i className="mt-[7px] size-1.5 shrink-0 rounded-full bg-info" />{n}</li>)}</ul>
+        {run && t.notes?.length > 0 && (
+          <p className="mt-4 text-[13px] leading-6 text-fg-soft">{t.notes.join(" ")}</p>
         )}
       </section>
 
@@ -449,18 +530,6 @@ export function Training() {
       <WeekPanel g={g} />
       <RacesCard outlook={a.races} />
 
-      <Card className="mt-4">
-        <Label>Proč</Label>
-        {g.reasons?.length ? (
-          <ul className="mt-3 space-y-2.5 text-sm text-fg-soft">{g.reasons.map((r: string, i: number) => <li key={i} className="flex gap-2"><ChevronRight className="mt-0.5 size-4 shrink-0 text-info" aria-hidden /><span>{r}</span></li>)}</ul>
-        ) : <p className="mt-2 text-sm text-fg-2">Vše v normě — běžný tréninkový den.</p>}
-        <p className="mt-4 border-t border-white/[.07] pt-3 text-[12px] leading-5 text-fg-3">
-          {pat.runDayNames?.length ? `Obvykle běháte: ${pat.runDayNames.join(", ")}` : "Pravidelné dny zatím nepoznáváme"}
-          {pat.longDayName ? ` · dlouhý běh ${pat.longDayName}` : ""}
-          {pat.hardDayNames?.length ? ` · tvrdé tréninky: ${pat.hardDayNames.join(", ")}` : ""}
-          {pat.easyKm ? ` · typický lehký běh ${num(pat.easyKm)} km` : ""}
-        </p>
-      </Card>
       <p className="mt-4 text-[11px] leading-5 text-fg-3">Došlap není zdravotnický prostředek. Doporučení jsou ochranné mantinely z vašich dat, ne léčba ani diagnóza. Při bolesti, která se vrací nebo zhoršuje, se poraďte s fyzioterapeutem.</p>
     </>
   )

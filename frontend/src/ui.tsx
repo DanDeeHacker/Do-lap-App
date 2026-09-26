@@ -40,7 +40,7 @@ export function Button({
 // elsewhere closes). The bubble is portaled to <body> and fixed-positioned next
 // to the icon, clamped to the viewport, so it's never clipped by a card's
 // overflow/transform and never dumped off-screen at the bottom.
-export function InfoDot({ text, label, className = "" }: { text: ReactNode; label?: string; className?: string }) {
+export function InfoDot({ text, label, className = "", variant = "info", wide = false }: { text: ReactNode; label?: string; className?: string; variant?: "info" | "alert" | "watch" | "onLight"; wide?: boolean }) {
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
   const tipRef = useRef<HTMLSpanElement>(null)
@@ -50,7 +50,7 @@ export function InfoDot({ text, label, className = "" }: { text: ReactNode; labe
     const el = btnRef.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    const width = Math.min(280, window.innerWidth - 24)
+    const width = Math.min(wide ? 340 : 280, window.innerWidth - 24)
     const left = Math.max(12, Math.min(r.left + r.width / 2 - width / 2, window.innerWidth - width - 12))
     const below = r.top < 210 // too close to the top → drop the bubble below the icon
     setPos({ left, top: below ? r.bottom + 10 : r.top - 10, width, below })
@@ -79,12 +79,16 @@ export function InfoDot({ text, label, className = "" }: { text: ReactNode; labe
       <button
         ref={btnRef}
         type="button"
-        aria-label={label ? `Co znamená: ${label}` : "Nápověda k metrice"}
+        aria-label={variant === "alert" || variant === "watch" ? `Upozornění${label ? `: ${label}` : ""}` : label ? `Co znamená: ${label}` : "Nápověda k metrice"}
         aria-expanded={open}
         onClick={(e) => { e.stopPropagation(); e.preventDefault(); open ? setOpen(false) : show() }}
-        className={`grid size-5 place-items-center rounded-full border text-[11px] font-extrabold leading-none transition active:scale-90 ${open ? "border-accent bg-accent/15 text-accent" : "border-accent/60 text-accent/90 hover:border-accent hover:text-accent"}`}
+        className={`grid size-5 place-items-center rounded-full border text-[11px] font-extrabold leading-none transition active:scale-90 ${
+          variant === "alert" ? "border-alert bg-alert text-ink"
+            : variant === "watch" ? "border-watch bg-watch text-ink"
+              : variant === "onLight" ? "border-ink/40 text-ink/80 hover:border-ink hover:text-ink"
+                : open ? "border-accent bg-accent/15 text-accent" : "border-accent/60 text-accent/90 hover:border-accent hover:text-accent"}`}
       >
-        ?
+        {variant === "alert" || variant === "watch" ? "!" : "?"}
       </button>
       {open && pos && createPortal(
         <span

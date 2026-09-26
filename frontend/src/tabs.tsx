@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, FactorBar, toneCol, type Tone, Field, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
-import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, MoveDiagonal, Mountain, Orbit, Ship, Waves, type LucideIcon } from "lucide-react"
+import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Ship, Waves, type LucideIcon } from "lucide-react"
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
 import { clamp, czk, FEEL_LABEL, fmtD, fmtSlot, paceStr, PHASE, plural, QUAD, sgn } from "@/lib"
@@ -44,6 +44,7 @@ export function Post() {
   const { me, boot, refresh } = useApp()
   const rid = me!.runner_id!
   const [rate, setRate] = useState<{ act: any; initial?: any } | null>(null)
+  const [insOpen, setInsOpen] = useState(false)
   const fb = (boot?.activity_feedback || []) as any[]
   const acts = (boot?.activities || []) as any[]
   const cutoff = dayAgo(14)
@@ -184,10 +185,12 @@ export function Post() {
           </Card>
         </div>
         <div className="grid content-start gap-4">
-          {ov ? (
-            <>
-              <Card>
-                <Label>Souhrn deníku</Label>
+          {/* feedback railway#44/#45 — one summary box: diary (with the reading behind a
+              detail toggle) and the check-in summary under it, for comparison */}
+          <Card>
+            <Label>Souhrn deníku</Label>
+            {ov ? (
+              <>
                 <div className="mt-3 flex items-baseline gap-2">
                   <p className="t-num text-[44px] leading-none">{mfmt(1, ov.feelingMean)}</p>
                   <span className="text-sm text-fg-3">/5 pocit</span>
@@ -200,7 +203,7 @@ export function Post() {
                   <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ov.painMax >= 4 ? C.alert : undefined }}>{ov.painMax}</p><p className="text-[11px] text-fg-3">max bolest</p></div>
                 </div>
                 {Object.keys(ov.painMap).length > 0 && (
-                  <div className="mt-4 border-t border-white/10 pt-4">
+                  <div className="mt-4 border-t border-white/[.08] pt-4">
                     <Label>Kde to nejčastěji bolí</Label>
                     <p className="mt-1 text-[12px] leading-5 text-fg-3">Podle zápisů za posledních 30 dní — čím výraznější místo, tím častěji jste ho označil jako bolestivé.</p>
                     <div className="mt-3"><PainHeatmap counts={ov.painMap} /></div>
@@ -218,49 +221,53 @@ export function Post() {
                     </div>
                   </div>
                 )}
-              </Card>
-              <Card>
-                <Label>Co z toho čteme</Label>
-                <ul className="mt-3 space-y-2.5">
-                  {ov.insights.map((t, i) => (
-                    <li key={i} className="flex gap-2.5 text-sm leading-5">
-                      <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: t.tone === "alert" ? C.alert : t.tone === "watch" ? C.watch : C.ok }} />
-                      <span className="text-fg-soft">{t.text}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            </>
-          ) : (
-            <Card><Empty>Zatím málo zápisů na to, aby z nich šel číst vzorec. Užitečné to začne být zhruba od čtvrtého.</Empty></Card>
-          )}
-          {ciSum && (
-            <Card>
-              <Label>Souhrn check-inů</Label>
-              <p className="mt-1 text-[12px] text-fg-3">Odděleně od běhů · poslední {fmtD(ciSum.lastAt)}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-center">
-                <div className="nest px-2 py-3"><p className="t-num text-[22px] text-info">{ciSum.nDaily}</p><p className="text-[11px] text-fg-3">denních</p></div>
-                <div className="nest px-2 py-3"><p className="t-num text-[22px] text-self">{ciSum.nWeekly}</p><p className="text-[11px] text-fg-3">týdenních{ciSum.activeWeekly ? ` · ${ciSum.activeWeekly} akt.` : ""}</p></div>
-                <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ciSum.painMean != null && ciSum.painMean >= 4 ? C.alert : undefined }}>{ciSum.painMean != null ? mfmt(1, ciSum.painMean) : "—"}</p><p className="text-[11px] text-fg-3">ø bolest /10</p></div>
-                <div className="nest px-2 py-3"><p className="t-num text-[22px]">{ciSum.moodMean != null ? mfmt(1, ciSum.moodMean) : "—"}</p><p className="text-[11px] text-fg-3">ø nálada /4</p></div>
-              </div>
-              {ciSum.top.length > 0 && (
-                <div className="mt-4 border-t border-white/[.07] pt-3">
-                  <Label>Nejčastější místo v check-inech</Label>
-                  <p className="mt-1 text-[11px] text-fg-3">Za posledních 30 dní napříč denními i týdenními check-iny.</p>
-                  <div className="mt-2 space-y-1.5">
-                    {ciSum.top.slice(0, 4).map(([region, count]) => (
-                      <div key={region} className="flex items-center gap-2 text-[12px]">
-                        <span className="w-32 shrink-0 truncate text-fg-soft">{region}</span>
-                        <div className="h-1.5 flex-1 rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-self" style={{ width: `${Math.round((count / ciSum.top[0][1]) * 100)}%` }} /></div>
-                        <span className="tabular-nums text-fg-2">{count}×</span>
-                      </div>
+                <button type="button" onClick={() => setInsOpen((v) => !v)} aria-expanded={insOpen}
+                  className="nest mt-4 flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left transition hover:border-white/20">
+                  <span className="t-label">Co z toho čteme</span>
+                  <ChevronDown className={`size-4 text-fg-3 transition ${insOpen ? "rotate-180 text-accent" : ""}`} aria-hidden />
+                </button>
+                {insOpen && (
+                  <ul className="mt-3 origin-top animate-[careReveal_.28s_ease-out] space-y-2.5">
+                    {ov.insights.map((t, i) => (
+                      <li key={i} className="flex gap-2.5 text-sm leading-5">
+                        <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: t.tone === "alert" ? C.alert : t.tone === "watch" ? C.watch : C.ok }} />
+                        <span className="text-fg-soft">{t.text}</span>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
+                )}
+              </>
+            ) : (
+              <div className="mt-3"><Empty>Zatím málo zápisů na to, aby z nich šel číst vzorec. Užitečné to začne být zhruba od čtvrtého.</Empty></div>
+            )}
+            {ciSum && (
+              <div className="mt-5 border-t border-white/[.08] pt-4">
+                <Label>Souhrn check-inů</Label>
+                <p className="mt-1 text-[12px] text-fg-3">Odděleně od běhů · poslední {fmtD(ciSum.lastAt)}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+                  <div className="nest px-2 py-3"><p className="t-num text-[22px] text-info">{ciSum.nDaily}</p><p className="text-[11px] text-fg-3">denních</p></div>
+                  <div className="nest px-2 py-3"><p className="t-num text-[22px] text-self">{ciSum.nWeekly}</p><p className="text-[11px] text-fg-3">týdenních{ciSum.activeWeekly ? ` · ${ciSum.activeWeekly} akt.` : ""}</p></div>
+                  <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ciSum.painMean != null && ciSum.painMean >= 4 ? C.alert : undefined }}>{ciSum.painMean != null ? mfmt(1, ciSum.painMean) : "—"}</p><p className="text-[11px] text-fg-3">ø bolest /10</p></div>
+                  <div className="nest px-2 py-3"><p className="t-num text-[22px]">{ciSum.moodMean != null ? mfmt(1, ciSum.moodMean) : "—"}</p><p className="text-[11px] text-fg-3">ø nálada /4</p></div>
                 </div>
-              )}
-            </Card>
-          )}
+                {ciSum.top.length > 0 && (
+                  <div className="mt-4">
+                    <Label>Nejčastější místo v check-inech</Label>
+                    <p className="mt-1 text-[11px] text-fg-3">Za posledních 30 dní napříč denními i týdenními check-iny.</p>
+                    <div className="mt-2 space-y-1.5">
+                      {ciSum.top.slice(0, 4).map(([region, count]) => (
+                        <div key={region} className="flex items-center gap-2 text-[12px]">
+                          <span className="w-32 shrink-0 truncate text-fg-soft">{region}</span>
+                          <div className="h-1.5 flex-1 rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-self" style={{ width: `${Math.round((count / ciSum.top[0][1]) * 100)}%` }} /></div>
+                          <span className="tabular-nums text-fg-2">{count}×</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
         </div>
       </div>
     </>
@@ -368,6 +375,12 @@ export function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; ri
 }
 
 /* ============================ MECHANIKA (POHYB) ============================ */
+// feedback railway#50 — changes shown as % of the runner's own baseline, not z / σ
+export const pctStr = (now: number | null | undefined, base: number | null | undefined) => {
+  if (now == null || base == null || base === 0) return "—"
+  const v = Math.round(((now - base) / Math.abs(base)) * 1000) / 10
+  return `${v > 0 ? "+" : v < 0 ? "−" : "±"}${String(Math.abs(v)).replace(".", ",")} %`
+}
 const mfmt = (dec: number, v: number) => (dec > 0 ? v.toFixed(dec).replace(".", ",") : String(Math.round(v)))
 const mean = (a: number[]) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0)
 const std = (a: number[]) => {
@@ -398,7 +411,7 @@ function metricFromActs(acts: any[], field: string, label: string, unit: string,
   const sd = std(baseVals) || Math.abs(baseline * 0.02) || 1
   const z = (value - baseline) / sd
   const d = value - baseline
-  const delta = `${d >= 0 ? "+" : "−"}${mfmt(dec, Math.abs(d))} ${unit}`
+  const delta = pctStr(value, baseline)
   return { label, unit, dec, value, baseline, z, delta, hot: false, position: clamp(50 + z * 18, 8, 92), weeks, dates: dates.slice(-8), series: vals.slice(-26), seriesDates: dates.slice(-26), terrain: false, approx: true }
 }
 
@@ -478,7 +491,7 @@ function bucketKey(a: any): string {
 }
 const bucketParts = (b: string) => { const [s, g, p] = b.split("|"); return { surf: _SURF[s] || s, grade: _GRADE[g] || g, pace: _PACE[p] || p } }
 
-type Cell = { now: number | null; avg6: number; z: number | null } | null
+type Cell = { now: number | null; avg6: number; z: number | null; base: number | null } | null
 const TERRAIN_DAYS = 182   // the terrain comparison looks 6 months back, so every profile has runs to show
 // Per terrain profile × per metric: recent mean and its drift-z against the
 // same profile's baseline — same windows/logic as engine._drift_z_core.
@@ -501,9 +514,9 @@ function terrainCompare(acts: any[]) {
       const base = vals.filter((x) => x.d <= rec).map((x) => x.v)
       const now = recv.length ? mean(recv) : null
       const avg6 = mean(vals.map((x) => x.v))
-      if (now == null || base.length < 3) return { now, avg6, z: null }
+      if (now == null || base.length < 3) return { now, avg6, z: null, base: null }
       const sd = Math.max(std(base), Math.abs(mean(base)) * 0.012) || 1
-      return { now, avg6, z: (now - mean(base)) / sd }
+      return { now, avg6, z: (now - mean(base)) / sd, base: mean(base) }
     }),
   }))
   return { profiles, rows }
@@ -517,7 +530,7 @@ function TerrainMatrix({ acts }: { acts: any[] }) {
   return (
     <Card>
       <Label>Podle profilu terénu · 6 měsíců</Label>
-      <p className="mt-1 text-[12px] leading-5 text-fg-3">Každý sloupec je jiný profil (povrch · sklon · tempo) — všechny, které jste za posledních 6 měsíců běželi aspoň dvakrát. Hodnota = průměr posledních 28 dní; šedě průměr za 6 měsíců, když jste profil poslední měsíc neběželi. Odchylka (z) = posledních 28 dní proti starším běhům stejného profilu.</p>
+
       <div className="-mx-1 mt-4 overflow-x-auto px-1 pb-1">
       <div className="grid min-w-max items-stretch gap-y-1" style={{ gridTemplateColumns: cols }}>
         <div />
@@ -538,7 +551,7 @@ function TerrainMatrix({ acts }: { acts: any[] }) {
                   c.now != null ? (
                     <>
                       <p className="t-num text-[17px] leading-none text-fg">{mfmt(r.dec, c.now)}</p>
-                      <p className="mt-1 tabular-nums text-[11px]" style={{ color: zTone(c.z) }}>{c.z != null ? `${sgn(Math.round(c.z * 100) / 100)} z` : "málo dat"}</p>
+                      <p className="mt-1 tabular-nums text-[11px]" style={{ color: zTone(c.z) }}>{c.z != null ? pctStr(c.now, c.base) : "málo dat"}</p>
                     </>
                   ) : (
                     <>
@@ -622,16 +635,17 @@ function RunContext({ x }: { x: any }) {
 
 // Feedback railway#36 — take a run out of every calculation (or put it back).
 // The run stays listed (faded) so it can be restored; nothing is deleted.
-function ExcludeRun({ rid, x, onDone }: { rid: string; x: any; onDone: (excluded: boolean) => void }) {
+const SCOPE_TXT: Record<string, string> = { all: "ze všech výpočtů", mech: "jen z mechaniky", load: "jen ze zátěže" }
+function ExcludeRun({ rid, x, onDone }: { rid: string; x: any; onDone: (excluded: boolean, scope?: string | null) => void }) {
   const [ask, setAsk] = useState(false)
   const [busy, setBusy] = useState(false)
   const toast = useToast()
-  const go = async (excluded: boolean) => {
+  const go = async (excluded: boolean, scope: string = "all") => {
     setBusy(true)
     try {
-      await api.excludeActivity(rid, x.id, excluded)
-      onDone(excluded)
-      toast({ title: excluded ? "Běh vyřazen z výpočtů" : "Běh se zase počítá" })
+      await api.excludeActivity(rid, x.id, excluded, excluded ? scope : undefined)
+      onDone(excluded, excluded ? scope : null)
+      toast({ title: excluded ? `Běh vyřazen ${SCOPE_TXT[scope]}` : "Běh se zase počítá" })
     } catch (e: any) {
       toast({ title: e?.message || "Nepodařilo se" })
     } finally { setBusy(false); setAsk(false) }
@@ -639,7 +653,10 @@ function ExcludeRun({ rid, x, onDone }: { rid: string; x: any; onDone: (excluded
   if (x.excluded)
     return (
       <div className="flex flex-wrap items-center gap-2 border-t border-white/[.07] px-4 py-3 text-[12px] text-fg-2">
-        <span className="flex-1">Tento běh je vyřazený — nepočítá se do skóre, kapacity, srovnání ani AI textů.</span>
+        <span className="flex-1">{(x.excluded_scope || "all") === "all"
+          ? "Tento běh je vyřazený — nepočítá se do skóre, kapacity, srovnání ani AI textů."
+          : x.excluded_scope === "mech" ? "Tento běh je vyřazený jen z mechaniky — do zátěže a kapacity se dál počítá."
+            : "Tento běh je vyřazený jen ze zátěže a kapacity — do mechaniky se dál počítá."}</span>
         <Button size="sm" variant="outline" disabled={busy} onClick={() => go(false)}>Vrátit do výpočtů</Button>
       </div>
     )
@@ -647,9 +664,11 @@ function ExcludeRun({ rid, x, onDone }: { rid: string; x: any; onDone: (excluded
     <div className="flex flex-wrap items-center gap-2 border-t border-white/[.07] px-4 py-3 text-[12px] text-fg-2">
       {ask ? (
         <>
-          <span className="flex-1">Vyřadit „{x.title}“ ({fmtD(x.started_at)})? Přestane se počítat do skóre, kapacity, srovnání i AI textů. Kdykoli ho vrátíte.</span>
-          <Button size="sm" variant="danger" disabled={busy} onClick={() => go(true)}>Vyřadit</Button>
-          <Button size="sm" variant="outline" onClick={() => setAsk(false)}>Zrušit</Button>
+          <span className="w-full">Vyřadit „{x.title}“ ({fmtD(x.started_at)}) — z čeho? Kdykoli ho vrátíte.</span>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => go(true, "mech")}>Jen z mechaniky</Button>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => go(true, "load")}>Jen ze zátěže</Button>
+          <Button size="sm" variant="danger" disabled={busy} onClick={() => go(true, "all")}>Ze všech výpočtů</Button>
+          <Button size="sm" variant="secondary" onClick={() => setAsk(false)}>Zrušit</Button>
         </>
       ) : (
         <button onClick={() => setAsk(true)} className="ml-auto text-[12px] text-fg-3 underline decoration-dotted underline-offset-2 hover:text-alert">Vyřadit běh z výpočtů</button>
@@ -704,7 +723,7 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
                   <span className="grid size-[34px] place-items-center rounded-[10px] bg-info/15 text-info">{x.surface === "trail" ? <Mountain className="size-4" aria-hidden /> : <Footprints className="size-4" aria-hidden />}</span>
                   <span className="min-w-0">
                     <b className="text-sm font-bold">{x.title}</b>
-                    {x.excluded && <span className="ml-2 rounded-full bg-white/[.08] px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] text-fg-2">vyřazeno</span>}
+                    {x.excluded && <span className="ml-2 rounded-full bg-white/[.08] px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] text-fg-2">{(x.excluded_scope || "all") === "all" ? "vyřazeno" : x.excluded_scope === "mech" ? "bez mechaniky" : "bez zátěže"}</span>}
                     <span className="block text-[12px] text-fg-3">{fmtD(x.started_at)}{x.start_time ? ` ${x.start_time}` : ""} · {surf(x.surface)} · {x.distance_km} km · {paceStr(x.pace_s_km)}/km · {x.avg_hr} tep</span>
                     {(tl || wl) && (
                       <span className="mt-1.5 flex flex-wrap gap-1.5">
@@ -731,8 +750,8 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
                   )
                 )}
                 {isOpen && rid && ctx && (
-                  <ExcludeRun rid={rid} x={x} onDone={(ex) => {
-                    setCtx((c) => (c ? c.map((r: any) => (r.id === x.id ? { ...r, excluded: ex } : r)) : c))
+                  <ExcludeRun rid={rid} x={x} onDone={(ex, scope) => {
+                    setCtx((c) => (c ? c.map((r: any) => (r.id === x.id ? { ...r, excluded: ex, excluded_scope: scope } : r)) : c))
                     setCmp({})
                     refresh()
                   }} />
@@ -771,8 +790,12 @@ const mmss = (s: number) => {
   const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), ss = String(t % 60).padStart(2, "0")
   return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`
 }
-const zStr = (z: number) => `${z > 0 ? "+" : z < 0 ? "−" : ""}${mfmt(1, Math.abs(z))}σ`
-const pStr = (p: number) => (p < 0.001 ? "p < 0,001" : `p = ${mfmt(3, p)}`)
+const meanPct = (g: any) => {
+  const v = g.segs.map((s: any) => s.findings.find((f: any) => f.metric === g.key)).filter((f: any) => f && f.base).map((f: any) => (f.value - f.base) / Math.abs(f.base) * 100)
+  if (!v.length) return "—"
+  const m = Math.round((v.reduce((a: number, b: number) => a + b, 0) / v.length) * 10) / 10
+  return `${m > 0 ? "+" : m < 0 ? "−" : "±"}${String(Math.abs(m)).replace(".", ",")} %`
+}
 const segVal = (key: string, v: number | null | undefined) => {
   const m = SEG_METRICS.find((x) => x[0] === key)
   return v == null || !m ? "—" : `${mfmt(m[4], v)} ${m[3]}`
@@ -833,7 +856,7 @@ function SegmentTimeline({ rid, aid }: { rid: string; aid: number }) {
   const head = (
     <span className="flex items-center gap-1.5">
       <span className="t-label">Úseky běhu vůči vaší normě</span>
-      <InfoDot label="Úseky běhu" text="Běh je rozdělený na úseky po 20–60 s ustáleného běhu. Každý úsek se porovná s tím, co od vás čeká vaše vlastní norma přesně pro ten úsek — při jeho tempu, sklonu, čase v běhu a povrchu. Norma je z běhů 29–84 dní PŘED tímto během, takže i starší běh se posuzuje tím, jak jste běhali tehdy. σ = odchylka v násobcích vašeho obvyklého rozptylu. „Významné“ = po korekci na počet testů (FDR 5 %), ne jen p < 0,05. Úseky mimo vaši obvyklou rychlost / sklon / povrch se netestují." />
+      <InfoDot label="Úseky běhu" text="Běh je rozdělený na úseky po 20–60 s ustáleného běhu. Každý úsek se porovná s tím, co od vás čeká vaše vlastní norma přesně pro ten úsek — při jeho tempu, sklonu, čase v běhu a povrchu. Norma je z běhů 29–84 dní PŘED tímto během, takže i starší běh se posuzuje tím, jak jste běhali tehdy. Procenta = o kolik se úsek liší od hodnoty, kterou pro něj čeká vaše norma. „Významné“ = po korekci na počet testů (FDR 5 %), ne jen p < 0,05. Úseky mimo vaši obvyklou rychlost / sklon / povrch se netestují." />
     </span>
   )
   const box = (children: any) => <div className="border-t border-white/[.07] px-4 py-3">{head}{children}</div>
@@ -920,7 +943,7 @@ function SegmentTimeline({ rid, aid }: { rid: string; aid: number }) {
                     <b className="text-fg">{g.label}</b> {g.dir === "up" ? "vyšší" : "nižší"} než norma
                     <span className="block text-[11px] text-fg-3">{g.n === 1 ? `úsek ${g.from}` : `úseky ${g.from}–${g.to}`} · {mmss(g.t0)}–{mmss(g.t1)} · {g.bands.join(", ")}</span>
                   </span>
-                  <span className="whitespace-nowrap text-right tabular-nums text-[11px]" style={{ color: g.dir === "up" ? UP : DOWN }}>Ø {zStr(g.meanZ)}<span className="block text-[11px] text-fg-3">{g.n}× významné</span></span>
+                  <span className="whitespace-nowrap text-right tabular-nums text-[11px]" style={{ color: g.dir === "up" ? UP : DOWN }}>Ø {meanPct(g)}<span className="block text-[11px] text-fg-3">{g.n}× významné</span></span>
                 </button>
               </li>
             ))}
@@ -949,13 +972,13 @@ function SegmentTimeline({ rid, aid }: { rid: string; aid: number }) {
                   <div key={k} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 text-[11px] sm:grid-cols-[150px_minmax(0,1fr)_17rem]">
                     <span className="text-fg-soft">{label}{f.sig && <span className="ml-1.5 rounded bg-alert/20 px-1 text-[11px] font-bold uppercase tracking-wide text-alert-soft">významné</span>}</span>
                     <span className="whitespace-nowrap text-right tabular-nums text-[11px] text-fg-2 sm:col-start-3 sm:row-start-1">
-                      <span className="hidden sm:inline"><b className="text-fg">{segVal(k, f.value)}</b> <span className="text-fg-3">vs {segVal(k, f.base)}</span> · </span><span style={{ color: f.sig ? col : undefined }}>{zStr(f.z)}</span><span className="hidden text-fg-3 sm:inline"> {pStr(f.p)}</span>
+                      <span className="hidden sm:inline"><b className="text-fg">{segVal(k, f.value)}</b> <span className="text-fg-3">vs {segVal(k, f.base)}</span> · </span><span style={{ color: f.sig ? col : undefined }}>{pctStr(f.value, f.base)}</span>
                     </span>
                     <span className="relative col-span-2 h-2 rounded-full bg-white/[.06] sm:col-span-1 sm:col-start-2 sm:row-start-1">
                       <span className="absolute inset-y-0 left-1/2 w-px bg-white/25" />
                       <span className="absolute inset-y-0 rounded-full" style={{ left: `${Math.min(50, pos)}%`, width: `${Math.abs(pos - 50)}%`, background: col, opacity: f.sig ? 1 : 0.45 }} />
                     </span>
-                    <span className="col-span-2 tabular-nums text-[11px] text-fg-3 sm:hidden"><b className="text-fg">{segVal(k, f.value)}</b> vs {segVal(k, f.base)} · {pStr(f.p)}</span>
+                    <span className="col-span-2 tabular-nums text-[11px] text-fg-3 sm:hidden"><b className="text-fg">{segVal(k, f.value)}</b> vs {segVal(k, f.base)}</span>
                   </div>
                 )
               })}
@@ -965,7 +988,7 @@ function SegmentTimeline({ rid, aid }: { rid: string; aid: number }) {
           )}
         </div>
       )}
-      <p className="mt-2 text-[11px] leading-4 text-fg-3">Klepněte do pásu na libovolné místo běhu. „vs“ = hodnota, kterou vaše norma čeká přesně pro takový úsek. σ = násobek vašeho obvyklého rozptylu.</p>
+      <p className="mt-2 text-[11px] leading-4 text-fg-3">Klepněte do pásu na libovolné místo běhu. „vs“ = hodnota, kterou vaše norma čeká přesně pro takový úsek; procenta = rozdíl proti ní.</p>
     </>,
   )
 }
@@ -1029,7 +1052,8 @@ export function Mechanics() {
   const rid = me?.runner_id
   const a = boot?.assessment
   const allActs = (boot?.activities || []) as any[]
-  const acts = useMemo(() => allActs.filter((x) => !x.excluded), [allActs])   // excluded runs count nowhere
+  // excluded runs don't count for mechanics — unless they were excluded from load only (railway#47)
+  const acts = useMemo(() => allActs.filter((x) => !x.excluded || x.excluded_scope === "load"), [allActs])
   const [openMetric, setOpenMetric] = useState("Vertikální poměr")
   const [terr, setTerr] = useState(false)
   const [mechHist, setMechHist] = useState<any[] | null>(null)
@@ -1082,7 +1106,7 @@ export function Mechanics() {
       o.perRunZ != null ? o.perRunZ
         : !o.segment && o.z != null ? o.z
           : (rec - base) / (std(series) || Math.abs(base * 0.02) || 1)
-    return eng(series, field, label, unit, dec, rec, base, z, `${sgn(Math.round(z * 100) / 100)} z`, Math.abs(z) >= 1, clamp(50 + z * 18, 8, 92), terrain)
+    return eng(series, field, label, unit, dec, rec, base, z, pctStr(rec, base), Math.abs(z) >= 1, clamp(50 + z * 18, 8, 92), terrain)
   }
   const metrics: Metric[] = []
   if (a.tavr) metrics.push(mk(a.tavr, "vert_ratio_pct", "Vertikální poměr", "%", 1))
@@ -1110,7 +1134,7 @@ export function Mechanics() {
   // kvadrant exactly — not a separate ≥25 / tavr-z cutoff that could disagree.
   const drift = a.quadrant === "silent" || a.quadrant === "critical"
   const headline = drift ? "Mechanika se mění" : a.mech >= 12 ? "Jemný drift proti normě" : "Mechanika drží na normě"
-  const mechSig = ((a.signals || []) as any[]).filter((s) => ["tavr", "gct", "bal", "dec", "gaitcv", "cad", "vosc"].includes(s.id))
+  const mechSig = ((a.signals || []) as any[]).filter((s) => MECH_IDS.has(s.id))
 
   // Reconcile the trend's final point with the live score so the chart's last
   // value *and* date always equal the big number / quadrant — even if this
@@ -1126,9 +1150,7 @@ export function Mechanics() {
           <div>
             <Label>Signál pohybu</Label>
             <h2 className="mt-2 font-serif text-[28px] leading-tight tracking-[-.02em] text-fg">{headline}</h2>
-            <p className="mt-2.5 max-w-sm text-sm leading-6 text-fg-2">
-              {drift ? "Při stejném tempu se krok mírně prodlužuje a kontakt se zemí narůstá. Není to alarm, ale dobrý okamžik ubrat tlak." : "Ve srovnatelných podmínkách se vaše mechanika drží ve vlastním obvyklém rozsahu."}
-            </p>
+
             <div className={`mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-bold ${drift ? "bg-alert/12 text-alert-soft" : "bg-ok/12 text-ok"}`}>
               <i className={`size-2 rounded-full ${drift ? "bg-alert" : "bg-ok"}`} />
               {drift ? "vyšší než váš obvyklý střed" : "v rámci obvyklého středu"}
@@ -1181,7 +1203,7 @@ export function Mechanics() {
                 <MechMetricCard m={m} open={isOpen} onSelect={() => setOpenMetric(isOpen ? "" : m.label)} />
                 {isOpen && (
                   <div className="origin-top animate-[careReveal_.28s_ease-out] border-t border-white/[.08] px-4 py-4">
-                    <p className="text-sm leading-6 text-fg-2">Baseline <b className="text-fg">{mfmt(m.dec, m.baseline)} {m.unit}</b> → teď <b className="text-fg">{mfmt(m.dec, m.value)} {m.unit}</b> · odchylka {sgn(Math.round(m.z * 100) / 100)}. {m.terrain !== false ? "Porovnává se jen ve stejném profilu terénu a tempa." : "Průměr proti vašemu dřívějšímu období (napříč terénem — málo dat na terénní očištění)."}</p>
+
                     {m.series.length > 1 && (
                       <div className="mt-3">
                         <p className="t-label !text-fg-3">Celý trend · {m.series.length} {plural(m.series.length, "běh", "běhy", "běhů")}{m.seriesDates.length ? ` · ${fmtD(m.seriesDates[0])} → ${fmtD(m.seriesDates.at(-1)!)}` : ""}</p>
@@ -1202,7 +1224,8 @@ export function Mechanics() {
 }
 
 /* ============================ ZÁTĚŽ ============================ */
-const LOAD_IDS = new Set([
+export const MECH_IDS = new Set(["tavr", "gct", "bal", "dec", "gaitcv", "cad", "vosc"])
+export const LOAD_IDS = new Set([
   // v0.6 spine
   "session_spike", "spike_latent", "pace_spike", "load_capacity",
   // grade-C ACWR context + the rest of the load axis
@@ -1222,7 +1245,7 @@ function RatioBar({ ratio }: { ratio: number }) {
   return (
     <div className="nest p-3.5">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="t-label !text-fg-3">Poměr zátěže 7 : 28 dní</span>
+        <span className="t-label !text-fg-3">Poměr zátěže (7:28 dní)</span>
         <span className="text-[13px] font-bold" style={{ color: col }}><span className="t-num text-[18px]">×{mfmt(2, ratio)}</span> · {word}</span>
       </div>
       <div className="relative mt-3 h-2.5">
@@ -1253,7 +1276,7 @@ function DescentBySlope({ g }: { g: any }) {
   const b: number[] = g.buckets || []
   const bands = SLOPE_BANDS.map(([l, a, z, t]) => ({ l, t, v: b.slice(a, z).reduce((s: number, x: number) => s + (x || 0), 0) }))
   return (
-    <Card className="mt-4">
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label>Klesání za 7 dní podle sklonu</Label>
         <Segmented size="sm" ariaLabel="Rozlišení sklonu" options={[["bands", "4 pásma"], ["bins", "po 2,5 %"]] as const} value={detail ? "bins" : "bands"} onChange={(k) => setDetail(k === "bins")} />
@@ -1263,7 +1286,7 @@ function DescentBySlope({ g }: { g: any }) {
             tones={b.map((_, i) => SLOPE_BANDS.find(([, a, z]) => i >= a && i < z)?.[3] || "muted")} />
         : <Bars vals={bands.map((x) => x.v)} unit="m" labels={bands.map((x) => x.l)} tones={bands.map((x) => x.t)} />}
       <p className="mt-2 text-[12px] text-fg-3">{g.total7} m celkem · {g.steep7} m na sklonu ≥10 %.</p>
-    </Card>
+    </div>
   )
 }
 
@@ -1286,7 +1309,6 @@ export function Load() {
   const loadHot = a.quadrant === "overreaching" || a.quadrant === "critical"
   const loadHeadline = loadHot ? "Zátěž je zvýšená" : (a.load ?? 0) >= 12 ? "Zátěž roste" : "Zátěž drží v normě"
   const loadSig = ((a.signals || []) as any[]).filter((s) => LOAD_IDS.has(s.id))
-  const capVol = a.capacity?.channels?.volume
 
   // Same reconciliation as Pohyb: pin the trend's final point to the live load
   // score + date so the chart end always equals the big number / quadrant.
@@ -1339,60 +1361,77 @@ export function Load() {
             ) : <p className="mt-2 text-[13px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
           </div>
           <div className="grid content-start gap-3">
-          {L.valid && L.ratio != null && <RatioBar ratio={L.ratio} />}
-          {(capVol?.ceilingSession != null || L?.safeLongRunKm) && (
-            <div className="nest flex items-center gap-3 px-3.5 py-3">
-              <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><MoveDiagonal className="size-4" aria-hidden /></span>
-              <p className="text-[13px] leading-5 text-fg-2">
-                Bezpečný nejdelší běh tento týden: <b className="text-fg">≈ {(capVol?.ceilingSession ?? L.safeLongRunKm).toLocaleString("cs-CZ")} km</b>
-                <span className="block text-[11px] text-fg-3">
-                  {capVol?.ceilingSession != null
-                    ? `vaše prokázaná kapacita jednoho běhu + 10 %${capVol.ceilingToday != null && capVol.ceilingToday < capVol.ceilingSession - 0.05 ? ` · dnes podle připravenosti jen ≈ ${capVol.ceilingToday.toLocaleString("cs-CZ")} km` : ""}`
-                    : "≈ +10 % nad váš nejdelší běh 30 dní · nad +100 % prudce roste riziko"}
-                </span>
-              </p>
-            </div>
-          )}
+            {L.valid && L.ratio != null && <RatioBar ratio={L.ratio} />}
+            {/* railway#63 — recovery signals sit under the 7:28 ratio, sized to this column */}
+            {rcv ? <RecoveryTiles rcv={rcv} sleepEff={a.sleepEff} /> : <p className="nest px-3.5 py-3 text-[12px] text-fg-3">Chybí souvislá data z hodinek za posledních 35 dní (HRV, klidový tep, spánek).</p>}
           </div>
         </div>
       </section>
 
-      {a.capacity && <CapacityPanel cap={a.capacity} />}
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
-          <Label>Týdenní objem běhu (Po–Ne), 12 týdnů</Label>
-          <Bars vals={L.weekly || []} tones={weekTones(L.weekly || [])} />
-          <p className="mt-2 text-[12px] text-fg-3">Tento týden (Po–Ne) <b className="text-fg">{L.weekKm ?? "—"} km</b> · posledních 7 dní <b className="text-fg">{L.runKm7 ?? "—"} km</b></p>
-          <p className="mt-1 text-[11px] text-fg-3">barva = týden proti průměru 4 předchozích (nad ×1,3 žlutě, nad ×1,5 červeně)</p>
-        </Card>
-        <Card>
-          <Label>Denní objem běhu, 28 dní</Label>
-          <Bars vals={L.daily || []} tones={(L.daily || []).map((_: number, i: number, arr: number[]) => (i >= arr.length - 7 ? (L.valid && L.ratio != null ? (ratioTone(L.ratio) === "ok" ? "info" : ratioTone(L.ratio)) : "info") : "muted"))} />
-          <p className="mt-2 text-[11px] text-fg-3">barevně posledních 7 dní podle poměru 7 : 28</p>
-        </Card>
-      </div>
-      <CrossTrainingCard L={L} />
-      {a?.gradientDescent?.buckets?.some((v: number) => v > 0) && <DescentBySlope g={a.gradientDescent} />}
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
-        {rcv ? (
-          <>
-            <Card><span className="flex items-center gap-1.5"><Label>HRV 7 dní</Label><InfoDot text={MI.hrv} label="HRV 7 dní" /></span><p className="t-num mt-2 text-[30px]" style={{ color: rcv.hrv.z <= -1 ? C.alert : C.fg }}>{rcv.hrv.now}<small className="text-sm font-semibold text-fg-3"> ms</small></p><p className="text-[12px] text-fg-3">baseline {rcv.hrv.base} ms · z {sgn(rcv.hrv.z)}</p><div className="mt-3"><Sparkline vals={rcv.hrv.series} color={rcv.hrv.z <= -1 ? C.alert : C.ok} /></div></Card>
-            <Card><span className="flex items-center gap-1.5"><Label>Klidový tep</Label><InfoDot text={MI.rhr} label="Klidový tep" /></span><p className="t-num mt-2 text-[30px]" style={{ color: rcv.rhr.z >= 1.2 ? C.alert : C.fg }}>{rcv.rhr.now}</p><p className="text-[12px] text-fg-3">baseline {rcv.rhr.base} · z {sgn(rcv.rhr.z)}</p><div className="mt-3"><Sparkline vals={rcv.rhr.series} color={rcv.rhr.z >= 1.2 ? C.alert : C.ok} /></div></Card>
-            <Card><span className="flex items-center gap-1.5"><Label>Spánek</Label><InfoDot text={MI.sleep} label="Spánek" /></span><p className="t-num mt-2 text-[30px]" style={{ color: rcv.sleep.debt >= 4 ? C.alert : C.fg }}>{rcv.sleep.now}<small className="text-sm font-semibold text-fg-3"> h</small></p><p className="text-[12px] text-fg-3">obvykle {rcv.sleep.base} h{rcv.sleep.debt > 0 ? ` · dluh ${rcv.sleep.debt} h/týd` : ""}</p><div className="mt-3"><Sparkline vals={rcv.sleep.series} color={rcv.sleep.debt >= 4 ? C.alert : C.ok} /></div></Card>
-            {a.sleepEff && <SleepQualityCard s={a.sleepEff} />}
-          </>
-        ) : (
-          <Card className="md:col-span-3"><Empty>Chybí souvislá data z hodinek za posledních 35 dní.</Empty></Card>
-        )}
-      </div>
+      {a.capacity && (
+        <CapacityPanel cap={a.capacity} extra={{
+          // railway#58/#59 — weekly and daily run volume feed the Objem channel
+          volume: (
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div>
+                <Label>Týdenní objem běhu (Po–Ne), 12 týdnů</Label>
+                <Bars vals={L.weekly || []} tones={weekTones(L.weekly || [])} />
+                <p className="mt-2 text-[12px] text-fg-3">Tento týden (Po–Ne) <b className="text-fg">{L.weekKm ?? "—"} km</b> · posledních 7 dní <b className="text-fg">{L.runKm7 ?? "—"} km</b></p>
+                <p className="mt-1 text-[11px] text-fg-3">barva = týden proti průměru 4 předchozích (nad ×1,3 žlutě, nad ×1,5 červeně)</p>
+              </div>
+              <div>
+                <Label>Denní objem běhu, 28 dní</Label>
+                <Bars vals={L.daily || []} tones={(L.daily || []).map((_: number, i: number, arr: number[]) => (i >= arr.length - 7 ? (L.valid && L.ratio != null ? (ratioTone(L.ratio) === "ok" ? "info" : ratioTone(L.ratio)) : "info") : "muted"))} />
+                <p className="mt-2 text-[11px] text-fg-3">barevně posledních 7 dní podle poměru 7 : 28</p>
+              </div>
+            </div>
+          ),
+          // railway#60 — cross-training is part of the all-activity (systemic) load
+          systemic: <CrossTraining L={L} />,
+          // railway#61 — descent by slope belongs to the Klesání channel
+          ...(a?.gradientDescent?.buckets?.some((v: number) => v > 0) ? { descent: <DescentBySlope g={a.gradientDescent} /> } : {}),
+        }} />
+      )}
     </>
+  )
+}
+
+function RecoveryTiles({ rcv, sleepEff }: { rcv: any; sleepEff: any }) {
+  const [sleepOpen, setSleepOpen] = useState(false)
+  const hrvBad = rcv.hrv.z <= -1, rhrBad = rcv.rhr.z >= 1.2, sleepBad = rcv.sleep.debt >= 4
+  const tile = (label: string, info: string, now: any, unit: string, sub: string, bad: boolean, series: number[], extra?: any) => (
+    <div className="nest flex min-w-0 flex-col p-3">
+      <span className="flex items-start gap-1"><span className="t-label leading-4 !text-fg-3">{label}</span><InfoDot text={info} label={label} /></span>
+      <p className="t-num mt-1.5 text-[24px] leading-none" style={{ color: bad ? C.alert : C.fg }}>{now}{unit && <small className="text-[12px] font-semibold text-fg-3"> {unit}</small>}</p>
+      <p className="mt-1 text-[11px] leading-4 text-fg-3">{sub}</p>
+      <div className="mt-auto pt-2"><Sparkline vals={series} color={bad ? C.alert : C.ok} /></div>
+      {extra}
+    </div>
+  )
+  return (
+    <div>
+      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
+        {tile("HRV 7 dní", MI.hrv, rcv.hrv.now, "ms", `baseline ${rcv.hrv.base} ms · ${pctStr(rcv.hrv.now, rcv.hrv.base)}`, hrvBad, rcv.hrv.series)}
+        {tile("Klidový tep", MI.rhr, rcv.rhr.now, "", `baseline ${rcv.rhr.base} · ${pctStr(rcv.rhr.now, rcv.rhr.base)}`, rhrBad, rcv.rhr.series)}
+        {tile("Spánek", MI.sleep, rcv.sleep.now, "h", `obvykle ${rcv.sleep.base} h${rcv.sleep.debt > 0 ? ` · dluh ${rcv.sleep.debt} h/týd` : ""}`, sleepBad, rcv.sleep.series,
+          sleepEff && (
+            <button type="button" onClick={() => setSleepOpen((v) => !v)} aria-expanded={sleepOpen}
+              className="mt-2 flex items-center justify-between gap-1 border-t border-white/[.07] pt-2 text-left text-[11px] font-semibold text-fg-2 transition hover:text-fg">
+              <span>Kvalita spánku</span>
+              <ChevronDown className={`size-3.5 transition ${sleepOpen ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />
+            </button>
+          ))}
+      </div>
+      {/* railway#62 — sleep quality opens under the sleep chart */}
+      {sleepEff && sleepOpen && <div className="nest mt-2 origin-top animate-[careReveal_.28s_ease-out] p-3.5"><SleepQuality s={sleepEff} /></div>}
+    </div>
   )
 }
 
 // Feedback railway#33 — sleep quality, not only length: efficiency (asleep / in bed)
 // and the deep + REM share of the staged night against the runner's 8-week normal.
 // Both feed readiness (at most half a signal — watch staging is approximate).
-function SleepQualityCard({ s }: { s: any }) {
+function SleepQuality({ s }: { s: any }) {
   const pct = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)} %`)
   const restLow = s.restNow != null && s.restBase != null && s.restNow < s.restBase - 0.03
   const effLow = s.now != null && (s.now < 0.85 || (s.base != null && s.now < s.base - 0.02))
@@ -1400,7 +1439,7 @@ function SleepQualityCard({ s }: { s: any }) {
   const total = ln ? ln.deepMin + ln.remMin + ln.lightMin : 0
   const seg = (m: number, col: string, key: string) => total > 0 && <i key={key} className="block h-full" style={{ width: `${(m / total) * 100}%`, background: col }} />
   return (
-    <Card>
+    <div>
       <span className="flex items-center gap-1.5"><Label>Kvalita spánku</Label><InfoDot text={MI.sleepQuality} label="Kvalita spánku" /></span>
       <div className="mt-2 flex items-end gap-4">
         <div>
@@ -1424,36 +1463,57 @@ function SleepQualityCard({ s }: { s: any }) {
         {s.restNow == null ? "Fáze spánku se načtou při další synchronizaci s Garminem. " : ""}
         {restLow || effLow ? "Méně kvalitní spánek než obvykle snižuje dnešní připravenost." : "Průměr 7 nocí proti vaší normě za 8 týdnů."}
       </p>
-    </Card>
+    </div>
   )
 }
 
 const SPORT_ICON: Record<string, LucideIcon> = { cycling: Bike, swimming: Waves, strength: Dumbbell, rowing: Ship, elliptical: Orbit, hiking: Mountain, walking: Footprints, other: ActivityIcon }
 
-function CrossTrainingCard({ L }: { L: any }) {
+const CROSS_INFO = "Neběžecké sporty nepočítáme do běžeckých kilometrů ani do mechaniky, ale přispívají do celkové tréninkové zátěže (poměr 7:28 dní, monotónnost) i únavy. Zátěž se počítá z tepové odezvy (TRIMP), takže je porovnatelná napříč sporty."
+
+// railway#55 — share of run vs other sport as a pie
+function LoadPie({ run, cross }: { run: number; cross: number }) {
+  const tot = run + cross || 1
+  const f = cross / tot
+  const R = 42, cx = 50, cy = 50
+  const ang = f * 2 * Math.PI
+  const x = cx + R * Math.sin(ang), y = cy - R * Math.cos(ang)
+  const large = f > 0.5 ? 1 : 0
+  return (
+    <svg viewBox="0 0 100 100" className="size-28 shrink-0" role="img" aria-label={`běh ${Math.round((1 - f) * 100)} %, jiný sport ${Math.round(f * 100)} %`}>
+      <circle cx={cx} cy={cy} r={R} fill={C.accent} />
+      {f >= 0.999 ? <circle cx={cx} cy={cy} r={R} fill={C.info} />
+        : f > 0.001 && <path d={`M${cx},${cy} L${cx},${cy - R} A${R},${R} 0 ${large} 1 ${x},${y} Z`} fill={C.info} />}
+      <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgb(6 16 16)" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+function CrossTraining({ L }: { L: any }) {
   const list = (L.crossList || []) as any[]
   const run = L.runLoad7 || 0
   const cross = L.crossLoad7 || 0
+  const head = (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      <span className="flex items-center gap-1.5 whitespace-nowrap"><Label>Křížový trénink (7 dní)</Label><InfoDot text={CROSS_INFO} label="Křížový trénink" /></span>
+      <span className="text-[12px] text-fg-3">započítáno do zátěže · j.z.</span>
+    </div>
+  )
   if (!list.length) {
-    return <p className="mt-4 text-[12px] text-fg-3">Tento týden jen běh. Kolo, plavání nebo silovku z hodinek automaticky započítáme do celkové zátěže (tep × čas) stejně jako běh.</p>
+    return <div>{head}<p className="mt-2 text-[12px] text-fg-3">Tento týden jen běh. Kolo, plavání nebo silovku z hodinek automaticky započítáme do celkové zátěže stejně jako běh.</p></div>
   }
   const tot = run + cross || 1
   const runPct = Math.round((run / tot) * 100)
   return (
-    <Card className="mt-4">
-      <div className="flex items-center justify-between">
-        <Label>Křížový trénink (7 dní)</Label>
-        <span className="text-[12px] text-fg-3">započítáno do zátěže · j.z.</span>
-      </div>
-      <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-1">
-        <p className="t-num text-[30px] text-accent">{L.runLoad7}<small className="text-sm font-semibold text-fg-3"> běh</small></p>
-        <span className="pb-2 text-lg text-fg-3">+</span>
-        <p className="t-num text-[30px] text-info">{L.crossLoad7}<small className="text-sm font-semibold text-fg-3"> jiný sport</small></p>
-        <span className="pb-1 text-xs text-fg-3">j.z. za 7 dní · {L.crossCount7} {L.crossCount7 === 1 ? "aktivita" : L.crossCount7 < 5 ? "aktivity" : "aktivit"}</span>
-      </div>
-      <div className="mt-3 flex h-2.5 gap-px overflow-hidden rounded-full bg-white/[.08]" title={`běh ${run} · jiný sport ${cross} j.z.`}>
-        <i style={{ width: `${runPct}%` }} className="bg-accent" />
-        <i style={{ width: `${100 - runPct}%` }} className="bg-info" />
+    <div>
+      {head}
+      <div className="mt-3 flex flex-wrap items-center gap-5">
+        <LoadPie run={run} cross={cross} />
+        <div className="space-y-2">
+          <p className="flex items-center gap-2"><i className="size-2.5 rounded-full bg-accent" /><span className="t-num text-[22px] text-accent">{L.runLoad7}</span><span className="text-[12px] text-fg-3">běh · {runPct} %</span></p>
+          <p className="flex items-center gap-2"><i className="size-2.5 rounded-full bg-info" /><span className="t-num text-[22px] text-info">{L.crossLoad7}</span><span className="text-[12px] text-fg-3">jiný sport · {100 - runPct} %</span></p>
+          <p className="text-[11px] text-fg-3">j.z. za 7 dní · {L.crossCount7} {L.crossCount7 === 1 ? "aktivita" : L.crossCount7 < 5 ? "aktivity" : "aktivit"}</p>
+        </div>
       </div>
       <div className="mt-3 divide-y divide-white/[.07]">
         {list.map((c, i) => (
@@ -1462,8 +1522,7 @@ function CrossTrainingCard({ L }: { L: any }) {
             trailing={<span className="shrink-0 tabular-nums text-sm font-bold text-info">{c.load} j.z.</span>} />
         ))}
       </div>
-      <p className="mt-3 text-[12px] leading-5 text-fg-3">Neběžecké sporty nepočítáme do běžeckých kilometrů ani do mechaniky, ale přispívají do celkové tréninkové zátěže (poměr 7:28 dní, monotónnost) i únavy — proto je vidíte tady. Zátěž se počítá z tepové odezvy (TRIMP), takže je porovnatelná napříč sporty.</p>
-    </Card>
+    </div>
   )
 }
 

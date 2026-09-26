@@ -43,6 +43,7 @@ class CheckinRequest(Lenient):
 
 class ExcludeActivityRequest(Lenient):
     excluded: bool = True
+    scope: Optional[str] = None     # "all" (default) | "mech" | "load"
 
 
 class RateActivityRequest(Lenient):

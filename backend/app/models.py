@@ -222,6 +222,10 @@ class Activity(Base):
     # deleted, so a Garmin re-sync doesn't bring it back and it can be restored
     excluded = Column(Boolean, default=False)
     excluded_at = Column(String)
+    # feedback railway#47 — what the exclusion covers: "all" (NULL = all, the old
+    # behaviour), "mech" (mechanics / terrain baselines only) or "load" (load and
+    # capacity only). `excluded` stays True for any scope.
+    excluded_scope = Column(String)
 
 
 class ActivityFeedback(Base):

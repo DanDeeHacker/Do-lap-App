@@ -454,6 +454,48 @@ def test_an_excluded_activity_counts_nowhere_and_can_be_restored(client, db_sess
     assert client.post(f"/api/runners/{rid}/activities/999999/exclude", json={"excluded": True}).status_code == 404
 
 
+def test_exclusion_scope_mech_only_keeps_the_run_in_load(client, db_session):
+    """feedback railway#47 — "mech" takes a run out of mechanics only; load still counts it."""
+    rid, _ = _runner(client, db_session, "ph1b@test.cz")
+    _login(client, "ph1b@test.cz")
+    base = _assess(db_session, rid)
+    big = models.Activity(runner_id=rid, provider="garmin", external_id="scope-mech", started_at=E.day_ago(1),
+                          sport="running", title="Běh s pásem", distance_km=48.0, duration_min=48 * 6, avg_hr=150,
+                          surface="road", ascent_m=40, descent_m=40)
+    db_session.add(big)
+    db_session.commit()
+    jumped = _assess(db_session, rid)
+    r = client.post(f"/api/runners/{rid}/activities/{big.id}/exclude", json={"excluded": True, "scope": "mech"}).json()
+    assert r["scope"] == "mech" and r["assessment"]["load"] == jumped["load"]
+    r = client.post(f"/api/runners/{rid}/activities/{big.id}/exclude", json={"excluded": True, "scope": "load"}).json()
+    assert r["scope"] == "load" and r["assessment"]["load"] == base["load"]
+    hist = client.get(f"/api/runners/{rid}/run-history?limit=5").json()
+    assert next(x for x in hist if x["id"] == big.id)["excluded_scope"] == "load"
+    assert client.post(f"/api/runners/{rid}/activities/{big.id}/exclude", json={"excluded": True, "scope": "x"}).status_code == 422
+    r = client.post(f"/api/runners/{rid}/activities/{big.id}/exclude", json={"excluded": False}).json()
+    assert r["scope"] is None and r["assessment"]["load"] == jumped["load"]
+
+
+def test_counts_for_scopes():
+    a = models.Activity(excluded=True, excluded_scope=None)
+    assert not E.counts_for(a, "mech") and not E.counts_for(a, "load") and not E.counts_for(a, "all")
+    a.excluded_scope = "mech"
+    assert not E.counts_for(a, "mech") and E.counts_for(a, "load") and not E.counts_for(a, "all")
+    a.excluded_scope = "load"
+    assert E.counts_for(a, "mech") and not E.counts_for(a, "load")
+    assert E.counts_for(models.Activity(excluded=False), "all")
+
+
+def test_rolling7_dist_percentiles():
+    from datetime import date, timedelta
+    from app.metrics import guidance as G
+    today = date(2026, 9, 26)
+    vals = {(today - timedelta(days=k)).isoformat(): 10.0 for k in range(60)}   # 10 km every day
+    d = G._rolling7_dist(vals, today, today - timedelta(days=59))
+    assert d and d["p25"] == d["p50"] == d["p75"] == d["max"] == 70.0 and d["n"] == 54
+    assert G._rolling7_dist(vals, today, today - timedelta(days=10)) is None        # too little history
+
+
 def test_the_weekly_longest_run_ceiling_ignores_todays_readiness(client, db_session):
     rid, _ = _runner(client, db_session, "ph2@test.cz")
     vol = _assess(db_session, rid)["capacity"]["channels"]["volume"]
