@@ -403,6 +403,7 @@ export function AxisLineChart({
   color = C.info,
   height = 128,
   band,
+  zone = false,
 }: {
   points: { t: string; v: number }[]
   yMin?: number
@@ -415,6 +416,8 @@ export function AxisLineChart({
   height?: number
   /** a shaded reference range (e.g. the runner's usual range) with an optional midline */
   band?: { lo: number; hi: number; mid?: number; label?: string }
+  /** tint the area above `threshold` (the "over threshold" zone) */
+  zone?: boolean
 }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -480,6 +483,9 @@ export function AxisLineChart({
             {band.mid != null && <line x1={padL} y1={y(band.mid)} x2={W - padR} y2={y(band.mid)} stroke={color} strokeOpacity=".5" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />}
           </g>
         )}
+        {zone && threshold != null && threshold >= mn && threshold <= mx && (
+          <rect x={padL} y={padT} width={W - padL - padR} height={Math.max(0, y(threshold) - padT)} fill={C.alert} opacity=".07" />
+        )}
         {threshold != null && threshold >= mn && threshold <= mx && (
           <line x1={padL} y1={y(threshold)} x2={W - padR} y2={y(threshold)} stroke={C.alert} strokeOpacity=".55" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
         )}
@@ -491,7 +497,7 @@ export function AxisLineChart({
         <span key={i} className="t-axis pointer-events-none absolute left-0 -translate-y-1/2 leading-none" style={{ top: (y(t) / H) * height, width: `${((padL - 4) / W) * 100}%`, textAlign: "right" }}>{nf(t)}</span>
       ))}
       {threshold != null && threshold >= mn && threshold <= mx && thresholdLabel && (
-        <span className="pointer-events-none absolute right-0 -translate-y-full pb-0.5 text-[11px] leading-none text-alert" style={{ top: (y(threshold) / H) * height }}>{thresholdLabel}</span>
+        <span className="pointer-events-none absolute -translate-y-full whitespace-nowrap pb-0.5 text-[11px] leading-none text-alert" style={{ top: (y(threshold) / H) * height, left: `${((padL + 4) / W) * 100}%` }}>{thresholdLabel}</span>
       )}
       {xi.map((idx, i) => (
         <span key={i} className="t-axis pointer-events-none absolute whitespace-nowrap leading-none" style={{ top: ((H - 12) / H) * height, left: `${(x(idx) / W) * 100}%`, transform: i === 0 ? "none" : i === xi.length - 1 ? "translateX(-100%)" : "translateX(-50%)" }}>{fmt(points[idx].t)}</span>
@@ -502,7 +508,7 @@ export function AxisLineChart({
         <i className="pointer-events-none absolute size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${aPct}%`, top: (y(points[act].v) / H) * height, background: color, boxShadow: `0 0 0 2px ${C.panel}` }} />
       )}
       {act == null && (
-        <span className="pointer-events-none absolute -translate-x-full -translate-y-full pb-1 pr-1 text-[11px] font-bold leading-none tabular-nums" style={{ left: `${(x(points.length - 1) / W) * 100}%`, top: (y(points.at(-1)!.v) / H) * height, color }}>{nf(points.at(-1)!.v)}{unit}</span>
+        <span className="pointer-events-none absolute -translate-x-full -translate-y-full whitespace-nowrap pb-1 pr-1 text-[11px] font-bold leading-none tabular-nums" style={{ left: `${(x(points.length - 1) / W) * 100}%`, top: (y(points.at(-1)!.v) / H) * height, color }}>{nf(points.at(-1)!.v)}{unit}</span>
       )}
       {band?.label && (
         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-fg-3">

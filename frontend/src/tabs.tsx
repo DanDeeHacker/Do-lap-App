@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, Field, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
-import { Activity as ActivityIcon, ChevronRight, FileText, Footprints, LoaderCircle, Mountain } from "lucide-react"
+import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, FactorBar, Field, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
+import { Activity as ActivityIcon, ChevronDown, ChevronLeft, ChevronRight, CloudSun, FileText, Footprints, Gauge, History, LoaderCircle, Mountain } from "lucide-react"
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
 import { clamp, czk, FEEL_LABEL, fmtD, fmtSlot, paceStr, PHASE, plural, QUAD, sgn } from "@/lib"
@@ -409,40 +409,46 @@ function usualRange(m: Metric) {
   return { lo: m.baseline - isd, hi: m.baseline + isd, isd }
 }
 
-function MechMetricCard({ m, onSelect }: { m: Metric; onSelect: () => void }) {
+function MechMetricCard({ m, open, onSelect }: { m: Metric; open: boolean; onSelect: () => void }) {
   const { label, unit, dec, value, baseline, delta, hot, approx } = m
   // Numeric axis for the interval bar, so the bar shows real numbers, not just a dot.
   const { lo: bLo, hi: bHi, isd } = usualRange(m)
   const dLo = Math.min(bLo, value) - isd * 0.8, dHi = Math.max(bHi, value) + isd * 0.8
   const P = (x: number) => clamp(((x - dLo) / (dHi - dLo)) * 100, 4, 96)
+  const showBar = open || Math.abs(m.z) >= 1
+  const col = hot ? C.alert : C.ok
   return (
-    <div onClick={onSelect} role="button" tabIndex={0} className="group w-full cursor-pointer p-4 text-left">
-      <div className="flex items-start justify-between gap-3">
-        <span className="flex items-center gap-1.5">
-          <Label>{label}</Label>
+    <div onClick={onSelect} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect() } }}
+      role="button" tabIndex={0} aria-expanded={open} className="group w-full cursor-pointer p-4 text-left">
+      <div className="flex items-center gap-3">
+        <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          <span className="text-[14px] font-bold text-fg">{label}</span>
           {MECH_INFO_BY_LABEL[label] && <InfoDot text={MECH_INFO_BY_LABEL[label]} label={label} />}
           {approx && <span title="Málo dat v jednotlivých profilech terénu — hrubý odhad z průměru běhů napříč terénem, ne terénně očištěná odchylka enginu." className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-fg-2">odhad</span>}
         </span>
-        <span className={`rounded-full px-2 py-1 text-[11px] font-bold ${hot ? "bg-alert/15 text-alert-soft" : "bg-accent/10 text-accent"}`}>{delta}</span>
+        <strong className="t-num shrink-0 whitespace-nowrap text-[20px] leading-none text-fg">
+          {mfmt(dec, value)} <span className="text-[13px] font-semibold tracking-normal text-fg-3">{unit}</span>
+        </strong>
+        <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold ${hot ? "bg-alert/15 text-alert-soft" : "bg-ok/12 text-ok"}`}>{delta}</span>
+        <ChevronDown className={`size-4 shrink-0 text-fg-3 transition ${open ? "rotate-180 text-accent" : "group-hover:text-fg-2"}`} aria-hidden />
       </div>
-      <strong className="mt-4 block font-serif text-3xl tracking-[-.05em] text-fg">
-        {mfmt(dec, value)} <span className="text-lg text-fg-3">{unit}</span>
-      </strong>
-      <div className="mt-6">
-        <div className="relative h-2 rounded-full bg-ink">
-          {/* usual range (baseline ± 1 SD) */}
-          <i className="absolute top-0 h-full rounded-full bg-info/25" style={{ left: `${P(bLo)}%`, width: `${P(bHi) - P(bLo)}%` }} />
-          {/* baseline center tick */}
-          <i className="absolute top-[-3px] h-3.5 w-px bg-fg-2" style={{ left: `${P(baseline)}%` }} />
-          {/* current value marker + number */}
-          <i style={{ left: `${P(value)}%` }} className={`absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-4 ${hot ? "bg-alert ring-alert/15" : "bg-info ring-info/15"}`} />
-          <span className="absolute -top-5 -translate-x-1/2 whitespace-nowrap text-[11px] font-bold" style={{ left: `${P(value)}%`, color: hot ? C.alertSoft : C.ok }}>{mfmt(dec, value)}</span>
+      {showBar && (
+        <div className="mt-7">
+          <div className="relative h-2 rounded-full bg-white/[.06]">
+            {/* usual range (baseline ± 1 SD) */}
+            <i className="absolute top-0 h-full rounded-full" style={{ left: `${P(bLo)}%`, width: `${P(bHi) - P(bLo)}%`, background: `${C.ok}52` }} />
+            {/* baseline center tick */}
+            <i className="absolute top-[-3px] h-3.5 w-px bg-fg-2" style={{ left: `${P(baseline)}%` }} />
+            {/* current value marker + number */}
+            <i style={{ left: `${P(value)}%`, background: col, boxShadow: `0 0 0 3px ${C.bg}, 0 0 0 6px ${col}40` }} className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full" />
+            <span className="absolute -top-6 -translate-x-1/2 whitespace-nowrap tabular-nums text-[12px] font-extrabold" style={{ left: `${P(value)}%`, color: hot ? C.alertSoft : C.ok }}>{mfmt(dec, value)}</span>
+          </div>
+          <div className="relative mt-1.5 h-3.5 tabular-nums text-[11px] text-fg-3">
+            <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${P(bLo)}%` }}>{mfmt(dec, bLo)}</span>
+            <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${P(bHi)}%` }}>{mfmt(dec, bHi)}</span>
+          </div>
         </div>
-        <div className="relative mt-1.5 h-3 text-[11px] text-fg-3">
-          <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${P(bLo)}%` }}>{mfmt(dec, bLo)}</span>
-          <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${P(bHi)}%` }}>{mfmt(dec, bHi)}</span>
-        </div>
-      </div>
+      )}
     </div>
   )
 }
@@ -511,32 +517,32 @@ function TerrainMatrix({ acts }: { acts: any[] }) {
   return (
     <Card>
       <Label>Podle profilu terénu · 6 měsíců</Label>
-      <p className="mt-1 text-xs leading-5 text-fg-3">Každý sloupec je jiný profil (povrch · sklon · tempo) — všechny, které jste za posledních 6 měsíců běželi aspoň dvakrát. Hodnota = průměr posledních 28 dní; šedě průměr za 6 měsíců, když jste profil poslední měsíc neběželi. Odchylka (z) = posledních 28 dní proti starším běhům stejného profilu.</p>
+      <p className="mt-1 text-[12px] leading-5 text-fg-3">Každý sloupec je jiný profil (povrch · sklon · tempo) — všechny, které jste za posledních 6 měsíců běželi aspoň dvakrát. Hodnota = průměr posledních 28 dní; šedě průměr za 6 měsíců, když jste profil poslední měsíc neběželi. Odchylka (z) = posledních 28 dní proti starším běhům stejného profilu.</p>
       <div className="-mx-1 mt-4 overflow-x-auto px-1 pb-1">
       <div className="grid min-w-max items-stretch gap-y-1" style={{ gridTemplateColumns: cols }}>
         <div />
         {profiles.map((p) => (
-          <div key={p.key} className="rounded-xl bg-panel-2 px-2 py-2 text-center">
+          <div key={p.key} className="nest px-2 py-2 text-center">
             <p className="text-[13px] font-semibold text-fg">{p.surf}</p>
             <p className="text-[11px] text-fg-2">{p.grade} · {p.pace}</p>
-            <p className="mt-0.5 tabular-nums text-[11px] text-fg-3">{p.n} běhů · {p.nNow} za 28 d</p>
+            <p className="mt-0.5 tabular-nums text-[11px] text-fg-3">{p.n} {plural(p.n, "běh", "běhy", "běhů")} · {p.nNow} za 28 d</p>
           </div>
         ))}
         {rows.map((r) => (
           <Fragment key={r.field}>
-            <div className="col-span-full mt-1 h-px bg-white/5" />
+            <div className="col-span-full mt-1 h-px bg-white/[.06]" />
             <div className="flex items-baseline gap-1 py-2.5 pr-2 text-[12px] text-fg-2">{r.label}<span className="text-[11px] text-fg-3">{r.unit}</span></div>
             {r.cells.map((c, i) => (
               <div key={i} className="px-1 py-2.5 text-center">
                 {c ? (
                   c.now != null ? (
                     <>
-                      <p className="font-serif text-lg leading-none text-fg">{mfmt(r.dec, c.now)}</p>
+                      <p className="t-num text-[17px] leading-none text-fg">{mfmt(r.dec, c.now)}</p>
                       <p className="mt-1 tabular-nums text-[11px]" style={{ color: zTone(c.z) }}>{c.z != null ? `${sgn(Math.round(c.z * 100) / 100)} z` : "málo dat"}</p>
                     </>
                   ) : (
                     <>
-                      <p className="font-serif text-lg leading-none text-fg-3">{mfmt(r.dec, c.avg6)}</p>
+                      <p className="t-num text-[17px] leading-none text-fg-3">{mfmt(r.dec, c.avg6)}</p>
                       <p className="mt-1 tabular-nums text-[11px] text-fg-3">⌀ 6 měs.</p>
                     </>
                   )
@@ -572,14 +578,14 @@ function RunContext({ x }: { x: any }) {
   const t = x.terrain
   const w = x.weather
   const row = (k: string, v: any) => v != null && v !== false && v !== "" && (
-    <div className="flex justify-between gap-3 border-t border-white/5 py-1.5 first:border-0">
-      <dt className="text-fg-3">{k}</dt><dd className="text-right tabular-nums text-[11px] text-fg">{v}</dd>
+    <div className="flex justify-between gap-3 border-t border-white/[.06] py-1.5 first:border-0">
+      <dt className="text-fg-3">{k}</dt><dd className="text-right tabular-nums text-[12px] text-fg">{v}</dd>
     </div>
   )
   return (
-    <div className="grid gap-3 border-t border-white/5 px-4 py-3 text-xs md:grid-cols-2">
+    <div className="grid gap-3 border-t border-white/[.07] px-4 py-3 text-[12px] md:grid-cols-2">
       <section className="min-w-0">
-        <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">Terén</p>
+        <p className="t-label">Terén</p>
         {t ? (
           <dl className="mt-1">
             {row("Profil srovnání", t.bucketLabel)}
@@ -592,7 +598,7 @@ function RunContext({ x }: { x: any }) {
         ) : <p className="mt-1 text-fg-3">Bez údajů o terénu.</p>}
       </section>
       <section className="min-w-0">
-        <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">Počasí</p>
+        <p className="t-label">Počasí</p>
         {w ? (
           <>
             <dl className="mt-1">
@@ -606,7 +612,7 @@ function RunContext({ x }: { x: any }) {
               {w.precision === "hour" ? `Během běhu (start ${x.start_time}, ${Math.round(x.duration_min || 0)} min)` : "Denní souhrn (čas startu neznámý)"}
               {" · "}{w.place === "city" ? `přibližně — podle města ${w.city}` : "v místě startu (±10 km)"} · {w.source}
             </p>
-            {w.hot && w.precision === "hour" && <p className="mt-1.5 rounded-lg bg-watch-bg px-2 py-1 text-[11px] leading-4 text-watch">Pocitově přes 24 °C — vyšší tep při obvyklém tempu je v tomhle počasí očekávaný.</p>}
+            {w.hot && w.precision === "hour" && <p className="mt-1.5 rounded-[10px] border border-watch/25 bg-watch/[.08] px-2 py-1 text-[11px] leading-4 text-watch">Pocitově přes 24 °C — vyšší tep při obvyklém tempu je v tomhle počasí očekávaný.</p>}
           </>
         ) : <p className="mt-1 text-fg-3">{x.weatherNote || "Počasí není k dispozici."}</p>}
       </section>
@@ -632,21 +638,21 @@ function ExcludeRun({ rid, x, onDone }: { rid: string; x: any; onDone: (excluded
   }
   if (x.excluded)
     return (
-      <div className="flex flex-wrap items-center gap-2 border-t border-white/5 px-4 py-3 text-xs text-fg-2">
+      <div className="flex flex-wrap items-center gap-2 border-t border-white/[.07] px-4 py-3 text-[12px] text-fg-2">
         <span className="flex-1">Tento běh je vyřazený — nepočítá se do skóre, kapacity, srovnání ani AI textů.</span>
-        <button disabled={busy} onClick={() => go(false)} className="rounded-full border border-info/40 px-3 py-1 font-bold text-info">Vrátit do výpočtů</button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => go(false)}>Vrátit do výpočtů</Button>
       </div>
     )
   return (
-    <div className="flex flex-wrap items-center gap-2 border-t border-white/5 px-4 py-3 text-xs text-fg-2">
+    <div className="flex flex-wrap items-center gap-2 border-t border-white/[.07] px-4 py-3 text-[12px] text-fg-2">
       {ask ? (
         <>
           <span className="flex-1">Vyřadit „{x.title}“ ({fmtD(x.started_at)})? Přestane se počítat do skóre, kapacity, srovnání i AI textů. Kdykoli ho vrátíte.</span>
-          <button disabled={busy} onClick={() => go(true)} className="rounded-full bg-alert px-3 py-1 font-bold text-ink">Vyřadit</button>
-          <button onClick={() => setAsk(false)} className="rounded-full border border-white/15 px-3 py-1 font-bold">Zrušit</button>
+          <Button size="sm" variant="danger" disabled={busy} onClick={() => go(true)}>Vyřadit</Button>
+          <Button size="sm" variant="outline" onClick={() => setAsk(false)}>Zrušit</Button>
         </>
       ) : (
-        <button onClick={() => setAsk(true)} className="ml-auto text-[11px] text-fg-3 underline decoration-dotted hover:text-alert">Vyřadit běh z výpočtů</button>
+        <button onClick={() => setAsk(true)} className="ml-auto text-[12px] text-fg-3 underline decoration-dotted underline-offset-2 hover:text-alert">Vyřadit běh z výpočtů</button>
       )}
     </div>
   )
@@ -678,35 +684,36 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
   const rows: any[] = ctx ? ctx : acts.slice().sort((a, b) => (b.started_at || "").localeCompare(a.started_at || "")).slice(0, 20)
   return (
     <>
-      <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="mt-4 flex w-full items-center justify-between gap-4 rounded-[24px] border border-white/10 bg-panel-2 px-5 py-4 text-left text-fg transition hover:border-info/40">
-        <span><span className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">Historie běhů</span><span className="mt-1 block font-serif text-xl">Běhy s terénem a počasím — rozklikni pro úseky a srovnání</span></span>
-        <span className="text-info">{open ? "▴" : "▾"}</span>
+      <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="card mt-4 flex w-full items-center gap-4 px-4 py-4 text-left text-fg transition hover:border-info/45 md:px-5">
+        <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><History className="size-4" aria-hidden /></span>
+        <span className="min-w-0 flex-1"><span className="t-label">Historie běhů</span><span className="mt-1 block font-serif text-[19px] leading-snug">Běhy s terénem a počasím — rozklikni pro úseky a srovnání</span></span>
+        <ChevronDown className={`size-5 shrink-0 text-info transition ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
       {open && (
         <div className="mt-3 space-y-2">
-          {ctx === null && <p className="px-1 text-[11px] text-fg-3">Načítám terén a počasí…</p>}
-          {ctx === false && <p className="px-1 text-[11px] text-fg-3">Kontext terénu a počasí se nepodařilo načíst — zobrazuji jen statistiky.</p>}
+          {ctx === null && <p className="px-1 text-[12px] text-fg-3">Načítám terén a počasí…</p>}
+          {ctx === false && <p className="px-1 text-[12px] text-fg-3">Kontext terénu a počasí se nepodařilo načíst — zobrazuji jen statistiky.</p>}
           {rows.map((x) => {
             const isOpen = run === x.id
             const d = cmp[x.id]
             const tl = terrainLine(x.terrain)
             const wl = weatherLine(x.weather)
             return (
-              <div key={x.id} className={`overflow-hidden rounded-2xl border border-white/10 bg-panel ${x.excluded ? "opacity-60" : ""}`}>
-                <button onClick={() => setRun(isOpen ? null : x.id)} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 text-left">
-                  <span className="grid size-9 place-items-center rounded-xl bg-info-bg text-[11px] font-bold text-info">{surf(x.surface)}</span>
+              <div key={x.id} className={`overflow-hidden rounded-[18px] border transition ${isOpen ? "border-info/40 bg-panel-2" : "border-white/[.08] bg-white/[.03] hover:border-white/15"} ${x.excluded ? "opacity-60" : ""}`}>
+                <button onClick={() => setRun(isOpen ? null : x.id)} aria-expanded={isOpen} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 text-left">
+                  <span className="grid size-[34px] place-items-center rounded-[10px] bg-info/15 text-info">{x.surface === "trail" ? <Mountain className="size-4" aria-hidden /> : <Footprints className="size-4" aria-hidden />}</span>
                   <span className="min-w-0">
-                    <b className="text-sm">{x.title}</b>
+                    <b className="text-sm font-bold">{x.title}</b>
                     {x.excluded && <span className="ml-2 rounded-full bg-white/[.08] px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] text-fg-2">vyřazeno</span>}
-                    <em className="block text-xs not-italic text-fg-3">{fmtD(x.started_at)}{x.start_time ? ` ${x.start_time}` : ""} · {x.distance_km} km · {paceStr(x.pace_s_km)}/km · {x.avg_hr} tep</em>
+                    <span className="block text-[12px] text-fg-3">{fmtD(x.started_at)}{x.start_time ? ` ${x.start_time}` : ""} · {surf(x.surface)} · {x.distance_km} km · {paceStr(x.pace_s_km)}/km · {x.avg_hr} tep</span>
                     {(tl || wl) && (
-                      <span className="mt-1 flex flex-wrap gap-1.5">
-                        {tl && <span className="rounded-full bg-info-bg px-2 py-0.5 text-[11px] text-info">{tl}</span>}
-                        {wl && <span className={`rounded-full px-2 py-0.5 text-[11px] ${x.weather?.hot && x.weather.precision === "hour" ? "bg-watch-bg text-watch" : "bg-self-bg text-self"}`}>{wl}</span>}
+                      <span className="mt-1.5 flex flex-wrap gap-1.5">
+                        {tl && <span className="inline-flex items-center gap-1 rounded-full bg-info/12 px-2 py-0.5 text-[11px] font-semibold text-info"><Mountain className="size-3" aria-hidden />{tl}</span>}
+                        {wl && <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${x.weather?.hot && x.weather.precision === "hour" ? "bg-watch/12 text-watch" : "bg-self/12 text-self"}`}><CloudSun className="size-3" aria-hidden />{wl}</span>}
                       </span>
                     )}
                   </span>
-                  <span className="whitespace-nowrap tabular-nums text-xs text-fg-2">VR {x.vert_ratio_pct ?? "—"} · {isOpen ? "▴" : "▾"}</span>
+                  <span className="flex items-center gap-2 whitespace-nowrap tabular-nums text-[12px] text-fg-2">VR {x.vert_ratio_pct ?? "—"} <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180 text-info" : ""}`} aria-hidden /></span>
                 </button>
                 {isOpen && ctx && <RunContext x={x} />}
                 {isOpen && rid && !x.excluded && <SegmentTimeline rid={rid} aid={x.id} />}
@@ -714,13 +721,13 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
                   d && d.metrics ? (
                     <MonthCompare data={d} />
                   ) : d === false ? (
-                    <dl className="grid grid-cols-3 gap-2 border-t border-white/5 px-4 py-3 text-[11px] md:grid-cols-6">
+                    <dl className="grid grid-cols-3 gap-2 border-t border-white/[.07] px-4 py-3 text-[11px] md:grid-cols-6">
                       {[["Kadence", x.cadence_spm && `${x.cadence_spm} spm`], ["Kontakt", x.gct_ms && `${x.gct_ms} ms`], ["Krok", x.stride_len_m && `${x.stride_len_m} m`], ["Osc.", x.vert_osc_cm && `${x.vert_osc_cm} cm`], ["Balance", x.gct_balance_l ? `${x.gct_balance_l} %` : "—"], ["Klesání", x.descent_m != null && `${x.descent_m} m`]].map(([k, v]) => (
                         <div key={k as string}><dt className="uppercase tracking-[.1em] text-fg-3">{k}</dt><dd className="mt-0.5 tabular-nums text-[11px] text-fg">{v || "—"}</dd></div>
                       ))}
                     </dl>
                   ) : (
-                    <p className="border-t border-white/5 px-4 py-3 text-xs text-fg-3">Načítám srovnání s během před měsícem…</p>
+                    <p className="border-t border-white/[.07] px-4 py-3 text-[12px] text-fg-3">Načítám srovnání s během před měsícem…</p>
                   )
                 )}
                 {isOpen && rid && ctx && (
@@ -754,11 +761,11 @@ const SEG_METRICS: [string, string, string, string, number][] = [
   ["gct_bal_pct", "Symetrie kontaktu", "Symetrie", "%", 1],
 ]
 const SEG_BAND: Record<string, [string, string]> = {
-  B1: ["prudký sjezd", "#2f6f9f"], B2: ["sjezd", "#4f93b8"], B3: ["rovina", "#40615a"],
-  B4: ["výjezd", "#c79a4a"], B5: ["prudký výjezd", "#d9783f"],
+  B1: ["prudký sjezd", C.self], B2: ["sjezd", `${C.self}99`], B3: ["rovina", C.fg4],
+  B4: ["výjezd", `${C.watch}99`], B5: ["prudký výjezd", C.watch],
 }
 const UP = C.alert
-const DOWN = "#5fb4d9"
+const DOWN = C.self
 const mmss = (s: number) => {
   const t = Math.max(0, Math.round(s))
   const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), ss = String(t % 60).padStart(2, "0")
@@ -825,11 +832,11 @@ function SegmentTimeline({ rid, aid }: { rid: string; aid: number }) {
   }, [segs.length])
   const head = (
     <span className="flex items-center gap-1.5">
-      <span className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">Úseky běhu vůči vaší normě</span>
+      <span className="t-label">Úseky běhu vůči vaší normě</span>
       <InfoDot label="Úseky běhu" text="Běh je rozdělený na úseky po 20–60 s ustáleného běhu. Každý úsek se porovná s tím, co od vás čeká vaše vlastní norma přesně pro ten úsek — při jeho tempu, sklonu, čase v běhu a povrchu. Norma je z běhů 29–84 dní PŘED tímto během, takže i starší běh se posuzuje tím, jak jste běhali tehdy. σ = odchylka v násobcích vašeho obvyklého rozptylu. „Významné“ = po korekci na počet testů (FDR 5 %), ne jen p < 0,05. Úseky mimo vaši obvyklou rychlost / sklon / povrch se netestují." />
     </span>
   )
-  const box = (children: any) => <div className="border-t border-white/5 px-4 py-3">{head}{children}</div>
+  const box = (children: any) => <div className="border-t border-white/[.07] px-4 py-3">{head}{children}</div>
   if (data === null) return box(<p className="mt-2 text-xs text-fg-3">Načítám úseky…</p>)
   if (data === false) return box(<p className="mt-2 text-xs text-fg-3">Úseky se nepodařilo načíst.</p>)
   if (!data.available)
@@ -850,14 +857,14 @@ function SegmentTimeline({ rid, aid }: { rid: string; aid: number }) {
   const cur = sel != null ? segs[sel] : null
   const cell = (s: any, key: string) => {
     const f = s.findings.find((x: any) => x.metric === key)
-    if (!f) return { fill: "#ffffff", op: 0.05 }
+    if (!f) return { fill: C.fg, op: 0.05 }
     return { fill: f.z > 0 ? UP : DOWN, op: f.sig ? 1 : Math.min(0.5, Math.max(0.1, Math.abs(f.z) / 4)) }
   }
   const strip = (key: string | null, h: number) => (
     <svg viewBox={`0 0 ${T} ${h}`} preserveAspectRatio="none" className="block w-full cursor-pointer" style={{ height: h }} onClick={pick} role="presentation">
       {segs.map((s) => {
         const w = Math.max((s.durationS || 0) * 0.94, T / 900)
-        if (key === null) return <rect key={s.idx} x={s.startS} y={0} width={w} height={h} fill={SEG_BAND[s.band]?.[1] || "#40615a"} />
+        if (key === null) return <rect key={s.idx} x={s.startS} y={0} width={w} height={h} fill={SEG_BAND[s.band]?.[1] || C.fg4} />
         const c = cell(s, key)
         return <rect key={s.idx} x={s.startS} y={0} width={w} height={h} fill={c.fill} fillOpacity={c.op} />
       })}
@@ -903,11 +910,11 @@ function SegmentTimeline({ rid, aid }: { rid: string; aid: number }) {
 
       {stretches.length > 0 && (
         <div className="mt-3">
-          <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">Kde se běh lišil</p>
+          <p className="t-label">Kde se běh lišil</p>
           <ol className="mt-1.5 space-y-1">
             {stretches.slice(0, 6).map((g, i) => (
               <li key={i}>
-                <button onClick={() => setSel(g.peak.idx)} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-xl bg-black/20 px-2.5 py-1.5 text-left hover:bg-black/30">
+                <button onClick={() => setSel(g.peak.idx)} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-[12px] border border-white/[.06] bg-white/[.03] px-2.5 py-1.5 text-left hover:bg-white/[.06]">
                   <span className="grid size-5 place-items-center rounded-full text-[11px] font-bold text-ink" style={{ background: g.dir === "up" ? UP : DOWN }}>{g.dir === "up" ? "↑" : "↓"}</span>
                   <span className="min-w-0 text-[11px] leading-4 text-fg-soft">
                     <b className="text-fg">{g.label}</b> {g.dir === "up" ? "vyšší" : "nižší"} než norma
@@ -922,14 +929,14 @@ function SegmentTimeline({ rid, aid }: { rid: string; aid: number }) {
       )}
 
       {cur && (
-        <div className="mt-3 rounded-2xl border border-white/10 bg-black/20 p-3">
+        <div className="nest mt-3 p-3">
           <div className="flex items-center justify-between gap-2">
-            <button onClick={() => setSel(Math.max(0, cur.idx - 1))} disabled={cur.idx === 0} aria-label="Předchozí úsek" className="grid size-7 shrink-0 place-items-center rounded-lg bg-white/5 text-info disabled:opacity-30">‹</button>
+            <button onClick={() => setSel(Math.max(0, cur.idx - 1))} disabled={cur.idx === 0} aria-label="Předchozí úsek" className="grid size-8 shrink-0 place-items-center rounded-full bg-white/[.06] text-info hover:bg-white/10 disabled:opacity-30"><ChevronLeft className="size-4" aria-hidden /></button>
             <p className="min-w-0 text-center text-[11px] leading-4 text-fg-2">
               <b className="text-sm text-fg">Úsek {cur.idx + 1}</b> <span className="text-fg-3">z {run.nSeg}</span>
               <span className="block">{mmss(cur.startS)}–{mmss(cur.startS + (cur.durationS || 0))} · {SEG_BAND[cur.band]?.[0] || cur.bandLabel} ({cur.gradePct > 0 ? "+" : cur.gradePct < 0 ? "−" : ""}{mfmt(1, Math.abs(cur.gradePct))} %){cur.paceSKm ? ` · ${paceStr(cur.paceSKm)}/km` : ""}</span>
             </p>
-            <button onClick={() => setSel(Math.min(run.nSeg - 1, cur.idx + 1))} disabled={cur.idx >= run.nSeg - 1} aria-label="Další úsek" className="grid size-7 shrink-0 place-items-center rounded-lg bg-white/5 text-info disabled:opacity-30">›</button>
+            <button onClick={() => setSel(Math.min(run.nSeg - 1, cur.idx + 1))} disabled={cur.idx >= run.nSeg - 1} aria-label="Další úsek" className="grid size-8 shrink-0 place-items-center rounded-full bg-white/[.06] text-info hover:bg-white/10 disabled:opacity-30"><ChevronRight className="size-4" aria-hidden /></button>
           </div>
           {cur.findings.length ? (
             <div className="mt-2.5 space-y-1.5">
@@ -979,9 +986,9 @@ function MonthCompare({ data }: { data: any }) {
     return <span className="tabular-nums text-[11px] text-fg-soft"><span className="whitespace-nowrap">{m.diff > 0 ? "▲" : "▼"} {txt}</span><span className="block font-sans text-[11px] text-fg-3 sm:inline">{note}</span></span>
   }
   return (
-    <div className="border-t border-white/5 px-4 py-3">
+    <div className="border-t border-white/[.07] px-4 py-3">
       <span className="flex items-center gap-1.5">
-        <span className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-2">Srovnání s během před měsícem</span>
+        <span className="t-label">Srovnání s během před měsícem</span>
         <InfoDot label="Běh před měsícem" text="Srovnatelný běh = stejný povrch, sklon i tempová skupina. Hledá se od stejného dne minulý měsíc do týdne poté — nikdy starší než měsíc. Když je jich víc, vyhraje ten nejblíž měsíční hranici (při shodě podobnější vzdálenost). Rozdíl tak ukazuje změnu vás, ne trasy." />
       </span>
       {p ? (
@@ -992,12 +999,12 @@ function MonthCompare({ data }: { data: any }) {
           </p>
           <div className="mt-2 overflow-x-auto">
             <table className="w-full text-sm">
-              <thead><tr className="text-left font-sans font-bold text-[11px] uppercase text-fg-3">
+              <thead><tr className="text-left text-[11px] font-bold uppercase tracking-[.1em] text-fg-3">
                 <th className="py-1 pr-3 font-normal">Metrika</th><th className="pr-3 font-normal">Tento běh</th><th className="pr-3 font-normal">Před měsícem</th><th className="font-normal">Rozdíl</th>
               </tr></thead>
               <tbody>
                 {data.metrics.map((m: any) => (
-                  <tr key={m.key} className="border-t border-white/5">
+                  <tr key={m.key} className="border-t border-white/[.06]">
                     <td className="py-2 pr-3 text-fg-2">{m.label}</td>
                     <td className="whitespace-nowrap pr-3 tabular-nums"><b className="text-fg">{val(m, m.value)}</b></td>
                     <td className="whitespace-nowrap pr-3 tabular-nums text-fg-2">{val(m, m.prev)}</td>
@@ -1037,8 +1044,15 @@ export function Mechanics() {
   if ((a.confidence?.value ?? 0) < 0.6)
     return (
       <>
-        <Head kicker="Mechanika" title="Baseline se zatím buduje" sub={`Spolehlivost ${Math.round((a.confidence?.value ?? 0) * 100)} % — ${a.confidence?.sessions} tréninků ve srovnatelných podmínkách, ${a.confidence?.days} dní historie. Než tohle číslo překročí 60 %, mechanické signály se nezobrazují.`} />
-        <Card><Label>Co pomůže nejrychleji</Label><p className="mt-2 text-sm text-fg-2">Opakovat podobné běhy — stejný povrch, podobné tempo. Baseline se počítá po skupinách povrch × sklon × tempo.</p></Card>
+        <Head kicker="Mechanika" title="Baseline se zatím buduje" />
+        <AlertBanner tone="info" icon={Gauge} title={`Spolehlivost ${Math.round((a.confidence?.value ?? 0) * 100)} %`}>
+          — {a.confidence?.sessions} tréninků ve srovnatelných podmínkách, {a.confidence?.days} dní historie. Než tohle číslo překročí 60 %, mechanické signály se nezobrazují.
+          <span className="relative mt-2.5 block h-2 rounded-full bg-white/[.08]" aria-hidden>
+            <i className="absolute inset-y-0 left-0 rounded-full bg-info" style={{ width: `${clamp((a.confidence?.value ?? 0) * 100, 2, 100)}%` }} />
+            <i className="absolute -inset-y-1 left-[60%] w-0.5 bg-fg" title="60 %" />
+          </span>
+        </AlertBanner>
+        <Card className="mt-4"><Label>Co pomůže nejrychleji</Label><p className="mt-2 text-sm text-fg-2">Opakovat podobné běhy — stejný povrch, podobné tempo. Baseline se počítá po skupinách povrch × sklon × tempo.</p></Card>
       </>
     )
 
@@ -1086,6 +1100,12 @@ export function Mechanics() {
     engDrift(a.vosc, "vert_osc_cm", "Vertikální oscilace", "cm", 1),
   ]) if (m) metrics.push(m)
 
+  // OPT-6: worst deviation first, measured against each card's own "hot" gate
+  // (|z| ≥ 1; balance carries its excursion in p.b. with a 0.8 gate). Array.sort is
+  // stable, so ties keep the engine's order.
+  const devKey = (m: Metric) => Math.abs(m.z) / (m.label === "Symetrie kontaktu" ? 0.8 : 1)
+  metrics.sort((x, y) => devKey(y) - devKey(x))
+
   // State label follows the quadrant (post-hysteresis), so Pohyb matches the
   // kvadrant exactly — not a separate ≥25 / tavr-z cutoff that could disagree.
   const drift = a.quadrant === "silent" || a.quadrant === "critical"
@@ -1101,46 +1121,42 @@ export function Mechanics() {
 
   return (
     <>
-      <section className="overflow-hidden rounded-[28px] border border-info/20 bg-panel-2 p-5 md:p-7">
-        <div className="grid gap-7 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+      <section className="card overflow-hidden p-4 md:p-6">
+        <div className="grid gap-6 lg:grid-cols-[.9fr_1.1fr] lg:items-start">
           <div>
             <Label>Signál pohybu</Label>
-            <h2 className="mt-2 font-serif text-3xl leading-tight text-fg">{headline}</h2>
-            <p className="mt-3 max-w-sm text-sm leading-6 text-fg-2">
+            <h2 className="mt-2 font-serif text-[28px] leading-tight tracking-[-.02em] text-fg">{headline}</h2>
+            <p className="mt-2.5 max-w-sm text-sm leading-6 text-fg-2">
               {drift ? "Při stejném tempu se krok mírně prodlužuje a kontakt se zemí narůstá. Není to alarm, ale dobrý okamžik ubrat tlak." : "Ve srovnatelných podmínkách se vaše mechanika drží ve vlastním obvyklém rozsahu."}
             </p>
-            <div className={`mt-5 inline-flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-bold ${drift ? "bg-alert/12 text-alert-soft" : "bg-accent/12 text-accent"}`}>
-              <i className={`size-2 rounded-full ${drift ? "bg-alert" : "bg-accent"}`} />
+            <div className={`mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-bold ${drift ? "bg-alert/12 text-alert-soft" : "bg-ok/12 text-ok"}`}>
+              <i className={`size-2 rounded-full ${drift ? "bg-alert" : "bg-ok"}`} />
               {drift ? "vyšší než váš obvyklý střed" : "v rámci obvyklého středu"}
             </div>
             {mechSig.length > 0 && (
-              <div className="mt-4 border-t border-white/10 pt-3">
-                <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Co tvoří skóre mechaniky</p>
-                <div className="mt-2 space-y-1.5">
+              <div className="mt-5 border-t border-white/[.08] pt-4">
+                <p className="t-label !text-fg-3">Co tvoří skóre mechaniky</p>
+                <div className="mt-3 space-y-3">
                   {mechSig.map((s) => (
-                    <div key={s.id} className="flex items-center gap-2 text-[12px]">
-                      <span className="flex-1 truncate text-fg">{s.name}</span>
-                      <span className="tabular-nums text-fg-2">{s.val}</span>
-                      <span className="tabular-nums text-info">+{s.pts}</span>
-                    </div>
+                    <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} tone="info" pct={(s.pts / Math.max(1, ...mechSig.map((x) => x.pts || 0))) * 100} />
                   ))}
                 </div>
               </div>
             )}
           </div>
-          <div className="rounded-[22px] border border-white/10 bg-panel p-5">
-            <div className="flex items-center justify-between">
+          <div className="nest p-4 md:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Label>Mechanická stabilita — trend</Label>
-              <span className="tabular-nums text-[11px] text-fg-3">skóre driftu 0–100</span>
+              <span className="text-[12px] text-fg-3">skóre driftu 0–100</span>
             </div>
             <div className="mt-2 flex items-end gap-2">
-              <b className="font-serif text-4xl text-fg">{a.mech}</b>
-              <small className="pb-1 text-xs text-fg-2">/ 100 · {drift ? "drift" : "stabilní"}</small>
+              <b className="t-num text-[40px] leading-none" style={{ color: drift ? C.alert : C.fg }}>{a.mech}</b>
+              <small className="pb-1 text-[13px] text-fg-2">/ 100 · {drift ? "drift" : "stabilní"}</small>
             </div>
             {mechHist === null ? (
               <p className="mt-3 text-sm text-fg-3">Počítám trend v čase…</p>
             ) : mechHist.length > 1 ? (
-              <AxisLineChart points={mechPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh driftu" color={drift ? C.alert : C.ok} height={140} />
+              <AxisLineChart points={mechPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh driftu" color={drift ? C.alert : C.ok} height={150} zone />
             ) : (
               <p className="mt-3 text-sm text-fg-3">Na trend v čase je zatím málo historie.</p>
             )}
@@ -1151,24 +1167,24 @@ export function Mechanics() {
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <Segmented ariaLabel="Srovnání metrik" options={[["all", "Všechen terén"], ["terr", "Podle profilu terénu"]] as const} value={terr ? "terr" : "all"} onChange={(k) => setTerr(k === "terr")} />
-        <span className="tabular-nums text-[11px] text-fg-3">{terr ? "srovnání metrik napříč profily terénu" : "každá metrika proti vaší celkové normě"}</span>
+        <span className="text-[12px] text-fg-3">{terr ? "srovnání metrik napříč profily terénu" : "každá metrika proti vaší celkové normě · seřazeno od největší odchylky"}</span>
       </div>
 
       {terr ? (
         <div className="mt-4"><TerrainMatrix acts={acts} /></div>
       ) : (
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 space-y-2.5">
           {metrics.map((m) => {
             const isOpen = openMetric === m.label
             return (
-              <div key={m.label} className={`overflow-hidden rounded-[22px] border transition ${isOpen ? "border-info/60 bg-info-bg" : "border-white/10 bg-panel hover:border-info/30"}`}>
-                <MechMetricCard m={m} onSelect={() => setOpenMetric(isOpen ? "" : m.label)} />
+              <div key={m.label} className={`overflow-hidden rounded-[20px] border transition ${isOpen ? "border-accent/70 bg-accent/[.05]" : "border-white/[.08] bg-white/[.03] hover:border-white/20"}`}>
+                <MechMetricCard m={m} open={isOpen} onSelect={() => setOpenMetric(isOpen ? "" : m.label)} />
                 {isOpen && (
-                  <div className="origin-top animate-[careReveal_.28s_ease-out] border-t border-white/10 px-4 py-4">
-                    <p className="text-sm text-fg-2">Baseline <b className="text-fg">{mfmt(m.dec, m.baseline)} {m.unit}</b> → teď <b className="text-fg">{mfmt(m.dec, m.value)} {m.unit}</b> · odchylka {sgn(Math.round(m.z * 100) / 100)}. {m.terrain !== false ? "Porovnává se jen ve stejném profilu terénu a tempa." : "Průměr proti vašemu dřívějšímu období (napříč terénem — málo dat na terénní očištění)."}</p>
+                  <div className="origin-top animate-[careReveal_.28s_ease-out] border-t border-white/[.08] px-4 py-4">
+                    <p className="text-sm leading-6 text-fg-2">Baseline <b className="text-fg">{mfmt(m.dec, m.baseline)} {m.unit}</b> → teď <b className="text-fg">{mfmt(m.dec, m.value)} {m.unit}</b> · odchylka {sgn(Math.round(m.z * 100) / 100)}. {m.terrain !== false ? "Porovnává se jen ve stejném profilu terénu a tempa." : "Průměr proti vašemu dřívějšímu období (napříč terénem — málo dat na terénní očištění)."}</p>
                     {m.series.length > 1 && (
                       <div className="mt-3">
-                        <p className="font-sans font-bold text-[11px] uppercase tracking-[.12em] text-fg-3">Celý trend · {m.series.length} běhů{m.seriesDates.length ? ` · ${fmtD(m.seriesDates[0])} → ${fmtD(m.seriesDates.at(-1)!)}` : ""}</p>
+                        <p className="t-label !text-fg-3">Celý trend · {m.series.length} {plural(m.series.length, "běh", "běhy", "běhů")}{m.seriesDates.length ? ` · ${fmtD(m.seriesDates[0])} → ${fmtD(m.seriesDates.at(-1)!)}` : ""}</p>
                         <AxisLineChart points={m.series.map((v, i) => ({ t: m.seriesDates[i] || m.seriesDates.at(-1) || "", v }))} dec={m.dec} unit={` ${m.unit}`} color={C.accent} height={150}
                           band={{ lo: usualRange(m).lo, hi: usualRange(m).hi, mid: m.baseline, label: "vaše obvyklé rozmezí" }} />
                       </div>
