@@ -84,6 +84,8 @@ export const api = {
   activities: (id: string, n = 10) => call("GET", `/api/runners/${id}/activities?limit=${n}`),
   unrated: (id: string) => call("GET", `/api/runners/${id}/activities/unrated`),
   rateActivity: (rid: string, aid: number, body: any) => call("POST", `/api/runners/${rid}/activities/${aid}/rate`, body),
+  addManualActivity: (rid: string, body: any) => call("POST", `/api/runners/${rid}/activities/manual`, body),
+  deleteActivity: (rid: string, aid: number) => call("DELETE", `/api/runners/${rid}/activities/${aid}`),
   excludeActivity: (rid: string, aid: number, excluded: boolean, scope?: string) => call("POST", `/api/runners/${rid}/activities/${aid}/exclude`, { excluded, ...(scope ? { scope } : {}) }),
   daily: (id: string, n = 14) => call("GET", `/api/runners/${id}/daily?days=${n}`),
   editDaily: (rid: string, date: string, patch: any, note?: string) => call("PATCH", `/api/runners/${rid}/daily/${date}`, { patch, note }),

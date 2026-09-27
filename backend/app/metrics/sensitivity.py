@@ -154,7 +154,8 @@ KNOBS = [
 # one; no key = shared. `hidden` knobs carry exact live values (so "Načíst moje
 # data" reproduces the live score) but get no slider.
 _V3_NAME = {"volume": "Objem nad kapacitou", "intensity": "Intenzita nad kapacitou", "descent": "Klesání nad kapacitou",
-            "ascent": "Stoupání nad kapacitou", "systemic": "Celková zátěž nad kapacitou"}
+            "ascent": "Stoupání nad kapacitou", "systemic": "Celková zátěž nad kapacitou",
+            "strength": "Silová zátěž nad kapacitou"}
 
 
 def _v3_knobs():
@@ -169,7 +170,7 @@ def _v3_knobs():
     for ch, spec in CAP.CHANNELS.items():
         w = str(spec["w"]).replace(".", ",")
         ks += [
-            {"id": f"v3_{ch}_s", "engine": "v3", "axis": "load", "label": f"{spec['label']} · jeden běh",
+            {"id": f"v3_{ch}_s", "engine": "v3", "axis": "load", "label": f"{spec['label']} · {'jedno posilování' if ch == 'strength' else 'jeden běh'}",
              "grade": spec["grade"], "unit": "× kap.", "min": 0.0, "max": 3.2, "step": 0.01, "default": 0.0,
              "thr": 1 + CAP.MARGIN_SESSION, "dir": "above",
              "desc": f"Nejnáročnější běh 7 dní vs. vaše prokázaná kapacita (× připravenost dne). Body nad +10 %: do 1,3× "

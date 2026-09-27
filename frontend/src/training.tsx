@@ -11,9 +11,10 @@ import { METRIC_INFO as MI } from "@/metricinfo"
 import { readinessCol } from "@/capacity"
 import { fmtD, paceStr } from "@/lib"
 import { C } from "@/tokens"
-import { ChevronDown, ChevronRight, CircleCheck, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, X, Zap, type LucideIcon } from "lucide-react"
+import { Bike, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Waves, X, Zap, type LucideIcon } from "lucide-react"
 
 const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"]
+const CROSS = ["kolo", "voda", "posilování"]
 const MODE: Record<string, [string, string]> = {
   build: ["Budovací týden", C.ok], recovery: ["Odlehčovací týden", C.watch], deload: ["Odlehčovací · zvýšená zátěž", C.alert],
   taper: ["Ladění před závodem", C.accent], learning: ["Nastavuji cyklus", C.fg2], hold: ["Udržení", C.watch],
@@ -25,7 +26,7 @@ const LIMIT: Record<string, string> = {
   systemic: "celková zátěž", mechanics: "mechanika nad prahem",
 }
 const CH_ICON: Record<string, string> = { volume: "Objem", intensity: "Intenzita", descent: "Klesání", ascent: "Stoupání", systemic: "Celková zátěž" }
-const TYPE_ICON: Record<string, LucideIcon> = { volno: Sofa, regenerace: Leaf, "lehký": Footprints, "dlouhý": Route, "kvalitní": Zap, "závod": Flag }
+const TYPE_ICON: Record<string, LucideIcon> = { volno: Sofa, regenerace: Leaf, "lehký": Footprints, "dlouhý": Route, "kvalitní": Zap, "závod": Flag, kolo: Bike, voda: Waves, "posilování": Dumbbell }
 
 // Today's capacity: what today can hold so that the last 7 days stay within the
 // weekly capacity the Zátěž tab shows, this week keeps to its place in the cycle,
@@ -462,7 +463,9 @@ export function Training() {
   const kind = sel || g.type
   const t = g.types[kind] || g.types[g.type]
   const today = new Date(g.date + "T12:00:00").toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
-  const run = kind !== "volno" && kind !== "závod"
+  const cross = !!t.cross
+  const run = kind !== "volno" && kind !== "závod" && !cross
+  const st = g.strength || {}
   const pat = g.pattern || {}
   return (
     <>
@@ -513,11 +516,12 @@ export function Training() {
       )}
 
       {/* Session tiles: every type stays selectable, including the not-recommended ones. */}
-      <div className="mt-5 grid grid-cols-3 gap-2" role="group" aria-label="Typ tréninku">
-        {ORDER.filter((k) => g.types[k]).map((k) => {
+      {(() => {
+        const tile = (k: string) => {
           const on = k === kind
           const rec = k === g.type
           const ok = g.types[k].allowed
+          const good = k === "posilování" && st.suggestToday && !rec
           const Icon = TYPE_ICON[k] || Footprints
           return (
             <button key={k} onClick={() => setSel(k)} aria-pressed={on}
@@ -526,18 +530,45 @@ export function Training() {
               <span className="grid gap-1.5">
                 <span className={`text-[13px] font-bold leading-tight sm:text-[14px] ${on ? "text-fg" : "text-fg-soft"}`}>{g.types[k].label}</span>
                 {rec ? <span className="w-fit rounded-full bg-accent/15 px-1.5 py-0.5 text-[11px] font-bold leading-none text-accent">doporučeno</span>
+                  : good ? <span className="w-fit rounded-full bg-ok/15 px-1.5 py-0.5 text-[11px] font-bold leading-none text-ok">vhodný den</span>
                   : !ok ? <span className="w-fit rounded-full bg-alert/15 px-1.5 py-0.5 text-[11px] font-bold leading-none text-alert-soft">nedoporučeno</span> : null}
               </span>
             </button>
           )
-        })}
-      </div>
+        }
+        const crossKeys = CROSS.filter((k) => g.types[k])
+        return (
+          <>
+            <div className="mt-5 grid grid-cols-3 gap-2" role="group" aria-label="Typ tréninku">
+              {ORDER.filter((k) => g.types[k]).map(tile)}
+            </div>
+            {crossKeys.length > 0 && (
+              <>
+                <p className="t-label mb-2 mt-4 !text-fg-3">Jiný sport</p>
+                <div className="grid grid-cols-3 gap-2" role="group" aria-label="Jiný sport" data-tour="training-cross">
+                  {crossKeys.map(tile)}
+                </div>
+              </>
+            )}
+          </>
+        )
+      })()}
 
       <section className="card mt-4 p-4 md:p-6" data-tour="training-session">
         {!t.allowed && (
           <p className="mb-4 rounded-[12px] border border-alert/30 bg-alert/10 px-3 py-2 text-[13px] font-bold text-alert-soft">Dnes nedoporučujeme: {t.why}</p>
         )}
-        {run ? (
+        {cross ? (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Stat label="Délka" value={t.durationMin ? `${range(t.durationMin[0], t.durationMin[1], 0)} min` : "—"} sub={kind === "posilování" ? "včetně rozcvičení" : "souvislá jednotka"} />
+            {t.hr ? <Stat label="Tep" value={`${t.hr[0]}–${t.hr[1]}`} sub={`tep/min · ${t.hrZones || ""}`} />
+              : <Stat label="Náročnost" value={t.rpeTarget || "—"} sub="podle pocitu, 0 = klid, 10 = maximum" />}
+            {t.hr && t.rpeTarget ? <Stat label="Náročnost" value={t.rpeTarget} sub="podle pocitu" /> : null}
+            {kind === "posilování"
+              ? <Stat label="Tento týden" value={`${st.done ?? 0} / ${st.target ?? 2}`} sub={st.target === 1 ? "závodní fáze: stačí jedno" : "posilování, dvě stačí"} warn={(st.done ?? 0) < (st.target ?? 2)} />
+              : <Stat label="Běžecké km" text value="nepočítají se" sub="jen celková zátěž, bez nárazů" />}
+          </div>
+        ) : run ? (
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat label="Vzdálenost" value={`${range(t.km?.lo, t.km?.hi)} km`} sub={t.km?.max != null ? `strop dnes ${num(t.km.max)} km — nepřekračovat` : "kapacitu poznáváme"} />
             <Stat label="Čas" value={t.durationMin ? `≈ ${range(t.durationMin[0], t.durationMin[1], 0)} min` : "—"} sub="podle vašeho tempa" />
@@ -555,8 +586,11 @@ export function Training() {
         ) : (
           <p className="text-[14px] leading-6 text-fg-soft">{kind === "závod" ? ((a.races?.warnings || []).some((w: any) => w.kind === "race_day") ? "Den závodu — ale tělo dnes nehlásí plnou připravenost (viz níže). Běžte s rezervou." : "Den závodu — žádné limity. Po závodě nechte tělo pár dní regenerovat.") : "Odpočinek. Pokud chcete pohyb, zvolte lehkou chůzi, mobilitu nebo jiný sport bez nárazů a bez bolesti."}</p>
         )}
-        {run && t.notes?.length > 0 && (
+        {(run || cross) && t.notes?.length > 0 && (
           <p className="mt-4 text-[13px] leading-6 text-fg-soft">{t.notes.join(" ")}</p>
+        )}
+        {cross && (
+          <Link to="/app/post#jiny-sport" className="btn btn-secondary btn-sm mt-4">Zapsat do deníku</Link>
         )}
       </section>
 

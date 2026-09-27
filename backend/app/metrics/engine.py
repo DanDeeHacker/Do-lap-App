@@ -34,7 +34,7 @@ from ..serializers import to_dict
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.8.2"   # v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.8.3"   # v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -282,17 +282,24 @@ def _eexcl() -> frozenset:
     return getattr(_engine_ctx, "excl", None) or frozenset()
 
 
+def _edamp() -> frozenset:
+    return getattr(_engine_ctx, "damp", None) or frozenset()
+
+
 @contextmanager
 def engine_pinned(mode: str):
     prev_m = getattr(_engine_ctx, "mode", None)
     prev_e = getattr(_engine_ctx, "excl", None)
+    prev_d = getattr(_engine_ctx, "damp", None)
     _engine_ctx.mode = mode or "v1"
     _engine_ctx.excl = frozenset()
+    _engine_ctx.damp = frozenset()
     try:
         yield
     finally:
         _engine_ctx.mode = prev_m
         _engine_ctx.excl = prev_e
+        _engine_ctx.damp = prev_d
 
 
 def _sensitive() -> bool:
@@ -452,22 +459,190 @@ def hr_bounds(runs, dailies, birth_year=None, measured=None):
     return max(est, observed), rhr
 
 
-def session_load(a, hrmax: float = 190.0, rhr: float = 50.0) -> float:
-    """One session's training load in arbitrary units (AU) — the standard
-    HR-based load (Banister TRIMP) when heart rate is present, else Garmin's own
-    training load, else duration × a per-sport intensity. Sport-agnostic, so
-    running and cross-training land on one comparable load scale."""
+# ---------------------------------------------------------------- cross-training
+# Two load pathways (Vanrenterghem et al., 2017): every sport adds physiological
+# load (the systemic channel), only running loads the running tissues. Strength
+# work adds its own local load and a short carry-over into running intensity.
+STRENGTH_FOCUS = ("lower", "upper", "full")
+STRENGTH_TYPES = ("heavy", "explosive", "plyo", "circuit")
+# HR max per sport when the runner has no hard sessions of that sport yet:
+# cycling 6–10 bpm below running in triathletes (Millet et al., 2009) → 8;
+# swimming 11 bpm below treadmill running, "reduce by 12" (DiCarlo et al., 1991).
+SPORT_HR_OFFSET = {"cycling": 8.0, "swimming": 12.0}
+SPORT_HR_MIN_SESSIONS = 5
+# Session RPE × minutes (Foster et al., 2001) → TRIMP units, fitted per runner on
+# runs that carry both (regression through the origin). The default is the ratio of
+# an easy and a tempo run computed with this engine's TRIMP (≈ 0.40–0.48): a working
+# assumption until the runner has SRPE_K_MIN_RUNS rated runs with heart rate.
+SRPE_K_DEFAULT = 0.45
+SRPE_K_BOUNDS = (0.25, 0.8)
+SRPE_K_MIN_RUNS = 8
+STRENGTH_DEFAULT_RPE = 5          # an unrated strength session counts as moderate (working assumption)
+STRENGTH_FOCUS_W = {"lower": 1.0, "full": 1.0, "upper": 0.3, None: 0.7}   # working assumptions
+
+
+def _trimp(dur, hr, hrmax, rhr):
+    hrr = min(max((hr - rhr) / (hrmax - rhr), 0.0), 1.0)
+    return dur * hrr * 0.64 * math.exp(1.92 * hrr)
+
+
+def feedback_rpe(db: DBSession, rid: str) -> dict:
+    """{activity id: session RPE the runner gave in the journal}."""
+    return {aid: rpe for aid, rpe in db.query(models.ActivityFeedback.activity_id, models.ActivityFeedback.rpe)
+            .filter(models.ActivityFeedback.runner_id == rid, models.ActivityFeedback.rpe.isnot(None))}
+
+
+def sport_hr_max(all_list, hrmax: float) -> dict:
+    """HR max per cross-training sport: the running value minus the literature
+    offset, raised to the runner's own hardest sessions of that sport (avg + 10,
+    as hr_bounds does for running) once there are enough of them."""
+    out = {}
+    for sport, off in SPORT_HR_OFFSET.items():
+        hrs = [a.avg_hr for a in all_list if (a.sport or "running") == sport and a.avg_hr]
+        observed = (max(hrs) + 10) if len(hrs) >= SPORT_HR_MIN_SESSIONS else 0.0
+        out[sport] = min(hrmax, max(hrmax - off, observed))
+    return out
+
+
+def srpe_k(all_list, rpe: dict, hrmax: float, rhr: float) -> tuple[float, int]:
+    """(TRIMP per sRPE·min, runs used) — the runner's own conversion or the default."""
+    xs, ys = [], []
+    for a in all_list:
+        r = rpe.get(a.id) or a.rpe
+        if is_run(a) and r and a.avg_hr and (a.duration_min or 0) > 0 and hrmax > rhr:
+            xs.append(r * a.duration_min)
+            ys.append(_trimp(a.duration_min, a.avg_hr, hrmax, rhr))
+    if len(xs) < SRPE_K_MIN_RUNS:
+        return SRPE_K_DEFAULT, len(xs)
+    k = sum(x * y for x, y in zip(xs, ys)) / sum(x * x for x in xs)
+    return clamp(k, *SRPE_K_BOUNDS), len(xs)
+
+
+def load_context(db: DBSession, rid: str, all_list, hrmax: float, rhr: float) -> dict:
+    rpe = feedback_rpe(db, rid)
+    k, n = srpe_k(all_list, rpe, hrmax, rhr)
+    return {"hr": sport_hr_max(all_list, hrmax), "k": k, "kRuns": n, "rpe": rpe}
+
+
+def session_rpe(a, ctx: dict | None):
+    return ((ctx or {}).get("rpe") or {}).get(a.id) or a.rpe
+
+
+def session_load(a, hrmax: float = 190.0, rhr: float = 50.0, ctx: dict | None = None) -> float:
+    """One session's training load in arbitrary units (AU, TRIMP scale). Running:
+    Banister TRIMP from heart rate. Cross-training (with `ctx` from load_context):
+    cycling by TRIMP against the cycling HR max, else session RPE; swimming by
+    session RPE first (heart rate in water reads lower, DiCarlo et al., 1991), else
+    TRIMP against the swimming HR max; strength by session RPE only, because heart
+    rate doesn't reflect a lifting session (Sweet et al., 2004). Then Garmin's own
+    training load, then duration × a per-sport constant (no source, last resort)."""
     dur = a.duration_min or 0
     if dur <= 0:
         return 0.0
-    if a.avg_hr and hrmax > rhr:
-        hrr = min(max((a.avg_hr - rhr) / (hrmax - rhr), 0.0), 1.0)
-        return dur * hrr * 0.64 * math.exp(1.92 * hrr)
+    sport = a.sport or "running"
+    if ctx is None:                           # legacy path, kept for callers without a context
+        if a.avg_hr and hrmax > rhr:
+            return _trimp(dur, a.avg_hr, hrmax, rhr)
+        if a.training_load:
+            return float(a.training_load)
+        if a.rpe:
+            return dur * (a.rpe / 5.0)
+        return dur * _SPORT_LPM.get(sport or "other", 0.8)
+    k = ctx["k"]
+    r = session_rpe(a, ctx)
+    hm = ctx["hr"].get(sport, hrmax)
+    if sport == "strength":
+        if r:
+            return dur * r * k
+        if a.training_load:
+            return float(a.training_load)
+        return dur * STRENGTH_DEFAULT_RPE * k
+    if sport == "swimming" and r:
+        return dur * r * k
+    if a.avg_hr and hm > rhr:
+        return _trimp(dur, a.avg_hr, hm, rhr)
+    if r:
+        return dur * r * k
     if a.training_load:
         return float(a.training_load)
-    if a.rpe:
-        return dur * (a.rpe / 5.0)
-    return dur * _SPORT_LPM.get(a.sport or "other", 0.8)
+    return dur * _SPORT_LPM.get(sport, 0.8)
+
+
+def strength_exposure(a, ctx: dict | None) -> float | None:
+    """Local strength load of one session: session RPE × minutes × body-region weight."""
+    if (a.sport or "") != "strength" or not (a.duration_min or 0):
+        return None
+    r = session_rpe(a, ctx) or STRENGTH_DEFAULT_RPE
+    return a.duration_min * r * STRENGTH_FOCUS_W.get(a.strength_focus, 0.7)
+
+
+def heavy_lower(a, ctx: dict | None) -> bool:
+    """A strength session hard enough on the legs to blunt the next 24–48 h of
+    intensive running (Doma et al., 2017): lower-body or whole-body work rated
+    ≥ 7, or heavy / plyometric lower-body work rated ≥ 5 (or unrated)."""
+    if (a.sport or "") != "strength" or a.strength_focus == "upper":
+        return False
+    r = session_rpe(a, ctx)
+    if r is not None and r >= 7:
+        return True
+    return a.strength_focus in ("lower", "full") and a.strength_type in ("heavy", "plyo") and (r is None or r >= 5)
+
+
+# Running kinematics change 24–48 h after lower-body resistance work (Doma et al., 2017),
+# so runs on the day of and the two days after a heavy lower-body session count half in
+# the mechanics drift (the weight is a working assumption) and are labelled in the app.
+POST_STRENGTH_DAYS = (0, 1, 2)
+POST_STRENGTH_W = 0.5
+
+
+def post_strength_dates(db: DBSession, rid: str) -> frozenset:
+    """Run dates that fall within POST_STRENGTH_DAYS of a heavy lower-body session."""
+    rows = db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.sport == "strength").all()
+    if not rows:
+        return frozenset()
+    ctx = {"rpe": feedback_rpe(db, rid)}
+    out = set()
+    for a in rows:
+        if counts_for(a, "all") and heavy_lower(a, ctx) and a.started_at:
+            d0 = date.fromisoformat(a.started_at[:10])
+            out |= {(d0 + timedelta(days=k)).isoformat() for k in POST_STRENGTH_DAYS}
+    return frozenset(out)
+
+
+def find_twin(db: DBSession, rid: str, sport: str, day: str, dur: float, manual: bool = False):
+    """An activity of the same sport on the same day and of similar length (±35 %) —
+    an imported one (manual=False) or a hand-logged one (manual=True)."""
+    q = db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.sport == sport,
+                                         models.Activity.started_at == day)
+    for a in q:
+        if (a.provider == "manual") != manual:
+            continue
+        if a.duration_min and dur and abs(a.duration_min - dur) <= 0.35 * max(a.duration_min, dur):
+            return a
+    return None
+
+
+def absorb_manual(db: DBSession, rid: str) -> int:
+    """A watch recording that arrives after a hand-logged session of the same sport,
+    day and length replaces it: the rating and the strength details move over."""
+    moved = 0
+    for m in db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.provider == "manual").all():
+        twin = find_twin(db, rid, m.sport, m.started_at, m.duration_min or 0)
+        if twin is None:
+            continue
+        for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == m.id).all():
+            has = db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == twin.id).first()
+            if has is None:
+                f.activity_id = twin.id
+            else:
+                db.delete(f)
+        twin.strength_focus = twin.strength_focus or m.strength_focus
+        twin.strength_type = twin.strength_type or m.strength_type
+        db.delete(m)
+        moved += 1
+    if moved:
+        db.flush()
+    return moved
 
 
 def daily(db: DBSession, rid: str, n: int):
@@ -693,7 +868,9 @@ def _drift_v2(field, rec, by_b, val, series, pace_out, s_rm=None):
     sess = [(a, bucket(a)) for a in sorted(rec, key=lambda a: a.started_at) if bucket(a) in stats]
     if not sess:
         return None
-    dis = [clamp((val(a) - stats[b][0]) / stats[b][1], -4, 4) for a, b in sess]
+    damp = _edamp()
+    dis = [clamp((val(a) - stats[b][0]) / stats[b][1], -4, 4) * (POST_STRENGTH_W if a.started_at[:10] in damp else 1.0)
+           for a, b in sess]
     flag = _ewma_flag(dis, _BAD_SIGN.get(field, 1))
     lam, n = _V2_EWMA_LAMBDA, len(dis)
     w = [lam * (1 - lam) ** (n - 1 - i) for i in range(n)]  # each session's weight in the final EWMA
@@ -957,7 +1134,8 @@ def load(db: DBSession, rid: str):
     CROSS = [a for a in ALL if not is_run(a)]
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
     hrmax, rhr = hr_bounds(A, daily(db, rid, 180), r.birth_year if r else None, r.hr_max if r else None)
-    sl = lambda a: session_load(a, hrmax, rhr)
+    ctx = load_context(db, rid, ALL, hrmax, rhr)
+    sl = lambda a: session_load(a, hrmax, rhr, ctx)
 
     # A session counts as high-intensity when its average HR sits at ≥80 % of
     # heart-rate reserve (≈ threshold / Z4+) — a hard tempo/interval effort.
@@ -2365,6 +2543,7 @@ def assess(db: DBSession, rid: str) -> dict:
     if _sensitive():
         # Feed pain-period exclusions to the mechanics drift core for this scope.
         _engine_ctx.excl = _v2_baseline_exclusions(db, rid)
+        _engine_ctx.damp = post_strength_dates(db, rid)
     conf = confidence(db, rid)
     L = load(db, rid)
     gated = conf["value"] >= 0.6

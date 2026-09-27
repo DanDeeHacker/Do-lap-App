@@ -67,9 +67,12 @@ def run_history(db, rid: str, limit: int = 20) -> list[dict]:
         W.enrich(db, runner, runs, limit=limit)
     except Exception:  # noqa: BLE001 — weather is context, never a reason to fail the list
         db.rollback()
+    from . import engine as E
+    post = E.post_strength_dates(db, rid)
     out = []
     for a in runs:
         out.append({
+            "postStrength": (a.started_at or "")[:10] in post,
             "id": a.id, "started_at": a.started_at, "start_time": a.start_time, "title": a.title,
             "distance_km": a.distance_km, "duration_min": a.duration_min, "pace_s_km": a.pace_s_km,
             "avg_hr": a.avg_hr, "surface": a.surface, "vert_ratio_pct": a.vert_ratio_pct,

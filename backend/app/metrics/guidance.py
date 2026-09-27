@@ -48,7 +48,21 @@ from . import engine as E
 
 TYPES = ("volno", "regenerace", "lehký", "dlouhý", "kvalitní")
 TYPE_LABEL = {"volno": "Volno", "regenerace": "Regenerační běh", "lehký": "Lehký běh",
-              "dlouhý": "Dlouhý běh", "kvalitní": "Kvalitní trénink", "závod": "Den závodu"}
+              "dlouhý": "Dlouhý běh", "kvalitní": "Kvalitní trénink", "závod": "Den závodu",
+              "kolo": "Kolo", "voda": "Plavání / běh ve vodě", "posilování": "Posilování"}
+CROSS_TYPES = ("kolo", "voda", "posilování")
+# Cross-training (see engine.py "cross-training" and the design doc):
+#  • kolo — physiological load without running impact (Vanrenterghem et al., 2017), dosed from
+#    what's left of the overall load at Z2 of the cycling HR max (Millet et al., 2009);
+#  • voda — pool running or swimming when pain or mechanics limit running; running in deep water
+#    kept VO2max over 6 weeks (Wilber et al., 1996) and is closest to running (Vanrenterghem 2017);
+#  • posilování — 2 sessions a week (Blagrove et al., 2018: 2–3, two likely enough), 1 in the
+#    race phase, ≥ 24 h before an intensive run (Blagrove 2018); a heavy lower-body session
+#    blunts intensive running for 24–48 h (Doma et al., 2017) → lower Z4+ caps, no quality.
+CYCLE_Z2 = (0.60, 0.70)          # HRR band for an easy ride
+CROSS_MIN, KOLO_MAX, VODA_MAX = 20, 90, 45
+STRENGTH_TARGET, STRENGTH_TARGET_RACE = 2, 1
+STRENGTH_CARRY = {0: 0.5, 1: 0.5, 2: 0.75}   # Z4+ cap factor by days since a heavy lower-body session (working assumption)
 WD = ("pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota", "neděle")
 WD_IN = ("v pondělí", "v úterý", "ve středu", "ve čtvrtek", "v pátek", "v sobotu", "v neděli")
 HARD_Z4_MIN = 10        # a run with ≥ 10 min in Z4+ counts as a hard session
@@ -432,6 +446,17 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     # ---- limits per session type --------------------------------------------
     vol_max = week["volume"]["todayMax"]
     int_max = week["intensity"]["todayMax"]
+    # ---- strength carry-over (Doma et al., 2017): the latest heavy lower-body session
+    strength = [x for x in sessions if x.get("sport") == "strength" and x["date"] <= t_iso]
+    heavy = [x for x in strength if x.get("heavyLower") and (today - _d(x["date"])).days in STRENGTH_CARRY]
+    carry = None
+    if heavy:
+        hs = max(heavy, key=lambda x: x["date"])
+        age_h = (today - _d(hs["date"])).days
+        carry = {"date": hs["date"], "age": age_h, "factor": STRENGTH_CARRY[age_h], "rpe": hs.get("rpe"),
+                 "focus": hs.get("strengthFocus")}
+        if int_max is not None:
+            int_max *= carry["factor"]
     desc_max = week["descent"]["todayMax"]
     asc_max = week["ascent"]["todayMax"]
     base_km = easy_km or 6.0
@@ -507,6 +532,53 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     types["kvalitní"] = mk("kvalitní", 0.9 * base_km * km_scale, 1.1 * base_km * km_scale, z4max=z4hi, z4t=z4t,
                            dfac=0.6, terrain="rovina / dráha — tvrdé úseky ne z kopce",
                            notes=["Rozklus a výklus v Z1–Z2; tvrdé úseky v Z4–Z5 do stropu minut."])
+    # ---- cross-training types -------------------------------------------------
+    all_list = E.all_acts(db, rid, "load")
+    sport_hr = E.sport_hr_max(all_list, hrmax)
+    k_srpe, _k_runs = E.srpe_k(all_list, E.feedback_rpe(db, rid), hrmax, rhr)
+    sys_left = week["systemic"]["todayMax"]
+
+    def xmk(kind, lo, hi, *, hr=None, zones=None, rpe=None, notes=None, sport=None):
+        return {"label": TYPE_LABEL[kind], "cross": True, "sport": sport, "km": None,
+                "durationMin": (round(lo), round(hi)), "hr": hr, "hrZones": zones, "rpeTarget": rpe, "pace": None,
+                "z4Max": None, "z4Target": None, "descentMax": None, "ascentMax": None, "terrain": None,
+                "notes": notes or [], "allowed": True, "why": None}
+    hm_c = sport_hr.get("cycling", hrmax - 8)
+    hr_c = (round(rhr + CYCLE_Z2[0] * (hm_c - rhr)), round(rhr + CYCLE_Z2[1] * (hm_c - rhr)))
+    per_min_c = E._trimp(1.0, rhr + sum(CYCLE_Z2) / 2 * (hm_c - rhr), hm_c, rhr)
+    kolo_hi = KOLO_MAX if sys_left is None else min(KOLO_MAX, sys_left / per_min_c)
+    types["kolo"] = xmk("kolo", max(CROSS_MIN, 0.6 * kolo_hi), max(CROSS_MIN, kolo_hi), hr=hr_c, zones="Z2 na kole",
+                        sport="cycling",
+                        notes=["Tepové pásmo je z maxima pro kolo, které bývá o 6–10 tepů nižší než při běhu.",
+                               "Běžecké kilometry se nepočítají, zátěž jde jen do celkové zátěže."])
+    voda_hi = VODA_MAX if sys_left is None else min(VODA_MAX, sys_left / (4 * k_srpe))
+    types["voda"] = xmk("voda", max(CROSS_MIN, 0.66 * voda_hi), max(CROSS_MIN, voda_hi), rpe="3–4 z 10",
+                        zones="podle pocitu", sport="swimming",
+                        notes=["Běh v hluboké vodě je pohybem nejblíž běhu, plavání je stejně dobrá náhrada.",
+                               "Tep ve vodě bývá nižší, řiďte se pocitem námahy. Jen pokud při tom nic nebolí."])
+    types["posilování"] = xmk("posilování", 30, 45, rpe="6–7 z 10", zones=None, sport="strength",
+                              notes=["2–3 série dřepů, výpadů, výstupů na bednu a výponů lýtek, 2 opakování nechte v záloze.",
+                                     "Po tvrdém běhu až s odstupem aspoň 3 hodin, před tvrdým během aspoň 24 hodin."])
+    if sys_left is not None and kolo_hi < CROSS_MIN:
+        types["kolo"]["allowed"], types["kolo"]["why"] = False, "Celková zátěž (tep × čas) je dnes na stropu."
+    if sys_left is not None and voda_hi < CROSS_MIN:
+        types["voda"]["allowed"], types["voda"]["why"] = False, "Celková zátěž (tep × čas) je dnes na stropu."
+    # strength: this calendar week, the race phase, spacing before an intensive run
+    ws_iso = week_start(today).isoformat()
+    s_target = STRENGTH_TARGET_RACE if (days_to_race is not None and 0 < days_to_race <= 14) else STRENGTH_TARGET
+    s_done = sum(1 for x in strength if x["date"] >= ws_iso)
+    s_today = any(x["date"] == t_iso for x in strength)
+    tomorrow_hard = (wd_next := (today.weekday() + 1) % 7) in pat["hardDays"]
+    if s_today:
+        types["posilování"]["allowed"], types["posilování"]["why"] = False, "Posilování už dnes máte hotové."
+    elif days_to_race is not None and 0 < days_to_race <= 3:
+        types["posilování"]["allowed"], types["posilování"]["why"] = False, "Pár dní před závodem bez posilování."
+    elif tomorrow_hard:
+        types["posilování"]["allowed"] = False
+        types["posilování"]["why"] = (f"Zítra ({WD[wd_next]}) obvykle trénujete tvrdě. Mezi posilováním a intenzivním "
+                                      "během nechte aspoň 24 hodin.")
+    if s_target and s_done < s_target:
+        types["posilování"]["notes"].insert(0, f"Tento týden {s_done} z {s_target} posilování.")
     if race_today:
         types["závod"] = {"label": TYPE_LABEL["závod"], "km": next_any.get("km"), "allowed": True, "why": None,
                           "notes": [race_warn[0]["text"]] if race_warn else
@@ -545,9 +617,18 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                             f"{acute['at'][5:7].lstrip('0')}.). Den dva bez běhu, pak jen volně a krátce; "
                             "pokud bolest do 3 dnů neustoupí, proberte to s fyzioterapeutem."}
     if override:
-        for k in ("regenerace", "lehký", "dlouhý", "kvalitní", "závod"):
+        for k in ("regenerace", "lehký", "dlouhý", "kvalitní", "závod", "posilování"):
             if k in types:
                 block(k, override["title"])
+        for k in ("kolo", "voda"):
+            types[k]["notes"].insert(0, "Jen pokud při tom nic nebolí a fyzioterapeut s tím souhlasí.")
+    if carry:
+        when = "dnes" if carry["age"] == 0 else "včera" if carry["age"] == 1 else "předevčírem"
+        if carry["age"] <= 1:
+            block("kvalitní", f"Posilování nohou {when}: 24–48 hodin po silovém tréninku bývá horší výkon "
+                              "v intenzitě. Klidný běh je v pořádku.")
+        else:
+            types["kvalitní"]["notes"].append(f"Posilování nohou {when} — strop minut v Z4+ je o čtvrtinu nižší.")
     race_rest = bool(race) and race["daysSince"] < race["restDays"]
     if race and not override:
         left_days = race["days"] - race["daysSince"]
@@ -628,6 +709,11 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         typ = "lehký"
     if extra_easy and typ == "regenerace":
         typ = "volno"                     # the optional easy run is offered, not recommended
+    run_blocked = vol_max is not None and vol_max < MIN_RUN_KM and not extra_easy
+    ride_day = (not pat["runDays"]) or wd in pat["runDays"]
+    if (typ == "volno" and not override and not race_rest and run_blocked and ride_day
+            and rscore >= READY_EASY_ONLY and types["kolo"]["allowed"] and vw["limitedBy"] != "systemic"):
+        typ = "kolo"                      # running tissues are at their limit, the aerobic side isn't
 
     # ---- reasons (most important first) -------------------------------------
     reasons = []  # the override itself is shown as the banner, not repeated here
@@ -693,6 +779,14 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if cycle["manual"]:
         reasons.append(f"Tento týden jste ručně zvolili {cycle['pos']}. týden cyklu — příští týden se cyklus nastaví "
                        "sám podle toho, jak týden skutečně proběhne.")
+    if typ == "kolo":
+        reasons.insert(0, "Běžecký objem je na dnešek vyčerpaný, ale celková zátěž má rezervu — kolo zatíží srdce "
+                          "a plíce bez nárazů do nohou.")
+    if carry and not override:
+        reasons.append(f"Posilování nohou {_dm(carry['date'])}" + (f" (náročnost {carry['rpe']}/10)" if carry["rpe"] else "")
+                       + ": 24–48 hodin po něm bývá horší výkon v intenzitě, strop minut v Z4+ je dnes nižší.")
+    if (pain_mod or pain > 5) and not override:
+        reasons.append("Místo běhu můžete zvolit běh ve vodě nebo plavání, pokud při tom nic nebolí.")
     if drift:
         reasons.append("Mechanika se odchyluje od vaší normy — bez intenzity a prudkých seběhů, raději rovina.")
     if vw["budget"] and not (typ == "volno" and vw["limitedBy"] == "week"):
@@ -720,5 +814,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                     "longDayName": WD[pat["longDay"]] if pat["longDay"] is not None else None,
                     "hardDayNames": [WD[w] for w in pat["hardDays"]], "easyKm": _r(easy_km), "easyPace": _r(easy_pace, 0)},
         "reasons": reasons[:5], "done": done,
+        "strength": {"done": s_done, "target": s_target, "today": s_today,
+                     "suggestToday": bool(types["posilování"]["allowed"] and s_done < s_target and typ != "kolo"),
+                     "carry": carry},
         "zones": cap.get("zones"), "hrSource": "fit" if fit else "fallback",
     }

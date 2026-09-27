@@ -194,6 +194,9 @@ export const TOUR: TourStep[] = [
   { route: "/app/training", tab: "Trénink", target: { text: "Závody" }, title: "Závody",
     body: "Kalendář závodů s prioritou A, B nebo C. V ukázce je kontrolní půlmaraton a cílový maraton.",
     value: "Před závodem s prioritou A se trénink sám zklidní, abyste na start přišli odpočatí." },
+  { route: "/app/training", tab: "Trénink", target: { sel: '[data-tour="training-cross"]' }, title: "Jiný sport",
+    body: "Kolo, plavání nebo běh ve vodě a posilování, každý s délkou a tepovým pásmem nebo cílovou náročností. Když je běžecký objem vyčerpaný, doporučí kolo. Tréninky bez hodinek zapíšete v Deníku.",
+    value: "Aerobní trénink pokračuje i ve dnech, kdy nohy potřebují pauzu od nárazů, a posilování, které zlepšuje běžeckou ekonomiku, má v týdnu své místo." },
 
   { route: "/app/post", tab: "Deník", target: { text: "Čeká na zápis" }, title: "Běhy k ohodnocení",
     body: "Nové běhy z hodinek čekají na krátký zápis: jak se běželo, jak se cítily nohy a jestli něco bolelo. Zápis zabere asi dvacet vteřin.",
@@ -234,7 +237,7 @@ export const TOUR: TourStep[] = [
     body: "Skóre zátěže po dnech za posledních 6 měsíců. Nad prahem 25 je zátěž zvýšená.",
     value: "Uvidíte, jak rychle se po náročných týdnech vracíte do normy." },
   { route: "/app/load", tab: "Zátěž", target: { text: "Týdenní kapacita" }, title: "Kapacita po kanálech",
-    body: "Týdenní součet objemu, intenzity, klesání, stoupání a celkové zátěže proti vaší kapacitě. V ukázce je vidět klesání navýšené prudkým trailovým během.",
+    body: "Týdenní součet objemu, intenzity, klesání, stoupání a celkové zátěže proti vaší kapacitě, u posilování i silová zátěž. V ukázce je vidět klesání navýšené prudkým trailovým během.",
     value: "Tělo nezatěžují jen kilometry. Seběh z kopce působí jinak než rovina, a proto se počítá zvlášť." },
   { route: "/app/load", tab: "Zátěž", target: { text: "Co tvoří skóre zátěže" }, title: "Co tvoří zátěž",
     body: "Kanály seřazené podle toho, kolik přidávají k dnešnímu skóre zátěže.",

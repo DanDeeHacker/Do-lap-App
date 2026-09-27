@@ -294,6 +294,7 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
                 if k != "date" and v is not None and getattr(row, k, None) is None:
                     setattr(row, k, v)
     db.flush()
+    E.absorb_manual(db, rid)       # a watch recording replaces the same hand-logged session
 
     integ = db.query(models.Integration).filter(models.Integration.runner_id == rid).first()
     if integ:

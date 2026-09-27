@@ -187,6 +187,12 @@ class Activity(Base):
     # strength, rowing, elliptical, hiking, other. Only running feeds the
     # mechanics engine; every sport feeds systemic load as running-equivalent km.
     sport = Column(String, default="running")
+    # Strength sessions only: "lower" | "upper" | "full" and "heavy" | "explosive" |
+    # "plyo" | "circuit" — the load model counts the lower body fully and uses a heavy
+    # lower-body session to limit the next days' intensity (Doma et al., 2017).
+    # The session RPE lives in ActivityFeedback.rpe like for runs.
+    strength_focus = Column(String)
+    strength_type = Column(String)
     distance_km = Column(Float)
     duration_min = Column(Float)
     pace_s_km = Column(Float)

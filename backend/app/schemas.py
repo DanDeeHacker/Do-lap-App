@@ -56,6 +56,22 @@ class RateActivityRequest(Lenient):
     rpe: Optional[int] = None
     note: Optional[str] = None
     pain_points: list[dict[str, Any]] = Field(default_factory=list)
+    strength_focus: Optional[str] = None   # strength sessions only
+    strength_type: Optional[str] = None
+
+
+class ManualActivityRequest(Lenient):
+    """A cross-training session logged by hand (strength often isn't recorded by a watch)."""
+    sport: str
+    date: str
+    duration_min: float
+    rpe: int
+    legs: Optional[int] = None
+    distance_km: Optional[float] = None
+    avg_hr: Optional[int] = None
+    strength_focus: Optional[str] = None
+    strength_type: Optional[str] = None
+    note: Optional[str] = None
 
 
 class EditDailyRequest(Lenient):

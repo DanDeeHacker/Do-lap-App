@@ -41,10 +41,74 @@ function LoadGate({ label = "Načítám…" }: { label?: string }) {
 }
 
 /* ============================ DENÍK ============================ */
+// Cross-training in the journal: cycling, swimming and strength (rated by session RPE,
+// Foster et al. 2001, plus how the legs feel — the "breathing vs legs" split of
+// Vanrenterghem et al. 2017). Strength sessions also say what was trained.
+const SPORT_OPTS = [["cycling", "Kolo"], ["swimming", "Plavání"], ["strength", "Posilování"]] as const
+const FOCUS_OPTS = [["lower", "Nohy"], ["full", "Celé tělo"], ["upper", "Horní polovina"]] as const
+const STYPE_OPTS = [["heavy", "Těžké"], ["explosive", "Výbušné"], ["plyo", "Plyometrie"], ["circuit", "Kruhový"]] as const
+const isCross = (a: any) => !!a && !!a.sport && a.sport !== "running"
+const actTitle = (a: any) => (isCross(a) ? `${a.title} · ${Math.round(a.duration_min || 0)} min` : `${a.title} · ${a.distance_km} km`)
+const actIcon = (a: any) => (isCross(a) ? SPORT_ICON[a.sport] || ActivityIcon : a?.surface === "trail" ? Mountain : Footprints)
+
+function CrossSheet({ rid, onClose, onDone }: { rid: string; onClose: () => void; onDone: () => void }) {
+  const [sport, setSport] = useState<"cycling" | "swimming" | "strength">("strength")
+  const [date, setDate] = useState(dayAgo(0))
+  const [dur, setDur] = useState(45)
+  const [rpe, setRpe] = useState(6)
+  const [legs, setLegs] = useState(3)
+  const [focus, setFocus] = useState<"lower" | "full" | "upper">("lower")
+  const [stype, setStype] = useState<"heavy" | "explosive" | "plyo" | "circuit">("heavy")
+  const [note, setNote] = useState("")
+  const { busy, err, run } = useAsync()
+  const toast = useToast()
+  const submit = () => run(async () => {
+    await api.addManualActivity(rid, {
+      sport, date, duration_min: dur, rpe, legs, note: note || null,
+      ...(sport === "strength" ? { strength_focus: focus, strength_type: stype } : {}),
+    })
+    toast({ title: "Trénink zapsán", msg: `${SPORT_OPTS.find((o) => o[0] === sport)![1]} · ${dur} min` })
+    onDone()
+  })
+  return (
+    <Sheet open onClose={onClose} footer={
+      <div className="flex gap-2">
+        <button onClick={submit} disabled={busy} className="btn btn-primary flex-1 py-3 text-sm">{busy ? "Ukládám…" : "Uložit trénink"}</button>
+        <button onClick={onClose} className="btn btn-outline px-5 py-3 text-sm">Zrušit</button>
+      </div>
+    }>
+      <h2 className="font-serif text-2xl leading-tight">Jiný sport</h2>
+      <p className="mt-1 text-[13px] text-fg-2">Trénink, který hodinky nezaznamenaly. Když ho později naimportují, zápis se k němu přesune.</p>
+      <div className="mt-4 grid gap-4">
+        <Segmented ariaLabel="Sport" options={SPORT_OPTS as any} value={sport} onChange={setSport as any} />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Datum"><input type="date" value={date} max={dayAgo(0)} onChange={(e) => setDate(e.target.value)} className="w-full rounded-xl border px-3 py-2 text-sm" /></Field>
+          <Field label="Délka (min)"><input type="number" inputMode="numeric" min={5} max={600} value={dur} onChange={(e) => setDur(Number(e.target.value))} className="w-full rounded-xl border px-3 py-2 text-sm" /></Field>
+        </div>
+        <Field label="Náročnost celého tréninku" hint="0 klid · 10 maximum, ohodnoťte asi půl hodiny po tréninku"><Slider name="xrpe" min={0} max={10} value={rpe} onChange={setRpe} /></Field>
+        <Field label="Nohy po tréninku" hint="1 těžké · 5 svěží"><Slider name="xlegs" min={1} max={5} value={legs} onChange={setLegs} /></Field>
+        {sport === "strength" && (
+          <>
+            <Field label="Co jste posilovali"><Segmented ariaLabel="Zaměření" options={FOCUS_OPTS as any} value={focus} onChange={setFocus as any} /></Field>
+            <Field label="Typ tréninku"><Segmented ariaLabel="Typ posilování" size="sm" options={STYPE_OPTS as any} value={stype} onChange={setStype as any} /></Field>
+          </>
+        )}
+        <Field label="Poznámka"><textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="Co jste dělali…" /></Field>
+      </div>
+      {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
+    </Sheet>
+  )
+}
+
 export function Post() {
   const { me, boot, refresh } = useApp()
   const rid = me!.runner_id!
   const [rate, setRate] = useState<{ act: any; initial?: any } | null>(null)
+  const [crossOpen, setCrossOpen] = useState(false)
+  const toastX = useToast()
+  useEffect(() => {
+    if (window.location.hash === "#jiny-sport") setTimeout(() => document.getElementById("jiny-sport")?.scrollIntoView({ block: "center" }), 300)
+  }, [])
   const [insOpen, setInsOpen] = useState(false)
   const fb = (boot?.activity_feedback || []) as any[]
   const acts = (boot?.activities || []) as any[]
@@ -54,6 +118,8 @@ export function Post() {
   const actById = useMemo(() => new Map(acts.map((a) => [a.id, a])), [acts])
   const sorted = useMemo(() => fb.slice().sort((x, y) => y.submitted_at.localeCompare(x.submitted_at)), [fb])
   const ov = useMemo(() => diaryOverview(fb), [fb])
+  const crossRecent = acts.filter((a) => isCross(a) && a.started_at > cutoff).sort((x, y) => y.started_at.localeCompare(x.started_at))
+  const rpeOf = useMemo(() => new Map(fb.map((f) => [f.activity_id, f.rpe])), [fb])
 
   // Daily (Checkin) + weekly (self-reported OSTRC InjuryReport) check-ins — the
   // self-report entries NOT tied to a specific run. Shown and summarised in the
@@ -104,6 +170,7 @@ export function Post() {
         title={unrated.length ? `${unrated.length} ${plural(unrated.length, "běh čeká", "běhy čekají", "běhů čeká")} na zápis` : "Deník máte kompletní"}
       />
       {rate && <RateSheet act={rate.act} initial={rate.initial} rid={rid} onClose={() => setRate(null)} onDone={() => { setRate(null); refresh() }} />}
+      {crossOpen && <CrossSheet rid={rid} onClose={() => setCrossOpen(false)} onDone={() => { setCrossOpen(false); refresh() }} />}
       <div className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
         <div className="grid content-start gap-4">
           <Card>
@@ -111,9 +178,9 @@ export function Post() {
             {unrated.length ? (
               <div className="mt-2 divide-y divide-white/[.07]">
                 {unrated.map((x) => (
-                  <ListRow key={x.id} onClick={() => setRate({ act: x })} icon={x.surface === "trail" ? Mountain : Footprints} tone="info"
-                    title={`${x.title} · ${x.distance_km} km`}
-                    meta={`${fmtD(x.started_at)} · ${surf(x.surface)} · ${paceStr(x.pace_s_km)}/km · ${x.descent_m} m klesání`}
+                  <ListRow key={x.id} onClick={() => setRate({ act: x })} icon={actIcon(x)} tone="info"
+                    title={actTitle(x)}
+                    meta={isCross(x) ? `${fmtD(x.started_at)} · jiný sport${x.avg_hr ? ` · ${Math.round(x.avg_hr)} tep/min` : ""}` : `${fmtD(x.started_at)} · ${surf(x.surface)} · ${paceStr(x.pace_s_km)}/km · ${x.descent_m} m klesání`}
                     trailing={<span className="btn btn-primary btn-sm shrink-0">Zapsat</span>} />
                 ))}
               </div>
@@ -121,6 +188,31 @@ export function Post() {
               <div className="mt-3"><Empty>Nic nečeká. Další zápis se objeví po příštím běhu.</Empty></div>
             )}
           </Card>
+          <section id="jiny-sport" className="card scroll-mt-24 p-4 md:p-5" data-tour="journal-cross">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label>Jiný sport · 14 dní</Label>
+              <Button size="sm" variant="secondary" onClick={() => setCrossOpen(true)}>Přidat trénink</Button>
+            </div>
+            <p className="mt-1 text-[12px] leading-5 text-fg-3">Kolo, plavání a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Posilování hodinky často nezaznamenají, zapište ho tady.</p>
+            {crossRecent.length ? (
+              <div className="mt-2 divide-y divide-white/[.07]">
+                {crossRecent.slice(0, 8).map((x) => {
+                  const r = rpeOf.get(x.id)
+                  return (
+                    <ListRow key={x.id} icon={actIcon(x)} tone={r != null ? "ok" : "info"} title={actTitle(x)}
+                      onClick={() => { const f = fb.find((y) => y.activity_id === x.id); setRate({ act: x, initial: f }) }}
+                      meta={`${fmtD(x.started_at)}${r != null ? ` · náročnost ${r}/10` : " · bez hodnocení"}${x.strength_focus ? ` · ${(FOCUS_OPTS.find((o) => o[0] === x.strength_focus) || [0, ""])[1]}` : ""}${x.provider === "manual" ? " · zapsáno ručně" : ""}`}
+                      trailing={x.provider === "manual" ? (
+                        <button type="button" onClick={(e) => { e.stopPropagation(); api.deleteActivity(rid, x.id).then(() => { toastX({ title: "Trénink smazán" }); refresh() }).catch(() => {}) }}
+                          className="shrink-0 rounded-full px-2 py-1 text-[12px] font-bold text-fg-3 hover:bg-alert/10 hover:text-alert">Smazat</button>
+                      ) : undefined} />
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="mt-3"><Empty>Za posledních 14 dní žádný jiný sport.</Empty></div>
+            )}
+          </section>
           <Card>
             <div className="flex items-center justify-between">
               <Label>Poslední zápisy</Label>
@@ -133,8 +225,8 @@ export function Post() {
                   const hurt = f.pain_during >= 4
                   return (
                     <div key={f.id} className="flex items-center gap-1">
-                      <ListRow onClick={() => editEntry(f)} icon={act?.surface === "trail" ? Mountain : Footprints} tone={hurt ? "alert" : "ok"}
-                        title={act ? `${act.title} · ${act.distance_km} km` : "Běh"}
+                      <ListRow onClick={() => editEntry(f)} icon={actIcon(act)} tone={hurt ? "alert" : "ok"}
+                        title={act ? actTitle(act) : "Běh"}
                         meta={<>{fmtD(f.submitted_at)}{act?.surface ? ` · ${surf(act.surface)}` : ""} · pocit {FEEL_LABEL[f.feeling] || "—"} · nohy {f.legs}/5{f.pain_during > 0 ? ` · bolest ${f.pain_during}/10` : ""}</>}
                         extra={f.pain_site ? <span className="mt-1.5 block sm:hidden"><Chip tone="alert">{f.pain_site}</Chip></span> : undefined}
                         trailing={<>
@@ -334,6 +426,9 @@ export function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; ri
   const toast = useToast()
   // Preload the body map from an existing entry's picked sites (edit mode).
   const initialRegions: string[] = ((initial?.pain_points as any[]) || []).map((p) => p.region).filter(Boolean)
+  const cross = isCross(act)
+  const [focus, setFocus] = useState<string>(act.strength_focus || "lower")
+  const [stype, setStype] = useState<string>(act.strength_type || "heavy")
 
   const submit = () =>
     run(async () => {
@@ -342,6 +437,7 @@ export function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; ri
       await api.rateActivity(rid, act.id, {
         feeling, legs, stiffness_pre: stiff, rpe, pain_during: pain, pain_site: site,
         pain_points: pts, niggle: pain >= 2, note: note || null,
+        ...(act.sport === "strength" ? { strength_focus: focus, strength_type: stype } : {}),
       })
       toast({ title: edit ? "Zápis upraven" : "Zápis uložen", msg: `${act.title}${act.distance_km ? ` · ${act.distance_km} km` : ""}` })
       onDone()
@@ -358,15 +454,23 @@ export function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; ri
         </div>
       }
     >
-      <h2 className="font-serif text-2xl leading-tight">{edit ? "Upravit zápis" : `${act.title}${act.distance_km ? ` · ${act.distance_km} km` : ""}`}</h2>
+      <h2 className="font-serif text-2xl leading-tight">{edit ? "Upravit zápis" : cross ? actTitle(act) : `${act.title}${act.distance_km ? ` · ${act.distance_km} km` : ""}`}</h2>
       <p className="mt-1 text-[13px] text-fg-2">{fmtD(act.started_at)}{act.pace_s_km ? ` · ${paceStr(act.pace_s_km)}/km` : ""}{act.surface ? ` · ${surf(act.surface)}` : ""}{act.descent_m ? ` · ${act.descent_m} m sklesáno` : ""}</p>
       <div className="mt-4 grid gap-x-6 gap-y-4 md:grid-cols-2">
         <div>
-          <Field label="Jak ztuhlé byly nohy PŘED během" hint="1 uvolněné · 5 ztuhlé"><Slider name="stiff" min={1} max={5} value={stiff} onChange={setStiff} /></Field>
+          {cross ? (
+            <Field label="Náročnost celého tréninku" hint="0 klid · 10 maximum"><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>
+          ) : <Field label="Jak ztuhlé byly nohy PŘED během" hint="1 uvolněné · 5 ztuhlé"><Slider name="stiff" min={1} max={5} value={stiff} onChange={setStiff} /></Field>}
+          {act.sport === "strength" && (
+            <>
+              <Field label="Co jste posilovali"><Segmented ariaLabel="Zaměření" options={FOCUS_OPTS as any} value={focus} onChange={setFocus as any} /></Field>
+              <Field label="Typ tréninku"><Segmented ariaLabel="Typ posilování" size="sm" options={STYPE_OPTS as any} value={stype} onChange={setStype as any} /></Field>
+            </>
+          )}
           <Field label="Jak vám bylo"><Slider name="feeling" min={1} max={5} value={feeling} onChange={setFeeling} labels={FEEL_LABEL} /></Field>
           <Field label="Nohy" hint="1 těžké · 5 svěží"><Slider name="legs" min={1} max={5} value={legs} onChange={setLegs} /></Field>
-          <Field label="Vnímaná námaha (RPE)" hint={`hodinky ${act.rpe || "—"}/10`}><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>
-          <Field label="Bolest během běhu" hint="0 žádná"><Slider name="pain" min={0} max={10} value={pain} onChange={setPain} tone="pain" /></Field>
+          {!cross && <Field label="Vnímaná námaha (RPE)" hint={`hodinky ${act.rpe || "—"}/10`}><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>}
+          <Field label={cross ? "Bolest během tréninku" : "Bolest během běhu"} hint="0 žádná"><Slider name="pain" min={0} max={10} value={pain} onChange={setPain} tone="pain" /></Field>
           <Field label="Poznámka">
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="Kdy se to ozvalo, co to zhoršilo…" />
           </Field>
@@ -748,6 +852,7 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
                   <span className="min-w-0">
                     <b className="text-sm font-bold">{x.title}</b>
                     {x.excluded && <span className="ml-2 rounded-full bg-white/[.08] px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] text-fg-2">{(x.excluded_scope || "all") === "all" ? "vyřazeno" : x.excluded_scope === "mech" ? "bez mechaniky" : "bez zátěže"}</span>}
+                    {x.postStrength && <span title="Do 48 hodin po těžkém posilování nohou se technika běhu mění (Doma et al., 2017), proto se tento běh do driftu mechaniky počítá polovinou." className="ml-2 rounded-full bg-self/15 px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] text-self">po posilovně</span>}
                     <span className="block text-[12px] text-fg-3">{fmtD(x.started_at)}{x.start_time ? ` ${x.start_time}` : ""} · {surf(x.surface)} · {x.distance_km} km · {paceStr(x.pace_s_km)}/km · {x.avg_hr} tep</span>
                     {(tl || wl) && (
                       <span className="mt-1.5 flex flex-wrap gap-1.5">
@@ -1491,7 +1596,7 @@ function SleepQuality({ s }: { s: any }) {
 
 const SPORT_ICON: Record<string, LucideIcon> = { cycling: Bike, swimming: Waves, strength: Dumbbell, rowing: Ship, elliptical: Orbit, hiking: Mountain, walking: Footprints, other: ActivityIcon }
 
-const CROSS_INFO = "Neběžecké sporty nepočítáme do běžeckých kilometrů ani do mechaniky, ale přispívají do celkové tréninkové zátěže (poměr 7:28 dní, monotónnost) i únavy. Zátěž se počítá z tepové odezvy (TRIMP), takže je porovnatelná napříč sporty."
+const CROSS_INFO = "Neběžecké sporty nepočítáme do běžeckých kilometrů ani do mechaniky, ale přispívají do celkové tréninkové zátěže i únavy. Kolo se počítá z tepu proti maximu pro kolo (bývá o 6–10 tepů nižší než při běhu), plavání a posilování z vaší náročnosti tréninku (0–10) × minuty, převedené na stejné jednotky jako tep. Proto je zátěž porovnatelná napříč sporty."
 
 // railway#55 — share of run vs other sport as a pie
 function LoadPie({ run, cross }: { run: number; cross: number }) {

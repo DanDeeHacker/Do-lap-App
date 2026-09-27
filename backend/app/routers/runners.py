@@ -644,8 +644,64 @@ def rate_activity(rid: str, aid: int, body: schemas.RateActivityRequest,
     fb.rpe = body.rpe
     fb.note = body.note
     fb.pain_points = body.pain_points
+    act = db.query(models.Activity).filter(models.Activity.id == aid).first()
+    if act is not None and act.sport == "strength":
+        if body.strength_focus in E.STRENGTH_FOCUS:
+            act.strength_focus = body.strength_focus
+        if body.strength_type in E.STRENGTH_TYPES:
+            act.strength_type = body.strength_type
     db.commit()
     return E.recompute_assessment(db, rid)
+
+
+CROSS_TITLE = {"cycling": "Kolo", "swimming": "Plavání", "strength": "Posilování"}
+
+
+@router.post("/{rid}/activities/manual", dependencies=[Depends(verify_csrf)])
+def add_manual_activity(rid: str, body: schemas.ManualActivityRequest,
+                        user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Log a cycling, swimming or strength session by hand, with its session RPE
+    (Foster et al., 2001) and, for strength, what was trained. A watch recording of
+    the same session imported later replaces it and keeps the rating."""
+    ensure_runner_self(user, rid)
+    if body.sport not in CROSS_TITLE:
+        raise HTTPException(422, "Neznámý sport")
+    try:
+        day = date.fromisoformat(body.date[:10])
+    except ValueError:
+        raise HTTPException(422, "Neplatné datum")
+    if day > E.today_date() or not (5 <= body.duration_min <= 600) or not (0 <= body.rpe <= 10):
+        raise HTTPException(422, "Zkontrolujte datum, délku (5–600 min) a náročnost (0–10)")
+    twin = E.find_twin(db, rid, body.sport, day.isoformat(), body.duration_min)
+    if twin is not None:
+        raise HTTPException(409, "Tento trénink už máte z hodinek. Ohodnoťte ho v Deníku u importovaných aktivit.")
+    a = models.Activity(
+        runner_id=rid, provider="manual", started_at=day.isoformat(), title=CROSS_TITLE[body.sport], sport=body.sport,
+        duration_min=round(body.duration_min, 1), distance_km=body.distance_km, avg_hr=body.avg_hr,
+        strength_focus=body.strength_focus if body.strength_focus in E.STRENGTH_FOCUS else None,
+        strength_type=body.strength_type if body.strength_type in E.STRENGTH_TYPES else None,
+    )
+    db.add(a)
+    db.flush()
+    db.add(models.ActivityFeedback(activity_id=a.id, runner_id=rid, submitted_at=day.isoformat(), rpe=body.rpe,
+                                   legs=body.legs, note=body.note, pain_points=[]))
+    db.commit()
+    return {"id": a.id, "assessment": E.recompute_assessment(db, rid)}
+
+
+@router.delete("/{rid}/activities/{aid}", dependencies=[Depends(verify_csrf)])
+def delete_manual_activity(rid: str, aid: int, user: models.User = Depends(get_current_user),
+                           db: DBSession = Depends(get_db)):
+    """Only hand-logged sessions can be deleted; imported ones are excluded instead."""
+    ensure_runner_self(user, rid)
+    a = or_404(db.query(models.Activity).filter(models.Activity.id == aid, models.Activity.runner_id == rid).first(),
+               "Aktivita nenalezena")
+    if a.provider != "manual":
+        raise HTTPException(400, "Importovanou aktivitu nelze smazat, můžete ji vyřadit z výpočtů.")
+    db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == aid).delete()
+    db.delete(a)
+    db.commit()
+    return {"ok": True, "assessment": E.recompute_assessment(db, rid)}
 
 
 @router.get("/{rid}/daily")

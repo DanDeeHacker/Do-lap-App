@@ -33,11 +33,13 @@ def test_apple_import_parses_runs_and_daily(client):
     r = _import(client)
     assert r.status_code == 200
     body = r.json()
-    assert body["activities"] == 2                       # two runs, the bike ride is ignored
+    assert body["activities"] == 3                       # two runs + the bike ride as cross-training
     assert body["meta"]["source"] == "apple_health"
 
     acts = client.get(f"/api/runners/{rid}/activities?limit=10").json()
-    assert len(acts) == 2
+    assert len(acts) == 3
+    bike = next(a for a in acts if a["sport"] == "cycling")
+    assert bike["duration_min"] == 60 and bike["pace_s_km"] is None     # load only, no running fields
     first = next(a for a in acts if a["started_at"] == "2026-08-01")
     assert first["distance_km"] == 8.2 and first["avg_hr"] == 152
     # 42.5 min over 8.2 km ≈ 311 s/km

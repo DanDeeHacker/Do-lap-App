@@ -88,6 +88,9 @@ def _migrate(engine):
     add("runners", "prior_injury_side", "prior_injury_side VARCHAR")
     add("runners", "hr_max", "hr_max INTEGER")
     add("runners", "onboarding_json", "onboarding_json JSON")
+    # cross-training (strength sessions): what was trained and how
+    add("activities", "strength_focus", "strength_focus VARCHAR")
+    add("activities", "strength_type", "strength_type VARCHAR")
     add("checkins", "limits_movement", "limits_movement BOOLEAN")
     add("checkins", "run_modified", "run_modified BOOLEAN")
     add("checkins", "limping", "limping BOOLEAN")

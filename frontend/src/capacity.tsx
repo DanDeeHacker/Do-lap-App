@@ -8,7 +8,7 @@ import { METRIC_INFO as MI } from "@/metricinfo"
 import { fmtD } from "@/lib"
 import { C } from "@/tokens"
 
-const CH_ORDER = ["volume", "intensity", "descent", "ascent", "systemic"] as const
+const CH_ORDER = ["volume", "intensity", "descent", "ascent", "systemic", "strength"] as const
 const RUN_CH = ["volume", "intensity", "descent", "ascent"] as const
 const num = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("cs-CZ"))
 const TONE = { ok: C.ok, watch: C.watch, alert: C.alert, muted: C.fg3 }
@@ -51,6 +51,7 @@ function HeadroomBar({ now, ceiling, tone }: { now: number | null; ceiling: numb
 }
 
 const CH_NOTE: Record<string, string> = {
+  strength: "Posilování: náročnost po tréninku (0–10) × minuty, cvičení nohou a celého těla plně, horní polovina těla z menší části. Hlídá prudké skoky, třeba první plyometrii po pauze. Těžké posilování nohou navíc na 24–48 hodin sníží v Tréninku strop minut v Z4+.",
   systemic: "Tep × čas ze všech aktivit (běh i jiné sporty) — objem a intenzita v jednom čísle. Co z ní zbývá, omezuje v Tréninku i dnešní kilometry a minuty v Z4+.",
 }
 
@@ -63,7 +64,7 @@ function ChannelRow({ id, c, margins, extra, open, onToggle }: { id: string; c: 
   const ses = c.session
   const wTone = toneOf(wk?.ratio, margins.week)
   const sTone = toneOf(ses?.ratio, margins.session)
-  const why = !c.pts ? null : c.driver === "session" ? "body za jeden běh nad kapacitou" : c.driver === "week" ? "body za 7 dní nad kapacitou" : c.driver === "latent" ? "body doznívajícího skoku" : null
+  const why = !c.pts ? null : c.driver === "session" ? (id === "strength" ? "body za jedno posilování nad kapacitou" : "body za jeden běh nad kapacitou") : c.driver === "week" ? "body za 7 dní nad kapacitou" : c.driver === "latent" ? "body doznívajícího skoku" : null
   const hasDetail = !!(extra || (c.known && (ses || c.latent || c.pendingJump || CH_NOTE[id])))
   return (
     <div className={`nest p-3.5 transition ${open ? "md:col-span-full !border-accent/60" : ""}`}>
@@ -103,7 +104,7 @@ function ChannelRow({ id, c, margins, extra, open, onToggle }: { id: string; c: 
         <div className="origin-top animate-[careReveal_.28s_ease-out] pt-2">
           {c.known && ses && (
             <p className="text-[11px] text-fg-3">
-              Nejnáročnější běh 7 dní ({fmtD(ses.date)}): <b style={{ color: (TONE as any)[sTone] }}>{num(ses.value)} {c.unit} · ×{num(ses.ratio)}</b> proti kapacitě jednoho běhu {num(ses.cap)}
+              Nejnáročnější {id === "strength" ? "posilování" : "běh"} 7 dní ({fmtD(ses.date)}): <b style={{ color: (TONE as any)[sTone] }}>{num(ses.value)} {c.unit} · ×{num(ses.ratio)}</b> proti kapacitě {id === "strength" ? "jednoho posilování" : "jednoho běhu"} {num(ses.cap)}
               {(ses.readinessScore ?? 100) < 97 ? ` · připravenost ${ses.readinessScore} %` : ""}
             </p>
           )}
@@ -226,7 +227,7 @@ export function CapacityPanel({ cap, extra = {} }: { cap: any; extra?: Record<st
         <Readiness r={cap.readiness} />
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2 min-[1600px]:grid-cols-3">
-        {CH_ORDER.map((id) => cap.channels?.[id] && (
+        {CH_ORDER.map((id) => cap.channels?.[id] && (id !== "strength" || cap.channels[id].known) && (
           <ChannelRow key={id} id={id} c={cap.channels[id]} margins={cap.margins} extra={extras[id]}
             open={open === id} onToggle={() => setOpen(open === id ? "" : id)} />
         ))}
@@ -303,4 +304,4 @@ export function CapacityMini({ cap, week, className = "mt-4 border-t border-whit
   )
 }
 
-export const CAP_SIGNAL_IDS = ["cap_volume", "cap_intensity", "cap_descent", "cap_ascent", "cap_systemic"]
+export const CAP_SIGNAL_IDS = ["cap_volume", "cap_intensity", "cap_descent", "cap_ascent", "cap_systemic", "cap_strength"]

@@ -28,6 +28,26 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 
 RUNNING = "HKWorkoutActivityTypeRunning"
+# Cross-training workouts feed the load model only (no running mechanics).
+CROSS_XML = {
+    "HKWorkoutActivityTypeCycling": "cycling", "HKWorkoutActivityTypeHandCycling": "cycling",
+    "HKWorkoutActivityTypeSwimming": "swimming", "HKWorkoutActivityTypeWaterFitness": "swimming",
+    "HKWorkoutActivityTypeTraditionalStrengthTraining": "strength",
+    "HKWorkoutActivityTypeFunctionalStrengthTraining": "strength",
+}
+CROSS_TITLE = {"cycling": "Kolo", "swimming": "Plavání", "strength": "Posilování"}
+
+
+def cross_sport(name: str) -> str | None:
+    """A Health Auto Export workout name → our cross-training sport, or None."""
+    n = (name or "").lower()
+    if "cycl" in n or "bik" in n:
+        return "cycling"
+    if "swim" in n or "water fitness" in n:
+        return "swimming"
+    if "strength" in n:
+        return "strength"
+    return None
 _FMT = "%Y-%m-%d %H:%M:%S %z"
 
 
@@ -143,7 +163,8 @@ def build_seed_from_json(payload: dict, runner_id: str, device: str = "Apple Wat
     activities: list[dict] = []
     for w in workouts:
         name = _norm(w.get("name", "") or w.get("workoutActivityType", ""))
-        if "run" not in name:
+        cross = None if "run" in name else cross_sport(name)
+        if "run" not in name and not cross:
             continue
         try:
             start = w.get("start") or w.get("startDate")
@@ -158,6 +179,15 @@ def build_seed_from_json(payload: dict, runner_id: str, device: str = "Apple Wat
                 avg_hr = w.get("avgHeartRate")
             avg_hr = round(float(avg_hr)) if avg_hr else None
         except (TypeError, ValueError):
+            continue
+        if cross:
+            if dur_min and dur_min >= 10:          # trivial < 10 min entries are dropped, like Garmin's
+                activities.append({
+                    "provider": "apple", "external_id": start, "started_at": _date(start),
+                    "title": CROSS_TITLE[cross], "sport": cross,
+                    "distance_km": round(dist_km, 2) if dist_km else None,
+                    "duration_min": round(dur_min, 1), "avg_hr": avg_hr,
+                })
             continue
         if dist_km and dur_min and dist_km > 0:
             activities.append({
@@ -231,7 +261,26 @@ def build_seed(path: str, runner_id: str, device: str = "Apple Watch") -> dict:
                     pass
                 el.clear()
             elif tag == "Workout":
-                if el.get("workoutActivityType") == RUNNING:
+                cross = CROSS_XML.get(el.get("workoutActivityType") or "")
+                if cross:
+                    avg_hr = None
+                    for st in el.findall("WorkoutStatistics"):
+                        if st.get("type") == "HKQuantityTypeIdentifierHeartRate" and st.get("average"):
+                            try:
+                                avg_hr = round(float(st.get("average")))
+                            except (TypeError, ValueError):
+                                pass
+                    try:
+                        dur_min = _to_min(el.get("duration"), el.get("durationUnit")) if el.get("duration") else None
+                    except (TypeError, ValueError):
+                        dur_min = None
+                    if dur_min and dur_min >= 10:
+                        activities.append({
+                            "provider": "apple", "external_id": el.get("startDate"),
+                            "started_at": _date(el.get("startDate")), "title": CROSS_TITLE[cross], "sport": cross,
+                            "duration_min": round(dur_min, 1), "avg_hr": avg_hr,
+                        })
+                elif el.get("workoutActivityType") == RUNNING:
                     dist, dist_u = el.get("totalDistance"), el.get("totalDistanceUnit")
                     avg_hr = None
                     for st in el.findall("WorkoutStatistics"):

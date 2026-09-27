@@ -64,6 +64,12 @@ CHANNELS = {
                "floor_s": 50.0, "floor_w": 150.0},
     "systemic": {"label": "Celková zátěž", "unit": "j.z.", "dec": 0, "w": 0.7, "grade": "B",
                  "floor_s": 30.0, "floor_w": 100.0},
+    # Strength sessions (session RPE × minutes × body-region weight). Its own local
+    # load with its own capacity, so a sudden first plyometric block shows up; low
+    # weight because only indirect evidence supports it (grade C). Floors = one
+    # 30-min session at RPE 4 / two a week (working assumptions).
+    "strength": {"label": "Silová zátěž", "unit": "sRPE·min", "dec": 0, "w": 0.5, "grade": "C",
+                 "floor_s": 120.0, "floor_w": 240.0},
 }
 RUN_CHANNELS = ("volume", "intensity", "descent", "ascent")
 
@@ -78,7 +84,7 @@ JUMP_UNCONFIRMED = 0.5  # …and afterwards counts fully only when a pain-free r
 READINESS_FLOOR = 0.7
 Z4_HRR = 0.80           # Z4 starts at 80 % heart-rate reserve (Karvonen)
 ECC_DEFAULT = 1.16      # descent weighting without a profile ≈ a typical −5 % descent
-COMBO = (1.0, 0.5, 0.25, 0.25, 0.25)
+COMBO = (1.0, 0.5, 0.25, 0.25, 0.25, 0.25)
 # Feedback railway#100 — load is absorbed night by night instead of vanishing when a
 # run leaves the 7-day window. Half-lives (in nights) are the product team's working
 # assumptions, not measured values: muscles / tendons / bone (volume, descent,
@@ -263,6 +269,7 @@ def _ecc_factor(profile, key=None):
 def run_exposures(db, rid, hrmax, rhr):
     """Every session → {id, date, run, title, km, exp{channel: value|None}}."""
     acts = E.all_acts(db, rid, "load")
+    ctx = E.load_context(db, rid, acts, hrmax, rhr)
     hists = {}
     for aid, q in db.query(models.ActivityStream.activity_id, models.ActivityStream.quality_json).filter(
             models.ActivityStream.runner_id == rid).all():
@@ -277,7 +284,9 @@ def run_exposures(db, rid, hrmax, rhr):
         if not a.started_at:
             continue
         run = E.is_run(a)
-        exp = {"systemic": E.session_load(a, hrmax, rhr) or None}
+        exp = {"systemic": E.session_load(a, hrmax, rhr, ctx) or None}
+        if a.sport == "strength":
+            exp["strength"] = E.strength_exposure(a, ctx)
         zones = None
         if run:
             desc = a.descent_m
@@ -288,7 +297,9 @@ def run_exposures(db, rid, hrmax, rhr):
             exp["descent"] = (desc or 0.0) * (fac.get(a.id) or default_fac)
             exp["ascent"] = a.ascent_m or 0.0
             zones = zone_minutes(a, hists.get(a.id), hrmax, rhr)
-        out.append({"id": a.id, "date": a.started_at[:10], "run": run, "title": a.title,
+        out.append({"id": a.id, "date": a.started_at[:10], "run": run, "title": a.title, "sport": a.sport or "running",
+                    "heavyLower": E.heavy_lower(a, ctx), "rpe": E.session_rpe(a, ctx),
+                    "durationMin": a.duration_min, "strengthFocus": a.strength_focus,
                     "km": a.distance_km, "exp": exp, "avgHr": a.avg_hr,
                     "zoneMin": zones, "zoneExact": bool(hists.get(a.id)),
                     "speed": E._speed_ms(a), "ascPerKm": ((a.ascent_m or 0) + (a.descent_m or 0)) / max(a.distance_km or 1, 0.1)})
@@ -686,8 +697,9 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
     channels, scores, drivers = {}, {}, {}
     tol: dict = {}
     runs_pool = [s for s in sessions if s["run"]]
+    strength_pool = [s for s in sessions if s.get("sport") == "strength"]
     for ch, spec in CHANNELS.items():
-        pool = sessions if ch == "systemic" else runs_pool
+        pool = sessions if ch == "systemic" else strength_pool if ch == "strength" else runs_pool
         items = channel_items(pool, ch, pain, tol, reports)
         rates = night_rates(ch, absorb_days, ready, nights)
         # --- per session: the recent session whose exceedance is still the largest
@@ -780,7 +792,8 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
         if drivers[ch] == "session":
             s = info["session"]
             val = f"×{s['ratio']}"
-            detail = (f"Nejnáročnější běh 7 dní ({_cz(s['date'])}): {s['value']} {unit} proti vaší prokázané "
+            what = "posilování" if ch == "strength" else "trénink" if ch == "systemic" else "běh"
+            detail = (f"Nejnáročnější {what} 7 dní ({_cz(s['date'])}): {s['value']} {unit} proti vaší prokázané "
                       f"kapacitě {s['cap']} {unit}" + (f" · připravenost ten den {s['readinessScore']} %" if s["readinessScore"] < 97 else "")
                       + (f" · nevstřebáno zhruba {round(s['left'] * 100)} %" if s["left"] < 0.99 else ""))
         elif drivers[ch] == "week":
@@ -794,7 +807,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
             detail = (f"Doznívá skok ×{lt['ratio']} z {_cz(lt['date'])} — riziko vrcholí 1–4 týdny po prudkém nárůstu.")
         name = {"volume": "Objem nad kapacitou", "intensity": "Intenzita nad kapacitou",
                 "descent": "Klesání nad kapacitou", "ascent": "Stoupání nad kapacitou",
-                "systemic": "Celková zátěž nad kapacitou"}[ch]
+                "systemic": "Celková zátěž nad kapacitou", "strength": "Silová zátěž nad kapacitou"}[ch]
         signals.append({"id": f"cap_{ch}", "name": name, "grade": spec["grade"], "pts": pts, "val": val,
                         "detail": detail})
     week7 = [s for s in runs_pool if 0 <= (today - _d(s["date"])).days < 7 and s.get("zoneMin")]

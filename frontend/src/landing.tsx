@@ -363,7 +363,7 @@ const TABS: TabInfo[] = [
   { t: "Dnes", title: "Ranní přehled za deset vteřin", viz: "rings", body: "Celkové skóre, regenerace, zátěž a mechanika na jednom místě s doporučením, co dnes běžet.",
     points: ["Kvadrant stavu a jeho vývoj za 6 měsíců", "Signály seřazené podle vlivu", "Denní check-in přímo z obrazovky"] },
   { t: "Trénink", title: "Kolik toho dnes unesete", viz: "bars", body: "Rozsah kilometrů, tepové zóny a tempo podle toho, co jste v posledních týdnech prokazatelně zvládli.",
-    points: ["Dnešní kapacita objemu, intenzity a převýšení", "Čtyřtýdenní cyklus s odlehčovacím týdnem", "Trénink se před závodem sám zklidní"] },
+    points: ["Dnešní kapacita objemu, intenzity a převýšení", "Čtyřtýdenní cyklus s odlehčovacím týdnem", "Kolo, plavání i posilování s konkrétní dávkou"] },
   { t: "Deník", title: "Vaše zkušenost jako nejcennější data", viz: "journal", body: "Po každém běhu krátce zapíšete, jak se běželo a jestli něco bolelo. Tyto zápisy engine používá nejvíc.",
     points: ["Běhy čekající na zápis", "Mapa těla s místy obtíží", "Souhrn posledních týdnů"] },
   { t: "Pohyb", title: "Technika proti vaší vlastní normě", viz: "mech", body: "Kontakt se zemí, kadence nebo vertikální poměr se štítkem v normě, na hraně nebo mimo normu.",

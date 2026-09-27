@@ -31,7 +31,7 @@ from .content import lib_for
 from .metrics import engine as E
 
 TUTORIAL_RID = "run_tutorial"
-BUILD_VERSION = 1
+BUILD_VERSION = 2
 _lock = threading.Lock()
 
 DAYS = 182
@@ -114,11 +114,18 @@ def _rebuild(db: DBSession) -> None:
 
     acts = _activities(rnd, today)
     rows = []
+    lift_rpe = []
     for a in acts:
+        rpe = a.pop("_rpe", None)
         row = models.Activity(runner_id=rid, provider="demo", **a)
         db.add(row)
         rows.append(row)
+        if rpe is not None:
+            lift_rpe.append((row, rpe))
     db.flush()
+    for row, rpe in lift_rpe:
+        db.add(models.ActivityFeedback(activity_id=row.id, runner_id=rid, submitted_at=row.started_at, rpe=rpe,
+                                       legs=3 if rpe >= 7 else 4, feeling=4, pain_points=[]))
 
     _daily_metrics(db, rid, rnd, iso)
     _feedback(db, rid, rnd, rows, today)
@@ -144,6 +151,13 @@ def _activities(rnd: random.Random, today) -> list[dict]:
         # whatever weekday the tour is opened on: the Trénink tab then always has a
         # full session with limits to show.
         vwd = (5 - d) % 7
+        # strength twice a week for the last ~4 months (Blagrove et al., 2018): a heavy
+        # whole-body session after the quality run and a light leg circuit two days later;
+        # no random draws here, so the running history stays the same
+        if d <= 120 and vwd == 2:
+            out.append(_strength(day, 45, "full", "heavy", 7))
+        elif d <= 120 and vwd == 4:
+            out.append(_strength(day, 30, "lower", "circuit", 5))
         plan = None
         if vwd == 1:
             plan = ("easy", 9.0)
@@ -194,6 +208,11 @@ def _activities(rnd: random.Random, today) -> list[dict]:
             "elevation_profile": _synth_elevation_profile(rnd.random, dist, asc, dsc, surface),
         })
     return out
+
+
+def _strength(day, minutes, focus, typ, rpe) -> dict:
+    return {"started_at": E.iso_date(day), "start_time": "19:00", "title": "Posilování", "sport": "strength",
+            "duration_min": minutes, "strength_focus": focus, "strength_type": typ, "_rpe": rpe}
 
 
 def _cycling(day, rnd) -> dict:
