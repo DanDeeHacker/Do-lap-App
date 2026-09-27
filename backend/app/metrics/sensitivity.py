@@ -17,6 +17,7 @@ from .engine import QUAD_EXIT, QUAD_THRESHOLD, clamp, quadrant_of, rnd
 _LOAD_SIGNAL_IDS = {
     "session_spike", "spike_latent", "pace_spike", "ewma", "hi_load", "load_creep",
     "mono", "desc", "desc_steep", "aer", "hrv", "rhr", "hrvcv", "tsb", "load_capacity", "taper",
+    "hr_pace", "hrv_high",
 }
 
 AXES = [
@@ -166,6 +167,12 @@ def _v3_knobs():
                  "noci je větší podíl kapacity. Posun přepočítá všechny poměry níže."},
         {"id": "v3readySeed", "engine": "v3", "hidden": True, "axis": "load", "label": "", "grade": "—",
          "min": 0.5, "max": 1.0, "step": 0.01, "default": 1.0, "desc": ""},
+        {"id": "hrPace", "engine": "v3", "axis": "load", "label": "Tep při obvyklém tempu", "grade": "C", "unit": "tepů",
+         "min": -10, "max": 20, "step": 0.5, "default": 0.0, "thr": E.HR_PACE_BPM, "dir": "above",
+         "desc": "Průměrný rozdíl tepu proti vaší normě pro dané tempo (přepočteno na převýšení) za poslední 3–4 běhy, "
+                 "bez horkých a velmi kopcovitých. Rozchod vnitřní a vnější zátěže bývá známkou únavy."},
+        {"id": "hrvHigh", "engine": "v3", "axis": "load", "label": "Vysoká HRV s únavou", "grade": "C", "kind": "bool",
+         "default": False, "desc": "HRV za 7 dní ≥ 1,5 SD nad normou a zároveň únava v check-inu nebo vyšší tep při tempu."},
     ]
     for ch, spec in CAP.CHANNELS.items():
         w = str(spec["w"]).replace(".", ",")
@@ -271,6 +278,11 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
             push("pace_spike", "load", "Skok v tempu", "C", clamp((g["paceSpike"] - 1.06) * 40, 0, 10), f"×{round(g['paceSpike'], 2)}", "Prudké zrychlení proti obvyklému tempu.")
         if g["monotony"] > 2.4:
             push("mono", "load", "Monotónní trénink", "B", clamp((g["monotony"] - 2.4) * 7, 0, 12), f"{round(g['monotony'], 2)}", "Chybí skutečně lehké dny.")
+        if g["hrPace"] >= E.HR_PACE_BPM:
+            push("hr_pace", "load", "Vyšší tep při obvyklém tempu", "C", clamp(3 + (g["hrPace"] - E.HR_PACE_BPM) * 1.5, 3, 10),
+                 f"+{round(g['hrPace'], 1)} tepu", "Tep při obvyklém tempu nad normou.")
+        if g["hrvHigh"]:
+            push("hrv_high", "load", "Vysoká HRV spolu s únavou", "C", 6, "", "Vyšší HRV spolu s únavou.")
     else:
         s = g["sessionSpike"]
         if valid and s > 1.1:
@@ -469,6 +481,9 @@ def inputs_from_assessment(a: dict, runner=None) -> dict:
             out[f"mech_{_sid}_dead"] = res.get("dead", 0.2)
             out[f"mech_{_sid}_wf"] = res.get("wf", 1.0)
     cap = a.get("capacity") or {}
+    hpd = E.hr_pace_deltas(cap.get("relativeEffort"))
+    out["hrPace"] = E.mean(hpd) if len(hpd) >= 3 else 0.0
+    out["hrvHigh"] = any(x.get("id") == "hrv_high" for x in (a.get("signals") or []))
     if cap.get("channels"):
         ready = (cap.get("readiness") or {}).get("today") or 1.0
         out["v3ready"] = out["v3readySeed"] = ready

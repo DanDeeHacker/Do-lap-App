@@ -881,6 +881,8 @@ def create_checkin(rid: str, body: schemas.CheckinRequest, background: Backgroun
         pain_site=site, pain_points=pts, soreness=body.soreness, stress=body.stress,
         mood=body.mood, notes=body.notes, limits_movement=body.limits_movement,
         run_modified=body.run_modified, limping=body.limping,
+        life_stress=body.life_stress, sleep_quality=body.sleep_quality,
+        flags=E.clean_checkin_flags(body.flags),
     )
     db.add(c)
     db.commit()

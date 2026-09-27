@@ -90,15 +90,42 @@ def _run(rid: str) -> None:
     from .metrics import engine as E
     db = SessionLocal()
     try:
-        a = E.get_or_refresh_assessment(db, rid)
-        from .outcomes import record_snapshot
         from .tutorial_demo import TUTORIAL_RID
+        fresh = False
+        if rid != TUTORIAL_RID:
+            fresh = _weather(db, rid)
+        # new weather (heat flags / today's forecast) → the guidance follows at once
+        a = E.recompute_assessment(db, rid, data_changed=False) if fresh else E.get_or_refresh_assessment(db, rid)
+        from .outcomes import record_snapshot
         if rid != TUTORIAL_RID:          # synthetic tour data stays out of the outcome record
             record_snapshot(db, rid, a)  # plan phase 0: the prospective daily record
         st = refresh_quadrant_history(db, rid)
         log.info("precomputed %s: %d days (%d replayed)", rid, len(st["rows"]), st["replayed"])
     finally:
         db.close()
+
+
+def _weather(db, rid: str) -> bool:
+    """v0.8.4 — weather for the recent runs (heat flags) and today's forecast.
+    Network, so only here in the background; any failure just means no weather."""
+    from . import models
+    from .metrics import engine as E
+    from .metrics import weather as W
+    if not W.enabled():
+        return False
+    try:
+        r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+        if r is None:
+            return False
+        runs = (db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.weather_json.is_(None),
+                                                 models.Activity.started_at >= E.day_ago(45))
+                .order_by(models.Activity.started_at.desc()).limit(30).all())
+        got = W.enrich(db, r, runs, limit=30) if runs else 0
+        return bool(got) | W.refresh_forecast(db, r)
+    except Exception:  # noqa: BLE001 — weather is context, never a reason to fail the job
+        log.exception("weather refresh failed for %s", rid)
+        db.rollback()
+        return False
 
 
 def _loop() -> None:

@@ -34,7 +34,7 @@ from ..serializers import to_dict
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.8.3"   # v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.8.4"   # v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -1338,9 +1338,37 @@ def load(db: DBSession, rid: str):
     }
 
 
+def hot_run(a) -> bool:
+    """v0.8.4 — run in the heat (feels-like ≥ 24 °C during the run, weather.py):
+    a higher heart rate there is heat strain, not lost fitness (Périard et al., 2015)."""
+    return bool((getattr(a, "weather_json", None) or {}).get("hot"))
+
+
+def minetti_cost(i: float) -> float:
+    """Energy cost of running on grade i (J·kg⁻¹·m⁻¹), Minetti et al. (2002),
+    valid for −0.45…+0.45. Looney et al. (2026) find it accurate on the level and
+    downhill, less so on steep climbs."""
+    i = clamp(i, -0.45, 0.45)
+    return 155.4 * i ** 5 - 30.4 * i ** 4 - 43.3 * i ** 3 + 46.3 * i ** 2 + 19.5 * i + 3.6
+
+
+def grade_factor(a) -> float:
+    """How much more a hilly run costs per metre than the same distance on the flat,
+    from total ascent / descent (the climbing and descending parts assumed at the
+    same average grade — no streams needed). 1.0 without elevation data."""
+    km = getattr(a, "distance_km", None) or 0
+    up, dn = getattr(a, "ascent_m", None) or 0, getattr(a, "descent_m", None) or 0
+    if km <= 0 or up + dn < 1:
+        return 1.0
+    i = min((up + dn) / (km * 1000), 0.3)
+    su = up / (up + dn)
+    return (su * minetti_cost(i) + (1 - su) * minetti_cost(-i)) / minetti_cost(0)
+
+
 def aerobic(db: DBSession, rid: str):
     cutoff = day_ago(21)
-    A = [a for a in acts(db, rid, "load") if a.hr_thirds and a.pace_thirds and a.started_at > cutoff]
+    # v0.8.4: hot runs left out — heat alone makes heart rate drift in the 2nd half
+    A = [a for a in acts(db, rid, "load") if a.hr_thirds and a.pace_thirds and a.started_at > cutoff and not hot_run(a)]
     A = sorted(A, key=lambda a: a.started_at)[-5:]
     if len(A) < 3:
         return None
@@ -2037,6 +2065,121 @@ def pain_monitor(db: DBSession, rid: str):
     if not morning and not trend:
         return None
     return {"morningWorse": morning, "trend": trend}
+
+
+# ---------------------------------------------------------------- v0.8.4 screening
+# Safety rules that sit above the load logic (literature review 2026-09, section H).
+CHECKIN_FLAGS = ("ill", "bone_walk", "bone_rest", "bone_earlier", "red_cauda", "red_systemic")
+HR_PACE_BPM = 6            # heart rate ≥ 6 bpm over the usual for the pace across ≥ 3 runs (working assumption)
+HRV_HIGH_Z = 1.5           # 7-night HRV this far above the norm counts as "high" (working assumption)
+BONE_PAIN_MIN = 3           # bone-typical site: from 3/10 the Silbernagel "≤ 5 is fine" allowance doesn't apply
+SCREEN_WINDOW_DAYS = 2      # a screening answer counts today and tomorrow (like the function rule, A1)
+# Typical bone stress injury sites in runners (Warden et al., 2014): tibial shaft,
+# metatarsals, navicular (midfoot), calcaneus. Plantar fascia / tendon insertions excluded.
+_BONE_KEYS = ("holeň", "holen", "shin", "tibial", "bérec", "berec", "metatar", "nárt", "nart", "pata", "chodidl", "foot")
+_NOT_BONE = ("plantár", "plantar", "fasci", "achill", "úpon", "upon", "šlach", "slach")
+_BACK_KEYS = ("páteř", "pater", "bederní", "bederni", "lowback", "si kloub", "kříž", "kriz")
+
+
+def clean_checkin_flags(d) -> dict | None:
+    """Only the known yes/no screening answers, as booleans (None when nothing was answered)."""
+    if not isinstance(d, dict):
+        return None
+    out = {k: bool(d[k]) for k in CHECKIN_FLAGS if k in d and d[k] is not None}
+    return out or None
+
+
+def bone_site(region) -> bool:
+    r = (region or "").lower()
+    return any(k in r for k in _BONE_KEYS) and not any(k in r for k in _NOT_BONE)
+
+
+def back_site(region) -> bool:
+    r = (region or "").lower()
+    return any(k in r for k in _BACK_KEYS)
+
+
+def _flags(c) -> dict:
+    return getattr(c, "flags", None) or {}
+
+
+def screening(db: DBSession, rid: str) -> dict:
+    """v0.8.4 — screening answers and tissue-specific pain rules.
+
+    redFlag    — low-back pain with bladder / bowel change or saddle numbness
+                 (cauda equina signs → emergency) or with fever / after a fall or
+                 accident (→ see a doctor soon). Finucane et al. (2020).
+    boneStress — shin / foot pain that is there when walking, at rest or at night,
+                 or starts earlier in each run: the warning signs of a bone stress
+                 injury (Warden et al., 2014) → no running, physio within 48 h.
+    bonePain   — pain ≥ 3/10 at a bone-typical site: return from bone stress is
+                 guided by no pain at all (Warden 2014), unlike tendon pain
+                 (Silbernagel 2007) → no running today, cross-training only.
+    ill        — the runner reported being ill today / yesterday.
+    illDays28  — days with an illness report in the last 28 days."""
+    today = today_date()
+    cut_screen = iso_date(today - timedelta(days=SCREEN_WINDOW_DAYS - 1))
+    rows = (db.query(models.Checkin).filter(models.Checkin.runner_id == rid,
+                                            models.Checkin.submitted_at >= iso_date(today - timedelta(days=27)))
+            .order_by(models.Checkin.submitted_at.desc()).all())
+    out = {"redFlag": None, "boneStress": None, "bonePain": None, "ill": None, "illDays28": 0}
+    ill_days = set()
+    for c in rows:
+        f = _flags(c)
+        if f.get("ill"):
+            ill_days.add(c.submitted_at[:10])
+        if c.submitted_at[:10] < cut_screen:
+            continue
+        sites = _sites(c.pain_points, c.pain_site)
+        if out["ill"] is None and f.get("ill"):
+            out["ill"] = {"at": c.submitted_at[:10]}
+        if out["redFlag"] is None and (f.get("red_cauda") or f.get("red_systemic")):
+            back = [x for x in sites if back_site(x)]
+            out["redFlag"] = {"at": c.submitted_at[:10], "kind": "cauda" if f.get("red_cauda") else "systemic",
+                              "site": ", ".join(back) or "záda"}
+        if out["boneStress"] is None and any(f.get(k) for k in ("bone_walk", "bone_rest", "bone_earlier")):
+            bone = [x for x in sites if bone_site(x)]
+            what = [lbl for k, lbl in (("bone_walk", "bolí i při chůzi"), ("bone_rest", "bolí v klidu nebo v noci"),
+                                        ("bone_earlier", "ozývá se při běhu čím dál dřív")) if f.get(k)]
+            out["boneStress"] = {"at": c.submitted_at[:10], "site": ", ".join(bone) or "holeň / chodidlo", "what": what}
+    out["illDays28"] = len(ill_days)
+    # bone-typical pain (check-ins and run ratings) in the last 14 days
+    reps = _pain_reports(db, rid, iso_date(today - timedelta(days=13)))
+    hits = [(r["day"], r["pain"], [x for x in r["sites"] if bone_site(x)]) for r in reps]
+    hits = [h for h in hits if h[2] and h[1] >= BONE_PAIN_MIN]
+    if hits:
+        last = max(hits, key=lambda h: (h[0], h[1]))
+        days = sorted({h[0] for h in hits})
+        if (today - date.fromisoformat(last[0])).days <= SCREEN_WINDOW_DAYS - 1:
+            out["bonePain"] = {"at": last[0], "pain": last[1], "site": ", ".join(dict.fromkeys(last[2])),
+                               "days14": len(days), "repeated": len(days) >= 2}
+    return out
+
+
+def hr_pace_deltas(rel_effort: dict | None, n: int = 4) -> list:
+    """Heart rate above / below the runner's usual for the pace (grade-adjusted) on
+    the latest runs, leaving out hot and very hilly runs (heat strain / terrain
+    rather than fatigue). Newest first."""
+    rows = (rel_effort or {}).get("runs") or []
+    return [x["hrDelta"] for x in rows if x.get("hrDelta") is not None and not x.get("hot") and not x.get("hilly")][:n]
+
+
+def overload_cluster(db: DBSession, rid: str, ill_days28: int, rel_effort: dict | None) -> dict | None:
+    """v0.8.4 — persistent fatigue, repeated illness and falling performance
+    together (Jeukendrup et al., 2024): many possible causes, so the app names no
+    condition and only suggests having it looked at. Needs ≥ 2 of the 3.
+    Thresholds are working assumptions (4 days of fatigue ≥ 6 in 14, ≥ 2 illness
+    days in 28, heart rate at the usual pace ≥ 5 bpm higher over ≥ 3 runs)."""
+    cut = day_ago(13)
+    cks = db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= cut).all()
+    tired = len({c.submitted_at[:10] for c in cks if (c.stress or 0) >= 6})
+    deltas = hr_pace_deltas(rel_effort)
+    hr_up = len(deltas) >= 3 and mean(deltas) >= 5
+    parts = [("fatigue", tired >= 4), ("illness", ill_days28 >= 2), ("performance", hr_up)]
+    got = [k for k, ok in parts if ok]
+    if len(got) < 2:
+        return None
+    return {"parts": got, "fatigueDays": tired, "illDays": ill_days28, "hrDelta": r1(mean(deltas)) if deltas else None}
 
 
 def max_efforts(db: DBSession, rid: str, hrmax: float | None, window: int = MAX_EFFORT_WINDOW) -> list[dict]:
@@ -2751,6 +2894,31 @@ def assess(db: DBSession, rid: str) -> dict:
             if p:
                 load_score += p
                 push("mono", "Monotónní trénink", "B", p, f"{L['monotony']}", f"Chybí skutečně lehké dny · strain {L['strain']}")
+        # v0.8.4 — internal vs external load: heart rate at a familiar (grade-adjusted)
+        # pace drifting up over several runs, hot and very hilly runs left out
+        # (Bourdon et al., 2017; Halson, 2014a: single-day HR varies up to 6.5 %, so
+        # ≥ 3 runs and ≥ 6 bpm on average — working assumption).
+        hpd = hr_pace_deltas(cap_v3.get("relativeEffort"))
+        if len(hpd) >= 3 and mean(hpd) >= HR_PACE_BPM:
+            p = rnd(clamp(3 + (mean(hpd) - HR_PACE_BPM) * 1.5, 3, 10))
+            load_score += p
+            push("hr_pace", "Vyšší tep při obvyklém tempu", "C", p, f"+{_cz_num(mean(hpd))} tepu",
+                 f"Posledních {len(hpd)} běhů (bez horkých a velmi kopcovitých) mělo tep v průměru o {_cz_num(mean(hpd))} "
+                 "úderů vyšší, než u vás obvykle odpovídá danému tempu (s přepočtem na převýšení). Rozchod mezi vnitřní "
+                 "a vnější zátěží bývá známkou únavy.")
+        # v0.8.4 — a higher HRV isn't automatically good: it rose during functional
+        # overreaching (Plews et al., 2014). Only together with fatigue or a heart rate
+        # rising at the usual pace (working assumption: 7-night z ≥ 1.5).
+        if rcv and (rcv["hrv"]["z"] or 0) >= HRV_HIGH_Z:
+            tired7 = len({c.submitted_at[:10] for c in db.query(models.Checkin).filter(
+                models.Checkin.runner_id == rid, models.Checkin.submitted_at >= day_ago(6)).all() if (c.stress or 0) >= 6})
+            hr_up = len(hpd) >= 3 and mean(hpd) >= 5
+            if tired7 >= 3 or hr_up:
+                load_score += 6
+                push("hrv_high", "Vysoká HRV spolu s únavou", "C", 6, f"{rcv['hrv']['now']} ms",
+                     f"HRV za 7 dní nad vaší normou ({rcv['hrv']['base']} ms) a zároveň "
+                     + ("únava v check-inu" if tired7 >= 3 else "vyšší tep při obvyklém tempu")
+                     + ". Vyšší HRV není vždy dobrá zpráva, při funkčním přetížení může také stoupat (Plews et al., 2014).")
     else:
         # --- Load axis is evidence-weighted (v0.5.2 recalibration). The well-
         # validated grade-B signals (ACWR, high-intensity spike, monotony, HRV,
@@ -3072,6 +3240,41 @@ def assess(db: DBSession, rid: str) -> dict:
         push("pain_trend", "Bolest týden od týdne roste", "B", 12, f"{_cz_num(tr['before'])} → {_cz_num(tr['now'])}",
              f"Průměrná hlášená bolest za 7 dní {_cz_num(tr['now'])}/10 proti {_cz_num(tr['before'])}/10 týden předtím — "
              "bolest nemá z týdne na týden růst (Silbernagel 2007); odlehčit, bez intenzity a dlouhého běhu.")
+    # v0.8.4 — screening: red flags, bone-stress warning signs, bone-typical pain,
+    # illness and the fatigue / illness / performance cluster (section H review).
+    scr = screening(db, rid)
+    if scr["redFlag"]:
+        rf = scr["redFlag"]
+        symp_score += 60
+        push("red_flag", "Varovné příznaky u bolesti zad", "A", 60,
+             "okamžitě k lékaři" if rf["kind"] == "cauda" else "k lékaři",
+             ("Bolest zad se změnou močení nebo stolice nebo s necitlivostí v rozkroku patří k příznakům, které "
+              "vyžadují okamžité lékařské vyšetření." if rf["kind"] == "cauda" else
+              "Bolest zad s horečkou nebo po pádu či úrazu je důvod nechat se co nejdřív vyšetřit lékařem.")
+             + " Tréninková doporučení jsou do té doby pozastavená (Finucane et al., 2020).")
+    if scr["boneStress"]:
+        bs = scr["boneStress"]
+        symp_score += 40
+        push("bone_stress", "Bolest s varovnými znaky přetížení kosti", "B", 40, ", ".join(bs["what"]),
+             f"{bs['site']}: {', '.join(bs['what'])}. Takový průběh bývá u únavového přetížení kosti a patří "
+             "k posouzení fyzioterapeutem nebo lékařem, bez ohledu na číslo bolesti (Warden et al., 2014). Dnes bez běhu.")
+    elif scr["bonePain"]:
+        bp = scr["bonePain"]
+        p = 22 if bp["repeated"] else 14
+        symp_score += p
+        push("bone_pain", "Bolest v místě typickém pro přetížení kosti", "B", p, f"{bp['pain']}/10 · {bp['days14']}× / 14 dní",
+             f"{bp['site']}: {bp['pain']}/10. U kosti se bolest nepřechází, návrat k běhu se řídí úplnou absencí bolesti "
+             "(Warden et al., 2014), na rozdíl od šlachy, kde je tolerovaná bolest do 5/10 (Silbernagel et al., 2007). "
+             "Dnes bez běhu, jiný sport jen bez bolesti." + (" Bolest se vrací, nechte ji posoudit fyzioterapeutem." if bp["repeated"] else ""))
+    cluster = overload_cluster(db, rid, scr["illDays28"], (cap_v3 or {}).get("relativeEffort"))
+    if cluster:
+        symp_score += 14
+        lbl = {"fatigue": f"únava ≥ 6/10 ve {cluster['fatigueDays']} dnech", "illness": f"nemoc {cluster['illDays']}× za 28 dní",
+               "performance": f"tep při obvyklém tempu +{_cz_num(cluster['hrDelta'] or 0)} tepu"}
+        push("cluster", "Únava, nemoc a pokles výkonu zároveň", "C", 14, f"{len(cluster['parts'])} ze 3",
+             "Současně: " + ", ".join(lbl[k] for k in cluster["parts"]) + ". Taková kombinace má mnoho možných příčin "
+             "(zátěž, spánek, stres, výživa, nemoc), proto ji stojí za to probrat s fyzioterapeutem nebo lékařem, "
+             "místo hledání jedné příčiny (Jeukendrup et al., 2024).")
     hrmax_all, _rhr = hr_bounds(acts(db, rid), daily(db, rid, 180), r.birth_year if r else None, r.hr_max if r else None)
     efforts = max_efforts(db, rid, hrmax_all)
     race_rec = next((e for e in sorted(efforts, key=lambda e: e["date"], reverse=True) if e["daysSince"] < e["days"]), None)
@@ -3122,8 +3325,8 @@ def assess(db: DBSession, rid: str) -> dict:
     # A4 — the risk label never contradicts the state (Přetížení / Tichý drift are
     # not "low risk"); A1/A2 — limited function is injury-level, acute overload at least "watch".
     order = {"ok": 0, "watch": 1, "alert": 2}
-    floor = "alert" if (quadrant == "critical" or (func and func["severe"])) else \
-        "watch" if (quadrant in ("overreaching", "silent") or func or acute or pmon) else "ok"
+    floor = "alert" if (quadrant == "critical" or (func and func["severe"]) or scr["redFlag"] or scr["boneStress"]) else \
+        "watch" if (quadrant in ("overreaching", "silent") or func or acute or pmon or scr["bonePain"] or cluster) else "ok"
     if order[floor] > order[tier]:
         tier = floor
 
@@ -3138,6 +3341,7 @@ def assess(db: DBSession, rid: str) -> dict:
         "hrvCv": hcv, "sleepReg": sreg, "sleepEff": seff, "stiffness": stiff, "gradientDescent": gdesc, "injury": inj,
         "painRecurring": pain_recur, "functionLimit": func, "acuteOverload": acute, "raceRecovery": race_rec,
         "maxEfforts": efforts, "painMonitor": pmon, "returnToRun": rtr, "races": races,
+        "screening": scr, "cluster": cluster,
         # v0.6 — single-session paradigm surface + capacity/frailty transparency +
         # forward-looking guardrail (the safe next-long-run ceiling).
         "sessionSpike": L.get("sessionSpike"), "spikeLatent": L.get("spikeLatent"),
@@ -3201,7 +3405,8 @@ def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> 
         ("loadDetail", "tavr", "gct", "bal", "dec", "aer", "rcv", "fb", "cadence", "stride", "vosc",
          "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury",
          "engineMode", "mechRes", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance", "painRecurring",
-         "functionLimit", "acuteOverload", "raceRecovery", "maxEfforts", "painMonitor", "returnToRun", "races")
+         "functionLimit", "acuteOverload", "raceRecovery", "maxEfforts", "painMonitor", "returnToRun", "races",
+         "screening", "cluster")
     }
     db.flush()
 

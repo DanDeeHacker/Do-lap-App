@@ -421,6 +421,54 @@ SIG_DOC = {
         "limit": "Sám body nepřidává (od railway#91). Snižuje toleranci zátěže a násobí signál „Bolest v místě dřívějšího zranění“.",
         "clear": "Vliv na toleranci zátěže klesá do 12 měsíců od zranění.",
     },
+    # v0.8.4 — literature review 2026-09
+    "red_flag": {
+        "t": "Varovné příznaky u bolesti zad", "g": "A", "fx": "odpověď v check-inu u bolesti v bederní oblasti",
+        "why": "Změna močení nebo stolice a necitlivost v rozkroku patří k příznakům, které vyžadují okamžité "
+               "lékařské vyšetření. Horečka nebo úraz spolu s bolestí zad jsou důvod k brzkému vyšetření "
+               "(mezinárodní rámec IFOMPT, Finucane et al., 2020).",
+        "limit": "Jednotlivé varovné příznaky mají samy o sobě slabou výpovědní hodnotu, rozhoduje klinická úvaha "
+                 "lékaře. Aplikace nic neurčuje, jen pozastaví trénink a odkáže na lékaře.",
+        "clear": "Po odpovědi „ne“ v dalším check-inu (platí dnes a zítra).",
+    },
+    "bone_stress": {
+        "t": "Bolest s varovnými znaky přetížení kosti", "g": "B",
+        "fx": "holeň / chodidlo + bolest při chůzi, v klidu či v noci, nebo čím dál dřív při běhu",
+        "why": "Tyto projevy jsou typické pro únavové přetížení kosti a patří k posouzení bez ohledu na číslo "
+               "bolesti (Warden et al., 2014).",
+        "limit": "Odborný komentář, ne systematický přehled. Aplikace nic neurčuje, jen odkazuje na fyzioterapeuta.",
+        "clear": "Po odpovědi „ne“ v dalším check-inu (platí dnes a zítra).",
+    },
+    "bone_pain": {
+        "t": "Bolest v místě typickém pro přetížení kosti", "g": "B", "fx": "bolest ≥ 3/10 na holeni nebo chodidle",
+        "why": "Návrat po přetížení kosti se řídí úplnou absencí bolesti (Warden et al., 2014), na rozdíl od "
+               "šlachy, kde je tolerovaná bolest do 5/10 (Silbernagel et al., 2007).",
+        "limit": "Místo na mapě těla neodliší kost od svalu nebo šlachy, proto jde o opatrnostní pravidlo.",
+        "clear": "Den bez bolesti ≥ 3/10 v tomto místě.",
+    },
+    "cluster": {
+        "t": "Únava, nemoc a pokles výkonu zároveň", "g": "C",
+        "fx": "aspoň 2 ze 3: únava ≥ 6 ve 4 dnech ze 14 · nemoc ≥ 2× za 28 dní · tep při tempu +5 tepů",
+        "why": "Stejné příznaky mohou mít mnoho příčin (zátěž, spánek, stres, výživa, nemoc), proto se vyplatí "
+               "je probrat s odborníkem místo hledání jediné příčiny (Jeukendrup et al., 2024).",
+        "limit": "Prahy jsou pracovní předpoklady, ne validovaná kritéria.",
+        "clear": "Když některá ze složek odezní.",
+    },
+    "hr_pace": {
+        "t": "Vyšší tep při obvyklém tempu", "g": "C",
+        "fx": "průměr (tep − očekávaný tep pro tempo s přepočtem na převýšení) ≥ 6 tepů za ≥ 3 běhy, bez horka a strmých kopců",
+        "why": "Rozchod mezi vnitřní a vnější zátěží bývá známkou únavy (Bourdon et al., 2017; Halson, 2014).",
+        "limit": "Tep kolísá mezi dny až o 6,5 %, proto průměr z více běhů. Převýšení je přepočteno rovnicí "
+                 "Minetti et al. (2002), která popisuje průměrného běžce.",
+        "clear": "Když průměr posledních běhů klesne pod 6 tepů.",
+    },
+    "hrv_high": {
+        "t": "Vysoká HRV spolu s únavou", "g": "C", "fx": "HRV za 7 dní ≥ 1,5 SD nad normou + únava nebo vyšší tep při tempu",
+        "why": "Vyšší HRV není automaticky dobrá zpráva, při funkčním přetížení může také stoupat "
+               "(Plews et al., 2014).",
+        "limit": "Opírá se o malé studie, HRV reaguje i na mnoho vlivů mimo trénink.",
+        "clear": "Když HRV klesne k normě nebo únava odezní.",
+    },
 }
 
 QUAD = {

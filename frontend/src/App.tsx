@@ -1450,6 +1450,17 @@ function Auth() {
   )
 }
 const STEP_TITLE = ["Jak se dnes cítí tělo?", "Kde to bolí?", "Ještě něco?"]
+// v0.8.4 — which body-map sites get the extra screening questions (mirrors
+// engine.bone_site / back_site): bone-typical shin / foot sites (Warden 2014),
+// low back for the red flags (Finucane 2020).
+const BONE_KEYS = ["holeň", "holen", "shin", "tibial", "bérec", "metatar", "nárt", "pata", "chodidl"]
+const NOT_BONE = ["plantár", "fasci", "achill", "úpon", "šlach"]
+const BACK_KEYS = ["páteř", "bederní", "si kloub", "kříž"]
+const isBone = (r: string) => { const x = r.toLowerCase(); return BONE_KEYS.some((k) => x.includes(k)) && !NOT_BONE.some((k) => x.includes(k)) }
+const isBack = (r: string) => { const x = r.toLowerCase(); return BACK_KEYS.some((k) => x.includes(k)) }
+type Flags = { ill: boolean; bone_walk: boolean; bone_rest: boolean; bone_earlier: boolean; red_cauda: boolean; red_systemic: boolean }
+const NO_FLAGS: Flags = { ill: false, bone_walk: false, bone_rest: false, bone_earlier: false, red_cauda: false, red_systemic: false }
+const SLEEP_Q = ["velmi špatně", "špatně", "průměrně", "dobře", "výborně"]
 const STEP_SHORT = ["Pocity", "Bolest", "Poznámka"]
 function AtlasBubble() {
   const [open, setOpen] = useState(false)
@@ -1460,6 +1471,10 @@ function AtlasBubble() {
   const [note, setNote] = useState("")
   const [points, setPoints] = useState<BodyPoint[]>([])
   const [fn, setFn] = useState<{ limits_movement: boolean; run_modified: boolean; limping: boolean }>({ limits_movement: false, run_modified: false, limping: false })
+  const [lifeStress, setLifeStress] = useState(2)
+  const [sleepQ, setSleepQ] = useState<number | null>(null)
+  const [flags, setFlags] = useState<Flags>(NO_FLAGS)
+  const toggleFlag = (k: keyof Flags) => setFlags((p) => ({ ...p, [k]: !p[k] }))
   const [step, setStep] = useState(1)
   useEffect(() => { if (open) setStep(1) }, [open])
   // Step 2 (where it hurts) is only asked when there is pain; otherwise it's skipped.
@@ -1475,19 +1490,29 @@ function AtlasBubble() {
     ["Bolest", pain, setPain, "žádná"],
     ["Svalová ztuhlost", soreness, setSoreness, "lehká"],
     ["Únava", fatigue, setFatigue, "mírná"],
+    ["Stres mimo trénink", lifeStress, setLifeStress, "žádný"],
   ]
+  const boneHit = pain > 0 && points.some((p) => isBone(p.region))
+  const backHit = pain > 0 && points.some((p) => isBack(p.region))
   const save = () =>
     run(async () => {
       if (!rid) return
       // as before: the body map only counts while pain > 0 (it was hidden at 0)
       const pts = (pain > 0 ? points : []).map((p) => ({ region: p.region, side: p.side || null, type: p.kind }))
       const hurts = pain > 0 || pts.length > 0
+      // screening answers only for the sites they were asked for
+      const fl: Partial<Flags> = { ill: flags.ill }
+      if (boneHit) Object.assign(fl, { bone_walk: flags.bone_walk, bone_rest: flags.bone_rest, bone_earlier: flags.bone_earlier })
+      if (backHit) Object.assign(fl, { red_cauda: flags.red_cauda, red_systemic: flags.red_systemic })
       await api.checkin(rid, {
         pain_score: pain, soreness, stress: fatigue, mood: score, notes: note || null,
         pain_points: pts, pain_site: pts.length ? pts.map((p) => p.region).join(", ") : null,
+        life_stress: lifeStress, sleep_quality: sleepQ, flags: fl,
         ...(hurts ? fn : {}),
       })
       setFn({ limits_movement: false, run_modified: false, limping: false })
+      setFlags(NO_FLAGS)
+      setSleepQ(null)
       toast({ title: "Check-in uložen" })
       refresh()
       setOpen(false)
@@ -1595,6 +1620,22 @@ function AtlasBubble() {
                   )
                 })}
               </div>
+              <div className="nest mt-4 p-4">
+                <p className="t-label">Jak jste spali</p>
+                <div className="mt-2 grid grid-cols-5 gap-1.5">
+                  {SLEEP_Q.map((label, i) => (
+                    <button key={label} type="button" onClick={() => setSleepQ(sleepQ === i ? null : i)} aria-pressed={sleepQ === i}
+                      className={`rounded-[12px] border px-1 py-2 text-[11px] font-semibold leading-tight transition ${sleepQ === i ? "border-accent bg-accent/15 text-fg" : "border-white/[.08] bg-white/[.04] text-fg-2 hover:border-white/20"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button type="button" role="switch" aria-checked={flags.ill} onClick={() => toggleFlag("ill")} data-testid="ill-toggle"
+                className={`mt-4 flex w-full items-center justify-between gap-3 rounded-[12px] border px-3 py-2.5 text-left text-[13px] transition ${flags.ill ? "border-watch/60 bg-watch/12 text-fg" : "border-white/10 text-fg-soft hover:border-white/20"}`}>
+                <span>Jsem nemocný/á (nachlazení, horečka, střevní potíže)</span>
+                <span className={`relative h-6 w-10 shrink-0 rounded-full transition ${flags.ill ? "bg-watch" : "bg-white/15"}`}><i className={`absolute top-[3px] size-[18px] rounded-full transition-all ${flags.ill ? "left-[19px] bg-ink" : "left-[3px] bg-fg-2"}`} /></span>
+              </button>
             </div>
             {/* step 2 — where it hurts (only asked when pain > 0) */}
             <div className={step === 2 ? "" : "hidden"}>
@@ -1622,6 +1663,34 @@ function AtlasBubble() {
                   <p className="mt-3 rounded-[12px] border border-alert/40 bg-alert/10 p-3 text-[12px] leading-5 text-alert-soft">Bolest, která omezuje pohyb, je signál zranění — dnes neběhejte a nechte to posoudit fyzioterapeutem (do 48 hodin).</p>
                 )}
               </div>
+              {boneHit && (
+                <div className="nest mt-4 p-4" data-testid="bone-questions">
+                  <p className="t-label">Holeň nebo chodidlo</p>
+                  <p className="mt-1 text-[12px] text-fg-3">U kosti se bolest nepřechází — tyhle otázky rozhodují víc než číslo.</p>
+                  <div className="mt-3 space-y-2">
+                    {([["bone_walk", "Bolí to i při běžné chůzi"], ["bone_rest", "Bolí to v klidu nebo v noci"], ["bone_earlier", "Při běhu se to ozývá čím dál dřív"]] as const).map(([k, label]) => (
+                      <SwitchRow key={k} on={flags[k]} label={label} onClick={() => toggleFlag(k)} />
+                    ))}
+                  </div>
+                  {(flags.bone_walk || flags.bone_rest || flags.bone_earlier) && (
+                    <p className="mt-3 rounded-[12px] border border-alert/40 bg-alert/10 p-3 text-[12px] leading-5 text-alert-soft">Takový průběh bývá u únavového přetížení kosti — dnes neběhejte a nechte to posoudit fyzioterapeutem (do 48 hodin).</p>
+                  )}
+                </div>
+              )}
+              {backHit && (
+                <div className="nest mt-4 p-4" data-testid="red-flag-questions">
+                  <p className="t-label">Bolest zad</p>
+                  <div className="mt-3 space-y-2">
+                    <SwitchRow on={flags.red_cauda} label="Změna močení nebo stolice, nebo necitlivost v rozkroku" onClick={() => toggleFlag("red_cauda")} />
+                    <SwitchRow on={flags.red_systemic} label="K tomu horečka, nebo bolest začala po pádu či úrazu" onClick={() => toggleFlag("red_systemic")} />
+                  </div>
+                  {flags.red_cauda ? (
+                    <p className="mt-3 rounded-[12px] border border-alert/40 bg-alert/10 p-3 text-[12px] leading-5 text-alert-soft">Tyto příznaky vyžadují okamžité lékařské vyšetření — vyhledejte pohotovost, netrénujte.</p>
+                  ) : flags.red_systemic ? (
+                    <p className="mt-3 rounded-[12px] border border-alert/40 bg-alert/10 p-3 text-[12px] leading-5 text-alert-soft">Nechte se co nejdřív vyšetřit lékařem, do té doby bez tréninku.</p>
+                  ) : null}
+                </div>
+              )}
               {pain > 3 && (
                 <div className="mt-4 rounded-[16px] border border-alert/40 bg-alert/10 p-4 text-alert-soft">
                   <p className="flex items-center gap-2 text-sm font-bold"><TriangleAlert className="size-4" aria-hidden />Bolest {pain}/10 — zvažte situaci</p>
@@ -1672,6 +1741,15 @@ function AtlasBubble() {
         </div>
       )}
     </>
+  )
+}
+function SwitchRow({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} onClick={onClick}
+      className={`flex w-full items-center justify-between gap-3 rounded-[12px] border px-3 py-2.5 text-left text-[13px] transition ${on ? "border-alert/60 bg-alert/12 text-alert-soft" : "border-white/10 text-fg-soft hover:border-white/20"}`}>
+      <span>{label}</span>
+      <span className={`relative h-6 w-10 shrink-0 rounded-full transition ${on ? "bg-alert" : "bg-white/15"}`}><i className={`absolute top-[3px] size-[18px] rounded-full transition-all ${on ? "left-[19px] bg-ink" : "left-[3px] bg-fg-2"}`} /></span>
+    </button>
   )
 }
 function AtlasNav() {

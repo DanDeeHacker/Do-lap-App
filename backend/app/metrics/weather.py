@@ -201,3 +201,48 @@ def enrich(db, runner, activities, limit: int = 20) -> int:
     if done:
         db.commit()
     return done
+
+
+# ---------------------------------------------------------------- v0.8.4 forecast
+# Today's feels-like maximum at the runner's usual place, for the heat caution in
+# the Trénink guidance (Racinais et al., 2015: most heat illness early in summer and
+# in sudden hot spells, before acclimatisation). Fetched in the background
+# (precompute) and kept in memory for the day, so a request never waits on it.
+_FORECAST: dict = {}
+
+
+def forecast_cached(rid: str, day: str):
+    return _FORECAST.get((rid, day))
+
+
+def runner_place(db, runner):
+    """(lat, lon) of the runner's latest run with a GPS start, else their city."""
+    from .. import models
+    a = (db.query(models.Activity).filter(models.Activity.runner_id == runner.id, models.Activity.start_lat.isnot(None))
+         .order_by(models.Activity.started_at.desc()).first())
+    if a is not None and a.start_lon is not None:
+        return a.start_lat, a.start_lon
+    if runner.city:
+        return geocode_city(runner.city) or None
+    return None
+
+
+def refresh_forecast(db, runner) -> bool:
+    """Fetch today's forecast for the runner once a day. True when it's new."""
+    if not enabled() or runner is None:
+        return False
+    day = E.today_date().isoformat()
+    if (runner.id, day) in _FORECAST:
+        return False
+    ll = runner_place(db, runner)
+    if not ll:
+        return False
+    raw = fetch_day(ll[0], ll[1], E.today_date(), E.today_date())
+    daily = (raw or {}).get("daily") or {}
+    feels = (daily.get("apparent_temperature_max") or [None])[0]
+    if feels is None:
+        return False
+    if len(_FORECAST) > 5000:
+        _FORECAST.clear()
+    _FORECAST[(runner.id, day)] = {"feelsMax": round(feels), "day": day}
+    return True

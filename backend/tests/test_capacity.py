@@ -204,14 +204,15 @@ def test_readiness_follows_a_strained_hrv_week_even_after_good_sleep(client, db_
     f_str, parts, strained = seed("rd1@test.cz", lambda k: 55, 55, 51)        # 7-day HRV ≈ 1.2 SD low, RHR up
     f_one, _, one_night = seed("rd2@test.cz", lambda k: 56 if k % 2 else 64, 55, 50)  # a normal week, one poor night
     assert strained <= 60 and parts["hrv"] > 0.35 and parts.get("sleep", 0) == 0  # good sleep doesn't rescue it
-    assert strained < one_night < 100 and 65 <= one_night <= 85                    # the trend weighs more than one night
+    # v0.8.4 (Plews et al. 2012, 2013): one poor night in a normal week counts 0.6× — the trend weighs more
+    assert strained < one_night < 100 and 85 <= one_night <= 96
     assert f_str < f_one and 0.7 <= f_str                                           # capacity factor keeps its 0.7 floor
 
 
 def test_how_far_off_hrv_and_resting_hr_must_be_to_drop_readiness():
     base = {"hrv_ms": (60.0, 5.0), "resting_hr": (50.0, 2.0), "sleep_h": (7.5, 0.4)}
     score = lambda hrv_sd, rhr_sd: C.readiness_from(C.readiness_parts(
-        {"hrv_ms": 60 - hrv_sd * 5, "resting_hr": 50 + rhr_sd * 2, "sleep_h": 7.5}, {}, base))[1]
+        {"hrv_ms": 60 - hrv_sd * 5, "resting_hr": 50 + rhr_sd * 2, "sleep_h": 7.5}, {}, base, night_w=1.0))[1]
     assert score(0.4, 0.4) == 100                       # ordinary noise costs nothing
     assert score(1.0, 1.0) > 70 > score(1.2, 1.2)       # both ~1.1 SD off → ~70 %
     assert score(1.45, 0) == 70 and score(1.6, 0) < 70  # HRV alone needs ~1.45 SD
@@ -243,3 +244,51 @@ def test_a_long_night_of_poor_quality_sleep_lowers_readiness(client, db_session)
     # a 2-point efficiency dip on a near-constant baseline is noise, not 4 SD
     parts = C.readiness_parts({"sleep_efficiency": 0.97}, {}, {"sleep_efficiency": (0.99, 0.004)})
     assert parts["sleep"] < 0.15
+
+
+def test_single_night_is_damped_unless_the_week_confirms_it():
+    """v0.8.4 — Plews et al. (2012, 2013): single-day HRV is unreliable, the 7-night
+    mean decides. A night 2 SD low alone costs less than the same night in a low week."""
+    base = {"hrv_ms": (60.0, 5.0), "resting_hr": (50.0, 2.0)}
+    night = {"hrv_ms": 50.0, "resting_hr": 50.0}
+    alone = C.readiness_parts(night, {"hrv_ms": 60.0}, base)["hrv"]
+    confirmed = C.readiness_parts(night, {"hrv_ms": 56.0}, base)["hrv"]
+    assert alone < confirmed
+    assert alone == pytest.approx((2 * C.READY_NIGHT_W - 0.5) / 2.5, abs=0.01)
+
+
+def test_week_view_needs_enough_valid_nights(client, db_session):
+    """Plews et al. (2014): ~5 valid nights a week for recreational runners."""
+    db = db_session
+    rid = register(client, "rdn@test.cz", "Nights", "runner").json()["runner_id"]
+    for k in range(8, 40):
+        db.add(models.DailyMetric(runner_id=rid, date=E.day_ago(k), hrv_ms=52 + (k % 9) * 2, resting_hr=50 + (k % 3), sleep_h=7.6))
+    for k in (0, 2, 4):                                    # only 3 low nights in the last week
+        db.add(models.DailyMetric(runner_id=rid, date=E.day_ago(k), hrv_ms=54, resting_hr=51, sleep_h=7.6))
+    db.commit()
+    assert not C.trained_runner(db, rid, E.day_ago(0))
+    _f, parts, score = C.readiness_by_day(db, rid, [E.day_ago(0)])[E.day_ago(0)]
+    assert parts.get("hrv", 0) < 0.25                      # judged as a single night, the week view isn't used
+
+
+def test_sleep_counts_several_nights_and_an_absolute_floor(client, db_session):
+    """Halson (2014b): sleep loss builds up over nights; Watson et al. (2015): ≥ 7 h."""
+    base = {"sleep_h": (6.3, 0.3)}                          # a chronically short sleeper
+    ok = C.readiness_parts({"sleep_h": 6.3}, {"sleep_nights": [7.2, 7.4, 7.1, 7.3]}, base)
+    short = C.readiness_parts({"sleep_h": 6.3}, {"sleep_nights": [5.8, 5.6, 5.9, 6.2]}, base)
+    assert ok.get("sleep", 0) == 0 and short["sleep"] >= 0.4     # own norm says "usual", the floor says "short"
+    one = C.readiness_parts({"sleep_h": 5.0}, {"sleep_recent": (5.0 + 7.5 + 7.5) / 3, "sleep_nights": [5.0, 7.5, 7.5, 7.5]},
+                            {"sleep_h": (7.5, 0.3)})
+    three = C.readiness_parts({"sleep_h": 5.0}, {"sleep_recent": 5.0, "sleep_nights": [5.0, 5.0, 5.0, 7.5]},
+                              {"sleep_h": (7.5, 0.3)})
+    assert one["sleep"] < three["sleep"]
+
+
+def test_checkin_life_stress_and_sleep_quality(client, db_session):
+    """Saw et al. (2016): single well-being items, kept separate."""
+    db = db_session
+    rid = register(client, "rdc@test.cz", "Items", "runner").json()["runner_id"]
+    db.add(models.Checkin(runner_id=rid, submitted_at=E.day_ago(0), life_stress=9, sleep_quality=0))
+    db.commit()
+    _f, parts, score = C.readiness_by_day(db, rid, [E.day_ago(0)])[E.day_ago(0)]
+    assert parts["stress"] == pytest.approx(0.6 * 0.8) and parts["sleep"] == 0.35 and score < 70

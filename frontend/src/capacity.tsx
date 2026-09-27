@@ -14,7 +14,7 @@ const num = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleStr
 const TONE = { ok: C.ok, watch: C.watch, alert: C.alert, muted: C.fg3 }
 const toneOf = (ratio: number | null | undefined, margin: number) =>
   ratio == null ? "muted" : ratio <= 1 + margin ? "ok" : ratio <= 1.3 ? "watch" : "alert"
-const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší nebo méně kvalitní spánek", soreness: "svalová bolest", fatigue: "únava" }
+const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší nebo méně kvalitní spánek", soreness: "svalová bolest", fatigue: "únava", stress: "stres mimo trénink" }
 const BAND: Record<string, [string, string]> = {
   pod: ["pod obvyklým", TONE.muted], "obvyklé": ["obvyklé", TONE.ok], nad: ["nad obvyklým", TONE.watch], "výrazně nad": ["výrazně nad", TONE.alert],
 }

@@ -45,6 +45,7 @@ from datetime import date, timedelta
 from .. import models
 from . import capacity as C
 from . import engine as E
+from . import weather as W
 
 TYPES = ("volno", "regenerace", "lehký", "dlouhý", "kvalitní")
 TYPE_LABEL = {"volno": "Volno", "regenerace": "Regenerační běh", "lehký": "Lehký běh",
@@ -66,6 +67,21 @@ STRENGTH_CARRY = {0: 0.5, 1: 0.5, 2: 0.75}   # Z4+ cap factor by days since a he
 WD = ("pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota", "neděle")
 WD_IN = ("v pondělí", "v úterý", "ve středu", "ve čtvrtek", "v pátek", "v sobotu", "v neděli")
 HARD_Z4_MIN = 10        # a run with ≥ 10 min in Z4+ counts as a hard session
+# v0.8.4 — heart rate lags behind short intervals, so time in zone under-counts
+# them (Seiler 2010, "session goal approach"): a run rated RPE ≥ 7 that is no
+# longer than 75 min counts as hard as well (a long run rated 7 doesn't).
+HARD_RPE, HARD_RPE_MAX_MIN = 7, 75
+# At most 2–3 hard sessions a week within a hard-day / easy-day pattern (Seiler
+# 2010, Casado et al. 2022); 2 for runners with ≤ 4 runs a week (working assumption).
+HARD_CAP_FEW, HARD_CAP = 2, 3
+# Heat (Périard et al. 2015, Racinais et al. 2015): most adaptation within ~1–2
+# weeks of repeated exercise in the heat. Fewer than 5 hot runs in 14 days =
+# not yet acclimatised (working assumption) → intensity cap ×0.8.
+HEAT_ACCLIM_RUNS, HEAT_ACCLIM_FULL, HEAT_INT_FACTOR = 5, 10, 0.8
+# Strength (Lauersen et al. 2014; Rønnestad & Mujika 2014): a nudge after 3 weeks
+# without it; the first 2 weeks of a new block (none in the 4 weeks before) easy
+# running ×0.9 (working assumption).
+STRENGTH_GAP_DAYS, STRENGTH_NEW_BLOCK_DAYS = 21, 14
 HARD_GAP_DAYS = 2       # ≥ 48 h between hard sessions
 READY_QUALITY = 65      # readiness score (%) needed for a quality / long session
 READY_EASY_ONLY = 45    # below this readiness score the default is a regeneration run
@@ -116,6 +132,13 @@ def _cz(v, dec=1):
     return "—" if v is None else f"{round(v, dec):.{dec}f}".replace(".", ",") if dec else str(round(v))
 
 
+def is_hard(s) -> bool:
+    """A hard session: ≥ HARD_Z4_MIN min in Z4+, or rated RPE ≥ 7 when not a long run."""
+    if (s["exp"].get("intensity") or 0) >= HARD_Z4_MIN:
+        return True
+    return (s.get("rpe") or 0) >= HARD_RPE and 0 < (s.get("durationMin") or 999) <= HARD_RPE_MAX_MIN
+
+
 def _pattern(hist, today):
     """Usual run days, long-run weekday, hard days, runs/week — last 8 weeks."""
     weeks = 8
@@ -128,7 +151,7 @@ def _pattern(hist, today):
     for day, ss in days.items():
         dd = _d(day)
         wd_days[dd.weekday()] += 1
-        if any((s["exp"].get("intensity") or 0) >= HARD_Z4_MIN for s in ss):
+        if any(is_hard(s) for s in ss):
             hard_wd[dd.weekday()] += 1
         wk = (today - dd).days // 7
         per_week.setdefault(wk, []).append((dd, sum(s["km"] or 0 for s in ss)))
@@ -156,14 +179,14 @@ def _pattern(hist, today):
 
 
 def _easy_km(hist, long_day_km):
-    easy = [s["km"] for s in hist if s["km"] and (s["exp"].get("intensity") or 0) < HARD_Z4_MIN
+    easy = [s["km"] for s in hist if s["km"] and not is_hard(s)
             and (long_day_km is None or s["km"] < 0.9 * long_day_km)]
     pool = easy or [s["km"] for s in hist if s["km"]]
     return E.median(pool) if pool else None
 
 
 def _easy_pace(hist):
-    paces = [1000 / s["speed"] for s in hist if s["speed"] and (s["exp"].get("intensity") or 0) < HARD_Z4_MIN]
+    paces = [1000 / s["speed"] for s in hist if s["speed"] and not is_hard(s)]
     return E.median(paces) if paces else None
 
 
@@ -315,8 +338,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     days_to_race = next_a["daysTo"] if next_a else None
     race_today = bool(next_any) and next_any["daysTo"] == 0
     race_warn = [w for w in ro.get("warnings") or [] if w["kind"] == "race_day"]
-    hard_dates = [s["date"] for s in runs if (s["exp"].get("intensity") or 0) >= HARD_Z4_MIN and s["date"] < t_iso]
+    hard_dates = [s["date"] for s in runs if is_hard(s) and s["date"] < t_iso]
     days_since_hard = (today - _d(max(hard_dates))).days if hard_dates else None
+    hard7 = len({d for d in hard_dates if (today - _d(d)).days <= 6} | ({t_iso} if any(is_hard(s) for s in today_runs) else set()))
+    hard_cap = HARD_CAP_FEW if (pat["runsPerWeek"] or 0) <= 4 else HARD_CAP
 
     # ---- this week's target: the 4-week cycle, never above capacity -------------
     ws = week_start(today)
@@ -457,6 +482,25 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                  "focus": hs.get("strengthFocus")}
         if int_max is not None:
             int_max *= carry["factor"]
+    # ---- heat (v0.8.4): today's forecast vs. how many runs were in the heat lately
+    hot14 = sum(1 for x in runs if x.get("hot") and 0 <= (today - _d(x["date"])).days <= 13)
+    fc = W.forecast_cached(rid, t_iso)
+    heat = None
+    if fc and fc["feelsMax"] >= W.HOT_FEELS_C:
+        heat = {"feelsMax": fc["feelsMax"], "hot14": hot14,
+                "stage": "new" if hot14 < HEAT_ACCLIM_RUNS else "adapting" if hot14 < HEAT_ACCLIM_FULL else "adapted"}
+        if heat["stage"] == "new" and int_max is not None:
+            int_max *= HEAT_INT_FACTOR
+    # ---- strength habit (v0.8.4): long gap / a new block just started
+    s_dates = sorted({x["date"] for x in strength})
+    s_last_age = (today - _d(s_dates[-1])).days if s_dates else None
+    new_block = None
+    recent_s = [d for d in s_dates if (today - _d(d)).days < STRENGTH_NEW_BLOCK_DAYS]
+    if recent_s:
+        first = recent_s[0]
+        before = [d for d in s_dates if 0 < (_d(first) - _d(d)).days <= 28]
+        if not before and len(hist) >= 8:
+            new_block = {"since": first, "day": (today - _d(first)).days + 1}
     desc_max = week["descent"]["todayMax"]
     asc_max = week["ascent"]["todayMax"]
     base_km = easy_km or 6.0
@@ -466,6 +510,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     race = a.get("raceRecovery")                # plan A3 — recovery block after a race / maximal effort
     pmon = a.get("painMonitor") or {}           # plan B2 — pain-monitoring model (Silbernagel 2007)
     morning, ptrend = pmon.get("morningWorse"), pmon.get("trend")
+    scr = a.get("screening") or {}               # v0.8.4 — red flags, bone stress, bone pain, illness
+    red, bstress, bpain, ill = scr.get("redFlag"), scr.get("boneStress"), scr.get("bonePain"), scr.get("ill")
+    cluster = a.get("cluster")
     acute_mod = bool(acute) and 2 <= acute["daysSince"] <= 3
     pain_mod = (3 <= pain <= 5 or (bool(recurring) and pain <= 5) or (bool(func) and not func["severe"])
                 or acute_mod or bool(ptrend))
@@ -474,7 +521,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                 "Po akutním přetížení" if acute_mod else
                 f"Bolest roste týden od týdne ({_cz(ptrend['before'])} → {_cz(ptrend['now'])}/10)" if ptrend else
                 f"Opakovaná bolest ({recurring['site']}, {recurring['days']}× za 28 dní)" if recurring else "")
-    km_scale = (0.7 if pain_mod else 1.0) * max(ready, 0.75)
+    km_scale = (0.7 if pain_mod else 1.0) * max(ready, 0.75) * (0.9 if new_block else 1.0)
     # weekly target reached but the 7-day ceiling still has room: a short easy run
     # stays available (not the default) — a rested body may move, the plan isn't risk
     vw = week["volume"]
@@ -591,7 +638,15 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         if types[kind]["allowed"]:
             types[kind]["allowed"], types[kind]["why"] = False, why
     override = None
-    if inj:
+    if red:
+        override = ({"kind": "red_flag", "title": "Varovné příznaky — vyhledejte hned lékaře",
+                     "text": f"Bolest zad ({red['site']}) se změnou močení nebo stolice nebo s necitlivostí v rozkroku je "
+                             "důvod k okamžitému lékařskému vyšetření (pohotovost). Tréninková doporučení jsou pozastavená."}
+                    if red["kind"] == "cauda" else
+                    {"kind": "red_flag", "title": "Bolest zad s horečkou nebo po úrazu — nejdřív k lékaři",
+                     "text": f"Bolest zad ({red['site']}) s horečkou nebo po pádu či úrazu je důvod nechat se co nejdřív "
+                             "vyšetřit lékařem. Do té doby bez tréninku."})
+    elif inj:
         override = {"kind": "injury", "title": "Aktivní zranění — dnes bez běhu",
                     "text": f"{inj.get('site') or 'Nahlášené zranění'} (OSTRC {inj.get('severity')}/100). "
                             "Běh odložte, dokud se zranění nezlepší; řiďte se doporučením fyzioterapeuta."}
@@ -601,6 +656,11 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                                                                         else "kulháte") +
                             ". Omezený pohyb je úroveň zranění, i když je číslo bolesti nízké. Běh vynechte, hýbejte se "
                             "jen tak, aby to nebolelo, a nechte to posoudit fyzioterapeutem (do 48 hodin)."}
+    elif bstress:
+        override = {"kind": "bone_stress", "title": "Bolest s varovnými znaky přetížení kosti — dnes neběhat",
+                    "text": f"{bstress['site']}: {', '.join(bstress['what'])}. Takový průběh bývá u únavového přetížení "
+                            "kosti, a to i při nízkém čísle bolesti. Běh vynechte a nechte to posoudit fyzioterapeutem "
+                            "(do 48 hodin). Kolo nebo plavání jen tehdy, když při nich nic nebolí."}
     elif pain > 5 and referral:
         override = {"kind": "physio", "title": "Dnes neběhat — objednejte se k fyzioterapeutovi",
                     "text": f"Bolest {pain}/10{f' · {pain_site}' if pain_site else ''} a zároveň engine doporučuje "
@@ -621,7 +681,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
             if k in types:
                 block(k, override["title"])
         for k in ("kolo", "voda"):
-            types[k]["notes"].insert(0, "Jen pokud při tom nic nebolí a fyzioterapeut s tím souhlasí.")
+            if override["kind"] == "red_flag":
+                block(k, override["title"])
+            else:
+                types[k]["notes"].insert(0, "Jen pokud při tom nic nebolí a fyzioterapeut s tím souhlasí.")
     if carry:
         when = "dnes" if carry["age"] == 0 else "včera" if carry["age"] == 1 else "předevčírem"
         if carry["age"] <= 1:
@@ -638,6 +701,16 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         block("dlouhý", f"{why_r} bez dlouhého běhu.")
         if race_rest:
             block("lehký", f"{why_r}; první dny jen odpočinek nebo velmi volně.")
+    bone_block = bool(bpain) and not override
+    if bone_block:
+        for k in ("regenerace", "lehký", "dlouhý", "kvalitní"):
+            block(k, f"Bolest {bpain['pain']}/10 v místě typickém pro přetížení kosti ({bpain['site']}) — "
+                     "u kosti se bolest nepřechází, dnes bez běhu.")
+        for k in ("kolo", "voda"):
+            types[k]["notes"].insert(0, "Jen pokud při tom nic nebolí.")
+    if ill and not override:
+        for k in ("dlouhý", "kvalitní", "posilování"):
+            block(k, "Hlásíte nemoc — dnes bez náročného tréninku.")
     if pain > 5 and not override:
         for k in ("lehký", "dlouhý", "kvalitní"):
             block(k, f"Bolest {pain}/10 — dnes jen velmi volně nebo jiný sport bez bolesti.")
@@ -656,6 +729,24 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         block("dlouhý", "Zátěž je zvýšená — bez dlouhého běhu, dokud neklesne.")
     if days_since_hard is not None and days_since_hard < HARD_GAP_DAYS:
         block("kvalitní", "Poslední tvrdý trénink byl před méně než 48 h.")
+    if hard7 >= hard_cap:
+        block("kvalitní", f"Za posledních 7 dní už {hard7} tvrdé tréninky — víc než {hard_cap} týdně obvykle nic nepřidá, "
+                          "většina běhů má zůstat lehká.")
+    if heat:
+        msg = {"new": f"Dnes pocitově až {heat['feelsMax']} °C a na horko ještě nejste zvyklí — strop minut v Z4+ je nižší, "
+                      "úseky raději ráno nebo večer.",
+               "adapting": f"Dnes pocitově až {heat['feelsMax']} °C — tělo si na horko zvyká, tep bude o něco vyšší.",
+               "adapted": f"Dnes pocitově až {heat['feelsMax']} °C."}[heat["stage"]]
+        types["kvalitní"]["notes"].append(msg)
+        for k in ("lehký", "dlouhý", "regenerace"):
+            types[k]["notes"].append("V horku je tep při stejném tempu vyšší — držte se tepového rozmezí, ne tempa.")
+    if new_block:
+        types["posilování"]["notes"].append(f"Nový silový blok (den {new_block['day']}): první 2–3 týdny bývají nohy "
+                                            "těžké a bolavé, běh je proto o něco kratší.")
+    elif s_last_age is None or s_last_age >= STRENGTH_GAP_DAYS:
+        types["posilování"]["notes"].insert(0, ("Posilování zatím nemáte zapsané" if s_last_age is None else
+                                                f"Poslední posilování před {s_last_age} dny")
+                                            + " — dvakrát týdně zlepšuje běžeckou ekonomiku.")
     if novice:
         pass                                     # plan C1: generic hard-minute cap instead of a block
     elif int_max is None:
@@ -686,7 +777,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     runs_last6 = sum(1 for k in range(1, 7) if vol_daily.get((today - timedelta(days=k)).isoformat()))
     if race_today and not override:
         typ = "závod"
-    elif override or race_rest:
+    elif override or race_rest or bone_block or ill:
         typ = "volno"
     elif pain > 5:
         typ = "regenerace"
@@ -719,6 +810,13 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     reasons = []  # the override itself is shown as the banner, not repeated here
     if override:
         pass
+    elif bone_block:
+        reasons.append(f"Bolest {bpain['pain']}/10 · {bpain['site']}: u kosti se návrat k běhu řídí úplnou absencí bolesti, "
+                       "proto dnes bez běhu. Kolo nebo plavání jen bez bolesti."
+                       + (" Bolest se v posledních dvou týdnech vrací, nechte ji posoudit fyzioterapeutem." if bpain["repeated"] else ""))
+    elif ill:
+        reasons.append("Hlásíte nemoc — dnes odpočinek. Lehký pohyb jen tehdy, když se cítíte dobře, a k tréninku se "
+                       "vraťte postupně.")
     elif pain > 5:
         reasons.append(f"Bolest {pain}/10{f' · {pain_site}' if pain_site else ''} — dnes jen velmi volně nebo jiný sport, "
                        "který nebolí. Pokud potrvá, proberte ji s fyzioterapeutem.")
@@ -742,7 +840,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
             reasons.append("Na dnešek už nezbývá objem — dnes volno, případně jiný sport bez nárazů.")
     parts = cap["readiness"].get("parts") or {}
     part_lbl = {"hrv": "nižší HRV", "rhr": "vyšší klidový tep", "sleep": "kratší nebo méně kvalitní spánek",
-                "soreness": "svalová bolest", "fatigue": "únava"}
+                "soreness": "svalová bolest", "fatigue": "únava", "stress": "stres mimo trénink"}
     low = [part_lbl[k] for k, v in sorted(parts.items(), key=lambda kv: -kv[1]) if v > 0.1 and k in part_lbl]
     if rscore < 90 and low:
         reasons.append(f"Připravenost {rscore} % ({', '.join(low[:3])} proti vaší normě) — dnešní stropy jsou úměrně nižší"
@@ -754,6 +852,16 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     for w in ro.get("warnings") or []:            # plan B4: a race too close to a maximal effort / race-day state
         if w["kind"] != "race_day" or race_today or w["gap"] == 1:
             reasons.append(w["text"])
+    if heat and heat["stage"] != "adapted" and not override and typ not in ("volno",):
+        reasons.append(f"Dnes pocitově až {heat['feelsMax']} °C a za posledních 14 dní jste v horku běželi {heat['hot14']}× — "
+                       "tep bude vyšší než obvykle, to není ztráta kondice. Řiďte se tepem, ne tempem"
+                       + (", kvalitu raději v chladnější části dne." if heat["stage"] == "new" else "."))
+    if new_block and not override:
+        reasons.append(f"Nový silový blok od {_dm(new_block['since'])}: první 2–3 týdny bývají nohy těžké, běh je proto "
+                       "o desetinu kratší (Rønnestad & Mujika, 2014).")
+    if cluster and not override:
+        reasons.append("Poslední týdny se sešla únava, nemoc nebo pomalejší zotavení najednou — to má mnoho možných "
+                       "příčin, proto to stojí za to probrat s fyzioterapeutem nebo lékařem.")
     if provisional:
         reasons.append("Ještě nemáme dnešní spánek a HRV — doporučení je předběžné a po synchronizaci se upřesní.")
     if mode == "return":
@@ -814,7 +922,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                     "longDayName": WD[pat["longDay"]] if pat["longDay"] is not None else None,
                     "hardDayNames": [WD[w] for w in pat["hardDays"]], "easyKm": _r(easy_km), "easyPace": _r(easy_pace, 0)},
         "reasons": reasons[:5], "done": done,
-        "strength": {"done": s_done, "target": s_target, "today": s_today,
+        "heat": heat, "hardWeek": {"done": hard7, "cap": hard_cap},
+        "strength": {"done": s_done, "target": s_target, "today": s_today, "lastAge": s_last_age, "newBlock": new_block,
                      "suggestToday": bool(types["posilování"]["allowed"] and s_done < s_target and typ != "kolo"),
                      "carry": carry},
         "zones": cap.get("zones"), "hrSource": "fit" if fit else "fallback",

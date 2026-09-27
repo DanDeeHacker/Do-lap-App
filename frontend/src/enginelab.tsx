@@ -53,6 +53,7 @@ const SIG_BY_KNOB: Record<string, string> = {
   v3_volume_s: "cap_volume", v3_volume_w: "cap_volume", v3_intensity_s: "cap_intensity", v3_intensity_w: "cap_intensity",
   v3_descent_s: "cap_descent", v3_descent_w: "cap_descent", v3_ascent_s: "cap_ascent", v3_ascent_w: "cap_ascent",
   v3_systemic_s: "cap_systemic", v3_systemic_w: "cap_systemic",
+  hrPace: "hr_pace", hrvHigh: "hrv_high",
 }
 // signals that come from an interaction / gate, shown as read-only derived rows.
 const DERIVED_LABEL: Record<string, string> = { load_capacity: "Zátěž × regenerace (interakce)" }

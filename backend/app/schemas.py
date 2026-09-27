@@ -39,6 +39,9 @@ class CheckinRequest(Lenient):
     limits_movement: Optional[bool] = None   # pain limits ordinary movement / walking
     run_modified: Optional[bool] = None      # a run was shortened or changed because of pain
     limping: Optional[bool] = None
+    life_stress: Optional[int] = None
+    sleep_quality: Optional[int] = None
+    flags: Optional[dict[str, Any]] = None
 
 
 class ExcludeActivityRequest(Lenient):

@@ -294,6 +294,13 @@ class Checkin(Base):
     run_modified = Column(Boolean)
     limping = Column(Boolean)
     notes = Column(String)
+    # v0.8.4 — Saw et al. 2016: single well-being items beat a total score.
+    life_stress = Column(Integer)     # 0-10 stress outside training (work, family …)
+    sleep_quality = Column(Integer)   # 0-4 subjective sleep quality (0 = very poor)
+    # v0.8.4 — yes/no screening answers: {ill, bone_walk, bone_rest, bone_earlier,
+    # red_cauda, red_systemic}. Bone questions only asked for shin / foot pain
+    # (Warden 2014), red flags only for low-back pain (Finucane 2020).
+    flags = Column(JSON)
 
 
 class InjuryReport(Base):

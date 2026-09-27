@@ -503,7 +503,7 @@ export function Training() {
 
       {g.override && (
         <AlertBanner tone="stop" className="mt-5" title={g.override.title}
-          action={(g.override.kind === "physio" || g.override.kind === "function") ? <Link to="/app/messages" className="btn btn-primary btn-sm">Objednat fyzioterapeuta</Link> : undefined}>
+          action={(g.override.kind === "physio" || g.override.kind === "function" || g.override.kind === "bone_stress") ? <Link to="/app/messages" className="btn btn-primary btn-sm">Objednat fyzioterapeuta</Link> : undefined}>
           {g.override.text}
         </AlertBanner>
       )}
