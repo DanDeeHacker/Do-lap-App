@@ -215,8 +215,12 @@ const clipFor = (h: Hotspot) => (h.side !== "center" ? (h.left < CX ? "inset(0 5
 // auto-toggles to whichever side carries data.
 // Key for a stored pain point on the heatmap: paired regions carry their side in the
 // hotspot title ("Achillova šlacha (P)"), stored points keep region and side apart.
-export const painKey = (p: { region?: string; side?: string | null }) =>
-  p.side === "L" || p.side === "P" ? `${p.region} (${p.side})` : p.region || ""
+export const painKey = (p: { region?: string; side?: string | null }) => {
+  const r = p.region || ""
+  // body-map points already carry it ("Achillova šlacha (P)"), seeded/imported ones don't
+  if (/ \((L|P)\)$/.test(r)) return r
+  return p.side === "L" || p.side === "P" ? `${r} (${p.side})` : r
+}
 
 export function PainHeatmap({ counts }: { counts: Record<string, number> }) {
   // exact (sided) match first; a side-less count lights both sides only when no sided count exists

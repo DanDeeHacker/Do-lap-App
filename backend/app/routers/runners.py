@@ -353,7 +353,7 @@ def _engine_replay(db: DBSession, rid: str, asofs, mode: str | None = None):
 # Bump when the history *shape/window* logic changes (not the engine version) so
 # a deploy invalidates same-day cache rows written by the previous code — the
 # cache key otherwise only turns over on a data change or a new day.
-_HISTORY_VERSION = "h5"
+_HISTORY_VERSION = "h6"
 
 
 def _cached_history(db: DBSession, rid: str, kind: str, builder):

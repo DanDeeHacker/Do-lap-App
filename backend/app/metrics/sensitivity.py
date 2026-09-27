@@ -177,9 +177,12 @@ def _v3_knobs():
             {"id": f"v3_{ch}_w", "engine": "v3", "axis": "load", "label": f"{spec['label']} · 7 dní",
              "grade": spec["grade"], "unit": "× kap.", "min": 0.0, "max": 3.2, "step": 0.01, "default": 0.0,
              "thr": 1 + CAP.MARGIN_WEEK, "dir": "above",
-             "desc": f"Součet posledních 7 dní vs. vaše týdenní kapacita (× připravenost). Body nad +15 %. Váha {w}."},
+             "desc": f"Nevstřebaná zátěž (týdenní ekvivalent, vstřebává se noc po noci) vs. vaše týdenní kapacita (× připravenost). Body nad +15 %. Váha {w}."},
             {"id": f"v3_{ch}_lat", "engine": "v3", "hidden": True, "axis": "load", "label": "", "grade": "—",
              "min": 0.0, "max": 16.0, "step": 0.1, "default": 0.0, "desc": ""},
+            # railway#100 — share of that run still unabsorbed after the nights since it
+            {"id": f"v3_{ch}_left", "engine": "v3", "hidden": True, "axis": "load", "label": "", "grade": "—",
+             "min": 0.0, "max": 1.0, "step": 0.01, "default": 1.0, "desc": ""},
         ]
     return ks
 
@@ -249,7 +252,7 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
         scores, shown = {}, {}
         for ch, spec in CAP.CHANNELS.items():
             rs, rw = g[f"v3_{ch}_s"] * scale, g[f"v3_{ch}_w"] * scale
-            ps, pw = CAP.band_points(rs, m_s), CAP.band_points(rw, m_w)
+            ps, pw = CAP.band_points(rs, m_s) * g.get(f"v3_{ch}_left", 1.0), CAP.band_points(rw, m_w)
             scores[ch] = max(ps, pw, g[f"v3_{ch}_lat"]) * spec["w"]
             shown[ch] = f"×{round(rs if ps >= pw else rw, 2)}"
         contrib = CAP.combine(scores)
@@ -467,6 +470,7 @@ def inputs_from_assessment(a: dict, runner=None) -> dict:
             out[f"v3_{ch}_s"] = ex.get("rs") or 0.0
             out[f"v3_{ch}_w"] = ex.get("rw") or 0.0
             out[f"v3_{ch}_lat"] = ex.get("lat") or 0.0
+            out[f"v3_{ch}_left"] = ex.get("left", 1.0)
     inj = a.get("injury") or {}
     active = inj.get("active") or {}
     if active:

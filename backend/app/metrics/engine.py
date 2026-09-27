@@ -34,7 +34,7 @@ from ..serializers import to_dict
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.8.0"
+ENGINE_VERSION = "v0.8.1"   # v0.8.1: load absorbed night by night (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this

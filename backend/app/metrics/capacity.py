@@ -29,6 +29,14 @@ check-in soreness/fatigue. A normal run on a bad night therefore counts as an
 exceedance; the same run on a good night doesn't. Injury history (frailty) shrinks
 the safety margins.
 
+Absorption (railway#100): a run's points and the weekly load fade night by night
+instead of holding until the run leaves the 7-day window. The weekly figure that is
+scored is an exponentially weighted acute load (Williams et al. 2017), equal to the
+plain 7-day sum on steady training. Muscles / tendons (volume, descent, ascent)
+absorb on a fixed half-life of 3.5 nights, the systemic side (HR load, Z4+ minutes)
+by that night's readiness (2 / 3 / 5 / 8 nights). The half-lives are working
+assumptions of the product team, not measured values.
+
 Scoring: ratio r = exposure / (capacity × readiness). Points start above the
 margin (+10 % per run, +15 % per week) and rise through mild (to 1.3×, ≤ 6 b),
 moderate (to 2×, ≤ 20 b) and high (> 2×, up to 40 b at 3×) bands, times the channel's
@@ -71,6 +79,22 @@ READINESS_FLOOR = 0.7
 Z4_HRR = 0.80           # Z4 starts at 80 % heart-rate reserve (Karvonen)
 ECC_DEFAULT = 1.16      # descent weighting without a profile ≈ a typical −5 % descent
 COMBO = (1.0, 0.5, 0.25, 0.25, 0.25)
+# Feedback railway#100 — load is absorbed night by night instead of vanishing when a
+# run leaves the 7-day window. Half-lives (in nights) are the product team's working
+# assumptions, not measured values: muscles / tendons / bone (volume, descent,
+# ascent) on a fixed biological clock that HRV and sleep don't show, the systemic
+# side (all-sport HR load, hard minutes) by how well that night recovered.
+HALF_MSK = 3.5
+CARDIO = ("systemic", "intensity")
+HALF_BY_READY = ((90, 2.0), (75, 3.0), (60, 5.0), (0, 8.0))   # readiness score ≥ threshold → half-life
+HALF_CARDIO_REF, HALF_NO_DATA = 3.0, 3.5
+RESIDUAL_CAP = 1.25     # poor nights may keep at most 25 % more than the nominal absorption would
+ABSORB_DAYS = 42
+
+
+def _k(half):
+    """Share absorbed per night for a half-life in nights."""
+    return 1 - 0.5 ** (1 / half)
 TOP_N = {"intensity": 3}   # per-run capacity = mean of the N largest tolerated sessions (else the max)
 ZONES = (("Z1", 0.50, 0.60), ("Z2", 0.60, 0.70), ("Z3", 0.70, 0.80), ("Z4", 0.80, 0.90), ("Z5", 0.90, 1.00))
 
@@ -89,10 +113,54 @@ def band_points(r, margin):
 
 def latent_points(r, age):
     """A big exceedance 1–4 weeks ago still counts (IOC 2016: injury risk peaks
-    1–4 weeks after a rapid rise), decaying linearly to zero at 28 days."""
-    if r is None or r <= 1.3 or age <= 6 or age >= 28:
+    1–4 weeks after a rapid rise), decaying linearly to zero at 28 days. Since
+    railway#100 it is a floor from the day after the run (the acute part of the
+    same run is absorbed night by night on top of it)."""
+    if r is None or r <= 1.3 or age < 1 or age >= 28:
         return 0.0
-    return min((r - 1.3) * (28 - age) / 21 * 22, 16.0)
+    # capped first, then scaled, so a huge jump fades linearly from day 7 instead
+    # of holding the cap for three weeks and dropping at the end
+    return min((r - 1.3) * 22, 16.0) * min(1.0, (28 - age) / 21)
+
+
+def night_rates(ch, days, ready, nights):
+    """{day: share of the residual absorbed during the night before that morning}."""
+    out = {}
+    for d in days:
+        if ch not in CARDIO:
+            out[d] = _k(HALF_MSK)
+            continue
+        rd = ready.get(d)
+        if d not in nights and not (rd and rd[1]):
+            out[d] = _k(HALF_NO_DATA)
+            continue
+        score = rd[2] if rd else 100
+        out[d] = _k(next(h for thr, h in HALF_BY_READY if score >= thr))
+    return out
+
+
+def residual_week(daily, days, rates, ch):
+    """Weekly-equivalent load still unabsorbed today: an exponentially weighted acute
+    load (Williams et al. 2017) whose nightly decay follows `rates`. On steady
+    training it equals the plain 7-day sum, and after the last run it falls every
+    night instead of holding for a week and then dropping at once."""
+    k_ref = _k(HALF_CARDIO_REF if ch in CARDIO else HALF_MSK)
+    level = nominal = 0.0
+    for d in days:
+        x = daily.get(d, 0.0)
+        level = level * (1 - rates[d]) + k_ref * x
+        nominal = nominal * (1 - k_ref) + k_ref * x
+    w, w_nom = 7 * level, 7 * nominal
+    return min(w, w_nom * RESIDUAL_CAP) if ch in CARDIO else w
+
+
+def absorbed_left(rates, since, today_iso, days):
+    """Share of an exposure on `since` still unabsorbed this morning."""
+    left = 1.0
+    for d in days:
+        if since < d <= today_iso:
+            left *= 1 - rates[d]
+    return left
 
 
 def combine(scores: dict) -> dict:
@@ -560,7 +628,11 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
     m_s, m_w = MARGIN_SESSION * shrink, MARGIN_WEEK * shrink
     first_day = min((s["date"] for s in sessions), default=t_iso)
     recent_days = [(today - timedelta(days=k)).isoformat() for k in range(0, 28)]
-    ready = readiness_by_day(db, rid, recent_days)
+    absorb_days = [(today - timedelta(days=k)).isoformat() for k in range(ABSORB_DAYS - 1, -1, -1)]   # oldest → today
+    ready = readiness_by_day(db, rid, absorb_days)
+    nights = {m.date[:10] for m in db.query(models.DailyMetric).filter(
+        models.DailyMetric.runner_id == rid, models.DailyMetric.date >= absorb_days[0]).all()
+        if m.hrv_ms is not None or m.resting_hr is not None or m.sleep_h is not None}
     r_today, parts_today, score_today = ready.get(t_iso, (1.0, {}, 100))
     wk_ready = E.mean([ready.get(d, (1.0, {}))[0] for d in recent_days[:7]]) or 1.0
 
@@ -570,9 +642,12 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
     for ch, spec in CHANNELS.items():
         pool = sessions if ch == "systemic" else runs_pool
         items = channel_items(pool, ch, pain, tol, reports)
-        # --- per session: the recent session furthest over ITS capacity that day
+        rates = night_rates(ch, absorb_days, ready, nights)
+        # --- per session: the recent session whose exceedance is still the largest
+        # after the nights since it (railway#100); a big jump keeps a latent floor
         worst = None
         worst_r = None          # unrounded, for the v3 sandbox's exact replay
+        worst_p = 0.0
         latent = (0.0, None, None)
         for s in pool:
             v = s["exp"].get(ch)
@@ -587,15 +662,17 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
             rd, _parts, rd_score = ready.get(s["date"], (1.0, {}, 100))
             r = v / (cap * rd)
             if age <= 6:
-                if worst_r is None or r > worst_r:
-                    worst_r = r
+                left = absorbed_left(rates, s["date"], t_iso, absorb_days)
+                p = band_points(r, m_s) * left
+                if worst is None or p > worst_p or (p == worst_p and (worst_r is None or r > worst_r)):
+                    worst_p, worst_r = p, r
                     worst = {"ratio": round(r, 2), "value": _fmt(v, ch), "cap": _fmt(cap, ch), "date": s["date"],
-                             "title": s["title"], "readiness": rd, "readinessScore": rd_score}
-            else:
-                lp = latent_points(r, age)
-                if lp > latent[0]:
-                    latent = (lp, s["date"], round(r, 2))
-        p_s = band_points(worst_r, m_s) if worst else 0.0
+                             "title": s["title"], "readiness": rd, "readinessScore": rd_score,
+                             "left": round(left, 2)}
+            lp = latent_points(r, age)
+            if lp > latent[0]:
+                latent = (lp, s["date"], round(r, 2))
+        p_s = worst_p if worst else 0.0
         # --- rolling 7 days
         daily = _daily_sums(pool, ch)
         capw = weekly_capacity(daily, t_iso, first_day, pain, ch)
@@ -603,14 +680,15 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
         week = None
         p_w = 0.0
         rw = None
+        resid_w = residual_week(daily, absorb_days, rates, ch)
         if capw is not None:
-            rw = now_w / (capw * wk_ready)
+            rw = resid_w / (capw * wk_ready)
             p_w = band_points(rw, m_w)
             # the ceiling is exactly where the weekly score starts: capacity × the
             # week's average readiness × (1 + margin) — not today's readiness, so
             # the weekly picture doesn't jump with one night's sleep
             ceil_w = capw * (1 + m_w) * wk_ready
-            week = {"now": _fmt(now_w, ch), "cap": _fmt(capw, ch), "ratio": round(rw, 2),
+            week = {"now": _fmt(now_w, ch), "residual": _fmt(resid_w, ch), "cap": _fmt(capw, ch), "ratio": round(rw, 2),
                     "ceiling": _fmt(ceil_w, ch), "left": _fmt(max(0.0, ceil_w - now_w), ch)}
         # --- today's per-run ceiling (capacity from everything before today)
         cap_today = session_capacity(items, (today + timedelta(days=1)).isoformat(), ch)
@@ -638,7 +716,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
             "latent": {"pts": round(latent[0], 1), "date": latent[1], "ratio": latent[2]} if latent[0] else None,
             "pendingJump": pending,
             "raw": round(raw, 1), "driver": driver, "known": worst is not None or week is not None or cap_today is not None,
-            "exact": {"rs": worst_r, "rw": rw, "lat": latent[0]},
+            "exact": {"rs": worst_r, "rw": rw, "lat": latent[0], "left": worst["left"] if worst else 1.0},
         }
     contrib = combine(scores)
     signals = []
@@ -656,11 +734,13 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
             s = info["session"]
             val = f"×{s['ratio']}"
             detail = (f"Nejnáročnější běh 7 dní ({_cz(s['date'])}): {s['value']} {unit} proti vaší prokázané "
-                      f"kapacitě {s['cap']} {unit}" + (f" · připravenost ten den {s['readinessScore']} %" if s["readinessScore"] < 97 else ""))
+                      f"kapacitě {s['cap']} {unit}" + (f" · připravenost ten den {s['readinessScore']} %" if s["readinessScore"] < 97 else "")
+                      + (f" · nevstřebáno zhruba {round(s['left'] * 100)} %" if s["left"] < 0.99 else ""))
         elif drivers[ch] == "week":
             w = info["week"]
             val = f"×{w['ratio']}"
-            detail = f"Posledních 7 dní {w['now']} {unit} proti vaší týdenní kapacitě {w['cap']} {unit}"
+            detail = (f"Nevstřebaná zátěž {w['residual']} {unit} (týdenní ekvivalent, za 7 dní celkem {w['now']} {unit}) "
+                      f"proti vaší týdenní kapacitě {w['cap']} {unit}")
         else:
             lt = info["latent"]
             val = f"před {(today - _d(lt['date'])).days} dny"

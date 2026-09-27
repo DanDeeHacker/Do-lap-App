@@ -414,8 +414,7 @@ function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, can
       {/* railway#73 — the sync button always sits on the right, even on a phone */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="t-label !text-fg-3">Kvadrant stavu</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full py-1.5 pl-2.5 pr-3.5 font-serif text-[17px] leading-none" style={{ background: `${col}1f`, color: C.fg, boxShadow: `inset 0 0 0 1px ${col}55` }}>
               <i className="size-2.5 shrink-0 rounded-full" style={{ background: col, boxShadow: `0 0 0 3px ${col}33` }} />
               {q.t}
@@ -458,7 +457,7 @@ function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; o
     <div>
       {/* railway#72 — the 6-month history opens from the quadrant graphic itself */}
       <div className="mb-2.5 flex min-h-[30px] items-center justify-between gap-2">
-        <p className="t-label !text-fg-3">Mechanika × zátěž</p>
+        <p className="t-label !text-fg-3">Kvadrant stavu</p>
         {onHistory && (
           <button type="button" onClick={onHistory} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/14 px-3 py-1.5 text-[12px] font-bold text-info transition hover:border-info/50 hover:bg-info/[.07]">
             historie 6 měsíců <Maximize2 className="size-3.5" aria-hidden />
@@ -503,7 +502,7 @@ function QuadrantHistory({ history, today, onClose }: { history?: any[] | null; 
   const [sel, setSel] = useState<number | null>(null)
   const i = sel != null && sel < n ? sel : n - 1
   const cur = data[i]
-  const maxOv = Math.max(20, ...data.map((d) => d.overall || 0))
+  const shown = (d: OverviewDay) => 100 - clamp(d.overall ?? 0, 0, 100)   // railway#99 — same as the ring
   const fmtShort = (s?: string) => (s ? new Date(s).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" }) : "")
   const fmtLong = (s?: string) => (s ? new Date(s).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" }) : "")
   const chartRef = useRef<HTMLDivElement>(null)
@@ -547,13 +546,13 @@ function QuadrantHistory({ history, today, onClose }: { history?: any[] | null; 
                 style={{ touchAction: "pan-y" }}
               >
                 {data.map((d, idx) => (
-                  <i key={d.date || idx} className="block flex-1 rounded-[1px]" style={{ height: `${Math.max(5, ((d.overall || 0) / maxOv) * 100)}%`, background: QCOL[d.quadrant || "stable"] || C.fg4, opacity: idx === i ? 1 : 0.62 }} />
+                  <i key={d.date || idx} className="block flex-1 rounded-[1px]" style={{ height: `${Math.max(4, shown(d))}%`, background: QCOL[d.quadrant || "stable"] || C.fg4, opacity: idx === i ? 1 : 0.62 }} />
                 ))}
                 <i className="pointer-events-none absolute inset-y-1 w-0.5 -translate-x-1/2 rounded-full bg-fg shadow-[0_0_0_2px_rgb(6_16_16_/_.6)]" style={{ left: `calc(${((i + 0.5) / n) * 100}% )` }} aria-hidden />
               </div>
               <div className="mt-1 flex justify-between tabular-nums text-[11px] text-fg-3">
                 <span>{fmtShort(data[0].date)}</span>
-                <span>výška = skóre · barva = kvadrant</span>
+                <span>výška = skóre (vyšší = lepší) · barva = kvadrant</span>
                 <span>dnes</span>
               </div>
 
@@ -633,7 +632,7 @@ function RecommendationStrip({ a }: { a: any }) {
     : t.notes?.[0]
   return (
     // railway#75 — only the verdict and the way to Trénink, on one short row
-    <div className="nest mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5" style={{ borderColor: `${col}55`, backgroundImage: `linear-gradient(120deg, ${col}17, transparent 60%)` }}
+    <div className="nest flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5 text-left" style={{ borderColor: `${col}55`, backgroundImage: `linear-gradient(120deg, ${col}17, transparent 60%)` }}
       aria-label={`Doporučení na dnes: ${t.label}${ov?.title ? ` — ${ov.title}` : facts ? ` — ${facts}` : ""}`} title={ov?.title || facts || undefined}>
       <p className="min-w-[7rem] flex-1 font-serif text-[20px] leading-tight" style={{ color: ov ? C.alertSoft : C.fg }}>
         {t.label}
@@ -712,8 +711,9 @@ type OverviewDay = {
 }
 const axisCol = (v: number | null | undefined, hot: string) => (v == null ? C.fg3 : v >= 25 ? hot : v >= 12 ? C.watch : C.fg)
 const gradeTone = (g: string) => (g === "A" ? "alert" : g === "B" ? "watch" : "ok") as "alert" | "watch" | "ok"
-function StateOverview({ d, open = null, onToggle, panel, onHistory, note }: { d: OverviewDay; open?: PanelKey | null; onToggle?: (k: PanelKey) => void; panel?: React.ReactNode; onHistory?: () => void; note?: React.ReactNode }) {
-  const overall = d.overall ?? 0
+function StateOverview({ d, open = null, onToggle, panel, onHistory, note, recommendation }: { d: OverviewDay; open?: PanelKey | null; onToggle?: (k: PanelKey) => void; panel?: React.ReactNode; onHistory?: () => void; note?: React.ReactNode; recommendation?: React.ReactNode }) {
+  // railway#99 — shown as 100 − risk, so a better state reads higher (the engine keeps risk)
+  const overall = 100 - clamp(d.overall ?? 0, 0, 100)
   const RING = 2 * Math.PI * 44
   const score = d.rcv ?? null
   const scoreCol = score == null ? C.fg3 : score >= 67 ? C.ok : score >= 34 ? C.watch : C.alert
@@ -754,6 +754,8 @@ function StateOverview({ d, open = null, onToggle, panel, onHistory, note }: { d
             <SideStat label="Připravenost" value={d.readiness} unit=" %" col={readinessCol(d.readiness)} align="center" onClick={tg("readiness")} open={open === "readiness"} />
           </div>
         )}
+        {/* railway#98 — today's recommendation sits between readiness and the verdict */}
+        {recommendation && <div className="mt-4">{recommendation}</div>}
         <div className="mt-4 text-center">
           <h3 className="font-serif text-[21px] leading-tight text-fg">{verdict}</h3>
           <p className="mt-1 flex items-center justify-center gap-1.5 text-[13px] font-bold" style={{ color: tierCol }}>
@@ -890,7 +892,7 @@ function TodayV2() {
   useEffect(() => {
     if ((statPanel !== "mech" && statPanel !== "load") || !rid || axisHist !== null) return
     let alive = true
-    api.mechHistory(rid).then((h) => alive && setAxisHist(Array.isArray(h) ? h : [])).catch(() => alive && setAxisHist([]))
+    api.quadrantHistory(rid).then((h) => alive && setAxisHist(Array.isArray(h) ? h : [])).catch(() => alive && setAxisHist([]))
     return () => { alive = false }
   }, [statPanel, rid, axisHist])
   useEffect(() => {
@@ -1065,10 +1067,9 @@ function TodayV2() {
             <InjuryPrompt a={a} />
           </div>
         )}
-        <RecommendationStrip a={a} />
         {/* „Stav" — co jde do kvadrantu — je součástí boxu s kvadrantem */}
         <div className="mt-5 border-t border-white/[.08] pt-5">
-          <StateOverview d={todayDay} open={statPanel} onToggle={togglePanel} onHistory={() => setHistOpen(true)}
+          <StateOverview d={todayDay} open={statPanel} onToggle={togglePanel} onHistory={() => setHistOpen(true)} recommendation={<RecommendationStrip a={a} />}
             note={gated && <p className="mt-3 text-[11px] text-fg-3">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>}
             panel={pk && (
             <Drawer key={pk} open={!!statPanel} className="md:order-last md:col-span-2">

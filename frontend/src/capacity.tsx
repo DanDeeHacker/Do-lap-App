@@ -107,6 +107,12 @@ function ChannelRow({ id, c, margins, extra, open, onToggle }: { id: string; c: 
               {(ses.readinessScore ?? 100) < 97 ? ` · připravenost ${ses.readinessScore} %` : ""}
             </p>
           )}
+          {c.known && wk?.residual != null && (
+            <p className="mt-1 text-[11px] text-fg-3">
+              Nevstřebáno <b className="text-fg">{num(wk.residual)} {c.unit}</b> (týdenní ekvivalent, klesá každou noc) proti kapacitě {num(wk.cap)}
+              {ses?.left != null && ses.left < 0.99 ? ` · z nejnáročnějšího běhu zbývá asi ${Math.round(ses.left * 100)} %` : ""}
+            </p>
+          )}
           {c.known && c.latent && <p className="mt-1 text-[11px] text-watch">Doznívá skok ×{num(c.latent.ratio)} z {fmtD(c.latent.date)}</p>}
           {c.known && c.pendingJump && <PendingJump j={c.pendingJump} unit={c.unit} />}
           {c.known && CH_NOTE[id] && <p className="mt-2 text-[11px] leading-4 text-fg-3">{CH_NOTE[id]}</p>}
@@ -212,8 +218,10 @@ export function CapacityPanel({ cap, extra = {} }: { cap: any; extra?: Record<st
     <section className="card mb-4 p-4 md:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <span className="flex items-center gap-1.5"><Label>Týdenní kapacita</Label><InfoDot text={MI.capacity} label="Kapacita" /></span>
-          <p className="mt-1 max-w-xl text-[13px] leading-5 text-fg-2">Posledních 7 dní proti tomu, co za týden prokazatelně zvládáte bez obtíží. Bílá čárka = strop (kapacita + 15 % rezerva, podle připravenosti v týdnu). Kolik z toho je v plánu na tento týden a na dnešek, ukazuje Trénink.</p>
+          <span className="flex items-center gap-1.5"><Label>Týdenní kapacita</Label><InfoDot wide label="Kapacita" text={<>
+            <span className="block">Posledních 7 dní proti tomu, co za týden prokazatelně zvládáte bez obtíží. Bílá čárka = strop (kapacita + 15 % rezerva, podle připravenosti v týdnu). Kolik z toho je v plánu na tento týden a na dnešek, ukazuje Trénink.</span>
+            <span className="mt-2 block">{MI.capacity}</span>
+          </>} /></span>
         </div>
         <Readiness r={cap.readiness} />
       </div>

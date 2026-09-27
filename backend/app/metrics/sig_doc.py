@@ -367,19 +367,21 @@ SIG_DOC = {
               "                 bez běhů, po kterých do 72 h přišla bolest ≥ 3/10\n"
               "kapacita týdne = max(průměrný týden 4 předchozích týdnů, 0,9 × nejlepší týden 6 týdnů)\n"
               "poměr = km / (kapacita × připravenost dne) · body nad +10 % (běh) / +15 % (týden):\n"
-              "  do 1,3× ≤ 6 b · do 2× ≤ 20 b · nad 2× až 40 b · váha 1,0",
+              "  do 1,3× ≤ 6 b · do 2× ≤ 20 b · nad 2× až 40 b · váha 1,0\n"
+              "vstřebávání: body běhu i týdenní zátěž klesají každou noc (svaly a šlachy poločas 3,5 noci,\n"
+              "  Celková zátěž a Intenzita 2–8 nocí podle připravenosti) · skok nad 1,3× dozní lineárně do 28. dne",
         "why": "Skok v délce jednoho běhu proti nejdelšímu běhu předchozích 30 dní je v kohortě 5 205 běžců "
                "(Frandsen 2025) dávkově závislý rizikový faktor; prudký týdenní nárůst (> 30 %) souvisí s "
                "některými typy zranění (Nielsen 2014). Kapacita je to, co jste prokazatelně zvládli bez obtíží.",
         "limit": "Observační evidence — strop je ochranné zábradlí, ne záruka. Kapacitu nelze poznat dřív než "
                  "po ~3 bězích za 30 dní (týden: ~4 týdny historie).",
-        "clear": "Zmizí, když nejnáročnější běh i posledních 7 dní klesnou pod vaši kapacitu (+ rezervu).",
+        "clear": "Klesá každou noc bez běhu, jak se zátěž vstřebává. Zmizí, když nevstřebaná zátěž klesne pod kapacitu (+ rezervu).",
     },
     "cap_intensity": {
         "t": "Intenzita nad kapacitou", "g": "B",
         "fx": "expozice = minuty v zóně Z4+ (≥ 80 % tepové rezervy, Karvonen)\n"
               "  z tepového histogramu detailních dat, jinak odhad z průměrného tepu (třetin běhu)\n"
-              "kapacita a body jako u objemu · váha 0,9",
+              "kapacita a body jako u objemu · vstřebání podle připravenosti noci · váha 0,9",
         "why": "U dat ze sportovních hodinek předpovídala zranění spíš akutní námaha než samotná vzdálenost "
                "(Neal 2024); zátěž je vhodné kvantifikovat vnější i vnitřní složkou (Paquette 2020).",
         "limit": "Bez tepu se nepočítá. Zóny závisí na odhadu maximální tepové frekvence (z vašich nejtěžších běhů "
@@ -407,7 +409,7 @@ SIG_DOC = {
     "cap_systemic": {
         "t": "Celková zátěž nad kapacitou", "g": "B",
         "fx": "expozice = tepová tréninková zátěž TRIMP (Banister) všech sportů\n"
-              "kapacita a body jako u objemu · váha 0,7",
+              "kapacita a body jako u objemu · vstřebání podle připravenosti noci · váha 0,7",
         "why": "Vnitřní zátěž napříč sporty — zachytí i dlouhé středně těžké tréninky a křížový trénink, které "
                "kilometry běhu nevidí.",
         "limit": "Závisí na tepu a odhadu tepových hranic.",

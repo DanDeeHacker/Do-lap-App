@@ -531,3 +531,50 @@ def test_the_weekly_longest_run_ceiling_ignores_todays_readiness(client, db_sess
     vol = _assess(db_session, rid)["capacity"]["channels"]["volume"]
     m = _assess(db_session, rid)["capacity"]["margins"]["session"]
     assert abs(vol["ceilingSession"] - vol["capSession"] * (1 + m)) <= 0.1 and vol["ceilingSession"] >= vol["ceilingToday"]
+
+
+# ---------------------------------------------------------------- railway#100 absorption
+def test_night_rates_follow_readiness_only_for_the_systemic_side():
+    from app.metrics import capacity as CAP
+    days = ["2026-01-01", "2026-01-02", "2026-01-03"]
+    ready = {"2026-01-01": (1.0, {"hrv": 0.1}, 95), "2026-01-02": (0.8, {"hrv": 0.6}, 50)}
+    nights = {"2026-01-01", "2026-01-02"}
+    msk = CAP.night_rates("volume", days, ready, nights)
+    assert len(set(msk.values())) == 1 and abs(msk[days[0]] - CAP._k(CAP.HALF_MSK)) < 1e-9
+    card = CAP.night_rates("systemic", days, ready, nights)
+    assert card[days[0]] > card[days[2]] > card[days[1]]          # good night > no data > poor night
+    assert abs(card[days[1]] - CAP._k(8.0)) < 1e-9 and abs(card[days[2]] - CAP._k(CAP.HALF_NO_DATA)) < 1e-9
+
+
+def test_residual_week_matches_steady_training_then_falls_every_night():
+    from app.metrics import capacity as CAP
+    days = [(E.today_date() - timedelta(days=k)).isoformat() for k in range(41, -1, -1)]
+    daily = {d: 10.0 for d in days[:-10]}                          # 10 a day, then 10 days off
+    rates = CAP.night_rates("volume", days, {}, set())
+    steady = CAP.residual_week(daily, days[:-10], rates, "volume")
+    assert abs(steady - 70) < 1.5                                  # = the 7-day sum on steady training
+    left = [CAP.residual_week(daily, days[: len(days) - 10 + k], rates, "volume") for k in range(1, 11)]
+    assert all(b < a for a, b in zip([steady] + left, left))      # lower every night off
+    # the systemic side on poor nights keeps more, but never more than +25 %
+    poor = {d: (0.7, {"hrv": 1.0}, 30) for d in days}
+    pr = CAP.night_rates("systemic", days, poor, set(days))
+    nom = CAP.residual_week(daily, days, CAP.night_rates("systemic", days, {}, set()), "systemic")
+    kept = CAP.residual_week(daily, days, pr, "systemic")
+    assert kept > nom * 0.99 and kept <= CAP.residual_week(daily, days, {d: CAP._k(CAP.HALF_CARDIO_REF) for d in days}, "systemic") * CAP.RESIDUAL_CAP + 1e-6
+
+
+def test_load_falls_gradually_after_the_last_run(client, db_session):
+    rid, _ = _runner(client, db_session, "pa100@test.cz", p_run=0.75)
+    for k in range(0, 3):                                          # a hard block ending today
+        db_session.add(models.Activity(runner_id=rid, provider="garmin", external_id=f"blk{k}", started_at=E.day_ago(k),
+                                       sport="running", title="Blok", distance_km=22.0, duration_min=22 * 6,
+                                       avg_hr=158, surface="road", ascent_m=60, descent_m=60))
+    db_session.commit()
+    base = E.today_date()
+    loads = []
+    for k in range(0, 10):
+        with E.today_pinned(base + timedelta(days=k)), E.engine_pinned("v3"):
+            loads.append(E.assess(db_session, rid)["load"])
+    assert loads[0] > 0
+    assert all(b <= a for a, b in zip(loads, loads[1:])), loads     # never rises on rest days
+    assert loads[3] < loads[0] and loads[6] < loads[3], loads      # and keeps falling, no week-long plateau

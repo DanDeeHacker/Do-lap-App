@@ -1066,7 +1066,7 @@ export function Mechanics() {
   useEffect(() => {
     if (!rid || gatedNow) return
     let alive = true
-    api.mechHistory(rid).then((h) => alive && setMechHist(h)).catch(() => alive && setMechHist([]))
+    api.quadrantHistory(rid).then((h) => alive && setMechHist(h)).catch(() => alive && setMechHist([]))
     return () => { alive = false }
   }, [rid, gatedNow])
   if (!a) return <LoadGate />
@@ -1187,7 +1187,7 @@ export function Mechanics() {
             ) : (
               <p className="mt-3 text-sm text-fg-3">Na trend v čase je zatím málo historie.</p>
             )}
-            <p className="mt-1 text-[11px] text-fg-3">skóre driftu mechaniky po týdnech · nad prahem 25 = drift</p>
+            <p className="mt-1 text-[11px] text-fg-3">skóre driftu mechaniky po dnech · nad prahem 25 = drift</p>
           </div>
         </div>
       </section>
@@ -1315,7 +1315,7 @@ export function Load() {
   useEffect(() => {
     if (!rid) return
     let alive = true
-    api.mechHistory(rid).then((h) => alive && setHist(h)).catch(() => alive && setHist([]))
+    api.quadrantHistory(rid).then((h) => alive && setHist(h)).catch(() => alive && setHist([]))
     return () => { alive = false }
   }, [rid])
   if (!L) return <LoadGate />
@@ -1362,7 +1362,7 @@ export function Load() {
           ) : (
             <p className="mt-3 text-sm text-fg-3">Na trend je zatím málo historie.</p>
           )}
-          <p className="mt-1 text-[11px] text-fg-3">skóre zátěže po týdnech · nad prahem 25 = zvýšená (vstupuje do kvadrantu)</p>
+          <p className="mt-1 text-[11px] text-fg-3">skóre zátěže po dnech · po běhu se vstřebává noc po noci · nad prahem 25 = zvýšená</p>
         </div>
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <div>
