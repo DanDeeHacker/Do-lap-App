@@ -31,6 +31,7 @@ import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C } from "@/tokens"
 import { Bandage, ChevronDown, Compass, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
+import { Landing, scrollToLanding } from "@/landing"
 
 // Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
 // svou infrastrukturu; zaměstnavatelé a partneři se v této aplikaci nepřihlašují.
@@ -1343,8 +1344,19 @@ function Auth() {
     }
   }
 
+  // Landing-page CTAs bring the visitor back up to the sign-up form.
+  const nameRef = useRef<HTMLInputElement>(null)
+  const toRegister = () => {
+    setMode("register")
+    setErr(null)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+    setTimeout(() => nameRef.current?.focus({ preventScroll: true }), 650)
+  }
+
   return (
-    <div className="motion-shell min-h-screen bg-bg p-5 md:grid md:grid-cols-2 md:gap-8 md:p-8">
+    <div className="motion-shell min-h-screen bg-bg">
+    <div className="relative flex min-h-screen flex-col p-5 md:p-8">
+    <div className="flex-1 md:grid md:grid-cols-2 md:gap-8">
       <aside className="card relative hidden overflow-hidden p-10 text-fg md:flex md:flex-col" style={{ backgroundImage: `radial-gradient(circle at 85% 12%, ${C.accent}1a, transparent 22rem), radial-gradient(circle at 10% 90%, ${C.info}14, transparent 20rem)` }}>
         <div className="flex items-center gap-2.5 text-lg font-extrabold tracking-[-.04em]">
           <Mark />
@@ -1376,6 +1388,7 @@ function Auth() {
           </p>
           {mode === "register" && (
             <input
+              ref={nameRef}
               className="mt-5 w-full rounded-xl border px-3.5 py-3 text-sm"
               aria-label="Jméno"
               autoComplete="name"
@@ -1423,6 +1436,16 @@ function Auth() {
           </button>
         </Card>
       </section>
+    </div>
+      <button onClick={scrollToLanding} aria-controls="co-doslap-umi" data-testid="scroll-cue"
+        className="group mx-auto mt-6 flex flex-col items-center gap-1.5 rounded-2xl px-4 py-2 text-fg-2 hover:text-accent">
+        <span className="text-[13px] font-extrabold tracking-wide">Co Došlap umí</span>
+        <span className="cue-bounce grid size-9 place-items-center rounded-full border border-white/15 bg-white/5 group-hover:border-accent">
+          <ChevronDown className="size-5" aria-hidden />
+        </span>
+      </button>
+    </div>
+      <Landing onCta={toRegister} />
     </div>
   )
 }

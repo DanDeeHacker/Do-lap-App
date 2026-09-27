@@ -163,3 +163,16 @@ html, body { overflow-x:clip; }
   [class*="animate-["] { animation:fadeIn .15s ease-out !important; }
   [role="tooltip"] { animation:infoPopReduce .1s ease-out !important; }
 }
+
+/* ---- Landing page (/auth, "Co Došlap umí") ---- */
+.reveal { opacity:0; transform:translateY(28px); transition:opacity .75s var(--ease-sheet), transform .75s var(--ease-sheet); }
+.reveal.in { opacity:1; transform:none; }
+@keyframes cueBounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(7px); } }
+.cue-bounce { animation:cueBounce 1.6s ease-in-out infinite; }
+@keyframes barGrow { from { transform:scaleY(0); } }
+@keyframes drawLine { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
+@keyframes tabProgress { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { transform:none; transition:opacity .3s; }
+  .cue-bounce { animation:none; }
+}
