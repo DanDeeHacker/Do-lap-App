@@ -114,6 +114,10 @@ def _main_session():
     return SessionLocal()
 
 
+# Generated tutorial runner (app.tutorial_demo): never part of population priors.
+SYNTHETIC_RUNNERS = frozenset({"run_tutorial"})
+
+
 def recovery_priors(db=None, field: str = "hrv_ms", min_runners: int | None = None):
     """{m0, s0, s_rm, n, log} for a recovery marker, or None below the runner minimum."""
     need = MIN_RUNNERS if min_runners is None else min_runners
@@ -126,6 +130,8 @@ def recovery_priors(db=None, field: str = "hrv_ms", min_runners: int | None = No
     mdb = _main_session()
     try:
         for rid, v in mdb.query(models.DailyMetric.runner_id, col).filter(models.DailyMetric.date >= since, col.isnot(None)):
+            if rid in SYNTHETIC_RUNNERS:
+                continue
             tv = _t(field, v)
             if tv is not None:
                 groups.setdefault(rid, []).append(tv)
@@ -164,7 +170,7 @@ def mech_priors(db=None, field: str = "gct_ms", device: str | None = None, min_r
         q = q.join(models.Runner, models.Runner.id == models.Activity.runner_id).filter(models.Runner.device == device)
     by_rb: dict[tuple, list] = {}
     for a in q:
-        if a.excluded and a.excluded_scope != "load":
+        if (a.excluded and a.excluded_scope != "load") or a.runner_id in SYNTHETIC_RUNNERS:
             continue
         by_rb.setdefault((a.runner_id, E.bucket(a)), []).append(a)
     mdb.close()

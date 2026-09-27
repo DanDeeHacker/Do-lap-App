@@ -58,18 +58,10 @@ def has_care_assignment(db: DBSession, physio_id: str, runner_id: str) -> bool:
     )
 
 
-TUTORIAL_DEMO_EMAIL = "kritickepretizeni@demo.cz"   # the synthetic runner the getting-started tour shows
-_tutorial_rid: list = []
-
-
-def tutorial_demo_runner_id(db: DBSession) -> str | None:
-    """Runner id of the public demo account the in-app tour shows (synthetic data)."""
-    if not _tutorial_rid:
-        u = db.query(models.User).filter(models.User.email == TUTORIAL_DEMO_EMAIL).first()
-        if not u or not u.runner_id:
-            return None
-        _tutorial_rid.append(u.runner_id)
-    return _tutorial_rid[0]
+def tutorial_demo_runner_id(db: DBSession | None = None) -> str:
+    """Runner id of the generated runner the getting-started tour shows (app.tutorial_demo)."""
+    from .tutorial_demo import TUTORIAL_RID
+    return TUTORIAL_RID
 
 
 def ensure_runner_read_access(db: DBSession, user: models.User, runner_id: str) -> None:
@@ -78,7 +70,7 @@ def ensure_runner_read_access(db: DBSession, user: models.User, runner_id: str) 
     public anyway); writes still go through ensure_runner_self."""
     if user.role == "runner" and user.runner_id == runner_id:
         return
-    if runner_id == tutorial_demo_runner_id(db):
+    if runner_id == tutorial_demo_runner_id():
         return
     if user.role == "physio" and has_care_assignment(db, user.physio_id, runner_id):
         return

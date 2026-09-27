@@ -427,11 +427,8 @@ def update_onboarding(rid: str, payload: dict, user: models.User = Depends(get_c
 def tutorial_demo(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     """The synthetic runner whose data the tour shows (read-only for everyone)."""
     ensure_runner_self(user, rid)
-    from ..deps import tutorial_demo_runner_id
-    demo = tutorial_demo_runner_id(db)
-    if not demo:
-        raise HTTPException(404, "Ukázkový účet není k dispozici")
-    return {"runner_id": demo}
+    from .. import tutorial_demo
+    return {"runner_id": tutorial_demo.ensure(db)}   # rebuilt for today when stale
 
 
 @router.get("/{rid}/alerts/pending")

@@ -192,6 +192,7 @@ export function Post() {
             <Label>Souhrn deníku</Label>
             {ov ? (
               <>
+                <div data-tour="journal-summary">
                 <div className="mt-3 flex items-baseline gap-2">
                   <p className="t-num text-[44px] leading-none">{mfmt(1, ov.feelingMean)}</p>
                   <span className="text-sm text-fg-3">/5 pocit</span>
@@ -203,12 +204,13 @@ export function Post() {
                   <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ov.niggleCount >= 3 ? C.alert : undefined }}>{ov.niggleCount}×</p><p className="text-[11px] text-fg-3">s bolestí</p></div>
                   <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ov.painMax >= 4 ? C.alert : undefined }}>{ov.painMax}</p><p className="text-[11px] text-fg-3">max bolest</p></div>
                 </div>
+                </div>
                 {Object.keys(ov.painMap).length > 0 && (
                   <div className="mt-4 border-t border-white/[.08] pt-4">
                     <Label>Kde to nejčastěji bolí</Label>
                     <p className="mt-1 text-[12px] leading-5 text-fg-3">Podle zápisů za posledních 30 dní — čím výraznější místo, tím častěji jste ho označil jako bolestivé.</p>
                     <div className="mt-3"><PainHeatmap counts={ov.painSided} /></div>
-                    <div className="mt-4 space-y-1.5">
+                    <div className="mt-4 space-y-1.5" data-tour="journal-sites">
                       {ov.topSites.slice(0, 5).map(([region, count]) => {
                         const w = Math.round((count / ov.topSites[0][1]) * 100)
                         return (

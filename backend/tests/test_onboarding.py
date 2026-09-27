@@ -34,3 +34,30 @@ def test_older_accounts_have_no_checklist_and_tour_demo_is_read_only(client):
     other = register(client, "onb3@test.cz", "Jiný", "runner").json()["runner_id"]
     client.post("/api/auth/session", json={"email": "onb2@test.cz", "password": "testpass123"})
     assert client.get(f"/api/runners/{other}/bootstrap").status_code == 403       # other runners stay private
+
+
+def test_tour_demo_always_has_training_journal_races_and_care(client):
+    """The generated tour runner shows real content on every tab, on any weekday."""
+    from datetime import date, timedelta
+    from app import tutorial_demo
+    from app.db import SessionLocal
+    from app.metrics import engine as E
+    rid = register(client, "onb4@test.cz", "Průvodce", "runner").json()["runner_id"]
+    demo = client.get(f"/api/runners/{rid}/tutorial-demo").json()["runner_id"]
+    assert demo == tutorial_demo.TUTORIAL_RID
+    b = client.get(f"/api/runners/{demo}/bootstrap").json()
+    assert len(b["activities"]) > 80 and len(b["activity_feedback"]) >= 10 and len(b["checkins"]) >= 10
+    assert any(f["pain_points"] for f in b["activity_feedback"])                 # the body map has a point
+    assert len(client.get(f"/api/runners/{demo}/activities/unrated").json()) >= 1  # "Čeká na zápis"
+    assert b["messages"] and b["program"] and b["program"]["exercises"] and b["conclusions"]
+    assert len(client.get(f"/api/runners/{demo}/races").json()) >= 2
+    db = SessionLocal()
+    try:
+        assert not db.query(models.EngineDailySnapshot).filter_by(runner_id=demo).count()
+        for k in range(7):                                                         # every weekday offers a run
+            with E.today_pinned(date(2026, 9, 28) + timedelta(days=k)):
+                tutorial_demo._rebuild(db)
+                g = E.get_or_refresh_assessment(db, demo)["guidance"]
+                assert g["type"] not in ("volno", "závod") and g["types"][g["type"]]["km"]["hi"] > 3, (k, g["reasons"])
+    finally:
+        db.close()

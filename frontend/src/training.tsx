@@ -533,7 +533,7 @@ export function Training() {
         })}
       </div>
 
-      <section className="card mt-4 p-4 md:p-6">
+      <section className="card mt-4 p-4 md:p-6" data-tour="training-session">
         {!t.allowed && (
           <p className="mb-4 rounded-[12px] border border-alert/30 bg-alert/10 px-3 py-2 text-[13px] font-bold text-alert-soft">Dnes nedoporučujeme: {t.why}</p>
         )}

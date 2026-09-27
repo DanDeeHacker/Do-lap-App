@@ -155,6 +155,16 @@ def _seconds_until_local_midnight(after_s: int = 0) -> float:
     return (nxt - now).total_seconds() + after_s
 
 
+def _refresh_tutorial_demo():
+    """Rebuild the getting-started tour's runner for the new day (app.tutorial_demo)."""
+    from . import tutorial_demo
+    db = SessionLocal()
+    try:
+        tutorial_demo.ensure(db)
+    finally:
+        db.close()
+
+
 async def _precompute_loop():
     """Warm every recently active runner's derived data (today's assessment and
     the daily quadrant history) shortly after startup and again just after each
@@ -170,6 +180,10 @@ async def _precompute_loop():
         except asyncio.CancelledError:
             raise
         first = False
+        try:
+            await asyncio.to_thread(_refresh_tutorial_demo)
+        except Exception:  # noqa: BLE001
+            log.exception("Tutorial demo rebuild failed")
         try:
             n = await asyncio.to_thread(precompute.warm_all)
             log.info("Precompute warm-up queued for %s runners", n)

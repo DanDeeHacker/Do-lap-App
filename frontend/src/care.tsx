@@ -6,6 +6,7 @@ import { CalendarDays, CalendarClock, Send, Star, UserRound } from "lucide-react
 import { fmtSlot, fmtDT, initials, czk } from "@/lib"
 import { Head, Program } from "@/tabs"
 import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
+import { CARE_SUB_EVENT } from "@/onboarding"
 
 const OSTRC: [string, string, [number, string][]][] = [
   ["q_participation", "Účast na tréninku/závodech", [[0, "Plná bez obtíží"], [8, "Plná s obtížemi"], [17, "Omezená"], [25, "Nemohl/a jsem"]]],
@@ -29,6 +30,12 @@ export function Care() {
   const [rtrOpen, setRtrOpen] = useState(false)
 
   const subtabs: [typeof sub, string][] = [["physio", "Fyzioterapeut"], ["program", "Program"], ["health", "Zdraví"]]
+  // the getting-started tour switches sub-tabs to show the program and the visit summary
+  useEffect(() => {
+    const on = (e: Event) => setSub((e as CustomEvent).detail)
+    window.addEventListener(CARE_SUB_EVENT, on)
+    return () => window.removeEventListener(CARE_SUB_EVENT, on)
+  }, [])
 
   return (
     <>
@@ -57,7 +64,9 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
   const r = boot?.runner
   const toast = useToast()
   const reminders = (boot?.reminders || []) as any[]
-  const bookings = (boot?.bookings || []).filter((b: any) => b.status === "requested" || b.status === "confirmed")
+  // upcoming only: a visit that already took place has nothing left to cancel
+  const now = Date.now()
+  const bookings = (boot?.bookings || []).filter((b: any) => (b.status === "requested" || b.status === "confirmed") && (!b.slot_at || new Date(b.slot_at).getTime() >= now))
   const carePids = new Set<string>([...(boot?.bookings || []).filter((b: any) => b.status === "confirmed").map((b: any) => b.physio_id), ...(boot?.program ? [boot.program.physio_id] : [])].filter(Boolean))
   const pn = (pid: string) => boot?.physios?.[pid]?.name || "fyzioterapeut"
 
