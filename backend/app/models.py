@@ -650,3 +650,43 @@ class CoachText(Base):
     cards_json = Column(JSON)                      # literature cards used (phase 2)
     latency_ms = Column(Integer)
     created_at = Column(String)
+
+
+class EngineDailySnapshot(Base):
+    """Plan phase 0: what the engine said about a runner on a day, recorded
+    prospectively (not a replay) by the precompute worker. Together with
+    app.outcomes.health_events it is the dataset the thresholds will one day be
+    calibrated against. `features` keeps the continuous inputs (z-scores,
+    capacity ratios, readiness), not just the points, because the calibration
+    model uses them as spline covariates."""
+    __tablename__ = "engine_daily_snapshots"
+    __table_args__ = (UniqueConstraint("runner_id", "date", name="uq_snapshot_runner_date"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    date = Column(String, nullable=False)          # YYYY-MM-DD (Europe/Prague)
+    engine_version = Column(String)
+    code_fp = Column(String)
+    mech = Column(Integer)
+    load = Column(Integer)
+    symp = Column(Integer)
+    overall = Column(Integer)
+    quadrant = Column(String)
+    tier = Column(String)
+    confidence = Column(Float)
+    features_json = Column(JSON)
+    signals_json = Column(JSON)
+    created_at = Column(String)
+
+
+class EngineAlert(Base):
+    """Plan phase 0: an axis turning elevated (entering the quadrant threshold),
+    with the runner's optional one-tap verdict — the false-alarm estimate."""
+    __tablename__ = "engine_alerts"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    date = Column(String, nullable=False)
+    axis = Column(String, nullable=False)          # "load" | "mech"
+    quadrant_from = Column(String)
+    quadrant_to = Column(String)
+    feedback = Column(String)                      # None | "fits" | "no_fit"
+    feedback_at = Column(String)

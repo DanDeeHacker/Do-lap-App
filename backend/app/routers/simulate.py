@@ -6,7 +6,7 @@ seeds the sandbox from a runner's own live assessment. None of this touches or
 mutates runner data — it's a pure function of the posted inputs — so it only
 needs a logged-in session, and `/inputs` additionally scopes to the runner.
 """
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
 
 from .. import models
@@ -60,3 +60,13 @@ def inputs_for_runner(rid: str, user: models.User = Depends(get_current_user), d
     runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
     return {"inputs": S.inputs_from_assessment(a, runner), "prevQuadrant": a.get("quadrant"),
             "mode": "v3" if a.get("engineMode") == "v3" else "v1"}
+
+
+@router.get("/outcomes")
+def outcomes_overview(user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Plan phase 0: owner-only progress report towards the calibration gate."""
+    from .annotations import is_owner
+    from .. import outcomes
+    if not is_owner(user):
+        raise HTTPException(403, "Jen pro vlastníka aplikace")
+    return outcomes.overview(db)

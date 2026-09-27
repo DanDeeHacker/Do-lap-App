@@ -379,6 +379,30 @@ def quadrant_history(rid: str, days: int = QUAD_HISTORY_DAYS, user: models.User 
     return H.refresh_quadrant_history(db, rid)["rows"]
 
 
+@router.get("/{rid}/alerts/pending")
+def pending_alert(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Plan phase 0: the newest unanswered alert of the last 3 days (a load or
+    mechanics axis that turned elevated), so the app can ask "does it fit?"."""
+    ensure_runner_self(user, rid)
+    from .. import outcomes
+    a = outcomes.recent_unrated_alert(db, rid)
+    return {"alert": {"id": a.id, "date": a.date, "axis": a.axis} if a else None}
+
+
+@router.post("/{rid}/alerts/{aid}/feedback", dependencies=[Depends(verify_csrf)])
+def alert_feedback(rid: str, aid: int, payload: dict, user: models.User = Depends(get_current_user),
+                   db: DBSession = Depends(get_db)):
+    ensure_runner_self(user, rid)
+    fb = (payload or {}).get("feedback")
+    if fb not in ("fits", "no_fit"):
+        raise HTTPException(400, "Neplatná odpověď")
+    a = or_404(db.query(models.EngineAlert).filter(models.EngineAlert.id == aid,
+                                                   models.EngineAlert.runner_id == rid).first(), "Upozornění nenalezeno")
+    a.feedback, a.feedback_at = fb, E.now_iso()
+    db.commit()
+    return {"ok": True}
+
+
 @router.get("/{rid}/run-history")
 def run_history(rid: str, limit: int = 20, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     """Latest runs with terrain and weather context (Pohyb → Historie běhů).

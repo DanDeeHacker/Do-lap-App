@@ -623,6 +623,36 @@ function InjuryPrompt({ a }: { a: any }) {
 // OPT-1 + feedback railway#42 · today's Trénink guidance as a strip inside the
 // state card, above the overall score, linking to the Trénink tab (v3 only).
 const kmFmt = (v: number) => v.toLocaleString("cs-CZ", { maximumFractionDigits: 1 })
+// Plan phase 0 — when an axis newly turned elevated, ask once whether it fits how
+// the runner feels. The answers estimate the false-alarm rate before calibration.
+function AlertCheck({ rid, version }: { rid?: string | null; version?: string }) {
+  const [alert, setAlert] = useState<{ id: number; date: string; axis: string } | null>(null)
+  const [done, setDone] = useState(false)
+  useEffect(() => {
+    if (!rid) return
+    let alive = true
+    api.pendingAlert(rid).then((r) => alive && setAlert(r?.alert || null)).catch(() => {})
+    return () => { alive = false }
+  }, [rid, version])
+  if (!rid || (!alert && !done)) return null
+  if (done) return <p className="mt-3 text-[12px] text-fg-3" role="status">Díky, odpověď pomůže zpřesnit upozornění.</p>
+  const answer = (fb: "fits" | "no_fit") => {
+    api.alertFeedback(rid, alert!.id, fb).catch(() => {})
+    setAlert(null)
+    setDone(true)
+  }
+  const what = alert!.axis === "load" ? "zvýšenou zátěž" : "změnu v mechanice běhu"
+  return (
+    <div className="nest mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5" data-testid="alert-check">
+      <p className="min-w-[12rem] flex-1 text-[13px] text-fg-2">Aplikace {fmtD(alert!.date)} upozornila na {what}. Sedí to s tím, jak se cítíte?</p>
+      <div className="flex gap-2">
+        <button type="button" className="btn btn-outline btn-sm" onClick={() => answer("fits")}>Sedí</button>
+        <button type="button" className="btn btn-outline btn-sm" onClick={() => answer("no_fit")}>Nesedí</button>
+      </div>
+    </div>
+  )
+}
+
 function RecommendationStrip({ a }: { a: any }) {
   const g = a?.guidance
   if (a?.engineMode !== "v3" || !g) return null
@@ -1089,6 +1119,7 @@ function TodayV2() {
         <div className="mt-5 border-t border-white/[.08] pt-5">
           <StateOverview d={todayDay} open={statPanel} onToggle={togglePanel} onHistory={() => setHistOpen(true)} recommendation={<RecommendationStrip a={a} />}
             note={gated && <p className="mt-3 text-[11px] text-fg-3">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>} />
+          <AlertCheck rid={rid} version={a?.computed_at} />
         </div>
         <QuadrantHistory open={histOpen} history={quadHist} today={todayDay} onClose={closeHist} />
         {pk && (

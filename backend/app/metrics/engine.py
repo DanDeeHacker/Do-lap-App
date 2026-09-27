@@ -54,6 +54,52 @@ def sd(a):
     return math.sqrt(sum((x - m) ** 2 for x in a) / (len(a) - 1))
 
 
+# ---------------------------------------------------------------- continuous point ramps
+# Plan phase 2B: every score function is continuous and non-decreasing in its
+# input (Carey et al., 2018; Bache-Mathiesen et al., 2021, warn against cut-points).
+# The old v1 versions jumped at their display thresholds, and the session-spike
+# bands even dropped from 5 to 0 points just above 1.3×. Shared by assess() and
+# the sensitivity sandbox (metrics/sensitivity.py) so the two cannot drift apart.
+def pts_session_spike(s):
+    """Single-session spike (RUNSAFE bands, joined): 0 at 1.1×, 5 at 1.3×, 14 at 2×, 30 at 3×."""
+    if s is None or s <= 1.1:
+        return 0.0
+    if s <= 1.3:
+        return (s - 1.1) * 25
+    if s <= 2.0:
+        return 5 + (s - 1.3) / 0.7 * 9
+    return 14 + clamp((s - 2.0) * 16, 0, 16)
+
+
+def pts_acwr(r):
+    """7:28 ratio: a ramp into 2 points at 1.5× then +18/unit to 14, and a ramp to 10 below 0.8×."""
+    if r is None:
+        return 0.0
+    if r >= 1.5:
+        return clamp(2 + (r - 1.5) * 18, 0, 14)
+    if r > 1.4:
+        return (r - 1.4) * 20
+    if r < 0.8:
+        return clamp((0.8 - r) * 50, 0, 10)
+    return 0.0
+
+
+def pts_hrv_low(z):
+    """Suppressed HRV: from 0 at z = −0.5 to 20 at z = −2 (cap 22)."""
+    return 0.0 if z is None else clamp((-z - 0.5) * (20 / 1.5), 0, 22)
+
+
+def pts_rhr_high(z):
+    """Elevated resting HR: from 0 at z = 0.6 to 16 at z = 2 (cap 18)."""
+    return 0.0 if z is None else clamp((z - 0.6) * (16 / 1.4), 0, 18)
+
+
+def taper_weight(load_score, ratio):
+    """0–1: how far the load sits into its elevated zone (18→25 points, or 7:28 1.2→1.3×).
+    Replaces the old on/off gate at exactly 25, so the race-proximity points fade in."""
+    return clamp(max((load_score - QUAD_EXIT) / (QUAD_THRESHOLD - QUAD_EXIT), ((ratio or 1.0) - 1.2) / 0.1), 0, 1)
+
+
 def median(a):
     a = sorted(a)
     n = len(a)
@@ -2447,7 +2493,7 @@ def assess(db: DBSession, rid: str) -> dict:
             if mag >= show:
                 push(sid, name, grade, p, val, detail)
     # Decoupling (fatigue resistance) is a %/run trend, scored on its own ramp.
-    if dec and dec["trend"] > 0.15:
+    if dec and dec["trend"] > 0.1:   # the ramp starts at 0.1, so no 1.3-point jump (plan 2B)
         p = rnd(clamp(dec["trend"] - 0.1, 0, 1.2) * 26)
         if p:
             mech_score += p
@@ -2511,15 +2557,8 @@ def assess(db: DBSession, rid: str) -> dict:
         # danger zone (HRR 2.28); +30–100 % moderate; +10–30 % a mild nudge.
         if L["valid"] and L["sessionSpike"] is not None and L["sessionSpike"] > 1.1:
             s = L["sessionSpike"]
-            if s > 2.0:
-                p = rnd(clamp((s - 2.0) * 16, 0, 16) + 14)      # 14..30
-                band = "nad +100 %"
-            elif s > 1.3:
-                p = rnd(clamp((s - 1.3) * 20, 0, 14))           # up to 14
-                band = "+30–100 %"
-            else:
-                p = rnd(clamp((s - 1.1) * 25, 0, 6))            # up to 6
-                band = "+10–30 %"
+            p = rnd(pts_session_spike(s))     # continuous across the bands (plan 2B)
+            band = "nad +100 %" if s > 2.0 else "+30–100 %" if s > 1.3 else "+10–30 %"
             if p:
                 load_score += p
                 _basis = L.get("sessionSpikeBasis") or "vzdálenost"
@@ -2554,16 +2593,18 @@ def assess(db: DBSession, rid: str) -> dict:
         # acute:chronic "sweet spot" does not transfer to distance running — the same
         # RUNSAFE cohort found ACWR *inversely* related to overuse injury and the
         # week-to-week ratio unrelated. Kept only as a mild descriptor / detraining flag.
-        if L["valid"] and L["ratio"] is not None and L["ratio"] > 1.5:
-            p = rnd(clamp((L["ratio"] - 1.5) * 18, 0, 12) + 2)
+        p = rnd(pts_acwr(L["ratio"])) if L["valid"] else 0
+        if p and L["ratio"] > 1:
             load_score += p
-            push("ewma", "Zvýšený poměr zátěže (7:28)", "C", p, f"×{L['ratio']}",
-                 f"Akutní zátěž {L['acute']} proti chronické {L['chronic']} j.z./týden. Pozn.: v běžecké kohortě "
-                 "sám poměr 7:28 riziko nepředpovídá — hlavní signál je skok v jednotlivém běhu výše.")
-        elif L["valid"] and L["ratio"] is not None and L["ratio"] < 0.7:
-            load_score += 10
-            push("ewma", "Náhlý pokles zátěže", "C", 10, f"×{L['ratio']}",
-                 "Prudké snížení objemu — mírně vyšší riziko při návratu k plné zátěži, ne bezpečná zóna")
+            if p:   # every contributing point is listed, so the axis adds up (plan 2B)
+                push("ewma", "Zvýšený poměr zátěže (7:28)", "C", p, f"×{L['ratio']}",
+                     f"Akutní zátěž {L['acute']} proti chronické {L['chronic']} j.z./týden. Pozn.: v běžecké kohortě "
+                     "sám poměr 7:28 riziko nepředpovídá — hlavní signál je skok v jednotlivém běhu výše.")
+        elif p:
+            load_score += p
+            if p:
+                push("ewma", "Náhlý pokles zátěže", "C", p, f"×{L['ratio']}",
+                     "Prudké snížení objemu — mírně vyšší riziko při návratu k plné zátěži, ne bezpečná zóna")
 
         # v0.5 — high-intensity exposure spike (hard efforts jumping on a low hard base)
         if L["valid"] and L["hiAcute"] >= 60 and L["hiRatio"] is not None and L["hiRatio"] > 1.5:
@@ -2601,14 +2642,14 @@ def assess(db: DBSession, rid: str) -> dict:
             p = rnd(clamp((aer["mean"] - 5.5) * 3, 0, 12))
             load_score += p
             push("aer", "Aerobní decoupling", "B", p, f"{aer['mean']} %", "Tep se v druhé půli odpojuje od tempa")
-        if rcv and rcv["hrv"]["z"] <= -1.0:
-            p = rnd(clamp(-rcv["hrv"]["z"] * 10, 0, 22))
-            load_score += p
+        p = rnd(pts_hrv_low(rcv["hrv"]["z"])) if rcv and rcv["hrv"]["z"] is not None else 0
+        load_score += p
+        if p:
             push("hrv", "Potlačená HRV", "B", p, f"{rcv['hrv']['now']} ms",
                  f"Baseline {rcv['hrv']['base']} ms · {_pct({'baseMean': rcv['hrv']['base'], 'recMean': rcv['hrv']['now'], 'z': rcv['hrv']['z']})} za posledních 7 dní")
-        if rcv and rcv["rhr"]["z"] >= 1.2:
-            p = rnd(clamp(rcv["rhr"]["z"] * 8, 0, 18))
-            load_score += p
+        p = rnd(pts_rhr_high(rcv["rhr"]["z"])) if rcv and rcv["rhr"]["z"] is not None else 0
+        load_score += p
+        if p:
             push("rhr", "Zvýšený klidový tep", "B", p, f"{rcv['rhr']['now']} tep/min",
                  f"Baseline {rcv['rhr']['base']} · {_pct({'baseMean': rcv['rhr']['base'], 'recMean': rcv['rhr']['now'], 'z': rcv['rhr']['z']})}")
         if hcv and hcv["ratio"] is not None and hcv["ratio"] >= 1.4:
@@ -2646,12 +2687,12 @@ def assess(db: DBSession, rid: str) -> dict:
     next_a = next((x for x in races_for(db, r) if x["priority"] == "A" and x["daysTo"] >= 0), None) if r else None
     if next_a:                                # plan B4: the calendar's next A race (or the profile's goal race)
         days_to_race = next_a["daysTo"]
-        if days_to_race is not None and 0 <= days_to_race <= 21 and (
-            load_score >= QUAD_THRESHOLD or (L["ratio"] is not None and L["ratio"] > 1.3)
-        ):
-            p = rnd(clamp((21 - days_to_race) / 21 * 14, 4, 14))
+        tw = taper_weight(load_score, L["ratio"])
+        if days_to_race is not None and 0 <= days_to_race <= 21 and tw > 0:
+            p = rnd(clamp((21 - days_to_race) / 21 * 14, 4, 14) * tw)   # fades in with the load (plan 2B)
             load_score += p
-            push("taper", "Blízký závod při zvýšené zátěži", "C", p, f"{days_to_race} dní do závodu",
+            if p:
+                push("taper", "Blízký závod při zvýšené zátěži", "C", p, f"{days_to_race} dní do závodu",
                  f"{next_a['name'] or 'cílový závod'} za {days_to_race} dní při zvýšené aktuální zátěži — "
                  "riziko přetížení těsně před závodem stoupá, zvažte odlehčení místo dalšího navyšování")
 

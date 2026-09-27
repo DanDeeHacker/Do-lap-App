@@ -266,22 +266,18 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
     else:
         s = g["sessionSpike"]
         if valid and s > 1.1:
-            if s > 2.0:
-                p, band = clamp((s - 2.0) * 16, 0, 16) + 14, "nad +100 %"
-            elif s > 1.3:
-                p, band = clamp((s - 1.3) * 20, 0, 14), "+30–100 %"
-            else:
-                p, band = clamp((s - 1.1) * 25, 0, 6), "+10–30 %"
+            p = E.pts_session_spike(s)
+            band = "nad +100 %" if s > 2.0 else "+30–100 %" if s > 1.3 else "+10–30 %"
             push("session_spike", "load", "Skok v jednom běhu", "B", p, f"×{round(s, 2)}", f"Nejnáročnější běh je {band} proti 30 dnům.")
         if valid and g["spikeLatent"] > 0:
             push("spike_latent", "load", "Doznívající skok v zátěži", "B", clamp(g["spikeLatent"] * 22, 0, 16), f"{round(g['spikeLatent'], 2)}", "Doznívá 1–4 týdny po velkém skoku.")
         if valid and g["paceSpike"] > 1.06:
             push("pace_spike", "load", "Skok v tempu", "C", clamp((g["paceSpike"] - 1.06) * 40, 0, 10), f"×{round(g['paceSpike'], 2)}", "Prudké zrychlení proti obvyklému tempu.")
         ratio = g["ratio"]
-        if valid and ratio > 1.5:
-            push("ewma", "load", "Zvýšený poměr zátěže (7:28)", "C", clamp((ratio - 1.5) * 18, 0, 12) + 2, f"×{round(ratio, 2)}", "Akutní zátěž nad chronickou.")
-        elif valid and ratio < 0.7:
-            push("ewma", "load", "Náhlý pokles zátěže", "C", 10, f"×{round(ratio, 2)}", "Prudké snížení objemu — riziko při návratu.")
+        if valid and ratio > 1:
+            push("ewma", "load", "Zvýšený poměr zátěže (7:28)", "C", E.pts_acwr(ratio), f"×{round(ratio, 2)}", "Akutní zátěž nad chronickou.")
+        elif valid:
+            push("ewma", "load", "Náhlý pokles zátěže", "C", E.pts_acwr(ratio), f"×{round(ratio, 2)}", "Prudké snížení objemu — riziko při návratu.")
         if valid and g["hiAcute"] >= 60 and g["hiRatio"] > 1.5:
             push("hi_load", "load", "Skok ve vysoké intenzitě", "B", clamp((g["hiRatio"] - 1.5) * 20, 0, 20), f"×{round(g['hiRatio'], 2)}", "Prudký nárůst tvrdé práce na nízké základně.")
         if valid and ratio < 1.3 and g["loadCreep"] >= 1.15:
@@ -294,10 +290,8 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
             push("desc_steep", "load", "Nárůst strmého klesání (≥10 %)", "C", clamp((g["steepSpike"] - 1.5) * 12, 0, 12), f"×{round(g['steepSpike'], 2)}", "Strmé klesání zatěžuje excentricky víc.")
         if g["aerMean"] > 5.5:
             push("aer", "load", "Aerobní decoupling", "B", clamp((g["aerMean"] - 5.5) * 3, 0, 12), f"{round(g['aerMean'], 1)} %", "Tep se v druhé půli odpojuje od tempa.")
-        if g["hrvZ"] <= -1.0:
-            push("hrv", "load", "Potlačená HRV", "B", clamp(-g["hrvZ"] * 10, 0, 22), f"z {round(g['hrvZ'], 1)}", "HRV pod baseline.")
-        if g["rhrZ"] >= 1.2:
-            push("rhr", "load", "Zvýšený klidový tep", "B", clamp(g["rhrZ"] * 8, 0, 18), f"z {round(g['rhrZ'], 1)}", "Klidový tep nad baseline.")
+        push("hrv", "load", "Potlačená HRV", "B", E.pts_hrv_low(g["hrvZ"]), f"z {round(g['hrvZ'], 1)}", "HRV pod baseline.")
+        push("rhr", "load", "Zvýšený klidový tep", "B", E.pts_rhr_high(g["rhrZ"]), f"z {round(g['rhrZ'], 1)}", "Klidový tep nad baseline.")
         if g["hrvCvRatio"] >= 1.4:
             push("hrvcv", "load", "Kolísavá HRV mezi dny", "C", clamp((g["hrvCvRatio"] - 1.4) * 14, 0, 10), f"×{round(g['hrvCvRatio'], 2)}", "Den-k-dni variabilita HRV nad obvyklou.")
         if valid and g["tsbRel"] <= -0.12:
@@ -313,8 +307,9 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
                  f"deficit {round(capacity_deficit * 100)} %", "Skok v zátěži padá na oslabenou regeneraci.")
     # Taper: gated on the running load total (pre-frailty), like assess().
     dtr = g["daysToRace"]
-    if dtr is not None and 0 <= dtr <= 21 and (load >= QUAD_THRESHOLD or ratio > 1.3):
-        push("taper", "load", "Blízký závod při zvýšené zátěži", "C", clamp((21 - dtr) / 21 * 14, 4, 14), f"{int(dtr)} dní do závodu", "Zátěž zvýšená těsně před závodem.")
+    tw = E.taper_weight(load, ratio)
+    if dtr is not None and 0 <= dtr <= 21 and tw > 0:
+        push("taper", "load", "Blízký závod při zvýšené zátěži", "C", clamp((21 - dtr) / 21 * 14, 4, 14) * tw, f"{int(dtr)} dní do závodu", "Zátěž zvýšená těsně před závodem.")
 
     # ------------------------------------------------------------------ MECH
     # (mag, dead, weight, cap) exactly as engine.assess()'s mech_terms.
@@ -326,7 +321,7 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
         ("bal", "Posun v symetrii kontaktu", "B", g["balExcursion"], 0.4, 22, 3.0, "p.b.", g["balExcursion"]),
     ):
         push(sid, "mech", name, grade, clamp(mag - dead, 0, cap) * weight, f"{round(raw, 2)} {unit}")
-    if g["decTrend"] > 0.15:
+    if g["decTrend"] > 0.1:
         push("dec", "mech", "Klesající odolnost proti únavě", "C", clamp(g["decTrend"] - 0.1, 0, 1.2) * 26, f"{round(g['decTrend'], 2)}/běh")
     if g["gaitCvRatio"] >= 1.5:
         push("gaitcv", "mech", "Kolísavější mechanika", "C", clamp((g["gaitCvRatio"] - 1.5) * 14, 0, 14), f"×{round(g['gaitCvRatio'], 2)}")

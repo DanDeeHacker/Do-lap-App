@@ -543,7 +543,11 @@ def test_night_rates_follow_readiness_only_for_the_systemic_side():
     assert len(set(msk.values())) == 1 and abs(msk[days[0]] - CAP._k(CAP.HALF_MSK)) < 1e-9
     card = CAP.night_rates("systemic", days, ready, nights)
     assert card[days[0]] > card[days[2]] > card[days[1]]          # good night > no data > poor night
-    assert abs(card[days[1]] - CAP._k(8.0)) < 1e-9 and abs(card[days[2]] - CAP._k(CAP.HALF_NO_DATA)) < 1e-9
+    assert abs(card[days[1]] - CAP._k(CAP.half_for_readiness(50))) < 1e-9 and abs(card[days[2]] - CAP._k(CAP.HALF_NO_DATA)) < 1e-9
+    # plan 2B: interpolated, so the half-life never jumps between neighbouring scores
+    assert CAP.half_for_readiness(95) == 2.0 and CAP.half_for_readiness(20) == 8.0 and CAP.half_for_readiness(50) == 7.0
+    hs = [CAP.half_for_readiness(x / 10) for x in range(1000, 0, -1)]
+    assert all(b >= a - 1e-12 for a, b in zip(hs, hs[1:])) and max(b - a for a, b in zip(hs, hs[1:])) < 0.03
 
 
 def test_residual_week_matches_steady_training_then_falls_every_night():

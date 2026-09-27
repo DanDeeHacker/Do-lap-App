@@ -34,7 +34,7 @@ instead of holding until the run leaves the 7-day window. The weekly figure that
 scored is an exponentially weighted acute load (Williams et al. 2017), equal to the
 plain 7-day sum on steady training. Muscles / tendons (volume, descent, ascent)
 absorb on a fixed half-life of 3.5 nights, the systemic side (HR load, Z4+ minutes)
-by that night's readiness (2 / 3 / 5 / 8 nights). The half-lives are working
+by that night's readiness (2 nights at 90 %, 3 at 75 %, 5 at 60 %, 8 at 45 % and below, interpolated). The half-lives are working
 assumptions of the product team, not measured values.
 
 Scoring: ratio r = exposure / (capacity × readiness). Points start above the
@@ -86,7 +86,6 @@ COMBO = (1.0, 0.5, 0.25, 0.25, 0.25)
 # side (all-sport HR load, hard minutes) by how well that night recovered.
 HALF_MSK = 3.5
 CARDIO = ("systemic", "intensity")
-HALF_BY_READY = ((90, 2.0), (75, 3.0), (60, 5.0), (0, 8.0))   # readiness score ≥ threshold → half-life
 HALF_CARDIO_REF, HALF_NO_DATA = 3.0, 3.5
 RESIDUAL_CAP = 1.25     # poor nights may keep at most 25 % more than the nominal absorption would
 ABSORB_DAYS = 42
@@ -123,6 +122,22 @@ def latent_points(r, age):
     return min((r - 1.3) * 22, 16.0) * min(1.0, (28 - age) / 21)
 
 
+# Plan phase 2B: the half-life is interpolated linearly between these anchors
+# (readiness score → nights) instead of jumping at 90 / 75 / 60.
+HALF_ANCHORS = ((90, 2.0), (75, 3.0), (60, 5.0), (45, 8.0))
+
+
+def half_for_readiness(score):
+    """Systemic half-life in nights for a readiness score, continuous and non-increasing in the score."""
+    pts = HALF_ANCHORS
+    if score >= pts[0][0]:
+        return pts[0][1]
+    for (s1, h1), (s2, h2) in zip(pts, pts[1:]):
+        if score >= s2:
+            return h1 + (s1 - score) / (s1 - s2) * (h2 - h1)
+    return pts[-1][1]
+
+
 def night_rates(ch, days, ready, nights):
     """{day: share of the residual absorbed during the night before that morning}."""
     out = {}
@@ -135,7 +150,7 @@ def night_rates(ch, days, ready, nights):
             out[d] = _k(HALF_NO_DATA)
             continue
         score = rd[2] if rd else 100
-        out[d] = _k(next(h for thr, h in HALF_BY_READY if score >= thr))
+        out[d] = _k(half_for_readiness(score))
     return out
 
 

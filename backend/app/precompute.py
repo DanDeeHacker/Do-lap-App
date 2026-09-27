@@ -90,7 +90,9 @@ def _run(rid: str) -> None:
     from .metrics import engine as E
     db = SessionLocal()
     try:
-        E.get_or_refresh_assessment(db, rid)
+        a = E.get_or_refresh_assessment(db, rid)
+        from .outcomes import record_snapshot
+        record_snapshot(db, rid, a)      # plan phase 0: the prospective daily record
         st = refresh_quadrant_history(db, rid)
         log.info("precomputed %s: %d days (%d replayed)", rid, len(st["rows"]), st["replayed"])
     finally:
