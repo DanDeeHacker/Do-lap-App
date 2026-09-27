@@ -1,18 +1,30 @@
 // Auth + bootstrap store. Loads the signed-in user once, then the runner's
 // full bootstrap bundle (same shape core.js's refreshDB used). Components read
 // live data via useApp(); refresh() re-pulls after a mutation.
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
+//
+// Tour mode (getting-started tutorial): startTour() swaps in the synthetic demo
+// runner's data, with the demo runner renamed to the signed-in user, so every tab
+// renders a realistic, personalised interface. `me.runner_id` then points at the
+// demo runner (reads are allowed server-side, writes are not); `realMe` keeps the
+// actual account.
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { api, ApiError, type Me } from "@/api"
 import { clearQuadHistory, loadQuadHistory } from "@/history"
 
+type Tour = { rid: string; boot: any }
+
 type AppState = {
   me: Me | null
+  realMe: Me | null
   boot: any | null
   loading: boolean
   error: string | null
+  touring: boolean
   reloadMe: () => Promise<Me | null>
   refresh: () => Promise<void>
   logout: () => Promise<void>
+  startTour: () => Promise<boolean>
+  endTour: () => void
 }
 
 const Ctx = createContext<AppState | null>(null)
@@ -22,6 +34,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [boot, setBoot] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [tour, setTour] = useState<Tour | null>(null)
 
   const reloadMe = useCallback(async () => {
     try {
@@ -34,7 +47,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const personalise = useCallback((b: any) => (b ? { ...b, runner: { ...(b.runner || {}), name: me?.name || b.runner?.name } } : b), [me?.name])
+
   const refresh = useCallback(async () => {
+    if (tour) {
+      try { setTour({ ...tour, boot: personalise(await api.bootstrap(tour.rid)) }) } catch { /* keep the old copy */ }
+      return
+    }
     const rid = me?.runner_id
     if (!rid) return
     // Clear any prior error up front so a retry (or a later refresh) shows the
@@ -45,7 +64,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Nepodařilo se načíst data")
     }
-  }, [me?.runner_id])
+  }, [me?.runner_id, tour, personalise])
+
+  const startTour = useCallback(async () => {
+    const rid = me?.runner_id
+    if (!rid) return false
+    try {
+      const d = await api.tutorialDemo(rid)
+      const b = await api.bootstrap(d.runner_id)
+      setTour({ rid: d.runner_id, boot: personalise(b) })
+      return true
+    } catch {
+      return false
+    }
+  }, [me?.runner_id, personalise])
+  const endTour = useCallback(() => setTour(null), [])
 
   const logout = useCallback(async () => {
     try {
@@ -53,6 +86,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
+    setTour(null)
     setMe(null)
     setBoot(null)
     setError(null)
@@ -69,20 +103,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (me?.runner_id) refresh()
-  }, [me?.runner_id, refresh])
+  }, [me?.runner_id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const shownMe = useMemo(() => (tour && me ? { ...me, runner_id: tour.rid } : me), [tour, me])
+  const shownBoot = tour ? tour.boot : boot
 
   // Prefetch the daily history behind the trend charts as soon as the bootstrap
   // lands, and revalidate it whenever the assessment is recomputed (a sync, a
   // check-in, a new day), so the charts never wait when they open. The server
   // has usually precomputed it already, so this is a plain cache read.
-  const histRid = me?.runner_id
-  const histVer = boot?.assessment?.computed_at as string | undefined
+  const histRid = shownMe?.runner_id
+  const histVer = shownBoot?.assessment?.computed_at as string | undefined
   useEffect(() => {
     if (histRid && histVer) loadQuadHistory(histRid, histVer)
   }, [histRid, histVer])
 
   return (
-    <Ctx.Provider value={{ me, boot, loading, error, reloadMe, refresh, logout }}>{children}</Ctx.Provider>
+    <Ctx.Provider value={{ me: shownMe, realMe: me, boot: shownBoot, loading, error, touring: !!tour, reloadMe, refresh, logout, startTour, endTour }}>
+      {children}
+    </Ctx.Provider>
   )
 }
 

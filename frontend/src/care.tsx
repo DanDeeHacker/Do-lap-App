@@ -36,7 +36,7 @@ export function Care() {
       {injOpen && <InjurySheet rid={rid} onClose={() => setInjOpen(false)} onDone={() => { setInjOpen(false); refresh() }} />}
       {rtrOpen && rtr && <RtrSheet plan={rtr} onClose={() => setRtrOpen(false)} onDone={() => { setRtrOpen(false); refresh() }} />}
 
-      <div className="mb-6">
+      <div className="mb-6" data-tour="care-tabs">
         <Label>Péče</Label>
         <Segmented className="mt-3" ariaLabel="Péče" options={subtabs} value={sub} onChange={setSub} />
       </div>
@@ -65,7 +65,7 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
     <>
       <Head kicker="Fyzioterapeut" title={r?.physio_interest ? "Domluvte se a napište si" : "Spojte se s fyzioterapeutem"} sub="Napište přímo tomu, kdo vede vaši péči, a naplánujte si schůzku ve chvíli, kdy potřebujete." />
       <div className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]">
-        <PhysioChat />
+        <div data-tour="care-chat"><PhysioChat /></div>
         <Card className="self-start">
           <Label>Schůzka</Label>
           {reminders.map((rm) => (

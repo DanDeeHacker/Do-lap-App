@@ -379,6 +379,61 @@ def quadrant_history(rid: str, days: int = QUAD_HISTORY_DAYS, user: models.User 
     return H.refresh_quadrant_history(db, rid)["rows"]
 
 
+ONBOARDING_STEPS = ("data", "profile", "tutorial")
+
+
+def onboarding_state(db: DBSession, r: models.Runner) -> dict:
+    """Getting-started checklist: connect data, fill in the profile, take the tour.
+    The first two are read from the data itself, so they tick off on their own."""
+    ob = r.onboarding_json or {}
+    integ = db.query(models.Integration).filter(models.Integration.runner_id == r.id).first()
+    has_data = bool((integ and integ.status == "connected")
+                    or db.query(models.Activity.id).filter(models.Activity.runner_id == r.id).first()
+                    or db.query(models.DailyMetric.id).filter(models.DailyMetric.runner_id == r.id).first())
+    profile = bool(r.birth_year and r.sex)
+    done = {"data": has_data, "profile": profile, "tutorial": bool(ob.get("tutorialDone"))}
+    return {
+        "active": bool(ob.get("active")),
+        "dismissed": bool(ob.get("dismissed")),
+        "steps": [{"id": k, "done": done[k]} for k in ONBOARDING_STEPS],
+        "completed": all(done.values()),
+    }
+
+
+@router.get("/{rid}/onboarding")
+def get_onboarding(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    ensure_runner_self(user, rid)
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    return onboarding_state(db, r)
+
+
+@router.post("/{rid}/onboarding", dependencies=[Depends(verify_csrf)])
+def update_onboarding(rid: str, payload: dict, user: models.User = Depends(get_current_user),
+                      db: DBSession = Depends(get_db)):
+    """{"dismissed": bool} hides the checklist (it stays under the profile icon);
+    {"tutorialDone": true} ticks off the tour."""
+    ensure_runner_self(user, rid)
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    ob = dict(r.onboarding_json or {"active": True})
+    for k in ("dismissed", "tutorialDone"):
+        if k in (payload or {}):
+            ob[k] = bool(payload[k])
+    r.onboarding_json = ob
+    db.commit()
+    return onboarding_state(db, r)
+
+
+@router.get("/{rid}/tutorial-demo")
+def tutorial_demo(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """The synthetic runner whose data the tour shows (read-only for everyone)."""
+    ensure_runner_self(user, rid)
+    from ..deps import tutorial_demo_runner_id
+    demo = tutorial_demo_runner_id(db)
+    if not demo:
+        raise HTTPException(404, "Ukázkový účet není k dispozici")
+    return {"runner_id": demo}
+
+
 @router.get("/{rid}/alerts/pending")
 def pending_alert(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     """Plan phase 0: the newest unanswered alert of the last 3 days (a load or

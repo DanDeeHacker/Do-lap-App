@@ -85,6 +85,9 @@ class Runner(Base):
     # "v2" sensitive (per-run, robust noise scale) or "v3" capacity (v2 mechanics +
     # load scored against the runner's own capacity). Toggled in the app.
     engine_mode = Column(String, default="v1")
+    # Getting-started checklist for accounts registered since 27. 9. 2026 (None = older
+    # account, no checklist): {"active": true, "dismissed": bool, "tutorialDone": bool}.
+    onboarding_json = Column(JSON)
     # AI summaries & training commentary (metrics/coach_texts.py): off until the runner
     # opts in, because derived health data goes to an externally hosted model.
     coach_consent = Column(Boolean, default=False)

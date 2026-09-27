@@ -13,6 +13,7 @@ import {
 import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/components/MuscleAnatomy"
 import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
+import { EDIT_PROFILE_EVENT, OnboardingProvider, useObSummary } from "@/onboarding"
 import { useQuadHistory } from "@/history"
 import { clamp, fmtD, initials, QUAD, roleHome } from "@/lib"
 import { AlertBanner, AxisLineChart, Bars, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, toneCol, useAsync, useToast } from "@/ui"
@@ -28,7 +29,7 @@ import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C } from "@/tokens"
-import { Bandage, ChevronDown, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
+import { Bandage, ChevronDown, Compass, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 
 // Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
@@ -80,6 +81,12 @@ function Topbar() {
   const runner = boot?.runner
   const ini = initials(me?.name)
   const navItems = useRunnerNav()
+  const ob = useObSummary()
+  useEffect(() => {
+    const open = () => setEditOpen(true)
+    window.addEventListener(EDIT_PROFILE_EVENT, open)
+    return () => window.removeEventListener(EDIT_PROFILE_EVENT, open)
+  }, [])
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-white/[.07] bg-bg/[.92] pt-[env(safe-area-inset-top)] backdrop-blur-md lg:left-[220px]">
       <div className="mx-auto flex h-[68px] max-w-[1180px] items-center justify-between gap-4 px-5 lg:max-w-none lg:px-9">
@@ -110,11 +117,12 @@ function Topbar() {
           <AnnotateToggle />
           <button
             onClick={() => setProfileOpen(!profileOpen)}
-            className="grid size-9 place-items-center rounded-full bg-accent text-[11px] font-extrabold text-ink"
+            className="relative grid size-9 place-items-center rounded-full bg-accent text-[11px] font-extrabold text-ink"
             aria-expanded={profileOpen}
             aria-label="Otevřít profil"
           >
             {ini}
+            {ob.show && ob.pending > 0 && <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-alert text-[9px] font-extrabold text-ink" aria-label={`Začínáme: zbývá ${ob.pending}`}>{ob.pending}</span>}
           </button>
           {profileOpen && (
             <>
@@ -132,6 +140,11 @@ function Topbar() {
                   {runner?.goal_race && <p className="mt-1">Cíl: {runner.goal_race}</p>}
                 </div>
                 <div className="mt-3 grid gap-1.5">
+                  {ob.show && (
+                    <button onClick={() => { setProfileOpen(false); ob.openCard() }} data-testid="menu-get-started" className="flex items-center gap-2.5 rounded-xl bg-accent/[.12] px-3 py-2.5 text-left text-[13px] font-bold text-fg ring-1 ring-accent/30 hover:bg-accent/[.18]">
+                      <Compass className="size-4 text-accent" aria-hidden />Začínáme<span className="ml-auto text-[12px] text-fg-2">{ob.done}/{ob.total}</span>
+                    </button>
+                  )}
                   <button onClick={() => { setProfileOpen(false); setEditOpen(true) }} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><UserPen className="size-4 text-fg-2" aria-hidden />Upravit profil</button>
                   <Link to="/data" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Database className="size-4 text-fg-2" aria-hidden />Data a připojení</Link>
                   <Link to="/engine" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><SlidersHorizontal className="size-4 text-fg-2" aria-hidden />Citlivostní analýza</Link>
@@ -258,6 +271,7 @@ function Layout() {
   if (me.role !== "runner") return <RunnerOnlyNotice />
   return (
     <AnnotateProvider>
+      <OnboardingProvider>
       <div className="motion-shell min-h-screen bg-bg text-fg">
         <Sidebar items={navItems} />
         <Topbar />
@@ -284,6 +298,7 @@ function Layout() {
         )}
         <AnnotationLayer />
       </div>
+      </OnboardingProvider>
     </AnnotateProvider>
   )
 }
@@ -800,7 +815,7 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
   return (
     <div className="grid gap-6 md:grid-cols-2 md:gap-8">
       <div>
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2" data-tour="today-score">
           <div className="grid justify-items-center gap-2">
             <MiniRing label="Regenerace" value={score} col={scoreCol} onClick={tg("recovery")} open={open === "recovery"} />
             <MiniRing label="Příznaky" value={d.symp} col={axisCol(d.symp, C.alert)} onClick={tg("symp")} open={open === "symp"} />
@@ -827,7 +842,7 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
           </div>
         )}
         {/* railway#98 — today's recommendation sits between readiness and the verdict */}
-        {recommendation && <div className="mt-4">{recommendation}</div>}
+        {recommendation && <div className="mt-4" data-tour="today-reco">{recommendation}</div>}
         <div className="mt-4 text-center">
           <h3 className="font-serif text-[21px] leading-tight text-fg">{verdict}</h3>
           <p className="mt-1 flex items-center justify-center gap-1.5 text-[13px] font-bold" style={{ color: tierCol }}>
@@ -838,8 +853,8 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
         </div>
       </div>
       <div>
-        <QuadrantGrid quadrant={d.quadrant} onHistory={onHistory} />
-        <div className="mt-5">
+        <div data-tour="today-quadrant"><QuadrantGrid quadrant={d.quadrant} onHistory={onHistory} /></div>
+        <div className="mt-5" data-tour="today-drivers">
           <p className="t-label !text-fg-3">Co {onToggle ? "teď nejvíc ovlivňuje" : "nejvíc ovlivňovalo"} stav</p>
           {signals.length ? <ImpactPyramid signals={signals} tone={gradeTone} />
             : <p className="mt-2 text-sm text-fg-2">Nic nad prahem — zátěž i mechanika {onToggle ? "sedí" : "seděly"} na vaší normě.</p>}
@@ -1465,6 +1480,7 @@ function AtlasBubble() {
         <button
           onClick={() => setOpen(true)}
           aria-label="Otevřít check-in"
+          data-tour="checkin"
           className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[55] flex items-center gap-2 rounded-full bg-accent py-3 pl-3 pr-4 text-sm font-extrabold text-ink shadow-[0_12px_30px_rgb(0_0_0_/_0.45),0_0_0_1px_rgb(0_0_0_/_0.1)] hover:brightness-105 md:bottom-7 md:right-7"
         >
           <span className="grid size-6 place-items-center rounded-full bg-ink/10"><Heart className="size-4" strokeWidth={2.4} aria-hidden /></span>

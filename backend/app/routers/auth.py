@@ -73,7 +73,8 @@ def register(body: schemas.RegisterRequest, response: Response, db: DBSession = 
     if role == "runner":
         rid = _next_id(db, models.Runner, "run")
         db.add(models.Runner(id=rid, bib=None, name=body.name, prior_injury=None, prior_injury_months_ago=None,
-                              engine_mode=NEW_RUNNER_ENGINE))
+                              engine_mode=NEW_RUNNER_ENGINE,
+                              onboarding_json={"active": True, "dismissed": False, "tutorialDone": False}))
         db.flush()
         db.add(models.Integration(id=f"int-{rid}", runner_id=rid, provider=None, status="disconnected", fields=[]))
         fk["runner_id"] = rid

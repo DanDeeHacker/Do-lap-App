@@ -87,6 +87,7 @@ def _migrate(engine):
     add("runners", "prior_injury_date", "prior_injury_date VARCHAR")
     add("runners", "prior_injury_side", "prior_injury_side VARCHAR")
     add("runners", "hr_max", "hr_max INTEGER")
+    add("runners", "onboarding_json", "onboarding_json JSON")
     add("checkins", "limits_movement", "limits_movement BOOLEAN")
     add("checkins", "run_modified", "run_modified BOOLEAN")
     add("checkins", "limping", "limping BOOLEAN")
