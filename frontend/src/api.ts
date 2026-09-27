@@ -102,6 +102,7 @@ export const api = {
   addRace: (id: string, body: { date: string; name?: string; distance_km?: number | null; priority: string }) => call("POST", `/api/runners/${id}/races`, body),
   deleteRace: (id: string, raceId: number | string) => call("DELETE", `/api/runners/${id}/races/${raceId}`),
   engineCompare: (id: string) => call("GET", `/api/runners/${id}/engine-compare`),
+  outcomesOverview: () => call("GET", "/api/engine/outcomes", undefined, { skipAuthRedirect: true }),
   runHistory: (id: string, limit = 20) => call("GET", `/api/runners/${id}/run-history?limit=${limit}`),
 
   // AI summaries & training commentary (opt-in)

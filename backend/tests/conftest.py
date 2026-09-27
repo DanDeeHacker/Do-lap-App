@@ -23,6 +23,7 @@ os.environ["DOSSLAP_OWNER_EMAILS"] = ""
 os.environ["DOSSLAP_PROD_URL"] = ""
 os.environ["NVIDIA_API_KEY"] = ""          # never call the hosted model from tests (coach tests fake it)
 os.environ["DOSSLAP_PRECOMPUTE"] = "0"   # tests build histories inline; the precompute tests drive the worker explicitly
+os.environ["DOSSLAP_REF_MIN_RUNNERS"] = "100000"   # population priors stay off; tests/test_reference.py turns them on
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

@@ -189,6 +189,13 @@ def _v3_knobs():
 
 _i = max(i for i, k in enumerate(KNOBS) if k["axis"] == "load") + 1
 KNOBS[_i:_i] = _v3_knobs()   # right after the v1/v2 load knobs
+# Plan phase 2A: the per-metric dead zone and weight factor from the pooled data
+# (neutral 0.2 SD / 1.0 until enough runners), seeded from the live assessment.
+for _sid in ("tavr", "gct", "cad", "vosc"):
+    KNOBS.append({"id": f"mech_{_sid}_dead", "hidden": True, "axis": "mech", "label": "", "grade": "—",
+                  "min": 0.0, "max": 1.0, "step": 0.01, "default": 0.2, "desc": ""})
+    KNOBS.append({"id": f"mech_{_sid}_wf", "hidden": True, "axis": "mech", "label": "", "grade": "—",
+                  "min": 0.0, "max": 1.0, "step": 0.01, "default": 1.0, "desc": ""})
 
 DEFAULTS = {k["id"]: k["default"] for k in KNOBS}
 _BOOL_IDS = {k["id"] for k in KNOBS if k.get("kind") == "bool"}
@@ -314,10 +321,10 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
     # ------------------------------------------------------------------ MECH
     # (mag, dead, weight, cap) exactly as engine.assess()'s mech_terms.
     for sid, name, grade, mag, dead, weight, cap, unit, raw in (
-        ("tavr", "Vertikální poměr roste", "B", g["tavrZ"], 0.2, 17, 4.0, "z", g["tavrZ"]),
-        ("gct", "Prodloužený kontakt se zemí", "B", g["gctZ"], 0.2, 13, 4.0, "z", g["gctZ"]),
-        ("cad", "Klesající kadence", "C", -g["cadZ"], 0.2, 10, 4.0, "z", g["cadZ"]),
-        ("vosc", "Vyšší vertikální oscilace", "C", g["voscZ"], 0.2, 10, 4.0, "z", g["voscZ"]),
+        ("tavr", "Vertikální poměr roste", "B", g["tavrZ"], g["mech_tavr_dead"], 17 * g["mech_tavr_wf"], 4.0, "z", g["tavrZ"]),
+        ("gct", "Prodloužený kontakt se zemí", "B", g["gctZ"], g["mech_gct_dead"], 13 * g["mech_gct_wf"], 4.0, "z", g["gctZ"]),
+        ("cad", "Klesající kadence", "C", -g["cadZ"], g["mech_cad_dead"], 10 * g["mech_cad_wf"], 4.0, "z", g["cadZ"]),
+        ("vosc", "Vyšší vertikální oscilace", "C", g["voscZ"], g["mech_vosc_dead"], 10 * g["mech_vosc_wf"], 4.0, "z", g["voscZ"]),
         ("bal", "Posun v symetrii kontaktu", "B", g["balExcursion"], 0.4, 22, 3.0, "p.b.", g["balExcursion"]),
     ):
         push(sid, "mech", name, grade, clamp(mag - dead, 0, cap) * weight, f"{round(raw, 2)} {unit}")
@@ -456,6 +463,10 @@ def inputs_from_assessment(a: dict, runner=None) -> dict:
         "sleepRegRatio": gv(a, "sleepReg", "ratio", default=1.0) or 1.0,
         "sleepEff": gv(a, "sleepEff", "now", default=1.0) or 1.0,
     })
+    for _sid, res in (a.get("mechRes") or {}).items():
+        if f"mech_{_sid}_dead" in out:
+            out[f"mech_{_sid}_dead"] = res.get("dead", 0.2)
+            out[f"mech_{_sid}_wf"] = res.get("wf", 1.0)
     cap = a.get("capacity") or {}
     if cap.get("channels"):
         ready = (cap.get("readiness") or {}).get("today") or 1.0

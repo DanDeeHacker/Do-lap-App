@@ -70,3 +70,27 @@ def outcomes_overview(user: models.User = Depends(get_current_user), db: DBSessi
     if not is_owner(user):
         raise HTTPException(403, "Jen pro vlastníka aplikace")
     return outcomes.overview(db)
+
+
+@router.get("/calibration")
+def calibration_report(force: bool = False, target: float | None = None,
+                       user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Plan phase 4: owner-only calibration report (gated on 200 health events
+    unless `force`). Internal only, nothing here changes what runners see."""
+    from .annotations import is_owner
+    from .. import calibration
+    if not is_owner(user):
+        raise HTTPException(403, "Jen pro vlastníka aplikace")
+    return calibration.report(db, force=force, target_p=target)
+
+
+@router.get("/calibration/export")
+def calibration_export(user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Plan phase 4: the labelled daily dataset as CSV, for the offline mixed model."""
+    from fastapi.responses import PlainTextResponse
+    from .annotations import is_owner
+    from .. import calibration
+    if not is_owner(user):
+        raise HTTPException(403, "Jen pro vlastníka aplikace")
+    return PlainTextResponse(calibration.to_csv(calibration.dataset(db)), media_type="text/csv",
+                             headers={"Content-Disposition": "attachment; filename=doslap-calibration.csv"})

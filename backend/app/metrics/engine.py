@@ -605,6 +605,9 @@ def _drift_z_core(A, field, recent_days):
     terrain bucket isn't mistaken for a change in form. `baseMean`/`recMean` and
     the per-bucket detail are in those pace-adjusted units; `series` stays raw."""
     v2 = _sensitive()
+    from . import reference as REF
+    _mp = REF.mech_priors(field=field)
+    s_rm = _mp["s_rm"] if _mp else None      # pooled repeated-measures SD (plan phase 1), None until enough runners
     lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
     base = [a for a in A if a.started_at <= hi and a.started_at > lo and getattr(a, field) is not None]
     if v2:
@@ -634,7 +637,7 @@ def _drift_z_core(A, field, recent_days):
     series = [getattr(a, field) for a in A if getattr(a, field) is not None][-26:]
     pace_out = {"paceSlope": round(pslope, 4), "paceAdjusted": bool(pslope)}
     if v2:
-        return _drift_v2(field, rec, by_b, val, series, pace_out)
+        return _drift_v2(field, rec, by_b, val, series, pace_out, s_rm)
     rec_b: dict[str, list] = {}
     for a in rec:
         rec_b.setdefault(bucket(a), []).append(a)
@@ -646,7 +649,7 @@ def _drift_z_core(A, field, recent_days):
             continue
         recvals = [val(a) for a in recs]
         center = mean(bv)
-        s = max(sd(bv), abs(center) * 0.012)
+        s = max(REF.shrunk_sd(sd(bv), len(bv), s_rm), abs(center) * 0.012)   # plan phase 1
         now_val = mean(recvals)
         # Clamp per-bucket z so one degenerate bucket (near-constant baseline, or
         # an outlier/mislabelled run-walk) can't dominate the weighted drift.
@@ -661,15 +664,19 @@ def _drift_z_core(A, field, recent_days):
     if not den:
         return None
     detail.sort(key=lambda d: -d["z"])
+    bvals = [val(a) for a in base]
     return {
         "z": r2(num / den), "buckets": len(detail), "nRecent": n_scored, "detail": detail,
-        "baseMean": r2(mean([val(a) for a in base])),
+        "baseMean": r2(mean(bvals)),
         "recMean": r2(mean([val(a) for a in rec])),
+        # plan phase 3: the individual reference SD behind the app's "usual range"
+        # (shrunk towards the pooled s_RM), present only once population priors exist
+        "refSd": round(REF.shrunk_sd(sd(bvals), len(bvals), s_rm), 3) if s_rm else None,
         "series": series, **pace_out,
     }
 
 
-def _drift_v2(field, rec, by_b, val, series, pace_out):
+def _drift_v2(field, rec, by_b, val, series, pace_out, s_rm=None):
     """v2 body of _drift_z_core (see its docstring): per-session drift indices →
     EWMA, with the bucket detail and means built from the same session weights."""
     stats = {}
@@ -677,6 +684,9 @@ def _drift_v2(field, rec, by_b, val, series, pace_out):
         if len(bv) < 3:
             continue
         _m, s_, _n = inlier_mean_sd(bv)
+        if s_rm:
+            from . import reference as REF
+            s_ = REF.shrunk_sd(s_, len(bv), s_rm)   # plan phase 1
         c = median(bv)
         stats[b] = (c, max(s_, abs(c) * 0.012) * math.sqrt(1 + (math.pi / 2) / len(bv)), len(bv))
     # Domain of applicability: only sessions in a familiar terrain bucket are scored.
@@ -701,8 +711,13 @@ def _drift_v2(field, rec, by_b, val, series, pace_out):
             "now": r2(sum(x[0] * x[2] for x in items) / wb), "nBase": stats[b][2], "nNow": len(items),
         })
     detail.sort(key=lambda d: -d["z"])
+    all_b = [v for bv in by_b.values() for v in bv]
+    ref_sd = None
+    if s_rm and len(all_b) >= 2:
+        from . import reference as REF
+        ref_sd = round(REF.shrunk_sd(sd(all_b), len(all_b), s_rm), 3)
     return {
-        **flag, "buckets": len(detail), "nRecent": n, "detail": detail,
+        **flag, "refSd": ref_sd, "buckets": len(detail), "nRecent": n, "detail": detail,
         # EWMA-weighted, so recMean − baseMean has the sign of the headline z.
         "baseMean": r2(sum(wi * stats[b][0] for (a, b), wi in zip(sess, w)) / wsum),
         "recMean": r2(sum(wi * val(a) for (a, b), wi in zip(sess, w)) / wsum),
@@ -2486,6 +2501,20 @@ def assess(db: DBSession, rid: str) -> dict:
     if bal:
         mech_terms.append(("bal", "Posun v symetrii kontaktu", "B", bal["excursion"], 0.4, 22, 3.0, 0.8, f"{sgn(bal['excursion'])} p.b.",
                            f"{bal['baseline']} % → {bal['now']} % vlevo · {bal['direction']}"))
+    # Plan phase 2A: the dead zone is the smallest worthwhile change in z units and a
+    # metric too noisy to resolve it (typical error >= SWC) counts at half weight.
+    # Both come from the pooled data and are neutral (0.2 SD, weight 1) until then.
+    from . import reference as REF
+    _dev = r.device if r else None
+    mech_res = {}
+    for sid, fld in (("tavr", "vert_ratio_pct"), ("gct", "gct_ms"), ("cad", "cadence_spm"), ("vosc", "vert_osc_cm")):
+        mp = REF.mech_priors(field=fld, device=_dev) or REF.mech_priors(field=fld)
+        mech_res[sid] = {"dead": round(REF.dead_zone_z(fld, mp["s_rm"] if mp else None, mp), 3),
+                         "wf": REF.metric_weight_factor(mp),
+                         **({"te": round(mp["te"], 3) if mp.get("te") else None, "swc": round(mp["swc"], 3) if mp.get("swc") else None} if mp else {})}
+    mech_terms = [(sid, name, grade, mag, mech_res[sid]["dead"] if sid in mech_res else dead,
+                   weight * (mech_res[sid]["wf"] if sid in mech_res else 1.0), cap, show, val, detail)
+                  for sid, name, grade, mag, dead, weight, cap, show, val, detail in mech_terms]
     for sid, name, grade, mag, dead, weight, cap, show, val, detail in mech_terms:
         p = rnd(clamp(mag - dead, 0, cap) * weight)
         if p:
@@ -2921,7 +2950,7 @@ def assess(db: DBSession, rid: str) -> dict:
 
     return {
         "runner_id": rid, "computed_at": now_iso(), "engine": engine_version_for(_emode()),
-        "engineMode": _emode(), "mechFlag": mech_flag, "mechWatch": mech_watch, "segmentScored": seg_scored,
+        "engineMode": _emode(), "mechRes": mech_res, "mechFlag": mech_flag, "mechWatch": mech_watch, "segmentScored": seg_scored,
         "mech": mech_score, "load": load_score, "symp": symp_score, "overall": overall,
         "tier": tier, "quadrant": quadrant, "confidence": conf,
         "signals": sorted(sig, key=lambda s: -s["pts"]),
@@ -2992,7 +3021,7 @@ def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> 
         k: a[k] for k in
         ("loadDetail", "tavr", "gct", "bal", "dec", "aer", "rcv", "fb", "cadence", "stride", "vosc",
          "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury",
-         "engineMode", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance", "painRecurring",
+         "engineMode", "mechRes", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance", "painRecurring",
          "functionLimit", "acuteOverload", "raceRecovery", "maxEfforts", "painMonitor", "returnToRun", "races")
     }
     db.flush()

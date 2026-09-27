@@ -96,7 +96,7 @@ _RAW = [
 
     ("hip-single-leg-rdl", "Single-leg deadlift", "hip", "3 × 10 / noha", 3,
      "Pánev vodorovně, tah v hamstringu.",
-     ["obecná stabilita pánve", "prevence zranění hamstringu"], ["m. gluteus maximus", "hamstring", "rovnováha"], "strength"),
+     ["obecná stabilita pánve", "odolnost hamstringu"], ["m. gluteus maximus", "hamstring", "rovnováha"], "strength"),
     ("hip-glute-bridge", "Glute bridge na jedné noze", "hip", "3 × 12 / noha", 4,
      "Nahoře krátká výdrž, bez prohnutí zad.",
      ["slabost hýžďového svalstva", "bolest dolní části zad při běhu"], ["m. gluteus maximus"], "strength"),

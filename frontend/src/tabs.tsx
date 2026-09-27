@@ -394,7 +394,17 @@ const std = (a: number[]) => {
   const m = mean(a)
   return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1))
 }
-type Metric = { label: string; unit: string; dec: number; value: number; baseline: number; z: number; delta: string; hot: boolean; position: number; weeks: number[]; dates: string[]; series: number[]; seriesDates: string[]; terrain?: boolean; approx?: boolean }
+type Metric = { label: string; unit: string; dec: number; value: number; baseline: number; z: number; delta: string; hot: boolean; position: number; weeks: number[]; dates: string[]; series: number[]; seriesDates: string[]; terrain?: boolean; approx?: boolean; refSd?: number | null; lowRes?: boolean }
+
+// Plan phase 3 — a word for where a metric sits against the runner's own norm,
+// derived from the continuous deviation for display only. Defaults follow the
+// example bands in Thornton et al. (2019): |z| 1.5–2 = on the edge, ≥ 2 = outside.
+const MECH_BAD_DIR: Record<string, number> = { "Vertikální poměr": 1, "Kontakt se zemí": 1, "Kadence": -1, "Vertikální oscilace": 1 }
+export function normStatus(m: Pick<Metric, "label" | "z">): { word: string; tone: "ok" | "watch" | "alert" } {
+  const dir = MECH_BAD_DIR[m.label]
+  const zb = m.label === "Symetrie kontaktu" ? Math.abs(m.z) / 0.8 : dir ? dir * m.z : Math.abs(m.z)
+  return zb >= 2 ? { word: "mimo normu", tone: "alert" } : zb >= 1.5 ? { word: "na hraně", tone: "watch" } : { word: "v normě", tone: "ok" }
+}
 
 // dates of the last `n` runs that carry `field` (to label the per-run charts)
 function fieldDates(acts: any[], field: string, n: number): string[] {
@@ -424,31 +434,37 @@ function metricFromActs(acts: any[], field: string, label: string, unit: string,
 // Usual range = baseline ± 1 SD, the SD backed out from the z-score — shared by
 // the card's interval bar and the band in the full-trend chart.
 function usualRange(m: Metric) {
-  const isd = Math.abs(m.z) > 0.15 ? Math.abs(m.value - m.baseline) / Math.abs(m.z) : (Math.abs(m.baseline) * 0.03 || 1)
+  // plan phase 3: the individual reference SD from the backend when population priors exist
+  const isd = m.refSd ? m.refSd : Math.abs(m.z) > 0.15 ? Math.abs(m.value - m.baseline) / Math.abs(m.z) : (Math.abs(m.baseline) * 0.03 || 1)
   return { lo: m.baseline - isd, hi: m.baseline + isd, isd }
 }
 
 function MechMetricCard({ m, open, onSelect }: { m: Metric; open: boolean; onSelect: () => void }) {
-  const { label, unit, dec, value, baseline, delta, hot, approx } = m
+  const { label, unit, dec, value, baseline, delta, approx } = m
+  const st = normStatus(m)
+  const hot = st.tone !== "ok"
   // Numeric axis for the interval bar, so the bar shows real numbers, not just a dot.
   const { lo: bLo, hi: bHi, isd } = usualRange(m)
   const dLo = Math.min(bLo, value) - isd * 0.8, dHi = Math.max(bHi, value) + isd * 0.8
   const P = (x: number) => clamp(((x - dLo) / (dHi - dLo)) * 100, 4, 96)
   const showBar = open || Math.abs(m.z) >= 1
-  const col = hot ? C.alert : C.ok
+  const col = st.tone === "alert" ? C.alert : st.tone === "watch" ? C.watch : C.ok
   return (
     <div onClick={onSelect} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect() } }}
       role="button" tabIndex={0} aria-expanded={open} className="group w-full cursor-pointer p-4 text-left">
       <div className="flex items-center gap-3">
         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
           <span className="text-[14px] font-bold text-fg">{label}</span>
+          <span data-norm={st.word} className="rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ color: col, background: `${col}1f` }}>{st.word}</span>
           {MECH_INFO_BY_LABEL[label] && <InfoDot text={MECH_INFO_BY_LABEL[label]} label={label} />}
+          {m.lowRes && <span title="Hodinky tuto metriku měří s větším šumem, než je nejmenší smysluplná změna, proto se do skóre počítá polovinou." className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-fg-2">nízká přesnost</span>}
           {approx && <span title="Málo dat v jednotlivých profilech terénu — hrubý odhad z průměru běhů napříč terénem, ne terénně očištěná odchylka enginu." className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-fg-2">odhad</span>}
         </span>
         <strong className="t-num shrink-0 whitespace-nowrap text-[20px] leading-none text-fg">
           {mfmt(dec, value)} <span className="text-[13px] font-semibold tracking-normal text-fg-3">{unit}</span>
         </strong>
-        <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold ${hot ? "bg-alert/15 text-alert-soft" : "bg-ok/12 text-ok"}`}>{delta}</span>
+        <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold ${st.tone === "alert" ? "bg-alert/15 text-alert-soft" : st.tone === "watch" ? "bg-watch/15 text-watch" : "bg-ok/12 text-ok"}`}
+          title={`${st.word} · ${delta}`}>{delta}</span>
         <ChevronDown className={`size-4 shrink-0 text-fg-3 transition ${open ? "rotate-180 text-accent" : "group-hover:text-fg-2"}`} aria-hidden />
       </div>
       {showBar && (
@@ -460,7 +476,7 @@ function MechMetricCard({ m, open, onSelect }: { m: Metric; open: boolean; onSel
             <i className="absolute top-[-3px] h-3.5 w-px bg-fg-2" style={{ left: `${P(baseline)}%` }} />
             {/* current value marker + number */}
             <i style={{ left: `${P(value)}%`, background: col, boxShadow: `0 0 0 3px ${C.bg}, 0 0 0 6px ${col}40` }} className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full" />
-            <span className="absolute -top-6 -translate-x-1/2 whitespace-nowrap tabular-nums text-[12px] font-extrabold" style={{ left: `${P(value)}%`, color: hot ? C.alertSoft : C.ok }}>{mfmt(dec, value)}</span>
+            <span className="absolute -top-6 -translate-x-1/2 whitespace-nowrap tabular-nums text-[12px] font-extrabold" style={{ left: `${P(value)}%`, color: st.tone === "alert" ? C.alertSoft : st.tone === "watch" ? C.watch : C.ok }}>{mfmt(dec, value)}</span>
           </div>
           <div className="relative mt-1.5 h-3.5 tabular-nums text-[11px] text-fg-3">
             <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${P(bLo)}%` }}>{mfmt(dec, bLo)}</span>
@@ -1105,7 +1121,8 @@ export function Mechanics() {
       o.perRunZ != null ? o.perRunZ
         : !o.segment && o.z != null ? o.z
           : (rec - base) / (std(series) || Math.abs(base * 0.02) || 1)
-    return eng(series, field, label, unit, dec, rec, base, z, pctStr(rec, base), Math.abs(z) >= 1, clamp(50 + z * 18, 8, 92), terrain)
+    const res = (a.mechRes || {})[({ vert_ratio_pct: "tavr", gct_ms: "gct", cadence_spm: "cad", vert_osc_cm: "vosc" } as Record<string, string>)[field]]
+    return { ...eng(series, field, label, unit, dec, rec, base, z, pctStr(rec, base), Math.abs(z) >= 1, clamp(50 + z * 18, 8, 92), terrain), refSd: o.refSd ?? null, lowRes: !!res && res.wf < 1 }
   }
   const metrics: Metric[] = []
   if (a.tavr) metrics.push(mk(a.tavr, "vert_ratio_pct", "Vertikální poměr", "%", 1))

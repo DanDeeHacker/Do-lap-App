@@ -53,7 +53,8 @@ CODE_FP = _code_fingerprint()
 
 def history_key(mode: str | None) -> str:
     """Cache validity key: engine version for the runner's mode + history shape + code."""
-    return f"{E.engine_version_for(mode or 'v1')}|{HISTORY_VERSION}|{CODE_FP}"
+    from .metrics import reference as REF
+    return f"{E.engine_version_for(mode or 'v1')}|{HISTORY_VERSION}|{CODE_FP}|{REF.fingerprint()}"
 
 
 def _kd(v) -> str:  # date key from an ISO date or datetime string

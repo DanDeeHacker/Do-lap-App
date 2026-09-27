@@ -443,19 +443,28 @@ def rest_share(row):
     return (parts[0] + parts[1]) / sum(parts)
 
 
-def readiness_parts(night: dict, week: dict, base: dict) -> dict:
+def readiness_parts(night: dict, week: dict, base: dict, zover: dict | None = None) -> dict:
     """Per-signal deficits 0–1. `night` = that day's values, `week` = the last 7
-    nights' means, `base` = {field: (mean, sd)} of the runner's baseline nights."""
+    nights' means, `base` = {field: (mean, sd)} of the runner's baseline nights.
+    `zover` = {field: (night z, week z)} from the individualised reference range
+    (plan phase 1), which replaces the mean/SD deviation for that field."""
     parts = {}
     for key, sign in (("hrv_ms", -1), ("resting_hr", 1)):
-        if key not in base:
-            continue
-        m, s = base[key]
         views = []
-        if night.get(key) is not None:
-            views.append(sign * (night[key] - m) / s)
-        if week.get(key) is not None:
-            views.append(sign * (week[key] - m) / s * READY_WEEK_BOOST)
+        if zover and key in zover:
+            zn, zw = zover[key]
+            if zn is not None:
+                views.append(sign * zn)
+            if zw is not None:
+                views.append(sign * zw * READY_WEEK_BOOST)
+        elif key in base:
+            m, s = base[key]
+            if night.get(key) is not None:
+                views.append(sign * (night[key] - m) / s)
+            if week.get(key) is not None:
+                views.append(sign * (week[key] - m) / s * READY_WEEK_BOOST)
+        else:
+            continue
         if views:
             d = E.clamp((max(views) - READY_TOLERANCE) / (READY_FULL - READY_TOLERANCE), 0, 1)
             parts["hrv" if key == "hrv_ms" else "rhr"] = round(d, 2)
@@ -510,6 +519,8 @@ def readiness_by_day(db, rid, days) -> dict:
     for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid,
                                              models.Checkin.submitted_at >= lo).all():
         cks.setdefault(c.submitted_at[:10], []).append(c)
+    from . import reference as REF
+    pri = {f: REF.recovery_priors(field=f) for f in REF.RECOVERY_FIELDS}
     out = {}
     for day in days:
         d0 = _d(day)
@@ -517,7 +528,28 @@ def readiness_by_day(db, rid, days) -> dict:
         week_rows = [dm[k] for k in ((d0 - timedelta(days=j)).isoformat() for j in range(0, 7)) if k in dm]
         parts = {}
         night = dm.get(day)
-        if night is not None and len(base_rows) >= 14:
+        # Plan phase 1: with population priors, HRV and resting HR are judged against
+        # the runner's individualised reference range, from the 3rd baseline night on
+        # (the plain mean/SD needs 14). HRV on the log scale.
+        zover = {}
+        if night is not None:
+            for fld in REF.RECOVERY_FIELDS:
+                pr = pri.get(fld)
+                bvals = [getattr(b, fld) for b in base_rows if getattr(b, fld) is not None]
+                if not pr or len(bvals) < 3:
+                    continue
+                x = getattr(night, fld)
+                zn = REF.recovery_deviation(fld, bvals, x, pr) if x is not None else None
+                wv = [getattr(b, fld) for b in week_rows if getattr(b, fld) is not None]
+                zw = None
+                if len(wv) >= 3:
+                    wm = E.mean([REF._t(fld, v) for v in wv if REF._t(fld, v) is not None])
+                    back = math.exp(wm) if pr["log"] else wm
+                    zw = REF.recovery_deviation(fld, bvals, back, pr)
+                zover[fld] = (zn[0] if zn else None, zw[0] if zw else None)
+        if night is not None and zover and len(base_rows) < 14:
+            parts = readiness_parts({}, {}, {}, zover)
+        elif night is not None and len(base_rows) >= 14:
             base = {}
             for fld in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency", "rest_share"):
                 vals = [v for v in ((rest_share(b) if fld == "rest_share" else getattr(b, fld)) for b in base_rows)
@@ -530,7 +562,7 @@ def readiness_by_day(db, rid, days) -> dict:
                 if len(vals) >= 3:
                     wk[fld] = E.mean(vals)
             parts = readiness_parts({**{f: getattr(night, f) for f in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency")},
-                                     "rest_share": rest_share(night)}, wk, base)
+                                     "rest_share": rest_share(night)}, wk, base, zover)
         for c in cks.get(day, []):
             if c.soreness is not None and c.soreness >= 6:
                 parts["soreness"] = max(parts.get("soreness", 0), round(E.clamp((c.soreness - 5) / 5, 0, 1), 2))

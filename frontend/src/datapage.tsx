@@ -387,7 +387,35 @@ export function DataView() {
           ) : <p className="mt-3 text-sm text-fg-3">Zatím bez záznamu.</p>}
         </Card>
       </div>
+      <OutcomesPanel />
     </>
+  )
+}
+
+// Plan phase 0 — owner-only progress towards the calibration gate (the endpoint
+// answers 403 to everyone else, and then nothing renders).
+function OutcomesPanel() {
+  const [ov, setOv] = useState<any | null>(null)
+  useEffect(() => {
+    let alive = true
+    api.outcomesOverview().then((d) => alive && setOv(d)).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  if (!ov) return null
+  const pct = Math.min(100, Math.round((ov.events / ov.gate.events) * 100))
+  return (
+    <Card className="mt-4" data-testid="outcomes-panel">
+      <Label>Kalibrace prahů · jen pro vlastníka</Label>
+      <p className="mt-2 text-sm text-fg-2">
+        {ov.events} z {ov.gate.events} zdravotních událostí ({pct} %) · {ov.runners} běžců · {ov.snapshots} denních záznamů
+        {ov.since ? ` od ${fmtD(ov.since)}` : ""}.
+      </p>
+      <div className="mt-2 h-2 rounded-full bg-white/[.06]"><i className="block h-full rounded-full bg-accent" style={{ width: `${pct}%` }} /></div>
+      <p className="mt-2 text-[12px] text-fg-3">
+        Chybějící dny {ov.missingShare == null ? "—" : `${Math.round(ov.missingShare * 100)} %`} · největší podíl jednoho běžce {Math.round(ov.topRunnerShare * 100)} % (max {Math.round(ov.gate.maxShare * 100)} %) ·
+        upozornění {ov.alerts.total}, ohodnoceno {ov.alerts.rated}, „nesedí“ {ov.alerts.noFit} · brána {ov.gate.passed ? "splněna" : "zatím nesplněna"}
+      </p>
+    </Card>
   )
 }
 
