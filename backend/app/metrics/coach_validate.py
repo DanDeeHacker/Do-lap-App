@@ -112,6 +112,7 @@ def _unknown_numbers(text: str, ok: dict) -> list[str]:
         if not any(abs(sec - c) <= 2 for c in ok["clocks"]):
             bad.append(f"{mm}:{ss}")
     t = _TIME_SPAN.sub(" ", _CLOCK.sub(" ", t))
+    t = re.sub(r"/\s*10\b", " ", t)      # "7/10" — the pain scale's denominator is not a fact
     for x in _NUM.findall(t):
         v = _num(x)
         if not any(abs(v - a) < 1e-6 for a in ok["nums"]) and not any(abs(v - a) <= 0.05 for a in ok["nums"] if a != round(a)):

@@ -109,7 +109,14 @@ def test_engine_compare_today_and_six_months_for_all_three(client, db_session):
     assert all({"v1", "v2", "v3"} <= set(p) for p in out["series"])
     db_session.expire_all()
     assert db_session.query(M.EngineHistoryCache).filter_by(runner_id=rid, kind="engines").first() is not None
-    assert db_session.query(M.Runner).filter(M.Runner.id == rid).first().engine_mode in (None, "v1")   # untouched
+    assert db_session.query(M.Runner).filter(M.Runner.id == rid).first().engine_mode == "v3"   # untouched (new accounts start on v3)
     reg(client, "ecmp2@test.cz", "Other", "runner")
     client.post("/api/auth/session", json={"email": "ecmp2@test.cz", "password": "testpass123"})
     assert client.get(f"/api/runners/{rid}/engine-compare").status_code in (403, 404)
+
+
+def test_new_accounts_start_on_the_newest_engine(client, db_session):
+    from app import models as M
+    from tests.conftest import register as reg
+    rid = reg(client, "newv3@test.cz", "Nový", "runner").json()["runner_id"]
+    assert db_session.query(M.Runner).filter(M.Runner.id == rid).first().engine_mode == "v3"
