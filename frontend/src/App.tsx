@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react"
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
   createBrowserRouter,
@@ -398,11 +398,13 @@ function RecoveryRanges({ rows }: { rows?: any[] }) {
   )
 }
 const QCOL: Record<string, string> = { stable: C.ok, overreaching: C.watch, silent: C.self, critical: C.alert }
+// railway#106 — laid out like a chart: load rises upwards, mechanics to the right,
+// so "Stabilní" (both low) is bottom-left and "Kritická" (both high) top-right
 const QCELLS: [string, string][] = [
-  ["stable", "Stabilní"],
-  ["silent", "Tichý drift"],
   ["overreaching", "Přetížení"],
   ["critical", "Kritická"],
+  ["stable", "Stabilní"],
+  ["silent", "Tichý drift"],
 ]
 // State card, top row: quadrant chip (the only place the quadrant name appears, FIX-4),
 // the Garmin sync button and the 6-month history button.
@@ -464,7 +466,16 @@ function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; o
           </button>
         )}
       </div>
-      <Wrap {...(onHistory ? { type: "button" as const, onClick: onHistory, title: "Zobrazit vývoj stavu za 6 měsíců" } : {})} className="grid w-full grid-cols-2 gap-2 text-left">
+      <div className="grid grid-cols-[22px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_24px] gap-x-1.5 gap-y-1">
+        {/* y axis: load ↑ */}
+        <div className="relative" aria-hidden>
+          <svg className="absolute right-0.5 top-0 h-full w-2.5 overflow-visible" preserveAspectRatio="none" viewBox="0 0 10 100">
+            <line x1="5" y1="100" x2="5" y2="3" stroke="currentColor" strokeWidth="1.4" vectorEffect="non-scaling-stroke" className="text-fg-3" />
+          </svg>
+          <svg className="absolute -top-0.5 right-0.5 size-2.5 text-fg-3" viewBox="0 0 10 10"><path d="M5 0 L10 8 L0 8 Z" fill="currentColor" /></svg>
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-180 whitespace-nowrap text-[10px] font-bold uppercase tracking-[.12em] text-fg-3 [writing-mode:vertical-rl]">zátěž</span>
+        </div>
+      <Wrap {...(onHistory ? { type: "button" as const, onClick: onHistory, title: "Zobrazit vývoj stavu za 6 měsíců" } : {})} className="grid w-full grid-cols-2 gap-2 text-left" aria-label="Kvadrant: zátěž svisle, mechanika vodorovně">
         {QCELLS.map(([key, label]) => {
           const active = key === quadrant
           const c = QCOL[key]
@@ -483,10 +494,17 @@ function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; o
           )
         })}
       </Wrap>
-      <div className="mt-2 flex justify-between text-[11px] font-bold uppercase tracking-[.12em] text-fg-3">
-        <span>← vodorovně: mechanika</span>
-        <span>svisle: zátěž ↑</span>
+        {/* x axis: mechanics → */}
+        <div />
+        <div className="relative" aria-hidden>
+          <svg className="absolute left-0 top-0.5 h-2.5 w-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 10">
+            <line x1="0" y1="5" x2="96" y2="5" stroke="currentColor" strokeWidth="1.4" vectorEffect="non-scaling-stroke" className="text-fg-3" />
+          </svg>
+          <svg className="absolute right-0 top-0.5 size-2.5 text-fg-3" viewBox="0 0 10 10"><path d="M10 5 L2 0 L2 10 Z" fill="currentColor" /></svg>
+          <span className="absolute left-1/2 top-[11px] -translate-x-1/2 whitespace-nowrap text-[10px] font-bold uppercase leading-none tracking-[.12em] text-fg-3">mechanika</span>
+        </div>
       </div>
+
     </div>
   )
 }
@@ -494,7 +512,7 @@ function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; o
 // Large pop-out: daily state over the last ~6 months — bar height = overall
 // risk, color = quadrant. Hover a bar to see that day's date and the signals
 // that were influencing the state.
-function QuadrantHistory({ history, today, onClose }: { history?: any[] | null; today: OverviewDay; onClose: () => void }) {
+function QuadrantHistory({ open, history, today, onClose }: { open: boolean; history?: any[] | null; today: OverviewDay; onClose: () => void }) {
   const raw = (history || []) as OverviewDay[]
   // Pin the final ("dnes") day to the live overview so it always equals the Dnes card.
   const data: OverviewDay[] = raw.length ? [...raw.slice(0, -1), { ...raw[raw.length - 1], ...today, date: today.date || raw[raw.length - 1].date }] : raw
@@ -516,22 +534,11 @@ function QuadrantHistory({ history, today, onClose }: { history?: any[] | null; 
   const step = (d: number) => setSel(clamp(i + d, 0, n - 1))
   const q = cur ? QUAD[cur.quadrant || "stable"] || QUAD.stable : null
   const qc = cur ? QCOL[cur.quadrant || "stable"] || C.ok : C.ok
-  return createPortal(
-    <>
-      <div className="fixed inset-0 z-[80] bg-bg/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-x-0 bottom-0 top-[calc(56px+env(safe-area-inset-top))] z-[90] flex flex-col overflow-hidden rounded-t-[22px] border-t border-white/12 bg-raised pb-[env(safe-area-inset-bottom)] text-fg shadow-[0_-20px_60px_rgb(0_0_0_/_0.5)] md:top-[calc(68px+env(safe-area-inset-top))] lg:left-[220px]">
-        <div className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-3.5 md:p-5">
-          <div className="min-w-0">
-            <p className="t-label !text-fg-3">Vývoj stavu · 6 měsíců</p>
-            <h2 className="mt-0.5 font-serif text-[20px] leading-tight md:text-2xl">Kvadrant a rizikové skóre po dnech</h2>
-          </div>
-          <button onClick={onClose} aria-label="Zavřít" className="grid size-9 shrink-0 place-items-center rounded-full border border-white/15 text-fg-2 hover:text-fg"><X className="size-4" aria-hidden /></button>
-        </div>
-
+  return (
+    <BottomSheet open={open} onClose={onClose} kicker="Vývoj stavu · 6 měsíců" title="Kvadrant a rizikové skóre po dnech">
         {n < 2 ? (
           <p className="p-6 text-sm text-fg-3">{history == null ? "Počítám historii…" : "Zatím málo historie."}</p>
         ) : (
-          <div className="flex-1 overflow-y-auto overscroll-contain">
             <div className="mx-auto w-full max-w-[1180px] px-4 pb-8 md:px-5">
               {/* strip + day picker stay pinned while the overview scrolls under them (phone) */}
               <div className="sticky top-0 z-10 -mx-4 bg-raised px-4 pb-3 pt-4 shadow-[0_10px_18px_-14px_rgb(0_0_0_/_.8)] md:-mx-5 md:px-5">
@@ -581,11 +588,8 @@ function QuadrantHistory({ history, today, onClose }: { history?: any[] | null; 
               )}
               <p className="mt-3 text-[11px] leading-4 text-fg-3">Denní přehrání enginu z dat do daného dne, včetně check-inů a hodnocení běhů. Tažením po pásu nebo šipkami vyberete den.</p>
             </div>
-          </div>
         )}
-      </div>
-    </>,
-    document.body,
+    </BottomSheet>
   )
 }
 // Plan B3: pain that limits movement, keeps coming back, got worse overnight or
@@ -635,6 +639,7 @@ function RecommendationStrip({ a }: { a: any }) {
     <div className="nest flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5 text-left" style={{ borderColor: `${col}55`, backgroundImage: `linear-gradient(120deg, ${col}17, transparent 60%)` }}
       aria-label={`Doporučení na dnes: ${t.label}${ov?.title ? ` — ${ov.title}` : facts ? ` — ${facts}` : ""}`} title={ov?.title || facts || undefined}>
       <p className="min-w-[7rem] flex-1 font-serif text-[20px] leading-tight" style={{ color: ov ? C.alertSoft : C.fg }}>
+        <span className="t-label mb-0.5 block font-sans !text-fg-3">Dnes doporučeno:</span>
         {t.label}
         {g.provisional && <i className="ml-2 inline-block size-2 -translate-y-0.5 rounded-full bg-watch" title="předběžné · čeká na ranní data" />}
       </p>
@@ -646,12 +651,15 @@ function RecommendationStrip({ a }: { a: any }) {
   )
 }
 
-// railway#90 — a detail panel that pulls down like a drawer (height from 0) and brings
-// itself into view, instead of appearing below without the page following it.
-function Drawer({ open, className = "", children }: { open: boolean; className?: string; children: React.ReactNode }) {
+// railway#103 — details (and the 6-month history) open as a sheet from the bottom:
+// scrollable, closed by pulling its top bar down, by the cross, a tap outside or Esc.
+function BottomSheet({ open, onClose, kicker, title, children }: { open: boolean; onClose: () => void; kicker?: string; title: string; children: React.ReactNode }) {
   const [render, setRender] = useState(open)
   const [shown, setShown] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [drag, setDrag] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const start = useRef<{ y: number; t: number } | null>(null)
+  const reduce = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
   useEffect(() => {
     if (open) {
       setRender(true)
@@ -660,27 +668,59 @@ function Drawer({ open, className = "", children }: { open: boolean; className?:
       return () => { cancelAnimationFrame(r1); cancelAnimationFrame(r2) }
     }
     setShown(false)
-    const t = setTimeout(() => setRender(false), 340)
+    setDrag(0)
+    const t = setTimeout(() => setRender(false), reduce ? 0 : 260)
     return () => clearTimeout(t)
-  }, [open])
+  }, [open, reduce])
   useEffect(() => {
-    if (!shown || !ref.current) return
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-    const t = setTimeout(() => ref.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }), reduce ? 0 : 90)
-    return () => clearTimeout(t)
-  }, [shown])
+    if (!render) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    window.addEventListener("keydown", onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev }
+  }, [render, onClose])
   if (!render) return null
-  return (
-    <div ref={ref} className={`grid scroll-mt-[84px] transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none ${className}`}
-      style={{ gridTemplateRows: shown ? "1fr" : "0fr", opacity: shown ? 1 : 0 }}>
-      <div className="min-h-0 overflow-hidden">{children}</div>
-    </div>
+  const up = (clientY: number) => {
+    if (!start.current) return
+    const dy = Math.max(0, clientY - start.current.y)
+    const v = dy / Math.max(1, performance.now() - start.current.t)
+    start.current = null
+    setDragging(false)
+    if (dy > 110 || (dy > 30 && v > 0.6)) onClose()
+    else setDrag(0)
+  }
+  return createPortal(
+    <>
+      <div className={`fixed inset-0 z-[80] bg-bg/70 backdrop-blur-sm transition-opacity duration-300 ${shown ? "opacity-100" : "opacity-0"}`} onClick={onClose} />
+      <div role="dialog" aria-modal="true" aria-label={title}
+        className="fixed inset-x-0 bottom-0 top-[calc(56px+env(safe-area-inset-top))] z-[90] flex flex-col overflow-hidden rounded-t-[22px] border-t border-white/12 bg-raised pb-[env(safe-area-inset-bottom)] text-fg shadow-[0_-20px_60px_rgb(0_0_0_/_0.5)] md:top-[calc(68px+env(safe-area-inset-top))] lg:left-[220px]"
+        style={{ transform: shown ? `translateY(${drag}px)` : "translateY(100%)", transition: dragging || reduce ? "none" : "transform .26s cubic-bezier(.2,.8,.2,1)" }}>
+        <div className="shrink-0 cursor-grab touch-none select-none border-b border-white/10 px-4 pb-3 pt-2 active:cursor-grabbing md:px-5"
+          onPointerDown={(e) => { start.current = { y: e.clientY, t: performance.now() }; setDragging(true); (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId) }}
+          onPointerMove={(e) => { if (start.current) setDrag(Math.max(0, e.clientY - start.current.y)) }}
+          onPointerUp={(e) => up(e.clientY)}
+          onPointerCancel={() => { start.current = null; setDragging(false); setDrag(0) }}>
+          <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-white/25" aria-hidden />
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              {kicker && <p className="t-label !text-fg-3">{kicker}</p>}
+              <h2 className="mt-0.5 font-serif text-[20px] leading-tight md:text-2xl">{title}</h2>
+            </div>
+            <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={onClose} aria-label="Zavřít"
+              className="grid size-9 shrink-0 place-items-center rounded-full border border-white/15 text-fg-2 hover:text-fg"><X className="size-4" aria-hidden /></button>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
+      </div>
+    </>,
+    document.body,
   )
 }
 
 // railway#76 — Regenerace, Příznaky, Zátěž and Mechanika as small rings around the score;
 // the ones with a detail open a panel under the card.
-function MiniRing({ label, value, col, onClick, open }: { label: string; value: number | null | undefined; col: string; onClick?: () => void; open?: boolean }) {
+function MiniRing({ label, value, col, onClick, open, unit }: { label: string; value: number | null | undefined; col: string; onClick?: () => void; open?: boolean; unit?: string }) {
   const R = 2 * Math.PI * 42
   const body = (
     <>
@@ -689,7 +729,7 @@ function MiniRing({ label, value, col, onClick, open }: { label: string; value: 
           <circle cx="50" cy="50" r="42" fill="none" stroke="rgb(255 255 255 / .09)" strokeWidth="9" />
           {value != null && <circle cx="50" cy="50" r="42" fill="none" stroke={col} strokeWidth="9" strokeLinecap="round" strokeDasharray={R} strokeDashoffset={R * (1 - clamp(value, 0, 100) / 100)} />}
         </svg>
-        <b className="t-num text-[18px] leading-none" style={{ color: value == null ? C.fg3 : C.fg }}>{value ?? "—"}</b>
+        <b className="t-num text-[18px] leading-none" style={{ color: value == null ? C.fg3 : C.fg }}>{value ?? "—"}{value != null && unit && <small className="text-[10px] font-semibold text-fg-3">{unit}</small>}</b>
       </span>
       <span className="mt-1 flex items-center justify-center gap-0.5 whitespace-nowrap text-[10px] font-bold uppercase tracking-[.08em] text-fg-2">
         {label}{onClick && <ChevronDown className={`size-3 transition ${open ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />}
@@ -704,6 +744,7 @@ function MiniRing({ label, value, col, onClick, open }: { label: string; value: 
 // railway#88 — the Dnes overview (rings, readiness, verdict, quadrant, drivers) as one
 // component, so the 6-month history shows any past day exactly like today.
 type PanelKey = "mech" | "load" | "recovery" | "readiness" | "symp"
+const PANEL_TITLE: Record<PanelKey, string> = { recovery: "Regenerace", symp: "Příznaky", load: "Zátěž", mech: "Mechanika", readiness: "Připravenost a tréninková zátěž" }
 type OverviewDay = {
   date?: string; quadrant?: string; overall?: number; tier?: string
   mech?: number | null; load?: number | null; symp?: number | null; rcv?: number | null; readiness?: number | null
@@ -711,7 +752,7 @@ type OverviewDay = {
 }
 const axisCol = (v: number | null | undefined, hot: string) => (v == null ? C.fg3 : v >= 25 ? hot : v >= 12 ? C.watch : C.fg)
 const gradeTone = (g: string) => (g === "A" ? "alert" : g === "B" ? "watch" : "ok") as "alert" | "watch" | "ok"
-function StateOverview({ d, open = null, onToggle, panel, onHistory, note, recommendation }: { d: OverviewDay; open?: PanelKey | null; onToggle?: (k: PanelKey) => void; panel?: React.ReactNode; onHistory?: () => void; note?: React.ReactNode; recommendation?: React.ReactNode }) {
+function StateOverview({ d, open = null, onToggle, onHistory, note, recommendation }: { d: OverviewDay; open?: PanelKey | null; onToggle?: (k: PanelKey) => void; onHistory?: () => void; note?: React.ReactNode; recommendation?: React.ReactNode }) {
   // railway#99 — shown as 100 − risk, so a better state reads higher (the engine keeps risk)
   const overall = 100 - clamp(d.overall ?? 0, 0, 100)
   const RING = 2 * Math.PI * 44
@@ -750,8 +791,8 @@ function StateOverview({ d, open = null, onToggle, panel, onHistory, note, recom
           </div>
         </div>
         {d.readiness != null && (
-          <div className="mt-3 flex justify-center">
-            <SideStat label="Připravenost" value={d.readiness} unit=" %" col={readinessCol(d.readiness)} align="center" onClick={tg("readiness")} open={open === "readiness"} />
+          <div className="mt-2 flex justify-center">
+            <MiniRing label="Připravenost" value={d.readiness} unit="%" col={readinessCol(d.readiness)} onClick={tg("readiness")} open={open === "readiness"} />
           </div>
         )}
         {/* railway#98 — today's recommendation sits between readiness and the verdict */}
@@ -765,7 +806,6 @@ function StateOverview({ d, open = null, onToggle, panel, onHistory, note, recom
           </p>
         </div>
       </div>
-      {panel}
       <div>
         <QuadrantGrid quadrant={d.quadrant} onHistory={onHistory} />
         <div className="mt-5">
@@ -856,20 +896,6 @@ function SymptomPanel({ signals }: { signals: any[] }) {
   )
 }
 
-function SideStat({ label, value, col, align = "left", unit, onClick, open }: { label: string; value: number | null | undefined; col: string; align?: "left" | "right" | "center"; unit?: string; onClick?: () => void; open?: boolean }) {
-  const body = (
-    <>
-      <span className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-[.1em] text-fg-2" style={{ justifyContent: align === "right" ? "flex-end" : align === "center" ? "center" : "flex-start" }}>
-        {label}{onClick && <ChevronDown className={`size-3.5 text-fg-3 transition ${open ? "rotate-180 text-accent" : ""}`} aria-hidden />}
-      </span>
-      <span className="t-num mt-0.5 block text-[24px] leading-none" style={{ color: value == null ? C.fg3 : col }}>{value ?? "—"}{value != null && unit && <small className="text-[13px] font-semibold text-fg-3">{unit}</small>}</span>
-    </>
-  )
-  const cls = align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left"
-  return onClick
-    ? <button type="button" onClick={onClick} aria-expanded={!!open} className={`${cls} -m-1.5 rounded-[12px] p-1.5 transition hover:bg-white/[.05] ${open ? "bg-white/[.06]" : ""}`}>{body}</button>
-    : <div className={cls}>{body}</div>
-}
 
 type AlertRow = { key: string; tone: "stop" | "alert" | "watch" | "info"; icon?: LucideIcon; title: React.ReactNode; body: React.ReactNode }
 function TodayV2() {
@@ -880,11 +906,13 @@ function TodayV2() {
   const rid = me?.runner_id
   const [quadHist, setQuadHist] = useState<any[] | null>(null)
   const [histOpen, setHistOpen] = useState(false)
+  const closeHist = useCallback(() => setHistOpen(false), [])
   const [alertsOpen, setAlertsOpen] = useState(false)
   // feedback railway#69/#70 — tap Mechanika / Zátěž for its trend + what drives it
   // railway#79–#81 — Regenerace and Připravenost open their detail the same way
   const [statPanel, setStatPanel] = useState<PanelKey | null>(null)
   const togglePanel = (k: PanelKey) => setStatPanel(statPanel === k ? null : k)
+  const closePanel = useCallback(() => setStatPanel(null), [])
   const lastPanel = useRef<PanelKey | null>(null)
   if (statPanel) lastPanel.current = statPanel
   const pk = statPanel ?? lastPanel.current
@@ -1070,10 +1098,12 @@ function TodayV2() {
         {/* „Stav" — co jde do kvadrantu — je součástí boxu s kvadrantem */}
         <div className="mt-5 border-t border-white/[.08] pt-5">
           <StateOverview d={todayDay} open={statPanel} onToggle={togglePanel} onHistory={() => setHistOpen(true)} recommendation={<RecommendationStrip a={a} />}
-            note={gated && <p className="mt-3 text-[11px] text-fg-3">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>}
-            panel={pk && (
-            <Drawer key={pk} open={!!statPanel} className="md:order-last md:col-span-2">
-            <div className="nest p-3.5 md:p-5">
+            note={gated && <p className="mt-3 text-[11px] text-fg-3">Mechanické signály jsou zatím umlčené — buduje se baseline ({Math.round((a?.confidence?.value ?? 0) * 100)} %).</p>} />
+        </div>
+        <QuadrantHistory open={histOpen} history={quadHist} today={todayDay} onClose={closeHist} />
+        {pk && (
+          <BottomSheet open={!!statPanel} onClose={closePanel} kicker="Detail" title={PANEL_TITLE[pk]}>
+            <div className="mx-auto w-full max-w-[1180px] px-4 pb-10 pt-4 md:px-5">
               {pk === "symp" && <SymptomPanel signals={signals} />}
               {(pk === "mech" || pk === "load") && (
                 <>
@@ -1184,10 +1214,8 @@ function TodayV2() {
                 </div>
               )}
             </div>
-            </Drawer>
-          )} />
-        </div>
-        {histOpen && <QuadrantHistory history={quadHist} today={todayDay} onClose={() => setHistOpen(false)} />}
+          </BottomSheet>
+        )}
       </section>
     </>
   )
