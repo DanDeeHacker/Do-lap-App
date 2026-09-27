@@ -13,6 +13,7 @@ import {
 import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/components/MuscleAnatomy"
 import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
+import { useQuadHistory } from "@/history"
 import { clamp, fmtD, initials, QUAD, roleHome } from "@/lib"
 import { AlertBanner, AxisLineChart, Bars, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, toneCol, useAsync, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
@@ -904,7 +905,8 @@ function TodayV2() {
   const L = a?.loadDetail
   const rcv = a?.rcv
   const rid = me?.runner_id
-  const [quadHist, setQuadHist] = useState<any[] | null>(null)
+  // one shared, prefetched copy (history.ts) feeds the history sheet and the axis detail
+  const quadHist = useQuadHistory(rid)
   const [histOpen, setHistOpen] = useState(false)
   const closeHist = useCallback(() => setHistOpen(false), [])
   const [alertsOpen, setAlertsOpen] = useState(false)
@@ -916,19 +918,7 @@ function TodayV2() {
   const lastPanel = useRef<PanelKey | null>(null)
   if (statPanel) lastPanel.current = statPanel
   const pk = statPanel ?? lastPanel.current
-  const [axisHist, setAxisHist] = useState<any[] | null>(null)
-  useEffect(() => {
-    if ((statPanel !== "mech" && statPanel !== "load") || !rid || axisHist !== null) return
-    let alive = true
-    api.quadrantHistory(rid).then((h) => alive && setAxisHist(Array.isArray(h) ? h : [])).catch(() => alive && setAxisHist([]))
-    return () => { alive = false }
-  }, [statPanel, rid, axisHist])
-  useEffect(() => {
-    if (!rid) return
-    let alive = true
-    api.quadrantHistory(rid).then((h) => alive && setQuadHist(h)).catch(() => alive && setQuadHist([]))
-    return () => { alive = false }
-  }, [rid])
+  const axisHist = quadHist
   // Garmin one-tap sync (next to the quadrant). Enabled only when a stored
   // session token exists (runner opted into "remember" on the Data page).
   const [gStatus, setGStatus] = useState<any | null>(null)

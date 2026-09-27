@@ -2919,11 +2919,15 @@ def triage_decision(a: dict) -> str:
     return "self_managed"
 
 
-def recompute_assessment(db: DBSession, rid: str) -> dict:
+def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> dict:
     """Recomputes assess() and persists it, mirroring core.js's top-level
     assess(db,rid) which also upserts the runner's triage row. Call this
     after any mutation that can move the score (checkin, activity rating,
-    daily-metric edit, garmin import, program claim)."""
+    daily-metric edit, garmin import, program claim).
+
+    `data_changed=False` is the day-rollover refresh from
+    get_or_refresh_assessment: nothing was written, so the cached history
+    stays valid and only needs extending by the new day."""
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
     with engine_pinned((r.engine_mode if r else None) or "v1"):
         a = assess(db, rid)
@@ -2969,11 +2973,20 @@ def recompute_assessment(db: DBSession, rid: str) -> dict:
             status="closed" if decision == "self_managed" else "open",
             claimed_by=None, created_at=now_iso(),
         ))
-    # A recompute means the runner's inputs changed (a sync, check-in, rating,
-    # edit…) or the day rolled — either way the cached engine-history replays are
-    # now stale, so drop them; the next history read rebuilds and re-caches them.
-    db.query(models.EngineHistoryCache).filter(models.EngineHistoryCache.runner_id == rid).delete()
+    # A data change (sync, check-in, rating, edit…) makes the cached history
+    # replays stale: flag the daily quadrant history for an incremental re-check
+    # and drop the weekly ones. A plain day rollover leaves them alone (the
+    # quadrant history is extended by the new day, the weekly ones are keyed by
+    # date and rebuild on their own).
+    if data_changed:
+        from .. import history as H
+        H.mark_dirty(db, rid)
     db.commit()
+    if data_changed:
+        # Rebuild the history in the background right away, so it's ready
+        # before anyone opens the strip or the trend charts.
+        from .. import precompute
+        precompute.schedule(rid)
     return a
 
 
@@ -2988,7 +3001,7 @@ def get_or_refresh_assessment(db: DBSession, rid: str) -> dict:
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
     expected = engine_version_for((r.engine_mode if r else None) or "v1")
     stale = (row.engine_version != expected) or ((row.computed_at or "")[:10] < iso_date(today_date()))
-    return recompute_assessment(db, rid) if stale else assessment_row_to_dict(row)
+    return recompute_assessment(db, rid, data_changed=False) if stale else assessment_row_to_dict(row)
 
 
 def assessment_row_to_dict(row: models.Assessment) -> dict:

@@ -3,6 +3,7 @@
 // live data via useApp(); refresh() re-pulls after a mutation.
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react"
 import { api, ApiError, type Me } from "@/api"
+import { clearQuadHistory, loadQuadHistory } from "@/history"
 
 type AppState = {
   me: Me | null
@@ -55,6 +56,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setMe(null)
     setBoot(null)
     setError(null)
+    clearQuadHistory()
   }, [])
 
   useEffect(() => {
@@ -68,6 +70,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (me?.runner_id) refresh()
   }, [me?.runner_id, refresh])
+
+  // Prefetch the daily history behind the trend charts as soon as the bootstrap
+  // lands, and revalidate it whenever the assessment is recomputed (a sync, a
+  // check-in, a new day), so the charts never wait when they open. The server
+  // has usually precomputed it already, so this is a plain cache read.
+  const histRid = me?.runner_id
+  const histVer = boot?.assessment?.computed_at as string | undefined
+  useEffect(() => {
+    if (histRid && histVer) loadQuadHistory(histRid, histVer)
+  }, [histRid, histVer])
 
   return (
     <Ctx.Provider value={{ me, boot, loading, error, reloadMe, refresh, logout }}>{children}</Ctx.Provider>

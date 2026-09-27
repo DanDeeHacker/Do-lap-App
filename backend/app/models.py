@@ -338,12 +338,13 @@ class Assessment(Base):
 
 
 class EngineHistoryCache(Base):
-    """Cached output of the expensive engine history replay — one row per
-    (runner, kind). Valid while it matches the runner's engine version and was
-    computed for the current day; invalidated wholesale in
-    engine.recompute_assessment whenever the runner's data changes, and rebuilt
-    lazily on the next read. Turns a per-page-view O(days × full-assess) replay
-    into an O(1) lookup."""
+    """Cached output of the expensive engine history replay, one row per
+    (runner, kind). Valid while it matches the history key (engine version,
+    history shape, engine code) and was computed for the current day. The daily
+    "quadrant" kind stores {"rows", "glob", "days"}: the rows plus per-day input
+    digests, so app.history can replay only the days from the first changed date
+    and the background worker (app.precompute) keeps it ready. A data change marks
+    it dirty (computed_for = NULL) and drops the weekly kinds."""
     __tablename__ = "engine_history_cache"
     runner_id = Column(String, ForeignKey("runners.id"), primary_key=True)
     kind = Column(String, primary_key=True)  # "quadrant" | "mech"

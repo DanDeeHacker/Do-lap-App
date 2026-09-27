@@ -144,6 +144,39 @@ async def _garmin_autosync_loop():
         await asyncio.sleep(60)  # step past the trigger minute so we don't re-fire
 
 
+def _seconds_until_local_midnight(after_s: int = 0) -> float:
+    """Seconds until the next midnight in the engine's zone (Europe/Prague, the
+    zone engine.today_date() uses), plus `after_s`, independent of the
+    container's TZ setting."""
+    from .metrics.engine import LOCAL_TZ
+    now = datetime.now(LOCAL_TZ)
+    nxt = datetime.combine(now.date() + timedelta(days=1), datetime.min.time(), LOCAL_TZ)
+    return (nxt - now).total_seconds() + after_s
+
+
+async def _precompute_loop():
+    """Warm every recently active runner's derived data (today's assessment and
+    the daily quadrant history) shortly after startup and again just after each
+    local midnight, so the first open of a new day never waits on a replay. The
+    work itself runs on the precompute worker thread (app.precompute)."""
+    from . import precompute
+    log = logging.getLogger("dosslap.precompute")
+    first = True
+    while True:
+        try:
+            # a short delay at boot lets the app answer its first requests first
+            await asyncio.sleep(20 if first else _seconds_until_local_midnight(120))
+        except asyncio.CancelledError:
+            raise
+        first = False
+        try:
+            n = await asyncio.to_thread(precompute.warm_all)
+            log.info("Precompute warm-up queued for %s runners", n)
+        except Exception:  # noqa: BLE001
+            log.exception("Precompute warm-up failed")
+        await asyncio.sleep(60)
+
+
 def _is_deployed() -> bool:
     return bool(
         os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID")
@@ -216,13 +249,16 @@ async def lifespan(app: FastAPI):
         seed_module.ensure_demo_accounts(db)
     finally:
         db.close()
-    task = None
+    tasks = []
     if os.environ.get("DOSSLAP_AUTOSYNC", "1") != "0":
-        task = asyncio.create_task(_garmin_autosync_loop())
+        tasks.append(asyncio.create_task(_garmin_autosync_loop()))
+    from . import precompute
+    if precompute.enabled():
+        tasks.append(asyncio.create_task(_precompute_loop()))
     try:
         yield
     finally:
-        if task is not None:
+        for task in tasks:
             task.cancel()
             try:
                 await task

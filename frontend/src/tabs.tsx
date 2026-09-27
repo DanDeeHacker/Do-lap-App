@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
+import { useQuadHistory } from "@/history"
 import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, FactorBar, toneCol, type Tone, Field, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
 import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Ship, Waves, type LucideIcon } from "lucide-react"
 import { Link } from "react-router"
@@ -1061,14 +1062,7 @@ export function Mechanics() {
   const acts = useMemo(() => allActs.filter((x) => !x.excluded || x.excluded_scope === "load"), [allActs])
   const [openMetric, setOpenMetric] = useState("Vertikální poměr")
   const [terr, setTerr] = useState(false)
-  const [mechHist, setMechHist] = useState<any[] | null>(null)
-  const gatedNow = (a?.confidence?.value ?? 0) < 0.6
-  useEffect(() => {
-    if (!rid || gatedNow) return
-    let alive = true
-    api.quadrantHistory(rid).then((h) => alive && setMechHist(h)).catch(() => alive && setMechHist([]))
-    return () => { alive = false }
-  }, [rid, gatedNow])
+  const mechHist = useQuadHistory(rid)   // prefetched by the store (history.ts)
   if (!a) return <LoadGate />
   if ((a.confidence?.value ?? 0) < 0.6)
     return (
@@ -1311,13 +1305,7 @@ export function Load() {
   const a = boot?.assessment
   const L = a?.loadDetail
   const rcv = a?.rcv
-  const [hist, setHist] = useState<any[] | null>(null)
-  useEffect(() => {
-    if (!rid) return
-    let alive = true
-    api.quadrantHistory(rid).then((h) => alive && setHist(h)).catch(() => alive && setHist([]))
-    return () => { alive = false }
-  }, [rid])
+  const hist = useQuadHistory(rid)   // prefetched by the store (history.ts)
   if (!L) return <LoadGate />
 
   // State follows the quadrant (post-hysteresis) so Zátěž matches it exactly.
