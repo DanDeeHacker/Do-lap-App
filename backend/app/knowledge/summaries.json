@@ -1,0 +1,1282 @@
+{
+ "source": "Doslap_Literature_Summary.docx (project doc), 54 sources, 2026-09-27",
+ "categories": {
+  "A": "Load progression and running injury",
+  "B": "Load monitoring concepts and ACWR",
+  "C": "HRV and readiness",
+  "D": "Intensity distribution, periodisation and tapering",
+  "E": "Terrain and running mechanics",
+  "F": "Heat and weather",
+  "G": "Sleep",
+  "H": "Pain, return after pain and referral",
+  "I": "Strength training"
+ },
+ "syntheses": {
+  "A": "Across the twelve sources summarised so far, two findings are consistent. First, a previous running-related injury is the most reliably reported risk factor. It was identified in five of eight prospective cohorts reviewed by Saragiotto et al. (2014), with risk estimates between 1.7 and 2.7, and it was confirmed in the recreational cohort of Hespanhol Junior et al. (2013). Second, training parameters on their own do not show a consistent relationship with injury. The largest review in the list, covering 36 prospective studies and 23,047 runners, found conflicting evidence for weekly distance, duration, frequency, intensity and recent changes in training, and concluded that no universal progression rule, including the 10% rule, can be justified (Fredette et al., 2022). This agrees with the randomised trial of Buist et al. (2008) and the earlier review of Damsted et al. (2018). Evidence for sudden weekly increases is suggestive but inconsistent (Damsted et al., 2019), and the framework of Nielsen et al. (2018) explains why a single threshold is unlikely to fit all runners. The marathon cohort of McGrath et al. (2024) adds that more than four in ten runners reported an injury during a 16-week build, that overuse injuries accumulated as training progressed and that physiotherapy was the most commonly used form of care, while the review by Knechtle et al. (2026) links higher training volumes and lower preparation to injury in the same race. For trail and ultramarathon runners, the available data are mostly retrospective and cross-sectional, as shown by Hoffman and Krishnan (2014) and Viljoen et al. (2022), and the weakest source in this section is the review by Dempster et al. (2021). For the engine, these sources support using previous injury as a strong modifier of risk messaging, describing load-spike findings as associations rather than rules, monitoring more closely in the later weeks of a marathon block and building the main spike claim on the session-level Garmin-RUNSAFE findings already in the database.",
+  "B": "The five sources in this section agree on how training load should be measured, while they differ on how confidently it can be used to predict injury. There is broad agreement that external load, such as distance and pace from the watch, and internal load, such as heart rate and perceived effort, should be combined, and that a change in the relationship between the two may indicate fatigue, as described by Bourdon et al. (2017) and Halson (2014a). Session RPE offers a simple and valid way to capture internal load from a single post-session rating (Foster et al., 2001), and the runner's own report of how they feel responds to training load more sensitively and consistently than most objective markers (Saw et al., 2016). All sources also stress individual baselines rather than fixed population cut-offs. By contrast, the thresholds attached to the acute:chronic workload ratio and the recommendation to keep weekly increases below 10% come mainly from team sports and partly from unpublished data (Gabbett, 2016), and the consensus statement already notes that the ratio's validity has been questioned (Bourdon et al., 2017). For the engine, these sources support combining watch data with a short daily check-in and a post-run effort rating, comparing each runner with their own history, and treating any ratio-based spike threshold as an internal rule until the critique by Impellizzeri et al. (2020) has been reviewed.",
+  "C": "The six sources in this section agree on how HRV should be used, even though the evidence that HRV-guided training improves outcomes remains modest. First, single-day HRV values are unreliable, and both case data and re-analyses show that weekly or 7-day rolling averages of one vagal index, Ln rMSSD, give a more valid picture of training status (Plews et al., 2012, 2013, 2014). Second, at least 3 valid recordings per week are needed in trained athletes and about 5 in recreational runners (Plews et al., 2014). Third, HRV must be interpreted against the individual's own baseline and normal range, and a higher value is not automatically favourable, since HRV can rise during functional overreaching and can fall in elite athletes because of saturation rather than fatigue (Plews et al., 2013, 2014). The meta-analysis by Manresa-Rocamora et al. (2021) shows that HRV-guided training improves vagal HRV and may reduce the number of negative responders, but that its advantage for fitness and performance is small and not statistically significant. The recent perspective by Schaffarczyk and Sperlich (2026) adds that HRV responds to many stressors outside training and that the main gap is transparent decision rules rather than more data. The clinical review by Mendoza et al. (2026) offers a similar practical model but adds little for runners. For the engine, these sources support comparing a 7-day rolling HRV trend with the runner's own normal range, requiring a minimum number of valid nights before HRV influences the recommendation, and treating HRV as one input alongside the check-in rather than as a stand-alone readiness score.",
+  "D": "The four sources in this section describe how endurance training is distributed across intensities, although most of the evidence comes from elite or well-trained athletes. Descriptive data show that successful endurance athletes perform most of their training, roughly 80% of sessions, at low intensity and only a small share at threshold or high intensity (Seiler, 2010). Among elite distance runners, this distribution is usually pyramidal with meaningful threshold work, and it becomes more polarised close to competition, always within a hard-day, easy-day structure (Casado et al., 2022). In a 9-week randomised trial, a polarised programme improved laboratory markers of endurance more than high-volume, threshold or interval-only programmes (Stöggl & Sperlich, 2014), although none of these sources shows that one distribution is clearly best over the long term. A recent conference abstract adds that athletes asked to train easy without feedback drift into moderate intensity without noticing (Treff et al., 2026). For the engine, these sources support keeping most sessions genuinely easy, limiting hard sessions to about two or three per week, giving concrete heart-rate guidance for easy days, and classifying sessions by their main purpose rather than by minutes in each heart-rate zone. Transferring these elite-based patterns to recreational runners remains an assumption that the cards should state.",
+  "E": "The four sources summarised so far in this section concern how terrain and running technique change the load of a run. Slope alters running mechanics substantially, since downhill running increases impact forces, braking and tibial shock, whereas uphill running increases muscle work and metabolic cost, and runners' natural changes in pace on hills do not keep effort constant (Vernillo et al., 2017). Recent prediction equations can now estimate the metabolic cost of level, uphill and downhill running with reasonable accuracy for an average runner, and they clearly outperform the commonly used ACSM equation on slopes (Looney et al., 2026). However, metabolic cost and mechanical load diverge on descents, which are energetically cheap but mechanically demanding. Regarding technique, there is no evidence for a universally economical running style, and runners appear to self-optimise their stride with experience (Moore, 2016), while the only injury-related evidence on gait retraining here is a small uncontrolled poster (Martínez-Gramage et al., 2020). For the engine, these sources support grade-adjusting the load of hilly and trail runs, treating descent as a separate mechanical load signal rather than assuming that a low heart rate means an easy run, and avoiding prescriptive technique advice in runner-facing texts. Gottschall and Kram (2005) and Minetti et al. (2002), which underlie much of this evidence, are still to be reviewed.",
+  "F": "The two sources in this section come from the same research group and agree closely. Exercising in the heat raises heart rate and physiological strain and impairs endurance performance, particularly in people who are not yet acclimatised. Repeated exercise in the heat produces most adaptations within the first week, with near-complete adaptation after about 10 to 14 days, and the reduction in exercise heart rate is among the fastest adaptations to develop and to fade, as described by both Périard et al. (2015) and Racinais et al. (2015). The risk of heat illness appears highest early in summer and during sudden hot spells, and heat indices based on temperature alone can underestimate stress in humid or still conditions (Racinais et al., 2015). For the engine, these sources support a more cautious recommendation on the first hot days, interpreting a higher heart rate at a familiar pace in the heat as heat strain rather than lost fitness, and relaxing the heat adjustment gradually over about one to two weeks of repeated hot runs. Hydration advice should stay general, since the consensus also warns recreational athletes against overdrinking. The IOC consensus on sport events in the heat (Racinais et al., 2023) and the study by Ely et al. (2007) on weather and marathon performance are still to be reviewed.",
+  "G": "The five sources in this section agree that insufficient sleep impairs performance and recovery, but they differ greatly in quality. The strongest general reference is the joint consensus of the American Academy of Sleep Medicine and the Sleep Research Society, which recommends at least 7 hours of sleep per night for adults and links regularly shorter sleep to impaired performance, immune function and pain (Watson et al., 2015). For athletes, the review by Halson (2014b) shows that sleep loss affects prolonged submaximal exercise more than maximal efforts and that effects build up over consecutive nights, while a meta-analysis abstract finds higher injury odds in adolescents who chronically sleep poorly (Gao et al., 2019). The two broad narrative reviews by Kaczmarek et al. (2025) and Pyzik et al. (2026) add background but are too weak to support specific claims. For the engine, these sources support using repeated nights under 7 hours as a readiness signal, weighting a chronic sleep deficit more heavily than a single short night, and keeping supplement and medication suggestions out of the texts. The original cohort by Milewski et al. (2014), the review by Fullagar et al. (2015) and the athlete sleep consensus by Walsh et al. (2021) are still needed for runner-specific claims.",
+  "H": "The nine sources in this section define two different pain rules, a framework for returning after injury and a set of safety rules that override training advice. For tendon problems such as Achilles tendinopathy, continued running guided by pain of no more than 5 out of 10 during activity, pain that settles by the next morning and no week-to-week increase caused no harm compared with rest (Silbernagel et al., 2007), and allowing pain during rehabilitation exercise gave a small short-term benefit in chronic musculoskeletal pain (Smith et al., 2017). For bone stress injuries, by contrast, return to running is guided by no pain at all, and localised bone pain that persists after running, occurs during walking or appears at rest or at night signals the need for assessment (Warden et al., 2014). Return to sport is best seen as a continuum from participation to full performance, with clearance as a shared decision in which the clinician protects the athlete's health (Ardern et al., 2016). In addition, the international red-flag framework shows that single warning signs are weak on their own but that combinations, and above all signs of cauda equina syndrome, require urgent referral (Finucane et al., 2020). The critique by Jeukendrup et al. (2024) further shows that fatigue, illness and falling performance have many possible causes, which argues against the app naming any energy-deficiency condition. The reviews by Glisik and Frangež (2024), Toczyłowska et al. (2025) and Geworkian et al. (2026) add little and are methodologically weak. For the engine, these sources support keeping the rule that pain above 5 triggers a referral, adding bone-pain and red-flag symptoms that trigger a referral regardless of the pain score, treating clusters of fatigue, illness and performance decline as a referral signal rather than a diagnosis, and leaving clearance decisions to the physiotherapist. The IOC consensus on relative energy deficiency by Mountjoy et al. (2023) is still needed to balance the critique.",
+  "I": "The seven sources in this section address two separate questions, namely whether strength training prevents injury and whether it improves running performance. On injury, the meta-analysis by Lauersen et al. (2014) found that exercise-based prevention reduced sports injuries by about a third overall, that strength training had the largest effect and that stretching had none, although none of the strength trials involved runners. The editorial by Khan (2026) reports a similar pattern for warm-up programmes in young athletes. On performance, the evidence is more directly about runners. Adding strength training improved running economy by 2 to 8% without harming aerobic capacity or body composition (Blagrove et al., 2018), had a large effect on running economy in highly trained runners (Balsalobre-Fernández et al., 2016) and improved time-trial performance, most clearly with heavy loads or a combination of methods (Llanos-Lagos et al., 2024). Rønnestad and Mujika (2014) translate this into practical guidance of two sessions per week to build strength and about one session per week to maintain it. The quasi-experimental study by Yismaw et al. (2026) is consistent with these findings but too weak to cite. For the engine, these sources support an evidence card stating that two strength sessions per week make running more economical and lower the risk of injury, a maintenance mode of one session per week during race preparation, a prompt when no strength work has been logged for several weeks and a note that leg soreness is normal in the first weeks. Because evidence for injury prevention in runners specifically remains indirect, Toresdahl et al. (2020), the hip-strength trial by Toresdahl et al. (2025) cited in Knechtle et al. (2026) and Beattie et al. (2014) are still worth obtaining."
+ },
+ "entries": [
+  {
+   "id": "buist-et-al-2008",
+   "cite": "Buist et al. (2008)",
+   "category": "A",
+   "apa": "Buist, I., Bredeweg, S. W., van Mechelen, W., Lemmink, K. A. P. M., Pepping, G.-J., & Diercks, R. L. (2008). No effect of a graded training program on the number of running-related injuries in novice runners: A randomized controlled trial. The American Journal of Sports Medicine, 36(1), 33–39. https://doi.org/10.1177/0363546507307505",
+   "doi": "10.1177/0363546507307505",
+   "facts": {
+    "Design": "Randomised controlled trial (GRONORUN), 13-week follow-up, level 1 evidence",
+    "Population": "532 novice runners aged 18 to 65 randomised and 486 analysed, with no regular running in the previous 12 months, preparing for a 4-mile (6.7 km) recreational event in Groningen, the Netherlands",
+    "Exposure": "Graded 13-week programme based on the 10% rule versus a standard 8-week programme, both with three run/walk sessions per week at a conversational pace",
+    "Outcome": "Running-related injury, defined as a musculoskeletal complaint of the lower extremity or back that restricted running for at least one week",
+    "Main result": "No difference in injury incidence (20.8% graded versus 20.3% standard, P = .90)"
+   },
+   "findings": [
+    "Injury incidence was almost identical in the two groups, at 20.8% (52 of 250) in the graded programme and 20.3% (48 of 236) in the standard programme (χ² = 0.016, P = .90).",
+    "After adjustment for body mass index, the graded programme showed no significant protective effect (reported OR = 0.8, 95% CI 0.6 to 1.3), and survival curves did not differ (log-rank P = .18).",
+    "Injuries per 1,000 hours of running were 30 in the graded group and 38 in the standard group. The difference was not significant, and the authors note that the trial was not powered to detect it.",
+    "The lower leg (40%) and the knee (37%) were the most frequently injured sites.",
+    "New injuries peaked at a similar weekly running time in both groups, namely 44 minutes in week 5 of the graded programme and 46 minutes in week 2 of the standard programme. The authors report this descriptively and did not test it."
+   ],
+   "relevance": "This trial is the most direct test of the widely used 10% rule, and it did not show a benefit for novice runners. For the engine, a weekly increase below 10% should therefore not be presented to runners as an evidence-based safety threshold, and a load-progression card should state that a slower build-up alone did not reduce injuries in this population. The trial compared the average rate of progression over whole programmes, so it does not contradict the findings on sudden week-to-week or single-session jumps reported by Nielsen et al. (2014) and Schuster Brandt Frandsen et al. (2025).",
+   "limits": "The randomised design is a clear strength. However, participants were adults who had not run for at least a year and were training for a short 6.7 km event, so the results may not transfer to experienced runners. Load was prescribed in minutes, running intensity was not measured, both groups ran three times per week, and compliance reached only about two thirds of the prescribed volume. The authors themselves suggest that the contrast between the two programmes may have been too small to produce a difference. Evidence strength for the card: moderate for novice runners, low for other runner types.",
+   "strength": "moderate for novice runners, low for other runner types."
+  },
+  {
+   "id": "damsted-et-al-2018",
+   "cite": "Damsted et al. (2018)",
+   "category": "A",
+   "apa": "Damsted, C., Glad, S., Nielsen, R. O., Sørensen, H., & Malisoux, L. (2018). Is there evidence for an association between changes in training load and running-related injuries? A systematic review. International Journal of Sports Physical Therapy, 13(6), 931–942. https://doi.org/10.26603/ijspt20180931",
+   "doi": "10.26603/ijspt20180931",
+   "facts": {
+    "Design": "Systematic review of PubMed/Medline, SPORTDiscus, Embase and Scopus, searched to April 2017",
+    "Studies included": "4 of 8,242 records (one randomised trial and three observational studies), runners aged 18 to 65",
+    "Exposure": "Change in training load, expressed as change in distance, volume, velocity or frequency",
+    "Quality appraisal": "Newcastle-Ottawa Scale and PEDro, with quality scores ranging from 22% to 100%",
+    "Main conclusion": "Very limited evidence that a sudden change in training load is associated with running-related injury"
+   },
+   "findings": [
+    "Three of the four studies pointed toward higher injury risk after a sudden increase in load, whereas the randomised trial by Buist et al. (2008) found no difference between an average weekly increase of 10% and one of 24%.",
+    "The highest-quality study (Nielsen et al., 2014, quality score 100%) reported a hazard ratio of 1.59 (95% CI 0.96 to 2.66) for distance-related injuries when weekly distance increased by more than 30%, compared with a change of less than 10%. The confidence interval includes 1.",
+    "In another cohort (Nielsen et al., 2012), the increase in running distance in the week before injury was on average 86% larger than the weekly increase during other weeks (95% CI 12.9% to 159.9%, p = .026).",
+    "The authors conclude that no evidence supports the \"10% rule\" and that no well-defined threshold exists above which a sudden increase becomes hazardous.",
+    "They stress that relative change depends on the absolute baseline. An increase from 2 to 3 km per week is a 50% jump, whereas a runner covering 100 km per week who adds 3 km increases load by only 3%."
+   ],
+   "relevance": "This review sets the ceiling on how confidently the engine can speak about week-to-week increases. Load-spike cards should describe an association rather than a proven cause and should avoid naming a single safe percentage. The point about absolute versus relative change is directly relevant to the engine, because low-volume runners will often trigger large percentage changes from small absolute increases. The engine may therefore need a minimum absolute distance before a relative spike is flagged. This last suggestion is my own inference from the authors' argument and was not tested in the review.",
+   "limits": "Only four studies met the inclusion criteria, and they used different definitions of change and injury, some had short follow-up, and their quality varied widely. The search ended in April 2017, so the review predates the Garmin-RUNSAFE analyses (Schuster Brandt Frandsen et al., 2025), which should be read alongside it. Evidence strength for the card: low, useful mainly for the limits field.",
+   "strength": "low, useful mainly for the limits field."
+  },
+  {
+   "id": "damsted-et-al-2019",
+   "cite": "Damsted et al. (2019)",
+   "category": "A",
+   "apa": "Damsted, C., Parner, E. T., Sørensen, H., Malisoux, L., Hulme, A., & Nielsen, R. Ø. (2019). The association between changes in weekly running distance and running-related injury: Preparing for a half marathon. Journal of Orthopaedic & Sports Physical Therapy, 49(4), 230–238. https://doi.org/10.2519/jospt.2019.8541",
+   "doi": "10.2519/jospt.2019.8541",
+   "facts": {
+    "Design": "Prospective cohort study (ProjectRun21), 14-week follow-up",
+    "Population": "261 healthy recreational runners in Denmark aged 18 to 65, preparing for a half marathon, with a median weekly distance of 7 km (IQR 4 to 14)",
+    "Exposure": "Ratio of running distance in the current 7 days to the previous 7 days, recalculated after every session and grouped as a change under 20%, an increase of 20% to 60%, or an increase over 60%",
+    "Data collection": "Daily GPS watch or smartphone data and weekly injury questionnaires sent by email",
+    "Outcome": "Running-related injury according to the consensus definition (restriction of running for at least 7 days or 3 sessions, or consultation of a health professional)",
+    "Main result": "At day 21, the cumulative injury risk was 22.6 percentage points higher for increases of 20% to 60% than for changes under 20%"
+   },
+   "findings": [
+    "56 of 261 runners (21.5%) sustained a running-related injury during the 14 weeks.",
+    "At 21 days, runners who increased their weekly distance by 20% to 60% had a cumulative risk difference of 22.6% (95% CI 0.9% to 44.3%, P = .041) compared with runners who changed their distance by less than 20%.",
+    "The association was no longer significant at 56 and 98 days, and increases above 60% did not differ significantly from the reference group, so no dose-response relationship was confirmed.",
+    "The type of schedule (distance-based or pace-based) did not significantly modify the association. Nevertheless, about 30% more runners in the 20% to 60% state were injured on the distance-based schedule than on the pace-based schedule, which the authors treat as a hypothesis for future research."
+   ],
+   "relevance": "The exposure used here, a rolling 7-day distance divided by the previous 7 days and recalculated after each run, is close to what the engine can compute from daily Garmin data. The study therefore supports flagging a weekly increase of 20% to 60% as a period of elevated risk, particularly early in a build-up. At the same time, the missing dose-response and the loss of significance at later time points mean that a card should present this as a possible rather than a consistent association. The hint that runners on high-volume schedules may tolerate increases less well is too uncertain to drive a rule, although it fits the load-versus-capacity reasoning of Bertelsen et al. (2017).",
+   "limits": "The number of injuries per exposure group was small, which the authors flag as a risk of sparse-data bias. Runners chose their own schedule, weekly volumes were low, and distance rather than step count was used as the load measure. Evidence strength for the card: low to moderate, since the prospective design and objective GPS data are strengths but the estimates are imprecise.",
+   "strength": "low to moderate, since the prospective design and objective GPS data are strengths but the estimates are imprecise."
+  },
+  {
+   "id": "dempster-et-al-2021",
+   "cite": "Dempster et al. (2021)",
+   "category": "A",
+   "apa": "Dempster, J., Dutheil, F., & Ugbolue, U. C. (2021). The prevalence of lower extremity injuries in running and associated risk factors: A systematic review. Physical Activity and Health, 5(1), 133–145. https://doi.org/10.5334/paah.109",
+   "doi": "10.5334/paah.109",
+   "facts": {
+    "Design": "Systematic review following PRISMA, with three databases (ScienceDirect, PubMed and SPORTDiscus) searched on 20 November 2020 using a single search string",
+    "Studies included": "24 original studies from 183 screened records, covering runners of all ages and levels",
+    "Outcomes": "Mean injury incidence overall and by sex, injury location, and reported risk factors",
+    "Quality appraisal": "No formal risk-of-bias or quality assessment is reported",
+    "Main result": "Mean incidence of lower extremity running injury of 37% (SD 11.8%), with the knee as the most common site",
+    "Note": "Not on the original download list and added in this batch"
+   },
+   "findings": [
+    "The mean incidence of lower extremity running injuries across studies was 37% (SD 11.8%). Women showed a slightly higher mean incidence than men (39.7% versus 34.3%), but the difference was not statistically significant (P > .05).",
+    "The knee was the most commonly injured site (24.3% of injuries), followed by the calf or lower leg (15.9%) and the ankle or foot (15%). Among women the calf or lower leg was most affected, whereas among men it was the hip, pelvis or upper leg.",
+    "Risk factors reported in more than one study were less than 5 years of running experience, an injury in the previous 12 months, and running more than 3 times or more than 30 km per week.",
+    "The authors acknowledge that the sex-specific incidence figures were calculated separately from the location figures and therefore do not align with them."
+   ],
+   "relevance": "This review adds little that is not better supported elsewhere. Its main risk factors, previous injury and higher weekly exposure, match those of Saragiotto et al. (2014), which used a stricter design limited to prospective cohorts. For this reason, I would not cite it as the primary source on any card. At most, it could serve as a secondary reference for the typical anatomical distribution of running injuries.",
+   "limits": "Methodological quality is weak for a systematic review. The search relied on one search string in three databases, no risk-of-bias assessment is reported, and incidence values from studies with different injury definitions and follow-up periods were simply averaged. The abstract also states that women show a greater incidence, although the results report the difference as non-significant. Evidence strength for the card: very low.",
+   "strength": "very low."
+  },
+  {
+   "id": "fredette-et-al-2022",
+   "cite": "Fredette et al. (2022)",
+   "category": "A",
+   "apa": "Fredette, A., Roy, J.-S., Perreault, K., Dupuis, F., Napier, C., & Esculier, J.-F. (2022). The association between running injuries and training parameters: A systematic review. Journal of Athletic Training, 57(7), 650–671. https://doi.org/10.4085/1062-6050-0195.21",
+   "doi": "10.4085/1062-6050-0195.21",
+   "facts": {
+    "Design": "Systematic review (PROSPERO CRD42018112913) of MEDLINE, CINAHL, Embase and SPORTDiscus, searched to 7 July 2020",
+    "Studies included": "36 studies (33 prospective cohorts and 3 randomised trials) with 23,047 runners",
+    "Exposure": "Weekly distance, duration, frequency and intensity, as well as recent changes in these parameters",
+    "Quality appraisal": "QualSyst, with 22 high, 5 good, 5 moderate and 4 low quality studies (median score 86.4%)",
+    "Evidence grading": "Strong, moderate, limited, very limited or conflicting, based on the number, quality, similarity and consistency of studies",
+    "Main result": "Conflicting evidence for every training parameter and for recent changes in training"
+   },
+   "findings": [
+    "Overall, 26.2% of runners sustained an injury (range 8.8% to 91.3%), with 14.9% in novice, 26.1% in recreational and 62.6% in competitive runners. The knee (25.8%), foot and ankle (24.4%) and lower leg (24.4%) were the most frequently injured areas.",
+    "For weekly distance, eight studies suggested higher risk with greater distance, for example above 30 km per week (HR 3.28, 95% CI 1.23 to 8.75), whereas seven studies found no association. Evidence for duration, frequency and intensity was similarly split, and some high-quality studies even found that longer or more frequent running was associated with fewer injuries.",
+    "For recent changes in training, five of eleven studies linked a recent increase in distance to injury, five found no association and one reported mixed results, so the overall evidence was graded as conflicting.",
+    "The authors conclude that no universal recommendation on training parameters or progression can be issued and that the popular 10% rule is not justified. They attribute the conflicting findings mainly to inconsistent injury definitions (fewer than 40% of studies used a definition close to the consensus definition), follow-up periods ranging from 1 to 60 months, and the fact that only 5 of the 36 studies used GPS data."
+   ],
+   "relevance": "This is the most comprehensive review in the download list and the strongest source for the limits field of any card on training load. It confirms that no single distance, frequency or progression threshold is supported by the evidence, which means the engine's thresholds should be presented to runners as internal decision rules rather than scientific cut-offs. It also supports Došlap's reliance on objective watch data, since the authors name the lack of GPS-measured training as a main reason for the conflicting evidence. One detail to keep in mind is that the review describes the Buist et al. (2008) trial as a comparison of weekly distance progressions, whereas the trial itself prescribed minutes of running.",
+   "limits": "The review is large and preregistered, and it appraised study quality systematically, which makes it the strongest review in this section. However, heterogeneity prevented a meta-analysis, the search ended in July 2020 and therefore misses the Garmin-RUNSAFE analyses, and training parameters were examined in isolation rather than in interaction with individual factors. Evidence strength for the card: high confidence that the evidence is conflicting, which makes the source most useful for the limits field.",
+   "strength": "high confidence that the evidence is conflicting, which makes the source most useful for the limits field."
+  },
+  {
+   "id": "hespanhol-junior-et-al-2013",
+   "cite": "Hespanhol Junior et al. (2013)",
+   "category": "A",
+   "apa": "Hespanhol Junior, L. C., Pena Costa, L. O., & Lopes, A. D. (2013). Previous injuries and some training characteristics predict running-related injuries in recreational runners: A prospective cohort study. Journal of Physiotherapy, 59(4), 263–269. https://doi.org/10.1016/S1836-9553(13)70203-0",
+   "doi": "10.1016/S1836-9553(13)70203-0",
+   "facts": {
+    "Design": "Prospective cohort study, 12-week follow-up with online surveys every two weeks",
+    "Population": "200 recreational runners in São Paulo, Brazil, aged at least 18 with at least 6 months of running experience (191 analysed), with a median weekly distance of 28.5 km",
+    "Exposure": "Personal and training characteristics, including previous injury, session duration, speed training (short bouts of high-speed running), interval training (sessions alternating intensities, such as fartlek), surface and terrain",
+    "Outcome": "Self-reported running-related injury, defined as musculoskeletal pain attributed to running that prevented at least one training session",
+    "Analysis": "Generalised estimating equations, which account for repeated measurements and recurrent injuries",
+    "Main result": "Previous injury (OR 1.88) and speed training (OR 1.46) predicted injury, whereas interval training predicted lower risk (OR 0.61)"
+   },
+   "findings": [
+    "60 of 191 runners (31%) sustained 84 injuries during the 12 weeks, which corresponds to 10 injuries per 1,000 hours of running. Eighteen injured runners had two or more injuries, and five of these were recurrences.",
+    "Injuries lasted on average 3.4 weeks and had a mean pain intensity of 5.6 out of 10. Muscle injuries were the most common type (30%) and the knee was the most affected region (19%).",
+    "In the multivariable model, a previous running-related injury (OR 1.88, 95% CI 1.01 to 3.51) and speed training (OR 1.46, 95% CI 1.02 to 2.10) predicted injury. Session duration was also significant, although its effect was so small (OR 1.01, 95% CI 1.00 to 1.02) that the authors consider it irrelevant in practice.",
+    "Interval training was associated with lower injury risk (OR 0.61, 95% CI 0.43 to 0.88). The authors explain this by the fact that recreational runners who do intervals usually alternate running with slower running or walking, which lowers the total intensity of the session. They also stress that these associations may not be causal."
+   ],
+   "relevance": "This study supports using a previous injury as a modifier that makes the engine's risk messaging more cautious, since it was the strongest predictor even over a short follow-up. The finding on speed training is relevant to how the engine explains higher-intensity sessions, although the opposite result for interval training suggests that the way intensity is structured may matter more than intensity itself. Because speed and interval training were broadly defined and self-reported, a card should present these findings as associations in recreational runners rather than as rules.",
+   "limits": "The prospective design and near-complete follow-up (96%) are strengths. However, injuries were self-reported without clinical confirmation, follow-up lasted only 12 weeks, and all runners came from the database of a single race organiser, which limits generalisability. Evidence strength for the card: moderate for previous injury, which agrees with other cohorts, and low for the training-type findings.",
+   "strength": "moderate for previous injury, which agrees with other cohorts, and low for the training-type findings."
+  },
+  {
+   "id": "hoffman-and-krishnan-2014",
+   "cite": "Hoffman and Krishnan (2014)",
+   "category": "A",
+   "apa": "Hoffman, M. D., & Krishnan, E. (2014). Health and exercise-related medical issues among 1,212 ultramarathon runners: Baseline findings from the Ultrarunners Longitudinal TRAcking (ULTRA) Study. PLoS ONE, 9(1), Article e83867. https://doi.org/10.1371/journal.pone.0083867",
+   "doi": "10.1371/journal.pone.0083867",
+   "facts": {
+    "Design": "Cross-sectional analysis of baseline enrolment data from a longitudinal cohort (ULTRA Study), with retrospective self-report of the previous 12 months",
+    "Population": "1,212 active ultramarathon runners (median age 42.3 years, 68% men, 88% living in the United States), with a median running distance of 3,347 km in the previous year",
+    "Outcomes": "Chronic medical conditions, use of health care, exercise-related injuries and stress fractures in the previous 12 months",
+    "Main result": "64.6% had an injury that caused at least one lost training day in the previous year, with a median of 14 lost days among those affected"
+   },
+   "findings": [
+    "77.0% of runners reported an exercise-related injury in the previous 12 months and 64.6% an injury that caused lost training, with a median of 14 lost training days among those affected. The knee was the most frequent site (24.0% of runners).",
+    "The annual incidence of stress fractures was 5.5%, and the foot was the most common location (44.5% of stress fractures). The authors link this to the greater demands of running on irregular terrain.",
+    "Injured runners were younger (mean 42.3 versus 44.7 years) and less experienced (15 versus 17 years of running and 5 versus 7 years of ultramarathon running) than uninjured runners. By contrast, their annual running distance (3,347 versus 3,413 km) and their share of running on concrete or asphalt did not differ.",
+    "Injured runners also spent a larger share of their exercise time at high intensity, a smaller share of their exercise time running, and were more likely to do regular resistance training. Runners with a stress fracture were more often women, had run a greater distance in the past year and more often had a previous stress fracture.",
+    "Serious chronic conditions were uncommon, whereas allergies (25.1%) and exercise-induced asthma (13.0%) were more common than in the general population."
+   ],
+   "relevance": "This source is relevant for Došlap users who run ultramarathons or long trail races. Among these experienced runners, total annual distance did not distinguish injured from uninjured runners, whereas less running experience did, which fits the load-versus-capacity view that runners who have adapted over many years tolerate high volumes better. The findings on stress fractures, particularly the role of a previous stress fracture, female sex and higher annual distance, are useful for a referral-related card in Section H. The source is also relevant to Sections E and I.",
+   "limits": "The data are retrospective, self-reported and cross-sectional, so they describe associations at one point in time and cannot establish cause. The link between resistance training and more injuries may run in the opposite direction, since runners may start strength work after being injured. This is my own interpretation and is not stated by the authors. The sample consists of runners who had continued ultrarunning, and the authors themselves note that favourable characteristics may have allowed these individuals to keep participating. Evidence strength for the card: low.",
+   "strength": "low."
+  },
+  {
+   "id": "knechtle-et-al-2026",
+   "cite": "Knechtle et al. (2026)",
+   "category": "A",
+   "apa": "Knechtle, B., Thuany, M., Nikolaidis, P. T., Forte, P., Leite, L. B., Lepers, R., Chlíbková, D., Weiss, K., Rosemann, T., Vancini, R. L., & Duric, S. (2026). The New York City Marathon: A systematic review of performance, participation, pacing, and health-related outcomes. EXCLI Journal, 25, 591–620. https://doi.org/10.17179/excli2026-9354",
+   "doi": "10.17179/excli2026-9354",
+   "facts": {
+    "Type": "Systematic review with narrative synthesis",
+    "Sample": "76 publications on the New York City Marathon, searched up to February 2026",
+    "Domains": "Participation, performance, age, nationality, pacing, environmental conditions, injuries and medical aspects",
+    "Note": "Not on the original download list. The DOI is printed in the PDF but was not yet registered in Crossref at the time of checking"
+   },
+   "findings": [
+    "About 10% of runners had a major injury that prevented them from starting or finishing, and higher training volumes were consistently associated with more injuries.",
+    "Having completed a half marathon beforehand and a longer longest training run were associated with fewer race-day injuries, based on the studies by Toresdahl and colleagues.",
+    "Higher temperatures slowed performance more than course factors did, particularly among slower runners.",
+    "Most runners paced positively, with the slowest split between 35 and 40 km, and older and faster runners paced more evenly."
+   ],
+   "relevance": "The review is mainly useful as a map of the New York City Marathon cohort studies. It points to a newer trial by Toresdahl et al. (2025) in which a hip-focused strength programme was associated with a 64% lower risk of overuse injury, which I have not verified and which would be worth downloading for Section I. The heat and pacing findings are consistent with Section F.",
+   "limits": "The review covers a single race, synthesises heterogeneous studies narratively and does not assess study quality in a way that allows pooled estimates. It should be cited only for descriptive context, and the individual primary studies should be used for evidence cards.",
+   "strength": null
+  },
+  {
+   "id": "mcgrath-et-al-2024",
+   "cite": "McGrath et al. (2024)",
+   "category": "A",
+   "apa": "McGrath, T. M., Fontana, M. A., & Toresdahl, B. G. (2024). Injury patterns and healthcare utilisation by runners of the New York City Marathon. BMJ Open Sport & Exercise Medicine, 10(1), Article e001766. https://doi.org/10.1136/bmjsem-2023-001766",
+   "doi": "10.1136/bmjsem-2023-001766",
+   "facts": {
+    "Design": "Secondary analysis of a 16-week prospective observational cohort",
+    "Participants": "1,049 runners training for the New York City Marathon",
+    "Data": "Injury surveys every 4 weeks, one week before and one week after the race, covering location, diagnosis, onset and treatment",
+    "Note": "Not on the original download list. It uses the same cohort programme as Toresdahl et al. (2020), which is still on the list"
+   },
+   "findings": [
+    "Overall, 42.6% of runners reported an injury, 38.4% during training and 14.1% during the race.",
+    "Foot, knee and hip injuries were most common during training, most injuries affected muscle, tendon, fascia or bursa, and the share of overuse injuries grew as training progressed while acute injuries stayed constant.",
+    "Half of the injured runners (50.1%) sought medical care, and physiotherapy was the most common type of care (11.1% of runners during training).",
+    "About 1 in 23 runners had an MRI during training or after the race."
+   ],
+   "relevance": "This source is useful both for the engine and for the business plan. For the engine, it supports a card explaining that overuse injuries build up during a marathon block, which justifies closer monitoring in the later weeks. For the business plan, it provides evidence that injured runners use physiotherapy more than any other form of care, which supports the Došlap model of connecting runners with physiotherapists.",
+   "limits": "Injuries were self-reported and not clinically confirmed, the sample consisted of a single large-city marathon population in the United States, and healthcare use may differ in the Czech system. It is descriptive and does not identify causes.",
+   "strength": null
+  },
+  {
+   "id": "nielsen-et-al-2018",
+   "cite": "Nielsen et al. (2018)",
+   "category": "A",
+   "apa": "Nielsen, R. O., Bertelsen, M. L., Møller, M., Hulme, A., Windt, J., Verhagen, E., Mansournia, M. A., Casals, M., & Parner, E. T. (2018). Training load and structure-specific load: Applications for sport injury causality and data analyses. British Journal of Sports Medicine, 52(16), 1016–1017. https://doi.org/10.1136/bjsports-2017-097838",
+   "doi": "10.1136/bjsports-2017-097838",
+   "facts": {
+    "Type": "Editorial (conceptual paper without new data), externally peer reviewed",
+    "Core concepts": "Training load, structure-specific cumulative load and structure-specific load capacity",
+    "Main message": "Change in training load should be the primary exposure in studies of injury causes, while body, technique, surface and capacity variables should be treated as effect-measure modifiers",
+    "Version note": "The downloaded PDF is the Online First version from July 2017. The final version appeared in 2018, 52(16), 1016–1017, and is the one to cite."
+   },
+   "findings": [
+    "Training load is defined as a measurable volume such as step count, distance run or time spent training. Changes in it over time, for example week-to-week change or the acute:chronic workload ratio, are used as time-varying exposures.",
+    "Structure-specific cumulative load is the sum of the per-step loads that a given tissue receives during a session. It cannot be measured directly in large studies, so proxy variables are needed.",
+    "Magnitude-related variables such as body weight and vertical movement change how much load each step produces, while distribution-related variables such as equipment, technique and surface change where that load goes. The authors use rearfoot versus forefoot striking as an example.",
+    "Capacity-related variables, including previous or current injury, time between sessions, strength and diet, determine how much load a structure can withstand. Injury occurs when structure-specific load exceeds structure-specific capacity.",
+    "Some modifiers, such as surface, terrain and vertical movement, change within a single session, which may require calculating a session-specific load."
+   ],
+   "relevance": "This paper provides the conceptual justification for the engine's load-versus-capacity quadrant. It supports treating distance or time as the core load signal and using terrain, body mass and previous injury as modifiers of that signal rather than as independent risk scores. Its emphasis on within-session variation also supports analysing individual sessions, which aligns with the single-session approach of Schuster Brandt Frandsen et al. (2025). Because it is an editorial without data, it should support an explanatory card on why the same distance loads runners differently, not a card that states an effect size. It is also relevant to Section B.",
+   "limits": "Expert opinion, which is the lowest level of evidence. The paper offers a framework and analytical recommendations but no quantitative thresholds. Evidence strength for the card: conceptual framework only.",
+   "strength": "conceptual framework only."
+  },
+  {
+   "id": "saragiotto-et-al-2014",
+   "cite": "Saragiotto et al. (2014)",
+   "category": "A",
+   "apa": "Saragiotto, B. T., Yamato, T. P., Hespanhol Junior, L. C., Rainbow, M. J., Davis, I. S., & Lopes, A. D. (2014). What are the main risk factors for running-related injuries? Sports Medicine, 44(8), 1153–1163. https://doi.org/10.1007/s40279-014-0194-6",
+   "doi": "10.1007/s40279-014-0194-6",
+   "facts": {
+    "Design": "Systematic review restricted to prospective cohort studies, six databases searched to December 2012",
+    "Studies included": "11 prospective cohorts with 4,671 pooled participants, in which 60 different risk factors were investigated",
+    "Quality appraisal": "Adapted Newcastle-Ottawa-type scale, with most studies scoring at least 9 of 12 stars",
+    "Synthesis": "Narrative, because heterogeneous statistical methods prevented a meta-analysis",
+    "Main result": "A previous injury in the last 12 months was the most consistent risk factor"
+   },
+   "findings": [
+    "A previous injury, usually within the last 12 months, was a risk factor in 5 of the 8 studies that examined it, with risk estimates between 1.7 and 2.7.",
+    "A weekly distance above 64 km was a risk factor in 2 of 5 studies, a higher Q angle in 2 of 3 studies, and weekly running frequency in 2 of 5 studies. The direction of the frequency finding differed between studies, since one found running once a week to be a risk factor for women.",
+    "Sex was not associated with injury in most of the studies.",
+    "Only one study used random sampling and only six had a follow-up of at least 6 months. Ascertainment of exposure and assessment of outcome were the weakest quality criteria.",
+    "The authors suggest that a previous injury may raise risk either because the earlier injury had not fully healed or because runners change their movement pattern to protect the injured area."
+   ],
+   "relevance": "This review is the strongest source so far for the claim that a previous injury increases the risk of a new one, and it supports treating injury history as an input that makes the engine more conservative. Its findings on training variables are weak and partly inconsistent, so they should not drive engine rules. The 64 km threshold in particular comes from only two studies and concerns mainly high-volume runners.",
+   "limits": "Restricting the review to prospective cohorts is a strength. However, only 11 studies were available, no meta-analysis was possible, the search ended in 2012, and exposure and outcome assessment were weak in most studies. Evidence strength for the card: moderate for previous injury, low for training variables. A different 2014 paper by Saragiotto and colleagues, on what runners believe about injury risk, is already in your database and should not be confused with this one.",
+   "strength": "moderate for previous injury, low for training variables. A different 2014 paper by Saragiotto and colleagues, on what runners believe about injury risk, is already in your database and should not be confused with this one"
+  },
+  {
+   "id": "viljoen-et-al-2022",
+   "cite": "Viljoen et al. (2022)",
+   "category": "A",
+   "apa": "Viljoen, C., Janse van Rensburg, D. C. C., van Mechelen, W., Verhagen, E., Silva, B., Scheer, V., Besomi, M., Gajardo-Burgos, R., Matos, S., Schoeman, M., Jansen van Rensburg, A., van Dyk, N., Scheepers, S., & Botha, T. (2022). Trail running injury risk factors: A living systematic review. British Journal of Sports Medicine, 56(10), 577–587. https://doi.org/10.1136/bjsports-2021-104858",
+   "doi": "10.1136/bjsports-2021-104858",
+   "facts": {
+    "Design": "Living systematic review (PROSPERO CRD42021240832), eight databases searched to 18 March 2021, with updates planned every 6 months for at least 5 years",
+    "Studies included": "19 studies, of which 10 examined risk factors in 2,785 participants",
+    "Population": "Trail runners, defined as running on natural surfaces with less than 20% on paved surfaces, from submarathon to multiday ultramarathon distances",
+    "Study quality": "Mean quality score of 66.7%, mostly cross-sectional designs with univariate analyses, and 80.8% of participants were men",
+    "Main result": "Eight intrinsic and nine extrinsic factors associated with injury, each reported in single studies and not replicated"
+   },
+   "findings": [
+    "Factors reported as associated with higher injury risk were more running experience (over 6 years), being a 'level A' runner, a higher score on the propensity to sports accident questionnaire (PAD-22), neglecting a warm-up, not using a specialised running plan, regular training on asphalt, double training sessions per day and physical labour occupations.",
+    "Muscle cramping in a 161 km race was associated with a history of cramping, post-race markers of muscle damage and a slower finishing time. Sunburn was associated with more than 3 hours of training per day, relying on shade as the main sun protection, younger age, low skin phototype and being single.",
+    "Injury incidence ranged from 0.7 to 61.2 injuries per 1,000 hours of running and prevalence from 1.3% to 90%. The two prospective training studies reported 10.7 injuries per 1,000 hours and a prevalence of 22.4% to 52%, which the authors note is similar to other running literature.",
+    "The foot and toe were the most commonly injured areas, followed by the ankle and the hip or groin. Blisters, joint sprains and tendinopathies were the most common pathology types, and the ankle was reported more often than the knee, which the authors link to uneven trail surfaces."
+   ],
+   "relevance": "This is the only systematic synthesis of trail-specific injury risk in the download list, and it gives useful context for trail runners using Došlap, especially the prominence of ankle sprains and foot blisters on technical terrain. However, the authors themselves restrict the clinical use of the risk factors because they come mostly from small, retrospective, cross-sectional studies. For this reason, I would not use any single risk factor from this review as an engine trigger. The review is better suited to a context card describing the typical injury profile in trail running. Because it is a living review, a later update may exist and should be checked before the card is finalised. It is also relevant to Section E.",
+   "limits": "Overall certainty is low. Several factors listed as significant come from one Greek study of 40 runners with self-reported injuries, and the review reports p-values above .05 for some of them (not using a specialised running plan p = .0995, double sessions per day p = .06, level A runner p = .067, physical labour p = .058) while still describing them as significant. This inconsistency should be kept in mind when writing the card. Race-based studies focused mainly on ultramarathons, which may overstate the share of blisters, and findings may transfer poorly to women. Evidence strength for the card: very low for individual risk factors, low to moderate for the descriptive injury profile.",
+   "strength": "very low for individual risk factors, low to moderate for the descriptive injury profile."
+  },
+  {
+   "id": "bourdon-et-al-2017",
+   "cite": "Bourdon et al. (2017)",
+   "category": "B",
+   "apa": "Bourdon, P. C., Cardinale, M., Murray, A., Gastin, P., Kellmann, M., Varley, M. C., Gabbett, T. J., Coutts, A. J., Burgess, D. J., Gregson, W., & Cable, N. T. (2017). Monitoring athlete training loads: Consensus statement. International Journal of Sports Physiology and Performance, 12(Suppl. 2), S2-161–S2-170. https://doi.org/10.1123/ijspp.2017-0208",
+   "doi": "10.1123/ijspp.2017-0208",
+   "facts": {
+    "Type": "Consensus statement from an expert conference ('Monitoring Athlete Training Loads: The Hows and the Whys', Doha, February 2016)",
+    "Authors": "11 sport scientists and practitioners, including Gabbett, Coutts and Kellmann",
+    "Scope": "Definitions of internal and external load, measurement methods across sports, analysis models, the link between load and injury, and the future of monitoring",
+    "Main message": "Internal and external load should be combined, monitoring should be individualised, and no single measure can accurately quantify fitness and fatigue or predict performance"
+   },
+   "findings": [
+    "Internal load is defined as the relative physiological and psychological stress imposed on the athlete (for example heart rate, lactate or RPE), and external load as the work performed, measured independently of internal load (for example speed, distance, power or GPS data).",
+    "The two should be used together, because the same external session can produce a different internal load depending on fatigue, emotional state, recent training or illness. A higher internal load for a standard external load may indicate fatigue or reduced fitness, while a lower one suggests the athlete is coping and gaining fitness.",
+    "Psychological measures are described as more sensitive and consistent than physiological indicators in overtraining studies, and they can be reported within minutes rather than days.",
+    "The ACWR is described as a simplification of Banister's fitness-fatigue model. The statement reports its association with injury in team sports but also notes that its validity has been questioned because rolling averages ignore the decaying effect of past load. An exponentially weighted moving average is suggested as an alternative, although further research is needed.",
+    "Fitness-fatigue and neural-network models are judged to be of little practical benefit for predicting individual performance, while the statement also notes that undertraining and 'troughs' in load may be as harmful as 'spikes'."
+   ],
+   "relevance": "This statement supports the engine's core design of combining watch data (external load) with heart rate and subjective check-ins (internal load). The idea that a rising heart rate or effort at a familiar pace can signal fatigue is directly usable as a readiness signal, provided pace, terrain and weather are controlled for, which the authors themselves stress. The critical remarks on the ACWR and the suggestion to use exponentially weighted averages are relevant if the engine uses a ratio of recent to chronic load. The statement's caution that no single metric predicts performance also supports how the AI texts should present the engine's recommendations.",
+   "limits": "This is an expert consensus rather than a systematic review, and it focuses mainly on elite sport. Several authors, including Gabbett, are closely associated with the ACWR. Evidence strength for the card: moderate as a framework for combining internal and external load, low for any specific threshold.",
+   "strength": "moderate as a framework for combining internal and external load, low for any specific threshold."
+  },
+  {
+   "id": "foster-et-al-2001",
+   "cite": "Foster et al. (2001)",
+   "category": "B",
+   "apa": "Foster, C., Florhaug, J. A., Franklin, J., Gottschall, L., Hrovatin, L. A., Parker, S., Doleshal, P., & Dodge, C. (2001). A new approach to monitoring exercise training. Journal of Strength and Conditioning Research, 15(1), 109–115. https://doi.org/10.1519/00124278-200102000-00019",
+   "doi": "10.1519/00124278-200102000-00019",
+   "facts": {
+    "Design": "Two-part validation study comparing the session RPE method with a heart-rate-based reference method",
+    "Participants": "Part 1: 12 recreational-level, well-trained cyclists (6 men, 6 women). Part 2: 14 players from a collegiate men's basketball team",
+    "Method tested": "Session RPE: about 30 minutes after a session, the athlete rates its overall difficulty on a modified 0 to 10 category-ratio scale, and this rating is multiplied by session duration in minutes",
+    "Reference method": "Summated heart-rate zone score, in which minutes in five zones (50% to 100% of peak heart rate) are weighted 1 to 5 and summed",
+    "Sessions": "Steady-state cycling of 30, 60 and 90 minutes, five interval formats at the same mean power, and basketball practice and games",
+    "Main result": "Session RPE scores were consistently higher in absolute terms but followed the heart-rate method closely and consistently across very different types of exercise",
+    "Note": "The downloaded PDF is a scanned copy with imperfect text recognition, so figures were checked against the readable tables."
+   },
+   "findings": [
+    "Across steady-state exercise, interval exercise and basketball, the session RPE method produced a consistent relationship with the summated heart-rate zone method, and the regression lines for the two very different groups nearly overlapped.",
+    "In absolute terms, session RPE gave significantly higher scores than the heart-rate method for most sessions (for example, 744 versus 652 units for basketball and 432 versus 350 units for 90 minutes of steady cycling). The authors argue that this is expected, because the heart-rate method caps intensity at five zones.",
+    "The authors conclude that session RPE is a valid way to quantify training across a wide variety of exercise, including high-intensity intervals where heart rate works less well, and that it does not require knowledge of maximal heart rate.",
+    "From daily session RPE loads, the authors derive weekly load as well as training 'monotony' (mean daily load divided by its standard deviation) and 'strain' (weekly load multiplied by monotony), which they suggest may indicate the likelihood of negative training outcomes.",
+    "In the authors' experience, most athletes can use the method with minimal instruction, typically by answering the question 'How was your workout?'"
+   ],
+   "relevance": "Session RPE is the simplest way for the engine to capture internal load, since it only needs one rating per session combined with the duration that Garmin already records. It directly supports adding a post-run effort rating to the check-in and combining it with watch data. The method is also useful where heart rate is unreliable, for example during short intervals or on technical terrain. The concepts of monotony and strain could inform the weekly summary, although this paper proposes them without testing whether they predict injury or illness.",
+   "limits": "The samples were small and did not include runners, and the comparison was with another load estimate rather than with an injury or performance outcome. The paper shows that session RPE tracks heart-rate load, not that it prevents injury. Evidence strength for the card: moderate for session RPE as a valid measure of internal load, very low for monotony and strain as warning signals.",
+   "strength": "moderate for session RPE as a valid measure of internal load, very low for monotony and strain as warning signals."
+  },
+  {
+   "id": "gabbett-2016",
+   "cite": "Gabbett (2016)",
+   "category": "B",
+   "apa": "Gabbett, T. J. (2016). The training–injury prevention paradox: Should athletes be training smarter and harder? British Journal of Sports Medicine, 50(5), 273–280. https://doi.org/10.1136/bjsports-2015-095788",
+   "doi": "10.1136/bjsports-2015-095788",
+   "facts": {
+    "Type": "Narrative review presenting a conceptual model, single author",
+    "Evidence base": "Mainly team-sport studies (rugby league, rugby union, Australian football, cricket), partly supplemented by unpublished data from the author's own work",
+    "Main message": "Athletes accustomed to high training loads have fewer injuries, and non-contact injuries are more likely caused by excessive and rapid increases in load than by training itself",
+    "Key metric": "Acute:chronic workload ratio (ACWR), with about 0.8 to 1.3 described as a 'sweet spot' and 1.5 or more as a 'danger zone'",
+    "Version note": "The downloaded PDF is the Online First version from January 2016. The final version is 50(5), 273–280, and is the one to cite."
+   },
+   "findings": [
+    "The paper proposes the 'training-injury prevention paradox', whereby athletes accustomed to high training loads have fewer injuries than athletes training at lower loads. Appropriately graded hard training is presented as protective because it develops physical qualities associated with lower injury risk.",
+    "Both too little and too much training are described as raising injury risk, a U-shaped relationship reported in cricket fast bowlers and also in baseball and rugby union.",
+    "Based on unpublished modelling of the author's own data, injury risk was below 10% when weekly load stayed between 5% less and 10% more than the previous week, but rose to between 21% and 49% when load increased by 15% or more. On this basis, the author recommends limiting weekly increases to less than 10%.",
+    "Acute load is defined as the load of roughly the last week and chronic load as the rolling average of the last 3 to 6 weeks. In cricket fast bowlers, an ACWR of 1.5 or more was followed by a 2 to 4 times greater injury risk in the next 7 days. Drawing on cricket, Australian football and rugby league, the author presents 0.8 to 1.3 as a low-risk range.",
+    "The author himself cautions that load-injury relationships may differ between sports and that applying these thresholds to athletes in individual sports should be done with caution."
+   ],
+   "relevance": "This paper is the origin of two ideas the engine may draw on, namely that chronic load protects as well as endangers, and that recent load relative to longer-term load matters more than either on its own. The protective role of chronic load fits the engine's load-versus-capacity logic and supports messages that encourage consistent training rather than simply cutting load. However, its specific thresholds should not be imported directly into Došlap. The recommendation of less than 10% per week rests on unpublished team-sport data and conflicts with the running-specific evidence in Section A, notably Buist et al. (2008) and Fredette et al. (2022). The ACWR itself has since been criticised on conceptual and statistical grounds, so the critique by Impellizzeri et al. (2020) should be read before any ACWR-based card is written.",
+   "limits": "This is a narrative review and expert opinion by the author who popularised the ACWR, and it relies largely on team sports and partly on unpublished data. None of the cited evidence comes from recreational runners. Evidence strength for the card: low for the specific thresholds, moderate for the general principle that well-prepared athletes tolerate load better.",
+   "strength": "low for the specific thresholds, moderate for the general principle that well-prepared athletes tolerate load better."
+  },
+  {
+   "id": "halson-2014a",
+   "cite": "Halson (2014a)",
+   "category": "B",
+   "apa": "Halson, S. L. (2014a). Monitoring training load to understand fatigue in athletes. Sports Medicine, 44(Suppl. 2), 139–147. https://doi.org/10.1007/s40279-014-0253-z",
+   "doi": "10.1007/s40279-014-0253-z",
+   "facts": {
+    "Type": "Narrative review, single author (Australian Institute of Sport), open access",
+    "Scope": "External and internal load measures, markers of fatigue, current monitoring practice, individualisation and how to judge meaningful change",
+    "Main message": "Very few load and fatigue markers have strong scientific support, no single definitive marker exists, and monitoring should be individualised",
+    "Citation note": "Because Halson has a second 2014 paper in Section G, this one is cited as 2014a and the sleep review as 2014b."
+   },
+   "findings": [
+    "External load is the work completed by the athlete, whereas internal load is the athlete's physiological and perceptual response. A dissociation between the two may reveal the athlete's state of fatigue.",
+    "Session RPE (RPE on a 1 to 10 scale multiplied by session duration) is described as simple, valid and reliable, with individual correlations with heart-rate-zone scores of 0.75 to 0.90, although adding heart rate may explain some of the variance it misses.",
+    "Heart rate can vary by up to 6.5% from day to day at submaximal intensity, so hydration, environment and medication should be controlled for. Heart rate recovery may track training status, although findings on overreaching are conflicting.",
+    "Findings on HRV are inconsistent because of differing methods and high day-to-day variability. Weekly or 7-day rolling averages are suggested to be more valid than single-day values, with Ln rMSSD as the preferred index.",
+    "Biochemical, hormonal and immune markers are not currently justified for routine monitoring, whereas simple questionnaires and sleep diaries or actigraphy are considered useful. The author also warns against arbitrary cut-offs such as a change greater than 5%, and recommends judging change against each measure's typical error and smallest worthwhile change."
+   ],
+   "relevance": "This review supports several of the engine's design choices at once. It justifies using session RPE alongside watch data, interpreting HRV as a rolling average rather than a single morning value, and comparing each runner against their own baseline rather than against fixed population thresholds. The warning about day-to-day heart-rate variation and environmental influences is also relevant to how the engine interprets heart rate on hot days or hilly terrain. The HRV points should be linked to Plews et al. (2013) in Section C, which the review cites.",
+   "limits": "This is a narrative review without systematic search or quality appraisal, written mainly from the perspective of elite sport. Its recommendations reflect expert judgement rather than tested effects on injury or performance. Evidence strength for the card: moderate as a supporting reference for monitoring principles, low as a sole source.",
+   "strength": "moderate as a supporting reference for monitoring principles, low as a sole source."
+  },
+  {
+   "id": "saw-et-al-2016",
+   "cite": "Saw et al. (2016)",
+   "category": "B",
+   "apa": "Saw, A. E., Main, L. C., & Gastin, P. B. (2016). Monitoring the athlete training response: Subjective self-reported measures trump commonly used objective measures: A systematic review. British Journal of Sports Medicine, 50(5), 281–291. https://doi.org/10.1136/bjsports-2015-094758",
+   "doi": "10.1136/bjsports-2015-094758",
+   "facts": {
+    "Design": "Systematic review of Academic Search Complete, MEDLINE, PsycINFO, SPORTDiscus and PubMed, searched in May 2014",
+    "Studies included": "56 original studies of athletes reporting concurrent subjective and objective measures of well-being",
+    "Subjective": "Mainly the Profile of Mood States (POMS), the",
+    "measures": "indices, oxygen uptake and performance tests",
+    "Objective": "Blood markers, hormones, immune markers, heart rate",
+    "Main result": "Subjective measures reflected acute and chronic training load with greater sensitivity and consistency than objective measures, and the two generally did not correlate",
+    "Version note": "The downloaded PDF is the Online First version from September 2015. The final version is 50(5), 281–291."
+   },
+   "findings": [
+    "Subjective well-being was typically impaired after an acute increase in training load and with ongoing chronic training, whereas an acute decrease in training load improved it.",
+    "Where subjective and objective measures differed within the same study (46% of studies), 85% of these differences favoured the subjective measures.",
+    "Objective measures were generally unresponsive to acute changes in load, with only creatine kinase and performance tests showing a typical response to both increases and decreases.",
+    "Individual subscales were more sensitive than total scores. For monitoring acute well-being, the authors suggest items on vigour or motivation, physical symptoms or injury, non-training stress, fatigue, physical recovery, general health and being in shape, and they note that sleep, irritability, willingness to train and how training felt may also be useful.",
+    "The authors conclude that subjective measures may stand alone or be combined with objective measures, since the two appear to capture different aspects of the athlete's state."
+   ],
+   "relevance": "This review provides the strongest justification in the list for giving the runner's own check-in real weight in the engine's readiness assessment, rather than relying on watch data alone. It also suggests which items a short daily check-in should contain, such as fatigue, muscle soreness or symptoms, motivation, stress outside training and sleep. Because single subscales were more informative than total scores, the engine may benefit from keeping check-in items separate rather than collapsing them into one number. This last point is my own inference applied to the engine and was not tested in the review.",
+   "limits": "The included studies were small and heterogeneous, used different questionnaires and timeframes, and mostly involved elite or highly trained athletes. The objective measures were largely laboratory and blood markers, so the review does not directly compare check-ins with wearable metrics such as HRV. In one place the results section states that well-being improved with an acute increase in load, which contradicts the abstract and discussion and is probably an error in the text. Evidence strength for the card: moderate.",
+   "strength": "moderate."
+  },
+  {
+   "id": "manresa-rocamora-et-al-2021",
+   "cite": "Manresa-Rocamora et al. (2021)",
+   "category": "C",
+   "apa": "Manresa-Rocamora, A., Sarabia, J. M., Javaloyes, A., Flatt, A. A., & Moya-Ramón, M. (2021). Heart rate variability-guided training for enhancing cardiac-vagal modulation, aerobic fitness, and endurance performance: A methodological systematic review with meta-analysis. International Journal of Environmental Research and Public Health, 18(19), Article 10299. https://doi.org/10.3390/ijerph181910299",
+   "doi": "10.3390/ijerph181910299",
+   "facts": {
+    "Design": "Systematic review with random-effects meta-analysis of Web of Science, PubMed and Embase, searched to October 2020",
+    "Studies included": "8 studies with 10 analysis units (7 randomised), 199 participants (106 HRV-guided, 93 predefined), ranging from sedentary adults to high-level athletes and including two groups of runners",
+    "Comparison": "Training adjusted day to day according to HRV versus a predefined training plan",
+    "Risk of bias": "Unclear to high for selection and detection bias, since most studies did not report how randomisation was done and only one blinded its assessors",
+    "Main result": "A small significant advantage for vagal HRV (SMD 0.50) and small, non-significant advantages for fitness and performance (SMD 0.20 to 0.26)"
+   },
+   "findings": [
+    "HRV-guided training improved vagal-related HRV more than predefined training (SMD 0.50, 95% CI 0.09 to 0.91), but not resting heart rate (SMD 0.04).",
+    "For maximal aerobic capacity (SMD 0.20, 95% CI −0.07 to 0.47), capacity at the second ventilatory threshold (SMD 0.26, 95% CI −0.05 to 0.57) and endurance performance (SMD 0.20, 95% CI −0.09 to 0.48), effects consistently favoured HRV-guided training but were small and not statistically significant. No heterogeneity was found for these outcomes.",
+    "Individual responses were more uniform with HRV guidance. In one running study, VO₂max fell in 1 runner after HRV-guided training (11.1%) versus 4 runners after predefined training (50.0%), and in one cycling study performance declined in 14.3% versus 37.5% of athletes.",
+    "The studies differed in method. Some compared single daily values with a rolling reference of about 10 values, whereas others compared rolling averages with a fixed 3- to 4-week baseline. Rolling averages lead to fewer training changes, and it remains unclear which approach works better.",
+    "The authors conclude that HRV-guided training may maintain and improve vagal HRV with less likelihood of negative responses, but that any group-level advantage for fitness and performance is small."
+   ],
+   "relevance": "This is the best available estimate of what HRV guidance actually achieves, and it sets realistic expectations for how Došlap describes its readiness logic. Cards should present HRV guidance as a way to lower the chance of responding badly to training, rather than as a way to gain fitness faster. The comparison of daily and rolling approaches is directly relevant to the engine's design, even though the review cannot say which is better. This is the source to cite for the meta-analytic figures quoted by Schaffarczyk and Sperlich (2026).",
+   "limits": "Only 8 small studies were available, with mixed populations, inconsistent methods, short interventions and unclear to high risk of bias. Evidence strength for the card: moderate for the claim that group-level benefits are small or absent, low for the claim of fewer negative responders, which rests on a few individual studies.",
+   "strength": "moderate for the claim that group-level benefits are small or absent, low for the claim of fewer negative responders, which rests on a few individual studies."
+  },
+  {
+   "id": "mendoza-et-al-2026",
+   "cite": "Mendoza et al. (2026)",
+   "category": "C",
+   "apa": "Mendoza, M. F., Anzelmo, M. A., Rojas, A. A., Suan, N. M., & Lavie, C. J. (2026). Exercise training and heart rate variability: A guided optimization of cardiorespiratory fitness in cardiometabolic disease. Current Atherosclerosis Reports, 28(1), Article 77. https://doi.org/10.1007/s11883-026-01439-7",
+   "doi": "10.1007/s11883-026-01439-7",
+   "facts": {
+    "Type": "Narrative review in a cardiology journal",
+    "Population focus": "People with cardiometabolic disease (type 2 diabetes, obesity and metabolic syndrome), not athletes",
+    "Scope": "Cardiorespiratory fitness, aerobic and resistance training, HRV-guided training and consumer wearables (Garmin, Apple Watch, WHOOP, Oura, Polar)",
+    "Note": "Published in 2026 and not on the original download list. Its metadata were verified through Crossref."
+   },
+   "findings": [
+    "The review proposes a three-step HRV-guided model. First, a baseline is established from 7 to 14 days of near-daily recordings. Second, daily morning HRV is compared with the individual's rolling average and normal range. Third, high-intensity or threshold sessions are done only when HRV is within or above that range, and moderate aerobic work replaces them when HRV is below it.",
+    "Absolute HRV varies strongly between individuals by age, sex, fitness and genetics, so only within-person trends are meaningful. HRV markedly above baseline together with declining performance or persistent fatigue should raise suspicion of overreaching.",
+    "The review summarises evidence that HRV-guided training achieved similar or better gains with fewer high-intensity sessions, citing Vesterinen et al. (2016) in recreational runners and a trial in patients with coronary artery disease.",
+    "Consumer wearables estimate HRV optically from pulse waves, which can disagree with ECG-derived HRV, particularly in people with cardiometabolic disease. Accuracy is best at rest or during sleep, which is why most devices rely on overnight or morning recordings."
+   ],
+   "relevance": "The relevance for Došlap is limited. Its three-step model is a clear practical summary that matches the engine's approach, and its note on overnight optical measurement is relevant to Garmin data. However, its target population is clinical, and its suggestion that HRV-guided training may reduce injury risk is not supported by data in the review. For runner-facing cards, the primary sources it cites, Vesterinen et al. (2016) and Plews et al. (2014), should be used instead.",
+   "limits": "This is a narrative review without a systematic search or quality appraisal, and it focuses on patients. The runner data it reports are second-hand and should be checked against Vesterinen et al. (2016) once that paper is downloaded. Evidence strength for the card: very low for runners.",
+   "strength": "very low for runners."
+  },
+  {
+   "id": "plews-et-al-2012",
+   "cite": "Plews et al. (2012)",
+   "category": "C",
+   "apa": "Plews, D. J., Laursen, P. B., Kilding, A. E., & Buchheit, M. (2012). Heart rate variability in elite triathletes, is variation in variability the key to effective training? A case comparison. European Journal of Applied Physiology, 112(11), 3729–3741. https://doi.org/10.1007/s00421-012-2354-4",
+   "doi": "10.1007/s00421-012-2354-4",
+   "facts": {
+    "Design": "Case comparison with 77 days of daily morning HRV monitoring",
+    "Participants": "Two elite triathletes (a man aged 22 with VO₂max 72.5 and a woman aged 20 with VO₂max 68.2 ml/kg/min) training 23 ± 2 hours per week",
+    "Event": "The female athlete performed poorly in a key race, was diagnosed as non-functionally overreached (NFOR) and later developed shingles, whereas the male athlete served as the control",
+    "Measures": "Morning supine Ln rMSSD, its 7-day rolling average, the coefficient of variation (CV) of that average, resting heart rate, and daily ratings of sleep quality, muscle soreness and fatigue",
+    "Main result": "The 7-day rolling Ln rMSSD and its day-to-day variation declined toward NFOR, while both remained stable in the control athlete"
+   },
+   "findings": [
+    "In the NFOR athlete, the 7-day rolling average of Ln rMSSD declined steadily towards the race, whereas it remained stable in the control athlete.",
+    "The day-to-day variation of HRV also fell progressively in the NFOR athlete (about −0.65% per week) but not in the control. The authors suggest that unusually stable HRV may be an early sign of NFOR, and that this marker can be used whether HRV rises or falls.",
+    "Single-day values were unreliable. In the control athlete, who was training well, 63.6% of single-day values fell outside the individual smallest worthwhile change, whereas after weekly averaging 18.2% fell above and 18.2% below it.",
+    "HRV showed a slightly stronger trend toward NFOR than resting heart rate, which also rose gradually.",
+    "The authors suggest that two consecutive weeks of unfavourable HRV trends may be more cause for concern than a single week."
+   ],
+   "relevance": "This case supports the engine's use of a 7-day rolling HRV and points to a secondary signal, unusually low day-to-day HRV variation, that the engine could monitor. It also supports requiring a sustained trend, for example two consecutive weeks, before HRV triggers a readiness warning, rather than reacting to one bad day or week. Because these ideas come from only two athletes, they should be treated as hypotheses rather than rules.",
+   "limits": "This is a descriptive comparison of two elite triathletes around a single event. The paper also reports some r² values as negative, which is not mathematically possible and presumably reflects the direction of the slope. Evidence strength for the card: very low, useful mainly as an illustration.",
+   "strength": "very low, useful mainly as an illustration."
+  },
+  {
+   "id": "plews-et-al-2013",
+   "cite": "Plews et al. (2013)",
+   "category": "C",
+   "apa": "Plews, D. J., Laursen, P. B., Stanley, J., Kilding, A. E., & Buchheit, M. (2013). Training adaptation and heart rate variability in elite endurance athletes: Opening the door to effective monitoring. Sports Medicine, 43(9), 773–781. https://doi.org/10.1007/s40279-013-0071-8",
+   "doi": "10.1007/s40279-013-0071-8",
+   "facts": {
+    "Type": "Current opinion article (narrative review with case data), one of the engine v3 references",
+    "Evidence base": "Literature on sedentary to elite endurance athletes, plus daily morning HRV data from Olympic and World Champion rowers",
+    "Measurement": "Morning HRV on waking, supine, analysed over the last 5 minutes of a 6-minute recording",
+    "Main message": "HRV monitoring is promising, but responses are individual and depend on training history, so a weekly or 7-day rolling Ln rMSSD compared with the individual's smallest worthwhile change is recommended"
+   },
+   "findings": [
+    "In sedentary and recreationally trained people, endurance training typically increases both aerobic fitness and HRV. In one cited study, improvements in 10 km time were strongly correlated with increases in resting HRV (r = −0.73).",
+    "Very high training loads typically reduce HRV, which then rebounds during lighter training. After 3 weeks of overload, HRV fell by 22% in swimmers and by 38% in distance runners, and it rose again once training was reduced.",
+    "In elite and highly trained athletes the relationship between HRV and fitness or load is bell-shaped, and overtraining studies have reported increases, decreases and no change in HRV. HRV may also fall despite a lower resting heart rate, which the authors call HRV 'saturation'.",
+    "Single-day values can be misleading. In one cited study, changes in 10 km performance correlated very strongly with weekly averaged HRV (r = −0.76) but not with single-day values (r = −0.17).",
+    "The authors recommend using one index, Ln rMSSD, which has a much lower day-to-day error than spectral indices (coefficient of variation 12.3% versus 52.0%), assessed as a weekly or 7-day rolling average against the individual's smallest worthwhile change. In elite athletes, the ratio of Ln rMSSD to R–R interval can help distinguish saturation from fatigue."
+   ],
+   "relevance": "This is the core source for how the engine should treat HRV. It supports using one index, averaged over a week or a rolling 7 days, and comparing it with the runner's own normal range, which means a single low morning value should not on its own change the recommendation. The bell-shaped response in highly trained athletes also means that a rising HRV is not automatically good news, which matters for experienced Došlap users. Garmin records HRV overnight with a wrist sensor rather than as a supine morning recording, so the numerical values in this paper cannot be transferred one-to-one. This last caveat is my own and is not discussed by the authors.",
+   "limits": "This is an opinion article with case examples from a few elite rowers and no systematic search. Evidence strength for the card: moderate for the recommendation to average HRV over several days, which is supported by Plews et al. (2012, 2014), and low for the elite-specific interpretation.",
+   "strength": "moderate for the recommendation to average HRV over several days, which is supported by Plews et al. (2012, 2014), and low for the elite-specific interpretation"
+  },
+  {
+   "id": "plews-et-al-2014",
+   "cite": "Plews et al. (2014)",
+   "category": "C",
+   "apa": "Plews, D. J., Laursen, P. B., Le Meur, Y., Hausswirth, C., Kilding, A. E., & Buchheit, M. (2014). Monitoring training with heart-rate variability: How much compliance is needed for valid assessment? International Journal of Sports Physiology and Performance, 9(5), 783–790. https://doi.org/10.1123/ijspp.2013-0455",
+   "doi": "10.1123/ijspp.2013-0455",
+   "facts": {
+    "Design": "Secondary analysis of two published data sets, in which 1 to 7 randomly selected days per week were averaged and compared",
+    "Participants": "20 trained triathletes (13 functionally overreached, 7 controls) over 5 weeks, including 3 weeks of overload with 40% more load and a taper, and 10 recreational runners who responded to a 9-week training programme",
+    "Measurement": "Morning supine Ln rMSSD recorded with a chest-strap heart rate monitor",
+    "Main result": "At least 3 valid recordings per week were needed in trained triathletes and about 5 in recreational runners",
+    "Version note": "The downloaded PDF is the accepted manuscript from November 2013. The final version is 9(5), 783–790, and is the one to cite."
+   },
+   "findings": [
+    "In the triathletes, the standardised change in Ln rMSSD during overload stabilised once at least 3 days per week were averaged (0.20 with 1 day, 0.49 with 3 days and 0.43 with 7 days), and correlations with performance stabilised after 4 days.",
+    "Recreational runners had larger day-to-day variation in HRV (CV about 10% versus about 7% in the triathletes at baseline). Their positive adaptation to training was only reliably detected after averaging 5 days, and the correlation with 10 km performance had not stabilised even at 7 days.",
+    "The authors conclude that trained athletes need at least 3 valid recordings per week and less trained individuals probably around 5.",
+    "In the functionally overreached triathletes, HRV increased rather than decreased during overload, and after the taper HRV fell in some athletes and rose in others, even though all of them improved their performance. The authors stress that HRV responses are individual.",
+    "The authors also note that in an earlier study only 14 of 40 athletes collected enough morning recordings to be included, which shows that compliance is a real practical problem."
+   ],
+   "relevance": "This study gives the engine a concrete data-quality rule: HRV should only influence the recommendation once there are enough valid recordings, about 5 per week for recreational runners and at least 3 for well-trained runners. Garmin records HRV automatically overnight, so compliance may be higher than with manual morning recordings, but nights without valid data should still be counted. This application to Garmin is my own inference. The finding that HRV rose during functional overreaching also reinforces that the engine should not treat a higher HRV as always positive.",
+   "limits": "The analysis is based on two small data sets, only one performance test was available for the runners, and the recordings were manual morning measurements rather than overnight wearable data. Evidence strength for the card: low to moderate.",
+   "strength": "low to moderate."
+  },
+  {
+   "id": "schaffarczyk-and-sperlich-2026",
+   "cite": "Schaffarczyk and Sperlich (2026)",
+   "category": "C",
+   "apa": "Schaffarczyk, M., & Sperlich, B. (2026). Heart rate variability–guided endurance training: Evaluating strengths, weaknesses, opportunities, and threats for load prescription and adjustment. Frontiers in Sports and Active Living, 8, Article 1858271. https://doi.org/10.3389/fspor.2026.1858271",
+   "doi": "10.3389/fspor.2026.1858271",
+   "facts": {
+    "Type": "Perspective article using a strengths, weaknesses, opportunities and threats (SWOT) framework, not a systematic review",
+    "Evidence base": "Mainly the two 2021 meta-analyses of HRV-guided training (Düking et al. and Manresa-Rocamora et al., each with 8 controlled studies), plus methodological and wearable literature",
+    "Main message": "The main limitation of HRV-guided training is no longer the availability of data but the lack of transparent, physiologically grounded rules for turning HRV into training decisions",
+    "Note": "Published on 27 August 2026 and not on the original download list. Its metadata were verified through Crossref."
+   },
+   "findings": [
+    "According to the two 2021 meta-analyses, HRV-guided training gave no significant advantage for VO₂max or endurance performance (pooled effects trivial to small), whereas effects on submaximal and threshold-related outcomes and on vagal HRV were more favourable. Individual studies also reported fewer negative responders.",
+    "Current practice has moved from single-day values to 7-day rolling averages interpreted against individual normal ranges, with Ln rMSSD as the preferred index. Resting heart rate, the Ln rMSSD to R–R ratio and the day-to-day variation of Ln rMSSD are proposed as complementary markers.",
+    "HRV is described as a global and non-specific marker that also responds to illness, alcohol, menstrual cycle phase, sleep, hydration and environmental factors. Higher HRV is not inherently favourable, and HRV says little about muscle recovery, so it should not be the sole basis for training decisions.",
+    "Wrist and ring wearables measure pulse rate variability optically, which is not fully interchangeable with ECG-derived HRV, although it may give acceptable estimates for standardised monitoring at rest.",
+    "Trials have used many different decision rules, such as the individual mean ± 0.5 SD or a rolling 4-week average ± 0.5 SD, and there is no consensus on which is best. Commercial readiness scores are criticised as opaque and insufficiently validated, and the authors call for frameworks that state which signals are used, how they are weighted and how conflicting signals are resolved."
+   ],
+   "relevance": "This paper is highly relevant, because it describes almost exactly the design problem Došlap is addressing. It supports the principle in the Phase 2 plan that the engine is the transparent source of truth and the AI only explains its recommendation, and it argues against relying on proprietary readiness scores. It also lists concrete decision rules used in trials, such as the mean ± 0.5 SD, which the engine could adopt while stating that none is established as best. For any evidence card, the meta-analytic results it summarises should be cited from the primary meta-analysis by Manresa-Rocamora et al. (2021), which is summarised in this section.",
+   "limits": "This is a perspective paper by two authors without a systematic search, and its evidence summaries are second-hand. Evidence strength for the card: useful as a framework and for the limits field, not as the source of an effect claim.",
+   "strength": "useful as a framework and for the limits field, not as the source of an effect claim."
+  },
+  {
+   "id": "casado-et-al-2022",
+   "cite": "Casado et al. (2022)",
+   "category": "D",
+   "apa": "Casado, A., González-Mohíno, F., González-Ravé, J. M., & Foster, C. (2022). Training periodization, methods, intensity distribution, and volume in highly trained and elite distance runners: A systematic review. International Journal of Sports Physiology and Performance, 17(6), 820–833. https://doi.org/10.1123/ijspp.2021-0435",
+   "doi": "10.1123/ijspp.2021-0435",
+   "facts": {
+    "Design": "Systematic review of PubMed/MEDLINE, Scopus and Web of Science",
+    "Studies included": "10 studies of highly trained and elite middle- and long-distance runners, including 4 case studies and only 4 experimental studies",
+    "Quality appraisal": "15-item checklist, with a mean score of 12.5 out of 15",
+    "Main result": "Elite distance runners typically follow a pyramidal intensity distribution that shifts toward a polarised distribution in the competitive period",
+    "Version note": "The downloaded PDF is the ahead-of-print version from April 2022. The final version is 17(6), 820–833."
+   },
+   "findings": [
+    "Three intensity zones are defined: zone 1 at or below the first threshold, zone 2 between the first and second thresholds, and zone 3 above the second threshold. In a pyramidal model about 80% of volume is in zone 1 and the remainder decreases from zone 2 to zone 3, whereas in a polarised model most of the remaining 20% is spent in zone 3.",
+    "Elite runners usually trained pyramidally during preparatory periods and became more polarised during the competitive period. Marathon runners trained more pyramidally and 1500 m runners more polarised.",
+    "A 'hard day–easy day' pattern was routinely observed, with at least three easy days per week and a long run that typically drifted from zone 1 into zone 2.",
+    "Higher performance was associated with higher training volume, typically 110 to 195 km per week, and with at least one session near the second threshold and one session in zone 3 each week.",
+    "The authors acknowledge that most studies were observational or case studies, so they cannot show whether a pyramidal or a polarised approach is superior, and their conclusions assume that elite runners optimise their own training."
+   ],
+   "relevance": "This review shows that the rigid '80/20 polarised' message is too simple even for elite runners, many of whom use a pyramidal distribution with meaningful threshold work. For the engine, the robust common principles are a large share of easy running and a hard-day, easy-day structure, rather than a fixed polarised template. Its volume figures, above 100 km per week, describe elite athletes and should not be used as targets for Došlap users.",
+   "limits": "Only 10 studies were available, several were case studies, and the comparison between event distances was made within a single coach's training group. Evidence strength for the card: low to moderate, since it describes elite practice rather than testing it.",
+   "strength": "low to moderate, since it describes elite practice rather than testing it."
+  },
+  {
+   "id": "seiler-2010",
+   "cite": "Seiler (2010)",
+   "category": "D",
+   "apa": "Seiler, S. (2010). What is best practice for training intensity and duration distribution in endurance athletes? International Journal of Sports Physiology and Performance, 5(3), 276–291. https://doi.org/10.1123/ijspp.5.3.276",
+   "doi": "10.1123/ijspp.5.3.276",
+   "facts": {
+    "Type": "Brief narrative review, single author, one of the engine v3 references",
+    "Evidence base": "Descriptive studies of national and international endurance athletes training 10 to 13 times per week, plus studies that intensified the training of well-trained athletes",
+    "Main message": "Successful endurance athletes do about 80% of sessions at low intensity (below about 2 mmol/L blood lactate) and about 20% at threshold or high intensity, and adding more high-intensity training for already well-trained athletes shows no convincing long-term benefit"
+   },
+   "findings": [
+    "Across descriptive studies, about 80% of training sessions are performed at low intensity and about 20% involve threshold or high-intensity work, which for an athlete training 10 to 14 times per week means two to three hard sessions.",
+    "Adding two interval sessions per week for 4 to 8 weeks improved performance by 2% to 4% in well-trained athletes who had been doing only basic endurance training. However, further increases in interval frequency brought no additional benefit and tended to cause signs of overreaching.",
+    "In a cited study of Spanish distance runners with matched total load, the group that did more low-intensity training (81% versus 67% of time) improved race time more (−157 versus −121.5 s).",
+    "Heart-rate time-in-zone analysis overestimates easy time and underestimates hard time, because heart rate lags during intervals. Classifying each session by its main goal (the 'session goal approach') matches athletes' perceived effort better.",
+    "HRV recovers quickly after up to 120 minutes at about 60% of VO₂max, but recovery is markedly delayed when intensity exceeds about 3 mmol/L lactate, which may help explain why most training is kept easy."
+   ],
+   "relevance": "This is the main source for how the engine balances easy and hard sessions. It supports a default in which most weekly sessions are easy and only two or three are hard, and it explains why recommending an easy session is often the evidence-based choice. The point about time-in-zone also matters for how Došlap labels sessions, since an interval session should count as a hard session even if heart rate spent most of the time in the easy zone. The evidence describes mainly elite athletes who train up to twice a day, so applying it to recreational runners who train three to five times a week is an assumption. This caveat is my own.",
+   "limits": "This is a narrative review by a leading proponent of the polarised model, based mainly on descriptive data from elite athletes and few controlled trials. Evidence strength for the card: moderate for the descriptive 80/20 pattern in elite athletes, low for its direct application to recreational runners.",
+   "strength": "moderate for the descriptive 80/20 pattern in elite athletes, low for its direct application to recreational runners."
+  },
+  {
+   "id": "stoggl-and-sperlich-2014",
+   "cite": "Stöggl and Sperlich (2014)",
+   "category": "D",
+   "apa": "Stöggl, T., & Sperlich, B. (2014). Polarized training has greater impact on key endurance variables than threshold, high intensity, or high volume training. Frontiers in Physiology, 5, Article 33. https://doi.org/10.3389/fphys.2014.00033",
+   "doi": "10.3389/fphys.2014.00033",
+   "facts": {
+    "Design": "Randomised trial, 9 weeks",
+    "Participants": "48 well-trained endurance athletes (21 runners, 15 cyclists, 8 cross-country skiers, 4 triathletes), mean age 31, VO₂peak 62.6 ml/kg/min, training 10 to 20 hours per week",
+    "Groups": "High-volume low-intensity (HVT), threshold (THR), high-intensity interval (HIIT) and polarised training (POL, about 68% low, 6% threshold and 26% high intensity)",
+    "Outcomes": "VO₂peak, time to exhaustion, peak velocity or power, velocity or power at 4 mmol/L lactate, work economy and body mass",
+    "Main result": "POL produced the largest improvements in most variables, whereas HVT and THR produced no further improvements"
+   },
+   "findings": [
+    "POL increased VO₂peak by 11.7% (+6.8 ml/kg/min), time to exhaustion by 17.4% and peak velocity or power by 5.1%, which were the largest gains of the four groups.",
+    "Velocity or power at 4 mmol/L improved after POL (+8.1%) and HIIT (+5.6%), while work economy did not differ between groups.",
+    "HIIT reduced body mass by 3.7% (about 3 kg). The authors caution that this may be undesirable over longer periods and that 9 weeks of HIIT should be applied with care.",
+    "HVT and THR produced no further improvements in endurance variables, apart from a slight improvement in work economy with THR.",
+    "Before the study, none of the athletes had done HIIT regularly, and all had trained mainly with high volume and at most two threshold sessions per week."
+   ],
+   "relevance": "This trial supports including a small number of genuinely hard sessions alongside mostly easy running, rather than accumulating a lot of moderate threshold running. For the engine, it justifies keeping easy days easy and hard days hard. However, the polarised group spent 26% of its training at high intensity, more than the roughly 20% seen in descriptive data, and the athletes were new to HIIT, so part of the effect may reflect the novelty of the stimulus. This interpretation is my own and is not stated by the authors.",
+   "limits": "The groups were small (about 12 athletes each), the study lasted only 9 weeks, the outcomes were laboratory tests rather than races, and several sports were mixed. The authors themselves describe the 11.7% gain in VO₂peak as large for well-trained athletes and call for longer studies. Evidence strength for the card: moderate for short-term physiological gains, low for long-term race performance in recreational runners.",
+   "strength": "moderate for short-term physiological gains, low for long-term race performance in recreational runners."
+  },
+  {
+   "id": "treff-et-al-2026",
+   "cite": "Treff et al. (2026)",
+   "category": "D",
+   "apa": "Treff, G., Alimoradinasrabadi, B., Nusser, V., Steinacker, J., Köhler, K., & Winkert, K. (2026). Not all low-intensity rowing is the same: Self-paced intensity exceeds formula-based heart-rate–guided low-intensity on-water rowing in elite rowers [Conference abstract]. Current Issues in Sport Science, 11(5), 037. https://doi.org/10.36950/2026.5ciss037",
+   "doi": "10.36950/2026.5ciss037",
+   "facts": {
+    "Type": "Conference abstract published in Current Issues in Sport Science (September 2026), not a full peer-reviewed article",
+    "Participants": "15 national-team rowers (7 women)",
+    "Design": "Four on-water trials per rower (two self-paced and two heart-rate-guided), each with six 15-minute steps at 'very low', 'low' and 'moderate' intensity, with heart-rate targets of 60–72%, 72–79% and 79–82% of maximum",
+    "Main result": "Self-paced rowing was consistently harder and more variable than heart-rate-guided rowing, and even with guidance the 'low' zone was not below the first lactate threshold",
+    "Note": "Not on the original download list. The uploaded file contains only Figure 1, so this summary is based on the abstract in the Crossref record."
+   },
+   "findings": [
+    "Across all zones, self-paced rowing produced significantly higher %HRmax and %VO₂max than heart-rate-guided rowing (p < .01), and variability between rowers was consistently smaller with heart-rate guidance.",
+    "Self-paced 'low' intensity did not differ from heart-rate-guided 'moderate' intensity, which means that rowers relying on their own feel drifted into the moderate zone during intended easy work.",
+    "Blood lactate did not distinguish 'very low' from 'low' (about 1.1 to 1.2 mmol/L), and perceived exertion did not differ between self-paced and guided trials, so the athletes did not perceive that they were going harder.",
+    "Even with heart-rate guidance, the 'low' zone was not significantly below the first lactate threshold, so fixed percentage-of-maximum targets did not reliably keep easy training easy. The authors recommend anchoring easy-training targets to each athlete's individual first threshold."
+   ],
+   "relevance": "This abstract is directly relevant to Došlap's daily session commentary. It suggests that athletes asked to train easy without external feedback tend to go too hard without noticing, which justifies giving the runner a concrete heart-rate range for easy sessions. It also warns that generic percentage-of-maximum zones may be set too high, which supports individual zones based on a threshold estimate where the engine has one. Transfer from elite rowers to recreational runners is an assumption, and this caveat is my own.",
+   "limits": "This is a short conference abstract with 15 elite rowers, and I could review only the abstract and one figure. Evidence strength for the card: very low, useful only as a supporting illustration. The abstract cites a network meta-analysis by Rosenblat et al. (2025), which may be worth downloading for this section.",
+   "strength": "very low, useful only as a supporting illustration. The abstract cites a network meta-analysis by Rosenblat et al"
+  },
+  {
+   "id": "looney-et-al-2026",
+   "cite": "Looney et al. (2026)",
+   "category": "E",
+   "apa": "Looney, D. P., Hoogkamer, W., & Kram, R. (2026). Metabolic energy expenditure during level, uphill, and downhill running. European Journal of Applied Physiology, 126(3), 1621–1633. https://doi.org/10.1007/s00421-025-05999-5",
+   "doi": "10.1007/s00421-025-05999-5",
+   "facts": {
+    "Type": "Original study that pools metabolic data to develop and validate prediction equations",
+    "Data": "An original data set of 62 runners, individual data from 26 studies (424 participants) and group means from 12 studies (187 participants)",
+    "Grades covered": "From −45% to +82%, the widest range of any running equation to date",
+    "Equations": "A new graded term for the Running Energy Expenditure",
+    "compared": "Estimation (RE3) model and an updated Hoogkamer-Taboga-Kram (HTK) equation, compared with the ACSM equation and Minetti et al. (2002)",
+    "Main result": "RE3 and HTK were the most accurate on level and uphill ground, RE3 was marginally better than Minetti et al. downhill, and the ACSM equation was clearly the least accurate",
+    "Note": "Published online in October 2025 (issue dated March 2026) and not on the original download list"
+   },
+   "findings": [
+    "On level ground, RE3 (root-mean-square deviation 1.27 W/kg), HTK (1.30) and Minetti et al. (1.44) estimated metabolic rate well, whereas the widely used ACSM equation was much less accurate (1.82).",
+    "Uphill, HTK (1.45) and RE3 (1.41) were clearly more accurate than ACSM (2.17) and Minetti et al. (2.18). Downhill, RE3 was marginally better than Minetti et al. (1.45 versus 1.57).",
+    "Existing equations can disagree strongly, and in one worked example at slow speed the ACSM and Minetti estimates differed almost two-fold (17.0 versus 27.9 W/kg).",
+    "The equations estimate cost for an average runner. Running economy can differ by up to 30% between trained runners with a similar VO₂max, economy on the level does not always carry over to steep slopes, and downhill cost is harder to model because VO₂ can rise by up to 10% over 40 to 45 minutes of downhill running.",
+    "The authors provide a free web calculator for the updated RE3 model."
+   ],
+   "relevance": "This study gives the engine a validated way to convert distance, speed and gradient into an estimate of metabolic cost, which could make the load of hilly and trail runs comparable with flat runs, for example as a grade-adjusted load. It also suggests avoiding the ACSM equation for graded running. Because the estimates describe an average runner, they are best used to adjust load rather than to predict an individual's effort, for which heart rate remains the better signal. Metabolic cost also does not capture mechanical load, so a descent can be energetically cheap but mechanically demanding, as Vernillo et al. (2017) describe. Combining the two in this way is my own suggestion.",
+   "limits": "The equations estimate metabolic rate, not injury risk or tissue load, and they are based mainly on treadmill data for an average runner. Downhill modelling remains limited, especially on grades steeper than about −15%. Evidence strength for the card: moderate to high for estimating average energy cost, not applicable to injury claims.",
+   "strength": "moderate to high for estimating average energy cost, not applicable to injury claims."
+  },
+  {
+   "id": "martinez-gramage-et-al-2020",
+   "cite": "Martínez-Gramage et al. (2020)",
+   "category": "E",
+   "apa": "Martínez-Gramage, J., Pardo Albiach, J., Nacher Moltó, I., Amer-Cuenca, J. J., Huesa Moreno, V., Varangot-Reille, C., Barea Tarín, L., Perpiñá Martínez, S., & Segura-Ortí, E. (2020). Does running gait retraining decrease running injury incidence in young triathletes? [Poster presentation]. Universidad Cardenal Herrera-CEU, Valencia, Spain.",
+   "doi": null,
+   "facts": {
+    "Type": "Conference poster from 2020, not a peer-reviewed article and without a DOI. The conference name is not stated on the poster.",
+    "Participants": "19 young triathletes aged 11 to 18 (10 boys, 9 girls) from the Valencian Community triathlon specialisation programme",
+    "Design": "7-month gait retraining programme with assessments at the start and end, and no control group",
+    "Measures": "Self-reported injuries, and kinematics, surface EMG and inertial sensor data at 90% of maximal aerobic speed, analysed with a random forest classification",
+    "Main result": "Fewer injuries after the programme, about 8 in 2018 versus about 2 in 2019 according to the poster's bar chart",
+    "Note": "Not on the original download list. The same group published a related full paper: Martínez-Gramage et al. (2020), Sensors, 20(21), 6388, https://doi.org/10.3390/s20216388 (verified through Crossref, content not yet reviewed)."
+   },
+   "findings": [
+    "The number of injuries fell from about 8 in 2018 to about 2 in 2019, as read from the poster's bar chart. No statistical test is reported for this change.",
+    "After the programme, stride rate increased from 174.4 to 181.4 steps per minute (p ≤ .05) and run cycle time decreased from 0.69 to 0.66 s, while running speed did not change significantly.",
+    "The random forest analysis identified greater contralateral pelvic drop and lower gluteus medius activation as the variables most related to injury. After retraining, the athletes showed less pelvic drop, more gluteus medius activation, more trunk extension and knee flexion, and less ankle dorsiflexion at initial contact."
+   ],
+   "relevance": "This poster offers weak preliminary support for gait retraining and for pelvic drop as a target that a physiotherapist on Došlap might address. It should not support any engine rule or runner-facing claim that retraining prevents injury, since it is a before-and-after comparison in adolescents without a control group, and a year-to-year drop in injuries could reflect many other factors. If gait retraining becomes a card topic, Barton et al. (2016) on the download list is the stronger source, and the full Sensors paper should be reviewed.",
+   "limits": "This is a poster with 19 adolescents, no control group, self-reported injuries, and injury counts that can only be read from a chart. Evidence strength for the card: very low.",
+   "strength": "very low."
+  },
+  {
+   "id": "moore-2016",
+   "cite": "Moore (2016)",
+   "category": "E",
+   "apa": "Moore, I. S. (2016). Is there an economical running technique? A review of modifiable biomechanical factors affecting running economy. Sports Medicine, 46(6), 793–807. https://doi.org/10.1007/s40279-016-0474-4",
+   "doi": "10.1007/s40279-016-0474-4",
+   "facts": {
+    "Type": "Narrative review, single author, open access",
+    "Scope": "Intrinsic and extrinsic modifiable biomechanical factors affecting running economy, and whether training or retraining changes them",
+    "Main message": "Several factors are associated with better economy, especially during push-off, but recommending a general economical running technique should be approached with caution"
+   },
+   "findings": [
+    "Runners tend to self-optimise their stride. In trained runners the most economical stride frequency is on average only about 3% faster than their preferred one, and shortening stride length by 3% did not worsen economy, whereas deviations above 6% did. In novice runners the gap between preferred and optimal stride frequency was larger, at about 8%.",
+    "Foot strike pattern had a negligible effect on economy. However, forcing habitual rearfoot strikers to land on the forefoot worsened economy at slow and medium speeds.",
+    "Factors linked with better economy included lower vertical oscillation, greater leg stiffness, less leg extension at toe-off, maintaining arm swing, and running barefoot or in lightweight shoes, whereas ground contact time, trunk lean and orthotics showed inconsistent relationships.",
+    "Retraining toward global techniques such as Pose or Chi running did not improve economy and sometimes worsened it. By contrast, one study showed that gait retraining aimed at reducing impact loading lowered tibial acceleration without changing economy.",
+    "Novice runners improved their economy over 10 weeks of normal running through self-optimisation, whereas trained runners showed little further change."
+   ],
+   "relevance": "This review supports cautious messaging about running technique. The engine should not push runners toward a particular foot strike or global technique for the sake of efficiency, and changes in watch metrics such as cadence or vertical oscillation are better treated as trends to monitor than as faults to correct. The data on the 3% range also suggest that a small increase in cadence, which a physiotherapist might prescribe for injury reasons, is unlikely to cost economy. This last point is my own inference.",
+   "limits": "This is a narrative review of largely cross-sectional and short-term studies, mostly in trained runners on treadmills, and it concerns running economy rather than injury. Evidence strength for the card: moderate for the claim that no universal economical technique exists, low for any specific metric threshold.",
+   "strength": "moderate for the claim that no universal economical technique exists, low for any specific metric threshold."
+  },
+  {
+   "id": "vernillo-et-al-2017",
+   "cite": "Vernillo et al. (2017)",
+   "category": "E",
+   "apa": "Vernillo, G., Giandolini, M., Edwards, W. B., Morin, J.-B., Samozino, P., Horvais, N., & Millet, G. Y. (2017). Biomechanics and physiology of uphill and downhill running. Sports Medicine, 47(4), 615–629. https://doi.org/10.1007/s40279-016-0605-y",
+   "doi": "10.1007/s40279-016-0605-y",
+   "facts": {
+    "Type": "Narrative review",
+    "Scope": "Biomechanical, neuromuscular and physiological adaptations to uphill and downhill running compared with level running",
+    "Main message": "Slope changes stride pattern, foot strike, ground reaction forces, muscle work and energy cost, with implications for injury prevention and pacing"
+   },
+   "findings": [
+    "Uphill running is characterised by a higher step frequency, a shorter aerial phase and a shift toward mid- or forefoot striking, whereas downhill running shows a longer aerial phase, a lower step frequency and more rearfoot striking.",
+    "Downhill running increases impact forces and braking. In cited studies, impact peaks were higher at −7% than on level or uphill ground, and at −15.8% the braking impulse was 108% greater than on level ground. Tibial shock increased by about 30% on a −8.7% slope in one study, although shock attenuation varied considerably between individuals.",
+    "Uphill running requires more positive muscle work, particularly at the hip, and overall joint work was about 28% higher uphill than downhill. The knee performed most of the negative, braking work in both directions.",
+    "Energy cost rises linearly with uphill slope and falls with downhill slope until a minimum at about −20%, after which it rises again. Natural changes in pace on hills are not enough to keep effort constant, since in one study VO₂ reached 100% of the ventilatory threshold uphill, compared with 89% on the level and 79% downhill.",
+    "Two hours of running at a 10% incline depleted more muscle glycogen than level running at the same relative intensity, and perceived exertion tended to be higher downhill at the same blood lactate level."
+   ],
+   "relevance": "This review directly supports the engine's terrain findings. First, a run with a lot of descent loads tissues, especially around the knee and shin, more than its distance and pace suggest, even though heart rate may be lower. Second, uphill running raises metabolic demand beyond what pace alone shows. Load based on pace should therefore be adjusted for gradient, and a trail run with substantial descent could be flagged as mechanically demanding. The specific numbers come from small laboratory studies on treadmills or short road sections.",
+   "limits": "This is a narrative review of mostly small laboratory studies on moderate slopes, and it reports no direct injury outcomes, so the injury implications are the authors' inference. Evidence strength for the card: moderate for the biomechanical and energy-cost effects of slope, low for injury risk.",
+   "strength": "moderate for the biomechanical and energy-cost effects of slope, low for injury risk."
+  },
+  {
+   "id": "periard-et-al-2015",
+   "cite": "Périard et al. (2015)",
+   "category": "F",
+   "apa": "Périard, J. D., Racinais, S., & Sawka, M. N. (2015). Adaptations and mechanisms of human heat acclimation: Applications for competitive athletes and sports. Scandinavian Journal of Medicine & Science in Sports, 25(Suppl. 1), 20–38. https://doi.org/10.1111/sms.12408",
+   "doi": "10.1111/sms.12408",
+   "facts": {
+    "Type": "Narrative review from the same research group and journal supplement as the heat consensus",
+    "Scope": "Physiological adaptations to heat acclimation and their application to competitive athletes",
+    "Main message": "Heat acclimation improves sweating, skin blood flow, plasma volume and cardiovascular stability, lowers body temperature and heart rate, and improves aerobic performance in the heat"
+   },
+   "findings": [
+    "About 75% to 80% of adaptations occur in the first 4 to 7 days. The reduction in exercise heart rate develops fastest over 4 to 5 days and is virtually complete after 7 days, while thermoregulatory benefits are generally complete after 10 to 14 days.",
+    "On the first days of exercise in the heat, heart rate is much higher and stroke volume lower than in temperate conditions at the same work rate. Plasma volume usually expands by about 4% to 15% within 3 to 4 days of repeated heat exposure.",
+    "In a cited field study, cycling time-trial power in the heat (about 37 °C) was markedly reduced at first, partly recovered after 1 week of acclimatisation and almost fully restored after 2 weeks.",
+    "Heart-rate benefits are lost faster than thermoregulatory ones. Estimates of decay vary widely, from losses of nearly 100% for heart rate after 3 weeks in sedentary people to minimal decay over 12 to 26 days in people who stay physically active, which suggests that fitness and regular exercise help retain the adaptations.",
+    "Improved sweating is described as the most critical adaptation. Adaptations to dry and humid heat transfer partly, but acclimatising in conditions similar to those of competition gives the most specific adaptation."
+   ],
+   "relevance": "This review explains why heart rate at a given pace rises on the first hot days and falls again over the following week. For the engine, a hot-weather rise in heart rate should therefore not be read as a loss of fitness or poor readiness, and the heat adjustment could be relaxed gradually over about one to two weeks of repeated hot runs. Using this time course in the engine is my own application.",
+   "limits": "This is a narrative review in which much of the evidence comes from laboratory, military and older studies, often in men, and the rate at which adaptations decay remains disputed. Evidence strength for the card: moderate for the time course of adaptation, low for precise decay estimates.",
+   "strength": "moderate for the time course of adaptation, low for precise decay estimates."
+  },
+  {
+   "id": "racinais-et-al-2015",
+   "cite": "Racinais et al. (2015)",
+   "category": "F",
+   "apa": "Racinais, S., Alonso, J. M., Coutts, A. J., Flouris, A. D., Girard, O., González-Alonso, J., Hausswirth, C., Jay, O., Lee, J. K. W., Mitchell, N., Nassis, G. P., Nybo, L., Pluim, B. M., Roelands, B., Sawka, M. N., Wingo, J., & Périard, J. D. (2015). Consensus recommendations on training and competing in the heat. Sports Medicine, 45(7), 925–938. https://doi.org/10.1007/s40279-015-0343-6",
+   "doi": "10.1007/s40279-015-0343-6",
+   "facts": {
+    "Type": "Expert consensus statement by 17 authors, published simultaneously in Sports Medicine, the British Journal of Sports Medicine (49(18), 1164–1173) and the Scandinavian Journal of Medicine & Science in Sports (25(S1), 6–19)",
+    "Scope": "Heat acclimatisation, hydration, cooling strategies and recommendations for event organisers",
+    "Main message": "Heat acclimatisation over 1 to 2 weeks is the most important intervention, combined with starting exercise well hydrated and limiting dehydration",
+    "Note": "You uploaded both the Sports Medicine and the BJSM versions. They carry the same content, so they are summarised here as one source, and only one version should be cited."
+   },
+   "findings": [
+    "Most adaptations, including lower heart rate, lower skin and core temperature and a higher sweat rate, develop within the first week of heat exposure. However, 6 to 10 days are needed for near-complete cardiovascular and sweating adaptations and about 2 weeks to optimise performance, and highly trained athletes adapt up to twice as fast as untrained people.",
+    "Acclimatisation sessions should last at least 60 minutes per day and raise core and skin temperature enough to cause heavy sweating. Training in temperate conditions gives only partial acclimatisation, and most benefits are retained for 2 to 4 weeks after heat exposure ends, with faster re-acclimatisation afterwards.",
+    "Dehydration beyond about 2% of body mass is reported to impair aerobic performance in warm to hot conditions, although some studies of trained cyclists found no impairment up to 4%. The consensus advises limiting losses to about 2% to 3% when sweat rates are high, while warning recreational athletes not to overdrink because of the risk of hyponatraemia, particularly in events longer than 4 hours, in women and in people with a low body mass index.",
+    "Sweat rates of 1.0 to 1.5 litres per hour are common in hot conditions and can exceed 2.5 litres per hour. For exercise longer than an hour, fluids with 0.5 to 0.7 g of sodium per litre and 30 to 60 g of carbohydrate per hour are recommended.",
+    "The Wet-Bulb Globe Temperature (WBGT) index is widely used to adjust or cancel events, but it can underestimate heat stress in high humidity or still air and ignores metabolic heat and clothing. The risk of heat illness appears higher early in summer and during sudden hot spells, when people are not yet acclimatised."
+   ],
+   "relevance": "This consensus provides the evidence base for the engine's weather adjustments. It supports being more cautious on the first hot days of the season and during sudden hot spells, and it suggests that this extra caution can ease only after about one to two weeks of repeated runs in the heat. It also supports combining temperature with humidity rather than using temperature alone. The hydration and sodium figures are nutritional guidance, so the AI texts should mention them only in general terms and should not prescribe fluid volumes, given the risk of overdrinking in recreational runners. Linking the acclimatisation timeline to how quickly the engine relaxes its heat adjustment is my own suggestion.",
+   "limits": "This is an expert consensus aimed mainly at elite athletes competing in the heat and supported largely by laboratory studies, and parts of the hydration and cooling advice remain debated. Evidence strength for the card: moderate to high for the acclimatisation timeline, moderate for the hydration thresholds.",
+   "strength": "moderate to high for the acclimatisation timeline, moderate for the hydration thresholds."
+  },
+  {
+   "id": "gao-et-al-2019",
+   "cite": "Gao et al. (2019)",
+   "category": "G",
+   "apa": "Gao, B., Dwivedi, S., Milewski, M. D., & Cruz, A. I., Jr. (2019). Chronic lack of sleep is associated with increased sports injury in adolescents: A systematic review and meta-analysis [Conference abstract]. Orthopaedic Journal of Sports Medicine, 7(3_suppl), Article 2325967119S00132. https://doi.org/10.1177/2325967119S00132",
+   "doi": "10.1177/2325967119S00132",
+   "facts": {
+    "Type": "Conference abstract from the 6th Annual Meeting of the Pediatric Research in Sports Medicine Society (PRiSM), published in a journal supplement",
+    "Design": "Systematic review and random-effects meta-analysis of PubMed and Embase, 1997 to 2017",
+    "Studies included": "7 of 907 records (6 cohort studies and 1 case series) in adolescents under 19",
+    "Quality appraisal": "Newcastle-Ottawa Scale, with five cohort studies rated at moderate risk of bias and one at low risk",
+    "Main result": "Chronically poor sleepers were more likely to be injured (OR 1.58, 95% CI 1.05 to 2.37), pooled from three studies",
+    "Note": "This is not the original cohort study by Milewski et al. (2014) on the download list, although Milewski is a co-author. The original study is still needed."
+   },
+   "findings": [
+    "Five of the seven studies found that adolescents who chronically slept poorly were significantly more likely to sustain a sports or musculoskeletal injury.",
+    "In the meta-analysis of three studies, chronically poor sleepers had higher odds of injury than good sleepers (OR 1.58, 95% CI 1.05 to 2.37, p = .03).",
+    "Evidence on short-term poor sleep was inconclusive, since one study found a positive association and another found none.",
+    "All studies relied on self-reported sleep hours, which was the most consistent source of bias.",
+    "The authors conclude that adolescents who chronically sleep less than 8 hours per night or wake frequently are more likely to be injured."
+   ],
+   "relevance": "This abstract offers pooled support for a link between chronic short sleep and injury, but only in adolescents, so its relevance to Došlap's adult runners is indirect. It supports treating a chronic sleep deficit, rather than a single bad night, as the relevant signal, which is consistent with Halson (2014b). The injury figure of 1.7 cited by Kaczmarek et al. (2025) differs from the pooled estimate of 1.58 here, which shows why figures should be taken from primary sources.",
+   "limits": "This is a conference abstract in which only three observational studies were pooled, all in adolescents and all based on self-reported sleep. Evidence strength for the card: low, and very low for adults.",
+   "strength": "low, and very low for adults."
+  },
+  {
+   "id": "halson-2014b",
+   "cite": "Halson (2014b)",
+   "category": "G",
+   "apa": "Halson, S. L. (2014b). Sleep in elite athletes and nutritional interventions to enhance sleep. Sports Medicine, 44(Suppl. 1), 13–23. https://doi.org/10.1007/s40279-014-0147-0",
+   "doi": "10.1007/s40279-014-0147-0",
+   "facts": {
+    "Type": "Narrative review, single author (Australian Institute of Sport), open access",
+    "Scope": "Sleep in elite athletes, effects of sleep deprivation and extension on performance, and nutritional interventions that may improve sleep",
+    "Main message": "Sleep loss can impair performance, particularly in submaximal, prolonged exercise, athletes may sleep less and worse than recommended, and nutritional interventions are promising but poorly supported",
+    "Citation note": "Because Halson also has another 2014 paper in Section B, the two should be cited as 2014a (monitoring training load) and 2014b (this paper), ordered by title in the reference list."
+   },
+   "findings": [
+    "Restricting sleep to less than 6 hours per night for 4 or more consecutive nights has been shown to impair cognition, mood, glucose metabolism, appetite regulation and immune function.",
+    "In one actigraphy study, elite athletes spent longer in bed than non-athletes (8 h 36 min versus 8 h 07 min) but took longer to fall asleep (18.2 versus 5.0 min) and had lower sleep efficiency (80.6% versus 88.7%), so their actual sleep time was similar (6 h 55 min versus 7 h 11 min).",
+    "Of 632 German athletes, 66% reported sleeping worse than normal at least once before an important competition, mostly because of difficulty falling asleep.",
+    "The effects of sleep loss are task-specific. After a night without sleep, men covered less distance in a 30-minute self-paced treadmill run (6,037 versus 6,224 m), and with partial sleep loss, submaximal and prolonged tasks appeared more affected than maximal efforts, particularly after the first two nights.",
+    "Proposed nutritional strategies, such as high-glycaemic carbohydrate more than 1 hour before bed, tryptophan, melatonin-rich foods and valerian, rest on limited and partly contradictory evidence, and the author warns about supplement contamination."
+   ],
+   "relevance": "This review supports including sleep in the engine's readiness assessment. Because the evidence points to cumulative effects on prolonged submaximal work, several consecutive short nights may matter more for an endurance session than a single bad night. This emphasis on consecutive nights is my own inference for the engine. The nutritional and supplement suggestions should not appear in Došlap texts, since melatonin and herbal supplements come close to the medication advice that the validator excludes.",
+   "limits": "This is a narrative review of mostly small laboratory studies, largely in men and often using more extreme sleep loss than athletes normally experience, and the nutritional evidence is weak. Evidence strength for the card: moderate for the effect of sleep loss on prolonged exercise, low for nutritional interventions.",
+   "strength": "moderate for the effect of sleep loss on prolonged exercise, low for nutritional interventions."
+  },
+  {
+   "id": "kaczmarek-et-al-2025",
+   "cite": "Kaczmarek et al. (2025)",
+   "category": "G",
+   "apa": "Kaczmarek, F., Bartkowiak-Wieczorek, J., Matecka, M., Jenczylik, K., Brzezińska, K., Gajniak, P., Marchwiak, S., Kaczmarek, K., Nowak, M., Kmiecik, M., Stężycka, J., Krupa, K. K., & Mądry, E. (2025). Sleep and athletic performance: A multidimensional review of physiological and molecular mechanisms. Journal of Clinical Medicine, 14(21), Article 7606. https://doi.org/10.3390/jcm14217606",
+   "doi": "10.3390/jcm14217606",
+   "facts": {
+    "Type": "Narrative review written largely by a student scientific society at Poznan University of Medical Sciences",
+    "Method": "Stepwise searches of PubMed/Medline and Cochrane, with about 7,700 records and 178 articles evaluated, and no formal quality appraisal of the included studies reported",
+    "Scope": "Sleep physiology, effects of sleep loss on performance and recovery, hormonal and molecular mechanisms, sleep assessment, travel, diet, supplements and treatment of sleep disorders",
+    "Note": "Not on the original download list"
+   },
+   "findings": [
+    "Sleep restriction is described as impairing both submaximal and maximal performance, with higher heart rate, ventilation and lactate during exercise, earlier fatigue and reduced VO₂max, as well as impaired muscle strength and glycogen resynthesis.",
+    "Insufficient sleep is linked to hormonal changes that favour breakdown over repair, including higher cortisol and lower testosterone and growth hormone.",
+    "The review states that in young athletes, sleeping 8 hours or less is associated with a 1.7 times higher injury risk. This figure most likely originates from Milewski et al. (2014) on the download list, which should be checked as the primary source. This attribution is my own inference.",
+    "Endurance athletes are described as having a higher sleep need. Sleep extension and naps of 20 to 90 minutes are presented as useful, alongside sleep hygiene measures such as limiting evening caffeine and screen use.",
+    "The authors acknowledge that treating athletes as one homogeneous group ignores differences between sports, and that the selection of factors covered was selective."
+   ],
+   "relevance": "This review offers a broad background on why sleep matters for recovery, and it supports the engine including sleep in its readiness assessment. However, its claims are general, often second-hand and not specific to runners, so it should not be the source of any specific threshold on an evidence card. The primary studies and the 2021 expert consensus by Walsh et al. on the download list are better sources for runner-facing claims.",
+   "limits": "This is a broad narrative review without formal appraisal of study quality, it generalises across all sports, and most of its specific figures are cited from other reviews. Evidence strength for the card: low.",
+   "strength": "low."
+  },
+  {
+   "id": "pyzik-et-al-2026",
+   "cite": "Pyzik et al. (2026)",
+   "category": "G",
+   "apa": "Pyzik, A., Polakowska, A., Dziegciarczyk, A., Sobczak, W. L., Borkowska, K., Pielusiński, K. T., Swoboda, K., & Olejnik, M. (2026). Restoring the athlete: The role of sleep in athletic performance and recovery. Quality in Sport, 52, Article 69361. https://doi.org/10.12775/QS.2026.52.69361",
+   "doi": "10.12775/QS.2026.52.69361",
+   "facts": {
+    "Type": "Narrative review assessed against the SANRA criteria for narrative reviews",
+    "Method": "PubMed, Scopus and Web of Science searched for 2015 to 2025",
+    "Scope": "Sleep assessment in athletes and strategies to improve sleep, including sleep hygiene, sleep extension, napping, mindfulness, caffeine and travel",
+    "Journal": "Quality in Sport, whose assigned scientific disciplines are economics and management rather than sport or medical science",
+    "Note": "Not on the original download list. The paper states that it was accepted two months after its publication date, and Crossref lists the article number as 69360 while the PDF shows 69361."
+   },
+   "findings": [
+    "Actigraphy agrees acceptably with polysomnography for total sleep time and sleep efficiency at the group level, but it can misclassify quiet wakefulness as sleep and says little about sleep stages, so it is best used to monitor trends.",
+    "Elite athletes frequently report sleeping less than 7 hours with a sleep efficiency below 85%, especially during intensified training, competition and travel. Early-morning sessions tend to shorten sleep more than late-evening ones.",
+    "Individualised sleep hygiene education improved objective sleep efficiency and shortened the time to fall asleep in professional female footballers.",
+    "Naps of 30 to 60 minutes are reported to improve cognitive and physical performance and to reduce fatigue, and early-afternoon naps are less likely to disturb night sleep.",
+    "The review also mentions melatonin doses for jet lag. This is medication advice that Došlap's texts must not give."
+   ],
+   "relevance": "The point that watch-based sleep tracking is suited to trends rather than precise sleep stages supports how the engine should use Garmin sleep data, namely as a multi-night trend combined with the runner's own sleep rating. Beyond that, the review adds little for Došlap, and its weak publication context means it should not be cited on an evidence card.",
+   "limits": "This is a short narrative review in a journal outside sport and medical science, with inconsistencies in its publication dates and article number. Evidence strength for the card: very low.",
+   "strength": "very low."
+  },
+  {
+   "id": "watson-et-al-2015",
+   "cite": "Watson et al. (2015)",
+   "category": "G",
+   "apa": "Watson, N. F., Badr, M. S., Belenky, G., Bliwise, D. L., Buxton, O. M., Buysse, D., Dinges, D. F., Gangwisch, J., Grandner, M. A., Kushida, C., Malhotra, R. K., Martin, J. L., Patel, S. R., Quan, S. F., & Tasali, E. (2015). Recommended amount of sleep for a healthy adult: A joint consensus statement of the American Academy of Sleep Medicine and Sleep Research Society. Journal of Clinical Sleep Medicine, 11(6), 591–592. https://doi.org/10.5664/jcsm.4758",
+   "doi": "10.5664/jcsm.4758",
+   "facts": {
+    "Type": "Joint consensus statement of the American Academy of Sleep Medicine and the Sleep Research Society, developed by a 15-member expert panel using a modified RAND Appropriateness Method",
+    "Evidence base": "5,314 articles reviewed across nine health categories, including human performance",
+    "Population": "Healthy adults aged 18 to 60",
+    "Main": "Adults should sleep 7 or more hours per night on a",
+    "recommendation": "regular basis",
+    "Version note": "The same statement was published in SLEEP, 38(6), 843–844 (the DOI on the download list). Only one version should be cited."
+   },
+   "findings": [
+    "Adults should sleep 7 or more hours per night on a regular basis to promote optimal health.",
+    "Regularly sleeping less than 7 hours is associated with weight gain and obesity, diabetes, hypertension, heart disease, stroke, depression and a higher risk of death, as well as with impaired immune function, increased pain, impaired performance, more errors and a greater risk of accidents.",
+    "Sleeping more than 9 hours per night may be appropriate for young adults, people recovering from sleep debt and people who are ill, while for others it is uncertain whether it carries any health risk.",
+    "Healthy sleep requires not only adequate duration but also good quality, appropriate timing and regularity, and the absence of sleep disorders, and individual sleep need varies with genetic, behavioural, medical and environmental factors.",
+    "People who are concerned that they sleep too little or too much should consult a healthcare provider."
+   ],
+   "relevance": "This statement provides the authoritative general threshold that the engine can use, namely that repeated nights under 7 hours lower readiness. It does not address athletes specifically, so for runners in heavy training it gives a minimum rather than an optimum. Its advice to consult a healthcare provider about persistent sleep problems also fits Došlap's referral logic.",
+   "limits": "This is a two-page summary of a consensus process, with the full evidence published separately, and it concerns the general adult population rather than athletes. Most of the underlying associations are observational. Evidence strength for the card: high as an authoritative general recommendation, low for athlete-specific thresholds.",
+   "strength": "high as an authoritative general recommendation, low for athlete-specific thresholds."
+  },
+  {
+   "id": "ardern-et-al-2016",
+   "cite": "Ardern et al. (2016)",
+   "category": "H",
+   "apa": "Ardern, C. L., Glasgow, P., Schneiders, A., Witvrouw, E., Clarsen, B., Cools, A., Gojanovic, B., Griffin, S., Khan, K. M., Moksnes, H., Mutch, S. A., Phillips, N., Reurink, G., Sadler, R., Grävare Silbernagel, K., Thorborg, K., Wangensteen, A., Wilk, K. E., & Bizzini, M. (2016). 2016 consensus statement on return to sport from the First World Congress in Sports Physical Therapy, Bern. British Journal of Sports Medicine, 50(14), 853–864. https://doi.org/10.1136/bjsports-2016-096278",
+   "doi": "10.1136/bjsports-2016-096278",
+   "facts": {
+    "Type": "Consensus statement from 17 expert clinicians after the First World Congress in Sports Physical Therapy (Bern, 2015)",
+    "Scope": "Definitions of return to sport, models for decision-making, and recommendations for clinical practice and research",
+    "Main message": "Return to sport is a continuum that runs in parallel with rehabilitation, and the decision should be shared among athlete, clinicians and coach, except where the athlete's health is at risk",
+    "Version note": "The downloaded PDF is the Online First version from May 2016. The final version is 50(14), 853–864."
+   },
+   "findings": [
+    "Return to sport is described as a continuum with three elements: return to participation (active but below the target level), return to sport (back in the sport but not at the desired level) and return to performance (at or above the pre-injury level).",
+    "The decision can also be reversed into a removal-from-sport decision. For injuries whose symptoms increase gradually, this usually means reducing or modifying load rather than stopping all activity.",
+    "The Strategic Assessment of Risk and Risk Tolerance (StARRT) framework combines tissue health, the stresses the tissue will face and factors that modify how much risk is acceptable, and an athlete is cleared when the assessed risk is below the acceptable threshold.",
+    "A biopsychosocial approach is recommended, since psychological readiness, self-efficacy and motivation also influence return to sport, alongside physical tests. Monitoring training load during the transition between stages is suggested, although further research is needed.",
+    "The authors state that research evidence to support return-to-sport decisions in clinical practice is scarce."
+   ],
+   "relevance": "This consensus provides the framework for how Došlap can describe the path back after injury. The three-stage continuum maps well onto the app, which could track a runner from return to participation, through return to running, to return to performance. Its emphasis on shared decisions supports the division of roles in which the engine handles load and the physiotherapist decides on clearance, so the AI texts should not declare a runner ready to return. Mapping the continuum onto app stages is my own suggestion.",
+   "limits": "This is expert consensus built mainly on team sports and clinical experience, and the authors themselves note that research evidence for return-to-sport decisions is scarce. Evidence strength for the card: moderate as a conceptual framework, low for specific criteria.",
+   "strength": "moderate as a conceptual framework, low for specific criteria."
+  },
+  {
+   "id": "finucane-et-al-2020",
+   "cite": "Finucane et al. (2020)",
+   "category": "H",
+   "apa": "Finucane, L. M., Downie, A., Mercer, C., Greenhalgh, S. M., Boissonnault, W. G., Pool-Goudzwaard, A. L., Beneciuk, J. M., Leech, R. L., & Selfe, J. (2020). International framework for red flags for potential serious spinal pathologies. Journal of Orthopaedic & Sports Physical Therapy, 50(7), 350–372. https://doi.org/10.2519/jospt.2020.9971",
+   "doi": "10.2519/jospt.2020.9971",
+   "facts": {
+    "Type": "International consensus framework developed for the International Federation of Orthopaedic Manipulative Physical Therapists (IFOMPT)",
+    "Method": "Expert clinicians' interpretation of the best available evidence, because primary evidence is scarce",
+    "Scope": "Four serious spinal pathologies presenting as back pain: cauda equina syndrome, spinal fracture, malignancy and spinal infection",
+    "Output": "A three-step decision tool (consider the evidence, decide the level of concern, choose a referral pathway) with safety netting"
+   },
+   "findings": [
+    "Serious spinal pathology is rare in people presenting with back pain (for example, malignancy in well under 1% of cases), yet missing it has serious consequences.",
+    "Individual red flags have weak diagnostic value in isolation, and combinations of red flags together with clinical reasoning are more informative.",
+    "Signs of cauda equina syndrome, such as a change in bladder or bowel function or altered sensation in the saddle area, require emergency referral.",
+    "Where concern is lower, the framework recommends safety netting, meaning the patient is told which symptoms should prompt them to seek help urgently."
+   ],
+   "relevance": "This source supports a red-flag rule in the engine that sits above any training logic. When a user reports symptoms such as bladder or bowel changes, numbness in the saddle area, unexplained weight loss, fever with back pain or pain after significant trauma, the app should stop training advice and direct the user to urgent medical care. It also supports the principle that the app does not diagnose, because the framework itself stresses that the decision belongs to a clinician's reasoning.",
+   "limits": "The framework is consensus-based rather than derived from new diagnostic studies and concerns back pain, not running injuries in general. Its value for Došlap is therefore as an authoritative basis for safety wording and referral triggers, not as evidence of how often such cases occur among runners.",
+   "strength": null
+  },
+  {
+   "id": "geworkian-et-al-2026",
+   "cite": "Geworkian et al. (2026)",
+   "category": "H",
+   "apa": "Geworkian, N., Malon, P., Trojańska, A., Pieńkowska, A., Śliwa, K., Hariasz, N., Pietz, M., & Szymańska, A. (2026). Vitamin D deficiency and risk of overuse musculoskeletal injuries in recreational runners. International Journal of Innovative Technologies in Social Science, 1(49). https://doi.org/10.31435/ijitss.1(49).2026.4858",
+   "doi": "10.31435/ijitss.1(49).2026.4858",
+   "facts": {
+    "Type": "Narrative review by a group of junior physicians",
+    "Journal": "International Journal of Innovative Technologies in Social Science, a social science journal. Crossref lists the issue as volume 5, issue 1(49).",
+    "Scope": "Vitamin D metabolism, its role in bone, muscle and tendon, and the link between vitamin D status and overuse injuries in recreational runners and military recruits",
+    "Main message": "Low vitamin D is consistently associated with bone stress injuries, whereas evidence for muscle and tendon injuries is limited, and no trials show that correcting it reduces injuries in recreational runners",
+    "Note": "Not on the original download list"
+   },
+   "findings": [
+    "Observational studies in military recruits and athletes consistently associate low serum vitamin D with a higher risk of lower-limb bone stress injuries.",
+    "Evidence linking vitamin D to muscle strains, tendinopathies and non-specific musculoskeletal pain is limited and inconsistent.",
+    "Low vitamin D is common in endurance athletes, especially in winter, at higher latitudes and in those who train indoors or outside peak sunlight hours.",
+    "The main interventional evidence comes from military populations, where calcium and vitamin D supplementation reduced stress fractures in female navy recruits, and the authors caution that this may not transfer directly to recreational runners.",
+    "The authors suggest keeping serum vitamin D above 50 nmol/L, and possibly at 75 to 100 nmol/L in runners at higher risk of bone stress injuries, while calling for trials in recreational runners."
+   ],
+   "relevance": "This review supports listing low vitamin D, especially in winter at Czech latitudes, as one of several background factors a physiotherapist or doctor may consider after a bone stress injury. However, testing vitamin D and prescribing supplements are medical decisions, so Došlap's texts should not recommend supplementation or blood levels. The card could at most mention that bone stress injuries have systemic contributing factors that a professional may assess.",
+   "limits": "This is a narrative review in a journal outside medicine and sport science, its key interventional evidence comes from military recruits, and it contains no new data. Evidence strength for the card: low, and the military trial it relies on is better cited through Warden et al. (2014).",
+   "strength": "low, and the military trial it relies on is better cited through Warden et al. (2014)"
+  },
+  {
+   "id": "glisik-and-frangez-2024",
+   "cite": "Glisik and Frangež (2024)",
+   "category": "H",
+   "apa": "Glisik, N. E., & Frangež, M. (2024). Discrepancies in the prevalence, risk factors, diagnosis, and treatment of stress fractures between long-distance runners and sprinters: A qualitative review of systematic reviews. Exercise and Quality of Life, 16(1), 49–60. https://doi.org/10.31382/eqol.240605",
+   "doi": "10.31382/eqol.240605",
+   "facts": {
+    "Type": "Qualitative review of systematic reviews, led by a medical student at the University of Maribor",
+    "Method": "PubMed, Web of Science, Scopus, ScienceDirect and Google Scholar searched for articles from the previous year only, with 56 articles retained after abstract screening, and no formal quality appraisal described",
+    "Scope": "Epidemiology, risk factors, diagnosis and treatment of stress fractures in distance runners compared with sprinters",
+    "Note": "Not on the original download list"
+   },
+   "findings": [
+    "Stress fractures in distance runners mainly affect the tibia and metatarsals, whereas in sprinters the toe phalanges are also common.",
+    "Reported risk factors include female sex, nutritional deficiencies, biomechanical factors and psychological traits such as perfectionism and fear of failure.",
+    "MRI is described as the gold standard for diagnosis, and treatment emphasises rest, a gradual return to activity and addressing underlying risk factors, with surgery reserved for high-risk fractures or non-union.",
+    "The review lists high-risk sites that are prone to poor healing, including the anterior tibial shaft, the bases of the second to fourth metatarsals, the great-toe sesamoids, the talus, the navicular and the medial malleolus.",
+    "Energy availability and the female athlete triad are highlighted for both distance runners and sprinters. However, the review describes relative energy deficiency in sport as the former name of the female athlete triad, which is inaccurate, since relative energy deficiency is a broader concept that includes the triad."
+   ],
+   "relevance": "The review adds little beyond Warden et al. (2014), which covers the same ground in more depth. Its list of high-risk sites broadly agrees with Warden's, and it could at most serve as a secondary reference for the fact that stress fractures in runners cluster in the tibia and metatarsals.",
+   "limits": "The search covered only one year of publications and included Google Scholar, no quality appraisal is reported, and one key concept is described inaccurately. Evidence strength for the card: very low.",
+   "strength": "very low."
+  },
+  {
+   "id": "jeukendrup-et-al-2024",
+   "cite": "Jeukendrup et al. (2024)",
+   "category": "H",
+   "apa": "Jeukendrup, A. E., Areta, J. L., Van Genechten, L., Langan-Evans, C., Pedlar, C. R., Rodas, G., Sale, C., & Walsh, N. P. (2024). Does relative energy deficiency in sport (REDs) syndrome exist? Sports Medicine, 54(11), 2793–2816. https://doi.org/10.1007/s40279-024-02108-y",
+   "doi": "10.1007/s40279-024-02108-y",
+   "facts": {
+    "Type": "Critical narrative review (current opinion)",
+    "Focus": "The scientific basis of the relative energy deficiency in sport (REDs) model as described in the IOC 2023 consensus statement",
+    "Main message": "The authors do not aim to debunk REDs but argue that the evidence for low energy availability as the single cause of the listed symptoms is weaker than often assumed",
+    "Proposal": "The Athlete Health and Readiness Checklist (AHaRC), covering eight categories of possible causes",
+    "Note": "Not on the original download list. It is a critique of, not a substitute for, Mountjoy et al. (2023)"
+   },
+   "findings": [
+    "Energy availability cannot be measured accurately enough in the field, so a REDs diagnosis in practice rests on generic symptoms and risk factors.",
+    "Most studies show associations rather than causality, observational studies usually last less than seven days, and narrative reviews outnumber original research.",
+    "The same symptoms can arise from training load, life stress, mental health problems, disordered eating, other nutritional deficits, poor sleep, infection or an undiagnosed clinical condition.",
+    "The authors recommend checking all eight of these categories and involving the relevant experts, rather than starting from the assumption that low energy availability is the cause."
+   ],
+   "relevance": "For Došlap, this source supports a cautious wording policy. The app should not label a user with REDs or any energy-deficiency condition, but persistent fatigue, repeated illness, falling performance, menstrual changes or a bone stress injury can be treated as a combination of signals that warrants referral to a physiotherapist or physician. The eight AHaRC categories also map well onto signals the engine already collects, namely training load, sleep, subjective well-being and illness.",
+   "limits": "This is an opinion-led review by experienced researchers, and it deliberately challenges a consensus statement, so it should be cited alongside Mountjoy et al. (2023) rather than instead of it. The AHaRC is a proposal that has not been validated.",
+   "strength": null
+  },
+  {
+   "id": "silbernagel-et-al-2007",
+   "cite": "Silbernagel et al. (2007)",
+   "category": "H",
+   "apa": "Silbernagel, K. G., Thomeé, R., Eriksson, B. I., & Karlsson, J. (2007). Continued sports activity, using a pain-monitoring model, during rehabilitation in patients with Achilles tendinopathy: A randomized controlled study. The American Journal of Sports Medicine, 35(6), 897–906. https://doi.org/10.1177/0363546506298279",
+   "doi": "10.1177/0363546506298279",
+   "facts": {
+    "Design": "Randomised controlled trial, level 1 evidence, with follow-up at 6 weeks and 3, 6 and 12 months",
+    "Participants": "38 patients with Achilles tendinopathy, about half of them women",
+    "Groups": "An exercise training group that continued running and jumping guided by a pain-monitoring model, versus an active rest group that avoided Achilles-loading activity for the first 6 weeks. Both followed the same progressive tendon-loading programme for 12 weeks to 6 months.",
+    "Pain-monitoring": "Pain during activity allowed up to 5 on a 0 to 10",
+    "rules": "scale, pain after activity allowed up to 5 but settled by the next morning, and pain and stiffness not increasing from week to week",
+    "Outcomes": "VISA-A-S symptom and function score, pain during hopping, and functional tests",
+    "Main result": "No difference in the rate of improvement between groups, with both improving significantly"
+   },
+   "findings": [
+    "There were no significant differences between the groups in the rate of improvement, and both improved significantly compared with baseline at all follow-ups (p < .01).",
+    "The VISA-A-S score rose from 57 to 85 at 12 months in the group that continued running and jumping and from 57 to 91 in the active rest group, a difference that was not statistically significant.",
+    "No negative effects of continuing running and jumping were found when activity was guided by the pain-monitoring model.",
+    "The continued-activity group showed some better functional results at 6 months (drop jump height and hopping quotient), but the authors caution that the study was powered only for the primary outcome.",
+    "The authors conclude that an initial period of rest from pain-provoking activity might not be necessary for Achilles tendinopathy."
+   ],
+   "relevance": "This trial is the key primary evidence for a pain-monitoring rule in Došlap. Its threshold of 5 out of 10 during activity matches the engine's existing referral threshold, and it adds two further conditions, namely that pain should settle by the next morning and should not increase from week to week, which the engine could track through the check-in. Adding these two checks is my own suggestion. However, the rule applies to diagnosed Achilles tendinopathy managed with a physiotherapist, so it does not justify continuing to run with undiagnosed pain or a suspected bone stress injury, and this distinction belongs in the card's limits field.",
+   "limits": "The trial was small, studied a single condition, and was not powered for its secondary outcomes, so a type II error cannot be ruled out. Evidence strength for the card: moderate for Achilles tendinopathy, low for other conditions.",
+   "strength": "moderate for Achilles tendinopathy, low for other conditions."
+  },
+  {
+   "id": "smith-et-al-2017",
+   "cite": "Smith et al. (2017)",
+   "category": "H",
+   "apa": "Smith, B. E., Hendrick, P., Smith, T. O., Bateman, M., Moffatt, F., Rathleff, M. S., Selfe, J., & Logan, P. (2017). Should exercises be painful in the management of chronic musculoskeletal pain? A systematic review and meta-analysis. British Journal of Sports Medicine, 51(23), 1679–1687. https://doi.org/10.1136/bjsports-2016-097383",
+   "doi": "10.1136/bjsports-2016-097383",
+   "facts": {
+    "Design": "Systematic review and meta-analysis of randomised trials (PROSPERO CRD42016038882), using the Cochrane risk-of-bias tool and GRADE",
+    "Studies included": "9 papers from 7 trials with 385 participants with chronic musculoskeletal pain (low back, shoulder, Achilles and plantar heel), mean age 47, 46% women",
+    "Comparison": "Exercise in which pain was allowed or encouraged, often up to 5 out of 10, versus pain-free exercise",
+    "Main result": "A small short-term benefit for pain with painful exercise and no difference in the medium or long term or for function",
+    "Version note": "The downloaded PDF is the Online First version from July 2017. The final version is 51(23), 1679–1687."
+   },
+   "findings": [
+    "Painful exercise produced a small short-term benefit for pain (effect size −0.27, 95% CI −0.54 to −0.05), based on moderate-quality evidence.",
+    "There were no significant differences in pain in the medium or long term, or in function and disability at any time point.",
+    "Several trials allowed pain during exercise up to 5 out of 10, and at least one required the pain to settle by the following morning.",
+    "The authors conclude that pain during therapeutic exercise for chronic musculoskeletal pain need not be a barrier to successful outcomes."
+   ],
+   "relevance": "This meta-analysis supports the principle behind pain-monitoring approaches, namely that some pain during rehabilitation exercise is acceptable for chronic musculoskeletal conditions. However, it concerns supervised therapeutic exercise in middle-aged patients with chronic pain, not running through new or acute pain. The engine should therefore keep its rule that pain above 5 leads to a referral, and the validator's ban on telling runners to run through pain. The evidence fits best with physiotherapist-guided loading on Došlap's physiotherapy side. This interpretation for Došlap is my own.",
+   "limits": "The review includes only seven small trials with mixed conditions, none of them in runners or acute injuries, and the benefit it found was small and short-lived. Evidence strength for the card: moderate for the claim that tolerable pain during rehabilitation exercise is not harmful, not applicable to acute pain or bone stress injuries.",
+   "strength": "moderate for the claim that tolerable pain during rehabilitation exercise is not harmful, not applicable to acute pain or bone stress injuries."
+  },
+  {
+   "id": "toczyowska-et-al-2025",
+   "cite": "Toczyłowska et al. (2025)",
+   "category": "H",
+   "apa": "Toczyłowska, A., Muras, M., Hryniuk, W., Kwiecińska, J., Sitkiewicz, J., Bialic, Ł., Mądrzak, L., Korchowiec, M., Chrzanowski, W., & Krzyżanowska, K. (2025). Bone stress injuries in runners: A holistic approach. International Journal of Innovative Technologies in Social Science, 3(47). https://doi.org/10.31435/ijitss.3(47).2025.3471",
+   "doi": "10.31435/ijitss.3(47).2025.3471",
+   "facts": {
+    "Type": "Narrative literature review by a group of junior physicians",
+    "Journal": "International Journal of Innovative Technologies in Social Science, a social science journal",
+    "Scope": "Pathophysiology, risk factors, diagnosis, management and prevention of bone stress injuries in runners",
+    "Note": "Not on the original download list"
+   },
+   "findings": [
+    "Reported risk factors include female sex, low energy availability, low calcium and vitamin D intake, previous stress fracture, low or very high body mass index and sudden changes in the type or intensity of loading.",
+    "MRI is described as the diagnostic gold standard after initial plain radiography.",
+    "Low-risk injuries are managed conservatively, with a progressive return to running after a period free of pain, whereas high-risk sites (for example, the femoral neck, navicular and anterior tibia) may need prolonged offloading or surgery.",
+    "The review summarises a return-to-running scheme that begins at about half of the previous distance and pace once bony tenderness has gone and builds back over three to six weeks, applicable only to low-risk injuries."
+   ],
+   "relevance": "The source adds little beyond Warden et al. (2014). Its one useful point for the engine is the distinction between low-risk and high-risk bone stress injury sites, which supports routing every suspected bone stress injury to a professional rather than offering any self-managed return plan in the app.",
+   "limits": "The review has no systematic search or quality appraisal, it is published outside the sports medicine literature and it relies on secondary sources. It should not be cited on an evidence card and serves at most as a pointer to the primary literature.",
+   "strength": null
+  },
+  {
+   "id": "warden-et-al-2014",
+   "cite": "Warden et al. (2014)",
+   "category": "H",
+   "apa": "Warden, S. J., Davis, I. S., & Fredericson, M. (2014). Management and prevention of bone stress injuries in long-distance runners. Journal of Orthopaedic & Sports Physical Therapy, 44(10), 749–765. https://doi.org/10.2519/jospt.2014.5334",
+   "doi": "10.2519/jospt.2014.5334",
+   "facts": {
+    "Type": "Clinical commentary (expert narrative review) by three specialists in bone stress injury",
+    "Scope": "Pathophysiology, epidemiology, risk factors, diagnosis, classification, management, return to running and prevention of bone stress injuries (BSIs) in long-distance runners",
+    "Main message": "BSIs lie on a continuum from stress reaction to complete fracture, most heal with modified loading and a gradual, pain-guided return to running, and their high recurrence rate means underlying causes must be addressed"
+   },
+   "findings": [
+    "Between one third and two thirds of competitive distance runners report a history of BSI, the 1-year incidence in competitive runners ranges from 4.9% to 21.1%, and 10.3% to 12.6% of runners with a previous BSI sustain another within 1 to 2 years. About half of BSIs in distance runners occur in the tibial shaft.",
+    "Typical warning signs are localised bone pain that appears earlier in runs, persists after running, begins to occur during walking, and eventually at rest or at night, together with very localised bony tenderness.",
+    "BSIs are classified as low risk (for example posteromedial tibia, fibula, calcaneus and the shafts of the second to fourth metatarsals) or high risk (for example femoral neck, anterior tibia, medial malleolus, navicular, base of the second and fifth metatarsals and great-toe sesamoids), since high-risk sites are prone to delayed healing or complete fracture. Return to sport took about 8.7 weeks for low-risk, low-grade injuries and about 20 weeks for high-risk or high-grade injuries in one cited study.",
+    "Return to running after a low-risk BSI begins only once walking is pain-free, and in one programme only after 5 consecutive pain-free days. Progression is strictly symptom-guided, so any BSI pain during or after a session means stopping and returning to the previous stage.",
+    "Risk factors include female sex and low energy availability, low calcium or vitamin D, a short history of physical activity, and training changes. In one cited trial, calcium and vitamin D supplementation reduced BSI incidence by 20% in female navy recruits. The authors note that the 10% rule is not generalisable to individual runners, and suggest that increasing step rate by up to 10% can reduce impact loading."
+   ],
+   "relevance": "This paper defines a crucial boundary for the engine's pain logic. Unlike the pain-monitoring model for tendinopathy in Silbernagel et al. (2007), which tolerates pain up to 5 out of 10, return from a bone stress injury is guided by no pain at all. The engine therefore needs to treat localised bone pain, pain that is worse after running, pain during walking and pain at rest or at night as referral triggers regardless of the pain score, and runner-facing texts must never suggest running through such pain. The list of high-risk sites is also useful for how urgently a referral should be framed. Turning these warning signs into check-in triggers is my own suggestion, and the card must avoid anything that reads as a diagnosis.",
+   "limits": "This is an expert clinical commentary rather than a systematic review, so its return-to-running programmes are based on clinical experience, and much of the epidemiology comes from competitive and military populations. Evidence strength for the card: moderate for the warning signs and the need for referral, low for the specific return-to-running timelines.",
+   "strength": "moderate for the warning signs and the need for referral, low for the specific return-to-running timelines."
+  },
+  {
+   "id": "balsalobre-fernandez-et-al-2016",
+   "cite": "Balsalobre-Fernández et al. (2016)",
+   "category": "I",
+   "apa": "Balsalobre-Fernández, C., Santos-Concejero, J., & Grivas, G. V. (2016). Effects of strength training on running economy in highly trained runners: A systematic review with meta-analysis of controlled trials. Journal of Strength and Conditioning Research, 30(8), 2361–2368. https://doi.org/10.1519/JSC.0000000000001316",
+   "doi": "10.1519/JSC.0000000000001316",
+   "facts": {
+    "Type": "Systematic review and meta-analysis of controlled trials",
+    "Sample": "5 studies with 93 competitive middle- and long-distance runners with maximal oxygen uptake above 60 ml/kg/min",
+    "Programmes": "Mostly low to moderate loads (40 to 70% of one-repetition maximum), 2 to 4 lower-body exercises plus up to 200 jumps and 5 to 10 short sprints, 2 to 3 times per week for 8 to 12 weeks",
+    "Version note": "The downloaded PDF is the accepted manuscript (Publish Ahead of Print). The reference gives the final issue version."
+   },
+   "findings": [
+    "Strength training had a large beneficial effect on running economy (standardised mean difference −1.42, 95% CI −2.23 to −0.60).",
+    "Effective programmes combined resistance exercises with plyometric exercises and did not require very heavy loads or high volumes.",
+    "The authors conclude that 2 to 3 sessions per week for 8 to 12 weeks is an appropriate strategy for highly trained runners."
+   ],
+   "relevance": "This meta-analysis gives a quantified basis for a card on running economy and describes a realistic, low-volume programme. For the engine, it supports suggesting short combined sessions of strength and jumping exercises rather than long gym sessions.",
+   "limits": "Only five small studies were pooled, all in highly trained runners, so the large effect may not transfer to recreational users. The confidence interval is wide. Running economy is a laboratory marker and does not directly measure race performance or injury risk.",
+   "strength": null
+  },
+  {
+   "id": "blagrove-et-al-2018",
+   "cite": "Blagrove et al. (2018)",
+   "category": "I",
+   "apa": "Blagrove, R. C., Howatson, G., & Hayes, P. R. (2018). Effects of strength training on the physiological determinants of middle- and long-distance running performance: A systematic review. Sports Medicine, 48(5), 1117–1149. https://doi.org/10.1007/s40279-017-0835-7",
+   "doi": "10.1007/s40279-017-0835-7",
+   "facts": {
+    "Type": "Systematic review without meta-analysis, study quality rated with the PEDro scale",
+    "Sample": "24 controlled studies of middle- and long-distance runners with at least six months of running experience and a running-only control group",
+    "Interventions": "Heavy resistance training, explosive resistance training and plyometric training lasting at least four weeks",
+    "Outcomes": "Running economy, time-trial performance (1.5 to 10 km), sprint speed, maximal oxygen uptake, blood lactate and body composition"
+   },
+   "findings": [
+    "Running economy was measured in 20 studies and generally improved by 2 to 8% compared with running-only control groups, although not in every study.",
+    "Time-trial performance over 1.5 to 10 km and sprint speed also tended to improve, whereas maximal oxygen uptake, blood lactate markers and body composition were typically unaffected.",
+    "Adding strength training did not harm aerobic markers or body composition, which addresses the common concern among runners that lifting makes them heavier or slower.",
+    "Most successful programmes used two to three sessions per week for 6 to 14 weeks, a weak link between session frequency and running-economy gains suggested that two sessions per week is likely sufficient, and the authors advise a gap of more than three hours after high-intensity running before a strength session."
+   ],
+   "relevance": "This review supports a performance card stating that two strength sessions per week can make running more economical without adding body mass. The advice on separating hard running and strength work by several hours, or placing them on different days, can inform how the engine schedules strength sessions around key runs.",
+   "limits": "Study quality was moderate (PEDro 4 to 6), samples were small and findings were not always consistent. Most participants were trained or well-trained runners, so the size of the benefit for recreational runners is uncertain. The review does not address injury prevention.",
+   "strength": null
+  },
+  {
+   "id": "khan-2026",
+   "cite": "Khan (2026)",
+   "category": "I",
+   "apa": "Khan, S. (2026). Warm-up programs as a key strategy for injury prevention in youth sports [Editorial]. The Therapist (Journal of Therapies & Rehabilitation Sciences), 7(1), 1–2. https://doi.org/10.54393/tt.v7i01.302",
+   "doi": "10.54393/tt.v7i01.302",
+   "facts": {
+    "Type": "Two-page editorial",
+    "Population": "Children and adolescents in sport",
+    "Main message": "Structured warm-up programmes reduce sports injuries in youth, and compliance determines how large the effect is",
+    "Note": "Not on the original download list"
+   },
+   "findings": [
+    "The editorial cites a meta-analysis by Ding et al. of 15 studies with more than 21,500 children and adolescents, reporting about a 36% reduction in sports injuries with warm-up programmes.",
+    "Programmes built on neuromuscular control, balance and strength were the most effective.",
+    "Consistent, structured implementation was a key moderator of the effect."
+   ],
+   "relevance": "The editorial is of marginal use because Došlap targets adult runners. Its main value is as a pointer to the Ding et al. meta-analysis, and it is consistent with Lauersen et al. (2014) in showing that strength and neuromuscular content, rather than stretching, drives the preventive effect.",
+   "limits": "An editorial with no original data, published in a small journal, and focused on youth team sports. It should not be cited on an evidence card. If a warm-up card is wanted, the underlying meta-analysis should be obtained instead.",
+   "strength": null
+  },
+  {
+   "id": "lauersen-et-al-2014",
+   "cite": "Lauersen et al. (2014)",
+   "category": "I",
+   "apa": "Lauersen, J. B., Bertelsen, D. M., & Andersen, L. B. (2014). The effectiveness of exercise interventions to prevent sports injuries: A systematic review and meta-analysis of randomised controlled trials. British Journal of Sports Medicine, 48(11), 871–877. https://doi.org/10.1136/bjsports-2013-092538",
+   "doi": "10.1136/bjsports-2013-092538",
+   "facts": {
+    "Type": "Systematic review and meta-analysis of randomised controlled trials",
+    "Sample": "25 trials with 26,610 participants and 3,464 injuries across a range of sports, mostly team sports and military populations",
+    "Interventions": "Stretching, proprioception (balance) training, strength training and programmes combining several exercise types",
+    "Outcome": "Risk of sports injury expressed as relative risk (RR), analysed for acute and overuse injuries separately"
+   },
+   "findings": [
+    "Across all trials, exercise interventions reduced sports injuries by about a third (RR 0.632).",
+    "Strength training showed the largest effect (RR 0.315, 95% CI 0.207–0.480, four trials, I² = 0%), which corresponds to roughly a two-thirds reduction in injuries.",
+    "Proprioception training (RR 0.550) and multi-component programmes (RR 0.655) were also protective, whereas stretching had no effect (RR 0.963, not significant).",
+    "Both overuse injuries (RR 0.527) and acute injuries (RR 0.647) were reduced, and the authors conclude that overuse injuries can be almost halved."
+   ],
+   "relevance": "This is the core source for a strength-training evidence card. It supports a plain-Czech claim that regular strength training lowers the risk of injury and that stretching alone does not, and it can justify a nudge when a runner logs no strength sessions over several weeks. Because the source does not define a dose for runners, the engine should recommend strength work in general terms and leave the specific programme to the physiotherapist.",
+   "limits": "The strength-training estimate rests on only four trials, none of them in recreational runners, and the included populations are mostly soldiers and team-sport athletes. Compliance was reported inconsistently. The evidence is strong for the general message that exercise-based prevention works, but moderate for transferring the effect size to runners.",
+   "strength": null
+  },
+  {
+   "id": "llanos-lagos-et-al-2024",
+   "cite": "Llanos-Lagos et al. (2024)",
+   "category": "I",
+   "apa": "Llanos-Lagos, C., Ramirez-Campillo, R., Moran, J., & Sáez de Villarreal, E. (2024). The effect of strength training methods on middle-distance and long-distance runners' athletic performance: A systematic review with meta-analysis. Sports Medicine, 54(7), 1801–1833. https://doi.org/10.1007/s40279-024-02018-z",
+   "doi": "10.1007/s40279-024-02018-z",
+   "facts": {
+    "Type": "Systematic review with meta-analysis, certainty of evidence rated with GRADE",
+    "Sample": "38 randomised and non-randomised controlled studies with 894 moderately to highly trained runners",
+    "Interventions": "High-load (at least 80% of one-repetition maximum), submaximal-load (40 to 79%), plyometric and combined strength training, 6 to 40 weeks, 1 to 4 sessions per week",
+    "Outcomes": "Time-trial and time-to-exhaustion performance, maximal oxygen uptake, velocity at maximal oxygen uptake, maximum metabolic steady state and sprint capacity",
+    "Note": "Not on the original download list"
+   },
+   "findings": [
+    "High-load strength training had a moderate effect on running performance (effect size −0.469), and combining two or more methods had a large effect (effect size −1.035).",
+    "Plyometric training alone did not reach significance (effect size −0.210, p = 0.064).",
+    "No method improved maximal oxygen uptake, velocity at maximal oxygen uptake, maximum metabolic steady state or sprint capacity.",
+    "Sex, age, performance level, strength-training experience and programme length did not moderate the effects, and the certainty of evidence was very low to moderate."
+   ],
+   "relevance": "This is the most recent and largest meta-analysis in the section. It supports a card stating that heavy strength training, ideally combined with other methods such as jumps, can improve race times, and that the benefit applies across runner levels. Together with Blagrove et al. (2018), it suggests the effect works through running economy and neuromuscular factors rather than aerobic capacity.",
+   "limits": "Certainty of evidence was low to moderate, and several analyses contained few studies. Performance outcomes were short time trials and laboratory tests, so benefits for marathon or trail distances are extrapolated. The review does not address injury.",
+   "strength": null
+  },
+  {
+   "id": "rnnestad-and-mujika-2014",
+   "cite": "Rønnestad and Mujika (2014)",
+   "category": "I",
+   "apa": "Rønnestad, B. R., & Mujika, I. (2014). Optimizing strength training for running and cycling endurance performance: A review. Scandinavian Journal of Medicine & Science in Sports, 24(4), 603–612. https://doi.org/10.1111/sms.12104",
+   "doi": "10.1111/sms.12104",
+   "facts": {
+    "Type": "Narrative review by two leading researchers in concurrent training",
+    "Population": "Endurance-trained runners and cyclists",
+    "Focus": "Effects of heavy and explosive strength training added to endurance training, with practical programming advice",
+    "Version note": "The downloaded PDF is the accepted manuscript (2013). The reference gives the final issue version."
+   },
+   "findings": [
+    "In runners, both heavy and explosive strength training improved running economy and running performance, whereas cycling benefited mainly from heavy strength training.",
+    "No negative effects of adding strength training to an endurance programme were reported.",
+    "The authors recommend two sessions per week for about 12 weeks, 2 to 3 sets of 4 to 10 repetition-maximum loads with 2 to 3 minutes of rest, and developing proper technique with lighter loads before lifting heavy.",
+    "About one low-volume, high-intensity session per week appears to maintain strength gains during the competitive season, and runners should expect heavy, sore legs in the first two to three weeks and reduce endurance training at that point."
+   ],
+   "relevance": "This review provides the most concrete programming guidance in the section. It supports two engine behaviours, namely a build phase with two strength sessions per week and a maintenance phase with one session per week during race preparation, and a warning card that leg soreness is common in the first weeks of a new strength programme.",
+   "limits": "This is a narrative review without a systematic search, and the recommendations are based on a small number of studies in well-trained athletes. The loading advice is expert opinion informed by evidence rather than a tested prescription for recreational runners.",
+   "strength": null
+  },
+  {
+   "id": "yismaw-et-al-2026",
+   "cite": "Yismaw et al. (2026)",
+   "category": "I",
+   "apa": "Yismaw, A. S., Wondem, D. A., Wubale, A. A., & Belay, A. T. (2026). Effect of concurrent training on middle-distance running performances in trained athletes. Pamukkale Journal of Sport Sciences. Advance online publication. https://doi.org/10.54141/psbd.1752868",
+   "doi": "10.54141/psbd.1752868",
+   "facts": {
+    "Design": "Quasi-experimental pre-test and post-test study",
+    "Participants": "30 trained adolescent middle-distance runners in Ethiopia (mean age 17.3 years), 10 per group",
+    "Groups": "Endurance only, strength only and concurrent (endurance plus strength) training, three sessions per week for 12 weeks",
+    "Outcomes": "Squats, push-ups, estimated maximal oxygen uptake (Cooper test) and 2-km time trial",
+    "Note": "Not on the original download list"
+   },
+   "findings": [
+    "The concurrent group improved more than the endurance-only group in all measures, including the 2-km time trial.",
+    "The strength-only group gained most in muscular endurance but did not improve its 2-km time.",
+    "The authors themselves warn that the very large effect sizes are likely inflated by the small, homogeneous sample."
+   ],
+   "relevance": "The study is consistent with the reviews in this section but adds nothing that they do not already establish. It should not be used on an evidence card.",
+   "limits": "Very small sample, adolescent athletes, group allocation by baseline performance rather than randomisation, field-estimated outcomes and implausibly large effects. Evidence strength is weak.",
+   "strength": null
+  }
+ ]
+}

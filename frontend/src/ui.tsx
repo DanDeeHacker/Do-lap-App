@@ -580,13 +580,13 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   )
 }
 
-export function Sheet({ open, onClose, children, footer }: { open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+export function Sheet({ open, onClose, children, footer, layer = "z-[80]" }: { open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode; layer?: string }) {
   if (!open) return null
   // Portalled to <body>: inside <main> (isolation: isolate) the sheet sat under the
   // fixed tab bar and Check-in button, which covered its footer on phones.
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_.2s_ease-out] md:items-center md:p-6"
+      className={`fixed inset-0 ${layer} flex items-end justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_.2s_ease-out] md:items-center md:p-6`}
       onClick={onClose}
     >
       <div

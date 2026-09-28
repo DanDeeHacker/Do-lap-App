@@ -2,6 +2,7 @@
 // loading cycle on the runner's own reference week, capped by the capacity the
 // Zátěž tab shows): session type, distance, HR zone + pace, Z4+ minutes,
 // ascent/descent, terrain, and why.
+import { CoachTextCard, WhyButton } from "@/assistant"
 import { useEffect, useState } from "react"
 import { Link } from "react-router"
 import { api } from "@/api"
@@ -487,7 +488,8 @@ export function Training() {
               </span>} />
           </h1>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <WhyButton question={`Proč mám dnes ${t.label.toLowerCase()} a jak ho pojmout?`} context={{ kind: "guidance" }} label="Proč právě tohle?" />
           {g.provisional && <Chip tone="watch">předběžné · čeká na ranní data</Chip>}
           {(() => {
             const rp = g.readinessScore ?? Math.round((g.readiness ?? 1) * 100)
@@ -556,7 +558,10 @@ export function Training() {
 
       <section className="card mt-4 p-4 md:p-6" data-tour="training-session">
         {!t.allowed && (
-          <p className="mb-4 rounded-[12px] border border-alert/30 bg-alert/10 px-3 py-2 text-[13px] font-bold text-alert-soft">Dnes nedoporučujeme: {t.why}</p>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-[12px] border border-alert/30 bg-alert/10 px-3 py-2">
+            <p className="text-[13px] font-bold text-alert-soft">Dnes nedoporučujeme: {t.why}</p>
+            <WhyButton question={`Proč mi dnes nedoporučujete ${t.label.toLowerCase()}?`} context={{ kind: "type", id: kind }} />
+          </div>
         )}
         {cross ? (
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -594,6 +599,7 @@ export function Training() {
         )}
       </section>
 
+      <CoachTextCard kind="daily_commentary" title="Komentář k dnešnímu tréninku" question="Jak mám dnešní trénink pojmout?" className="mt-4" />
       <TodayCapacity g={g} />
       <WeekPanel g={g} />
       <RacesCard outlook={a.races} />

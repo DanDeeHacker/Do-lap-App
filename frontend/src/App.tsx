@@ -25,6 +25,7 @@ import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
 import { CapacityMini, Readiness, readinessCol, readinessPct } from "@/capacity"
 import { Training } from "@/training"
+import { AssistantHeaderButton, AssistantProvider, CoachTextCard, WhyButton } from "@/assistant"
 import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
@@ -116,6 +117,7 @@ function Topbar() {
         <p className="hidden text-[15px] font-extrabold tracking-[-.02em] text-fg lg:block">{navItems.find(([id]) => pathname === `/app/${id}` || pathname.startsWith(`/app/${id}/`))?.[1] ?? (pathname === "/data" ? "Data a připojení" : pathname === "/engines" ? "Porovnání enginů" : pathname.startsWith("/engine") ? "Citlivostní analýza" : "")}</p>
         <div className="relative flex shrink-0 items-center gap-2">
           <AnnotateToggle />
+          <AssistantHeaderButton />
           <button
             onClick={() => setProfileOpen(!profileOpen)}
             className="relative grid size-9 place-items-center rounded-full bg-accent text-[11px] font-extrabold text-ink"
@@ -273,6 +275,7 @@ function Layout() {
   return (
     <AnnotateProvider>
       <OnboardingProvider>
+      <AssistantProvider>
       <div className="motion-shell min-h-screen bg-bg text-fg">
         <Sidebar items={navItems} />
         <Topbar />
@@ -299,6 +302,7 @@ function Layout() {
         )}
         <AnnotationLayer />
       </div>
+      </AssistantProvider>
       </OnboardingProvider>
     </AnnotateProvider>
   )
@@ -1155,7 +1159,13 @@ function TodayV2() {
                         : <p className="mt-2 text-[12px] text-fg-3">Na trend je zatím málo historie.</p>}
                     </div>
                     <div>
-                      <p className="t-label mt-3 !text-fg-3">{pk === "mech" ? "Co tvoří skóre mechaniky" : "Co tvoří skóre zátěže"}</p>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="t-label !text-fg-3">{pk === "mech" ? "Co tvoří skóre mechaniky" : "Co tvoří skóre zátěže"}</p>
+                        {panelSig.length > 0 && (() => {
+                          const top = [...panelSig].sort((x: any, y: any) => (y.pts || 0) - (x.pts || 0))[0]
+                          return <WhyButton question={`Co znamená signál „${top.name}“ v mých datech a co s ním?`} context={{ kind: "signal", id: top.id }} label="Vysvětlit" />
+                        })()}
+                      </div>
                       {panelSig.length ? (
                         <div className="mt-2.5 space-y-2.5">
                           {panelSig.map((s: any) => <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} tone={pk === "mech" ? "info" : "load"} pct={(s.pts / Math.max(1, ...panelSig.map((x: any) => x.pts || 0))) * 100} />)}
@@ -1223,6 +1233,11 @@ function TodayV2() {
               {pk === "readiness" && (
                 <div>
                   {/* railway#81 — Připravenost opens the training load: why readiness is what it is, the weeks, today vs. the 7-day room */}
+                  {readiness != null && (
+                    <div className="mb-3 flex justify-end">
+                      <WhyButton question={`Proč mám dnes připravenost ${readiness} % a co ji ovlivňuje?`} context={{ kind: "readiness" }} label="Vysvětlit připravenost" />
+                    </div>
+                  )}
                   {a?.capacity?.readiness && <Readiness r={a.capacity.readiness} />}
                   <div className="mt-4 grid gap-6 md:grid-cols-2 md:gap-8">
                     <div>
@@ -1254,6 +1269,7 @@ function TodayV2() {
           </BottomSheet>
         )}
       </section>
+      <CoachTextCard kind="daily_summary" title="Shrnutí dne" question="Co z dnešního shrnutí je pro mě nejdůležitější?" className="mt-4" />
     </>
   )
 }

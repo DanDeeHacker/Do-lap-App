@@ -1,0 +1,954 @@
+{
+ "about": "Evidence cards (tier 1 of the knowledge base). Drafted by Claude from Doslap_Literature_Summary.docx on 2026-09-28, status 'draft' until approved (pain and referral cards also by a physiotherapist). 'sources' are ids in summaries.json. Numbers in 'claim' must come from the cited summaries.",
+ "cards": [
+  {
+   "id": "a-10-procent",
+   "cat": "A",
+   "title": "Pravidlo 10 % není prokázané",
+   "claim": "V randomizované studii u začínajících běžců nesnížil pozvolnější nárůst tréninku počet zranění, zraněno bylo 20,8 % proti 20,3 % běžců. Přehledy studií nenacházejí žádnou jednotnou bezpečnou hranici týdenního nárůstu, proto aplikace vychází z vaší vlastní prokázané kapacity, ne z obecného procenta.",
+   "limits": "Studie zkoumala začátečníky a průměrné tempo nárůstu za celý program, ne náhlé skoky z týdne na týden.",
+   "strength": "střední",
+   "sources": [
+    "buist-et-al-2008",
+    "fredette-et-al-2022",
+    "damsted-et-al-2018"
+   ],
+   "applies": {
+    "signals": [
+     "cap_volume",
+     "load_capacity"
+    ],
+    "topics": [
+     "load",
+     "capacity",
+     "progression"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "a-tydenni-skok",
+   "cat": "A",
+   "title": "Náhlý skok v týdenním objemu",
+   "claim": "Při přípravě na půlmaraton měli běžci, kteří zvýšili objem za posledních 7 dní o 20 až 60 % proti předchozím 7 dnům, během následujících 3 týdnů vyšší podíl zranění. Aplikace proto hlídá týden proti vaší kapacitě a ne jen celkový trend.",
+   "limits": "Souvislost se v delším sledování neprokázala a u ještě vyšších nárůstů nebyla průkazná, odhady jsou nepřesné.",
+   "strength": "slabé",
+   "sources": [
+    "damsted-et-al-2019"
+   ],
+   "applies": {
+    "signals": [
+     "cap_volume",
+     "cap_systemic",
+     "session_spike",
+     "spike_latent"
+    ],
+    "topics": [
+     "load",
+     "spike",
+     "progression"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "a-absolutni-zaklad",
+   "cat": "A",
+   "title": "Malý objem, velká procenta",
+   "claim": "Relativní nárůst závisí na výchozím objemu: přidat 1 km při 2 km týdně je skok o 50 %, přidat 3 km při 100 km týdně jen 3 %. Aplikace proto u malých objemů počítá s minimální kapacitou, aby malé kroky nevypadaly jako prudké skoky.",
+   "limits": "Jde o metodický argument přehledové studie, ne o otestované pravidlo.",
+   "strength": "slabé",
+   "sources": [
+    "damsted-et-al-2018"
+   ],
+   "applies": {
+    "signals": [
+     "cap_volume"
+    ],
+    "topics": [
+     "load",
+     "progression",
+     "beginner"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "a-predchozi-zraneni",
+   "cat": "A",
+   "title": "Předchozí zranění zvyšuje citlivost",
+   "claim": "Dřívější zranění, obvykle z posledních 12 měsíců, bylo nejčastěji potvrzeným rizikovým faktorem nového zranění, v jedné kohortě s poměrem šancí 1,88. Aplikace proto u běžců se zraněním v anamnéze snižuje toleranci zátěže a pozorněji sleduje bolest v dřívějším místě.",
+   "limits": "Většina studií byla malá a proměnné tréninku v nich měly slabé a nejednotné výsledky.",
+   "strength": "střední",
+   "sources": [
+    "saragiotto-et-al-2014",
+    "hespanhol-junior-et-al-2013"
+   ],
+   "applies": {
+    "signals": [
+     "pain_prior",
+     "hist"
+    ],
+    "topics": [
+     "previous_injury",
+     "pain"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "a-zatez-kapacita",
+   "cat": "A",
+   "title": "Zátěž proti kapacitě tkáně",
+   "claim": "Přetížení vzniká, když zátěž konkrétní tkáně překročí to, co vydrží. Stejná vzdálenost proto zatěžuje různé běžce různě podle terénu, povrchu, tělesné hmotnosti nebo předchozího zranění, a aplikace sleduje zvlášť objem, intenzitu, klesání, stoupání a celkovou zátěž.",
+   "limits": "Jde o teoretický rámec bez vlastních dat, nepodporuje konkrétní prahové hodnoty.",
+   "strength": "slabé",
+   "sources": [
+    "nielsen-et-al-2018"
+   ],
+   "applies": {
+    "signals": [
+     "cap_volume",
+     "cap_intensity",
+     "cap_descent",
+     "cap_ascent",
+     "cap_systemic"
+    ],
+    "topics": [
+     "capacity",
+     "load",
+     "quadrant"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "a-maratonsky-blok",
+   "cat": "A",
+   "title": "Pozdní týdny maratonské přípravy",
+   "claim": "Mezi běžci Newyorského maratonu přibývalo s postupem přípravy přetěžovacích zranění, zatímco akutních zůstávalo stejně. Poslední týdny bloku si proto zaslouží pozornost k bolesti a únavě.",
+   "limits": "Jedna kohorta jednoho závodu, zranění byla hlášena samotnými běžci.",
+   "strength": "slabé",
+   "sources": [
+    "mcgrath-et-al-2024"
+   ],
+   "applies": {
+    "signals": [
+     "taper"
+    ],
+    "topics": [
+     "race",
+     "marathon",
+     "progression"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "a-trail-profil",
+   "cat": "A",
+   "title": "Typická zranění v trailu",
+   "claim": "Na trailu se nejčastěji objevují obtíže chodidla a kotníku, výrony a puchýře, což autoři přehledu spojují s nerovným terénem. Technické úseky a seběhy proto aplikace hodnotí zvlášť.",
+   "limits": "Rizikové faktory pocházejí převážně z malých průřezových studií a nehodí se jako pravidla.",
+   "strength": "slabé",
+   "sources": [
+    "viljoen-et-al-2022"
+   ],
+   "applies": {
+    "signals": [
+     "cap_descent",
+     "desc",
+     "desc_steep"
+    ],
+    "topics": [
+     "trail",
+     "terrain"
+    ]
+   },
+   "app": "mechanics"
+  },
+  {
+   "id": "b-vnitrni-vnejsi",
+   "cat": "B",
+   "title": "Stejný běh, jiná námaha",
+   "claim": "Vnější zátěž je to, co jste uběhli, vnitřní zátěž je to, co to stálo tělo. Vyšší tep nebo vyšší vnímaná námaha při obvyklém tempu může ukazovat únavu, a proto aplikace porovnává tep s vaším obvyklým tepem pro dané tempo.",
+   "limits": "Tep ovlivňuje i horko, terén a hydratace, proto se horké a velmi kopcovité běhy do porovnání nepočítají.",
+   "strength": "střední",
+   "sources": [
+    "bourdon-et-al-2017",
+    "halson-2014a"
+   ],
+   "applies": {
+    "signals": [
+     "hr_pace",
+     "aer"
+    ],
+    "topics": [
+     "readiness",
+     "fatigue",
+     "heart_rate"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "b-rpe",
+   "cat": "B",
+   "title": "Hodnocení náročnosti běhu",
+   "claim": "Náročnost od 1 do 10 vynásobená délkou tréninku je platný způsob, jak změřit vnitřní zátěž, a funguje i u intervalů, kde tep zaostává. Proto aplikace žádá krátké hodnocení po běhu a používá ho i u kola, plavání a posilování.",
+   "limits": "Odvozené ukazatele monotónnosti a zátěže autoři navrhli, ale netestovali jejich souvislost se zraněním.",
+   "strength": "střední",
+   "sources": [
+    "foster-et-al-2001",
+    "halson-2014a"
+   ],
+   "applies": {
+    "signals": [
+     "mono",
+     "cap_strength"
+    ],
+    "topics": [
+     "rpe",
+     "cross_training",
+     "intensity"
+    ]
+   },
+   "app": "post"
+  },
+  {
+   "id": "b-subjektivni",
+   "cat": "B",
+   "title": "Váš pocit má váhu",
+   "claim": "V systematickém přehledu reagovaly subjektivní ukazatele na změny zátěže citlivěji a spolehlivěji než objektivní, a když se rozcházely, v 85 % případů vyšly lépe ty subjektivní. Proto check-in s únavou, svalovou bolestí, stresem a spánkem přímo ovlivňuje vaši připravenost.",
+   "limits": "Studie zahrnovaly hlavně elitní sportovce a neporovnávaly check-in s daty z hodinek, jako je HRV.",
+   "strength": "střední",
+   "sources": [
+    "saw-et-al-2016"
+   ],
+   "applies": {
+    "signals": [
+     "fatigue",
+     "sore",
+     "feel"
+    ],
+    "topics": [
+     "checkin",
+     "readiness",
+     "fatigue",
+     "stress"
+    ]
+   },
+   "app": "today"
+  },
+  {
+   "id": "b-chronicka-zatez",
+   "cat": "B",
+   "title": "Postupně budovaná zátěž chrání",
+   "claim": "Sportovci zvyklí na vyšší zátěž mívají méně zranění než ti, kteří trénují málo, a škodit může příliš málo i příliš mnoho tréninku. Proto po pauze kapacita klesá a aplikace doporučuje pravidelnost místo nárazových týdnů.",
+   "limits": "Pochází z týmových sportů a konkrétní prahy z nepublikovaných dat, na běžce je nelze přenášet.",
+   "strength": "slabé",
+   "sources": [
+    "gabbett-2016",
+    "bourdon-et-al-2017"
+   ],
+   "applies": {
+    "signals": [
+     "ewma",
+     "tsb"
+    ],
+    "topics": [
+     "load",
+     "consistency",
+     "break"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "b-acwr",
+   "cat": "B",
+   "title": "Poměr zátěže 7:28 jen jako doplněk",
+   "claim": "Poměr akutní a chronické zátěže pochází z týmových sportů a jeho platnost je zpochybňovaná. Aplikace ho proto ukazuje jen jako doplňkový údaj a rozhoduje podle vaší kapacity v jednotlivých kanálech.",
+   "limits": "Pro běžce chybí přesvědčivá data o prahových hodnotách poměru.",
+   "strength": "slabé",
+   "sources": [
+    "bourdon-et-al-2017",
+    "gabbett-2016"
+   ],
+   "applies": {
+    "signals": [
+     "ewma"
+    ],
+    "topics": [
+     "load",
+     "acwr"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "b-kolisani-tepu",
+   "cat": "B",
+   "title": "Tep kolísá den ode dne",
+   "claim": "Tep při stejné submaximální intenzitě může mezi dny kolísat až o 6,5 %. Aplikace proto hodnotí tep při tempu jako průměr několika běhů a jeden vyšší tep sám nic neznamená.",
+   "limits": "Přehled vychází hlavně z elitního sportu a doporučení jsou odborným názorem.",
+   "strength": "střední",
+   "sources": [
+    "halson-2014a"
+   ],
+   "applies": {
+    "signals": [
+     "hr_pace"
+    ],
+    "topics": [
+     "heart_rate",
+     "readiness"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "c-tydenni-hrv",
+   "cat": "C",
+   "title": "Týdenní průměr HRV místo jedné noci",
+   "claim": "Jednotlivé noci jsou nespolehlivé: změny výkonu na 10 km souvisely s týdenním průměrem HRV, ne s hodnotami jednotlivých dní. Proto jedna horší noc sníží připravenost jen málo, pokud ji nepotvrdí i sedmidenní průměr.",
+   "limits": "Data pocházejí z malých skupin elitních sportovců a z ranních měření, ne z nočního měření hodinek.",
+   "strength": "střední",
+   "sources": [
+    "plews-et-al-2013",
+    "plews-et-al-2012"
+   ],
+   "applies": {
+    "signals": [
+     "hrv",
+     "rhr"
+    ],
+    "topics": [
+     "hrv",
+     "readiness",
+     "resting_hr"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "c-pocet-noci",
+   "cat": "C",
+   "title": "Kolik nocí HRV je potřeba",
+   "claim": "Aby týdenní průměr HRV něco vypovídal, potřebují rekreační běžci asi 5 platných měření týdně a trénovaní aspoň 3. Když nocí chybí víc, aplikace týdenní průměr HRV do připravenosti nepočítá.",
+   "limits": "Analýza dvou malých souborů s ranním měřením, přenos na noční data hodinek je předpoklad.",
+   "strength": "slabé",
+   "sources": [
+    "plews-et-al-2014"
+   ],
+   "applies": {
+    "signals": [
+     "hrv"
+    ],
+    "topics": [
+     "hrv",
+     "readiness",
+     "data_quality"
+    ]
+   },
+   "app": "data"
+  },
+  {
+   "id": "c-vysoka-hrv",
+   "cat": "C",
+   "title": "Vyšší HRV není vždy dobrá zpráva",
+   "claim": "U funkčně přetížených triatlonistů HRV během přetížení stoupala, místo aby klesala. Aplikace proto neoznačuje vysokou HRV automaticky za dobrou zprávu, pokud ji provází únava nebo vyšší tep při obvyklém tempu.",
+   "limits": "Opírá se o malé studie a HRV reaguje i na vlivy mimo trénink.",
+   "strength": "slabé",
+   "sources": [
+    "plews-et-al-2014",
+    "schaffarczyk-and-sperlich-2026"
+   ],
+   "applies": {
+    "signals": [
+     "hrv_high"
+    ],
+    "topics": [
+     "hrv",
+     "readiness",
+     "overreaching"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "c-hrv-trenink",
+   "cat": "C",
+   "title": "Co přináší trénink podle HRV",
+   "claim": "Meta-analýza 8 studií našla u tréninku řízeného podle HRV jen malé a nevýznamné zlepšení kondice a výkonu, ale jednotlivé studie ukázaly méně lidí, kteří na trénink reagovali špatně. Přizpůsobení podle HRV je tedy spíš pojistka než zrychlení.",
+   "limits": "Málo malých studií s nejasným rizikem zkreslení.",
+   "strength": "střední",
+   "sources": [
+    "manresa-rocamora-et-al-2021"
+   ],
+   "applies": {
+    "signals": [
+     "hrv"
+    ],
+    "topics": [
+     "hrv",
+     "readiness"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "c-hrv-zivot",
+   "cat": "C",
+   "title": "HRV reaguje i na život mimo trénink",
+   "claim": "HRV mění nemoc, alkohol, spánek, hydratace, menstruační cyklus i prostředí, a o zotavení svalů říká málo. Proto aplikace HRV kombinuje s klidovým tepem, spánkem a vaším check-inem a nikdy nerozhoduje jen podle ní.",
+   "limits": "Jde o přehledový článek bez systematického vyhledávání.",
+   "strength": "slabé",
+   "sources": [
+    "schaffarczyk-and-sperlich-2026"
+   ],
+   "applies": {
+    "signals": [
+     "hrv"
+    ],
+    "topics": [
+     "hrv",
+     "illness",
+     "readiness"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "d-vetsina-lehce",
+   "cat": "D",
+   "title": "Většina tréninku lehce",
+   "claim": "Úspěšní vytrvalci běhají zhruba 80 % tréninků lehce a jen dva až tři tréninky týdně tvrdě, tvrdé dny se střídají s lehkými. Aplikace proto hlídá rozestup mezi tvrdými tréninky a jejich počet za týden.",
+   "limits": "Popisuje hlavně elitní sportovce, kteří trénují až dvakrát denně, přenos na rekreační běžce je předpoklad.",
+   "strength": "střední",
+   "sources": [
+    "seiler-2010",
+    "casado-et-al-2022"
+   ],
+   "applies": {
+    "signals": [
+     "mono"
+    ],
+    "topics": [
+     "intensity",
+     "hard",
+     "easy",
+     "planning"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "d-polarizace",
+   "cat": "D",
+   "title": "Lehké dny lehce, tvrdé tvrdě",
+   "claim": "V devítitýdenní randomizované studii zlepšil program s převahou lehkého tréninku a menším podílem skutečně tvrdého tréninku laboratorní ukazatele vytrvalosti víc než program založený na objemu nebo na tempových bězích.",
+   "limits": "Krátká studie s malými skupinami a laboratorními výsledky, ne závody.",
+   "strength": "střední",
+   "sources": [
+    "stoggl-and-sperlich-2014"
+   ],
+   "applies": {
+    "signals": [],
+    "topics": [
+     "intensity",
+     "hard",
+     "easy"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "d-lehky-tep",
+   "cat": "D",
+   "title": "Lehký běh podle tepu",
+   "claim": "Sportovci, kteří měli jet lehce bez tepové zpětné vazby, se nevědomky dostávali do středního pásma. Proto aplikace u lehkých běhů dává konkrétní tepové rozmezí.",
+   "limits": "Konferenční abstrakt s 15 elitními veslaři, přenos na běžce je předpoklad.",
+   "strength": "slabé",
+   "sources": [
+    "treff-et-al-2026"
+   ],
+   "applies": {
+    "signals": [],
+    "topics": [
+     "easy",
+     "heart_rate",
+     "intensity"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "d-zamer-treninku",
+   "cat": "D",
+   "title": "Tvrdý trénink podle záměru",
+   "claim": "Tep se u krátkých úseků zpožďuje, takže minuty v zónách podhodnocují tvrdou práci. Aplikace proto počítá běh jako tvrdý i tehdy, když ho ohodnotíte náročností 7 a víc a nejde o dlouhý běh.",
+   "limits": "Hranice náročnosti 7 a délky 75 minut je pracovní předpoklad aplikace.",
+   "strength": "střední",
+   "sources": [
+    "seiler-2010",
+    "foster-et-al-2001"
+   ],
+   "applies": {
+    "signals": [],
+    "topics": [
+     "intensity",
+     "hard",
+     "rpe"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "e-seby",
+   "cat": "E",
+   "title": "Seběh zatěžuje víc, než ukazuje tep",
+   "claim": "Při seběhu rostou nárazové síly a brzdění, v jedné studii byl brzdný impulz na sklonu 15,8 % o 108 % vyšší než po rovině, přestože tep bývá nižší. Aplikace proto sleduje klesání jako samostatný kanál zátěže.",
+   "limits": "Malé laboratorní studie na mírných sklonech, bez přímého sledování zranění.",
+   "strength": "střední",
+   "sources": [
+    "vernillo-et-al-2017"
+   ],
+   "applies": {
+    "signals": [
+     "cap_descent",
+     "desc",
+     "desc_steep"
+    ],
+    "topics": [
+     "descent",
+     "terrain",
+     "trail"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "e-stoupani",
+   "cat": "E",
+   "title": "Stoupání zvyšuje náročnost",
+   "claim": "Energetická náročnost roste s každým procentem stoupání a přirozené zpomalení v kopci ji nevyrovná. Aplikace proto při porovnání tepu s tempem přepočítává kopcovité běhy na rovinu.",
+   "limits": "Rovnice popisují průměrného běžce a vycházejí hlavně z běhu na pásu.",
+   "strength": "střední",
+   "sources": [
+    "vernillo-et-al-2017",
+    "looney-et-al-2026"
+   ],
+   "applies": {
+    "signals": [
+     "cap_ascent",
+     "hr_pace"
+    ],
+    "topics": [
+     "ascent",
+     "terrain"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "e-technika",
+   "cat": "E",
+   "title": "Univerzálně úsporná technika neexistuje",
+   "claim": "Běžci si délku a frekvenci kroku přirozeně optimalizují a vnucená změna, například dopad na přední část chodidla u běžců dopadajících na patu, ekonomiku při pomalejších tempech zhoršila. Změny metrik techniky proto aplikace ukazuje jako trend proti vaší normě, ne jako chybu k opravě.",
+   "limits": "Týká se běžecké ekonomiky, ne zranění, a převážně trénovaných běžců na pásu.",
+   "strength": "střední",
+   "sources": [
+    "moore-2016"
+   ],
+   "applies": {
+    "signals": [
+     "tavr",
+     "gct",
+     "cad",
+     "vosc",
+     "bal",
+     "dec",
+     "gaitcv"
+    ],
+    "topics": [
+     "mechanics",
+     "technique",
+     "cadence"
+    ]
+   },
+   "app": "mechanics"
+  },
+  {
+   "id": "f-horko",
+   "cat": "F",
+   "title": "První horké dny",
+   "claim": "V horku je tep při stejném tempu vyšší a výkon nižší, většina přizpůsobení proběhne během prvního týdne opakovaného běhání v horku a téměř úplná je asi po 10 až 14 dnech. Vyšší tep v horku proto aplikace nehodnotí jako ztrátu kondice.",
+   "limits": "Doporučení cílí hlavně na elitní sportovce a opírají se o laboratorní studie.",
+   "strength": "střední",
+   "sources": [
+    "periard-et-al-2015",
+    "racinais-et-al-2015"
+   ],
+   "applies": {
+    "signals": [],
+    "topics": [
+     "heat",
+     "weather",
+     "heart_rate"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "f-piti",
+   "cat": "F",
+   "title": "Pití v horku bez přehánění",
+   "claim": "V horku ztrácí tělo potem víc tekutin, ale konsenzus zároveň varuje rekreační sportovce před nadměrným pitím. Konkrétní množství aplikace nedoporučuje, pijte podle žízně a délky běhu.",
+   "limits": "Hydratační doporučení jsou částečně sporná a cílí na elitní sport.",
+   "strength": "střední",
+   "sources": [
+    "racinais-et-al-2015"
+   ],
+   "applies": {
+    "signals": [],
+    "topics": [
+     "heat",
+     "hydration"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "g-7-hodin",
+   "cat": "G",
+   "title": "Aspoň 7 hodin spánku",
+   "claim": "Odborné společnosti doporučují dospělým pravidelně aspoň 7 hodin spánku, kratší spánek souvisí mimo jiné se zhoršeným výkonem a imunitou. Opakované noci pod 7 hodin proto snižují vaši připravenost, i když je to vaše obvyklá délka spánku.",
+   "limits": "Doporučení pro běžnou dospělou populaci, pro sportovce v tvrdém tréninku jde o minimum, ne optimum.",
+   "strength": "silné",
+   "sources": [
+    "watson-et-al-2015"
+   ],
+   "applies": {
+    "signals": [
+     "sleep",
+     "sleepreg",
+     "sleepeff"
+    ],
+    "topics": [
+     "sleep",
+     "readiness"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "g-vice-noci",
+   "cat": "G",
+   "title": "Záleží na více nocích za sebou",
+   "claim": "Nedostatek spánku se sčítá přes noci a víc ovlivňuje delší vytrvalostní výkony než krátké maximální úsilí. Aplikace proto hodnotí spánek za poslední tři noci, ne jen tu dnešní.",
+   "limits": "Převážně malé laboratorní studie s větším spánkovým deficitem, než jaký sportovci běžně mají.",
+   "strength": "střední",
+   "sources": [
+    "halson-2014b"
+   ],
+   "applies": {
+    "signals": [
+     "sleep"
+    ],
+    "topics": [
+     "sleep",
+     "readiness"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "h-slacha",
+   "cat": "H",
+   "title": "Bolest šlachy a model sledování bolesti",
+   "claim": "U Achillovy tendinopatie nebylo pokračování v běhu podle modelu sledování bolesti horší než klid: bolest při aktivitě do 5 z 10, do druhého rána odezní a z týdne na týden neroste. Aplikace proto sleduje ranní bolest a její týdenní trend.",
+   "limits": "Platí pro diagnostikovanou tendinopatii pod vedením fyzioterapeuta, ne pro běh s novou nebo nevyjasněnou bolestí.",
+   "strength": "střední",
+   "sources": [
+    "silbernagel-et-al-2007",
+    "smith-et-al-2017"
+   ],
+   "applies": {
+    "signals": [
+     "pain_morning",
+     "pain_trend",
+     "pain",
+     "niggle"
+    ],
+    "topics": [
+     "pain",
+     "tendon"
+    ]
+   },
+   "app": "post"
+  },
+  {
+   "id": "h-kost",
+   "cat": "H",
+   "title": "U kosti se bolest nepřechází",
+   "claim": "Varovné znaky únavového přetížení kosti jsou bolest, která se při běhu ozývá čím dál dřív, přetrvává po běhu, objevuje se při chůzi a nakonec i v klidu nebo v noci. Návrat k běhu se u kosti řídí úplnou absencí bolesti, proto aplikace při bolesti holeně nebo chodidla doporučí jiný sport a při varovných znacích fyzioterapeuta.",
+   "limits": "Odborný komentář, ne systematický přehled. Aplikace nic neurčuje, jen doporučí posouzení.",
+   "strength": "střední",
+   "sources": [
+    "warden-et-al-2014",
+    "hoffman-and-krishnan-2014"
+   ],
+   "applies": {
+    "signals": [
+     "bone_stress",
+     "bone_pain"
+    ],
+    "topics": [
+     "pain",
+     "bone",
+     "shin",
+     "foot"
+    ]
+   },
+   "app": "messages"
+  },
+  {
+   "id": "h-zada",
+   "cat": "H",
+   "title": "Varovné příznaky u bolesti zad",
+   "claim": "Změna močení nebo stolice a necitlivost v oblasti rozkroku při bolesti zad vyžadují okamžité lékařské vyšetření. Jednotlivé varovné příznaky mají samy o sobě slabou výpovědní hodnotu, proto o dalším postupu rozhoduje lékař.",
+   "limits": "Mezinárodní konsenzus založený na klinické úvaze, ne na nových diagnostických studiích.",
+   "strength": "střední",
+   "sources": [
+    "finucane-et-al-2020"
+   ],
+   "applies": {
+    "signals": [
+     "red_flag"
+    ],
+    "topics": [
+     "pain",
+     "back",
+     "red_flag"
+    ]
+   },
+   "app": "messages"
+  },
+  {
+   "id": "h-navrat",
+   "cat": "H",
+   "title": "Návrat ke sportu je postup",
+   "claim": "Návrat po zranění vede od účasti přes návrat ke sportu až k původnímu výkonu a rozhodnutí o uvolnění je společné, se slovem fyzioterapeuta tam, kde jde o zdraví. Aplikace proto návrat navyšuje postupně a nikoho sama neuvolňuje.",
+   "limits": "Konsenzus opřený hlavně o týmové sporty, výzkum pro konkrétní kritéria je řídký.",
+   "strength": "střední",
+   "sources": [
+    "ardern-et-al-2016"
+   ],
+   "applies": {
+    "signals": [
+     "injury"
+    ],
+    "topics": [
+     "return",
+     "injury"
+    ]
+   },
+   "app": "messages"
+  },
+  {
+   "id": "h-kombinace",
+   "cat": "H",
+   "title": "Únava, nemoc a pokles výkonu zároveň",
+   "claim": "Stejné příznaky, jako je dlouhodobá únava, opakovaná nemoc nebo pokles výkonu, mohou mít mnoho příčin od zátěže přes spánek a stres po výživu. Když se sejdou, stojí za to je probrat s fyzioterapeutem nebo lékařem, místo hledání jedné příčiny.",
+   "limits": "Kritický přehled, navržený kontrolní seznam zatím nebyl ověřen.",
+   "strength": "slabé",
+   "sources": [
+    "jeukendrup-et-al-2024"
+   ],
+   "applies": {
+    "signals": [
+     "cluster"
+    ],
+    "topics": [
+     "illness",
+     "fatigue",
+     "cluster"
+    ]
+   },
+   "app": "messages"
+  },
+  {
+   "id": "i-sila-zraneni",
+   "cat": "I",
+   "title": "Silový trénink a méně zranění",
+   "claim": "V meta-analýze randomizovaných studií bylo při cvičebních programech méně sportovních zranění a nejvýraznější účinek měl silový trénink, zatímco strečink žádný. Aplikace proto posilování doporučuje a připomene ho, když dlouho chybí.",
+   "limits": "Silové studie nezahrnovaly běžce, šlo hlavně o vojáky a týmové sporty.",
+   "strength": "střední",
+   "sources": [
+    "lauersen-et-al-2014"
+   ],
+   "applies": {
+    "signals": [
+     "cap_strength"
+    ],
+    "topics": [
+     "strength"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "i-sila-ekonomika",
+   "cat": "I",
+   "title": "Posilování zlepšuje ekonomiku běhu",
+   "claim": "Přidání silového tréninku zlepšilo běžeckou ekonomiku o 2 až 8 % bez zhoršení aerobní kapacity a bez nárůstu hmotnosti, nejčastěji při dvou trénincích týdně. Nejvíc pomáhá těžší posilování nebo kombinace s výskoky.",
+   "limits": "Převážně trénovaní běžci a krátké časovky, přínos pro maraton a trail je odvozený.",
+   "strength": "střední",
+   "sources": [
+    "blagrove-et-al-2018",
+    "balsalobre-fernandez-et-al-2016",
+    "llanos-lagos-et-al-2024"
+   ],
+   "applies": {
+    "signals": [
+     "cap_strength"
+    ],
+    "topics": [
+     "strength",
+     "performance"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "i-udrzovani",
+   "cat": "I",
+   "title": "Před závodem stačí udržovat",
+   "claim": "Během závodního období udrží sílu zhruba jeden krátký a intenzivní silový trénink týdně. Proto aplikace před cílovým závodem snižuje cíl posilování na jedno týdně.",
+   "limits": "Přehledový článek opřený o malý počet studií s trénovanými sportovci.",
+   "strength": "slabé",
+   "sources": [
+    "rnnestad-and-mujika-2014"
+   ],
+   "applies": {
+    "signals": [],
+    "topics": [
+     "strength",
+     "race",
+     "taper"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "i-novy-blok",
+   "cat": "I",
+   "title": "Nový silový blok a těžké nohy",
+   "claim": "V prvních dvou až třech týdnech nového silového programu bývají nohy těžké a bolavé a autoři doporučují v té době ubrat z vytrvalostního tréninku. Aplikace proto v prvních dvou týdnech nového bloku mírně zkracuje běhy.",
+   "limits": "Praktické doporučení z přehledu, ne otestovaný postup pro rekreační běžce.",
+   "strength": "slabé",
+   "sources": [
+    "rnnestad-and-mujika-2014"
+   ],
+   "applies": {
+    "signals": [
+     "cap_strength",
+     "sore"
+    ],
+    "topics": [
+     "strength",
+     "soreness"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "i-odstup",
+   "cat": "I",
+   "title": "Odstup posilování od tvrdého běhu",
+   "claim": "Autoři přehledu doporučují nechat po intenzivním běhu aspoň tři hodiny, než přijde posilování. Aplikace navíc nedoporučuje posilování nohou den před obvyklým tvrdým tréninkem.",
+   "limits": "Doporučení vychází z odborné interpretace, ne z přímého srovnání.",
+   "strength": "slabé",
+   "sources": [
+    "blagrove-et-al-2018"
+   ],
+   "applies": {
+    "signals": [
+     "cap_strength"
+    ],
+    "topics": [
+     "strength",
+     "hard",
+     "planning"
+    ]
+   },
+   "app": "training"
+  },
+  {
+   "id": "a-ultra-zkusenost",
+   "cat": "A",
+   "title": "Ultra a trail: zkušenost víc než kilometry",
+   "claim": "Mezi 1 212 ultramaratonci se zranění a nezranění běžci nelišili ročním objemem, ale zranění měli méně let běžecké zkušenosti. Tělo si na vysoké objemy zvyká roky, proto aplikace kapacitu buduje postupně podle toho, co jste už zvládli.",
+   "limits": "Průřezová studie se zpětně hlášenými zraněními, souvislost neznamená příčinu.",
+   "strength": "slabé",
+   "sources": [
+    "hoffman-and-krishnan-2014"
+   ],
+   "applies": {
+    "signals": [
+     "cap_volume"
+    ],
+    "topics": [
+     "trail",
+     "ultra",
+     "capacity",
+     "progression"
+    ]
+   },
+   "app": "load"
+  },
+  {
+   "id": "e-kadence",
+   "cat": "E",
+   "title": "Malá změna kadence",
+   "claim": "U trénovaných běžců je nejúspornější frekvence kroku v průměru jen asi o 3 % vyšší než ta, kterou si zvolí sami, a zkrácení kroku o 3 % ekonomiku nezhoršilo. Mírné zvýšení kadence, které může navrhnout fyzioterapeut, tedy běh zpravidla neprodraží.",
+   "limits": "Týká se ekonomiky běhu na pásu, ne zranění. Změnu techniky je lepší řešit s fyzioterapeutem.",
+   "strength": "střední",
+   "sources": [
+    "moore-2016"
+   ],
+   "applies": {
+    "signals": [
+     "cad"
+    ],
+    "topics": [
+     "cadence",
+     "technique",
+     "mechanics"
+    ]
+   },
+   "app": "mechanics"
+  },
+  {
+   "id": "h-rehab-bolest",
+   "cat": "H",
+   "title": "Snesitelná bolest při rehabilitačním cvičení",
+   "claim": "Při dlouhodobé bolesti pohybového aparátu nebylo cvičení, při kterém byla snesitelná bolest povolena, horší než cvičení bez bolesti, a krátkodobě bolest mírně ulevilo. Platí to pro cviky, které vede fyzioterapeut, ne pro běh s novou bolestí.",
+   "limits": "Sedm malých studií u lidí středního věku s chronickou bolestí, žádná u běžců ani u akutních potíží.",
+   "strength": "střední",
+   "sources": [
+    "smith-et-al-2017"
+   ],
+   "applies": {
+    "signals": [],
+    "topics": [
+     "pain",
+     "rehab",
+     "exercise"
+    ]
+   },
+   "app": "messages"
+  }
+ ]
+}

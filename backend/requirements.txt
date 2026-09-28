@@ -25,3 +25,6 @@ garminconnect>=0.2.28
 cryptography>=42.0
 # Excel export for the in-app v1-vs-v2 engine backtest download.
 openpyxl>=3.1
+# Physio AI Assistant: vector math for knowledge search, PDF text for ingestion.
+numpy>=1.26
+pypdf>=4.0

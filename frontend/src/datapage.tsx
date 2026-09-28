@@ -5,6 +5,7 @@ import { useApp } from "@/store"
 import { Button, Card, Chip, Field, Label, ListRow, Segmented, Switch, useAsync, useToast } from "@/ui"
 import { ArrowRight, Copy, Database, Download, Eye, Map as MapIcon, Mountain, Pencil, Power, RefreshCw, Smartphone, Sunrise, Unplug, Upload, Watch } from "lucide-react"
 import { fmtD, initials } from "@/lib"
+import { ASSISTANT_REFRESH_EVENT, KnowledgeAdminCard } from "@/assistant"
 
 type Result = { ok?: boolean; loading?: boolean; error?: string; activities?: number; addedDaily?: number; meta?: any; source?: string; mfa?: boolean; mfaToken?: string }
 
@@ -265,6 +266,7 @@ export function DataView() {
       </Card>
 
       <CoachConsentCard rid={rid} />
+      <KnowledgeAdminCard />
 
       <Card className="mt-4">
         <Segmented ariaLabel="Zdroj dat" options={[["garmin", "Garmin – soubor"], ["garminlive", "Garmin – přihlášení"], ["apple", "Apple Health"]] as const} value={source} onChange={setSource} />
@@ -419,9 +421,9 @@ function OutcomesPanel() {
   )
 }
 
-// AI summaries & training commentary (backend metrics/coach_texts.py) — opt-in,
-// because derived health data goes to an externally hosted model. Phase 1 only
-// switches it on and shows a preview; Dnes / Trénink show the texts later.
+// AI summaries, training commentary and the Physio AI Assistant (backend
+// metrics/coach_texts.py, app/assistant/) share one opt-in, because derived health
+// data goes to an externally hosted model. The texts show on Dnes, Trénink and Deník.
 const COACH_KIND: Record<string, string> = {
   daily_summary: "Denní shrnutí", daily_commentary: "Komentář k tréninku", weekly_summary: "Týdenní shrnutí",
 }
@@ -451,7 +453,8 @@ function CoachConsentCard({ rid }: { rid: string }) {
       const next = await api.setCoachConsent(rid, !st.consent)
       polls.current = 0
       setSt({ ...next, pending: next.consent ? ["daily_summary"] : [] })
-      toast({ title: next.consent ? "AI shrnutí zapnuta — první texty se připravují" : "AI shrnutí vypnuta, uložené texty smazány" })
+      window.dispatchEvent(new Event(ASSISTANT_REFRESH_EVENT))
+      toast({ title: next.consent ? "AI funkce zapnuty, první texty se připravují" : "AI funkce vypnuty, uložené texty smazány" })
     } catch (e: any) {
       toast({ title: e?.message || "Změna se nepodařila" })
     } finally {
@@ -465,18 +468,21 @@ function CoachConsentCard({ rid }: { rid: string }) {
   return (
     <Card className="mt-4">
       <div className="flex items-center justify-between gap-3">
-        <span><Label>AI shrnutí a komentáře · beta</Label></span>
-        <Switch checked={!!st.consent} onChange={() => toggle()} label="AI shrnutí a komentáře" disabled={busy} />
+        <span><Label>AI shrnutí a Physio AI Assistant · beta</Label></span>
+        <Switch checked={!!st.consent} onChange={() => toggle()} label="AI shrnutí a Physio AI Assistant" disabled={busy} />
       </div>
       <p className="mt-2 text-sm leading-6 text-fg-2">
         Denní shrnutí vašeho stavu, komentář k dnešnímu tréninku (engine Kapacitní) a každé pondělí shrnutí uplynulého týdne.
         Píše je jazykový model jen z čísel, která spočítá aplikace. Doporučení nemění a každý text se automaticky kontroluje —
         když kontrolou neprojde, dostanete místo něj text sestavený přímo aplikací.
+        Stejný souhlas zapíná Physio AI Assistant, který odpovídá na otázky k vašim datům, tréninku a aplikaci
+        z vašich čísel a z odborných studií.
       </p>
       <p className="mt-2 text-[11px] leading-5 text-fg-3">
         <b className="text-fg-2">Co se odesílá:</b> jen odvozené údaje — zátěž, regenerace, bolest a její místo, dnešní doporučení.
-        Žádné jméno, e-mail, město, poloha ani názvy aktivit. Zpracovává je hostovaný model u NVIDIA{st.model ? ` (${st.model})` : ""}.
-        Vypnutím se uložené texty smažou.
+        Asistentovi navíc vaše otázka. Žádné jméno, e-mail, město, poloha ani názvy aktivit. Zpracovává je hostovaný jazykový model
+        u externího poskytovatele{st.model ? ` (${st.model})` : ""}. Konverzace s asistentem vidíte 7 dní, pro kontrolu kvality odpovědí
+        je uchováváme 12 měsíců a v okně asistenta je můžete kdykoli smazat. Vypnutím se uložené texty smažou.
       </p>
       {st.consent && !st.llm && (
         <p className="mt-2 text-[11px] text-watch">Model teď není nastavený — do té doby dostáváte texty sestavené aplikací.</p>
@@ -503,7 +509,7 @@ function CoachConsentCard({ rid }: { rid: string }) {
               </p>
             </div>
           )}
-          <p className="mt-2 text-[11px] text-fg-3">Na záložkách Dnes a Trénink se texty objeví v další fázi; tady je zatím náhled.</p>
+          <p className="mt-2 text-[11px] text-fg-3">Texty najdete i na záložkách Dnes (shrnutí dne), Trénink (komentář) a Deník (shrnutí týdne).</p>
         </div>
       )}
     </Card>

@@ -27,9 +27,21 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY")
-NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "google/gemma-4-31b-it")
-NVIDIA_BASE_URL = os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
+# Any OpenAI-compatible host works: LLM_* override the NVIDIA_* names (e.g. Mistral's
+# API, or a Llama / Qwen / Mistral model on NVIDIA's catalog via NVIDIA_MODEL).
+NVIDIA_API_KEY = os.environ.get("LLM_API_KEY") or os.environ.get("NVIDIA_API_KEY")
+NVIDIA_MODEL = os.environ.get("LLM_MODEL") or os.environ.get("NVIDIA_MODEL", "google/gemma-4-31b-it")
+NVIDIA_BASE_URL = (os.environ.get("LLM_BASE_URL") or os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")).rstrip("/")
+# The runner-facing assistant may use its own model and even its own host (e.g.
+# Mistral's API with mistral-small-latest) without moving coach texts or embeddings.
+ASSISTANT_MODEL = os.environ.get("ASSISTANT_MODEL") or NVIDIA_MODEL
+ASSISTANT_BASE_URL = (os.environ.get("ASSISTANT_BASE_URL") or NVIDIA_BASE_URL).rstrip("/")
+ASSISTANT_API_KEY = os.environ.get("ASSISTANT_API_KEY") or NVIDIA_API_KEY
+# Embeddings for the assistant's knowledge search (multilingual, Czech included):
+# https://docs.api.nvidia.com/nim/reference/nvidia-llama-3_2-nemoretriever-300m-embed-v2
+EMBED_MODEL = os.environ.get("EMBED_MODEL", "nvidia/llama-3.2-nemoretriever-300m-embed-v2")
+EMBED_BASE_URL = (os.environ.get("EMBED_BASE_URL") or NVIDIA_BASE_URL).rstrip("/")
+EMBED_API_KEY = os.environ.get("EMBED_API_KEY") or NVIDIA_API_KEY
 
 # Speech-to-text for the post-visit conclusion. Kept separate from the chat
 # model so it can point at any OpenAI-compatible /audio/transcriptions host
@@ -76,7 +88,12 @@ def transcribe(audio_bytes: bytes, filename: str = "session.webm",
         return None
 
 
-def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: int = 700, timeout: float = 60.0):
+def assistant_available() -> bool:
+    return bool(ASSISTANT_API_KEY)
+
+
+def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: int = 700, timeout: float = 60.0,
+                  model: str | None = None, base_url: str | None = None, api_key: str | None = None):
     """Same contract as chat() but takes a full messages list (system + any
     number of prior user/assistant turns) — what the multi-turn AI chat in
     ai_brief.chat_reply() needs; chat() is the single-turn special case.
@@ -84,14 +101,15 @@ def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: i
     timeout is generous (60s): a 70B model generating up to max_tokens on
     NVIDIA's shared free-tier infra routinely takes 25-40s for a full
     clinical narrative, well past a "quick API call" timeout."""
-    if not NVIDIA_API_KEY:
+    key = api_key or NVIDIA_API_KEY
+    if not key:
         return None
     try:
         resp = httpx.post(
-            f"{NVIDIA_BASE_URL}/chat/completions",
-            headers={"Authorization": f"Bearer {NVIDIA_API_KEY}", "Content-Type": "application/json"},
+            f"{base_url or NVIDIA_BASE_URL}/chat/completions",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             json={
-                "model": NVIDIA_MODEL,
+                "model": model or NVIDIA_MODEL,
                 "messages": messages,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
@@ -116,3 +134,27 @@ def chat(system: str, user: str, temperature: float = 0.25, max_tokens: int = 70
         [{"role": "system", "content": system}, {"role": "user", "content": user}],
         temperature, max_tokens, timeout,
     )
+
+
+def embed_available() -> bool:
+    return bool(EMBED_API_KEY) and os.environ.get("DOSSLAP_EMBED", "on").lower() not in ("off", "0", "false")
+
+
+def embed(texts: list[str], kind: str = "passage", timeout: float = 60.0):
+    """Embedding vectors for `texts` (kind "passage" for the corpus, "query" for a
+    question), or None when no key is configured or the call fails — callers then
+    fall back to keyword search."""
+    if not embed_available() or not texts:
+        return None
+    try:
+        resp = httpx.post(
+            f"{EMBED_BASE_URL}/embeddings",
+            headers={"Authorization": f"Bearer {EMBED_API_KEY}", "Content-Type": "application/json"},
+            json={"model": EMBED_MODEL, "input": texts, "input_type": kind, "encoding_format": "float", "truncate": "END"},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        data = sorted(resp.json()["data"], key=lambda d: d.get("index", 0))
+        return [d["embedding"] for d in data]
+    except Exception:
+        return None

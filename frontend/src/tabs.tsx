@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
+import { CoachTextCard } from "@/assistant"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { useQuadHistory } from "@/history"
@@ -173,6 +174,7 @@ export function Post() {
       {crossOpen && <CrossSheet rid={rid} onClose={() => setCrossOpen(false)} onDone={() => { setCrossOpen(false); refresh() }} />}
       <div className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
         <div className="grid content-start gap-4">
+          <CoachTextCard kind="weekly_summary" title="Shrnutí týdne" question="Co si mám z tohoto týdne odnést do plánu na další týden?" />
           <Card>
             <Label>Čeká na zápis</Label>
             {unrated.length ? (

@@ -22,6 +22,11 @@ os.environ["DOSSLAP_FEEDBACK_TOKEN"] = ""
 os.environ["DOSSLAP_OWNER_EMAILS"] = ""
 os.environ["DOSSLAP_PROD_URL"] = ""
 os.environ["NVIDIA_API_KEY"] = ""          # never call the hosted model from tests (coach tests fake it)
+os.environ["LLM_API_KEY"] = ""
+os.environ["ASSISTANT_API_KEY"] = ""
+os.environ["EMBED_API_KEY"] = ""
+os.environ["DOSSLAP_EMBED"] = "off"        # knowledge search runs keyword-only in tests
+os.environ["DOSSLAP_ADMIN_EMAILS"] = ""
 os.environ["DOSSLAP_PRECOMPUTE"] = "0"   # tests build histories inline; the precompute tests drive the worker explicitly
 os.environ["DOSSLAP_REF_MIN_RUNNERS"] = "100000"   # population priors stay off; tests/test_reference.py turns them on
 

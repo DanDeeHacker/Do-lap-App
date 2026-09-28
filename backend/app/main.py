@@ -22,7 +22,7 @@ from .db import Base, SessionLocal, engine
 from .metrics import engine as E
 from .routers import (
     ai, annotations, auth, booking, coach, conclusions, employers, integrations, partners, physios, programs, rtr,
-    runners, simulate, triage,
+    runners, simulate, triage, assistant,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -253,6 +253,33 @@ def _backup_db():
         logging.getLogger("dosslap.db").exception("DB backup failed (continuing without it)")
 
 
+async def _knowledge_embed_task():
+    """Embeddings for the assistant's knowledge chunks, in the background once
+    after boot (no-op without an embedding API key)."""
+    try:
+        await asyncio.sleep(30)
+        from .assistant import knowledge as KB
+
+        def run():
+            db = SessionLocal()
+            try:
+                total = 0
+                while True:
+                    n = KB.embed_pending(db)
+                    total += n
+                    if not n:
+                        return total
+            finally:
+                db.close()
+        n = await asyncio.to_thread(run)
+        if n:
+            logging.getLogger("dosslap.assistant").info("Embedded %s knowledge chunks", n)
+    except asyncio.CancelledError:
+        raise
+    except Exception:  # noqa: BLE001
+        logging.getLogger("dosslap.assistant").exception("Knowledge embedding failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _persistence_guard()
@@ -268,9 +295,16 @@ async def lifespan(app: FastAPI):
         # Runs on every boot (not just an empty DB) so the demo logins also
         # appear on an already-seeded / redeployed database. Idempotent.
         seed_module.ensure_demo_accounts(db)
+        # Physio AI Assistant: built-in knowledge (cards, summaries, app guide) from the repo
+        try:
+            from .assistant import knowledge as KB
+            KB.sync_builtin(db)
+        except Exception:  # noqa: BLE001 — the assistant must never block startup
+            logging.getLogger("dosslap.assistant").exception("Knowledge sync failed")
     finally:
         db.close()
     tasks = []
+    tasks.append(asyncio.create_task(_knowledge_embed_task()))
     if os.environ.get("DOSSLAP_AUTOSYNC", "1") != "0":
         tasks.append(asyncio.create_task(_garmin_autosync_loop()))
     from . import precompute
@@ -356,6 +390,7 @@ app.include_router(integrations.router)
 app.include_router(simulate.router)
 app.include_router(annotations.router)
 app.include_router(coach.router)
+app.include_router(assistant.router)
 
 
 @app.get("/api/health")

@@ -115,6 +115,17 @@ export const api = {
   setCoachConsent: (rid: string, consent: boolean) => call("PUT", `/api/runners/${rid}/coach/consent`, { consent }),
   refreshCoach: (rid: string) => call("POST", `/api/runners/${rid}/coach/refresh`),
 
+  // Physio AI Assistant (chat over the runner's data and the reviewed literature)
+  assistant: (rid: string) => call("GET", `/api/runners/${rid}/assistant`),
+  assistantAsk: (rid: string, body: { question: string; context?: any; thread_id?: string }) => call("POST", `/api/runners/${rid}/assistant/ask`, body),
+  assistantForget: (rid: string) => call("DELETE", `/api/runners/${rid}/assistant/history`),
+  assistantFeedback: (rid: string, mid: number, value: number, note?: string) => call("POST", `/api/runners/${rid}/assistant/messages/${mid}/feedback`, { value, note }),
+  assistantCard: (id: string) => call("GET", `/api/assistant/cards/${id}`),
+  knowledgeAdmin: () => call("GET", "/api/assistant/admin/knowledge"),
+  knowledgeUpload: (fd: FormData) => call("POST", "/api/assistant/admin/docs", fd),
+  knowledgeDelete: (id: number) => call("DELETE", `/api/assistant/admin/docs/${id}`),
+  knowledgeCard: (id: string, status: string, note?: string) => call("PUT", `/api/assistant/admin/cards/${id}`, { status, note }),
+
   // annotation mode (in-app feedback notes)
   annotations: () => call("GET", "/api/annotations"),
   createAnnotation: (body: any) => call("POST", "/api/annotations", body),

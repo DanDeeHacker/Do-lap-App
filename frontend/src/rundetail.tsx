@@ -3,6 +3,7 @@
 // downsampled elevation profile, the per-third pace / HR / vertical ratio, and the
 // runner's own ratings. There are no per-km splits in the data, so the per-km table
 // shows climb and descent computed from the elevation profile.
+import { WhyButton } from "@/assistant"
 import { useMemo, useRef, useState } from "react"
 import { Link, useParams } from "react-router"
 import { ArrowLeft, Mountain, NotebookPen } from "lucide-react"
@@ -183,7 +184,10 @@ export function RunDetail() {
           <Label>{`Detail běhu · ${fmtD(act.started_at)}${act.start_time ? ` · ${act.start_time}` : ""}`}</Label>
           <h1 className="mt-1 font-serif text-[30px] leading-tight tracking-[-.03em] md:text-4xl">{act.title} · {n1(act.distance_km)} km</h1>
         </div>
-        {rid && <Button variant={fb ? "outline" : "primary"} size="sm" icon={NotebookPen} onClick={() => setEditing(true)}>{fb ? "Upravit zápis" : "Zapsat"}</Button>}
+        <div className="flex flex-wrap items-center gap-2">
+          <WhyButton question={`Jak hodnotíte můj běh ${fmtD(act.started_at)} v kontextu mých dat?`} context={{ kind: "run", id: act.id }} label="Rozebrat běh" />
+          {rid && <Button variant={fb ? "outline" : "primary"} size="sm" icon={NotebookPen} onClick={() => setEditing(true)}>{fb ? "Upravit zápis" : "Zapsat"}</Button>}
+        </div>
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">

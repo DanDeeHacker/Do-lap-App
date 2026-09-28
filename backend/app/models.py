@@ -12,7 +12,7 @@ match the JS side, which always produces/consumes `new Date().toISOString()`
 or plain 'YYYY-MM-DD' date strings.
 """
 from sqlalchemy import (
-    Boolean, Column, Float, ForeignKey, Integer, JSON, String, Text, UniqueConstraint,
+    Boolean, Column, Float, ForeignKey, Integer, JSON, LargeBinary, String, Text, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -706,3 +706,77 @@ class EngineAlert(Base):
     quadrant_to = Column(String)
     feedback = Column(String)                      # None | "fits" | "no_fit"
     feedback_at = Column(String)
+
+
+# ------------------------------------------------------------ Physio AI Assistant
+class KnowledgeDoc(Base):
+    """A full-text article uploaded for the assistant's knowledge base (tier 3).
+    The text itself lives in KnowledgeChunk passages; the PDF is not kept."""
+    __tablename__ = "knowledge_docs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String)
+    cite = Column(String)                  # "Warden et al. (2014)"
+    apa = Column(Text)
+    doi = Column(String, index=True)
+    year = Column(Integer)
+    category = Column(String)              # A–I of the literature summary
+    summary_id = Column(String)            # matching entry in knowledge/summaries.json
+    licence = Column(String)
+    filename = Column(String)
+    pages = Column(Integer)
+    n_chunks = Column(Integer)
+    uploaded_by = Column(String)
+    uploaded_at = Column(String)
+
+
+class KnowledgeChunk(Base):
+    """One searchable passage: an evidence card, a literature summary entry, an app
+    guide section or a slice of a full text. Built-in sources are re-synced from the
+    repo JSON when their text changes (`text_hash`); embeddings are optional."""
+    __tablename__ = "knowledge_chunks"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_kind = Column(String, index=True, nullable=False)   # card | summary | guide | fulltext
+    source_id = Column(String, index=True, nullable=False)     # card id, summary id, guide id, doc id
+    doc_id = Column(Integer, ForeignKey("knowledge_docs.id"), index=True)
+    section = Column(String)
+    ord = Column(Integer, default=0)
+    text = Column(Text, nullable=False)
+    text_hash = Column(String)
+    embedding = Column(LargeBinary)        # float32 vector
+    embed_model = Column(String)
+
+
+class CardReview(Base):
+    """Approval state of an evidence card (the cards themselves live in the repo)."""
+    __tablename__ = "card_reviews"
+    card_id = Column(String, primary_key=True)
+    status = Column(String, default="draft")   # draft | approved | rejected
+    note = Column(Text)
+    reviewer = Column(String)
+    reviewed_at = Column(String)
+
+
+class AssistantMessage(Base):
+    """One turn of the runner's conversation with the assistant. The runner sees the
+    last ASSISTANT_VISIBLE_DAYS days; rows are kept ASSISTANT_KEEP_DAYS for answer-
+    quality review, and deleting the history removes them at once."""
+    __tablename__ = "assistant_messages"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    thread_id = Column(String, index=True)
+    role = Column(String, nullable=False)          # user | assistant
+    text = Column(Text, nullable=False)
+    context_json = Column(JSON)                    # {kind, id} of a "Why?" button
+    intent_json = Column(JSON)
+    sources_json = Column(JSON)                    # numbered sources shown under the answer
+    facts_json = Column(JSON)
+    links_json = Column(JSON)                      # app links offered
+    source = Column(String)                        # llm | fallback | gate
+    issues_json = Column(JSON)
+    llm_text = Column(Text)
+    prompt_version = Column(String)
+    model = Column(String)
+    latency_ms = Column(Integer)
+    feedback = Column(Integer)                     # +1 / -1
+    feedback_note = Column(Text)
+    created_at = Column(String, index=True)
