@@ -42,9 +42,9 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def create_session(db: DBSession, user_id: int) -> tuple[str, str]:
+def create_session(db: DBSession, user_id: int, ttl: timedelta | None = None) -> tuple[str, str]:
     token = secrets.token_urlsafe(32)
-    expires_at = (datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)).isoformat()
+    expires_at = (datetime.now(timezone.utc) + (ttl or timedelta(days=SESSION_TTL_DAYS))).isoformat()
     db.add(models.UserSession(id=token, user_id=user_id, expires_at=expires_at, created_at=now_iso()))
     db.commit()
     return token, expires_at

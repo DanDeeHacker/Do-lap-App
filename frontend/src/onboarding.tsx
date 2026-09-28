@@ -17,8 +17,12 @@ type ObCtx = {
   state: ObState | null
   openCard: () => void
   pending: number
+  /** public demo session (no account) */
+  guest: boolean
+  exitDemo: () => void
+  restartTour: () => void
 }
-const Ctx = createContext<ObCtx>({ state: null, openCard: () => {}, pending: 0 })
+const Ctx = createContext<ObCtx>({ state: null, openCard: () => {}, pending: 0, guest: false, exitDemo: () => {}, restartTour: () => {} })
 export const useOnboarding = () => useContext(Ctx)
 
 export const EDIT_PROFILE_EVENT = "doslap:edit-profile"
@@ -30,8 +34,9 @@ const STEP_UI: Record<Step["id"], { title: string; sub: string; icon: typeof Plu
 }
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
-  const { realMe, touring, boot, startTour, endTour } = useApp()
+  const { realMe, touring, boot, startTour, endTour, logout } = useApp()
   const rid = realMe?.runner_id
+  const guest = !!realMe?.guest
   const [state, setState] = useState<ObState | null>(null)
   const [manual, setManual] = useState(false)
   const [tourOn, setTourOn] = useState(false)
@@ -68,8 +73,20 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       if (ok) { setManual(false); setTourOn(true); nav("/app/today") }
     }
   }
+  // public demo: the tour starts on its own; leaving the demo returns to sign-up
+  const guestStarted = useRef(false)
+  useEffect(() => {
+    if (guest && !guestStarted.current) { guestStarted.current = true; setTourOn(true); nav("/app/today") }
+  }, [guest, nav])
+  const exitDemo = useCallback(async () => {
+    setTourOn(false)
+    await logout()
+    nav("/auth")
+    window.scrollTo({ top: 0 })
+  }, [logout, nav])
   const finishTour = (done: boolean) => {
     setTourOn(false)
+    if (guest) { nav("/app/today"); return }       // the guest keeps browsing the demo
     endTour()
     nav("/app/today")
     if (done && rid) api.updateOnboarding(rid, { tutorialDone: true }).then((s) => { setState(s); setManual(true) }).catch(() => {})
@@ -77,10 +94,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Ctx.Provider value={{ state, openCard: () => setManual(true), pending }}>
+    <Ctx.Provider value={{ state, openCard: () => setManual(true), pending, guest, exitDemo, restartTour: () => setTourOn(true) }}>
       {children}
       {show && state && <GetStartedCard state={state} name={realMe?.name} busy={busy} onAct={act} onClose={close} />}
-      {tourOn && touring && <Tour name={realMe?.name} onFinish={finishTour} />}
+      {tourOn && touring && <Tour name={guest ? null : realMe?.name} guest={guest} onFinish={finishTour} onExitDemo={exitDemo} />}
     </Ctx.Provider>
   )
 }
@@ -284,7 +301,7 @@ export function findTarget(t?: Target): HTMLElement | null {
   return ((box && box.tagName !== "MAIN" ? box : el) as HTMLElement)
 }
 
-function Tour({ name, onFinish }: { name?: string | null; onFinish: (done: boolean) => void }) {
+function Tour({ name, guest = false, onFinish, onExitDemo }: { name?: string | null; guest?: boolean; onFinish: (done: boolean) => void; onExitDemo?: () => void }) {
   const nav = useNavigate()
   const { pathname } = useLocation()
   // step −1 = welcome, TOUR.length = done
@@ -351,9 +368,13 @@ function Tour({ name, onFinish }: { name?: string | null; onFinish: (done: boole
   const outro = i === TOUR.length
   const title = intro ? `Vítejte${fn ? `, ${fn}` : ""}!` : outro ? "Máte hotovo" : step!.title
   const body = intro
-    ? "Ukážeme vám aplikaci na ukázkovém účtu s vaším jménem. Projdeme šest záložek a u každé nejvýš pět funkcí. U každé uvidíte, co ukazuje a proč vám pomůže. Šipkami se posunete dál nebo zpět."
+    ? guest
+      ? "Ukážeme vám aplikaci na ukázkovém běžci s vymyšlenými daty, bez registrace. Projdeme šest záložek a u každé nejvýš pět funkcí. U každé uvidíte, co ukazuje a proč vám pomůže. Šipkami se posunete dál nebo zpět a ukázku můžete kdykoli ukončit."
+      : "Ukážeme vám aplikaci na ukázkovém účtu s vaším jménem. Projdeme šest záložek a u každé nejvýš pět funkcí. U každé uvidíte, co ukazuje a proč vám pomůže. Šipkami se posunete dál nebo zpět."
     : outro
-      ? "Teď už víte, kde co najdete. Průvodce se vrátí na vaše vlastní data a můžete ho kdykoli spustit znovu přes ikonu profilu → Začínáme."
+      ? guest
+        ? "Teď už víte, kde co najdete. Ukázku můžete dál volně procházet, nebo si založte účet a připojte vlastní data z hodinek."
+        : "Teď už víte, kde co najdete. Průvodce se vrátí na vaše vlastní data a můžete ho kdykoli spustit znovu přes ikonu profilu → Začínáme."
       : missing ? `${step!.body} (V ukázkovém účtu teď tato část není vidět.)` : step!.body
 
   return createPortal(
@@ -389,21 +410,33 @@ function Tour({ name, onFinish }: { name?: string | null; onFinish: (done: boole
         </div>
         <div className="mt-3 flex items-center justify-between gap-2">
           <button type="button" onClick={() => go(-1)} disabled={intro} aria-label="Zpět" className="btn btn-outline btn-sm disabled:opacity-40"><ArrowLeft className="size-4" aria-hidden /></button>
-          {outro
+          {outro && guest
+            ? <span className="flex gap-2">
+                <button type="button" onClick={() => onFinish(true)} className="btn btn-outline btn-sm">Procházet ukázku</button>
+                <button type="button" onClick={onExitDemo} className="btn btn-primary btn-sm" data-testid="demo-register">Založit účet</button>
+              </span>
+            : outro
             ? <button type="button" onClick={() => onFinish(true)} className="btn btn-primary btn-sm">Dokončit průvodce</button>
             : <button type="button" onClick={() => go(1)} aria-label="Další" className="btn btn-primary btn-sm">{intro ? "Začít" : "Další"} <ArrowRight className="size-4" aria-hidden /></button>}
         </div>
       </div>
-      <TourBanner />
+      <TourBanner onExitDemo={guest ? onExitDemo : undefined} />
     </div>,
     document.body,
   )
 }
 
-function TourBanner() {
+function TourBanner({ onExitDemo }: { onExitDemo?: () => void }) {
   return (
     <div className="pointer-events-none fixed inset-x-0 top-[calc(10px+env(safe-area-inset-top))] z-[101] flex justify-center">
-      <span className="rounded-full bg-accent px-3 py-1 text-[11px] font-extrabold uppercase tracking-[.08em] text-ink shadow">Ukázka · data nejsou vaše</span>
+      {onExitDemo ? (
+        <span className="flex items-center gap-2 rounded-full bg-accent py-1 pl-3 pr-1 text-[11px] font-extrabold uppercase tracking-[.08em] text-ink shadow">
+          Ukázka · vymyšlená data
+          <button type="button" onClick={onExitDemo} data-testid="demo-exit-tour" className="pointer-events-auto rounded-full bg-ink/90 px-2.5 py-0.5 text-[11px] normal-case tracking-normal text-accent hover:bg-ink">Ukončit ukázku</button>
+        </span>
+      ) : (
+        <span className="rounded-full bg-accent px-3 py-1 text-[11px] font-extrabold uppercase tracking-[.08em] text-ink shadow">Ukázka · data nejsou vaše</span>
+      )}
     </div>
   )
 }

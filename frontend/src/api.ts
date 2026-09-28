@@ -73,6 +73,7 @@ export const api = {
   authSignIn: (email: string, password: string, expectedRole?: string) =>
     call("POST", "/api/auth/session", { email, password, expected_role: expectedRole || undefined }, { skipAuthRedirect: true }),
   authLogout: () => call("POST", "/api/auth/logout"),
+  authGuest: () => call<Me>("POST", "/api/auth/guest", undefined, { skipAuthRedirect: true }),
   getSettings: () => call("GET", "/api/auth/settings"),
   patchSettings: (patch: any) => call("PATCH", "/api/auth/settings", patch),
 
@@ -204,4 +205,7 @@ export type Me = {
   employer_id?: string
   partner_id?: string
   provider?: string
+  /** public demo ("Vyzkoušej hned!"): read-only guest session on the tutorial runner */
+  guest?: boolean
+  demo_rid?: string
 }

@@ -7,6 +7,10 @@
 // renders a realistic, personalised interface. `me.runner_id` then points at the
 // demo runner (reads are allowed server-side, writes are not); `realMe` keeps the
 // actual account.
+//
+// Guest mode (public demo, "Vyzkoušej hned!" on /auth): a read-only guest session
+// whose `me.demo_rid` is the same tutorial runner. The store treats a guest as
+// permanently touring; leaving the demo is a logout.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { api, ApiError, type Me } from "@/api"
 import { clearQuadHistory, loadQuadHistory } from "@/history"
@@ -47,7 +51,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const personalise = useCallback((b: any) => (b ? { ...b, runner: { ...(b.runner || {}), name: me?.name || b.runner?.name } } : b), [me?.name])
+  // the tour renames the demo runner to the signed-in user; a guest keeps "Ukázkový běžec"
+  const personalise = useCallback((b: any) => (b && !me?.guest ? { ...b, runner: { ...(b.runner || {}), name: me?.name || b.runner?.name } } : b), [me?.name, me?.guest])
 
   const refresh = useCallback(async () => {
     if (tour) {
@@ -78,7 +83,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return false
     }
   }, [me?.runner_id, personalise])
-  const endTour = useCallback(() => setTour(null), [])
+  const endTour = useCallback(() => { if (!me?.guest) setTour(null) }, [me?.guest])
+
+  // guest: the demo runner is the only data there is, load it right away
+  useEffect(() => {
+    const rid = me?.guest ? me.demo_rid : undefined
+    if (!rid) return
+    setTour({ rid, boot: null })
+    api.bootstrap(rid).then((b) => setTour({ rid, boot: b })).catch(() => setError("Ukázku se nepodařilo načíst"))
+  }, [me?.guest, me?.demo_rid])
 
   const logout = useCallback(async () => {
     try {
@@ -105,7 +118,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (me?.runner_id) refresh()
   }, [me?.runner_id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shownMe = useMemo(() => (tour && me ? { ...me, runner_id: tour.rid } : me), [tour, me])
+  const shownMe = useMemo(() => (tour && me ? { ...me, runner_id: tour.rid } : me?.guest && me.demo_rid ? { ...me, runner_id: me.demo_rid } : me), [tour, me])
   const shownBoot = tour ? tour.boot : boot
 
   // Prefetch the daily history behind the trend charts as soon as the bootstrap
@@ -119,7 +132,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [histRid, histVer])
 
   return (
-    <Ctx.Provider value={{ me: shownMe, realMe: me, boot: shownBoot, loading, error, touring: !!tour, reloadMe, refresh, logout, startTour, endTour }}>
+    <Ctx.Provider value={{ me: shownMe, realMe: me, boot: shownBoot, loading, error, touring: !!tour || !!me?.guest, reloadMe, refresh, logout, startTour, endTour }}>
       {children}
     </Ctx.Provider>
   )

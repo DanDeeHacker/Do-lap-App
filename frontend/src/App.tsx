@@ -13,7 +13,7 @@ import {
 import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/components/MuscleAnatomy"
 import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
-import { EDIT_PROFILE_EVENT, OnboardingProvider, useObSummary } from "@/onboarding"
+import { EDIT_PROFILE_EVENT, OnboardingProvider, useObSummary, useOnboarding } from "@/onboarding"
 import { useQuadHistory } from "@/history"
 import { clamp, fmtD, initials, QUAD, roleHome } from "@/lib"
 import { AlertBanner, AxisLineChart, Bars, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, toneCol, useAsync, useToast } from "@/ui"
@@ -30,7 +30,7 @@ import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C } from "@/tokens"
-import { Bandage, ChevronDown, Compass, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
+import { Bandage, ChevronDown, Compass, Play, UserPlus, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 import { Landing, scrollToLanding } from "@/landing"
 
@@ -84,6 +84,7 @@ function Topbar() {
   const ini = initials(me?.name)
   const navItems = useRunnerNav()
   const ob = useObSummary()
+  const demo = useOnboarding()
   useEffect(() => {
     const open = () => setEditOpen(true)
     window.addEventListener(EDIT_PROFILE_EVENT, open)
@@ -115,6 +116,15 @@ function Topbar() {
           })}
         </nav>
         <p className="hidden text-[15px] font-extrabold tracking-[-.02em] text-fg lg:block">{navItems.find(([id]) => pathname === `/app/${id}` || pathname.startsWith(`/app/${id}/`))?.[1] ?? (pathname === "/data" ? "Data a připojení" : pathname === "/engines" ? "Porovnání enginů" : pathname.startsWith("/engine") ? "Citlivostní analýza" : "")}</p>
+        {demo.guest ? (
+          <div className="flex shrink-0 items-center gap-1.5" data-testid="demo-controls">
+            <button onClick={demo.restartTour} aria-label="Spustit průvodce znovu" title="Průvodce"
+              className="grid size-9 place-items-center rounded-full border border-white/12 bg-white/[.04] text-fg-2 hover:text-fg"><Compass className="size-[18px]" aria-hidden /></button>
+            <button onClick={demo.exitDemo} data-testid="demo-signup" className="btn btn-primary btn-sm gap-1.5"><UserPlus className="size-4" aria-hidden />Založit účet</button>
+            <button onClick={demo.exitDemo} aria-label="Ukončit ukázku" title="Ukončit ukázku" data-testid="demo-exit"
+              className="grid size-9 place-items-center rounded-full border border-white/12 bg-white/[.04] text-fg-2 hover:text-fg"><X className="size-[18px]" aria-hidden /></button>
+          </div>
+        ) : (
         <div className="relative flex shrink-0 items-center gap-2">
           <AnnotateToggle />
           <AssistantHeaderButton />
@@ -162,6 +172,7 @@ function Topbar() {
             </>
           )}
         </div>
+        )}
       </div>
       <ProfileSheet open={editOpen} onClose={() => setEditOpen(false)} />
     </header>
@@ -257,7 +268,7 @@ function useAutoGarminSync(active: boolean) {
 }
 function Layout() {
   const { me, loading } = useApp()
-  useAutoGarminSync(!!me && me.role === "runner")
+  useAutoGarminSync(!!me && me.role === "runner" && !me.guest)
   // New deployments: reload when the app returns to the foreground, or offer a
   // reload if one lands while it's in use (home-screen apps never reload alone).
   const [updateReady, setUpdateReady] = useState(false)
@@ -994,7 +1005,7 @@ function TodayV2() {
       setSyncing(false)
     }
   }
-  const firstName = (me?.name || "").split(" ")[0] || "běžče"
+  const firstName = (me?.guest ? "" : (me?.name || "").split(" ")[0]) || "běžče"
   const today = new Date().toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
   const hour = new Date().getHours()
   const greet = hour < 10 ? "Dobré ráno" : hour < 18 ? "Dobrý den" : "Dobrý večer"
@@ -1360,6 +1371,23 @@ function Auth() {
     }
   }
 
+  // "Vyzkoušej hned!": a read-only guest session on the tutorial runner; the
+  // getting-started tour starts by itself (onboarding.tsx) and exiting logs out.
+  const [demoBusy, setDemoBusy] = useState(false)
+  const tryDemo = async () => {
+    setErr(null)
+    setDemoBusy(true)
+    try {
+      await api.authGuest()
+      const me = await reloadMe()
+      if (me?.guest) nav("/app/today")
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Ukázku se nepodařilo otevřít")
+    } finally {
+      setDemoBusy(false)
+    }
+  }
+
   // Landing-page CTAs bring the visitor back up to the sign-up form.
   const nameRef = useRef<HTMLInputElement>(null)
   const toRegister = () => {
@@ -1451,6 +1479,11 @@ function Auth() {
             {mode === "login" ? "Nemáte účet? Registrovat se" : "Už máte účet? Přihlásit se"}
           </button>
         </Card>
+        <button onClick={tryDemo} disabled={demoBusy} data-testid="try-demo"
+          className="btn btn-outline mt-4 w-full gap-2 py-3 text-sm">
+          <Play className="size-4" aria-hidden />{demoBusy ? "Otevírám ukázku…" : "Vyzkoušej hned!"}
+        </button>
+        <p className="mt-2 text-center text-[11px] text-fg-3">Bez registrace, na ukázkovém běžci s vymyšlenými daty.</p>
       </section>
     </div>
       <button onClick={scrollToLanding} aria-controls="co-doslap-umi" data-testid="scroll-cue"

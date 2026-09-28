@@ -39,9 +39,22 @@ def require_role(*roles: str):
     return _check
 
 
-def verify_csrf(request: Request) -> None:
-    if request.method in ("POST", "PATCH", "PUT", "DELETE") and not security.same_origin(request):
-        raise HTTPException(status_code=403, detail="Neplatný požadavek (cross-origin)")
+GUEST_PROVIDER = "guest"
+GUEST_READONLY_MSG = "V ukázce se nic neukládá. Založte si účet a zapisujte vlastní data."
+
+
+def verify_csrf(request: Request, db: DBSession = Depends(get_db)) -> None:
+    """Same-origin check for every mutating endpoint. It is also the single place
+    that keeps the public demo (guest session, /api/auth/guest) read-only: guests
+    may only sign in, register or start another demo."""
+    if request.method in ("POST", "PATCH", "PUT", "DELETE"):
+        if not security.same_origin(request):
+            raise HTTPException(status_code=403, detail="Neplatný požadavek (cross-origin)")
+        token = request.cookies.get(security.SESSION_COOKIE)
+        if token and not request.url.path.startswith("/api/auth/"):
+            user = security.get_user_for_token(db, token)
+            if user is not None and user.provider == GUEST_PROVIDER:
+                raise HTTPException(status_code=403, detail=GUEST_READONLY_MSG)
 
 
 # ------------------------------------------------------------ scoping
