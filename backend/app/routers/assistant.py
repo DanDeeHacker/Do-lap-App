@@ -165,7 +165,7 @@ def _retrieval_eval(db, embed_model, weights=None, detail=False):
     if embed_model is not None and not re.fullmatch(r"[\w./:-]{1,100}", embed_model):
         raise HTTPException(400, "Neplatný název modelu")
     try:
-        ws = tuple(float(x) for x in weights.split(",")[:6]) if weights else (1.0, 2.0, 3.0)
+        ws = tuple(float(x) for x in weights.split(",")[:6]) if weights else (1.0, 3.0, 5.0)
     except ValueError:
         raise HTTPException(400, "Neplatné váhy")
     return evaluate.retrieval(db, embed_model, ws, detail)

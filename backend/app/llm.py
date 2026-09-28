@@ -42,8 +42,9 @@ ASSISTANT_MODEL = os.environ.get("ASSISTANT_MODEL") or (
 ASSISTANT_BASE_URL = (os.environ.get("ASSISTANT_BASE_URL") or NVIDIA_BASE_URL).rstrip("/")
 ASSISTANT_API_KEY = os.environ.get("ASSISTANT_API_KEY") or NVIDIA_API_KEY
 # Embeddings for the assistant's knowledge search (multilingual, Czech included):
-# https://docs.api.nvidia.com/nim/reference/nvidia-llama-3_2-nv-embedqa-1b-v1 (26 languages incl. Czech)
-EMBED_MODEL = os.environ.get("EMBED_MODEL", "nvidia/llama-3.2-nv-embedqa-1b-v1")
+# llama-nemotron-embed-vl-1b-v2 won the Gate 1 comparison on the live knowledge
+# base (assistant/evaluate.py); several catalog models answer 404 for this account.
+EMBED_MODEL = os.environ.get("EMBED_MODEL", "nvidia/llama-nemotron-embed-vl-1b-v2")
 EMBED_BASE_URL = (os.environ.get("EMBED_BASE_URL") or NVIDIA_BASE_URL).rstrip("/")
 EMBED_API_KEY = os.environ.get("EMBED_API_KEY") or NVIDIA_API_KEY
 

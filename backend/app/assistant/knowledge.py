@@ -342,7 +342,10 @@ def embed_pending(db, limit: int = 256, batch: int = 32) -> int:
 # ------------------------------------------------------------------ the index
 # weight of the embedding ranking in the fusion (keyword ranking = 1); set from the
 # Gate 1 comparison on the live knowledge base (evaluate.retrieval)
-DENSE_WEIGHT = float(os.environ.get("ASSISTANT_DENSE_WEIGHT", "1.0"))
+# (llama-nemotron-embed-vl-1b-v2, 2026-09-28: dense alone 20/20 tuning and 18/18
+# holdout, keyword 18/20 and 12/18, fusion with dense 3 and no topic boost 20/20, 18/18)
+DENSE_WEIGHT = float(os.environ.get("ASSISTANT_DENSE_WEIGHT", "3.0"))
+TOPIC_WEIGHT_DENSE = float(os.environ.get("ASSISTANT_TOPIC_WEIGHT_DENSE", "0.0"))
 
 
 class _Index:
@@ -442,6 +445,9 @@ def search(db, query: str, topics: list[str] | None = None, signals: list[str] |
     for rank, (i, _s) in enumerate(bm):
         score[i] = score.get(i, 0) + 1 / (k + rank + 1)
     dw = DENSE_WEIGHT if dense_weight is None else dense_weight
+    # with a good embedding ranking the question's meaning is covered and the
+    # intent-topic boost only pulls in look-alike cards (Gate 1 holdout)
+    tw = TOPIC_WEIGHT_DENSE if dn else 1.0
     for rank, (i, _s) in enumerate(dn):
         score[i] = score.get(i, 0) + dw / (k + rank + 1)
     status = card_status(db)
@@ -459,8 +465,8 @@ def search(db, query: str, topics: list[str] | None = None, signals: list[str] |
         elif active & set(ap.get("signals") or []):
             score[i] = score.get(i, 0) + 0.5 / (k + 1)
         overlap = len(topics & set(ap.get("topics") or []))
-        if overlap:
-            score[i] = score.get(i, 0) + overlap / (k + 1)
+        if overlap and tw:
+            score[i] = score.get(i, 0) + tw * overlap / (k + 1)
     ranked = sorted(score.items(), key=lambda x: -x[1])
     out_cards, out_pass, out_guide, per_src = [], [], [], Counter()
     for i, s in ranked:
