@@ -34,11 +34,14 @@ NVIDIA_MODEL = os.environ.get("LLM_MODEL") or os.environ.get("NVIDIA_MODEL", "go
 NVIDIA_BASE_URL = (os.environ.get("LLM_BASE_URL") or os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")).rstrip("/")
 # The runner-facing assistant may use its own model and even its own host (e.g.
 # Mistral's API with mistral-small-latest) without moving coach texts or embeddings.
-# Default: a Mistral model from NVIDIA's free catalog (non-reasoning, multilingual),
-# used only when the assistant talks to that catalog and no model is named.
 _NV_CATALOG = "integrate.api.nvidia.com"
+# On Groq's free tier qwen/qwen3.8-27b answered 10/10 sample questions in Czech
+# within the validator's rules at 1-2 s (2026-09-28); NVIDIA's catalog models
+# returned 404/410 or timed out for this account.
+_ASSIST_HOST = os.environ.get("ASSISTANT_BASE_URL") or NVIDIA_BASE_URL
 ASSISTANT_MODEL = os.environ.get("ASSISTANT_MODEL") or (
-    "mistralai/mistral-large-2-instruct" if _NV_CATALOG in (os.environ.get("ASSISTANT_BASE_URL") or NVIDIA_BASE_URL) else NVIDIA_MODEL)
+    "qwen/qwen3.8-27b" if "groq.com" in _ASSIST_HOST else
+    "mistralai/mistral-large-2-instruct" if _NV_CATALOG in _ASSIST_HOST else NVIDIA_MODEL)
 ASSISTANT_BASE_URL = (os.environ.get("ASSISTANT_BASE_URL") or NVIDIA_BASE_URL).rstrip("/")
 ASSISTANT_API_KEY = os.environ.get("ASSISTANT_API_KEY") or NVIDIA_API_KEY
 # Embeddings for the assistant's knowledge search (multilingual, Czech included):
