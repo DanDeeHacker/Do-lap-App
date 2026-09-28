@@ -20,6 +20,7 @@ import io
 import json
 import logging
 import math
+import os
 import re
 import threading
 import unicodedata
@@ -339,6 +340,11 @@ def embed_pending(db, limit: int = 256, batch: int = 32) -> int:
 
 
 # ------------------------------------------------------------------ the index
+# weight of the embedding ranking in the fusion (keyword ranking = 1); set from the
+# Gate 1 comparison on the live knowledge base (evaluate.retrieval)
+DENSE_WEIGHT = float(os.environ.get("ASSISTANT_DENSE_WEIGHT", "1.0"))
+
+
 class _Index:
     """In-memory search index over all chunks, rebuilt on demand after a change."""
 
@@ -411,7 +417,7 @@ INDEX = _Index()
 
 def search(db, query: str, topics: list[str] | None = None, signals: list[str] | None = None,
            want_guide: bool = False, n_cards: int = 3, n_passages: int = 4, n_guide: int = 2,
-           active: list[str] | None = None, dense: list | None = None) -> dict:
+           active: list[str] | None = None, dense: list | None = None, dense_weight: float | None = None) -> dict:
     """Hybrid search. Returns {cards, passages, guide, mode}: cards are card dicts
     (+ status, score), passages are summary / full-text chunks, guide are app-guide
     sections. Cards triggered by the runner's active signals or matching the
@@ -435,8 +441,9 @@ def search(db, query: str, topics: list[str] | None = None, signals: list[str] |
     score = {}
     for rank, (i, _s) in enumerate(bm):
         score[i] = score.get(i, 0) + 1 / (k + rank + 1)
+    dw = DENSE_WEIGHT if dense_weight is None else dense_weight
     for rank, (i, _s) in enumerate(dn):
-        score[i] = score.get(i, 0) + 1 / (k + rank + 1)
+        score[i] = score.get(i, 0) + dw / (k + rank + 1)
     status = card_status(db)
     topics, signals, active = set(topics or []), set(signals or []), set(active or []) - set(signals or [])
     for i, r in enumerate(INDEX.rows):

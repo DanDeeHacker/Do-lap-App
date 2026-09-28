@@ -345,8 +345,9 @@ def test_retrieval_eval_keyword_and_fake_dense(kb, monkeypatch):
     from app import llm
     from app.assistant import evaluate
     base = evaluate.retrieval(kb)
-    assert base["n"] == len(RETRIEVAL) and base["keyword"] >= 16 and "dense" not in base
+    assert base["tuning"]["n"] == len(RETRIEVAL) and base["tuning"]["keyword"] >= 16 and "dense" not in base["tuning"]
+    assert base["holdout"]["n"] >= 15
     # a "model" that returns the same vector for everything cannot help, but must not break hybrid
     monkeypatch.setattr(llm, "embed", lambda texts, kind="passage", timeout=60.0, model=None: [[1.0, 0.0]] * len(texts))
     out = evaluate.retrieval(kb, "fake/model")
-    assert out["model"] == "fake/model" and out["hybrid"] >= 14
+    assert out["model"] == "fake/model" and out["tuning"]["hybrid"]["1.0"] >= 14
