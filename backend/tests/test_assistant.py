@@ -343,3 +343,14 @@ def test_selector_asked_type_and_nav_with_app_word():
     assert classify("Proč dnes nemůžu dát intervaly?")["askedType"] == "kvalitní"
     assert classify("Proč ne?", {"kind": "type", "id": "dlouhý"})["askedType"] == "dlouhý"
     assert classify("Kde v aplikaci najdu svou kapacitu?")["intents"] == ["app"]
+
+
+def test_llm_check_requires_token_or_admin(client, monkeypatch):
+    from app import llm
+    assert client.get("/api/assistant/ops/llm-check").status_code in (401, 403, 404)
+    monkeypatch.setenv("DOSSLAP_FEEDBACK_TOKEN", "x" * 40)
+    monkeypatch.setattr(llm, "probe", lambda kind="chat", model=None: {"kind": kind, "ok": False, "error": {"status": 404}})
+    r = client.get("/api/assistant/ops/llm-check", headers={"Authorization": "Bearer " + "x" * 40})
+    assert r.status_code == 200 and r.json()["chat"]["error"]["status"] == 404
+    bad = client.get("/api/assistant/ops/llm-check?model=a%20b", headers={"Authorization": "Bearer " + "x" * 40})
+    assert bad.status_code == 400

@@ -92,6 +92,42 @@ def transcribe(audio_bytes: bytes, filename: str = "session.webm",
         return None
 
 
+LAST_ERROR: dict = {}
+
+
+def _note_error(kind: str, e: Exception) -> None:
+    """Keeps the last failure per kind (status code and a short body, never the key)
+    so the assistant can log why it fell back and the ops check can show it."""
+    resp = getattr(e, "response", None)
+    detail = {"type": type(e).__name__, "status": getattr(resp, "status_code", None)}
+    try:
+        detail["body"] = (resp.text or "")[:300] if resp is not None else str(e)[:300]
+    except Exception:
+        detail["body"] = str(e)[:300]
+    LAST_ERROR[kind] = detail
+
+
+def probe(kind: str = "chat", model: str | None = None) -> dict:
+    """One tiny request to the assistant's chat model or the embedding model:
+    {ok, ms, model, error}. For the ops check only."""
+    import time
+    LAST_ERROR.pop(kind, None)
+    t0 = time.monotonic()
+    if kind == "embed":
+        m = EMBED_MODEL
+        out = embed(["Kolik kilometrů mám dnes běžet?"], kind="query", timeout=30)
+        ok = bool(out)
+        extra = {"dim": len(out[0])} if ok else {}
+    else:
+        m = model or ASSISTANT_MODEL
+        out = chat_messages([{"role": "user", "content": "Odpověz jednou českou větou: co je regenerace?"}],
+                            max_tokens=60, timeout=45, model=m, base_url=ASSISTANT_BASE_URL, api_key=ASSISTANT_API_KEY)
+        ok = bool(out)
+        extra = {"reply": (out or "")[:200]}
+    return {"kind": kind, "ok": ok, "ms": round((time.monotonic() - t0) * 1000), "model": m,
+            "error": None if ok else LAST_ERROR.get(kind), **extra}
+
+
 def assistant_available() -> bool:
     return bool(ASSISTANT_API_KEY)
 
@@ -125,7 +161,8 @@ def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: i
         data = resp.json()
         text = data["choices"][0]["message"]["content"]
         return text.strip() if text else None
-    except Exception:
+    except Exception as e:
+        _note_error("chat", e)
         return None
 
 
@@ -160,5 +197,6 @@ def embed(texts: list[str], kind: str = "passage", timeout: float = 60.0):
         resp.raise_for_status()
         data = sorted(resp.json()["data"], key=lambda d: d.get("index", 0))
         return [d["embedding"] for d in data]
-    except Exception:
+    except Exception as e:
+        _note_error("embed", e)
         return None

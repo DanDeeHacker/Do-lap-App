@@ -2,6 +2,7 @@
 feedback and the evidence card sheet; plus admin endpoints for the knowledge base
 (full-text upload, card review) for accounts listed in DOSSLAP_ADMIN_EMAILS."""
 import os
+import re
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -13,6 +14,7 @@ from ..assistant import service as S
 from ..db import SessionLocal, get_db
 from ..deps import ensure_runner_self, get_current_user, verify_csrf
 from ..metrics import engine as E
+from .annotations import require_feedback_token
 
 router = APIRouter(tags=["assistant"])
 MAX_PDF_BYTES = 25 * 1024 * 1024
@@ -120,6 +122,26 @@ def admin_knowledge(user: models.User = Depends(get_current_user), db: DBSession
                       "pages": d.pages, "summary": d.summary_id, "uploadedAt": d.uploaded_at} for d in docs],
             "cards": [{"id": c["id"], "cat": c["cat"], "title": c["title"], "status": st.get(c["id"], "draft")} for c in K.cards()],
             "chunks": counts, "embedded": embedded, "embedModel": llm.EMBED_MODEL if llm.embed_available() else None}
+
+
+def _llm_check(model: str | None) -> dict:
+    if model is not None and not re.fullmatch(r"[\w./:-]{1,100}", model):
+        raise HTTPException(400, "Neplatný název modelu")
+    return {"chat": llm.probe("chat", model), "embed": llm.probe("embed"),
+            "host": llm.ASSISTANT_BASE_URL, "embedHost": llm.EMBED_BASE_URL}
+
+
+@router.get("/api/assistant/admin/llm-check")
+def admin_llm_check(model: str | None = None, user: models.User = Depends(get_current_user)):
+    """Is the assistant's model reachable, how fast, and why not (status + short body)."""
+    _admin(user)
+    return _llm_check(model)
+
+
+@router.get("/api/assistant/ops/llm-check", dependencies=[Depends(require_feedback_token)])
+def ops_llm_check(model: str | None = None):
+    """The same check for the operator token (no user data involved)."""
+    return _llm_check(model)
 
 
 def _embed_bg():

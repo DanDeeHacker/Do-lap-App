@@ -315,6 +315,11 @@ export function KnowledgeAdminCard() {
   const toast = useToast()
   const [kb, setKb] = useState<any>(null)
   const [busy, setBusy] = useState(false)
+  const [check, setCheck] = useState<any>(null)
+  const runCheck = async () => {
+    setCheck("…")
+    try { setCheck(await api.llmCheck()) } catch (e: any) { setCheck({ failed: e?.message || "Kontrola selhala" }) }
+  }
   const load = () => api.knowledgeAdmin().then(setKb).catch(() => setKb(null))
   useEffect(() => { if (status?.admin) load() }, [status?.admin])
   if (!status?.admin || !kb) return null
@@ -338,6 +343,14 @@ export function KnowledgeAdminCard() {
       <p className="mt-2 text-[12px] text-fg-2">
         Pasáže: {Object.entries(kb.chunks || {}).map(([k, v]) => `${k} ${v}`).join(", ")} · embedding {kb.embedModel ? `${kb.embedded} (${kb.embedModel})` : "vypnutý, hledá se podle slov"}
       </p>
+      <div className="mt-2">
+        <button onClick={runCheck} disabled={check === "…"} className="text-[12px] font-bold text-accent hover:underline">{check === "…" ? "Kontroluji model…" : "Zkontrolovat model a embedding"}</button>
+        {check && check !== "…" && (
+          <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap rounded-md bg-white/[.04] p-2 text-[10px] leading-4 text-fg-2">
+            {check.failed || [check.chat, check.embed].map((c: any) => `${c.kind}: ${c.ok ? "OK" : "CHYBA"} · ${c.model} · ${c.ms} ms${c.error ? ` · ${c.error.status ?? c.error.type} ${c.error.body || ""}` : ""}`).join("\n")}
+          </pre>
+        )}
+      </div>
       <label className={`btn btn-outline mt-3 inline-flex cursor-pointer items-center gap-2 text-sm ${busy ? "opacity-60" : ""}`}>
         <FileUp className="size-4" aria-hidden />{busy ? "Nahrávám…" : "Nahrát PDF článků"}
         <input type="file" accept="application/pdf" multiple className="hidden" disabled={busy} onChange={(e) => upload(e.target.files)} />

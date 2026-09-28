@@ -225,7 +225,7 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
     sel = SEL.classify(question, context)
     active = [s["id"] for s in a.get("signals") or [] if (s.get("pts") or 0) > 0]
     facts = FA.build(db, rid, a, sel)
-    kb = K.search(db, question, topics=sel["topics"], signals=list(dict.fromkeys(sel["signals"] + active)),
+    kb = K.search(db, question, topics=sel["topics"], signals=sel["signals"], active=active,
                   want_guide=sel["wantGuide"] or not sel["intents"], n_passages=3)
     if sel["wantGuide"] and len(sel["intents"]) == 1:
         kb["passages"] = []                         # an app question needs the guide, not papers
@@ -247,7 +247,7 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
             out = llm.chat_messages(msgs, temperature=0.2, max_tokens=600, timeout=LLM_TIMEOUT_S, model=model,
                                     base_url=llm.ASSISTANT_BASE_URL, api_key=llm.ASSISTANT_API_KEY)
             if not out:
-                issues.append({"code": "llm_error"})
+                issues.append({"code": "llm_error", "detail": llm.LAST_ERROR.get("chat")})
                 break
             llm_text = out
             clean, _ = VAL.strip_links(out)

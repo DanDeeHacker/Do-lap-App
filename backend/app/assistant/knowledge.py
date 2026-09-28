@@ -410,11 +410,14 @@ INDEX = _Index()
 
 
 def search(db, query: str, topics: list[str] | None = None, signals: list[str] | None = None,
-           want_guide: bool = False, n_cards: int = 3, n_passages: int = 4, n_guide: int = 2) -> dict:
+           want_guide: bool = False, n_cards: int = 3, n_passages: int = 4, n_guide: int = 2,
+           active: list[str] | None = None) -> dict:
     """Hybrid search. Returns {cards, passages, guide, mode}: cards are card dicts
     (+ status, score), passages are summary / full-text chunks, guide are app-guide
     sections. Cards triggered by the runner's active signals or matching the
-    question's topics are boosted (reciprocal rank fusion, k = 60)."""
+    question's topics are boosted (reciprocal rank fusion, k = 60). `signals` are the
+    ones the runner asked about (strong boost), `active` the runner's other active
+    signals (weak boost, so a specific question still finds its own cards)."""
     INDEX.ensure(db)
     if not INDEX.rows:
         return {"cards": [], "passages": [], "guide": [], "mode": "empty"}
@@ -432,7 +435,7 @@ def search(db, query: str, topics: list[str] | None = None, signals: list[str] |
     for rank, (i, _s) in enumerate(dn):
         score[i] = score.get(i, 0) + 1 / (k + rank + 1)
     status = card_status(db)
-    topics, signals = set(topics or []), set(signals or [])
+    topics, signals, active = set(topics or []), set(signals or []), set(active or []) - set(signals or [])
     for i, r in enumerate(INDEX.rows):
         if r["kind"] != "card":
             continue
@@ -443,6 +446,8 @@ def search(db, query: str, topics: list[str] | None = None, signals: list[str] |
         ap = c.get("applies") or {}
         if signals & set(ap.get("signals") or []):
             score[i] = score.get(i, 0) + 2 / (k + 1)
+        elif active & set(ap.get("signals") or []):
+            score[i] = score.get(i, 0) + 0.5 / (k + 1)
         overlap = len(topics & set(ap.get("topics") or []))
         if overlap:
             score[i] = score.get(i, 0) + overlap / (k + 1)

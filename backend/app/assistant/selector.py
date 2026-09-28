@@ -84,9 +84,13 @@ def classify(question: str, context: dict | None = None) -> dict:
         intents = ["app"]
     if not intents:
         intents = ["today", "readiness", "load"]
+    # a specific subject (heat, pain, strength …) decides the evidence; "today"
+    # only adds the day's data, not its generic intensity topics
+    specific = {"pain", "heat", "strength", "mechanics", "plan", "run"} & set(intents)
     topics = []
     for i in intents:
-        topics += TOPICS[i]
+        if not (specific and i == "today"):
+            topics += TOPICS[i]
     if "pain" in intents:
         for rx, extra in _PAIN_SUB:
             if rx.search(t):

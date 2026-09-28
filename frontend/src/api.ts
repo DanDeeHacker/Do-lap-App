@@ -122,6 +122,7 @@ export const api = {
   assistantFeedback: (rid: string, mid: number, value: number, note?: string) => call("POST", `/api/runners/${rid}/assistant/messages/${mid}/feedback`, { value, note }),
   assistantCard: (id: string) => call("GET", `/api/assistant/cards/${id}`),
   knowledgeAdmin: () => call("GET", "/api/assistant/admin/knowledge"),
+  llmCheck: (model?: string) => call("GET", `/api/assistant/admin/llm-check${model ? `?model=${encodeURIComponent(model)}` : ""}`),
   knowledgeUpload: (fd: FormData) => call("POST", "/api/assistant/admin/docs", fd),
   knowledgeDelete: (id: number) => call("DELETE", `/api/assistant/admin/docs/${id}`),
   knowledgeCard: (id: string, status: string, note?: string) => call("PUT", `/api/assistant/admin/cards/${id}`, { status, note }),
