@@ -752,7 +752,14 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     elif int_max is None:
         block("kvalitní", "Kapacitu intenzity zatím neznáme — chybí běhy s tepem.")
     elif (z4hi or 0) < 10:
-        block("kvalitní", "Na tento týden už nezbývá rozpočet intenzity (min v Z4+).")
+        # say which limit is binding: the calendar week, the rolling 7 days, the
+        # all-sport load or mechanics (the assistant repeats this sentence)
+        block("kvalitní", {
+            "7d": "Za posledních 7 dní máte minuty v Z4+ na hranici kapacity, tvrdý trénink počká pár dní.",
+            "systemic": "Celková zátěž ze všech sportů za posledních 7 dní nenechává místo na tvrdý trénink.",
+            "mechanics": "Mechanika se odchyluje od normy, dnešní strop minut v Z4+ na kvalitní trénink nestačí.",
+            "run": "Dnešní strop minut v Z4+ na kvalitní trénink nestačí.",
+        }.get(week["intensity"].get("limitedBy"), "Na tento týden už nezbývá rozpočet intenzity (min v Z4+)."))
     if drift:
         types["kvalitní"]["notes"].append("Mechanika se odchyluje — strop minut v Z4+ je poloviční.")
     if vol_max is not None and vol_max < 1.2 * base_km:

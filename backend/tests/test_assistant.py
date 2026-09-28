@@ -365,3 +365,41 @@ def test_dry_run_stores_nothing(client, db_session, kb, monkeypatch):
     assert out["source"] == "fallback" and out["model"] == "x/y" and "latencyMs" in out
     assert db_session.query(models.AssistantMessage).count() == before
     assert S._LLM_PAUSE["until"] == 0.0          # a dry run never trips the breaker
+
+
+def test_research_heading_on_its_own_line_is_not_an_uncited_claim():
+    from app.assistant import validate as VAL
+    src = [{"n": 1, "kind": "card", "text": "Většina tréninku lehce."}]
+    text = ("Dnes je v plánu lehký běh a držte se nízkého tepu po celou dobu.\n\nCo říká výzkum:\n"
+            "Většina tréninku by měla být lehká [1].\n\nCo s tím:\nBěžte volně.")
+    codes = {i["code"] for i in VAL.validate(text, {"today": {"label": "Lehký běh"}}, src)["issues"]}
+    assert "uncited_research" not in codes
+
+
+def test_warning_against_running_through_pain_is_not_flagged():
+    from app.assistant import validate as VAL
+    ok = "Pokud bolest sílí, běh zastavte a vyhledejte fyzioterapeuta, protože aplikace nedoporučuje běhat přes bolest."
+    bad = "Klidně běžte i přes bolest, ono to povolí."
+    f = {"referral": {"physio": False}}
+    assert "run_through_pain" not in {i["code"] for i in VAL.validate(ok + " Držte se plánu aplikace.", f, [])["issues"]}
+    assert "run_through_pain" in {i["code"] for i in VAL.validate(bad + " Držte se plánu aplikace dnes.", f, [])["issues"]}
+
+
+def test_tidy_and_rate_limit_pause():
+    from app.assistant import service as S, validate as VAL
+    t = VAL.tidy("**Odpověď:** Dnes lehce.\n\n1. Ve vašich datech:\n- připravenost 68 %\n- **HRV** pod normou")
+    assert t.startswith("Dnes lehce.") and "**" not in t and "• připravenost 68 %" in t and "\nVe vašich datech:" in t
+    assert S._pause_for({"status": 429, "body": "Please try again in 23.34s. Need more"}) == pytest.approx(24.34)
+    assert S._pause_for({"status": 429, "body": "try again in 1m5s"}) == 66
+    assert S._pause_for({"status": 404}) == S.PAUSE_MISSING_S
+    assert S._pause_for({"type": "ReadTimeout"}) == S.PAUSE_SLOW_S
+
+
+def test_repair_drops_only_the_offending_sentence():
+    from app.assistant import validate as VAL
+    text = ("Dnes je v plánu dlouhý běh. Zátěž je 72 % kapacity. Držte se Z2.\n\nVe vašich datech:\n"
+            "• Připravenost 68 %.\n• Poměr 72 %.\n\nCo říká výzkum:\nVětšina lehce [9].")
+    fixed = VAL.repair(text, [{"code": "number_not_in_facts", "detail": "72"}, {"code": "unknown_citation", "detail": "[9]"}])
+    assert "72" not in fixed and "[9]" not in fixed and "Držte se Z2." in fixed and "Připravenost 68 %" in fixed
+    assert "Co říká výzkum" not in fixed           # the emptied section label goes too
+    assert VAL.repair(text, [{"code": "contradicts_recommendation", "detail": "x"}]) is None

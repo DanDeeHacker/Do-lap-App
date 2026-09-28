@@ -79,6 +79,34 @@ def _today_extra(a) -> dict:
     return out
 
 
+LIMITED_BY = {"week": "zbytek týdenního cíle", "7d": "součet posledních 7 dní proti kapacitě",
+              "run": "strop jednoho běhu", "systemic": "celková zátěž ze všech sportů",
+              "mechanics": "mechanika nad vaším prahem"}
+
+
+def _why_today_max(a, today) -> None:
+    """Today's cap is the smallest of several limits. The week budget goes to the
+    model as one plain sentence per channel, with the binding limit and the rolling
+    7-day room named, so it cannot read "today's cap" as "what is left this week"."""
+    chans = ((a.get("guidance") or {}).get("week") or {}).get("channels") or {}
+    wb = (today or {}).get("weekBudget")
+    if not isinstance(wb, dict):
+        return
+    lines = []
+    for key, row in wb.items():
+        c = chans.get(key) or {}
+        u = row.get("unit") or ""
+        parts = [f"{row.get('label')} ({u}): týdenní cíl {row.get('weekTarget')}",
+                 f"tento týden hotovo {row.get('doneThisWeek')}", f"do konce týdne zbývá {row.get('leftThisWeek')}"]
+        if row.get("todayMax") not in (None, "", "–"):
+            why = LIMITED_BY.get(c.get("limitedBy"))
+            parts.append(f"dnešní strop {row.get('todayMax')}" + (f" (určuje ho {why})" if why else ""))
+        if c.get("left7") is not None:
+            parts.append(f"v klouzavých 7 dnech zbývá {G._cz(c['left7'], 1 if key == 'volume' else 0)}")
+        lines.append(", ".join(parts) + ".")
+    today["weekBudget"] = lines
+
+
 def _readiness(a) -> dict:
     out = F._recovery(a)
     cr = (a.get("capacity") or {}).get("readiness") or {}
@@ -165,6 +193,7 @@ def build(db, rid: str, a: dict, sel: dict) -> dict:
     sl = set(sel.get("slices") or [])
     if "today" in sl or "types" in sl or "strength" in sl or "heat" in sl:
         out["today"] = F._today(a)
+        _why_today_max(a, out["today"])
         out.update(_today_extra(a))
     if "types" in sl or "strength" in sl:
         out["sessionTypes"] = _types(a)

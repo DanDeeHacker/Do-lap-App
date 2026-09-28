@@ -101,8 +101,9 @@ function AnswerText({ text, onCite }: { text: string; onCite: (n: number) => voi
         const m = p.match(/^(Ve vašich datech:|Co říká výzkum:|Co s tím:)\s*/)
         const body = m ? p.slice(m[0].length) : p
         const parts = body.split(/(\[\d{1,2}\])/g)
+        const bullet = /^•\s/.test(body)
         return (
-          <p key={i} className="text-[14px] leading-6 text-fg">
+          <p key={i} className={bullet ? "!mt-0.5 pl-3 -indent-3 text-[13.5px] leading-[1.45rem] text-fg-soft" : m && !body.trim() ? "!mb-[-2px] pt-1 text-[14px] leading-6 text-fg" : "text-[14px] leading-6 text-fg"}>
             {m && <b className="text-fg">{m[1]} </b>}
             {parts.map((x, j) => {
               const c = x.match(/^\[(\d{1,2})\]$/)

@@ -101,6 +101,8 @@ def _note_error(kind: str, e: Exception) -> None:
     so the assistant can log why it fell back and the ops check can show it."""
     resp = getattr(e, "response", None)
     detail = {"type": type(e).__name__, "status": getattr(resp, "status_code", None)}
+    if resp is not None and resp.headers.get("retry-after"):
+        detail["retryAfter"] = resp.headers.get("retry-after")
     try:
         detail["body"] = (resp.text or "")[:300] if resp is not None else str(e)[:300]
     except Exception:

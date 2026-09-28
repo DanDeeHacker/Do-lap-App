@@ -2,7 +2,7 @@
 
   gate (fixed safety replies) → selector (intent, data slices, topics) →
   facts (engine output) + knowledge search (cards → summaries → full texts,
-  app guide) → model (prompt assistant.v1) → validator → answer, or one retry,
+  app guide) → model (prompt assistant.v2) → validator → answer, or one retry,
   or a deterministic answer built from the same facts and cards.
 
 The engine stays the source of truth: the model only explains and plans inside
@@ -11,6 +11,7 @@ today's recommendation, and the validator rejects anything that contradicts it.
 import json
 import logging
 import os
+import re
 import time
 import uuid
 from datetime import datetime, timedelta
@@ -25,7 +26,7 @@ from . import selector as SEL
 from . import validate as VAL
 
 log = logging.getLogger("dosslap.assistant")
-PROMPT_VERSION = "assistant.v1"
+PROMPT_VERSION = "assistant.v2"
 PROMPT = (Path(__file__).resolve().parent.parent / "prompts" / f"{PROMPT_VERSION}.md").read_text(encoding="utf-8")
 NAME = "Physio AI Assistant"
 VISIBLE_DAYS = 7          # the runner sees a week of conversation (product decision 2026-09-28)
@@ -36,7 +37,21 @@ LLM_TIMEOUT_S = 30
 # while instead of making every runner wait for a timeout
 _LLM_PAUSE = {"until": 0.0}
 PAUSE_MISSING_S, PAUSE_SLOW_S = 3600, 300
-PASSAGE_CHARS = 1000                               # keeps the prompt short enough for free-tier hosts
+
+
+def _pause_for(err: dict) -> float:
+    """How long to answer from the fallback after a failed call: a missing model or
+    key for an hour, a rate limit for as long as the host asks (free tiers count
+    tokens per minute), a timeout or server error for five minutes."""
+    status = err.get("status")
+    if status in (401, 403, 404, 410):
+        return PAUSE_MISSING_S
+    if status == 429:
+        m = re.search(r"try again in (?:(\d+)m)?(\d+(?:\.\d+)?)s", err.get("body") or "")
+        wait = (int(m.group(1) or 0) * 60 + float(m.group(2))) if m else float(err.get("retryAfter") or 30)
+        return min(120.0, wait + 1)
+    return PAUSE_SLOW_S
+PASSAGE_CHARS = 800                                # keeps the prompt short enough for free-tier hosts
 DISCLAIMER = "Odpověď napsala AI z vašich dat a z odborné literatury. Může se mýlit a nenahrazuje fyzioterapeuta."
 
 
@@ -143,13 +158,23 @@ def _public_sources(sources: list[dict], cited: set) -> list[dict]:
     return [{k: v for k, v in s.items() if k != "text"} for s in keep]
 
 
+def _compact(x):
+    """Facts without empty fields: fewer tokens, nothing lost."""
+    if isinstance(x, dict):
+        out = {k: _compact(v) for k, v in x.items()}
+        return {k: v for k, v in out.items() if v not in (None, "", [], {})}
+    if isinstance(x, list):
+        return [_compact(v) for v in x if v not in (None, "", [], {})]
+    return x
+
+
 def _user_message(question: str, facts: dict, sources: list[dict], guide: list[dict]) -> str:
     src = "\n".join(
         f"[{s['n']}] ({'důkazní karta' if s['kind'] == 'card' else 'shrnutí studie' if s['kind'] == 'summary' else 'pasáž článku'}"
         f"{', síla důkazů: ' + s['strength'] if s.get('strength') else ''}; {s.get('cite') or ''}) {s['text']}"
         for s in sources) or "(žádné zdroje k této otázce)"
     gd = "\n".join(f"- {g['title']}: {g['text']}" for g in guide) or "(není potřeba)"
-    return (f"OTÁZKA BĚŽCE:\n{question}\n\nFAKTA (JSON):\n{json.dumps(facts, ensure_ascii=False)}\n\n"
+    return (f"OTÁZKA BĚŽCE:\n{question}\n\nFAKTA (JSON):\n{json.dumps(_compact(facts), ensure_ascii=False, separators=(',', ':'))}\n\n"
             f"ZDROJE:\n{src}\n\nPRŮVODCE APLIKACÍ:\n{gd}")
 
 
@@ -240,7 +265,7 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
     active = [s["id"] for s in a.get("signals") or [] if (s.get("pts") or 0) > 0]
     facts = FA.build(db, rid, a, sel)
     kb = K.search(db, question, topics=sel["topics"], signals=sel["signals"], active=active,
-                  want_guide=sel["wantGuide"] or not sel["intents"], n_passages=3)
+                  want_guide=sel["wantGuide"] or not sel["intents"], n_passages=2)
     if sel["wantGuide"] and len(sel["intents"]) == 1:
         kb["passages"] = []                         # an app question needs the guide, not papers
     sources = _number_sources(kb)
@@ -267,14 +292,22 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
                 err = llm.LAST_ERROR.get("chat") or {}
                 issues.append({"code": "llm_error", "detail": err})
                 if not dry_run:
-                    _LLM_PAUSE["until"] = time.time() + (PAUSE_MISSING_S if err.get("status") in (401, 403, 404) else PAUSE_SLOW_S)
+                    _LLM_PAUSE["until"] = time.time() + _pause_for(err)
                 break
+            out = VAL.tidy(out)
             llm_text = out
             clean, _ = VAL.strip_links(out)
             v = VAL.validate(clean, facts, sources)
             if v["ok"]:
                 text, source = out, "llm"
                 break
+            fixed = VAL.repair(out, v["issues"])
+            if fixed:
+                fclean, _ = VAL.strip_links(fixed)
+                if VAL.validate(fclean, facts, sources)["ok"]:
+                    text, source = fixed, "llm"
+                    issues = [{"code": "repaired", "detail": [i["code"] for i in v["issues"]]}]
+                    break
             issues = v["issues"]
             msgs += [{"role": "assistant", "content": out},
                      {"role": "user", "content": "Odpověď neprošla kontrolou: "

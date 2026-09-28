@@ -18,6 +18,8 @@ from .knowledge import fold
 
 WORDS = (8, 300)
 _CITE = re.compile(r"\[(\d{1,2})\]")
+# "aplikace nedoporučuje běhat přes bolest", "běh zastavte" warn against it
+_NEGATED_MORE = re.compile(r"\b(nedoporuč\w*|nesmí\w*|zastav\w*|vynech\w*|přeruš\w*)", re.I)
 _APP_LINK = re.compile(r"\[(Dnes|Trénink|Deník|Pohyb|Zátěž|Péče|Data)\]")
 _RESEARCH = re.compile(r"\b(studi\w*|výzkum\w*|meta-?analýz\w*|přehled\w* studií|autoři|v randomizovan\w*)\b", re.I)
 _LATER = re.compile(
@@ -25,6 +27,56 @@ _LATER = re.compile(
     r"za \w+ dn\w*|jindy|v dalších dnech|odlož\w*|přesuň\w*|počkej\w*|počkat)\b", re.I)
 _DECLINE = re.compile(r"\b(nedoporuč\w*|nezařaz\w*|není vhodn\w*|není dnes|nechte|vynech\w*|bez\b|žádn\w*|ne\b|"
                       r"blokuj\w*|zablokov\w*|nepovol\w*|nedovol\w*|místo)\b", re.I)
+
+
+def tidy(text: str) -> str:
+    """Formatting the chat does not render: markdown emphasis, an "Odpověď:"
+    label in front of the answer, dash bullets (shown as dots)."""
+    t = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: m.group(1) or m.group(2), text or "")
+    t = re.sub(r"^\s*(?:1\.\s*)?Odpověď\s*:\s*", "", t)
+    t = re.sub(r"(?m)^\s*[-*]\s+", "• ", t)
+    t = re.sub(r"(?m)^\s*\d\.\s+(?=(Ve vašich datech|Co říká výzkum|Co s tím))", "", t)
+    return t.strip()
+
+
+REPAIRABLE = {"number_not_in_facts", "unknown_citation"}
+
+
+def repair(text: str, issues: list[dict]) -> str | None:
+    """Drop the sentences (or bullet lines) that carry an unknown number or an
+    unknown citation, instead of spending a second model call on them (free tiers
+    count tokens per minute). None when something else is wrong."""
+    if not issues or {i["code"] for i in issues} - REPAIRABLE:
+        return None
+    pats = []
+    for i in issues:
+        for tok in str(i.get("detail") or "").split(", "):
+            tok = tok.strip()
+            if not tok:
+                continue
+            pats.append(re.escape(tok) if tok.startswith("[") else rf"(?<![\d,.]){re.escape(tok)}(?![\d])")
+    if not pats:
+        return None
+    rx = re.compile("|".join(pats))
+    out = []
+    for line in text.split("\n"):
+        parts = re.split(r"(?<=[.!?])\s+", line)
+        kept = [p for p in parts if not rx.search(p)]
+        if len(kept) == len(parts):
+            out.append(line)
+        elif kept and not (line.lstrip().startswith("•") and len(kept) < len(parts)):
+            out.append(" ".join(kept))
+    # a section label left with nothing under it goes too
+    lines = [l for l in out]
+    res = []
+    for k, l in enumerate(lines):
+        if re.fullmatch(r"\s*(Ve vašich datech|Co říká výzkum|Co s tím)\s*:\s*", l):
+            nxt = next((x for x in lines[k + 1:] if x.strip()), "")
+            if not nxt or re.match(r"\s*(Ve vašich datech|Co říká výzkum|Co s tím)\s*:", nxt):
+                continue
+        res.append(l)
+    fixed = re.sub(r"\n{3,}", "\n\n", "\n".join(res)).strip()
+    return fixed or None
 
 
 def strip_links(text: str) -> tuple[str, list[str]]:
@@ -61,7 +113,9 @@ def validate(text: str, facts: dict, sources: list[dict]) -> dict:
     cited = {int(x) for x in _CITE.findall(text)}
     if cited - have:
         issues.append({"code": "unknown_citation", "detail": ", ".join(f"[{x}]" for x in sorted(cited - have))})
-    for s in V._sentences(text):
+    # the template's section labels ("Co říká výzkum:") are headings, not claims
+    unlabelled = re.sub(r"(Ve vašich datech|Co říká výzkum|Co s tím)\s*:", " ", text)
+    for s in V._sentences(unlabelled):
         if _RESEARCH.search(s) and not _CITE.search(s) and not re.search(r"nemám ověřený zdroj", s, re.I):
             issues.append({"code": "uncited_research", "detail": s.strip()[:160]})
             break
@@ -79,7 +133,7 @@ def validate(text: str, facts: dict, sources: list[dict]) -> dict:
                 issues.append({"code": "contradicts_recommendation", "detail": s.strip()[:160]})
                 break
     for s in V._sentences(text):
-        if V._THROUGH_PAIN.search(s) and V._RUN_VERB.search(s) and not V._NEGATED.search(s):
+        if V._THROUGH_PAIN.search(s) and V._RUN_VERB.search(s) and not (V._NEGATED.search(s) or _NEGATED_MORE.search(s)):
             issues.append({"code": "run_through_pain", "detail": s.strip()[:160]})
             break
     for code, rx in V.BANNED:
