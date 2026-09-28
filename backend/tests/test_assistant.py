@@ -27,9 +27,15 @@ def kb(client, db_session):
     return db_session
 
 
+def _reset_llm_pause():
+    from app.assistant import service as S
+    S._LLM_PAUSE["until"] = 0.0
+
+
 @pytest.fixture(autouse=True)
 def _assistant_on(monkeypatch):
     monkeypatch.setenv("DOSSLAP_ASSISTANT", "on")
+    _reset_llm_pause()
 
 
 def _demo(client, db, email=None):

@@ -124,24 +124,26 @@ def admin_knowledge(user: models.User = Depends(get_current_user), db: DBSession
             "chunks": counts, "embedded": embedded, "embedModel": llm.EMBED_MODEL if llm.embed_available() else None}
 
 
-def _llm_check(model: str | None) -> dict:
-    if model is not None and not re.fullmatch(r"[\w./:-]{1,100}", model):
-        raise HTTPException(400, "Neplatný název modelu")
-    return {"chat": llm.probe("chat", model), "embed": llm.probe("embed"),
+def _llm_check(model: str | None, embed_model: str | None = None) -> dict:
+    for m in (model, embed_model):
+        if m is not None and not re.fullmatch(r"[\w./:-]{1,100}", m):
+            raise HTTPException(400, "Neplatný název modelu")
+    return {"chat": llm.probe("chat", model), "embed": llm.probe("embed", embed_model),
             "host": llm.ASSISTANT_BASE_URL, "embedHost": llm.EMBED_BASE_URL}
 
 
 @router.get("/api/assistant/admin/llm-check")
-def admin_llm_check(model: str | None = None, user: models.User = Depends(get_current_user)):
+def admin_llm_check(model: str | None = None, embed_model: str | None = None,
+                    user: models.User = Depends(get_current_user)):
     """Is the assistant's model reachable, how fast, and why not (status + short body)."""
     _admin(user)
-    return _llm_check(model)
+    return _llm_check(model, embed_model)
 
 
 @router.get("/api/assistant/ops/llm-check", dependencies=[Depends(require_feedback_token)])
-def ops_llm_check(model: str | None = None):
+def ops_llm_check(model: str | None = None, embed_model: str | None = None):
     """The same check for the operator token (no user data involved)."""
-    return _llm_check(model)
+    return _llm_check(model, embed_model)
 
 
 def _embed_bg():

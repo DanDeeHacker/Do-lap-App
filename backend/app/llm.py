@@ -114,8 +114,8 @@ def probe(kind: str = "chat", model: str | None = None) -> dict:
     LAST_ERROR.pop(kind, None)
     t0 = time.monotonic()
     if kind == "embed":
-        m = EMBED_MODEL
-        out = embed(["Kolik kilometrů mám dnes běžet?"], kind="query", timeout=30)
+        m = model or EMBED_MODEL
+        out = embed(["Kolik kilometrů mám dnes běžet?"], kind="query", timeout=30, model=m)
         ok = bool(out)
         extra = {"dim": len(out[0])} if ok else {}
     else:
@@ -177,11 +177,18 @@ def chat(system: str, user: str, temperature: float = 0.25, max_tokens: int = 70
     )
 
 
+def _embed_body(model: str, texts: list[str], kind: str) -> dict:
+    body = {"model": model, "input": texts, "encoding_format": "float"}
+    if "nvidia.com" in EMBED_BASE_URL:            # NVIDIA's retrievers want these, other hosts may reject them
+        body.update({"input_type": kind, "truncate": "END"})
+    return body
+
+
 def embed_available() -> bool:
     return bool(EMBED_API_KEY) and os.environ.get("DOSSLAP_EMBED", "on").lower() not in ("off", "0", "false")
 
 
-def embed(texts: list[str], kind: str = "passage", timeout: float = 60.0):
+def embed(texts: list[str], kind: str = "passage", timeout: float = 60.0, model: str | None = None):
     """Embedding vectors for `texts` (kind "passage" for the corpus, "query" for a
     question), or None when no key is configured or the call fails — callers then
     fall back to keyword search."""
@@ -191,7 +198,7 @@ def embed(texts: list[str], kind: str = "passage", timeout: float = 60.0):
         resp = httpx.post(
             f"{EMBED_BASE_URL}/embeddings",
             headers={"Authorization": f"Bearer {EMBED_API_KEY}", "Content-Type": "application/json"},
-            json={"model": EMBED_MODEL, "input": texts, "input_type": kind, "encoding_format": "float", "truncate": "END"},
+            json=_embed_body(model or EMBED_MODEL, texts, kind),
             timeout=timeout,
         )
         resp.raise_for_status()

@@ -31,7 +31,11 @@ NAME = "Physio AI Assistant"
 VISIBLE_DAYS = 7          # the runner sees a week of conversation (product decision 2026-09-28)
 KEEP_DAYS = 365           # kept for answer-quality review, deletable by the runner any time
 HISTORY_TURNS = 6
-LLM_TIMEOUT_S = 45
+LLM_TIMEOUT_S = 30
+# circuit breaker: after a failure the assistant answers from the fallback for a
+# while instead of making every runner wait for a timeout
+_LLM_PAUSE = {"until": 0.0}
+PAUSE_MISSING_S, PAUSE_SLOW_S = 3600, 300
 PASSAGE_CHARS = 1000                               # keeps the prompt short enough for free-tier hosts
 DISCLAIMER = "Odpověď napsala AI z vašich dat a z odborné literatury. Může se mýlit a nenahrazuje fyzioterapeuta."
 
@@ -233,7 +237,10 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
     guide = kb["guide"]
 
     text, llm_text, issues, source, model = None, None, [], "fallback", None
-    if llm.assistant_available():
+    paused = time.time() < _LLM_PAUSE["until"]
+    if paused and llm.assistant_available():
+        issues.append({"code": "llm_paused"})
+    if llm.assistant_available() and not paused:
         msgs = [{"role": "system", "content": PROMPT}]
         prev = (db.query(models.AssistantMessage)
                 .filter(models.AssistantMessage.runner_id == rid, models.AssistantMessage.thread_id == thread,
@@ -247,7 +254,9 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
             out = llm.chat_messages(msgs, temperature=0.2, max_tokens=600, timeout=LLM_TIMEOUT_S, model=model,
                                     base_url=llm.ASSISTANT_BASE_URL, api_key=llm.ASSISTANT_API_KEY)
             if not out:
-                issues.append({"code": "llm_error", "detail": llm.LAST_ERROR.get("chat")})
+                err = llm.LAST_ERROR.get("chat") or {}
+                issues.append({"code": "llm_error", "detail": err})
+                _LLM_PAUSE["until"] = time.time() + (PAUSE_MISSING_S if err.get("status") in (401, 403, 404) else PAUSE_SLOW_S)
                 break
             llm_text = out
             clean, _ = VAL.strip_links(out)
