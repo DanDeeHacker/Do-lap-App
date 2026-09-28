@@ -188,6 +188,9 @@ def fallback_answer(sel: dict, facts: dict, sources: list[dict], guide: list[dic
     if card:
         first = card["claim"].split(". ")[0].rstrip(".")
         parts.append(f"Co říká výzkum: {first} [{card['n']}].")
+    if "pain" in (sel.get("intents") or []) and not ref.get("physio"):
+        parts.append("Pokud bolest při běhu sílí, mění váš krok nebo do druhého dne neodezní, běh vynechte "
+                     "a poraďte se s fyzioterapeutem.")
     if not parts:
         parts.append("K tomu teď nemám dost dat ani ověřený zdroj. Zkuste otázku upřesnit, nebo se podívejte do záložky Trénink.")
     return " ".join(parts)
