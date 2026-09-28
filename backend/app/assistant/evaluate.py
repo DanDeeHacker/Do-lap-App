@@ -57,7 +57,7 @@ def _cards(db, q: str, dense=None, n=5, weight=None) -> list[str]:
     return [c["id"] for c in K.search(db, q, topics=sel["topics"], n_cards=n, dense=dense, dense_weight=weight)["cards"]]
 
 
-def retrieval(db, embed_model: str | None = None, weights: tuple = (1.0, 2.0, 3.0)) -> dict:
+def retrieval(db, embed_model: str | None = None, weights: tuple = (1.0, 2.0, 3.0), detail: bool = False) -> dict:
     """Top-5 hit rate on the labelled questions (tuning set and holdout): keyword
     search, and with `embed_model` also dense-only and hybrid rankings (fusion
     weights `weights`) over the card texts."""
@@ -100,6 +100,8 @@ def retrieval(db, embed_model: str | None = None, weights: tuple = (1.0, 2.0, 3.
             else:
                 r["misses"]["dense"].append(want)
             dn = [(idx[j], float(sims[j])) for j in order[:60]]
+            if detail:
+                r.setdefault("rankings", {})[q] = [(K.INDEX.rows[i]["sid"], round(sc, 4)) for i, sc in dn]
             for w in weights:
                 if want in _cards(db, q, dense=dn, weight=w):
                     r["hybrid"][str(w)] += 1
