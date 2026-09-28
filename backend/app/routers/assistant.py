@@ -171,6 +171,17 @@ def _retrieval_eval(db, embed_model, weights=None, detail=False):
     return evaluate.retrieval(db, embed_model, ws, detail)
 
 
+@router.get("/api/assistant/ops/sample", dependencies=[Depends(require_feedback_token)])
+def ops_sample(q: str, model: str | None = None, db: DBSession = Depends(get_db)):
+    """One dry-run answer on the tutorial runner (nothing stored): compares models
+    on the real prompt, facts, sources and validator."""
+    if model is not None and not re.fullmatch(r"[\w./:-]{1,100}", model):
+        raise HTTPException(400, "Neplatný název modelu")
+    from ..tutorial_demo import ensure
+    r = _runner(db, ensure(db))
+    return S.ask(db, r, q[:800], dry_run=True, model_override=model)
+
+
 def _embed_bg():
     db = SessionLocal()
     try:

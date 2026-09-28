@@ -200,23 +200,30 @@ def _store(db, rid, thread, role, text, **kw) -> models.AssistantMessage:
     return row
 
 
-def ask(db, runner, question: str, context: dict | None = None, thread_id: str | None = None, user=None) -> dict:
+def ask(db, runner, question: str, context: dict | None = None, thread_id: str | None = None, user=None,
+        dry_run: bool = False, model_override: str | None = None) -> dict:
+    """The whole pipeline. `dry_run` (ops model comparison on the demo runner)
+    stores nothing, ignores the daily limit and the circuit breaker, and returns
+    the raw model text and the validator's issues as well."""
     t0 = time.time()
     rid = runner.id
     question = (question or "").strip()[:800]
     thread = thread_id or uuid.uuid4().hex[:16]
     if not question:
         return {"error": "empty"}
-    purge(db, rid)
+    if not dry_run:
+        purge(db, rid)
 
     def fixed(text, source="gate", issues=None):
+        if dry_run:
+            return {"text": text, "source": source, "issues": issues}
         _store(db, rid, thread, "user", question, context_json=context)
         row = _store(db, rid, thread, "assistant", text, source=source, issues_json=issues, context_json=context,
                      prompt_version=PROMPT_VERSION, latency_ms=int((time.time() - t0) * 1000))
         db.commit()
         return {**public(row), "disclaimer": DISCLAIMER}
 
-    if _used_today(db, rid) >= daily_limit():
+    if not dry_run and _used_today(db, rid) >= daily_limit():
         return {**fixed(GATE.LIMIT_REPLY, issues=[{"code": "daily_limit"}]), "limited": True}
     g = GATE.check(question)
     if g:
@@ -237,7 +244,7 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
     guide = kb["guide"]
 
     text, llm_text, issues, source, model = None, None, [], "fallback", None
-    paused = time.time() < _LLM_PAUSE["until"]
+    paused = time.time() < _LLM_PAUSE["until"] and not dry_run
     if paused and llm.assistant_available():
         issues.append({"code": "llm_paused"})
     if llm.assistant_available() and not paused:
@@ -249,14 +256,15 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
         for r in reversed(prev):
             msgs.append({"role": r.role, "content": r.text})
         msgs.append({"role": "user", "content": _user_message(question, facts, sources, guide)})
-        model = llm.ASSISTANT_MODEL
+        model = model_override or llm.ASSISTANT_MODEL
         for attempt in range(2):
             out = llm.chat_messages(msgs, temperature=0.2, max_tokens=600, timeout=LLM_TIMEOUT_S, model=model,
                                     base_url=llm.ASSISTANT_BASE_URL, api_key=llm.ASSISTANT_API_KEY)
             if not out:
                 err = llm.LAST_ERROR.get("chat") or {}
                 issues.append({"code": "llm_error", "detail": err})
-                _LLM_PAUSE["until"] = time.time() + (PAUSE_MISSING_S if err.get("status") in (401, 403, 404) else PAUSE_SLOW_S)
+                if not dry_run:
+                    _LLM_PAUSE["until"] = time.time() + (PAUSE_MISSING_S if err.get("status") in (401, 403, 404) else PAUSE_SLOW_S)
                 break
             llm_text = out
             clean, _ = VAL.strip_links(out)
@@ -282,6 +290,10 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
                  next((s.get("app") for s in sources if s["kind"] == "card" and s.get("app")), None))
         links = [app_links[first]] if first in app_links else []
     cited = {int(x) for x in VAL._CITE.findall(clean)}
+    if dry_run:
+        return {"text": clean, "source": source, "issues": issues, "llmText": llm_text, "model": model,
+                "latencyMs": int((time.time() - t0) * 1000), "sources": _public_sources(sources, cited),
+                "links": links, "searchMode": kb.get("mode")}
     _store(db, rid, thread, "user", question, context_json=context, intent_json=sel)
     row = _store(db, rid, thread, "assistant", clean, context_json=context, intent_json=sel,
                  sources_json=_public_sources(sources, cited), facts_json=facts, links_json=links, source=source,

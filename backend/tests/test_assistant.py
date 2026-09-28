@@ -351,3 +351,17 @@ def test_retrieval_eval_keyword_and_fake_dense(kb, monkeypatch):
     monkeypatch.setattr(llm, "embed", lambda texts, kind="passage", timeout=60.0, model=None: [[1.0, 0.0]] * len(texts))
     out = evaluate.retrieval(kb, "fake/model")
     assert out["model"] == "fake/model" and out["tuning"]["hybrid"]["1.0"] >= 14
+
+
+def test_dry_run_stores_nothing(client, db_session, kb, monkeypatch):
+    from app import llm
+    from app.assistant import service as S
+    rid, _r, _u = _demo(client, db_session)
+    runner = db_session.query(models.Runner).filter(models.Runner.id == rid).first()
+    monkeypatch.setattr(llm, "assistant_available", lambda: True)
+    monkeypatch.setattr(llm, "chat_messages", lambda *a, **k: None)
+    before = db_session.query(models.AssistantMessage).count()
+    out = S.ask(db_session, runner, "Co mám dnes běžet?", dry_run=True, model_override="x/y")
+    assert out["source"] == "fallback" and out["model"] == "x/y" and "latencyMs" in out
+    assert db_session.query(models.AssistantMessage).count() == before
+    assert S._LLM_PAUSE["until"] == 0.0          # a dry run never trips the breaker
