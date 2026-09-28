@@ -77,28 +77,7 @@ def test_sync_is_idempotent_and_follows_edits(kb, monkeypatch):
     assert K.sync_builtin(kb) == 2          # one changed, one removed
 
 
-RETRIEVAL = [
-    ("Je pravidlo 10 % bezpečné?", "a-10-procent"),
-    ("Zvýšil jsem týdenní objem o polovinu, vadí to?", "a-tydenni-skok"),
-    ("Loni jsem měl zranění kolene, co to znamená pro trénink?", "a-predchozi-zraneni"),
-    ("Proč stejný běh jednou zvládnu snadno a jindy mám vysoký tep?", "b-vnitrni-vnejsi"),
-    ("Proč mám hodnotit náročnost po běhu?", "b-rpe"),
-    ("Má můj check-in vůbec nějakou váhu?", "b-subjektivni"),
-    ("Proč aplikace nebere jednu špatnou noc HRV tak vážně?", "c-tydenni-hrv"),
-    ("Mám vysoké HRV, ale jsem unavený", "c-vysoka-hrv"),
-    ("Kolik tvrdých tréninků týdně je rozumné?", "d-vetsina-lehce"),
-    ("Proč mám lehký běh držet v tepovém rozmezí?", "d-lehky-tep"),
-    ("Po trailu z kopce mě bolí stehna, proč seběh tolik zatěžuje?", "e-seby"),
-    ("Mám zkracovat krok a běhat po špičkách?", "e-technika"),
-    ("V horku mám o deset tepů víc, ztrácím kondici?", "f-horko"),
-    ("Kolik mám pít, když je vedro?", "f-piti"),
-    ("Stačí mi šest hodin spánku?", "g-7-hodin"),
-    ("Bolí mě Achillovka, můžu běhat?", "h-slacha"),
-    ("Bolí mě holeň i při chůzi", "h-kost"),
-    ("Kdy se můžu po zranění vrátit k běhu?", "h-navrat"),
-    ("Kolikrát týdně posilovat?", "i-sila-ekonomika"),
-    ("Pomáhá strečink proti zraněním?", "i-sila-zraneni"),
-]
+from app.assistant.evaluate import RETRIEVAL  # noqa: E402
 
 
 def test_gate_1_retrieval_finds_the_right_card(kb):
@@ -360,3 +339,14 @@ def test_llm_check_requires_token_or_admin(client, monkeypatch):
     assert r.status_code == 200 and r.json()["chat"]["error"]["status"] == 404
     bad = client.get("/api/assistant/ops/llm-check?model=a%20b", headers={"Authorization": "Bearer " + "x" * 40})
     assert bad.status_code == 400
+
+
+def test_retrieval_eval_keyword_and_fake_dense(kb, monkeypatch):
+    from app import llm
+    from app.assistant import evaluate
+    base = evaluate.retrieval(kb)
+    assert base["n"] == len(RETRIEVAL) and base["keyword"] >= 16 and "dense" not in base
+    # a "model" that returns the same vector for everything cannot help, but must not break hybrid
+    monkeypatch.setattr(llm, "embed", lambda texts, kind="passage", timeout=60.0, model=None: [[1.0, 0.0]] * len(texts))
+    out = evaluate.retrieval(kb, "fake/model")
+    assert out["model"] == "fake/model" and out["hybrid"] >= 14

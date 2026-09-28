@@ -146,6 +146,26 @@ def ops_llm_check(model: str | None = None, embed_model: str | None = None):
     return _llm_check(model, embed_model)
 
 
+@router.get("/api/assistant/admin/retrieval-eval")
+def admin_retrieval_eval(embed_model: str | None = None, user: models.User = Depends(get_current_user),
+                         db: DBSession = Depends(get_db)):
+    """Gate 1 on the live knowledge base: keyword vs a candidate embedding model."""
+    _admin(user)
+    return _retrieval_eval(db, embed_model)
+
+
+@router.get("/api/assistant/ops/retrieval-eval", dependencies=[Depends(require_feedback_token)])
+def ops_retrieval_eval(embed_model: str | None = None, db: DBSession = Depends(get_db)):
+    return _retrieval_eval(db, embed_model)
+
+
+def _retrieval_eval(db, embed_model):
+    from ..assistant import evaluate
+    if embed_model is not None and not re.fullmatch(r"[\w./:-]{1,100}", embed_model):
+        raise HTTPException(400, "Neplatný název modelu")
+    return evaluate.retrieval(db, embed_model)
+
+
 def _embed_bg():
     db = SessionLocal()
     try:

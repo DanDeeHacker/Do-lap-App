@@ -411,7 +411,7 @@ INDEX = _Index()
 
 def search(db, query: str, topics: list[str] | None = None, signals: list[str] | None = None,
            want_guide: bool = False, n_cards: int = 3, n_passages: int = 4, n_guide: int = 2,
-           active: list[str] | None = None) -> dict:
+           active: list[str] | None = None, dense: list | None = None) -> dict:
     """Hybrid search. Returns {cards, passages, guide, mode}: cards are card dicts
     (+ status, score), passages are summary / full-text chunks, guide are app-guide
     sections. Cards triggered by the runner's active signals or matching the
@@ -423,11 +423,14 @@ def search(db, query: str, topics: list[str] | None = None, signals: list[str] |
         return {"cards": [], "passages": [], "guide": [], "mode": "empty"}
     q = expand_query(query)
     bm = INDEX.bm25(q)[:60]
-    qvec = None
-    if INDEX.mat is not None:
-        got = llm.embed([query], kind="query")
-        qvec = got[0] if got else None
-    dn = INDEX.dense(qvec)
+    if dense is not None:                          # evaluation: a ranking from a candidate model
+        dn = dense
+    else:
+        qvec = None
+        if INDEX.mat is not None:
+            got = llm.embed([query], kind="query")
+            qvec = got[0] if got else None
+        dn = INDEX.dense(qvec)
     k = 60.0
     score = {}
     for rank, (i, _s) in enumerate(bm):
