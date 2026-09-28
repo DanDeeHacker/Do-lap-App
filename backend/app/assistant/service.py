@@ -31,7 +31,8 @@ NAME = "Physio AI Assistant"
 VISIBLE_DAYS = 7          # the runner sees a week of conversation (product decision 2026-09-28)
 KEEP_DAYS = 365           # kept for answer-quality review, deletable by the runner any time
 HISTORY_TURNS = 6
-LLM_TIMEOUT_S = 50
+LLM_TIMEOUT_S = 45
+PASSAGE_CHARS = 1000                               # keeps the prompt short enough for free-tier hosts
 DISCLAIMER = "Odpověď napsala AI z vašich dat a z odborné literatury. Může se mýlit a nenahrazuje fyzioterapeuta."
 
 
@@ -126,7 +127,7 @@ def _number_sources(kb: dict) -> list[dict]:
                     "app": c.get("app"), "refs": [{"cite": r["cite"], "apa": r["apa"], "doi": r.get("doi")} for r in refs],
                     "cite": "; ".join(r["cite"] for r in refs), "text": text})
     for p in kb["passages"]:
-        body = p["text"] if len(p["text"]) <= 1400 else p["text"][:1400].rsplit(" ", 1)[0] + " …"
+        body = p["text"] if len(p["text"]) <= PASSAGE_CHARS else p["text"][:PASSAGE_CHARS].rsplit(" ", 1)[0] + " …"
         out.append({"n": len(out) + 1, "kind": p["kind"], "id": p["sid"], "title": p.get("cite"), "cite": p.get("cite"),
                     "section": p.get("section"), "strength": None,
                     "refs": [{"cite": p.get("cite"), "apa": p.get("apa"), "doi": p.get("doi")}], "text": body})
@@ -225,7 +226,7 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
     active = [s["id"] for s in a.get("signals") or [] if (s.get("pts") or 0) > 0]
     facts = FA.build(db, rid, a, sel)
     kb = K.search(db, question, topics=sel["topics"], signals=list(dict.fromkeys(sel["signals"] + active)),
-                  want_guide=sel["wantGuide"] or not sel["intents"])
+                  want_guide=sel["wantGuide"] or not sel["intents"], n_passages=3)
     if sel["wantGuide"] and len(sel["intents"]) == 1:
         kb["passages"] = []                         # an app question needs the guide, not papers
     sources = _number_sources(kb)
@@ -243,7 +244,7 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
         msgs.append({"role": "user", "content": _user_message(question, facts, sources, guide)})
         model = llm.ASSISTANT_MODEL
         for attempt in range(2):
-            out = llm.chat_messages(msgs, temperature=0.2, max_tokens=700, timeout=LLM_TIMEOUT_S, model=model,
+            out = llm.chat_messages(msgs, temperature=0.2, max_tokens=600, timeout=LLM_TIMEOUT_S, model=model,
                                     base_url=llm.ASSISTANT_BASE_URL, api_key=llm.ASSISTANT_API_KEY)
             if not out:
                 issues.append({"code": "llm_error"})
