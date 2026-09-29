@@ -115,7 +115,7 @@ export function ReadinessFactors({ r }: { r: any }) {
         <Label>Co připravenost ovlivňuje</Label>
         {delta != null && (
           <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${delta > 0 ? C.ok : delta < 0 ? C.alert : C.fg3}1f`, color: delta > 0 ? C.ok : delta < 0 ? C.alert : C.fg2 }}>
-            {delta > 0 ? "▲" : delta < 0 ? "▼" : "▬"} ráno {delta > 0 ? `+${delta}` : delta < 0 ? delta : "beze změny"} oproti včerejšímu ránu ({y.score} %)
+            {delta > 0 ? "▲" : delta < 0 ? "▼" : "▬"} ráno {delta > 0 ? `+${delta}` : delta < 0 ? `−${-delta}` : "beze změny"} oproti včerejšímu ránu ({y.score} %)
           </span>
         )}
       </div>
