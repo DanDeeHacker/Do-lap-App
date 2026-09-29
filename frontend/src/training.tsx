@@ -3,7 +3,7 @@
 // Zátěž tab shows): session type, distance, HR zone + pace, Z4+ minutes,
 // ascent/descent, terrain, and why.
 import { WhyButton } from "@/assistant"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
@@ -154,7 +154,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     ? { col: C.alert, text: `Zátěž ${ax.load} je nad prahem ${th} — tento týden odlehčovací, bez tvrdých úseků a dlouhého běhu.` }
     : mechHot
       ? { col: C.watch, text: `Mechanika ${ax.mech} je nad prahem ${th} — dnes o 20 % méně objemu, poloviční intenzita a klesání, raději rovina.` }
-      : { col: C.ok, text: `Zátěž ${ax.load ?? 0} a mechanika ${ax.mech ?? 0} jsou pod prahem ${th} — dnešní limity drží obě osy pod prahem i po tréninku.` }
+      : null   // railway#131 — nothing to say when both axes are under the threshold
   // feedback railway#94 — the channels sit one under another, each a full-width row
   const channel = (id: (typeof CH_ORDER)[number]) => {
     const c = wk.channels?.[id]
@@ -222,7 +222,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
         <span className="flex items-center gap-1.5"><Label>Dnešní kapacita</Label><InfoDot text={MI.todayCapacity} label="Dnešní kapacita" /></span>
         <span className="text-[12px] text-fg-2">kolik si dnes můžete dovolit</span>
       </div>
-      <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>
+      {status && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
       <div className="mt-4 grid gap-3">
         {CH_ORDER.map((id) => channel(id))}
       </div>
@@ -617,6 +617,38 @@ function tileLine(t: any) {
   return null
 }
 
+// railway#129 — the activity carousel moves along a mild arc: the tile at the snap point
+// sits on top, the ones further along dip and tilt a little, so scrolling reads as a wheel.
+function useArcScroll(ref: React.RefObject<HTMLDivElement | null>, deps: unknown[]) {
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const kids = () => Array.from(el.children) as HTMLElement[]
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return
+    let raf = 0
+    const apply = () => {
+      raf = 0
+      const r = el.getBoundingClientRect()
+      const pad = parseFloat(getComputedStyle(el).paddingLeft) || 0
+      for (const c of kids()) {
+        const b = c.getBoundingClientRect()
+        const d = Math.max(-1.2, Math.min(1.6, (b.left - (r.left + pad)) / Math.max(1, r.width * 0.6)))
+        c.style.transform = `translateY(${(d * d * 5).toFixed(1)}px) rotate(${(d * 2.2).toFixed(2)}deg)`
+      }
+    }
+    const on = () => { if (!raf) raf = requestAnimationFrame(apply) }
+    apply()
+    el.addEventListener("scroll", on, { passive: true })
+    window.addEventListener("resize", on)
+    return () => {
+      el.removeEventListener("scroll", on)
+      window.removeEventListener("resize", on)
+      if (raf) cancelAnimationFrame(raf)
+      for (const c of kids()) c.style.transform = ""
+    }
+  }, deps) // eslint-disable-line react-hooks/exhaustive-deps
+}
+
 export function Training() {
   const { boot, me, refresh, touring } = useApp()
   const rid = me?.runner_id
@@ -624,7 +656,9 @@ export function Training() {
   const g = a?.guidance
   const [sel, setSel] = useState<string | null>(null)
   const [why, setWhy] = useState(false)
+  const carousel = useRef<HTMLDivElement | null>(null)
   useEffect(() => { setSel(null) }, [g?.date, g?.type])
+  useArcScroll(carousel, [g?.date, g?.type, a?.engineMode, (g?.rank || []).length])
   if (!a) return <p className="text-sm text-fg-3">Načítám…</p>
   if (a.engineMode !== "v3" || !g) {
     return (
@@ -686,7 +720,9 @@ export function Training() {
       {g.override && (
         <AlertBanner tone="stop" className="mt-5" title={g.override.title}
           action={(g.override.kind === "physio" || g.override.kind === "function" || g.override.kind === "bone_stress") ? <Link to="/app/messages" className="btn btn-primary btn-sm">Objednat fyzioterapeuta</Link>
-            : (g.override.kind === "injury" && g.override.canResolve && rid && !touring) ? <Link to="/app/messages?sub=health&healed=1" className="btn btn-primary btn-sm" data-testid="injury-resolve">Zranění je zahojené</Link>
+            // railway#130 — the way to report the injury healed is always at hand; the app
+            // only highlights it once the check-ins have been pain-free
+            : (g.override.kind === "injury" && rid && !touring) ? <Link to="/app/messages?sub=health&healed=1" className={`btn btn-sm ${g.override.canResolve ? "btn-primary" : "btn-outline"}`} data-testid="injury-resolve">{g.override.canResolve ? "Zranění je zahojené" : "Ohlásit uzdravení"}</Link>
             : undefined}>
           {g.override.text}
         </AlertBanner>
@@ -709,7 +745,7 @@ export function Training() {
           <p className="t-label !text-fg-3">Aktivity podle dnešní kapacity</p>
           <span className="text-[11px] text-fg-3">od nejvhodnější · posuňte</span>
         </div>
-        <div className="-mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-5 px-5 pb-2 [scrollbar-width:none] md:-mx-0 md:px-0" role="list" aria-label="Aktivity" data-testid="activity-carousel">
+        <div ref={carousel} className="-mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-5 px-5 pb-4 pt-1 [scrollbar-width:none] md:-mx-0 md:px-0" role="list" aria-label="Aktivity" data-testid="activity-carousel">
           {order.map((k, i) => {
             const t = g.types[k]
             const Icon = TYPE_ICON[k] || Footprints
@@ -717,7 +753,7 @@ export function Training() {
             const line = tileLine(t)
             return (
               <button key={k} role="listitem" onClick={() => setSel(k)} data-testid="activity-tile"
-                className={`relative grid min-h-[112px] w-[128px] shrink-0 snap-start content-between gap-2 rounded-[16px] border p-3 text-left transition ${k === g.type ? "border-accent/70 bg-accent/[.08]" : "border-white/[.08] bg-white/[.03] hover:border-white/20"} ${t.allowed ? "" : "opacity-70"}`}>
+                className={`relative grid min-h-[112px] w-[128px] shrink-0 snap-start content-between gap-2 rounded-[16px] border p-3 text-left transition-colors will-change-transform ${k === g.type ? "border-accent/70 bg-accent/[.08]" : "border-white/[.08] bg-white/[.03] hover:border-white/20"} ${t.allowed ? "" : "opacity-70"}`}>
                 <span className="flex items-center justify-between">
                   <Icon className={`size-5 ${k === g.type ? "text-accent" : "text-fg-2"}`} aria-hidden />
                   <span className="text-[10px] font-bold tabular-nums text-fg-4">{i + 1}.</span>

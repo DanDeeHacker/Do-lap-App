@@ -587,6 +587,8 @@ export function Sheet(props: { open: boolean; onClose: () => void; children: Rea
   if (!props.open) return null
   return <SheetBody {...props} />
 }
+const sheetStack: number[] = []
+let sheetSeq = 0
 // railway#115 — the sheet follows a finger pulled down from its handle, or from the
 // content once that is scrolled to the top, and closes past ~110 px or on a quick flick.
 function SheetBody({ onClose, children, footer, layer = "z-[80]" }: { open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode; layer?: string }) {
@@ -594,8 +596,15 @@ function SheetBody({ onClose, children, footer, layer = "z-[80]" }: { open: bool
   const [dragging, setDragging] = useState(false)
   const start = useRef<{ y: number; t: number } | null>(null)
   const scroller = useRef<HTMLDivElement | null>(null)
+  // Escape closes only the top sheet (an exercise detail opens over a program sheet).
+  const me = useRef(0)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    me.current = ++sheetSeq
+    sheetStack.push(me.current)
+    return () => { const i = sheetStack.indexOf(me.current); if (i >= 0) sheetStack.splice(i, 1) }
+  }, [])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape" && sheetStack[sheetStack.length - 1] === me.current) onClose() }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose])

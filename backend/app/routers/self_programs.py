@@ -29,15 +29,26 @@ class LogRequest(BaseModel):
     done: bool = True
 
 
-def _marked_regions(db, rid) -> list[str]:
+def _marked_regions(db, rid) -> list[tuple[str, str]]:
+    """(submitted_at, region) for every pain mark of the last 4 weeks."""
     cut = E.day_ago(MARK_DAYS)
     out = []
     for m in (models.Checkin, models.ActivityFeedback, models.InjuryReport):
         for r in db.query(m).filter(m.runner_id == rid, m.submitted_at > cut).all():
-            out += [p.get("region") for p in (r.pain_points or []) if p.get("region")]
+            out += [(r.submitted_at or "", p.get("region")) for p in (r.pain_points or []) if p.get("region")]
             if getattr(r, "body_region", None):
-                out.append(r.body_region)
+                out.append((r.submitted_at or "", r.body_region))
     return out
+
+
+def _regions_by_recency(marks: list[tuple[str, str]]) -> list[str]:
+    """railway#133 — the marked regions, the most recently marked first (then the most often)."""
+    last: dict[str, str] = {}
+    count: dict[str, int] = {}
+    for at, reg in marks:
+        last[reg] = max(last.get(reg, ""), at)
+        count[reg] = count.get(reg, 0) + 1
+    return sorted(last, key=lambda r: (last[r], count[r]), reverse=True)
 
 
 def _week_start(d: date) -> date:
@@ -64,9 +75,9 @@ def get_self_programs(rid: str, user: models.User = Depends(get_current_user), d
     ensure_runner_read_access(db, user, rid)
     active = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid,
                                                   models.SelfProgram.active.is_(True)).order_by(models.SelfProgram.id.desc()).first()
-    regions = _marked_regions(db, rid)
-    return {"library": PL.library(), "recommended": PL.programs_for_regions(regions),
-            "regions": sorted(set(regions)), "active": _out(active) if active else None}
+    marks = _marked_regions(db, rid)
+    return {"library": PL.library(), "recommended": PL.programs_for_regions([r for _, r in marks]),
+            "regions": _regions_by_recency(marks), "active": _out(active) if active else None}
 
 
 @router.post("/{rid}/self-programs", dependencies=[Depends(verify_csrf)])

@@ -1350,7 +1350,7 @@ function SignalSheet({ s, onClose, tone }: { s: any; onClose: () => void; tone: 
         </div>
         {s.detail && <p className="mt-3 text-[13px] leading-5 text-fg-2">{s.detail}</p>}
         {s.rule && <p className="mt-2 text-[12px] leading-5 text-fg-3">Bezpečnostní pravidlo neubírá body jako ostatní signály — nastavuje přímo úroveň rizika a Skóre se podle ní drží nejvýš na {s.rule === "alert" ? 30 : 60}.</p>}
-        <p className="t-label mt-5 !text-fg-3">{shared ? "Které aktivity k tomu přispívají" : "Z čeho signál vychází"}</p>
+        <p className="t-label mt-5 !text-fg-3">{shared ? (src.every((x) => x.kind === "activity") ? "Které aktivity k tomu přispívají" : "Co k tomu přispívá") : "Z čeho signál vychází"}</p>
         {src.length ? (
           <ul className="mt-1 divide-y divide-white/[.07]">
             {src.map((x, i) => {
@@ -1387,6 +1387,8 @@ function SignalSheet({ s, onClose, tone }: { s: any; onClose: () => void; tone: 
         {src.length > 0 && !shared && (
           <p className="mt-3 text-[11px] leading-4 text-fg-3">Tento signál hodnotí vzorec napříč záznamy, ne jejich součet, proto podíl jednotlivých záznamů neuvádíme.</p>
         )}
+        {/* railway#132 — how an approximate split was made */}
+        {shared && s.shareNote && <p className="mt-3 text-[11px] leading-4 text-fg-3" data-testid="share-note">{s.shareNote}</p>}
       </div>
     </Sheet>
   )
