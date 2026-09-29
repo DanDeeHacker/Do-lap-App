@@ -15,7 +15,7 @@ import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
 import { EDIT_PROFILE_EVENT, OnboardingProvider, useObSummary, useOnboarding } from "@/onboarding"
 import { useQuadHistory } from "@/history"
-import { clamp, fmtD, fmtImpact, initials, QUAD, roleHome } from "@/lib"
+import { clamp, cz, fmtD, fmtImpact, initials, QUAD, roleHome } from "@/lib"
 import { AlertBanner, AxisLineChart, Bars, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, toneCol, useAsync, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { Load as LoadTab, LOAD_IDS, MECH_IDS, Mechanics, Post, weekTones, WeekToneLegend } from "@/tabs"
@@ -1102,7 +1102,7 @@ function TodayV2() {
     alerts.push({
       key: "raceRecovery", tone: "info", icon: Flag,
       title: `Zotavení po závodním úsilí · den ${a.raceRecovery.daysSince + 1} z ${a.raceRecovery.days}`,
-      body: <>{a.raceRecovery.km} km ({fmtD(a.raceRecovery.date)}: {a.raceRecovery.why.join(", ")}). {a.raceRecovery.daysSince < a.raceRecovery.restDays ? "První dny odpočinek nebo velmi volný pohyb." : "Zatím bez intenzity a dlouhého běhu."}</>,
+      body: <>{cz(a.raceRecovery.km)} km ({fmtD(a.raceRecovery.date)}: {a.raceRecovery.why.join(", ")}). {a.raceRecovery.daysSince < a.raceRecovery.restDays ? "První dny odpočinek nebo velmi volný pohyb." : "Zatím bez intenzity a dlouhého běhu."}</>,
     })
   const injuryPromptShown = !!(rid && a && !a.injury?.active && (a.functionLimit || a.painMonitor || a.acuteOverload || a.painRecurring))
   const alertCount = alerts.length + (injuryPromptShown ? 1 : 0)
@@ -1236,7 +1236,7 @@ function TodayV2() {
                     {rcv && (
                       <div className="mt-4 flex items-center gap-3 border-t border-white/[.08] pt-3.5 text-[13px]">
                         <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><Moon className="size-4" aria-hidden /></span>
-                        <span><b>HRV {rcv.hrv?.now} ms</b><small className="ml-2 text-[12px] text-fg-2">baseline {rcv.hrv?.base} ms · spánek {rcv.sleep?.now} h</small></span>
+                        <span><b>HRV {cz(rcv.hrv?.now)} ms</b><small className="ml-2 text-[12px] text-fg-2">baseline {cz(rcv.hrv?.base)} ms · spánek {cz(rcv.sleep?.now)} h</small></span>
                       </div>
                     )}
                   </div>
@@ -1275,9 +1275,9 @@ function TodayV2() {
                       {wkly.length ? <><Bars vals={wkly.map((v) => Math.round(v))} tones={weekTones(wkly)} /><WeekToneLegend /></>
                         : <p className="mt-3 text-[12px] text-fg-3">Zatím není dost dat pro týdenní přehled.</p>}
                       <div className="mt-3 grid grid-cols-3 gap-2 text-[12px] text-fg-2">
-                        <span>Tento týden <small className="text-fg-3">(Po–Ne)</small> <b className="t-num block text-[18px] text-fg">{L?.weekKm ?? "—"} km</b></span>
-                        <span>Posledních 7 dní <b className="t-num block text-[18px] text-fg">{L?.runKm7 ?? "—"} km</b></span>
-                        <span className="text-right">Obvykle / týden <b className="t-num block text-[18px] text-fg">{typicalKm} km</b></span>
+                        <span>Tento týden <small className="text-fg-3">(Po–Ne)</small> <b className="t-num block text-[18px] text-fg">{cz(L?.weekKm)} km</b></span>
+                        <span>Posledních 7 dní <b className="t-num block text-[18px] text-fg">{cz(L?.runKm7)} km</b></span>
+                        <span className="text-right">Obvykle / týden <b className="t-num block text-[18px] text-fg">{cz(typicalKm)} km</b></span>
                       </div>
                     </div>
                     <div>
@@ -1847,9 +1847,9 @@ function AtlasBubble() {
                   </span>
                 </div>
                 <div className="nest px-2 py-2.5">
-                  <b className="t-num block text-[18px] text-fg">{rcv?.sleep?.now ?? "—"}<small className="text-[11px] font-semibold text-fg-3"> h</small></b>
+                  <b className="t-num block text-[18px] text-fg">{cz(rcv?.sleep?.now)}<small className="text-[11px] font-semibold text-fg-3"> h</small></b>
                   <span className="mt-1 block text-[11px] text-fg-2">spánek</span>
-                  <span className="mt-1 block text-[11px] text-fg-3">obvykle {rcv?.sleep?.base ?? "—"} h</span>
+                  <span className="mt-1 block text-[11px] text-fg-3">obvykle {cz(rcv?.sleep?.base)} h</span>
                 </div>
                 <div className="nest px-2 py-2.5">
                   <b className="t-num block text-[18px] text-fg">{L?.valid ? `×${L.ratio}` : "—"}</b>

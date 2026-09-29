@@ -302,7 +302,7 @@ def texts_for(db, rid: str) -> dict:
     for kind in KINDS:
         row = latest(db, rid, kind, None if kind == "weekly_summary" else today)
         out[kind] = None if row is None else {
-            "text": row.text, "source": row.source, "period": row.period, "createdAt": row.created_at,
+            "text": E.cz_text(row.text), "source": row.source, "period": row.period, "createdAt": row.created_at,
             "promptVersion": row.prompt_version, "model": row.model if row.source == "llm" else None,
         }
     return out

@@ -3,6 +3,11 @@
 export const r1 = (n: number | null | undefined) => (n == null ? null : Math.round(n * 10) / 10)
 export const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
+// Czech decimal comma for a number (or numeric text) exactly as the API rounded it:
+// 56.3 → "56,3", -0.5 → "−0,5"; null → dash
+export const cz = (v: number | string | null | undefined, dash = "—") =>
+  v == null || v === "" ? dash : String(v).replace(/(\d)\.(\d)/g, "$1,$2").replace(/(^|[^\w\d.,])-(?=\d)/g, "$1−")
+
 // Feedback railway#111 — a signal's effect as the percentage points it takes off the
 // overall Skóre (shown as 100 − risk): whole points from 1 up, one decimal below 1.
 export const impactNum = (v: number | null | undefined) => {
@@ -56,7 +61,7 @@ export const paceStr = (sPerKm?: number | null) => {
   return `${m}:${String(s).padStart(2, "0")}`
 }
 
-export const sgn = (n?: number | null) => (n == null ? "—" : n > 0 ? `+${n}` : String(n))
+export const sgn = (n?: number | null) => (n == null ? "—" : n > 0 ? `+${cz(n)}` : cz(n))
 
 export const QUAD: Record<string, { t: string; d: string }> = {
   stable: { t: "Stabilní", d: "Zátěž i mechanika sedí na vlastní normě." },

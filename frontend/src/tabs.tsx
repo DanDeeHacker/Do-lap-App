@@ -7,7 +7,7 @@ import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty,
 import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Ship, Waves, type LucideIcon } from "lucide-react"
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
-import { clamp, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, PHASE, plural, QUAD, sgn, toImpact } from "@/lib"
+import { clamp, cz, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, PHASE, plural, QUAD, sgn, toImpact } from "@/lib"
 import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/components/MuscleAnatomy"
 import { CAP_SIGNAL_IDS, CapacityPanel } from "@/capacity"
 import { C, goodCol } from "@/tokens"
@@ -49,7 +49,7 @@ const SPORT_OPTS = [["cycling", "Kolo"], ["swimming", "Plavání"], ["strength",
 const FOCUS_OPTS = [["lower", "Nohy"], ["full", "Celé tělo"], ["upper", "Horní polovina"]] as const
 const STYPE_OPTS = [["heavy", "Těžké"], ["explosive", "Výbušné"], ["plyo", "Plyometrie"], ["circuit", "Kruhový"]] as const
 const isCross = (a: any) => !!a && !!a.sport && a.sport !== "running"
-const actTitle = (a: any) => (isCross(a) ? `${a.title} · ${Math.round(a.duration_min || 0)} min` : `${a.title} · ${a.distance_km} km`)
+const actTitle = (a: any) => (isCross(a) ? `${a.title} · ${Math.round(a.duration_min || 0)} min` : `${a.title} · ${cz(a.distance_km)} km`)
 const actIcon = (a: any) => (isCross(a) ? SPORT_ICON[a.sport] || ActivityIcon : a?.surface === "trail" ? Mountain : Footprints)
 
 function CrossSheet({ rid, onClose, onDone }: { rid: string; onClose: () => void; onDone: () => void }) {
@@ -182,7 +182,7 @@ export function Post() {
                 {unrated.map((x) => (
                   <ListRow key={x.id} onClick={() => setRate({ act: x })} icon={actIcon(x)} tone="info"
                     title={actTitle(x)}
-                    meta={isCross(x) ? `${fmtD(x.started_at)} · jiný sport${x.avg_hr ? ` · ${Math.round(x.avg_hr)} tep/min` : ""}` : `${fmtD(x.started_at)} · ${surf(x.surface)} · ${paceStr(x.pace_s_km)}/km · ${x.descent_m} m klesání`}
+                    meta={isCross(x) ? `${fmtD(x.started_at)} · jiný sport${x.avg_hr ? ` · ${Math.round(x.avg_hr)} tep/min` : ""}` : `${fmtD(x.started_at)} · ${surf(x.surface)} · ${paceStr(x.pace_s_km)}/km · ${cz(x.descent_m)} m klesání`}
                     trailing={<span className="btn btn-primary btn-sm shrink-0">Zapsat</span>} />
                 ))}
               </div>
@@ -441,7 +441,7 @@ export function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; ri
         pain_points: pts, niggle: pain >= 2, note: note || null,
         ...(act.sport === "strength" ? { strength_focus: focus, strength_type: stype } : {}),
       })
-      toast({ title: edit ? "Zápis upraven" : "Zápis uložen", msg: `${act.title}${act.distance_km ? ` · ${act.distance_km} km` : ""}` })
+      toast({ title: edit ? "Zápis upraven" : "Zápis uložen", msg: `${act.title}${act.distance_km ? ` · ${cz(act.distance_km)} km` : ""}` })
       onDone()
     })
 
@@ -456,8 +456,8 @@ export function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; ri
         </div>
       }
     >
-      <h2 className="font-serif text-2xl leading-tight">{edit ? "Upravit zápis" : cross ? actTitle(act) : `${act.title}${act.distance_km ? ` · ${act.distance_km} km` : ""}`}</h2>
-      <p className="mt-1 text-[13px] text-fg-2">{fmtD(act.started_at)}{act.pace_s_km ? ` · ${paceStr(act.pace_s_km)}/km` : ""}{act.surface ? ` · ${surf(act.surface)}` : ""}{act.descent_m ? ` · ${act.descent_m} m sklesáno` : ""}</p>
+      <h2 className="font-serif text-2xl leading-tight">{edit ? "Upravit zápis" : cross ? actTitle(act) : `${act.title}${act.distance_km ? ` · ${cz(act.distance_km)} km` : ""}`}</h2>
+      <p className="mt-1 text-[13px] text-fg-2">{fmtD(act.started_at)}{act.pace_s_km ? ` · ${paceStr(act.pace_s_km)}/km` : ""}{act.surface ? ` · ${surf(act.surface)}` : ""}{act.descent_m ? ` · ${cz(act.descent_m)} m sklesáno` : ""}</p>
       <div className="mt-4 grid gap-x-6 gap-y-4 md:grid-cols-2">
         <div>
           {cross ? (
@@ -713,8 +713,8 @@ function terrainLine(t: any) {
 }
 function weatherLine(w: any) {
   if (!w) return null
-  const temp = w.precision === "hour" ? `${w.tempC} °C` : `${w.tMin}–${w.tMax} °C`
-  const extra = [w.windKmh != null && `${w.windKmh} km/h`, w.precipMm > 0 && `${cz1(w.precipMm)} mm`].filter(Boolean)
+  const temp = w.precision === "hour" ? `${cz(w.tempC)} °C` : `${cz(w.tMin)}–${cz(w.tMax)} °C`
+  const extra = [w.windKmh != null && `${cz(w.windKmh)} km/h`, w.precipMm > 0 && `${cz1(w.precipMm)} mm`].filter(Boolean)
   return `${w.icon} ${temp}${extra.length ? " · " + extra.join(" · ") : ""}`
 }
 function RunContext({ x }: { x: any }) {
@@ -732,8 +732,8 @@ function RunContext({ x }: { x: any }) {
         {t ? (
           <dl className="mt-1">
             {row("Profil srovnání", t.bucketLabel)}
-            {row("Stoupání", t.ascentM != null && `${t.ascentM} m${t.ascPerKm != null ? ` · ${cz1(t.ascPerKm)} m/km` : ""}`)}
-            {row("Klesání", t.descentM != null && `${t.descentM} m${t.descPerKm != null ? ` · ${cz1(t.descPerKm)} m/km` : ""}`)}
+            {row("Stoupání", t.ascentM != null && `${cz(t.ascentM)} m${t.ascPerKm != null ? ` · ${cz1(t.ascPerKm)} m/km` : ""}`)}
+            {row("Klesání", t.descentM != null && `${cz(t.descentM)} m${t.descPerKm != null ? ` · ${cz1(t.descPerKm)} m/km` : ""}`)}
             {row("Strmé klesání (≤ −10 %)", t.steepDescentPct != null && `${t.steepDescentPct} % spádu`)}
             {row("Náročnost terénu", t.demand != null && `×${mfmt(2, t.demand)} oproti rovině`)}
             {row("Povrch z mapy", t.sampled && [t.sampled.surfaceLabel, t.sampled.onTrail && "stezka", t.sampled.forest && "les"].filter(Boolean).join(" · ") + (t.sampled.source ? ` (${t.sampled.source})` : ""))}
@@ -746,9 +746,9 @@ function RunContext({ x }: { x: any }) {
           <>
             <dl className="mt-1">
               {row("Podmínky", `${w.icon} ${w.label}`)}
-              {row("Teplota", w.precision === "hour" ? `${w.tempC} °C · pocitově ${w.feelsC} °C` : `${w.tMin}–${w.tMax} °C · pocitově až ${w.feelsC} °C`)}
+              {row("Teplota", w.precision === "hour" ? `${cz(w.tempC)} °C · pocitově ${cz(w.feelsC)} °C` : `${cz(w.tMin)}–${cz(w.tMax)} °C · pocitově až ${cz(w.feelsC)} °C`)}
               {row("Vlhkost", w.humidity != null && `${w.humidity} %`)}
-              {row(w.precision === "hour" ? "Vítr" : "Vítr (max.)", w.windKmh != null && `${w.windKmh} km/h`)}
+              {row(w.precision === "hour" ? "Vítr" : "Vítr (max.)", w.windKmh != null && `${cz(w.windKmh)} km/h`)}
               {row("Srážky", `${cz1(w.precipMm || 0)} mm`)}
             </dl>
             <p className="mt-1.5 text-[11px] leading-4 text-fg-3">
@@ -855,7 +855,7 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
                     <b className="text-sm font-bold">{x.title}</b>
                     {x.excluded && <span className="ml-2 rounded-full bg-white/[.08] px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] text-fg-2">{(x.excluded_scope || "all") === "all" ? "vyřazeno" : x.excluded_scope === "mech" ? "bez mechaniky" : "bez zátěže"}</span>}
                     {x.postStrength && <span title="Do 48 hodin po těžkém posilování nohou se technika běhu mění (Doma et al., 2017), proto se tento běh do driftu mechaniky počítá polovinou." className="ml-2 rounded-full bg-self/15 px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] text-self">po posilovně</span>}
-                    <span className="block text-[12px] text-fg-3">{fmtD(x.started_at)}{x.start_time ? ` ${x.start_time}` : ""} · {surf(x.surface)} · {x.distance_km} km · {paceStr(x.pace_s_km)}/km · {x.avg_hr} tep</span>
+                    <span className="block text-[12px] text-fg-3">{fmtD(x.started_at)}{x.start_time ? ` ${x.start_time}` : ""} · {surf(x.surface)} · {cz(x.distance_km)} km · {paceStr(x.pace_s_km)}/km · {x.avg_hr} tep</span>
                     {(tl || wl) && (
                       <span className="mt-1.5 flex flex-wrap gap-1.5">
                         {tl && <span className="inline-flex items-center gap-1 rounded-full bg-info/12 px-2 py-0.5 text-[11px] font-semibold text-info"><Mountain className="size-3" aria-hidden />{tl}</span>}
@@ -863,7 +863,7 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
                       </span>
                     )}
                   </span>
-                  <span className="flex items-center gap-2 whitespace-nowrap tabular-nums text-[12px] text-fg-2">VR {x.vert_ratio_pct ?? "—"} <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180 text-info" : ""}`} aria-hidden /></span>
+                  <span className="flex items-center gap-2 whitespace-nowrap tabular-nums text-[12px] text-fg-2">VR {cz(x.vert_ratio_pct)} <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180 text-info" : ""}`} aria-hidden /></span>
                 </button>
                 {isOpen && ctx && <RunContext x={x} />}
                 {isOpen && rid && !x.excluded && <SegmentTimeline rid={rid} aid={x.id} />}
@@ -872,7 +872,7 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
                     <MonthCompare data={d} />
                   ) : d === false ? (
                     <dl className="grid grid-cols-3 gap-2 border-t border-white/[.07] px-4 py-3 text-[11px] md:grid-cols-6">
-                      {[["Kadence", x.cadence_spm && `${x.cadence_spm} spm`], ["Kontakt", x.gct_ms && `${x.gct_ms} ms`], ["Krok", x.stride_len_m && `${x.stride_len_m} m`], ["Osc.", x.vert_osc_cm && `${x.vert_osc_cm} cm`], ["Balance", x.gct_balance_l ? `${x.gct_balance_l} %` : "—"], ["Klesání", x.descent_m != null && `${x.descent_m} m`]].map(([k, v]) => (
+                      {[["Kadence", x.cadence_spm && `${x.cadence_spm} spm`], ["Kontakt", x.gct_ms && `${x.gct_ms} ms`], ["Krok", x.stride_len_m && `${cz(x.stride_len_m)} m`], ["Osc.", x.vert_osc_cm && `${cz(x.vert_osc_cm)} cm`], ["Balance", x.gct_balance_l ? `${x.gct_balance_l} %` : "—"], ["Klesání", x.descent_m != null && `${x.descent_m} m`]].map(([k, v]) => (
                         <div key={k as string}><dt className="uppercase tracking-[.1em] text-fg-3">{k}</dt><dd className="mt-0.5 tabular-nums text-[11px] text-fg">{v || "—"}</dd></div>
                       ))}
                     </dl>
@@ -1050,7 +1050,7 @@ function SegmentTimeline({ rid, aid }: { rid: string; aid: number }) {
         <div className="relative h-4 tabular-nums text-[11px] text-fg-3">
           {ticks.map((t, i) => (
             <span key={i} className="absolute top-0.5 whitespace-nowrap" style={{ left: `${(t / T) * 100}%`, transform: i === 0 ? "none" : t / T > 0.9 ? "translateX(-100%)" : "translateX(-50%)" }}>
-              {i === 0 ? "0" : `${t / 60} min`}
+              {i === 0 ? "0" : `${cz(Math.round((t / 60) * 10) / 10)} min`}
             </span>
           ))}
         </div>
@@ -1420,7 +1420,7 @@ function DescentBySlope({ g }: { g: any }) {
         ? <Bars vals={b} unit="m" labels={g.labels} axisLabels={(g.labels || []).map((l: string) => (l.includes("–") ? l.split("–")[0] : l))}
             tones={b.map((_, i) => SLOPE_BANDS.find(([, a, z]) => i >= a && i < z)?.[3] || "muted")} />
         : <Bars vals={bands.map((x) => x.v)} unit="m" labels={bands.map((x) => x.l)} tones={bands.map((x) => x.t)} />}
-      <p className="mt-2 text-[12px] text-fg-3">{g.total7} m celkem · {g.steep7} m na sklonu ≥10 %.</p>
+      <p className="mt-2 text-[12px] text-fg-3">{cz(g.total7)} m celkem · {cz(g.steep7)} m na sklonu ≥10 %.</p>
     </div>
   )
 }
@@ -1505,7 +1505,7 @@ export function Load() {
               <div>
                 <Label>Týdenní objem běhu (Po–Ne), 12 týdnů</Label>
                 <Bars vals={L.weekly || []} tones={weekTones(L.weekly || [])} />
-                <p className="mt-2 text-[12px] text-fg-3">Tento týden (Po–Ne) <b className="text-fg">{L.weekKm ?? "—"} km</b> · posledních 7 dní <b className="text-fg">{L.runKm7 ?? "—"} km</b></p>
+                <p className="mt-2 text-[12px] text-fg-3">Tento týden (Po–Ne) <b className="text-fg">{cz(L.weekKm)} km</b> · posledních 7 dní <b className="text-fg">{cz(L.runKm7)} km</b></p>
                 <WeekToneLegend />
               </div>
               <div>
@@ -1532,7 +1532,7 @@ function RecoveryTiles({ rcv, sleepEff }: { rcv: any; sleepEff: any }) {
   const tile = (label: string, info: string, now: any, unit: string, sub: string, bad: boolean, series: number[], extra?: any) => (
     <div className="nest flex min-w-0 flex-col p-3">
       <span className="flex items-start gap-1"><span className="t-label leading-4 !text-fg-3">{label}</span><InfoDot text={info} label={label} /></span>
-      <p className="t-num mt-1.5 text-[24px] leading-none" style={{ color: bad ? C.alert : C.fg }}>{now}{unit && <small className="text-[12px] font-semibold text-fg-3"> {unit}</small>}</p>
+      <p className="t-num mt-1.5 text-[24px] leading-none" style={{ color: bad ? C.alert : C.fg }}>{cz(now)}{unit && <small className="text-[12px] font-semibold text-fg-3"> {unit}</small>}</p>
       <p className="mt-1 text-[11px] leading-4 text-fg-3">{sub}</p>
       <div className="mt-auto pt-2"><Sparkline vals={series} color={bad ? C.alert : C.ok} /></div>
       {extra}
@@ -1541,9 +1541,9 @@ function RecoveryTiles({ rcv, sleepEff }: { rcv: any; sleepEff: any }) {
   return (
     <div>
       <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
-        {tile("HRV 7 dní", MI.hrv, rcv.hrv.now, "ms", `baseline ${rcv.hrv.base} ms · ${pctStr(rcv.hrv.now, rcv.hrv.base)}`, hrvBad, rcv.hrv.series)}
-        {tile("Klidový tep", MI.rhr, rcv.rhr.now, "", `baseline ${rcv.rhr.base} · ${pctStr(rcv.rhr.now, rcv.rhr.base)}`, rhrBad, rcv.rhr.series)}
-        {tile("Spánek", MI.sleep, rcv.sleep.now, "h", `obvykle ${rcv.sleep.base} h${rcv.sleep.debt > 0 ? ` · dluh ${rcv.sleep.debt} h/týd` : ""}`, sleepBad, rcv.sleep.series,
+        {tile("HRV 7 dní", MI.hrv, rcv.hrv.now, "ms", `baseline ${cz(rcv.hrv.base)} ms · ${pctStr(rcv.hrv.now, rcv.hrv.base)}`, hrvBad, rcv.hrv.series)}
+        {tile("Klidový tep", MI.rhr, rcv.rhr.now, "", `baseline ${cz(rcv.rhr.base)} · ${pctStr(rcv.rhr.now, rcv.rhr.base)}`, rhrBad, rcv.rhr.series)}
+        {tile("Spánek", MI.sleep, rcv.sleep.now, "h", `obvykle ${cz(rcv.sleep.base)} h${rcv.sleep.debt > 0 ? ` · dluh ${cz(rcv.sleep.debt)} h/týd` : ""}`, sleepBad, rcv.sleep.series,
           sleepEff && (
             <button type="button" onClick={() => setSleepOpen((v) => !v)} aria-expanded={sleepOpen}
               className="mt-2 flex items-center justify-between gap-1 border-t border-white/[.07] pt-2 text-left text-[11px] font-semibold text-fg-2 transition hover:text-fg">

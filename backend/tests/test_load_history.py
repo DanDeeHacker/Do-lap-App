@@ -152,3 +152,22 @@ def test_load_history_endpoint(client, db_session):
     # a runner without the capacity model (v1) has nothing to break down
     client.post(f"/api/runners/{rid}/engine", json={"mode": "v1"})
     assert client.get(f"/api/runners/{rid}/load-history").json() == {"available": False, "items": []}
+
+
+def test_runner_facing_texts_use_the_czech_decimal_comma(client, db_session):
+    """v0.8.9 — a decimal point interpolated anywhere in engine text reads as a comma."""
+    import re
+    assert E.cz_text("×2.91 · +0.47 p.b. · -0.5 h") == "×2,91 · +0,47 p. b. · −0,5 h"
+    assert E.cz_text("2026-09-29T13:59:06.399057+02:00") == "2026-09-29T13:59:06.399057+02:00"   # timestamps untouched
+    assert E.cz_text("1–4 týdny, 80-90 %, 23. 9.") == "1–4 týdny, 80-90 %, 23. 9."
+    assert E.cz_deep({"a": ["1.5 km", {"b": "2026-09-29"}], "n": 1.5}) == {"a": ["1,5 km", {"b": "2026-09-29"}], "n": 1.5}
+    rid = register(client, "lh-cz@test.cz", "LH Cz", "runner").json()["runner_id"]
+    seed_runs(db_session, rid, days=100)
+    db_session.add(models.Activity(runner_id=rid, provider="garmin", external_id="cz-jump", started_at=E.day_ago(0),
+                                   sport="running", title="Dlouhý", distance_km=24.3, duration_min=150,
+                                   avg_hr=150, surface="road", ascent_m=40, descent_m=40))
+    db_session.commit()
+    client.post(f"/api/runners/{rid}/engine", json={"mode": "v3"})
+    a = E.recompute_assessment(db_session, rid)
+    dot = re.compile(r"\d\.\d")
+    assert a["signals"] and not any(dot.search(f"{s['val']} {s['detail']}") for s in a["signals"])

@@ -34,7 +34,7 @@ from ..serializers import to_dict
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.8.8"   # v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.8.9"   # v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -226,6 +226,30 @@ def rnd(n):
 
 def sgn(n):
     return f"+{n}" if n > 0 else str(n)
+
+
+# Runner-facing text is Czech: decimal comma, a real minus sign, "p. b." spacing. Applied
+# where engine text leaves the engine (signals, guidance, coach and assistant texts), so a
+# number interpolated anywhere upstream reads the same. A dot between digits in these
+# texts is always a decimal point (dates are ISO with dashes or Czech with a space).
+_DEC_DOT = re.compile(r"(?<=\d)\.(?=\d)")
+_NEG = re.compile(r"(?<![\w\d.,])-(?=\d)")
+_ISO = re.compile(r"^\d{4}-\d{2}-\d{2}")
+
+
+def cz_text(s):
+    if not isinstance(s, str) or not s or _ISO.match(s):
+        return s
+    return _NEG.sub("−", _DEC_DOT.sub(",", s)).replace("p.b.", "p. b.")
+
+
+def cz_deep(o):
+    """cz_text on every string of a nested dict / list (ISO dates and timestamps untouched)."""
+    if isinstance(o, dict):
+        return {k: cz_deep(v) for k, v in o.items()}
+    if isinstance(o, list):
+        return [cz_deep(v) for v in o]
+    return cz_text(o)
 
 
 # The runner-facing engine works in local wall-clock time (Czech app), so
@@ -2832,7 +2856,7 @@ def assess(db: DBSession, rid: str) -> dict:
                       f"{'jste hlásili dny bez bolesti' if pstate['cleared'] else 'uběhlo pár dní'} (×{r2(f)})." if f < 0.99 else "")
 
     def push(sid, name, grade, pts, val, detail):
-        sig.append({"id": sid, "name": name, "grade": grade, "pts": pts, "val": val, "detail": detail})
+        sig.append({"id": sid, "name": cz_text(name), "grade": grade, "pts": pts, "val": cz_text(val), "detail": cz_text(detail)})
 
     mech_score = load_score = symp_score = 0
 
@@ -3516,7 +3540,7 @@ def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> 
     a["guidance"] = None
     if a.get("engineMode") == "v3":
         from . import guidance as G
-        a["guidance"] = G.build_guidance(db, rid, a, r)
+        a["guidance"] = cz_deep(G.build_guidance(db, rid, a, r))
     row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()
     if row is None:
         row = models.Assessment(runner_id=rid)

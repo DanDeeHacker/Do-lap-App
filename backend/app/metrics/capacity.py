@@ -1208,8 +1208,8 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         name = {"volume": "Objem nad kapacitou", "intensity": "Intenzita nad kapacitou",
                 "descent": "Klesání nad kapacitou", "ascent": "Stoupání nad kapacitou",
                 "systemic": "Celková zátěž nad kapacitou", "strength": "Silová zátěž nad kapacitou"}[ch]
-        signals.append({"id": f"cap_{ch}", "name": name, "grade": spec["grade"], "pts": pts, "val": val,
-                        "detail": detail})
+        signals.append({"id": f"cap_{ch}", "name": name, "grade": spec["grade"], "pts": pts, "val": E.cz_text(val),
+                        "detail": E.cz_text(detail)})
     week7 = [s for s in runs_pool if 0 <= (today - _d(s["date"])).days < 7 and s.get("zoneMin")]
     zmin = [sum(s["zoneMin"][i] for s in week7) for i in range(len(ZONES))]
     zone7 = {"minutes": [{"z": z, "min": round(m)} for (z, _, _), m in zip(ZONES, zmin)],

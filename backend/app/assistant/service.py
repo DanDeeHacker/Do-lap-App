@@ -319,6 +319,7 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
         text = fallback_answer(sel, facts, sources, guide)
         links = []
     clean, links = VAL.strip_links(text)
+    clean = E.cz_text(clean)          # Czech decimal comma, whatever the model copied from the facts
     if source == "fallback":
         app_links = {"today": "Dnes", "training": "Trénink", "post": "Deník", "mechanics": "Pohyb", "load": "Zátěž",
                      "messages": "Péče", "data": "Data"}
