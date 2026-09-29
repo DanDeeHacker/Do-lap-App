@@ -34,7 +34,7 @@ from ..serializers import to_dict
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.8.11"  # v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.8.12"  # v0.8.12: recovery nights history for the readiness detail (railway#138); v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -1459,14 +1459,28 @@ def recovery(db: DBSession, rid: str):
     score_prev = scored[1][1] if len(scored) > 1 else None
     score_delta = (score - score_prev) if score_prev is not None else None
 
-    return {
-        "hrv": {"base": r1(mean(hrv_b)), "now": r1(mean(hrv_r)), "z": hrv_z, "series": hrv_r},
-        "rhr": {"base": r1(mean(rhr_b)), "now": r1(mean(rhr_r)), "z": rhr_z, "series": rhr_r},
-        "sleep": {"base": r1(mean(sl_b)), "now": r1(mean(sl_r)), "debt": sleep_debt, "series": sl_r},
+    out = {
+        "hrv": {"base": r1(mean(hrv_b)), "sd": r1(hsd) if hsd else None, "now": r1(mean(hrv_r)), "z": hrv_z, "series": hrv_r},
+        "rhr": {"base": r1(mean(rhr_b)), "sd": r1(rsd) if rsd else None, "now": r1(mean(rhr_r)), "z": rhr_z, "series": rhr_r},
+        "sleep": {"base": r1(mean(sl_b)), "sd": r1(ssd) if ssd else None, "now": r1(mean(sl_r)), "debt": sleep_debt, "series": sl_r},
         "edited": len([d for d in rec if d.source == "manual"]),
         "score": score, "scoreLabel": label, "scoreDate": score_date,
         "scorePrev": score_prev, "scoreDelta": score_delta,
     }
+    # railway#138 — HRV, resting HR and sleep night by night for the charts in the readiness
+    # detail on Zátěž; live assessment only, not the history replay
+    if getattr(_today_override, "value", None) is None:
+        rows = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid,
+                                                   models.DailyMetric.date > day_ago(RECOVERY_HISTORY_DAYS)).all()
+        hist = [{"d": m.date[:10], "hrv": r1(m.hrv_ms), "rhr": r1(m.resting_hr), "sleep": r1(m.sleep_h)}
+                for m in sorted(rows, key=lambda m: m.date)
+                if m.hrv_ms is not None or m.resting_hr is not None or m.sleep_h is not None]
+        if len(hist) >= 7:
+            out["history"] = hist
+    return out
+
+
+RECOVERY_HISTORY_DAYS = 60
 
 
 def hrv_cv(db: DBSession, rid: str):

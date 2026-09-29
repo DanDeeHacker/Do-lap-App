@@ -8,7 +8,7 @@ import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
 import { clamp, cz, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, PHASE, plural, QUAD, sgn, toImpact } from "@/lib"
 import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/components/MuscleAnatomy"
-import { CAP_SIGNAL_IDS, CapacityPanel } from "@/capacity"
+import { CAP_SIGNAL_IDS, CapacityPanel, readinessCol, readinessPct } from "@/capacity"
 import { C, goodCol } from "@/tokens"
 import { SelfPrograms } from "@/selfprograms"
 
@@ -111,6 +111,8 @@ export function Post() {
     if (window.location.hash === "#jiny-sport") setTimeout(() => document.getElementById("jiny-sport")?.scrollIntoView({ block: "center" }), 300)
   }, [])
   const [insOpen, setInsOpen] = useState(false)
+  const [latestOpen, setLatestOpen] = useState(false)
+  const [ciOpen, setCiOpen] = useState(false)
   const fb = (boot?.activity_feedback || []) as any[]
   const acts = (boot?.activities || []) as any[]
   const cutoff = dayAgo(14)
@@ -174,6 +176,8 @@ export function Post() {
       {crossOpen && <CrossSheet rid={rid} onClose={() => setCrossOpen(false)} onDone={() => { setCrossOpen(false); refresh() }} />}
       <div className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
         <div className="grid content-start gap-4">
+          {/* railway#135/#136 — one box: runs waiting for a note, the latest notes as a detail under
+              them, and the other sports of the last 14 days */}
           <Card>
             <Label>Čeká na zápis</Label>
             {unrated.length ? (
@@ -188,94 +192,69 @@ export function Post() {
             ) : (
               <div className="mt-3"><Empty>Nic nečeká. Další zápis se objeví po příštím běhu.</Empty></div>
             )}
-          </Card>
-          <section id="jiny-sport" className="card scroll-mt-24 p-4 md:p-5" data-tour="journal-cross">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label>Jiný sport · 14 dní</Label>
-              <Button size="sm" variant="secondary" onClick={() => setCrossOpen(true)}>Přidat trénink</Button>
-            </div>
-            <p className="mt-1 text-[12px] leading-5 text-fg-3">Kolo, plavání a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Posilování hodinky často nezaznamenají, zapište ho tady.</p>
-            {crossRecent.length ? (
-              <div className="mt-2 divide-y divide-white/[.07]">
-                {crossRecent.slice(0, 8).map((x) => {
-                  const r = rpeOf.get(x.id)
-                  return (
-                    <ListRow key={x.id} icon={actIcon(x)} tone={r != null ? "ok" : "info"} title={actTitle(x)}
-                      onClick={() => { const f = fb.find((y) => y.activity_id === x.id); setRate({ act: x, initial: f }) }}
-                      meta={`${fmtD(x.started_at)}${r != null ? ` · náročnost ${r}/10` : " · bez hodnocení"}${x.strength_focus ? ` · ${(FOCUS_OPTS.find((o) => o[0] === x.strength_focus) || [0, ""])[1]}` : ""}${x.provider === "manual" ? " · zapsáno ručně" : ""}`}
-                      trailing={x.provider === "manual" ? (
-                        <button type="button" onClick={(e) => { e.stopPropagation(); api.deleteActivity(rid, x.id).then(() => { toastX({ title: "Trénink smazán" }); refresh() }).catch(() => {}) }}
-                          className="shrink-0 rounded-full px-2 py-1 text-[12px] font-bold text-fg-3 hover:bg-alert/10 hover:text-alert">Smazat</button>
-                      ) : undefined} />
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="mt-3"><Empty>Za posledních 14 dní žádný jiný sport.</Empty></div>
+            {sorted.length > 0 && (
+              <>
+                <button type="button" onClick={() => setLatestOpen((v) => !v)} aria-expanded={latestOpen} data-testid="latest-toggle"
+                  className="nest mt-4 flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left transition hover:border-white/20">
+                  <span className="t-label">Poslední zápisy</span>
+                  <span className="flex items-center gap-2 text-[12px] text-fg-3">{Math.min(10, sorted.length)} · klepnutím upravíte<ChevronDown className={`size-4 transition ${latestOpen ? "rotate-180 text-accent" : ""}`} aria-hidden /></span>
+                </button>
+                {latestOpen && (
+                  <div className="mt-1 origin-top animate-[careReveal_.28s_ease-out] divide-y divide-white/[.07]" data-testid="latest-list">
+                    {sorted.slice(0, 10).map((f) => {
+                      const act = actById.get(f.activity_id)
+                      const hurt = f.pain_during >= 4
+                      return (
+                        <div key={f.id} className="flex items-center gap-1">
+                          <ListRow onClick={() => editEntry(f)} icon={actIcon(act)} tone={hurt ? "alert" : "ok"}
+                            title={act ? actTitle(act) : "Běh"}
+                            meta={<>{fmtD(f.submitted_at)}{act?.surface ? ` · ${surf(act.surface)}` : ""} · pocit {FEEL_LABEL[f.feeling] || "—"} · nohy {f.legs}/5{f.pain_during > 0 ? ` · bolest ${f.pain_during}/10` : ""}</>}
+                            extra={f.pain_site ? <span className="mt-1.5 block sm:hidden"><Chip tone="alert">{f.pain_site}</Chip></span> : undefined}
+                            trailing={<>
+                              {f.pain_site && <span className="hidden shrink-0 sm:block"><Chip tone="alert">{f.pain_site}</Chip></span>}
+                              <span className="flex shrink-0 items-center gap-1 text-[12px] font-bold text-fg-3 transition group-hover:text-info">
+                                <span className="hidden opacity-0 transition group-hover:opacity-100 md:inline">Upravit</span>
+                                <ChevronRight className="size-4" aria-hidden />
+                              </span>
+                            </>} />
+                          {act && (
+                            <Link to={`/app/post/${act.id}`} aria-label="Detail běhu" title="Detail běhu"
+                              className="grid size-9 shrink-0 place-items-center rounded-full text-fg-3 hover:bg-info/10 hover:text-info">
+                              <ActivityIcon className="size-4" aria-hidden />
+                            </Link>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
             )}
-          </section>
-          <Card>
-            <div className="flex items-center justify-between">
-              <Label>Poslední zápisy</Label>
-              {fb.length > 0 && <span className="text-[12px] text-fg-3">klepnutím upravíte</span>}
-            </div>
-            {sorted.length ? (
-              <div className="mt-2 divide-y divide-white/[.07]">
-                {sorted.slice(0, 10).map((f) => {
-                  const act = actById.get(f.activity_id)
-                  const hurt = f.pain_during >= 4
-                  return (
-                    <div key={f.id} className="flex items-center gap-1">
-                      <ListRow onClick={() => editEntry(f)} icon={actIcon(act)} tone={hurt ? "alert" : "ok"}
-                        title={act ? actTitle(act) : "Běh"}
-                        meta={<>{fmtD(f.submitted_at)}{act?.surface ? ` · ${surf(act.surface)}` : ""} · pocit {FEEL_LABEL[f.feeling] || "—"} · nohy {f.legs}/5{f.pain_during > 0 ? ` · bolest ${f.pain_during}/10` : ""}</>}
-                        extra={f.pain_site ? <span className="mt-1.5 block sm:hidden"><Chip tone="alert">{f.pain_site}</Chip></span> : undefined}
-                        trailing={<>
-                          {f.pain_site && <span className="hidden shrink-0 sm:block"><Chip tone="alert">{f.pain_site}</Chip></span>}
-                          <span className="flex shrink-0 items-center gap-1 text-[12px] font-bold text-fg-3 transition group-hover:text-info">
-                            <span className="hidden opacity-0 transition group-hover:opacity-100 md:inline">Upravit</span>
-                            <ChevronRight className="size-4" aria-hidden />
-                          </span>
-                        </>} />
-                      {act && (
-                        <Link to={`/app/post/${act.id}`} aria-label="Detail běhu" title="Detail běhu"
-                          className="grid size-9 shrink-0 place-items-center rounded-full text-fg-3 hover:bg-info/10 hover:text-info">
-                          <ActivityIcon className="size-4" aria-hidden />
-                        </Link>
-                      )}
-                    </div>
-                  )
-                })}
+            <div id="jiny-sport" className="mt-5 scroll-mt-24 border-t border-white/[.08] pt-4" data-tour="journal-cross">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>Jiný sport · 14 dní</Label>
+                <Button size="sm" variant="secondary" onClick={() => setCrossOpen(true)}>Přidat trénink</Button>
               </div>
-            ) : (
-              <div className="mt-3"><Empty>Zatím žádné zápisy.</Empty></div>
-            )}
-          </Card>
-          <Card>
-            <div className="flex items-center justify-between">
-              <Label>Check-iny (denní a týdenní)</Label>
-              <span className="text-[12px] text-fg-3">samostatně od běhů</span>
+              <p className="mt-1 text-[12px] leading-5 text-fg-3">Kolo, plavání a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Posilování hodinky často nezaznamenají, zapište ho tady.</p>
+              {crossRecent.length ? (
+                <div className="mt-2 divide-y divide-white/[.07]">
+                  {crossRecent.slice(0, 8).map((x) => {
+                    const r = rpeOf.get(x.id)
+                    return (
+                      <ListRow key={x.id} icon={actIcon(x)} tone={r != null ? "ok" : "info"} title={actTitle(x)}
+                        onClick={() => { const f = fb.find((y) => y.activity_id === x.id); setRate({ act: x, initial: f }) }}
+                        meta={`${fmtD(x.started_at)}${r != null ? ` · náročnost ${r}/10` : " · bez hodnocení"}${x.strength_focus ? ` · ${(FOCUS_OPTS.find((o) => o[0] === x.strength_focus) || [0, ""])[1]}` : ""}${x.provider === "manual" ? " · zapsáno ručně" : ""}`}
+                        trailing={x.provider === "manual" ? (
+                          <button type="button" onClick={(e) => { e.stopPropagation(); api.deleteActivity(rid, x.id).then(() => { toastX({ title: "Trénink smazán" }); refresh() }).catch(() => {}) }}
+                            className="shrink-0 rounded-full px-2 py-1 text-[12px] font-bold text-fg-3 hover:bg-alert/10 hover:text-alert">Smazat</button>
+                        ) : undefined} />
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="mt-2 text-[12px] text-fg-3">Za posledních 14 dní žádný jiný sport.</p>
+              )}
             </div>
-            <p className="mt-1 text-[12px] leading-5 text-fg-3">Váš self-report mimo konkrétní běh — denní pocit/bolest a týdenní kontrola (OSTRC). Přidáte je přes tlačítko Check-in.</p>
-            {checkinItems.length ? (
-              <div className="mt-2 divide-y divide-white/[.07]">
-                {checkinItems.slice(0, 10).map((x: any) => {
-                  const daily = x.kind === "daily"
-                  const hurt = daily ? (x.pain || 0) >= 4 : (x.severity || 0) >= 40
-                  return (
-                    <ListRow key={x.id} tileText={daily ? "DEN" : "TÝD"} tone={daily ? "info" : "self"}
-                      title={daily ? "Denní check-in" : x.adhoc ? "Týdenní check-in · mimořádný" : "Týdenní check-in"}
-                      meta={<>{fmtD(x.at)}{daily
-                        ? `${x.pain != null ? ` · bolest ${x.pain}/10` : ""}${x.mood != null ? ` · nálada ${x.mood}/4` : ""}${x.fatigue != null ? ` · únava ${x.fatigue}` : ""}`
-                        : ` · OSTRC ${x.severity ?? 0}/100 · ${x.status === "active" ? "aktivní" : x.status === "resolved" ? "odezněl" : "bez potíží"}`}</>}
-                      extra={x.regions.length > 0 ? <span className="mt-1.5 block sm:hidden"><Chip tone={hurt ? "alert" : "muted"}>{x.regions.slice(0, 2).join(", ")}{x.regions.length > 2 ? "…" : ""}</Chip></span> : undefined}
-                      trailing={x.regions.length > 0 ? <span className="hidden shrink-0 sm:block"><Chip tone={hurt ? "alert" : "muted"}>{x.regions.slice(0, 2).join(", ")}{x.regions.length > 2 ? "…" : ""}</Chip></span> : undefined} />
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="mt-3"><Empty>Zatím žádné check-iny. Přidejte první přes tlačítko Check-in vpravo dole.</Empty></div>
-            )}
           </Card>
         </div>
         <div className="grid content-start gap-4">
@@ -336,6 +315,12 @@ export function Post() {
             ) : (
               <div className="mt-3"><Empty>Zatím málo zápisů na to, aby z nich šel číst vzorec. Užitečné to začne být zhruba od čtvrtého.</Empty></div>
             )}
+            {!ciSum && (
+              <div className="mt-5 border-t border-white/[.08] pt-4">
+                <Label>Souhrn check-inů</Label>
+                <p className="mt-2 text-[12px] text-fg-3">Zatím žádné check-iny. Přidejte první přes tlačítko Check-in vpravo dole.</p>
+              </div>
+            )}
             {ciSum && (
               <div className="mt-5 border-t border-white/[.08] pt-4">
                 <Label>Souhrn check-inů</Label>
@@ -359,6 +344,31 @@ export function Post() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+                {/* railway#134 — every check-in opens as a detail of their summary */}
+                <button type="button" onClick={() => setCiOpen((v) => !v)} aria-expanded={ciOpen} data-testid="checkins-toggle"
+                  className="nest mt-4 flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left transition hover:border-white/20">
+                  <span className="t-label">Check-iny (denní a týdenní)</span>
+                  <span className="flex items-center gap-2 text-[12px] text-fg-3">{Math.min(10, checkinItems.length)}<ChevronDown className={`size-4 transition ${ciOpen ? "rotate-180 text-accent" : ""}`} aria-hidden /></span>
+                </button>
+                {ciOpen && (
+                  <div className="mt-1 origin-top animate-[careReveal_.28s_ease-out]" data-testid="checkins-list">
+                    <div className="divide-y divide-white/[.07]">
+                      {checkinItems.slice(0, 10).map((x: any) => {
+                        const daily = x.kind === "daily"
+                        const hurt = daily ? (x.pain || 0) >= 4 : (x.severity || 0) >= 40
+                        return (
+                          <ListRow key={x.id} tileText={daily ? "DEN" : "TÝD"} tone={daily ? "info" : "self"}
+                            title={daily ? "Denní check-in" : x.adhoc ? "Týdenní check-in · mimořádný" : "Týdenní check-in"}
+                            meta={<>{fmtD(x.at)}{daily
+                              ? `${x.pain != null ? ` · bolest ${x.pain}/10` : ""}${x.mood != null ? ` · nálada ${x.mood}/4` : ""}${x.fatigue != null ? ` · únava ${x.fatigue}` : ""}`
+                              : ` · OSTRC ${x.severity ?? 0}/100 · ${x.status === "active" ? "aktivní" : x.status === "resolved" ? "odezněl" : "bez potíží"}`}</>}
+                            extra={x.regions.length > 0 ? <span className="mt-1.5 block"><Chip tone={hurt ? "alert" : "muted"}>{x.regions.slice(0, 2).join(", ")}{x.regions.length > 2 ? "…" : ""}</Chip></span> : undefined} />
+                        )
+                      })}
+                    </div>
+                    <p className="mt-2 text-[11px] leading-4 text-fg-3">Denní pocit a bolest a týdenní kontrola (OSTRC), mimo konkrétní běh. Přidáte je tlačítkem Check-in.</p>
                   </div>
                 )}
               </div>
@@ -1357,33 +1367,9 @@ export const LOAD_IDS = new Set([
   // engine v3 — load against the runner's own capacity, per channel
   ...CAP_SIGNAL_IDS,
 ])
-// ADD · 7:28 load ratio on a graded bar: <0,8 nízká · 0,8–1,3 v normě · 1,3–1,5 zvýšená · >1,5 vysoká.
-const RATIO_SEG: [number, number, string][] = [[0.4, 0.8, C.self], [0.8, 1.3, C.ok], [1.3, 1.5, C.watch], [1.5, 2.2, C.alert]]
+// 7:28 load ratio bands: <0,8 nízká · 0,8–1,3 v normě · 1,3–1,5 zvýšená · >1,5 vysoká
+// (railway#137: the ratio bar itself is gone, the load trend chart shows the same over time).
 const ratioTone = (r: number): Tone => (r < 0.8 ? "muted" : r <= 1.3 ? "ok" : r <= 1.5 ? "watch" : "alert")
-function RatioBar({ ratio }: { ratio: number }) {
-  const lo = 0.4, hi = 2.2
-  const P = (v: number) => clamp(((v - lo) / (hi - lo)) * 100, 1.5, 98.5)
-  const tone = ratioTone(ratio)
-  const col = tone === "muted" ? C.self : toneCol(tone)
-  const word = ratio < 0.8 ? "nižší než obvykle" : ratio <= 1.3 ? "v normě" : ratio <= 1.5 ? "zvýšená" : "vysoká"
-  return (
-    <div className="nest p-3.5">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="t-label !text-fg-3">Poměr zátěže (7:28 dní)</span>
-        <span className="text-[13px] font-bold" style={{ color: col }}><span className="t-num text-[18px]">×{mfmt(2, ratio)}</span> · {word}</span>
-      </div>
-      <div className="relative mt-3 h-2.5">
-        <div className="absolute inset-0 flex gap-0.5 overflow-hidden rounded-full">
-          {RATIO_SEG.map(([a, b, c]) => <i key={a} className="block h-full" style={{ width: `${((b - a) / (hi - lo)) * 100}%`, background: c, opacity: 0.55 }} />)}
-        </div>
-        <i className="absolute top-1/2 h-4.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg shadow-[0_0_0_3px_rgb(6_16_16_/_0.9)]" style={{ left: `${P(ratio)}%`, height: 18 }} />
-      </div>
-      <div className="relative mt-1.5 h-3.5 tabular-nums text-[11px] text-fg-3">
-        {[0.8, 1.3, 1.5].map((v) => <span key={v} className="absolute -translate-x-1/2" style={{ left: `${P(v)}%` }}>{mfmt(1, v)}</span>)}
-      </div>
-    </div>
-  )
-}
 // Weekly bar colour: each week against the mean of the four weeks before it (same bands
 // as the 7:28 ratio). Below ×0,8 is its own colour (railway#82), grey = too little history.
 export function weekTones(w: number[]): Tone[] {
@@ -1489,9 +1475,8 @@ export function Load() {
             ) : <p className="mt-2 text-[13px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
           </div>
           <div className="grid content-start gap-3">
-            {L.valid && L.ratio != null && <RatioBar ratio={L.ratio} />}
-            {/* railway#63 — recovery signals sit under the 7:28 ratio, sized to this column */}
-            {rcv ? <RecoveryTiles rcv={rcv} sleepEff={a.sleepEff} /> : <p className="nest px-3.5 py-3 text-[12px] text-fg-3">Chybí souvislá data z hodinek za posledních 35 dní (HRV, klidový tep, spánek).</p>}
+            {/* railway#137/#138 — readiness over time instead of the 7:28 ratio; HRV, resting HR and sleep open under it */}
+            <ReadinessTrend a={a} hist={hist} />
           </div>
         </div>
       </section>
@@ -1525,34 +1510,86 @@ export function Load() {
   )
 }
 
-function RecoveryTiles({ rcv, sleepEff }: { rcv: any; sleepEff: any }) {
-  const [sleepOpen, setSleepOpen] = useState(false)
-  const hrvBad = rcv.hrv.z <= -1, rhrBad = rcv.rhr.z >= 1.2, sleepBad = rcv.sleep.debt >= 4
-  const tile = (label: string, info: string, now: any, unit: string, sub: string, bad: boolean, series: number[], extra?: any) => (
-    <div className="nest flex min-w-0 flex-col p-3">
-      <span className="flex items-start gap-1"><span className="t-label leading-4 !text-fg-3">{label}</span><InfoDot text={info} label={label} /></span>
-      <p className="t-num mt-1.5 text-[24px] leading-none" style={{ color: bad ? C.alert : C.fg }}>{cz(now)}{unit && <small className="text-[12px] font-semibold text-fg-3"> {unit}</small>}</p>
-      <p className="mt-1 text-[11px] leading-4 text-fg-3">{sub}</p>
-      <div className="mt-auto pt-2"><Sparkline vals={series} color={bad ? C.alert : C.ok} /></div>
-      {extra}
+const readinessWord = (p: number) => (p >= 70 ? "dobrá" : p >= 40 ? "snížená" : "nízká")
+function ReadinessTrend({ a, hist }: { a: any; hist: any[] | null }) {
+  const [open, setOpen] = useState(false)
+  const r = a?.capacity?.readiness
+  const rcv = a?.rcv
+  const pct = r ? readinessPct(r) : null
+  const col = pct != null ? readinessCol(pct) : C.fg3
+  const asOf = (a?.computed_at || "").slice(0, 10)
+  const pts = (hist || []).filter((h) => h.readiness != null).map((h) => ({ t: h.date as string, v: h.readiness as number }))
+  if (pts.length && pct != null) pts[pts.length - 1] = { t: asOf || pts[pts.length - 1].t, v: pct }
+  if (pct == null && !rcv) return <p className="nest px-3.5 py-3 text-[12px] text-fg-3">Chybí souvislá data z hodinek za posledních 35 dní (HRV, klidový tep, spánek).</p>
+  return (
+    <div className="nest p-3.5" data-testid="readiness-trend">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Připravenost — trend</span><InfoDot text={MI.readiness} label="Připravenost" /></span>
+        <span className="text-[11px] text-fg-3">0–100 %</span>
+      </div>
+      {pct != null && (
+        <div className="mt-1.5 flex items-end gap-2">
+          <b className="t-num text-[30px] leading-none" style={{ color: col }}>{pct}<small className="text-[14px] font-semibold"> %</small></b>
+          <small className="pb-0.5 text-[12px] text-fg-2">dnes · {readinessWord(pct)}</small>
+        </div>
+      )}
+      {hist === null ? <p className="mt-2 text-[12px] text-fg-3">Počítám trend v čase…</p>
+        : pts.length > 1 ? <AxisLineChart points={pts} yMin={0} yMax={100} unit=" %" color={col} height={96} />
+        : <p className="mt-2 text-[12px] text-fg-3">Na trend připravenosti je zatím málo historie.</p>}
+      {rcv && (
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="readiness-detail-toggle"
+          className="mt-2 flex w-full items-center justify-between gap-2 border-t border-white/[.07] pt-2.5 text-left text-[12px] font-semibold text-fg-2 transition hover:text-fg">
+          <span>Z čeho vychází: HRV, klidový tep, spánek</span>
+          <ChevronDown className={`size-4 shrink-0 transition ${open ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />
+        </button>
+      )}
+      {rcv && open && <div className="mt-3 origin-top animate-[careReveal_.28s_ease-out]" data-testid="readiness-detail"><RecoveryDetail rcv={rcv} sleepEff={a.sleepEff} /></div>}
     </div>
   )
+}
+
+// railway#138 — the nights behind readiness, each over the last two months against the
+// runner's usual range (28-day baseline ± 1 SD); sleep quality opens under the sleep chart.
+function RecoveryDetail({ rcv, sleepEff }: { rcv: any; sleepEff: any }) {
+  const [sleepOpen, setSleepOpen] = useState(false)
+  const hist = (rcv.history || []) as any[]
+  const rows: { k: "hrv" | "rhr" | "sleep"; label: string; info: string; unit: string; dec: number; bad: boolean; col: string }[] = [
+    { k: "hrv", label: "HRV", info: MI.hrv, unit: "ms", dec: 0, bad: rcv.hrv.z <= -1, col: C.info },
+    { k: "rhr", label: "Klidový tep", info: MI.rhr, unit: "tepů/min", dec: 0, bad: rcv.rhr.z >= 1.2, col: C.info },
+    { k: "sleep", label: "Spánek", info: MI.sleep, unit: "h", dec: 1, bad: rcv.sleep.debt >= 4, col: C.info },
+  ]
   return (
-    <div>
-      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
-        {tile("HRV 7 dní", MI.hrv, rcv.hrv.now, "ms", `baseline ${cz(rcv.hrv.base)} ms · ${pctStr(rcv.hrv.now, rcv.hrv.base)}`, hrvBad, rcv.hrv.series)}
-        {tile("Klidový tep", MI.rhr, rcv.rhr.now, "", `baseline ${cz(rcv.rhr.base)} · ${pctStr(rcv.rhr.now, rcv.rhr.base)}`, rhrBad, rcv.rhr.series)}
-        {tile("Spánek", MI.sleep, rcv.sleep.now, "h", `obvykle ${cz(rcv.sleep.base)} h${rcv.sleep.debt > 0 ? ` · dluh ${cz(rcv.sleep.debt)} h/týd` : ""}`, sleepBad, rcv.sleep.series,
-          sleepEff && (
-            <button type="button" onClick={() => setSleepOpen((v) => !v)} aria-expanded={sleepOpen}
-              className="mt-2 flex items-center justify-between gap-1 border-t border-white/[.07] pt-2 text-left text-[11px] font-semibold text-fg-2 transition hover:text-fg">
-              <span>Kvalita spánku</span>
-              <ChevronDown className={`size-3.5 transition ${sleepOpen ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />
-            </button>
-          ))}
-      </div>
-      {/* railway#62 — sleep quality opens under the sleep chart */}
-      {sleepEff && sleepOpen && <div className="nest mt-2 origin-top animate-[careReveal_.28s_ease-out] p-3.5"><SleepQuality s={sleepEff} /></div>}
+    <div className="grid gap-4">
+      {rows.map((m) => {
+        const c = rcv[m.k] || {}
+        const pts = hist.filter((h) => h[m.k] != null).map((h) => ({ t: h.d as string, v: h[m.k] as number }))
+        const band = c.base != null && c.sd ? { lo: c.base - c.sd, hi: c.base + c.sd, mid: c.base, label: "vaše obvyklé rozmezí" } : undefined
+        return (
+          <div key={m.k} data-testid="recovery-metric">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+              <span className="flex items-center gap-1"><span className="t-label !text-fg-3">{m.label}</span><InfoDot text={m.info} label={m.label} /></span>
+              <span className="tabular-nums text-[12px] text-fg-3">
+                <b className="text-[14px]" style={{ color: m.bad ? C.alert : C.fg }}>{cz(c.now)} {m.unit}</b> 7 nocí · obvykle {cz(c.base)}
+                {m.k === "sleep" ? (c.debt > 0 ? ` · dluh ${cz(c.debt)} h/týd` : "") : ` · ${pctStr(c.now, c.base)}`}
+              </span>
+            </div>
+            {pts.length > 1
+              ? <AxisLineChart points={pts} dec={m.dec} unit={` ${m.unit}`} color={m.bad ? C.alert : m.col} height={96} band={band} />
+              : <div className="mt-2"><Sparkline vals={c.series || []} color={m.bad ? C.alert : C.ok} /></div>}
+            {m.k === "sleep" && sleepEff && (
+              <>
+                <button type="button" onClick={() => setSleepOpen((v) => !v)} aria-expanded={sleepOpen}
+                  className="mt-1 flex w-full items-center justify-between gap-1 text-left text-[12px] font-semibold text-fg-2 transition hover:text-fg">
+                  <span>Kvalita spánku</span>
+                  <ChevronDown className={`size-3.5 transition ${sleepOpen ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />
+                </button>
+                {sleepOpen && <div className="nest mt-2 origin-top animate-[careReveal_.28s_ease-out] p-3.5"><SleepQuality s={sleepEff} /></div>}
+              </>
+            )}
+          </div>
+        )
+      })}
+      <p className="text-[11px] leading-4 text-fg-3">Po nocích za 2 měsíce, pás je vaše obvyklé rozmezí za 4 týdny. Připravenost z nich skládá hodnotu dne spolu s check-inem a dnešním tréninkem.</p>
     </div>
   )
 }

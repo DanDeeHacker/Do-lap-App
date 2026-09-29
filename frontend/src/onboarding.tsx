@@ -225,7 +225,7 @@ export const TOUR: TourStep[] = [
     body: "Nové běhy z hodinek čekají na krátký zápis: jak se běželo, jak se cítily nohy a jestli něco bolelo. Zápis zabere asi dvacet vteřin.",
     value: "Váš vlastní pocit z běhu je jeden z nejcitlivějších signálů únavy. Tyto zápisy engine váží nejvíc." },
   { route: "/app/post", tab: "Deník", target: { text: "Poslední zápisy" }, title: "Poslední zápisy",
-    body: "Přehled ohodnocených běhů s vaším pocitem a poznámkou. Klepnutím otevřete detail běhu s terénem, počasím a úseky.",
+    body: "Pod běhy k zápisu otevřete přehled ohodnocených běhů s vaším pocitem a poznámkou. Klepnutím zápis upravíte, ikonou vpravo otevřete detail běhu s terénem, počasím a úseky.",
     value: "Když se něco změní, snadno dohledáte, kdy to začalo a na jakém běhu." },
   { route: "/app/post", tab: "Deník", target: { sel: '[data-tour="journal-summary"]' }, title: "Souhrn deníku",
     body: "Průměrný pocit z běhů a jeho trend, počet zápisů za 21 dní, kolikrát něco bolelo a nejvyšší nahlášená bolest.",
@@ -234,7 +234,7 @@ export const TOUR: TourStep[] = [
     body: "Mapa těla a žebříček míst, která jste v posledních 30 dnech označili. V ukázce je to ztuhlá pravá Achillova šlacha po dlouhém běhu.",
     value: "Místo, které se ozývá opakovaně, stojí za pozornost dřív, než začne omezovat trénink." },
   { route: "/app/post", tab: "Deník", target: { text: "Check-iny (denní a týdenní)" }, title: "Historie check-inů",
-    body: "Všechny denní check-iny a týdenní dotazníky na jednom místě, s bolestí, ztuhlostí a únavou.",
+    body: "Pod souhrnem check-inů otevřete všechny denní check-iny a týdenní dotazníky, s bolestí, ztuhlostí a únavou.",
     value: "Vývoj za několik týdnů ukáže trend, který z jednoho dne nepoznáte. Fyzioterapeut v něm uvidí souvislosti." },
 
   { route: "/app/mechanics", tab: "Pohyb", target: { text: "Signál pohybu" }, title: "Stav mechaniky",
@@ -265,8 +265,8 @@ export const TOUR: TourStep[] = [
   { route: "/app/load", tab: "Zátěž", target: { text: "Co tvoří skóre zátěže" }, title: "Co tvoří zátěž",
     body: "Kanály seřazené podle toho, kolik přidávají k dnešnímu skóre zátěže.",
     value: "Hned víte, čím ubrat, jestli objemem, intenzitou, nebo seběhy." },
-  { route: "/app/load", tab: "Zátěž", target: { text: "Spánek" }, title: "Regenerace",
-    body: "Spánek, HRV a klidový tep z hodinek, vždy proti vaší vlastní normě.",
+  { route: "/app/load", tab: "Zátěž", target: { text: "Připravenost — trend" }, title: "Připravenost",
+    body: "Připravenost po dnech. Pod grafem otevřete spánek, HRV a klidový tep z hodinek, vždy proti vaší vlastní normě.",
     value: "Po špatné noci unesete méně. Došlap podle toho ráno sníží dnešní stropy." },
 
   { route: "/app/messages", tab: "Péče", care: "physio", target: { sel: '[data-tour="care-tabs"]' }, title: "Tři části péče",

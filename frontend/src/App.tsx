@@ -843,7 +843,11 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
       <div>
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2" data-tour="today-score">
           <div className="grid justify-items-center gap-2">
-            <MiniRing label="Regenerace" value={score} col={scoreCol} onClick={tg("recovery")} open={open === "recovery"} />
+            {/* railway#139 — Připravenost takes the Regenerace ring's place (its detail holds the nights); the
+                older engines without readiness keep the Regenerace ring */}
+            {d.readiness != null
+              ? <MiniRing label="Připravenost" value={d.readiness} unit="%" col={readinessCol(d.readiness)} onClick={tg("readiness")} open={open === "readiness"} />
+              : <MiniRing label="Regenerace" value={score} col={scoreCol} onClick={tg("recovery")} open={open === "recovery"} />}
             <MiniRing label="Příznaky" value={d.symp} col={badCol(d.symp)} onClick={tg("symp")} open={open === "symp"} />
           </div>
           <div className="relative grid size-[132px] place-items-center">
@@ -862,11 +866,6 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
             <MiniRing label="Mechanika" value={d.mech} col={axisCol(d.mech, C.alert)} onClick={tg("mech")} open={open === "mech"} />
           </div>
         </div>
-        {d.readiness != null && (
-          <div className="mt-2 flex justify-center">
-            <MiniRing label="Připravenost" value={d.readiness} unit="%" col={readinessCol(d.readiness)} onClick={tg("readiness")} open={open === "readiness"} />
-          </div>
-        )}
         {/* railway#98 — today's recommendation sits between readiness and the verdict */}
         {recommendation && <div className="mt-4" data-tour="today-reco">{recommendation}</div>}
         <div className="mt-4 text-center">
@@ -1261,6 +1260,16 @@ function TodayV2() {
                   )}
                   {a?.capacity?.readiness && <Readiness r={a.capacity.readiness} />}
                   {a?.capacity?.readiness && <ReadinessFactors r={a.capacity.readiness} />}
+                  {/* railway#139 — the Regenerace ring is gone, its nights vs. the norm live here */}
+                  {!!recoveryRows?.length && (
+                    <div className="mt-4 border-t border-white/[.08] pt-4" data-testid="readiness-recovery">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="flex items-center gap-1.5"><p className="t-label">Regenerace vs. norma</p><InfoDot text={MI.recoveryScore} label="Regenerace" /></span>
+                        <WeeklyCheckButton />
+                      </div>
+                      <RecoveryRanges rows={recoveryRows} />
+                    </div>
+                  )}
                   <div className="mt-4 grid gap-6 md:grid-cols-2 md:gap-8">
                     <div>
                       <div className="flex flex-wrap items-start justify-between gap-3">

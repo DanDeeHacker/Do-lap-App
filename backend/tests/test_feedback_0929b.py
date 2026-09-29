@@ -73,3 +73,20 @@ def test_pain_signal_sources_carry_shares_and_a_note(client, db_session):
             assert all("_w" not in x for x in s["sources"])
     pain = [s for s in a["signals"] if s["id"] in SRC.PAIN_DAYS and s.get("sources")]
     assert pain and all(s["shareNote"] for s in pain)
+
+
+def test_recovery_carries_nights_history_and_spread_for_the_readiness_detail(client, db_session):
+    """railway#138 — HRV, resting HR and sleep night by night (live only) plus the baseline
+    spread for the usual-range band of each chart."""
+    rid = register(client, "fb0929b-rcv@test.cz", "Rcv", "runner").json()["runner_id"]
+    for k in range(0, 50):
+        db_session.add(models.DailyMetric(runner_id=rid, date=E.day_ago(k)[:10], hrv_ms=60 + (k % 5), resting_hr=48 + (k % 3),
+                                          sleep_h=7 + (k % 4) * 0.25))
+    db_session.commit()
+    r = E.recovery(db_session, rid)
+    h = r["history"]
+    assert 45 <= len(h) <= E.RECOVERY_HISTORY_DAYS and h == sorted(h, key=lambda x: x["d"])
+    assert {"d", "hrv", "rhr", "sleep"} <= set(h[-1])
+    assert r["hrv"]["sd"] > 0 and r["rhr"]["sd"] > 0 and r["sleep"]["sd"] > 0
+    with E.today_pinned(E.today_date()):
+        assert "history" not in E.recovery(db_session, rid)
