@@ -50,13 +50,14 @@ from . import weather as W
 TYPES = ("volno", "regenerace", "lehký", "dlouhý", "kvalitní")
 TYPE_LABEL = {"volno": "Volno", "regenerace": "Regenerační běh", "lehký": "Lehký běh",
               "dlouhý": "Dlouhý běh", "kvalitní": "Kvalitní trénink", "závod": "Den závodu",
-              "kolo": "Kolo", "voda": "Plavání / běh ve vodě", "posilování": "Posilování"}
+              "kolo": "Kolo", "voda": "Plavání", "posilování": "Posilování"}
 CROSS_TYPES = ("kolo", "voda", "posilování")
 # Cross-training (see engine.py "cross-training" and the design doc):
 #  • kolo — physiological load without running impact (Vanrenterghem et al., 2017), dosed from
 #    what's left of the overall load at Z2 of the cycling HR max (Millet et al., 2009);
-#  • voda — pool running or swimming when pain or mechanics limit running; running in deep water
-#    kept VO2max over 6 weeks (Wilber et al., 1996) and is closest to running (Vanrenterghem 2017);
+#  • voda — swimming when pain or mechanics limit running (railway#118: only swimming is offered,
+#    a deep-water running pool is rarely available; deep-water running kept VO2max over 6 weeks,
+#    Wilber et al., 1996);
 #  • posilování — 2 sessions a week (Blagrove et al., 2018: 2–3, two likely enough), 1 in the
 #    race phase, ≥ 24 h before an intensive run (Blagrove 2018); a heavy lower-body session
 #    blunts intensive running for 24–48 h (Doma et al., 2017) → lower Z4+ caps, no quality.
@@ -310,7 +311,7 @@ XT_SITES = [
      "v první fázi rehabilitace fyzioterapeuti vyhýbají (Nasser et al., 2020).", None),
     (("lýtk", "lytk", "gastrocnem", "soleus"), "avoid",
      "Při bolesti lýtka kolo vynechte: lýtkové svaly patří při šlapání k nejvíc zapojeným (Ericson et al., 1985).",
-     "Plavání s pull-buoyem (bez práce nohou); běh ve vodě jen tehdy, když lýtko nebolí."),
+     "Plavání s pull-buoyem (bez práce nohou)."),
     (("iliotib", "it band", "it pás", "it pas"), "avoid",
      "Při bolesti IT pásu kolo vynechte: šlapání opakovaně ohýbá koleno kolem 30°, kde se IT pás "
      "stlačuje (Farrell et al., 2003).", None),
@@ -372,6 +373,29 @@ def _rolling7_dist(day_vals: dict, today, first_day, days: int = DIST_DAYS) -> d
         lo, hi = int(i), min(int(i) + 1, len(v) - 1)
         return v[lo] + (v[hi] - v[lo]) * (i - lo)
     return {"p25": q(0.25), "p50": q(0.5), "p75": q(0.75), "max": v[-1], "n": len(v)}
+
+
+# railway#119 — the activity carousel on Trénink, most to least suitable today: the
+# recommended type, a strength session that is due, then the other allowed types by how
+# close their load is to today's recommendation (a light day puts regeneration and
+# non-impact sports ahead of long and quality runs, a quality day the reverse), then the
+# types not recommended today. Cycling that loads today's painful site comes after the
+# other options. The load ladder is the product team's ordering, a working assumption.
+LOAD_LADDER = {"volno": 0.0, "regenerace": 1.0, "voda": 1.5, "kolo": 2.0, "posilování": 2.5,
+               "lehký": 3.0, "dlouhý": 4.0, "kvalitní": 5.0, "závod": 6.0}
+
+
+def rank_types(types: dict, typ: str, strength_due: bool, xt: dict | None = None) -> list:
+    base = LOAD_LADDER.get(typ, 3.0)
+    kolo_v = (xt or {}).get("kolo", "ok")
+
+    def key(k):
+        t = types[k]
+        allowed = t.get("allowed") and not (k == "kolo" and kolo_v == "avoid")
+        group = 0 if k == typ else 1 if (k == "posilování" and strength_due and allowed) else 2 if allowed else 3
+        dist = abs(LOAD_LADDER.get(k, 3.0) - base) + (1.0 if (k == "kolo" and kolo_v == "caution") else 0.0)
+        return (group, dist, LOAD_LADDER.get(k, 3.0))
+    return sorted(types, key=key)
 
 
 def build_guidance(db, rid, a, runner=None) -> dict | None:
@@ -693,7 +717,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     voda_hi = VODA_MAX if sys_left is None else min(VODA_MAX, sys_left / (4 * k_srpe))
     types["voda"] = xmk("voda", max(CROSS_MIN, 0.66 * voda_hi), max(CROSS_MIN, voda_hi), rpe="3–4 z 10",
                         zones="podle pocitu", sport="swimming",
-                        notes=["Běh v hluboké vodě je pohybem nejblíž běhu, plavání je stejně dobrá náhrada.",
+                        notes=["Plynulé plavání ve stálém tempu, klidně s přestávkami na okraji bazénu.",
                                "Tep ve vodě bývá nižší, řiďte se pocitem námahy. Jen pokud při tom nic nebolí."])
     types["posilování"] = xmk("posilování", 30, 45, rpe="6–7 z 10", zones=None, sport="strength",
                               notes=["2–3 série dřepů, výpadů, výstupů na bednu a výponů lýtek, 2 opakování nechte v záloze.",
@@ -1056,7 +1080,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         reasons.append(f"Posilování nohou {_dm(carry['date'])}" + (f" (náročnost {carry['rpe']}/10)" if carry["rpe"] else "")
                        + ": 24–48 hodin po něm bývá horší výkon v intenzitě, strop minut v Z4+ je dnes nižší.")
     if (pain_mod or pain > 5) and not override:
-        reasons.append("Místo běhu můžete zvolit běh ve vodě nebo plavání, pokud při tom nic nebolí.")
+        reasons.append("Místo běhu můžete zvolit plavání, pokud při tom nic nebolí.")
     if drift:
         reasons.append("Mechanika se odchyluje od vaší normy — bez intenzity a prudkých seběhů, raději rovina.")
     if vw["budget"] and not (typ == "volno" and vw["limitedBy"] == "week"):
@@ -1067,6 +1091,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         reasons.append(f"Dlouhý běh obvykle běháte {WD_IN[pat['longDay']]}.")
     if typ == "volno" and not override and pat["runDays"] and wd not in pat["runDays"]:
         reasons.append("Dnes obvykle neběháte — den volna pro regeneraci.")
+
+    strength_due = bool(types["posilování"]["allowed"] and s_done < s_target and typ != "kolo")
+    rank = rank_types(types, typ, strength_due, xt)
 
     done = None
     if today_runs:
@@ -1083,10 +1110,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         "pattern": {**pat, "runDayNames": [WD[w] for w in pat["runDays"]],
                     "longDayName": WD[pat["longDay"]] if pat["longDay"] is not None else None,
                     "hardDayNames": [WD[w] for w in pat["hardDays"]], "easyKm": _r(easy_km), "easyPace": _r(easy_pace, 0)},
-        "reasons": reasons[:5], "done": done,
+        "reasons": reasons[:5], "done": done, "rank": rank,
         "heat": heat, "hardWeek": {"done": hard7, "cap": hard_cap},
         "strength": {"done": s_done, "target": s_target, "today": s_today, "lastAge": s_last_age, "newBlock": new_block,
-                     "suggestToday": bool(types["posilování"]["allowed"] and s_done < s_target and typ != "kolo"),
+                     "suggestToday": strength_due,
                      "carry": carry},
         "zones": cap.get("zones"), "hrSource": "fit" if fit else "fallback",
     }

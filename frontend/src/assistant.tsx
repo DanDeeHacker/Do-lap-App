@@ -3,8 +3,8 @@
 // admin card. Every answer comes from the runner's engine data plus the reviewed
 // literature, and the backend validates it before it arrives here.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { useNavigate } from "react-router"
-import { BookOpen, ExternalLink, FileUp, Send, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react"
+import { useLocation, useNavigate } from "react-router"
+import { Bot, BookOpen, ExternalLink, FileUp, Send, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Card, Label, Sheet, useToast } from "@/ui"
@@ -127,7 +127,6 @@ function SourceSheet({ src, onClose }: { src: Source; onClose: () => void }) {
           <p className="t-label">{src.kind === "card" ? "Důkazní karta" : src.kind === "summary" ? "Shrnutí studie" : "Pasáž článku"} · zdroj {src.n}</p>
           <h3 className="mt-1 font-serif text-[22px] leading-tight">{src.title || src.cite}</h3>
         </div>
-        <button onClick={onClose} aria-label="Zavřít" className="grid size-9 shrink-0 place-items-center rounded-full border border-white/15 text-fg-2 hover:text-fg"><X className="size-4" aria-hidden /></button>
       </div>
       {src.claim && <p className="mt-3 text-[14px] leading-6 text-fg">{src.claim}</p>}
       {src.limits && <p className="mt-3 rounded-[12px] border border-white/10 bg-white/[.03] p-3 text-[12px] leading-5 text-fg-2"><b className="text-fg-soft">Omezení: </b>{src.limits}</p>}
@@ -229,7 +228,6 @@ function AssistantSheet({ rid, status, initialQ, initialCtx, onClose }: { rid: s
         </div>
         <div className="flex shrink-0 gap-2">
           {msgs.length > 0 && <button onClick={forget} aria-label="Smazat historii" className="grid size-9 place-items-center rounded-full border border-white/15 text-fg-2 hover:text-fg"><Trash2 className="size-4" aria-hidden /></button>}
-          <button onClick={onClose} aria-label="Zavřít asistenta" className="grid size-9 place-items-center rounded-full border border-white/15 text-fg-2 hover:text-fg"><X className="size-4" aria-hidden /></button>
         </div>
       </div>
       <p className="mt-2 text-[11px] leading-5 text-fg-3">{status.disclaimer} Konverzace vidíte {status.visibleDays} dní.</p>
@@ -307,6 +305,63 @@ export function CoachTextCard({ kind, title, question, className = "" }: { kind:
       <p className="mt-2 whitespace-pre-line text-[14px] leading-6 text-fg">{t.text}</p>
       <p className="mt-2 text-[11px] text-fg-3">{t.source === "llm" ? "Napsala AI z vašich dat, text prošel kontrolou." : "Sestaveno aplikací z vašich dat."}</p>
     </Card>
+  )
+}
+
+// Feedback railway#121 — the AI texts no longer sit as cards in the tabs: a small round
+// robot button bottom-left, above the tab bar (the check-in sits bottom-right), opens the
+// text that belongs to the current tab first and the others below it. It fills in as soon
+// as the AI provider is configured; until then the app's own summary shows.
+const COACH_FOR: Record<string, { kind: string; title: string; question: string }> = {
+  today: { kind: "daily_summary", title: "Shrnutí dne", question: "Co z dnešního shrnutí je pro mě nejdůležitější?" },
+  training: { kind: "daily_commentary", title: "Komentář k dnešnímu tréninku", question: "Jak mám dnešní trénink pojmout?" },
+  post: { kind: "weekly_summary", title: "Shrnutí týdne", question: "Co si mám z tohoto týdne odnést do plánu na další týden?" },
+}
+const COACH_ORDER = ["daily_summary", "daily_commentary", "weekly_summary"]
+const COACH_TITLE: Record<string, string> = { daily_summary: "Shrnutí dne", daily_commentary: "Komentář k dnešnímu tréninku", weekly_summary: "Shrnutí týdne" }
+
+export function CoachFab() {
+  const { me, touring } = useApp()
+  const { coachTexts, status } = useAssistant()
+  const loc = useLocation()
+  const [open, setOpen] = useState(false)
+  useEffect(() => { setOpen(false) }, [loc.pathname])
+  if (touring || !me?.runner_id || me?.guest) return null
+  const tab = loc.pathname.split("/")[2] || "today"
+  const main = COACH_FOR[tab] || COACH_FOR.today
+  const kinds = [main.kind, ...COACH_ORDER.filter((k) => k !== main.kind)]
+  const texts = kinds.map((k) => [k, coachTexts?.[k]] as const).filter(([, t]) => t?.text)
+  const needsConsent = status?.access?.reason === "consent"
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)} aria-label="AI shrnutí a komentáře" data-testid="coach-fab"
+        className="fixed left-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[55] grid size-12 place-items-center rounded-full border border-white/12 bg-raised/95 text-accent shadow-[0_12px_30px_rgb(0_0_0_/_0.45)] backdrop-blur transition hover:border-accent/50 hover:bg-accent/10 md:bottom-7 md:left-7 lg:left-[calc(220px+1.75rem)]">
+        <Bot className="size-6" aria-hidden />
+      </button>
+      {open && (
+        <Sheet open onClose={() => setOpen(false)}>
+          <div data-testid="coach-sheet">
+            <p className="t-label flex items-center gap-1.5"><Bot className="size-3.5 text-accent" aria-hidden />AI shrnutí</p>
+            {texts.length ? texts.map(([k, t], i) => (
+              <div key={k} className={i ? "mt-5 border-t border-white/[.08] pt-4" : "mt-2"}>
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className={i ? "text-[15px] font-bold text-fg" : "font-serif text-[22px] leading-tight text-fg"}>{COACH_TITLE[k]}</h2>
+                  {k === main.kind && <WhyButton question={main.question} context={{ kind: "summary", id: k }} label="Zeptat se" />}
+                </div>
+                <p className="mt-2 whitespace-pre-line text-[14px] leading-6 text-fg">{t.text}</p>
+                <p className="mt-1.5 text-[11px] text-fg-3">{t.source === "llm" ? "Napsala AI z vašich dat, text prošel kontrolou." : "Sestaveno aplikací z vašich dat."}</p>
+              </div>
+            )) : (
+              <p className="mt-3 text-[14px] leading-6 text-fg-2">
+                {needsConsent ? <>AI shrnutí se zapne se souhlasem s asistentem v <a href="/data" className="font-bold text-accent">Data a propojení</a>.</>
+                  : !status?.access?.enabled ? "AI shrnutí se tu objeví, jakmile bude AI asistent zapnutý."
+                  : "Shrnutí se připravuje. Zkuste to prosím za chvíli."}
+              </p>
+            )}
+          </div>
+        </Sheet>
+      )}
+    </>
   )
 }
 

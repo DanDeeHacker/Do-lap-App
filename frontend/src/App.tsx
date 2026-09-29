@@ -25,7 +25,7 @@ import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
 import { CapacityMini, Readiness, ReadinessFactors, readinessCol, readinessPct } from "@/capacity"
 import { Training } from "@/training"
-import { AssistantHeaderButton, AssistantProvider, CoachTextCard, WhyButton } from "@/assistant"
+import { AssistantHeaderButton, AssistantProvider, CoachFab, WhyButton } from "@/assistant"
 import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
@@ -306,6 +306,7 @@ function Layout() {
           </main>
         </div>
         <AtlasBubble />
+        <CoachFab />
         <AtlasNav />
         {updateReady && (
           <div className="fixed inset-x-0 top-[calc(76px+env(safe-area-inset-top))] z-50 flex justify-center px-4 lg:left-[220px]" role="status">
@@ -1290,7 +1291,6 @@ function TodayV2() {
           </BottomSheet>
         )}
       </section>
-      <CoachTextCard kind="daily_summary" title="Shrnutí dne" question="Co z dnešního shrnutí je pro mě nejdůležitější?" className="mt-4" />
     </>
   )
 }
@@ -1306,7 +1306,7 @@ function SignalSheet({ s, onClose, tone }: { s: any; onClose: () => void; tone: 
   return (
     <Sheet open onClose={onClose} layer="z-[90]">
       <div data-testid="signal-sheet">
-        <div className="flex items-start gap-2 pr-8">
+        <div className="flex items-start gap-2">
           {s.grade && <span className="mt-1 grid size-[22px] shrink-0 place-items-center rounded-full text-[11px] font-extrabold" style={{ background: `${col}30`, color: col }}>{s.grade}</span>}
           <h2 className="font-serif text-[22px] leading-tight text-fg">{s.name}</h2>
         </div>

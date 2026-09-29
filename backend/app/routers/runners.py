@@ -98,10 +98,54 @@ def add_race(rid: str, body: schemas.RaceRequest,
     if body.distance_km is not None and not (0 < body.distance_km <= 300):
         raise HTTPException(status_code=422, detail="Délka závodu musí být 0–300 km")
     name = (body.name or "").strip()[:80] or None
+    _check_race_extra(body.ascent_m, body.target_pace_s_km)
     db.add(models.Race(runner_id=rid, date=d.isoformat(), name=name, distance_km=body.distance_km,
-                       priority=body.priority, created_at=E.now_iso()))
+                       priority=body.priority, created_at=E.now_iso(), ascent_m=body.ascent_m,
+                       target_pace_s_km=body.target_pace_s_km))
     if r.goal_date and r.goal_date[:10] == d.isoformat():
         r.goal_race, r.goal_date = None, None          # the calendar entry replaces the profile's goal race
+    db.commit()
+    return {"races": E.races_for(db, r), "assessment": E.recompute_assessment(db, rid)}
+
+
+def _check_race_extra(ascent, pace):
+    if ascent is not None and not (0 <= ascent <= 20000):
+        raise HTTPException(status_code=422, detail="Převýšení závodu musí být 0–20 000 m")
+    if pace is not None and not (120 <= pace <= 1200):
+        raise HTTPException(status_code=422, detail="Plánované tempo musí být 2:00–20:00 min/km")
+
+
+@router.patch("/{rid}/races/{race_id}", dependencies=[Depends(verify_csrf)])
+def update_race(rid: str, race_id: str, body: schemas.RaceUpdateRequest,
+                user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """railway#123 — edit a race from its detail (name, date, distance, priority, elevation,
+    planned pace). The profile's goal race is edited in the profile."""
+    ensure_runner_self(user, rid)
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    row = db.query(models.Race).filter(models.Race.runner_id == rid,
+                                       models.Race.id == (int(race_id) if race_id.isdigit() else -1)).first()
+    or_404(row, "Závod nenalezen")
+    sent = body.model_dump(exclude_unset=True)
+    if "date" in sent and sent["date"]:
+        try:
+            row.date = date.fromisoformat(sent["date"][:10]).isoformat()
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Neplatné datum závodu")
+    if "priority" in sent and sent["priority"] is not None:
+        if sent["priority"] not in ("A", "B", "C"):
+            raise HTTPException(status_code=422, detail="Priorita závodu musí být A, B nebo C")
+        row.priority = sent["priority"]
+    if "distance_km" in sent:
+        if sent["distance_km"] is not None and not (0 < sent["distance_km"] <= 300):
+            raise HTTPException(status_code=422, detail="Délka závodu musí být 0–300 km")
+        row.distance_km = sent["distance_km"]
+    if "name" in sent:
+        row.name = (sent["name"] or "").strip()[:80] or None
+    _check_race_extra(sent.get("ascent_m"), sent.get("target_pace_s_km"))
+    if "ascent_m" in sent:
+        row.ascent_m = sent["ascent_m"]
+    if "target_pace_s_km" in sent:
+        row.target_pace_s_km = sent["target_pace_s_km"]
     db.commit()
     return {"races": E.races_for(db, r), "assessment": E.recompute_assessment(db, rid)}
 

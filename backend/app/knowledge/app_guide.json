@@ -4,7 +4,7 @@
   {"id": "tab-today", "title": "Záložka Dnes", "app": "today",
    "text": "Dnes ukazuje celkové skóre dne od 0 do 100, čím vyšší, tím lépe, a kolem něj čtyři osy: regenerace, příznaky, zátěž a mechanika. Klepnutím na osu otevřete její trend. Pod skóre je dnešní doporučení s typem tréninku a rozsahem kilometrů, kvadrant stavu a signály seřazené podle toho, kolik bodů přidávají. Tlačítko Check-in vpravo dole otevře krátký denní dotazník."},
   {"id": "tab-training", "title": "Záložka Trénink", "app": "training",
-   "text": "Trénink ukazuje doporučený typ dne s mantinely: vzdálenost, čas, tepové pásmo, tempo, minuty v Z4+ a maximum stoupání i klesání. Dlaždicemi přepnete na jiný typ a limity se přepočítají, nedoporučený typ má vysvětlení proč. Dál je tu dnešní kapacita po kanálech, týdenní cyklus, kalendář závodů a jiný sport (kolo, plavání nebo běh ve vodě a posilování)."},
+   "text": "Trénink ukazuje doporučený typ dne s mantinely: vzdálenost, čas, tepové pásmo, tempo, minuty v Z4+ a maximum stoupání i klesání. Dlaždicemi přepnete na jiný typ a limity se přepočítají, nedoporučený typ má vysvětlení proč. Dál je tu dnešní kapacita po kanálech, týdenní cyklus, kalendář závodů a jiný sport (kolo, plavání a posilování)."},
   {"id": "tab-post", "title": "Záložka Deník", "app": "post",
    "text": "Deník obsahuje běhy čekající na krátký zápis (jak se běželo, jak se cítily nohy, jestli něco bolelo a náročnost od 1 do 10), poslední zápisy, souhrn pocitů za 21 dní, mapu míst, která nejčastěji bolí, historii check-inů a zapsání jiného sportu bez hodinek."},
   {"id": "tab-mechanics", "title": "Záložka Pohyb", "app": "mechanics",
@@ -28,7 +28,7 @@
   {"id": "run-rating", "title": "Hodnocení běhu", "app": "post",
    "text": "Po běhu v Deníku ohodnotíte pocit, nohy, případnou bolest a náročnost od 1 do 10. Náročnost krát délka je vnitřní zátěž a běh s náročností 7 a víc, který netrvá déle než 75 minut, se počítá jako tvrdý trénink."},
   {"id": "cross", "title": "Jiný sport", "app": "training",
-   "text": "Kolo, plavání nebo běh ve vodě a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Cíl je posilovat dvakrát týdně, před cílovým závodem jednou. Po posilování nohou je 24 až 48 hodin nižší strop intenzity."},
+   "text": "Kolo, plavání a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Cíl je posilovat dvakrát týdně, před cílovým závodem jednou. Po posilování nohou je 24 až 48 hodin nižší strop intenzity."},
   {"id": "assistant", "title": "Physio AI Assistant", "app": "today",
    "text": "Asistent odpovídá na otázky o vašich datech, dnešním tréninku, plánování, zátěži, bolesti a pohybu a o tom, kde co v aplikaci najdete. Vychází z vašich dat a z ověřené odborné literatury a u výzkumu uvádí zdroje. Nediagnostikuje, nedoporučuje léky, nemění doporučení aplikace a nenahrazuje fyzioterapeuta. Konverzace vidíte 7 dní a kdykoli je můžete smazat."}
  ]

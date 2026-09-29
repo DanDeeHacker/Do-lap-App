@@ -541,6 +541,21 @@ class Exercise(Base):
     target_count = Column(Integer, default=12)
 
 
+class SelfProgram(Base):
+    """railway#116 — an exercise program the runner started on their own: a ready-made one
+    from app/programs_library.py (`template`) or their own pick of exercises ("custom").
+    `exercises` = [exercise id], `log` = {YYYY-MM-DD: [exercise id done that day]}."""
+    __tablename__ = "self_programs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    template = Column(String)
+    name = Column(String)
+    exercises = Column(JSON, default=list)
+    log = Column(JSON, default=dict)
+    started_on = Column(String)
+    active = Column(Boolean, default=True)
+
+
 class ProgramRevision(Base):
     __tablename__ = "program_revisions"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -642,6 +657,8 @@ class Race(Base):
     distance_km = Column(Float)
     priority = Column(String, default="B")          # A | B | C
     created_at = Column(String)
+    ascent_m = Column(Float)                        # railway#123 — course elevation gain
+    target_pace_s_km = Column(Integer)              # planned pace, seconds per km
 
 
 class CoachText(Base):

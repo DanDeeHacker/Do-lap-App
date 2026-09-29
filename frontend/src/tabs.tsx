@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useMemo, useState } from "react"
-import { CoachTextCard } from "@/assistant"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { useQuadHistory } from "@/history"
@@ -11,6 +10,7 @@ import { clamp, cz, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, PHASE, p
 import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/components/MuscleAnatomy"
 import { CAP_SIGNAL_IDS, CapacityPanel } from "@/capacity"
 import { C, goodCol } from "@/tokens"
+import { SelfPrograms } from "@/selfprograms"
 
 const surf = (s?: string) => ({ road: "silnice", trail: "terén", treadmill: "pás", track: "dráha" } as any)[s || ""] || s || "—"
 const dayAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10)
@@ -174,7 +174,6 @@ export function Post() {
       {crossOpen && <CrossSheet rid={rid} onClose={() => setCrossOpen(false)} onDone={() => { setCrossOpen(false); refresh() }} />}
       <div className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
         <div className="grid content-start gap-4">
-          <CoachTextCard kind="weekly_summary" title="Shrnutí týdne" question="Co si mám z tohoto týdne odnést do plánu na další týden?" />
           <Card>
             <Label>Čeká na zápis</Label>
             {unrated.length ? (
@@ -1593,6 +1592,111 @@ function SleepQuality({ s }: { s: any }) {
         {s.restNow == null ? "Fáze spánku se načtou při další synchronizaci s Garminem. " : ""}
         {restLow || effLow ? "Méně kvalitní spánek než obvykle snižuje dnešní připravenost." : "Průměr 7 nocí proti vaší normě za 8 týdnů."}
       </p>
+      {(s.history || []).length >= 7 && <SleepHistory h={s.history} />}
+    </div>
+  )
+}
+
+// railway#114 — two months of nights: total sleep in hours, deep and REM sleep in minutes
+// (two panels, never two y-scales on one). Thin lines are single nights, the solid ones
+// their 7-night mean; hover or touch shows the night.
+const roll7 = (vals: (number | null)[]) => vals.map((_, i) => {
+  const w = vals.slice(Math.max(0, i - 6), i + 1).filter((v) => v != null) as number[]
+  return w.length >= 3 ? w.reduce((a, b) => a + b, 0) / w.length : null
+})
+function SleepHistory({ h }: { h: any[] }) {
+  const [act, setAct] = useState<number | null>(null)
+  const n = h.length
+  const W = 320, L = 26, R = 40, PH = 58, GAP = 22, T = 6
+  const X = (i: number) => L + (i / Math.max(1, n - 1)) * (W - L - R)
+  const total = h.map((x) => x.sleep ?? null) as (number | null)[]
+  const deep = h.map((x) => x.deep ?? null) as (number | null)[]
+  const rem = h.map((x) => x.rem ?? null) as (number | null)[]
+  const tR = roll7(total), dR = roll7(deep), rR = roll7(rem)
+  const hasStages = deep.some((v) => v != null) || rem.some((v) => v != null)
+  const rng = (arrs: (number | null)[][], pad: number) => {
+    const v = arrs.flat().filter((x) => x != null) as number[]
+    const lo = Math.max(0, Math.floor(Math.min(...v) - pad)), hi = Math.ceil(Math.max(...v) + pad)
+    return [lo, hi === lo ? lo + 1 : hi] as const
+  }
+  const [t0, t1] = rng([total], 0.5)
+  const [s0, s1] = hasStages ? rng([deep, rem], 10) : [0, 1]
+  const y1 = (v: number) => T + PH - ((v - t0) / (t1 - t0)) * PH
+  const y2 = (v: number) => T + PH + GAP + PH - ((v - s0) / (s1 - s0)) * PH
+  const path = (vals: (number | null)[], y: (v: number) => number) => {
+    let d = "", pen = false
+    vals.forEach((v, i) => { if (v == null) { pen = false; return } d += `${pen ? "L" : "M"}${X(i).toFixed(1)} ${y(v).toFixed(1)}`; pen = true })
+    return d
+  }
+  const last = (vals: (number | null)[]) => { for (let i = vals.length - 1; i >= 0; i--) if (vals[i] != null) return [i, vals[i] as number] as const; return null }
+  const Hh = T + PH * 2 + GAP + 16
+  const fmtDay = (d: string) => { const [, m, dd] = d.split("-"); return `${+dd}. ${+m}.` }
+  const onMove = (e: React.PointerEvent<SVGRectElement>) => {
+    const r = (e.currentTarget as SVGRectElement).getBoundingClientRect()
+    const px = ((e.clientX - r.left) / r.width) * (W - L - R)
+    setAct(Math.max(0, Math.min(n - 1, Math.round((px / (W - L - R)) * (n - 1)))))
+  }
+  const endLabel = (vals: (number | null)[], y: (v: number) => number, txt: (v: number) => string, dy = 0) => {
+    const l = last(vals)
+    return l && <text x={W - R + 4} y={y(l[1]) + 3 + dy} fontSize="8.5" fill={C.fg2} className="tabular-nums">{txt(l[1])}</text>
+  }
+  const a = act != null ? h[act] : null
+  return (
+    <div className="mt-4 border-t border-white/[.07] pt-3" data-testid="sleep-history">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="t-label !text-fg-3">Spánek za 2 měsíce</p>
+        <span className="flex items-center gap-3 text-[11px] text-fg-2">
+          <span className="flex items-center gap-1"><i className="h-0.5 w-3 rounded-full" style={{ background: C.self }} />celkem</span>
+          {hasStages && <span className="flex items-center gap-1"><i className="h-0.5 w-3 rounded-full" style={{ background: C.info }} />hluboký</span>}
+          {hasStages && <span className="flex items-center gap-1"><i className="h-0.5 w-3 rounded-full" style={{ background: C.accent }} />REM</span>}
+        </span>
+      </div>
+      <div className="relative mt-1.5">
+        <svg viewBox={`0 0 ${W} ${Hh}`} className="block w-full" role="img" aria-label="Vývoj celkového, hlubokého a REM spánku za posledních 60 dní">
+          {/* panel 1 · total sleep (h) */}
+          <text x={2} y={T + 7} fontSize="8" fill={C.fg3}>{t1} h</text>
+          <text x={2} y={T + PH} fontSize="8" fill={C.fg3}>{t0} h</text>
+          <line x1={L} x2={W - R} y1={T + PH} y2={T + PH} stroke="rgb(255 255 255 / .08)" />
+          <path d={path(total, y1)} fill="none" stroke={C.self} strokeOpacity=".35" strokeWidth="1" />
+          <path d={path(tR, y1)} fill="none" stroke={C.self} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+          {endLabel(tR, y1, (v) => `${cz(Math.round(v * 10) / 10)} h`)}
+          {hasStages && (
+            <>
+              {/* panel 2 · deep and REM (min) */}
+              <text x={2} y={T + PH + GAP + 7} fontSize="8" fill={C.fg3}>{s1}</text>
+              <text x={2} y={T + PH * 2 + GAP} fontSize="8" fill={C.fg3}>{s0} min</text>
+              <line x1={L} x2={W - R} y1={T + PH * 2 + GAP} y2={T + PH * 2 + GAP} stroke="rgb(255 255 255 / .08)" />
+              <path d={path(deep, y2)} fill="none" stroke={C.info} strokeOpacity=".3" strokeWidth="1" />
+              <path d={path(rem, y2)} fill="none" stroke={C.accent} strokeOpacity=".3" strokeWidth="1" />
+              <path d={path(dR, y2)} fill="none" stroke={C.info} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+              <path d={path(rR, y2)} fill="none" stroke={C.accent} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+              {(() => {
+                const ld = last(dR), lr = last(rR)
+                const clash = ld && lr && Math.abs(y2(ld[1]) - y2(lr[1])) < 9
+                const up = ld && lr && ld[1] > lr[1]
+                return <>
+                  {endLabel(dR, y2, (v) => `hl. ${Math.round(v)}`, clash ? (up ? -4 : 4) : 0)}
+                  {endLabel(rR, y2, (v) => `REM ${Math.round(v)}`, clash ? (up ? 4 : -4) : 0)}
+                </>
+              })()}
+            </>
+          )}
+          {/* x axis */}
+          {[0, Math.floor((n - 1) / 2), n - 1].map((i, k) => (
+            <text key={k} x={X(i)} y={Hh - 3} fontSize="8" fill={C.fg3} textAnchor={k === 0 ? "start" : k === 2 ? "end" : "middle"}>{fmtDay(h[i].d)}</text>
+          ))}
+          {act != null && <line x1={X(act)} x2={X(act)} y1={T} y2={T + PH * 2 + GAP} stroke={C.fg} strokeOpacity=".35" />}
+          <rect x={L} y={0} width={W - L - R} height={Hh - 12} fill="transparent" style={{ touchAction: "pan-y" }}
+            onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setAct(null)} />
+        </svg>
+        {a && (
+          <div className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-[10px] border border-white/14 bg-raised px-2 py-1 text-[11px] font-semibold tabular-nums text-fg shadow-lg"
+            style={{ left: `${(X(act!) / W) * 100}%` }}>
+            {fmtDay(a.d)} · {a.sleep != null ? `${cz(a.sleep)} h` : "—"}{a.deep != null ? ` · hluboký ${a.deep} min` : ""}{a.rem != null ? ` · REM ${a.rem} min` : ""}
+          </div>
+        )}
+      </div>
+      <p className="mt-1 text-[11px] text-fg-3">tenká čára jednotlivé noci · plná průměr 7 nocí</p>
     </div>
   )
 }
@@ -1861,11 +1965,12 @@ export function Program() {
   const p = boot?.program
   const nav = () => (location.hash = "")
   const toast = useToast()
+  // railway#116 — without a physio's program the ready-made and own programs take its place
   if (!p)
     return (
       <>
-        <Head kicker="Program" title="Zatím vám nikdo program neposlal" sub="Program vzniká na straně fyzioterapeuta poté, co převezme váš případ. Objeví se tady i s pokyny u jednotlivých cviků." />
-        <Card><UiEmpty icon={Dumbbell}>Žádný aktivní program.</UiEmpty></Card>
+        <Head kicker="Program" title="Zatím vám nikdo program neposlal" />
+        <SelfPrograms />
       </>
     )
   const ex = (p.exercises || []) as any[]
@@ -1900,6 +2005,7 @@ export function Program() {
           )}
         </div>
       </div>
+      <SelfPrograms />
     </>
   )
 }

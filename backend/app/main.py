@@ -22,7 +22,7 @@ from .db import Base, SessionLocal, engine
 from .metrics import engine as E
 from .routers import (
     ai, annotations, auth, booking, coach, conclusions, employers, integrations, partners, physios, programs, rtr,
-    runners, simulate, triage, assistant,
+    runners, self_programs, simulate, triage, assistant,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -98,6 +98,8 @@ def _migrate(engine):
     add("checkins", "sleep_quality", "sleep_quality INTEGER")
     add("checkins", "flags", "flags JSON")
     add("settings", "rail_cards", "rail_cards JSON")
+    add("races", "ascent_m", "ascent_m FLOAT")
+    add("races", "target_pace_s_km", "target_pace_s_km INTEGER")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.
@@ -391,6 +393,7 @@ app.include_router(simulate.router)
 app.include_router(annotations.router)
 app.include_router(coach.router)
 app.include_router(assistant.router)
+app.include_router(self_programs.router)
 
 
 @app.get("/api/health")

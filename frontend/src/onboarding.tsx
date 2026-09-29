@@ -218,7 +218,7 @@ export const TOUR: TourStep[] = [
     body: "Kalendář závodů s prioritou A, B nebo C. V ukázce je kontrolní půlmaraton a cílový maraton.",
     value: "Před závodem s prioritou A se trénink sám zklidní, abyste na start přišli odpočatí." },
   { route: "/app/training", tab: "Trénink", target: { sel: '[data-tour="training-cross"]' }, title: "Jiný sport",
-    body: "Kolo, plavání nebo běh ve vodě a posilování, každý s délkou a tepovým pásmem nebo cílovou náročností. Když je běžecký objem vyčerpaný, doporučí kolo. Tréninky bez hodinek zapíšete v Deníku.",
+    body: "Kolo, plavání a posilování, každý s délkou a tepovým pásmem nebo cílovou náročností. Když je běžecký objem vyčerpaný, doporučí kolo. Tréninky bez hodinek zapíšete v Deníku.",
     value: "Aerobní trénink pokračuje i ve dnech, kdy nohy potřebují pauzu od nárazů, a posilování, které zlepšuje běžeckou ekonomiku, má v týdnu své místo." },
 
   { route: "/app/post", tab: "Deník", target: { text: "Čeká na zápis" }, title: "Běhy k ohodnocení",
@@ -270,7 +270,7 @@ export const TOUR: TourStep[] = [
     value: "Po špatné noci unesete méně. Došlap podle toho ráno sníží dnešní stropy." },
 
   { route: "/app/messages", tab: "Péče", care: "physio", target: { sel: '[data-tour="care-tabs"]' }, title: "Tři části péče",
-    body: "Fyzioterapeut pro zprávy a schůzky, Program s cviky na míru a Zdraví pro nahlášení obtíží a závěry z prohlídek.",
+    body: "Fyzioterapeut pro zprávy a schůzky, Program s cviky na míru a Zranění pro nahlášení obtíží a závěry z prohlídek.",
     value: "Všechno kolem péče o tělo je na jednom místě a navazuje na vaše data." },
   { route: "/app/messages", tab: "Péče", care: "physio", target: { sel: '[data-tour="care-chat"]' }, title: "Zprávy fyzioterapeutovi",
     body: "Chat s fyzioterapeutem přímo v aplikaci. V ukázce fyzioterapeut podle dat upravil program ještě před další kontrolou. Vaše data uvidí až poté, co potvrdíte zájem a on převezme váš případ.",

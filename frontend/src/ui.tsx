@@ -2,7 +2,7 @@
 // Every colour comes from the design tokens (index.css @theme / tokens.ts).
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
-import { ChevronDown, CircleMinus, Info, LoaderCircle, TriangleAlert, type LucideIcon } from "lucide-react"
+import { ChevronDown, CircleMinus, Info, LoaderCircle, TriangleAlert, X, type LucideIcon } from "lucide-react"
 import { C } from "@/tokens"
 import { fmtImpact } from "@/lib"
 
@@ -583,8 +583,33 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   )
 }
 
-export function Sheet({ open, onClose, children, footer, layer = "z-[80]" }: { open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode; layer?: string }) {
-  if (!open) return null
+export function Sheet(props: { open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode; layer?: string }) {
+  if (!props.open) return null
+  return <SheetBody {...props} />
+}
+// railway#115 — the sheet follows a finger pulled down from its handle, or from the
+// content once that is scrolled to the top, and closes past ~110 px or on a quick flick.
+function SheetBody({ onClose, children, footer, layer = "z-[80]" }: { open: boolean; onClose: () => void; children: ReactNode; footer?: ReactNode; layer?: string }) {
+  const [drag, setDrag] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const start = useRef<{ y: number; t: number } | null>(null)
+  const scroller = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onClose])
+  const begin = (y: number) => { start.current = { y, t: performance.now() }; setDragging(true) }
+  const move = (y: number) => { if (start.current) setDrag(Math.max(0, y - start.current.y)) }
+  const end = (y: number | null) => {
+    if (!start.current) return
+    const dy = y == null ? 0 : Math.max(0, y - start.current.y)
+    const v = dy / Math.max(1, performance.now() - start.current.t)
+    start.current = null
+    setDragging(false)
+    if (dy > 110 || (dy > 30 && v > 0.6)) onClose()
+    else setDrag(0)
+  }
   // Portalled to <body>: inside <main> (isolation: isolate) the sheet sat under the
   // fixed tab bar and Check-in button, which covered its footer on phones.
   return createPortal(
@@ -593,12 +618,25 @@ export function Sheet({ open, onClose, children, footer, layer = "z-[80]" }: { o
       onClick={onClose}
     >
       <div
+        role="dialog" aria-modal="true"
         className="flex max-h-[93dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[26px] border border-white/12 bg-raised text-fg shadow-[0_-12px_48px_rgba(0,0,0,.55)] animate-[sheetUp_.28s_cubic-bezier(.22,1,.36,1)] md:max-h-[88dvh] md:rounded-[26px] md:animate-[fadeIn_.2s_ease-out]"
+        style={{ transform: drag ? `translateY(${drag}px)` : undefined, transition: dragging ? "none" : "transform .22s cubic-bezier(.2,.8,.2,1)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* grab handle (phone) */}
-        <span className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-white/25 md:hidden" aria-hidden="true" />
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-3 md:px-6 md:pt-4" style={{ overscrollBehavior: "contain" }}>
+        {/* grab handle + close */}
+        <div className="relative flex h-8 shrink-0 cursor-grab touch-none select-none items-center justify-center active:cursor-grabbing" data-testid="sheet-handle"
+          onPointerDown={(e) => { begin(e.clientY); (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId) }}
+          onPointerMove={(e) => move(e.clientY)}
+          onPointerUp={(e) => end(e.clientY)}
+          onPointerCancel={() => end(null)}>
+          <span className="h-1 w-10 rounded-full bg-white/25" aria-hidden="true" />
+          <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={onClose} aria-label="Zavřít"
+            className="absolute right-3 top-2 grid size-8 place-items-center rounded-full text-fg-3 transition hover:bg-white/[.06] hover:text-fg"><X className="size-4" aria-hidden /></button>
+        </div>
+        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-5 pt-1 md:px-6 md:pt-2" style={{ overscrollBehavior: "contain" }}
+          onTouchStart={(e) => { if ((scroller.current?.scrollTop ?? 0) <= 0) begin(e.touches[0].clientY) }}
+          onTouchMove={(e) => { if (start.current && (scroller.current?.scrollTop ?? 0) <= 0) move(e.touches[0].clientY); else if (start.current) { start.current = null; setDragging(false); setDrag(0) } }}
+          onTouchEnd={(e) => end(e.changedTouches[0]?.clientY ?? null)}>
           {children}
           {!footer && <div className="h-[max(1.25rem,env(safe-area-inset-bottom))]" />}
         </div>

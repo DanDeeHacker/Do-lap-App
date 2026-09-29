@@ -142,6 +142,18 @@ class RaceRequest(Lenient):
     name: Optional[str] = None
     distance_km: Optional[float] = None
     priority: str = "B"                 # A | B | C
+    ascent_m: Optional[float] = None    # railway#123
+    target_pace_s_km: Optional[int] = None
+
+
+class RaceUpdateRequest(Lenient):
+    """railway#123 — edit a race from its detail; only the fields sent change."""
+    date: Optional[str] = None
+    name: Optional[str] = None
+    distance_km: Optional[float] = None
+    priority: Optional[str] = None
+    ascent_m: Optional[float] = None
+    target_pace_s_km: Optional[int] = None
 
 
 class CycleWeekRequest(Lenient):

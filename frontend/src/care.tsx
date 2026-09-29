@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { AlertBanner, Button, Card, Chip, Field, Label, ListRow, Segmented, Sheet, Slider, useAsync, useToast } from "@/ui"
@@ -19,7 +20,7 @@ const DOW = [["0", "Po"], ["1", "Út"], ["2", "St"], ["3", "Čt"], ["4", "Pá"]]
 const DAYPART = [["morning", "Ráno"], ["afternoon", "Odpoledne"], ["evening", "Večer"]]
 
 // Péče = a hub with sub-tabs. Fyzioterapeut (chat + booking), Program (moved
-// in from its own top tab), and Zdraví (OSTRC report / return-to-run / závěr).
+// in from its own top tab), and Zranění (OSTRC report / return-to-run / závěr, railway#128).
 export function Care() {
   const { me, boot, refresh } = useApp()
   const rid = me!.runner_id!
@@ -28,8 +29,22 @@ export function Care() {
   const [findOpen, setFindOpen] = useState(false)
   const [injOpen, setInjOpen] = useState(false)
   const [rtrOpen, setRtrOpen] = useState(false)
+  const [healedOpen, setHealedOpen] = useState(false)
+  // railway#117 — Trénink links here (?sub=health&healed=1) to confirm a healed injury
+  const [params, setParams] = useSearchParams()
+  const [wantHealed, setWantHealed] = useState(() => params.get("healed") === "1")
+  useEffect(() => {
+    const s = params.get("sub")
+    if (s === "health" || s === "program" || s === "physio") setSub(s)
+    if (s || params.get("healed")) setParams({}, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  // the assessment may still be loading when the link lands here
+  useEffect(() => {
+    if (wantHealed && boot?.assessment?.injury?.active) { setHealedOpen(true); setWantHealed(false) }
+  }, [wantHealed, boot])
 
-  const subtabs: [typeof sub, string][] = [["physio", "Fyzioterapeut"], ["program", "Program"], ["health", "Zdraví"]]
+  const subtabs: [typeof sub, string][] = [["physio", "Fyzioterapeut"], ["program", "Program"], ["health", "Zranění"]]
   // the getting-started tour switches sub-tabs to show the program and the visit summary
   useEffect(() => {
     const on = (e: Event) => setSub((e as CustomEvent).detail)
@@ -42,6 +57,7 @@ export function Care() {
       {findOpen && <FindSlotSheet onClose={() => setFindOpen(false)} onDone={() => { setFindOpen(false); refresh() }} />}
       {injOpen && <InjurySheet rid={rid} onClose={() => setInjOpen(false)} onDone={() => { setInjOpen(false); refresh() }} />}
       {rtrOpen && rtr && <RtrSheet plan={rtr} onClose={() => setRtrOpen(false)} onDone={() => { setRtrOpen(false); refresh() }} />}
+      {healedOpen && <HealedSheet rid={rid} site={boot?.assessment?.injury?.active?.site} onClose={() => setHealedOpen(false)} onDone={() => { refresh() }} onPhysio={() => { setHealedOpen(false); setSub("physio") }} />}
 
       <div className="mb-6" data-tour="care-tabs">
         <Label>Péče</Label>
@@ -50,7 +66,7 @@ export function Care() {
 
       {sub === "physio" && <PhysioSection onFind={() => setFindOpen(true)} />}
       {sub === "program" && <Program />}
-      {sub === "health" && <HealthSection onReport={() => setInjOpen(true)} onRtr={() => setRtrOpen(true)} />}
+      {sub === "health" && <HealthSection onReport={() => setInjOpen(true)} onRtr={() => setRtrOpen(true)} onHealed={() => setHealedOpen(true)} />}
     </>
   )
 }
@@ -72,10 +88,9 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
 
   return (
     <>
-      <Head kicker="Fyzioterapeut" title={r?.physio_interest ? "Domluvte se a napište si" : "Spojte se s fyzioterapeutem"} sub="Napište přímo tomu, kdo vede vaši péči, a naplánujte si schůzku ve chvíli, kdy potřebujete." />
-      <div className="grid gap-4 lg:grid-cols-[1.25fr_.75fr]">
-        <div data-tour="care-chat"><PhysioChat /></div>
-        <Card className="self-start">
+      {/* railway#124–#126 — no heading text; the appointment sits above the chat */}
+      <div className="grid gap-4">
+        <Card>
           <Label>Schůzka</Label>
           {reminders.map((rm) => (
             <AlertBanner key={rm.booking_id} tone="alert" icon={CalendarClock} className="mt-3"
@@ -114,6 +129,7 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
             </>
           )}
         </Card>
+        <div data-tour="care-chat"><PhysioChat /></div>
       </div>
     </>
   )
@@ -152,7 +168,7 @@ function PhysioChat() {
   )
 }
 
-function HealthSection({ onReport, onRtr }: { onReport: () => void; onRtr: () => void }) {
+function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; onRtr: () => void; onHealed: () => void }) {
   const { me, boot, refresh } = useApp()
   const rid = me!.runner_id!
   const a = boot?.assessment
@@ -162,13 +178,13 @@ function HealthSection({ onReport, onRtr }: { onReport: () => void; onRtr: () =>
 
   return (
     <>
-      <Head kicker="Zdraví" title="Obtíže a návrat k běhu" sub="Nahlášené obtíže kalibrují odhad rizika i práci vašeho fyzioterapeuta. Tady je nahlásíte a sledujete návrat zpět." />
+      <Head kicker="Zranění" title="Obtíže a návrat k běhu" sub="Nahlášené obtíže kalibrují odhad rizika i práci vašeho fyzioterapeuta. Tady je nahlásíte a sledujete návrat zpět." />
       <div className="grid gap-4 lg:grid-cols-2">
         {injActive ? (
           <Card>
             <Label>Nahlášené zranění</Label>
             <AlertBanner tone="alert" className="mt-2" title={<>{injActive.site} · OSTRC {injActive.severity}/100</>}
-              action={<Button size="sm" variant="outline" onClick={async () => { await api.reportInjury(rid, { resolve: true }); refresh() }}>Označit jako zahojené</Button>}>
+              action={<Button size="sm" variant="outline" onClick={onHealed} data-testid="healed-open">Označit jako zahojené</Button>}>
               Pak následují 3 týdny postupného návratu (50 → 75 → 90 % týdne před zraněním), první 2 týdny bez intenzity.
             </AlertBanner>
             <button onClick={onReport} className="mt-3 text-[12px] font-bold text-fg-3 underline underline-offset-2 hover:text-fg-2">Nahlásit další obtíže</button>
@@ -309,6 +325,67 @@ function RtrSheet({ plan, onClose, onDone }: { plan: any; onClose: () => void; o
       <Field label="Vnímaná námaha (RPE)"><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>
       {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
       <button disabled={busy} onClick={() => run(async () => { const p = await api.logRtrSession(plan.id, { pain, rpe, completed }); toast({ title: p.status === "completed" ? "Návrat k běhu dokončen! 🎉" : `Úroveň ${p.current_level}/${p.level_count}` }); onDone() })} className="btn btn-primary mt-5 w-full py-3 text-sm">Uložit sezení</button>
+    </Sheet>
+  )
+}
+
+// railway#117 — before an injury is marked healed: a short self-check that the spot is
+// pain-free in everyday load and under a little impact, then a gradual return. These are
+// criteria used in return-to-running practice, not an examination; bone pain follows the
+// complete absence of pain (Warden et al., 2014). The 50 → 75 → 90 % weeks are the
+// engine's return mode (working assumption of the product team).
+const HEAL_CHECKS: [string, string][] = [
+  ["rest", "V klidu ani při chůzi to místo nebolí."],
+  ["daily", "Schody a chůzi kolem 30 minut zvládám bez bolesti."],
+  ["hop", "10 poskoků na místě na zraněné noze nebolí a nic nepovoluje."],
+  ["morning", "Ráno po běžném dni to místo není ztuhlé ani citlivé."],
+]
+function HealedSheet({ rid, site, onClose, onDone, onPhysio }: { rid: string; site?: string; onClose: () => void; onDone: () => void; onPhysio: () => void }) {
+  const [ok, setOk] = useState<Record<string, boolean>>({})
+  const [done, setDone] = useState(false)
+  const { busy, err, run } = useAsync()
+  const all = HEAL_CHECKS.every(([k]) => ok[k])
+  const any = HEAL_CHECKS.some(([k]) => ok[k])
+  return (
+    <Sheet open onClose={onClose}>
+      <div data-testid="healed-sheet">
+        {!done ? (
+          <>
+            <h2 className="font-serif text-[24px] leading-tight">Je zranění zahojené?</h2>
+            <p className="mt-1 text-[13px] leading-5 text-fg-2">{site ? <><b className="text-fg">{site}</b> · </> : null}Než se vrátíte k běhu, ověřte, že místo zvládá běžnou zátěž i trochu nárazů bez bolesti.</p>
+            <ul className="mt-4 grid gap-2">
+              {HEAL_CHECKS.map(([k, label]) => (
+                <li key={k}>
+                  <label className={`flex cursor-pointer items-start gap-3 rounded-[14px] border px-3 py-2.5 text-[14px] leading-5 transition ${ok[k] ? "border-ok/50 bg-ok/10 text-fg" : "border-white/10 text-fg-soft hover:border-white/20"}`}>
+                    <input type="checkbox" checked={!!ok[k]} onChange={(e) => setOk({ ...ok, [k]: e.target.checked })} className="mt-0.5 size-4 accent-accent" />
+                    {label}
+                  </label>
+                </li>
+              ))}
+            </ul>
+            {any && !all && (
+              <p className="mt-3 rounded-[12px] bg-watch/10 px-3 py-2 text-[13px] leading-5 text-watch">Když něco z toho bolí, místo ještě nemá plnou toleranci zátěže. Pokračujte v odlehčení a jiném sportu bez bolesti, případně se poraďte s fyzioterapeutem.</p>
+            )}
+            {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
+            <button disabled={busy || !all} data-testid="healed-confirm" onClick={() => run(async () => {
+              await api.reportInjury(rid, { resolve: true, q_participation: 0, q_volume: 0, q_performance: 0, q_pain: 0 })
+              setDone(true); onDone()
+            })} className="btn btn-primary mt-4 w-full py-3 text-sm disabled:opacity-50">Potvrdit, že je zahojené</button>
+            <button onClick={onPhysio} className="mt-2 w-full text-center text-[12px] font-bold text-fg-3 underline underline-offset-2 hover:text-fg-2">Chci to probrat s fyzioterapeutem</button>
+            <p className="mt-3 text-[11px] leading-4 text-fg-3">Jde o sebehodnocení podle kritérií, která se při návratu k běhu běžně používají, ne o vyšetření. U bolesti kosti se návrat řídí úplnou absencí bolesti (Warden et al., 2014).</p>
+          </>
+        ) : (
+          <>
+            <h2 className="font-serif text-[24px] leading-tight">Zahojeno, vracíme se postupně</h2>
+            <ul className="mt-3 grid gap-2 text-[14px] leading-5 text-fg-soft">
+              <li className="nest px-3 py-2.5">Další 3 týdny hlídá Trénink objem: <b className="text-fg">50 → 75 → 90 %</b> průměrného týdne před zraněním.</li>
+              <li className="nest px-3 py-2.5">První 2 týdny <b className="text-fg">bez intenzity</b>, jen lehké běhy. Začít můžete kratšími úseky běhu střídanými s chůzí.</li>
+              <li className="nest px-3 py-2.5">Když se bolest vrátí nebo je druhý den ráno horší, uberte a nahlaste ji v check-inu. Plán se přizpůsobí.</li>
+            </ul>
+            <button onClick={onClose} className="btn btn-primary mt-4 w-full py-3 text-sm">Rozumím</button>
+          </>
+        )}
+      </div>
     </Sheet>
   )
 }
