@@ -79,7 +79,12 @@ def _plural(n: int, one: str, few: str, many: str) -> str:
 
 def _referral_sentence(f: dict) -> str | None:
     r = f.get("referral") or {}
-    return f"Aplikace doporučuje fyzioterapeuta: {r.get('text', '').lower()}." if r.get("physio") else None
+    if r.get("physio"):
+        return f"Aplikace doporučuje fyzioterapeuta: {r.get('text', '').lower()}."
+    if r.get("code") == "app_program":     # v0.9.0: e.g. movement-only drift — watched in the app, no referral
+        return ("Zatím bez fyzioterapeuta: aplikace změnu dál sleduje a za 7 dní ji znovu vyhodnotí; "
+                "dřív jen tehdy, když se přidají bolest nebo jiné obtíže.")
+    return None
 
 
 def fallback_daily_summary(f: dict) -> str:

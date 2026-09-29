@@ -619,13 +619,16 @@ const _SURF: any = { road: "silnice", trail: "terén", treadmill: "pás", track:
 const _GRADE: any = { up: "stoupání", flat: "rovina", down: "klesání", rolling: "kopcovitě" }
 const _PACE: any = { fast: "rychle", mod: "středně", easy: "volně" }
 // Mirror of engine.bucket(): surface | slope | pace — must match so profiles
-// line up with the backend's terrain-aware baselines.
-function bucketKey(a: any): string {
+// line up with the backend's terrain-aware baselines. v0.9.0: the pace classes are
+// the runner's own tertiles when the engine has them (confidence.paceCuts), so a
+// runner whose every run is "slow" by the fixed 4:30 / 5:30 cuts still gets three.
+const PACE_CUTS_FIXED: [number, number] = [270, 330]
+function bucketKey(a: any, cuts: [number, number] = PACE_CUTS_FIXED): string {
   const km = Math.max(a.distance_km || 0, 1)
   const asc = (a.ascent_m || 0) / km, desc = (a.descent_m || 0) / km
   const g = desc - asc > 12 ? "down" : asc - desc > 12 ? "up" : asc + desc >= 30 ? "rolling" : "flat"
   const p = ((a.duration_min || 0) / km) * 60
-  const pb = p < 270 ? "fast" : p < 330 ? "mod" : "easy"
+  const pb = p < cuts[0] ? "fast" : p < cuts[1] ? "mod" : "easy"
   return `${a.surface}|${g}|${pb}`
 }
 const bucketParts = (b: string) => { const [s, g, p] = b.split("|"); return { surf: _SURF[s] || s, grade: _GRADE[g] || g, pace: _PACE[p] || p } }
@@ -634,12 +637,12 @@ type Cell = { now: number | null; avg6: number; z: number | null; base: number |
 const TERRAIN_DAYS = 182   // the terrain comparison looks 6 months back, so every profile has runs to show
 // Per terrain profile × per metric: recent mean and its drift-z against the
 // same profile's baseline — same windows/logic as engine._drift_z_core.
-function terrainCompare(acts: any[]) {
+function terrainCompare(acts: any[], cuts?: [number, number]) {
   const since = dayAgo(TERRAIN_DAYS), rec = dayAgo(28)
   const byB: Record<string, any[]> = {}
   for (const a of acts) {
     if (!a.started_at || a.started_at <= since || (a.sport && a.sport !== "running")) continue
-    ;(byB[bucketKey(a)] ||= []).push(a)
+    ;(byB[bucketKey(a, cuts)] ||= []).push(a)
   }
   // every profile run at least twice in 6 months, most runs first
   const keys = Object.keys(byB).filter((b) => byB[b].length >= 2).sort((x, y) => byB[y].length - byB[x].length)
@@ -662,7 +665,10 @@ function terrainCompare(acts: any[]) {
 }
 
 function TerrainMatrix({ acts }: { acts: any[] }) {
-  const { profiles, rows } = useMemo(() => terrainCompare(acts), [acts])
+  const { boot } = useApp()
+  const pc = boot?.assessment?.confidence?.paceCuts
+  const cuts: [number, number] | undefined = Array.isArray(pc) && pc.length === 2 ? [pc[0], pc[1]] : undefined
+  const { profiles, rows } = useMemo(() => terrainCompare(acts, cuts), [acts, cuts?.[0], cuts?.[1]])
   if (!profiles.length) return <Card><Empty>Zatím není dost běhů ve srovnatelných profilech terénu.</Empty></Card>
   const zTone = (z: number | null) => (z == null ? C.fg3 : Math.abs(z) >= 1 ? C.alert : Math.abs(z) >= 0.5 ? C.watch : C.ok)
   const cols = `minmax(104px,1.1fr) repeat(${profiles.length}, minmax(92px,1fr))`

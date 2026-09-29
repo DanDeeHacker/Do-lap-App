@@ -35,7 +35,9 @@ def test_point_ramps_are_continuous_and_non_decreasing(name, f, lo, hi, _):
 
 def test_session_spike_no_longer_drops_past_1_3():
     assert E.pts_session_spike(1.31) > E.pts_session_spike(1.29) > 4.5
-    assert E.pts_session_spike(2.0) == pytest.approx(14) and E.pts_session_spike(3.0) == pytest.approx(30)
+    # v0.9.0: RUNSAFE plateau — a +100 % run scores little more than a +40 % one, past 2× it climbs
+    assert E.pts_session_spike(2.0) == pytest.approx(0.8 * 14) and E.pts_session_spike(3.0) == pytest.approx(0.8 * 34)
+    assert E.pts_session_spike(2.0) - E.pts_session_spike(1.4) < 2
 
 
 def test_taper_fades_in_with_the_load():
@@ -90,8 +92,13 @@ def test_health_events_definition(client, db_session):
     db.add(models.InjuryReport(runner_id=rid, submitted_at=d(5), source="self_adhoc", status="active", severity=17))
     db.add(models.InjuryReport(runner_id=rid, submitted_at=d(2), source="self_weekly", status="none"))
     db.commit()
+    # v0.9.0: the primary outcome doesn't use the pain reports (they are engine inputs)
+    # nor a mild OSTRC limitation — only the ad-hoc injury report counts
     ev = outcomes.health_events(db, rid)
-    assert [(e["date"], e["source"]) for e in ev] == [(d(36)[:10], "pain_repeat"), (d(10)[:10], "ostrc_limit")]
+    assert [(e["date"], e["source"]) for e in ev] == [(d(5)[:10], "self_adhoc")]
+    # the secondary outcome keeps the old proposal
+    ev2 = outcomes.health_events(db, rid, "secondary")
+    assert [(e["date"], e["source"]) for e in ev2] == [(d(36)[:10], "pain_repeat"), (d(10)[:10], "ostrc_limit")]
 
 
 def test_labelled_snapshots_and_owner_overview(client, db_session, monkeypatch):

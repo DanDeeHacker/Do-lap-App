@@ -26,6 +26,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 
 from . import models
+from .metrics import data as D
 from .metrics import engine as E
 
 # ~6 months of daily state, so the quadrant strip shows the long arc.
@@ -37,10 +38,17 @@ QUAD_HISTORY_DAYS = 183
 HISTORY_VERSION = "h7"
 
 
+# v0.9.0 — modules that never change a replayed day (texts, coach, the sandbox, the
+# signal sources, today's guidance): editing them no longer throws away every cached
+# history. A denylist, so a new scoring module is fingerprinted by default.
+NON_SCORING = frozenset({"ai_brief.py", "coach_facts.py", "coach_texts.py", "coach_validate.py", "sig_doc.py",
+                         "signal_sources.py", "sensitivity.py", "validation.py", "geo_sample.py", "guidance.py"})
+
+
 def _code_fingerprint() -> str:
     h = hashlib.blake2b(digest_size=6)
     base = os.path.join(os.path.dirname(os.path.abspath(__file__)), "metrics")
-    paths = sorted(os.path.join(base, f) for f in os.listdir(base) if f.endswith(".py"))
+    paths = sorted(os.path.join(base, f) for f in os.listdir(base) if f.endswith(".py") and f not in NON_SCORING)
     for p in paths + [os.path.abspath(__file__)]:
         with open(p, "rb") as f:
             h.update(os.path.basename(p).encode())
@@ -62,104 +70,66 @@ def _kd(v) -> str:  # date key from an ISO date or datetime string
 
 
 def load_inputs(db: DBSession, rid: str):
-    """Everything the replay feeds into its throwaway DB, read once. Returns None
-    when the runner doesn't exist or has no activities (nothing to replay)."""
-    runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
-    if not runner:
+    """Everything a replay needs, read once as the runner's RunnerData snapshot
+    (metrics/data.py), plus the per-date row streams the incremental cache digests.
+    Returns None when the runner doesn't exist or has no activities."""
+    data = D.load_runner_data(db, rid)
+    if data.runner is None or not data.activities:
         return None
-
-    def rows_of(model):
-        return [{c.name: getattr(r, c.name) for c in model.__table__.columns}
-                for r in db.query(model).filter(model.runner_id == rid).all()]
-
-    acts = rows_of(models.Activity)
-    if not acts:
-        return None
-    # Stored per-run streams (segments) enter on their activity's day. Without them
-    # the replay never saw v2 segment scoring, so a v2 runner's history (and its
-    # "today" point) silently fell back to per-run drift and disagreed with live.
+    acts = [dict(vars(a)) for a in data.activities]
     act_day = {a["id"]: _kd(a["started_at"]) for a in acts}
-    stream_rows = [s for s in rows_of(models.ActivityStream) if s["activity_id"] in act_day]
-    # (name, rows sorted by date, date-key fn, model, keep original id?). Activity
-    # keeps its id so ActivityFeedback.activity_id and ActivityStream.activity_id
-    # still resolve. DeviceHistory feeds the confidence device-change gate;
-    # check-ins/ratings/injuries feed the symptom axis and (in v2) the pain-period
-    # baseline exclusions.
+    # Stored per-run streams (segments) enter on their activity's day, so a v2
+    # runner's history (and its "today" point) sees the segment scoring live does.
+    stream_rows = [dict(vars(s)) for s in data.streams if s.activity_id in act_day]
+
+    def rows(xs):
+        return [dict(vars(x)) for x in xs]
+    # (name, rows sorted by date, date-key fn, keep id?) — the digest of each day's
+    # rows decides from which day an incremental rebuild has to replay.
     streams = [
-        ("act", sorted(acts, key=lambda a: a["started_at"]), lambda a: _kd(a["started_at"]), models.Activity, True),
-        ("str", sorted(stream_rows, key=lambda s: act_day[s["activity_id"]]), lambda s: act_day[s["activity_id"]],
-         models.ActivityStream, True),
-        ("day", sorted(rows_of(models.DailyMetric), key=lambda d: d["date"]), lambda d: _kd(d["date"]), models.DailyMetric, False),
-        ("dev", sorted(rows_of(models.DeviceHistory), key=lambda x: x.get("recorded_at") or ""), lambda x: _kd(x.get("recorded_at")), models.DeviceHistory, False),
-        ("chk", sorted(rows_of(models.Checkin), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), models.Checkin, False),
-        ("fb", sorted(rows_of(models.ActivityFeedback), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), models.ActivityFeedback, False),
-        ("inj", sorted(rows_of(models.InjuryReport), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), models.InjuryReport, False),
+        ("act", sorted(acts, key=lambda a: a["started_at"]), lambda a: _kd(a["started_at"]), True),
+        ("str", sorted(stream_rows, key=lambda s: act_day[s["activity_id"]]), lambda s: act_day[s["activity_id"]], True),
+        ("day", sorted(rows(data.daily), key=lambda d: d["date"]), lambda d: _kd(d["date"]), False),
+        ("dev", sorted(rows(data.devices), key=lambda x: x.get("recorded_at") or ""), lambda x: _kd(x.get("recorded_at")), False),
+        ("chk", sorted(rows(data.checkins), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), False),
+        ("fb", sorted(rows(data.feedback), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), False),
+        ("inj", sorted(rows(data.injuries), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), False),
     ]
     return {
-        "rdata": {c.name: getattr(runner, c.name) for c in models.Runner.__table__.columns},
-        "races": rows_of(models.Race),   # the race calendar is a plan, known from the start
+        "rdata": dict(vars(data.runner)),
+        "races": rows(data.races),   # the race calendar is a plan, known from the start
         "streams": streams,
-        "mode": runner.engine_mode or "v1",
+        "mode": data.runner.engine_mode or "v1",
         "first_act": min(act_day.values()),
+        "data": data,
     }
 
 
 def engine_replay(db: DBSession, rid: str, asofs, mode: str | None = None,
                   prev_q: str | None = None, inputs=None):
-    """Replay assess() as of each date in `asofs` (which MUST be ascending) with
-    the engine 'today' pinned to it. Builds one throwaway in-memory DB and streams
-    rows in as the pinned day advances, far cheaper than rebuilding the DB per
-    date. Replays the runner's objective data AND self-report (check-ins, run
-    ratings, injury reports), so each historical point includes the symptom axis
-    and matches the live state the runner actually saw on that day.
+    """Replay assess() as of each date in `asofs` (ascending) with the engine
+    'today' pinned to it. Each day is assessed on `data.as_of(day)`: the runner's
+    objective data AND self-report (check-ins, run ratings, injury reports) known
+    on that day, so each historical point matches the state the runner saw then.
+    No database is touched after the one read in load_inputs.
 
     `prev_q` seeds the quadrant of the day before the first date (hysteresis),
     which lets an incremental build continue a cached chain exactly."""
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
-    from .db import Base
-
     inp = inputs if inputs is not None else load_inputs(db, rid)
     if inp is None or not asofs:
         return []
-    streams = inp["streams"]
-    ptrs = [0] * len(streams)
+    data = inp["data"]
     mode = mode or inp["mode"]
-
-    eng = create_engine("sqlite://")
-    Base.metadata.create_all(eng)
-    ts = sessionmaker(bind=eng)()
     out = []
-    try:
-        ts.add(models.Runner(**inp["rdata"]))
-        for x in inp["races"]:
-            ts.add(models.Race(**x))
-        ts.commit()
-        for adate in asofs:
-            cut = adate.isoformat()
-            # Pin "today" thread-locally (not a module global) so concurrent
-            # requests in FastAPI's threadpool can't corrupt each other's clock.
-            with E.today_pinned(adate), E.engine_pinned(mode):
-                for i, (_name, rows, keyf, model, keep_id) in enumerate(streams):
-                    p = ptrs[i]
-                    while p < len(rows) and keyf(rows[p]) <= cut:
-                        data = rows[p] if keep_id else {k: v for k, v in rows[p].items() if k != "id"}
-                        ts.add(model(**data))
-                        p += 1
-                    ptrs[i] = p
-                # Seed the prior quadrant so hysteresis carries across the replay.
-                ts.query(models.Assessment).delete()
-                if prev_q:
-                    ts.add(models.Assessment(runner_id=rid, quadrant=prev_q, tier="ok",
-                                             mech=0, load=0, symp=0, overall=0, engine_version=E.ENGINE_VERSION))
-                ts.commit()
-                av = E.assess(ts, rid)
-                av["_cut"] = cut
-                out.append(av)
-                prev_q = av["quadrant"]
-    finally:
-        ts.close()
-        eng.dispose()
+    for adate in asofs:
+        cut = adate.isoformat()
+        # Pin "today" thread-locally (not a module global) so concurrent
+        # requests in FastAPI's threadpool can't corrupt each other's clock.
+        with E.today_pinned(adate), E.engine_pinned(mode):
+            av = E.assess(data.as_of(cut, prev_q), rid)
+        av["_cut"] = cut
+        out.append(av)
+        prev_q = av["quadrant"]
     return out
 
 
@@ -168,7 +138,7 @@ def input_digests(inp) -> tuple[str, dict]:
     what every day sees (profile, races), the per-day part is the rows keyed to
     that date. A row the replay strips of its id is digested without it too."""
     per_day: dict[str, list[str]] = {}
-    for name, rows, keyf, _model, keep_id in inp["streams"]:
+    for name, rows, keyf, keep_id in inp["streams"]:
         for r in rows:
             data = r if keep_id else {k: v for k, v in r.items() if k != "id"}
             per_day.setdefault(keyf(r), []).append(name + ":" + json.dumps(data, sort_keys=True, default=str))
@@ -189,10 +159,10 @@ def _quad_row(av: dict) -> dict:
     """Everything the Dnes overview draws (feedback railway#88), so a past day
     renders the same rings, verdict and drivers as today."""
     pr = av.get("painRecurring")
-    rs = ((av.get("capacity") or {}).get("readiness") or {}).get("score")
+    rs = (av.get("readiness") or (av.get("capacity") or {}).get("readiness") or {}).get("score")
     return {"date": av["_cut"], "quadrant": av["quadrant"], "overall": av["overall"],
             "tier": av["tier"], "mech": av["mech"], "load": av["load"], "symp": av["symp"],
-            "rcv": (av.get("rcv") or {}).get("score"), "readiness": rs,
+            "readiness": rs,
             "painRecurring": {"site": pr.get("site"), "days": pr.get("days")} if pr else None,
             "signals": [{"id": s.get("id"), "name": s["name"], "pts": s["pts"], "grade": s["grade"], "val": s.get("val")}
                         for s in (av.get("signals") or [])[:5]]}

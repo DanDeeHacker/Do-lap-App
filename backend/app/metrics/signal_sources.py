@@ -17,7 +17,7 @@ engine only counts records. `shareNote` tells the popup which split it shows.
 """
 from datetime import timedelta
 
-from .. import models
+from . import data as D
 from . import engine as E
 
 MAX_SOURCES = 8
@@ -73,18 +73,15 @@ def pain_entries(db, rid, days, match=None):
     newest first; `match(point)` keeps only records marking a matching site."""
     cut = E.day_ago(days)
     out = []
-    titles = {}
-    fbs = db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid,
-                                                   models.ActivityFeedback.submitted_at > cut).all()
-    if fbs:
-        ids = {f.activity_id for f in fbs}
-        titles = {a.id: a.title for a in db.query(models.Activity.id, models.Activity.title).filter(models.Activity.id.in_(ids))}
+    data = D.of(db, rid)
+    fbs = [f for f in data.feedback if f.submitted_at > cut]
+    titles = {a.id: a.title for a in data.activities}
 
     def pts(points):
         ps = [p for p in (points or []) if p.get("region")]
         return [p for p in ps if match(p)] if match else ps
 
-    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at > cut):
+    for c in (c for c in data.checkins if c.submitted_at > cut):
         ps = pts(c.pain_points)
         if (match and ps) or (not match and ((c.pain_score or 0) > 0 or ps)):
             where = ", ".join(_region(p) for p in ps) or (c.pain_site or "bez místa")
@@ -95,7 +92,7 @@ def pain_entries(db, rid, days, match=None):
             where = ", ".join(_region(p) for p in ps) or (f.pain_site or "bez místa")
             out.append(_src("rating", f.submitted_at, titles.get(f.activity_id) or "Hodnocení běhu",
                             f"{where} · bolest při běhu {f.pain_during or 0}/10", aid=f.activity_id, w=max(1, f.pain_during or 0)))
-    for rep in db.query(models.InjuryReport).filter(models.InjuryReport.runner_id == rid, models.InjuryReport.submitted_at > cut):
+    for rep in (x for x in data.injuries if x.submitted_at > cut):
         ps = pts(rep.pain_points)
         if (match and ps) or (not match and (ps or rep.body_region)):
             where = ", ".join(_region(p) for p in ps) or E._REGION_LABEL.get(rep.body_region, rep.body_region or "")
@@ -110,8 +107,8 @@ NIGHT_DEV = {"hrv": ("hrv_ms", 1), "hrv_high": ("hrv_ms", -1), "rhr": ("resting_
 
 
 def _nights(db, rid, n=7, sid=None):
-    rows = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid,
-                                               models.DailyMetric.date >= E.day_ago(28)[:10]).all()
+    lo = E.day_ago(28)[:10]
+    rows = [m for m in D.of(db, rid).daily if m.date >= lo]
     fld, sign = NIGHT_DEV.get(sid, (None, 0))
     vals = [getattr(m, fld) for m in rows if fld and getattr(m, fld) is not None]
     ref = sum(vals) / len(vals) if vals else None
@@ -145,17 +142,17 @@ def _capacity(cap, ch, titles):
     return []
 
 
-def _pace_spike(db, rid):
-    runs = [a for a in E.acts(db, rid, "load") if (a.duration_min or 0) > 0 and (a.distance_km or 0) > 0]
-    t7, t37 = E.day_ago(7), E.day_ago(37)
-    recent = [a for a in runs if a.started_at > t7]
-    base = sorted(a.duration_min / a.distance_km * 60 for a in runs if t37 < a.started_at <= t7)
-    if not recent or len(base) < 3:
+def _pace_spike(db, rid, a):
+    """The fastest recent run against the runner's own fast runs (engine.load)."""
+    L = a.get("loadDetail") or {}
+    aid = L.get("paceSpikeId")
+    x = next((r for r in D.of(db, rid).activities if r.id == aid), None) if aid is not None else None
+    if x is None or not x.distance_km or not x.duration_min:
         return []
-    f = min(recent, key=lambda a: a.duration_min / a.distance_km)
-    pace = f.duration_min / f.distance_km * 60
-    med = base[len(base) // 2]
-    return [_src("activity", f.started_at, f.title, f"{_mmss(pace)}/km proti obvyklým {_mmss(med)}/km", 1.0, f.id)]
+    pace = x.duration_min / x.distance_km * 60
+    ref = L.get("paceSpikeRefSKm")
+    return [_src("activity", x.started_at, x.title, f"{_mmss(pace)}/km" + (f" proti vašim obvykle nejrychlejším {_mmss(ref)}/km"
+                 if ref else "") + " (s přepočtem na převýšení)", 1.0, x.id)]
 
 
 def _hr_pace(cap):
@@ -195,12 +192,11 @@ def _mech(db, rid, sid, a):
 
 def _ratings(db, rid, sid):
     cut = E.day_ago(21)
-    fbs = db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid,
-                                                   models.ActivityFeedback.submitted_at > cut).all()
+    data = D.of(db, rid)
+    fbs = [f for f in data.feedback if f.submitted_at > cut]
     if sid == "niggle":
         fbs = [f for f in fbs if f.niggle]
-    titles = {x.id: x.title for x in db.query(models.Activity.id, models.Activity.title).filter(
-        models.Activity.id.in_({f.activity_id for f in fbs}))} if fbs else {}
+    titles = {x.id: x.title for x in data.activities}
     out = []
     for f in sorted(fbs, key=lambda f: f.submitted_at, reverse=True):
         w = None
@@ -220,7 +216,7 @@ def _ratings(db, rid, sid):
 
 def _checkins(db, rid, days, pick, weight=None):
     out = []
-    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at > E.day_ago(days)).all():
+    for c in (c for c in D.of(db, rid).checkins if c.submitted_at > E.day_ago(days)):
         d = pick(c)
         if d:
             out.append(_src("checkin", c.submitted_at, "Check-in", d, w=weight(c) if weight else None))
@@ -232,7 +228,7 @@ def sources_for(db, rid, sid, a, cap, runner, titles):
     if sid.startswith("cap_"):
         return _capacity(cap, sid[4:], titles)
     if sid == "pace_spike":
-        return _pace_spike(db, rid)
+        return _pace_spike(db, rid, a)
     if sid == "hr_pace":
         return _hr_pace(cap)
     if sid in ("mono", "session_spike", "spike_latent", "ewma", "hi_load", "load_creep", "desc", "desc_steep", "aer", "taper"):
@@ -304,8 +300,9 @@ def attach(db, rid, a: dict, runner=None) -> None:
     ids = [((cap or {}).get("channels", {}).get(ch[4:]) or {}).get("latent", {}) or {} for ch in
            (s["id"] for s in a.get("signals") or []) if ch.startswith("cap_")]
     want = {x.get("id") for x in ids if x.get("id")}
+    db = D.of(db, rid)
     if want:
-        titles = {x.id: x.title for x in db.query(models.Activity.id, models.Activity.title).filter(models.Activity.id.in_(want))}
+        titles = {x.id: x.title for x in db.activities if x.id in want}
     for s in a.get("signals") or []:
         try:
             s["sources"] = sources_for(db, rid, s["id"], a, cap, runner, titles)

@@ -87,6 +87,7 @@ def _migrate(engine):
     add("runners", "prior_injury_date", "prior_injury_date VARCHAR")
     add("runners", "prior_injury_side", "prior_injury_side VARCHAR")
     add("runners", "hr_max", "hr_max INTEGER")
+    add("runners", "threshold_hr", "threshold_hr INTEGER")
     add("runners", "onboarding_json", "onboarding_json JSON")
     # cross-training (strength sessions): what was trained and how
     add("activities", "strength_focus", "strength_focus VARCHAR")
@@ -100,6 +101,9 @@ def _migrate(engine):
     add("settings", "rail_cards", "rail_cards JSON")
     add("races", "ascent_m", "ascent_m FLOAT")
     add("races", "target_pace_s_km", "target_pace_s_km INTEGER")
+    # v0.9.0 — the calibration record: the day's recommendation and a post-run flag
+    add("engine_daily_snapshots", "guidance_json", "guidance_json JSON")
+    add("engine_daily_snapshots", "post_session", "post_session BOOLEAN")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.

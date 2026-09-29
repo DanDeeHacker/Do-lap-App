@@ -15,14 +15,18 @@ out-of-domain segments (unfamiliar speed, gradient or SURFACE) are not scored
 otherwise be silently scored as the reference surface.
 
 Covariates limited to what stored segments carry (speed, gradient, elapsed time,
-surface, and cumulative descent D when every baseline segment has it); apparent
-temperature H is deferred until weather enrichment (spec S2) lands.
+surface, cumulative descent D when every baseline segment has it, and, v0.9.0, the
+run's air temperature H when every baseline segment has it and it varied by ≥ 5 °C:
+gait adapts to weather differently in each runner, Ahamed et al., 2018). A segment
+from a run colder or hotter than anything in the baseline (±3 °C) is out of domain.
 """
 _NUM_COLS = ("v", "v2", "g", "g2", "vg", "t")
 _RIDGE_LAMBDA = 1.0      # penalty on standardised slopes [Calibrate]
 _MIN_FIT_SEGMENTS = 30   # below this, caller should use the bucket method
 _DOMAIN_PAD_V = 0.2      # m/s widening of the speed domain [Calibrate]
 _DOMAIN_PAD_G = 0.03     # gradient widening [Calibrate]
+_DOMAIN_PAD_H = 0.3      # temperature widening, per 10 °C (3 °C)
+_MIN_TEMP_SD = 0.5       # temperature enters the model when its SD is ≥ 5 °C
 
 
 def _raw(seg):
@@ -30,7 +34,14 @@ def _raw(seg):
     g = seg.get("meanGradient") or 0.0
     t = (seg.get("elapsedS") or 0) / 600.0        # per 10 minutes
     d = (seg.get("cumDescentM") or 0) / 100.0     # cumulative descent, per 100 m
-    return {"v": v, "v2": v * v, "g": g, "g2": g * g, "vg": v * g, "t": t, "d": d}
+    h = seg["tempC"] / 10.0 if seg.get("tempC") is not None else None   # air temperature, per 10 °C
+    return {"v": v, "v2": v * v, "g": g, "g2": g * g, "vg": v * g, "t": t, "d": d, "h": h}
+
+
+def _val(model, raw, c):
+    """A covariate for prediction; a missing temperature counts as the baseline's mean."""
+    x = raw.get(c)
+    return model["means"][c] if x is None else x
 
 
 def _median(xs):
@@ -74,6 +85,11 @@ def fit_metric(baseline_segments, field, lam=_RIDGE_LAMBDA, beta_prior=None):
     # Cumulative descent D is only a covariate when every baseline segment carries
     # it (older streams predate it) — keeps the design matrix dimension-consistent.
     cols = list(_NUM_COLS) + (["d"] if all(s.get("cumDescentM") is not None for s, _ in rows) else [])
+    if all(r["h"] is not None for _, r in rows):
+        hs = [r["h"] for _, r in rows]
+        hm = sum(hs) / len(hs)
+        if (sum((x - hm) ** 2 for x in hs) / len(hs)) ** 0.5 >= _MIN_TEMP_SD:
+            cols.append("h")
     means = {c: sum(r[c] for _, r in rows) / len(rows) for c in cols}
     stds = {}
     for c in cols:
@@ -132,14 +148,16 @@ def fit_metric(baseline_segments, field, lam=_RIDGE_LAMBDA, beta_prior=None):
         "ref": ref, "k": k, "rawCoef": raw_coef, "rawIcpt": raw_icpt, "surfCoef": surf_coef,
         "sigma": max(sigma, 1e-6), "n": len(rows),
         "domain": {"vLo": _pct(vs, 5) - _DOMAIN_PAD_V, "vHi": _pct(vs, 95) + _DOMAIN_PAD_V,
-                   "gLo": _pct(gs, 5) - _DOMAIN_PAD_G, "gHi": _pct(gs, 95) + _DOMAIN_PAD_G},
+                   "gLo": _pct(gs, 5) - _DOMAIN_PAD_G, "gHi": _pct(gs, 95) + _DOMAIN_PAD_G,
+                   **({"hLo": min(r["h"] for _, r in rows) - _DOMAIN_PAD_H,
+                       "hHi": max(r["h"] for _, r in rows) + _DOMAIN_PAD_H} if "h" in cols else {})},
     }
 
 
 def _design_row(model, seg):
     raw = _raw(seg)
     cols = model.get("cols", list(_NUM_COLS))
-    row = [1.0] + [(raw[c] - model["means"][c]) / model["stds"][c] for c in cols]
+    row = [1.0] + [(_val(model, raw, c) - model["means"][c]) / model["stds"][c] for c in cols]
     row += [1.0 if (seg.get("surface") or "unknown") == su else 0.0 for su in model["dummies"]]
     return row, raw
 
@@ -150,16 +168,19 @@ def in_domain(model, seg):
     surface = seg.get("surface") or "unknown"
     if "ref" in model and surface != model["ref"] and surface not in model["dummies"]:
         return False  # surface unseen (or too rare) in the baseline → no coefficient for it
+    if "hLo" in d and raw["h"] is not None and not d["hLo"] <= raw["h"] <= d["hHi"]:
+        return False  # colder / hotter than anything in the baseline: gait adapts, not comparable
     return d["vLo"] <= raw["v"] <= d["vHi"] and d["gLo"] <= raw["g"] <= d["gHi"]
 
 
 def predict(model, seg):
-    """The runner's expected value for this segment's speed/gradient/time/surface."""
+    """The runner's expected value for this segment's speed/gradient/time/surface
+    (and temperature, when the model has it)."""
     if "rawCoef" not in model:
         row, _ = _design_row(model, seg)
         return sum(model["beta"][i] * row[i] for i in range(len(row)))
     raw = _raw(seg)
-    return (model["rawIcpt"] + sum(b * raw[c] for c, b in model["rawCoef"].items())
+    return (model["rawIcpt"] + sum(b * _val(model, raw, c) for c, b in model["rawCoef"].items())
             + model["surfCoef"].get(seg.get("surface") or "unknown", 0.0))
 
 

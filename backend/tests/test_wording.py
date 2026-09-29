@@ -42,3 +42,22 @@ def test_no_medical_claims_in_app_texts():
                     if re.search(pat, line, re.I):
                         hits.append(f"{os.path.relpath(path, ROOT)}:{n}: {code[:120]}")
     assert not hits, "medical claims in app texts:\n" + "\n".join(hits)
+
+
+# v0.9.0 — the store / browser descriptions are claims too: the page meta and the PWA
+# manifest must not sell "injury risk" either.
+META_FORBIDDEN = FORBIDDEN + [r"rizik\w*\s+zraněn"]
+
+
+def test_no_medical_claims_in_meta_and_manifest():
+    hits = []
+    for rel in (("frontend", "index.html"), ("frontend", "public", "manifest.webmanifest")):
+        path = os.path.join(ROOT, *rel)
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            for n, line in enumerate(fh, 1):
+                for pat in META_FORBIDDEN:
+                    if re.search(pat, line, re.I):
+                        hits.append(f"{os.path.join(*rel)}:{n}: {line.strip()[:120]}")
+    assert not hits, "medical claims in meta / manifest:\n" + "\n".join(hits)

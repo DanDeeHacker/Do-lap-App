@@ -19,9 +19,9 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session as DBSession
 
+from . import data as D
 from . import terrain
 from .. import models
-from ..serializers import to_dict
 
 # v0.7.0 — per-run drift adjusted to the runner's own pace sensitivity (both
 # engines); v2: calibrated noise scale/EWMA, one-sided grouped flags, standardised
@@ -34,10 +34,15 @@ from ..serializers import to_dict
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.8.12"  # v0.8.12: recovery nights history for the readiness detail (railway#138); v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.9.1"  # v0.9.1: recovery nights history and baseline spread for the readiness detail on Zátěž (railway#138), approximate per-item shares of every signal source (railway#132); v0.9.0: engine evaluation 2026-09 — pure snapshot engine (RunnerData, history replays by as_of), jump confirmation by repeats and passive tolerance, pace spike vs own fast runs, monotony only over capacity, RUNSAFE-shaped band curve, weather/equipment/pace-tertile confounders in mechanics, log-HRV readiness (single-night Regenerace removed), injury history to 24 months, under-conditioning, sex-specific TRIMP / bone / Achilles rules, safety rules outside the calibrated score, independent primary outcomes with censoring and session-scale data, LTHR zones and pace-based hard minutes, no physio referral for movement-only drift; v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
+# v0.9.0 — the weights of the three axes in the overall score. Mechanics went 0.38 →
+# 0.25: the watch's sagittal-plane metrics have no shown link to injury (Mason et al.,
+# 2023; Neal et al., 2024; Willwacher et al., 2022), so until the calibration (plan
+# phase 4) says otherwise they inform rather than drive the overall state.
+W_MECH, W_LOAD_V3, W_LOAD, W_SYMP = 0.25, 0.40, 0.30, 0.52
 
 
 # ---------------------------------------------------------------- utils
@@ -61,14 +66,11 @@ def sd(a):
 # bands even dropped from 5 to 0 points just above 1.3×. Shared by assess() and
 # the sensitivity sandbox (metrics/sensitivity.py) so the two cannot drift apart.
 def pts_session_spike(s):
-    """Single-session spike (RUNSAFE bands, joined): 0 at 1.1×, 5 at 1.3×, 14 at 2×, 30 at 3×."""
-    if s is None or s <= 1.1:
-        return 0.0
-    if s <= 1.3:
-        return (s - 1.1) * 25
-    if s <= 2.0:
-        return 5 + (s - 1.3) / 0.7 * 9
-    return 14 + clamp((s - 2.0) * 16, 0, 16)
+    """Single-session spike (v1/v2): the RUNSAFE-shaped curve of capacity.band_points
+    over the 30-day longest run with the +10 % margin, scaled 0.8 (the v1/v2 axis
+    has more signals). ~10 points on the +10–100 % plateau, ~19 at 2.5×."""
+    from .capacity import band_points
+    return 0.0 if s is None else band_points(s, 0.10) * 0.8
 
 
 def pts_acwr(r):
@@ -326,6 +328,24 @@ def engine_pinned(mode: str):
         _engine_ctx.damp = prev_d
 
 
+def mech_priors(field: str, device: str | None = None):
+    """Population priors of a mechanics metric: from the snapshot being assessed
+    (fixed for the whole assessment and its replays), else from reference.py."""
+    from . import reference as REF
+    p = getattr(_engine_ctx, "priors", None)
+    if p is None:
+        return REF.mech_priors(field=field, device=device)
+    return p["mech"].get((REF._FIELD_ALIAS.get(field, field), device))
+
+
+def recovery_priors(field: str, data=None):
+    from . import reference as REF
+    p = getattr(data, "priors", None) if data is not None else getattr(_engine_ctx, "priors", None)
+    if p is None:
+        return REF.recovery_priors(field=field)
+    return p["rec"].get(field)
+
+
 def _sensitive() -> bool:
     """v2 AND v3 use the sensitive (per-run, calibrated) mechanics engine; v3 adds
     the capacity-based load axis on top."""
@@ -405,8 +425,51 @@ def bucket(a) -> str:
     else:
         g = "flat"
     p = (a.duration_min or 0) / km * 60
-    pb = "fast" if p < 270 else ("mod" if p < 330 else "easy")
+    c1, c2 = getattr(_engine_ctx, "pace_cuts", None) or PACE_CUTS_FIXED
+    pb = "fast" if p < c1 else ("mod" if p < c2 else "easy")
     return f"{a.surface}|{g}|{pb}"
+
+
+# v0.9.0 — pace classes relative to the runner. Fixed cuts (4:30 / 5:30 per km) put
+# every run of a 6:30/km runner in one class and every run of a 4:00/km runner in
+# another; the runner's own pace thirds over the baseline window separate their easy,
+# steady and fast running instead. Fixed cuts stay the fallback (and the pooled
+# population priors keep them).
+PACE_CUTS_FIXED = (270.0, 330.0)
+PACE_CUTS_MIN_RUNS, PACE_CUTS_MIN_GAP = 12, 10.0     # runs, s/km between the two cuts
+
+
+def pace_cuts(db, rid: str):
+    """(fast|mod, mod|easy) cuts in s/km: the runner's own pace tertiles over the
+    84→29-day baseline window, or None (→ fixed cuts) with too few or too alike runs."""
+    lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
+    paces = sorted((a.duration_min or 0) / a.distance_km * 60 for a in D.of(db, rid).activities
+                   if is_run(a) and counts_for(a, "mech") and lo < a.started_at <= hi
+                   and (a.distance_km or 0) > 0 and (a.duration_min or 0) > 0)
+    if len(paces) < PACE_CUTS_MIN_RUNS:
+        return None
+    q = lambda f: paces[int(round(f * (len(paces) - 1)))]   # noqa: E731
+    c1, c2 = q(1 / 3), q(2 / 3)
+    return (c1, c2) if c2 - c1 >= PACE_CUTS_MIN_GAP else None
+
+
+@contextmanager
+def mech_scope(data, rid: str):
+    """The per-runner context the mechanics code reads: population priors, the
+    runner's pace classes and an equipment step (mech_step_change) that restarts
+    the baseline. assess() and the per-run views (run_compare, segment tests) use it."""
+    keys = ("priors", "mech_since", "mech_step", "pace_cuts")
+    saved = {k: getattr(_engine_ctx, k, None) for k in keys}
+    try:
+        _engine_ctx.priors = data.priors
+        _engine_ctx.mech_since = _engine_ctx.mech_step = None
+        _engine_ctx.pace_cuts = pace_cuts(data, rid)
+        step = mech_step_change(data, rid)
+        _engine_ctx.mech_step, _engine_ctx.mech_since = step, (step["date"] if step else None)
+        yield
+    finally:
+        for k, v in saved.items():
+            setattr(_engine_ctx, k, v)
 
 
 def bucket_label(b: str) -> str:
@@ -434,16 +497,13 @@ def counts_for(a, purpose: str = "all") -> bool:
     return scope != purpose
 
 
-def all_acts(db: DBSession, rid: str, purpose: str = "load"):
+def all_acts(db, rid: str, purpose: str = "load"):
     """Every activity the engine counts — without the ones the runner excluded
-    for this purpose. All sports feed systemic load, so the default is "load"."""
-    rows = (
-        db.query(models.Activity)
-        .filter(models.Activity.runner_id == rid)
-        .order_by(models.Activity.started_at.asc(), models.Activity.id.asc())
-        .all()
-    )
-    return [a for a in rows if counts_for(a, purpose)]
+    for this purpose. All sports feed systemic load, so the default is "load".
+    `db` is a RunnerData snapshot (or a session, which loads one). For mechanics,
+    runs before an equipment step (mech_scope) no longer count."""
+    since = getattr(_engine_ctx, "mech_since", None) if purpose == "mech" else None
+    return [a for a in D.of(db, rid).activities if counts_for(a, purpose) and (since is None or a.started_at >= since)]
 
 
 def acts(db: DBSession, rid: str, purpose: str = "mech"):
@@ -505,15 +565,24 @@ STRENGTH_DEFAULT_RPE = 5          # an unrated strength session counts as modera
 STRENGTH_FOCUS_W = {"lower": 1.0, "full": 1.0, "upper": 0.3, None: 0.7}   # working assumptions
 
 
-def _trimp(dur, hr, hrmax, rhr):
+# Banister TRIMP weighting: y = 0.64·e^(b·HRR) with b = 1.92 for men and 1.67 for
+# women (Banister, 1991; Morton, Fitz-Clarke & Banister, 1990). Unknown sex → 1.92.
+TRIMP_B = {"m": 1.92, "f": 1.67}
+TRIMP_B_DEFAULT = 1.92
+
+
+def trimp_b(runner) -> float:
+    return TRIMP_B.get(getattr(runner, "sex", None) or "", TRIMP_B_DEFAULT)
+
+
+def _trimp(dur, hr, hrmax, rhr, b: float = TRIMP_B_DEFAULT):
     hrr = min(max((hr - rhr) / (hrmax - rhr), 0.0), 1.0)
-    return dur * hrr * 0.64 * math.exp(1.92 * hrr)
+    return dur * hrr * 0.64 * math.exp(b * hrr)
 
 
-def feedback_rpe(db: DBSession, rid: str) -> dict:
+def feedback_rpe(db, rid: str) -> dict:
     """{activity id: session RPE the runner gave in the journal}."""
-    return {aid: rpe for aid, rpe in db.query(models.ActivityFeedback.activity_id, models.ActivityFeedback.rpe)
-            .filter(models.ActivityFeedback.runner_id == rid, models.ActivityFeedback.rpe.isnot(None))}
+    return {f.activity_id: f.rpe for f in D.of(db, rid).feedback if f.rpe is not None}
 
 
 def sport_hr_max(all_list, hrmax: float) -> dict:
@@ -528,14 +597,14 @@ def sport_hr_max(all_list, hrmax: float) -> dict:
     return out
 
 
-def srpe_k(all_list, rpe: dict, hrmax: float, rhr: float) -> tuple[float, int]:
+def srpe_k(all_list, rpe: dict, hrmax: float, rhr: float, b: float = TRIMP_B_DEFAULT) -> tuple[float, int]:
     """(TRIMP per sRPE·min, runs used) — the runner's own conversion or the default."""
     xs, ys = [], []
     for a in all_list:
         r = rpe.get(a.id) or a.rpe
         if is_run(a) and r and a.avg_hr and (a.duration_min or 0) > 0 and hrmax > rhr:
             xs.append(r * a.duration_min)
-            ys.append(_trimp(a.duration_min, a.avg_hr, hrmax, rhr))
+            ys.append(_trimp(a.duration_min, a.avg_hr, hrmax, rhr, b))
     if len(xs) < SRPE_K_MIN_RUNS:
         return SRPE_K_DEFAULT, len(xs)
     k = sum(x * y for x, y in zip(xs, ys)) / sum(x * x for x in xs)
@@ -543,9 +612,11 @@ def srpe_k(all_list, rpe: dict, hrmax: float, rhr: float) -> tuple[float, int]:
 
 
 def load_context(db: DBSession, rid: str, all_list, hrmax: float, rhr: float) -> dict:
-    rpe = feedback_rpe(db, rid)
-    k, n = srpe_k(all_list, rpe, hrmax, rhr)
-    return {"hr": sport_hr_max(all_list, hrmax), "k": k, "kRuns": n, "rpe": rpe}
+    data = D.of(db, rid)
+    rpe = feedback_rpe(data, rid)
+    b = trimp_b(data.runner)
+    k, n = srpe_k(all_list, rpe, hrmax, rhr, b)
+    return {"hr": sport_hr_max(all_list, hrmax), "k": k, "kRuns": n, "rpe": rpe, "b": b, "memo": {}}
 
 
 def session_rpe(a, ctx: dict | None):
@@ -560,6 +631,16 @@ def session_load(a, hrmax: float = 190.0, rhr: float = 50.0, ctx: dict | None = 
     TRIMP against the swimming HR max; strength by session RPE only, because heart
     rate doesn't reflect a lifting session (Sweet et al., 2004). Then Garmin's own
     training load, then duration × a per-sport constant (no source, last resort)."""
+    memo = ctx.get("memo") if ctx is not None else None
+    if memo is not None and a.id is not None:
+        v = memo.get(a.id)
+        if v is None:
+            v = memo[a.id] = _session_load(a, hrmax, rhr, ctx)
+        return v
+    return _session_load(a, hrmax, rhr, ctx)
+
+
+def _session_load(a, hrmax: float, rhr: float, ctx: dict | None) -> float:
     dur = a.duration_min or 0
     if dur <= 0:
         return 0.0
@@ -584,7 +665,7 @@ def session_load(a, hrmax: float = 190.0, rhr: float = 50.0, ctx: dict | None = 
     if sport == "swimming" and r:
         return dur * r * k
     if a.avg_hr and hm > rhr:
-        return _trimp(dur, a.avg_hr, hm, rhr)
+        return _trimp(dur, a.avg_hr, hm, rhr, ctx.get("b", TRIMP_B_DEFAULT))
     if r:
         return dur * r * k
     if a.training_load:
@@ -619,12 +700,13 @@ POST_STRENGTH_DAYS = (0, 1, 2)
 POST_STRENGTH_W = 0.5
 
 
-def post_strength_dates(db: DBSession, rid: str) -> frozenset:
+def post_strength_dates(db, rid: str) -> frozenset:
     """Run dates that fall within POST_STRENGTH_DAYS of a heavy lower-body session."""
-    rows = db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.sport == "strength").all()
+    data = D.of(db, rid)
+    rows = [a for a in data.activities if a.sport == "strength"]
     if not rows:
         return frozenset()
-    ctx = {"rpe": feedback_rpe(db, rid)}
+    ctx = {"rpe": feedback_rpe(data, rid)}
     out = set()
     for a in rows:
         if counts_for(a, "all") and heavy_lower(a, ctx) and a.started_at:
@@ -669,14 +751,16 @@ def absorb_manual(db: DBSession, rid: str) -> int:
     return moved
 
 
-def daily(db: DBSession, rid: str, n: int):
+def daily(db, rid: str, n: int):
     cutoff = day_ago(n)
-    return (
-        db.query(models.DailyMetric)
-        .filter(models.DailyMetric.runner_id == rid, models.DailyMetric.date > cutoff)
-        .order_by(models.DailyMetric.date.asc())
-        .all()
-    )
+    return [m for m in D.of(db, rid).daily if m.date > cutoff]
+
+
+def daily_between(db, rid: str, newer: int, older: int, newer_inclusive: bool = True):
+    """Nights with day_ago(older) < date <= day_ago(newer) (date < day_ago(newer) when
+    not `newer_inclusive`), oldest first."""
+    hi, lo = day_ago(newer), day_ago(older)
+    return [m for m in D.of(db, rid).daily if m.date > lo and (m.date <= hi if newer_inclusive else m.date < hi)]
 
 
 # ---------------------------------------------------------------- drift-z core
@@ -780,6 +864,54 @@ def _pace_slope(base, field) -> float:
     return median(slopes) if len(slopes) >= 10 else 0.0
 
 
+# v0.9.0 — weather as a confounder of running dynamics. Gait adapts to conditions, and
+# differently in each runner (Ahamed et al., 2018: winter vs spring runs of the same
+# runners, ~66 000 strides): so, like pace, the runner's OWN temperature sensitivity
+# is estimated and removed, and runs on snow or ice are not scored against a baseline
+# that has none (outside the model's domain, not a change in the runner).
+SNOW_ICE_CODES = frozenset({56, 57, 66, 67, 71, 73, 75, 77, 85, 86})
+_TEMP_MIN_RUNS, _TEMP_MIN_SPREAD, _TEMP_EXTRAP = 8, 8.0, 3.0   # runs, °C (10–90 %), °C past the baseline range
+_WINTER_MIN_BASE = 3
+
+
+def run_temp(a):
+    """Air temperature during the run (°C) from its weather context, else None."""
+    w = getattr(a, "weather_json", None) or {}
+    if w.get("tempC") is not None:
+        return float(w["tempC"])
+    if w.get("tMin") is not None and w.get("tMax") is not None:
+        return (float(w["tMin"]) + float(w["tMax"])) / 2
+    return None
+
+
+def winter_run(a) -> bool:
+    """Snow, ice or freezing rain during the run (WMO weather code)."""
+    return (getattr(a, "weather_json", None) or {}).get("code") in SNOW_ICE_CODES
+
+
+def _temp_slope(base, val) -> float:
+    """The runner's own sensitivity of the (pace-adjusted) metric to air temperature,
+    per °C: Theil–Sen within terrain buckets, 0 without enough runs or spread."""
+    by = {}
+    for a in base:
+        t = run_temp(a)
+        if t is not None:
+            by.setdefault(bucket(a), []).append((t, val(a)))
+    pts = []
+    for rows in by.values():
+        if len(rows) < 3:
+            continue
+        mt, mv = median([r[0] for r in rows]), median([r[1] for r in rows])
+        pts += [(t - mt, v - mv) for t, v in rows]
+    if len(pts) < _TEMP_MIN_RUNS:
+        return 0.0
+    ts = sorted(p_[0] for p_ in pts)
+    if ts[int(0.9 * (len(ts) - 1))] - ts[int(0.1 * (len(ts) - 1))] < _TEMP_MIN_SPREAD:
+        return 0.0
+    slopes = [(v2 - v1) / (t2 - t1) for i, (t1, v1) in enumerate(pts) for (t2, v2) in pts[i + 1:] if abs(t2 - t1) >= 2.0]
+    return median(slopes) if len(slopes) >= 10 else 0.0
+
+
 def _drift_z_core(A, field, recent_days):
     """Per-terrain-bucket drift of `field`: recent vs the runner's own baseline.
 
@@ -805,7 +937,7 @@ def _drift_z_core(A, field, recent_days):
     the per-bucket detail are in those pace-adjusted units; `series` stays raw."""
     v2 = _sensitive()
     from . import reference as REF
-    _mp = REF.mech_priors(field=field)
+    _mp = mech_priors(field)
     s_rm = _mp["s_rm"] if _mp else None      # pooled repeated-measures SD (plan phase 1), None until enough runners
     lo, hi = day_ago(BASE_FROM), day_ago(BASE_TO)
     base = [a for a in A if a.started_at <= hi and a.started_at > lo and getattr(a, field) is not None]
@@ -817,6 +949,10 @@ def _drift_z_core(A, field, recent_days):
                 base = trimmed
     rec_cut = day_ago(recent_days)
     rec = [a for a in A if a.started_at > rec_cut and getattr(a, field) is not None]
+    winter_skipped = 0
+    if sum(1 for a in base if winter_run(a)) < _WINTER_MIN_BASE:
+        winter_skipped = sum(1 for a in rec if winter_run(a))
+        rec = [a for a in rec if not winter_run(a)]
     if len(base) < 6 or len(rec) < 3:
         return None
     pslope = _pace_slope(base, field)
@@ -825,16 +961,27 @@ def _drift_z_core(A, field, recent_days):
     sp_lo = (min(base_sp) - _PACE_EXTRAP) if base_sp else 0.0
     sp_hi = (max(base_sp) + _PACE_EXTRAP) if base_sp else 0.0
 
-    def val(a):
+    def val_p(a):
         """`field` at the runner's typical baseline speed."""
         v = getattr(a, field)
         sp = _speed_ms(a) if pslope else None
         return v if sp is None else v - pslope * (clamp(sp, sp_lo, sp_hi) - ref_sp)
+    tslope = _temp_slope(base, val_p)
+    base_t = [t for t in (run_temp(a) for a in base) if t is not None]
+    ref_t = median(base_t) if base_t else 0.0
+    t_lo, t_hi = (min(base_t) - _TEMP_EXTRAP, max(base_t) + _TEMP_EXTRAP) if base_t else (0.0, 0.0)
+
+    def val(a):
+        """`field` at the runner's typical baseline speed and temperature."""
+        v = val_p(a)
+        t = run_temp(a) if tslope else None
+        return v if t is None else v - tslope * (clamp(t, t_lo, t_hi) - ref_t)
     by_b: dict[str, list[float]] = {}
     for a in base:
         by_b.setdefault(bucket(a), []).append(val(a))
     series = [getattr(a, field) for a in A if getattr(a, field) is not None][-26:]
-    pace_out = {"paceSlope": round(pslope, 4), "paceAdjusted": bool(pslope)}
+    pace_out = {"paceSlope": round(pslope, 4), "paceAdjusted": bool(pslope),
+                "tempSlope": round(tslope, 4), "tempAdjusted": bool(tslope), "winterSkipped": winter_skipped}
     if v2:
         return _drift_v2(field, rec, by_b, val, series, pace_out, s_rm)
     rec_b: dict[str, list] = {}
@@ -944,6 +1091,7 @@ def gct_drift(db: DBSession, rid: str):
         SimpleNamespace(
             distance_km=a.distance_km, descent_m=a.descent_m, ascent_m=a.ascent_m,
             duration_min=a.duration_min, surface=a.surface, started_at=a.started_at,
+            weather_json=getattr(a, "weather_json", None),
             gct_adj=(a.gct_ms * (a.cadence_spm / cad_base)) if cad_base else None,
         )
         for a in A
@@ -962,6 +1110,7 @@ def duty_factor(db: DBSession, rid: str):
         SimpleNamespace(
             distance_km=a.distance_km, descent_m=a.descent_m, ascent_m=a.ascent_m,
             duration_min=a.duration_min, surface=a.surface, started_at=a.started_at,
+            weather_json=getattr(a, "weather_json", None),
             duty=a.gct_ms * a.cadence_spm / 120000.0,  # GCT / stride-time (both legs)
         )
         for a in A
@@ -1002,6 +1151,16 @@ def run_compare(db: DBSession, rid: str, aid: int | None = None):
     """A single run's key metrics next to the comparable run from a month before
     (comparable_month_ago) — the same kind of run on the same kind of terrain, so
     the difference is the runner, not the route. `aid=None` → the most recent run."""
+    data = D.of(db, rid)
+    saved = getattr(_engine_ctx, "pace_cuts", None)
+    _engine_ctx.pace_cuts = pace_cuts(data, rid)     # the runner's own pace classes, as the engine uses
+    try:
+        return _run_compare(data, rid, aid)
+    finally:
+        _engine_ctx.pace_cuts = saved
+
+
+def _run_compare(db, rid: str, aid: int | None):
     A = acts(db, rid)
     if not A:
         return None
@@ -1156,7 +1315,7 @@ def load(db: DBSession, rid: str):
     A = acts(db, rid, "load")            # running only — km volume bars, descent (load side)
     ALL = all_acts(db, rid, "load")      # every sport — drives systemic training load
     CROSS = [a for a in ALL if not is_run(a)]
-    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    r = D.of(db, rid).runner
     hrmax, rhr = hr_bounds(A, daily(db, rid, 180), r.birth_year if r else None, r.hr_max if r else None)
     ctx = load_context(db, rid, ALL, hrmax, rhr)
     sl = lambda a: session_load(a, hrmax, rhr, ctx)
@@ -1169,14 +1328,17 @@ def load(db: DBSession, rid: str):
     daily_km = []       # running km per day (volume view)
     daily_load = []     # training load (AU) per day across ALL sports (drives the load axis)
     daily_hi = []       # high-intensity training load (AU) per day (drives HI-ACWR)
+    # One pass over the activities, grouped by day. Slice to the date component:
+    # started_at is date-only from every current ingest path, but a bare `== k`
+    # would silently zero the whole load axis if a datetime ever slipped in.
+    by_day: dict[str, list] = {}
+    for a in ALL:
+        by_day.setdefault((a.started_at or "")[:10], []).append(a)
     for d in range(55, -1, -1):
-        k = day_ago(d)
-        # Slice to the date component: started_at is date-only from every current
-        # ingest path, but a bare `== k` would silently zero the whole load axis
-        # if a datetime ever slipped in — so compare defensively on [:10].
-        daily_km.append(sum(a.distance_km or 0 for a in A if (a.started_at or "")[:10] == k))
-        daily_load.append(sum(sl(a) for a in ALL if (a.started_at or "")[:10] == k))
-        daily_hi.append(sum(sl(a) for a in ALL if (a.started_at or "")[:10] == k and hi(a)))
+        day_acts = by_day.get(day_ago(d), [])
+        daily_km.append(sum(a.distance_km or 0 for a in day_acts if is_run(a)))
+        daily_load.append(sum(sl(a) for a in day_acts))
+        daily_hi.append(sum(sl(a) for a in day_acts if hi(a)))
 
     def ewma(arr, n):
         lam = 2 / (n + 1)
@@ -1314,18 +1476,21 @@ def load(db: DBSession, rid: str):
             if decayed > latent:
                 latent, latent_days = decayed, d
     # Pace spike (distinct injury mechanism — Nielsen 2014 maps sudden *pace*
-    # rises to Achilles/plantar/tibial, vs *distance* to knee/shin). Fastest run
-    # in the last 7 days vs. the runner's median pace over the prior 30 days.
-    def _pace(a):
-        return (a.duration_min or 0) / (a.distance_km or 1) * 60
-    recent_pace = [_pace(a) for a in runs if _days_ago(a) <= 7 and (a.duration_min or 0) > 0]
-    base_pace = sorted(_pace(a) for a in runs if 7 < _days_ago(a) <= 37 and (a.duration_min or 0) > 0)
-    pace_spike = None
-    if recent_pace and len(base_pace) >= 3:
-        med = base_pace[len(base_pace) // 2]
-        fastest = min(recent_pace)  # lower s/km = faster
-        if med > 0 and fastest < med:
-            pace_spike = r2(med / fastest)  # >1 means ran faster than usual
+    # rises to Achilles/plantar/tibial, vs *distance* to knee/shin; that study could
+    # not measure pace itself). v0.9.0: like with like — the fastest grade-adjusted
+    # run of the last 7 days against the runner's OWN fast runs of the 8–60 days
+    # before (their 90th percentile, the fastest with < 10 runs), not the median of
+    # all runs: a weekly tempo run used to count as a "spike" every week. Races and
+    # runs under PACE_MIN_KM are left out (a race has its own recovery rule).
+    pace_spike = pace_spike_run = pace_spike_ref = None
+    fast = [a for a in runs if (a.duration_min or 0) > 0 and (a.distance_km or 0) >= PACE_MIN_KM and not is_race(a)]
+    recent_fast = [a for a in fast if _days_ago(a) <= 7]
+    base_speeds = sorted(grade_speed(a) for a in fast if 7 < _days_ago(a) <= PACE_BASE_DAYS)
+    if recent_fast and len(base_speeds) >= 3:
+        ref = base_speeds[-1] if len(base_speeds) < 10 else base_speeds[int(round(0.9 * (len(base_speeds) - 1)))]
+        top = max(recent_fast, key=grade_speed)
+        if ref > 0 and grade_speed(top) > ref:
+            pace_spike, pace_spike_run, pace_spike_ref = r2(grade_speed(top) / ref), top, ref
 
     return {
         "acute": rnd(acute), "chronic": rnd(chronic), "weekly": weekly, "weekStarts": week_starts,
@@ -1353,6 +1518,9 @@ def load(db: DBSession, rid: str):
         "spikeLatent": r2(latent) if latent > 0 else None,
         "spikeLatentDaysAgo": latent_days,
         "paceSpike": pace_spike,
+        "paceSpikeAt": pace_spike_run.started_at if pace_spike_run else None,
+        "paceSpikeId": pace_spike_run.id if pace_spike_run else None,
+        "paceSpikeRefSKm": rnd(1000 / pace_spike_ref) if pace_spike_ref else None,
         # safe single-session ceiling: ~10% over the longest run of the last 30d
         "safeLongRunKm": r1(max([a.distance_km for a in runs if _days_ago(a) <= 30], default=0) * 1.1) or None,
         # v2 Phase 3 — terrain-aware load from the elevation profile (None when no
@@ -1360,6 +1528,21 @@ def load(db: DBSession, rid: str):
         "gradeAdjKm7": (lambda g: r1(g) if g else None)(sum(terrain.grade_adjusted_km(a.elevation_profile, a.distance_km or 0) for a in w7 if a.elevation_profile)),
         "downhillKm7": (lambda d: r1(d) if d else None)(sum(terrain.downhill_exposure(a.elevation_profile)[0] for a in w7 if a.elevation_profile)),
     }
+
+
+MONO_THR = 2.4         # Foster's monotony above which a week has no real easy days
+MONO_V1_RATIO = 1.15   # v1/v2: monotony counts only while the 7:28 load ratio is above +15 %
+PACE_MIN_KM = 3.0      # shorter runs (strides, a jog to the track) don't count for the pace spike
+PACE_BASE_DAYS = 60
+
+
+def is_race(a) -> bool:
+    return any(w in (getattr(a, "title", None) or "").lower() for w in _RACE_WORDS)
+
+
+def grade_speed(a) -> float:
+    """Flat-equivalent speed (m/s): the run's speed × its grade cost factor."""
+    return (_speed_ms(a) or 0.0) * grade_factor(a)
 
 
 def hot_run(a) -> bool:
@@ -1370,10 +1553,11 @@ def hot_run(a) -> bool:
 
 def minetti_cost(i: float) -> float:
     """Energy cost of running on grade i (J·kg⁻¹·m⁻¹), Minetti et al. (2002),
-    valid for −0.45…+0.45. Looney et al. (2026) find it accurate on the level and
-    downhill, less so on steep climbs."""
-    i = clamp(i, -0.45, 0.45)
-    return 155.4 * i ** 5 - 30.4 * i ** 4 - 43.3 * i ** 3 + 46.3 * i ** 2 + 19.5 * i + 3.6
+    valid for −0.45…+0.45 — one implementation, terrain.minetti_cr. Looney et al.
+    (2026) find it accurate on the level and downhill, less so on steep climbs; an
+    uphill-specific correction is not applied until its coefficients can be checked
+    against the paper (v0.9.0: kept as a known limitation)."""
+    return terrain.minetti_cr(i)
 
 
 def grade_factor(a) -> float:
@@ -1402,15 +1586,7 @@ def aerobic(db: DBSession, rid: str):
 
 def recovery(db: DBSession, rid: str):
     rec = daily(db, rid, 7)
-    base = (
-        db.query(models.DailyMetric)
-        .filter(
-            models.DailyMetric.runner_id == rid,
-            models.DailyMetric.date <= day_ago(7),
-            models.DailyMetric.date > day_ago(35),
-        )
-        .all()
-    )
+    base = daily_between(db, rid, 7, 35)
     if len(rec) < 4 or len(base) < 14:
         return None
 
@@ -1420,58 +1596,29 @@ def recovery(db: DBSession, rid: str):
     hrv_b, hrv_r = f(base, "hrv_ms"), f(rec, "hrv_ms")
     rhr_b, rhr_r = f(base, "resting_hr"), f(rec, "resting_hr")
     sl_b, sl_r = f(base, "sleep_h"), f(rec, "sleep_h")
-    hrv_z = r2((mean(hrv_r) - mean(hrv_b)) / sd(hrv_b)) if sd(hrv_b) else 0
+    # v0.9.0 — HRV judged as Ln rMSSD (Plews et al., 2013; Schaffarczyk & Sperlich, 2026):
+    # the log scale is where its day-to-day noise is roughly constant.
+    lb, lr = [math.log(x) for x in hrv_b if x > 0], [math.log(x) for x in hrv_r if x > 0]
+    hrv_z = r2((mean(lr) - mean(lb)) / sd(lb)) if len(lb) > 1 and lr and sd(lb) else 0
     rhr_z = r2((mean(rhr_r) - mean(rhr_b)) / sd(rhr_b)) if sd(rhr_b) else 0
     sleep_debt = r1((mean(sl_b) - mean(sl_r)) * 7)
-
-    # A single lay-readable "regenerace" score (0-100, 50 = your own baseline).
-    # It's an *overnight* reading: each night's own HRV / resting HR / sleep
-    # z-scored against the 28-day baseline, so the score — and the day-over-day
-    # delta — actually move night to night. (The earlier version scored a 7-day
-    # rolling mean, so two consecutive days shared 6 nights and the delta was
-    # always ~0.) rhr is inverted: an elevated resting HR is the bad direction.
-    hbm, hsd = mean(hrv_b), sd(hrv_b)
-    rbm, rsd = mean(rhr_b), sd(rhr_b)
-    sbm, ssd = mean(sl_b), sd(sl_b)
-
-    def night_score(d):
-        comps, n = 0.0, 0
-        if d.hrv_ms is not None and hsd:
-            comps += (d.hrv_ms - hbm) / hsd; n += 1
-        if d.resting_hr is not None and rsd:
-            comps += -(d.resting_hr - rbm) / rsd; n += 1
-        if d.sleep_h is not None and ssd:
-            comps += (d.sleep_h - sbm) / ssd; n += 1
-        if n == 0:
-            return None
-        return int(clamp(round(50 + (comps / n) * 20), 0, 100))
-
-    def label_of(s):
-        return "Nadprůměrná" if s >= 65 else "Obvyklá" if s >= 40 else "Snížená" if s >= 20 else "Potlačená"
-
-    # Two most recent nights that have any data → today's score and the delta.
-    nights = sorted(daily(db, rid, 14), key=lambda d: d.date, reverse=True)
-    scored = [(d.date, night_score(d)) for d in nights]
-    scored = [(dt, s) for dt, s in scored if s is not None]
-    score = scored[0][1] if scored else 50
-    score_date = scored[0][0] if scored else None
-    label = label_of(score)
-    score_prev = scored[1][1] if len(scored) > 1 else None
-    score_delta = (score - score_prev) if score_prev is not None else None
-
+    # v0.9.0 — the single-night "Regenerace" score (each night's own z-scores) is gone:
+    # single nights mislead (Plews et al., 2012: 63.6 % of a well-training athlete's
+    # single-day HRV fell outside the meaningful range; 2013: 10 km form tracked the
+    # weekly mean, r = −0.76, not single days, r = −0.17). Readiness (capacity.py) is
+    # the one recovery score: 7-night means, enough valid nights, the runner's norm.
+    # railway#138 — `sd` = the 28-day spread, the usual-range band of the detail charts.
+    hsd, rsd, ssd = sd(hrv_b), sd(rhr_b), sd(sl_b)
     out = {
-        "hrv": {"base": r1(mean(hrv_b)), "sd": r1(hsd) if hsd else None, "now": r1(mean(hrv_r)), "z": hrv_z, "series": hrv_r},
+        "hrv": {"base": r1(mean(hrv_b)), "sd": r1(hsd) if hsd else None, "now": r1(mean(hrv_r)), "z": hrv_z, "series": hrv_r, "log": True},
         "rhr": {"base": r1(mean(rhr_b)), "sd": r1(rsd) if rsd else None, "now": r1(mean(rhr_r)), "z": rhr_z, "series": rhr_r},
         "sleep": {"base": r1(mean(sl_b)), "sd": r1(ssd) if ssd else None, "now": r1(mean(sl_r)), "debt": sleep_debt, "series": sl_r},
         "edited": len([d for d in rec if d.source == "manual"]),
-        "score": score, "scoreLabel": label, "scoreDate": score_date,
-        "scorePrev": score_prev, "scoreDelta": score_delta,
     }
     # railway#138 — HRV, resting HR and sleep night by night for the charts in the readiness
     # detail on Zátěž; live assessment only, not the history replay
     if getattr(_today_override, "value", None) is None:
-        rows = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid,
-                                                   models.DailyMetric.date > day_ago(RECOVERY_HISTORY_DAYS)).all()
+        rows = daily(db, rid, RECOVERY_HISTORY_DAYS)
         hist = [{"d": m.date[:10], "hrv": r1(m.hrv_ms), "rhr": r1(m.resting_hr), "sleep": r1(m.sleep_h)}
                 for m in sorted(rows, key=lambda m: m.date)
                 if m.hrv_ms is not None or m.resting_hr is not None or m.sleep_h is not None]
@@ -1488,15 +1635,7 @@ def hrv_cv(db: DBSession, rid: str):
     from `recovery().hrv` which tracks the mean level. Compares CV over the
     last 7 days to CV over the preceding 28-day window."""
     rec = daily(db, rid, 7)
-    base = (
-        db.query(models.DailyMetric)
-        .filter(
-            models.DailyMetric.runner_id == rid,
-            models.DailyMetric.date <= day_ago(7),
-            models.DailyMetric.date > day_ago(35),
-        )
-        .all()
-    )
+    base = daily_between(db, rid, 7, 35)
     hrv_r = [d.hrv_ms for d in rec if d.hrv_ms is not None]
     hrv_b = [d.hrv_ms for d in base if d.hrv_ms is not None]
     if len(hrv_r) < 4 or len(hrv_b) < 14:
@@ -1511,15 +1650,7 @@ def sleep_regularity(db: DBSession, rid: str):
     """v0.4 — variability of sleep *duration* (not clock-time onset/wake, the
     schema doesn't have those) over 14 days vs a 35-day baseline window."""
     rec = daily(db, rid, 14)
-    base = (
-        db.query(models.DailyMetric)
-        .filter(
-            models.DailyMetric.runner_id == rid,
-            models.DailyMetric.date <= day_ago(14),
-            models.DailyMetric.date > day_ago(49),
-        )
-        .all()
-    )
+    base = daily_between(db, rid, 14, 49)
     sl_r = [d.sleep_h for d in rec if d.sleep_h is not None]
     sl_b = [d.sleep_h for d in base if d.sleep_h is not None]
     if len(sl_r) < 6 or len(sl_b) < 14:
@@ -1538,15 +1669,7 @@ def sleep_efficiency(db: DBSession, rid: str):
     from .capacity import rest_share
     week = daily(db, rid, 7)
     rec = [d.sleep_efficiency for d in week if d.sleep_efficiency is not None]
-    base = (
-        db.query(models.DailyMetric)
-        .filter(
-            models.DailyMetric.runner_id == rid,
-            models.DailyMetric.date <= day_ago(8),
-            models.DailyMetric.date > day_ago(56),
-        )
-        .all()
-    )
+    base = daily_between(db, rid, 8, 56)
     base_v = [d.sleep_efficiency for d in base if d.sleep_efficiency is not None]
     # feedback railway#33 — quality, not only length: deep + REM share of the
     # staged sleep against the runner's own 8-week normal
@@ -1565,8 +1688,7 @@ def sleep_efficiency(db: DBSession, rid: str):
     # railway#114 — nights of the last 60 days (total sleep, deep and REM) for the chart under
     # the sleep quality overview; live assessment only, not the history replay
     if getattr(_today_override, "value", None) is None:
-        rows = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid,
-                                                   models.DailyMetric.date > day_ago(SLEEP_HISTORY_DAYS)).all()
+        rows = daily(db, rid, SLEEP_HISTORY_DAYS)
         hist = [{"d": m.date[:10], "sleep": r1(m.sleep_h), "deep": rnd(m.deep_min), "rem": rnd(m.rem_min)}
                 for m in sorted(rows, key=lambda m: m.date) if m.sleep_h is not None or m.deep_min is not None]
         if len(hist) >= 7:
@@ -1578,12 +1700,7 @@ SLEEP_HISTORY_DAYS = 60
 
 
 def feedback(db: DBSession, rid: str):
-    fb = (
-        db.query(models.ActivityFeedback)
-        .filter(models.ActivityFeedback.runner_id == rid)
-        .order_by(models.ActivityFeedback.submitted_at.asc())
-        .all()
-    )
+    fb = sorted(D.of(db, rid).feedback, key=lambda f: f.submitted_at)
     cutoff = day_ago(21)
     rec = [f for f in fb if f.submitted_at > cutoff]
     if not rec:
@@ -1603,7 +1720,7 @@ def feedback(db: DBSession, rid: str):
         "topSite": {"site": top_site[0], "n": top_site[1]} if top_site else None,
         "feelingMean": r1(mean(feels)), "feelingTrend": r2(slope(feels)),
         "painMax": max(pains) if pains else 0,
-        "recent": [to_dict(f) for f in rec[-8:]],
+        "recent": [D.row_dict(f) for f in rec[-8:]],
     }
 
 
@@ -1614,12 +1731,7 @@ def stiffness_pattern(db: DBSession, rid: str):
     the more specific pattern this looks for is stiffness the runner trained
     hard through anyway (RPE>=6) — an inability to back off when the body's
     already signalling, not just the signal itself."""
-    fb = (
-        db.query(models.ActivityFeedback)
-        .filter(models.ActivityFeedback.runner_id == rid, models.ActivityFeedback.stiffness_pre.isnot(None))
-        .order_by(models.ActivityFeedback.submitted_at.asc())
-        .all()
-    )
+    fb = sorted((f for f in D.of(db, rid).feedback if f.stiffness_pre is not None), key=lambda f: f.submitted_at)
     cutoff = day_ago(21)
     rec = [f for f in fb if f.submitted_at > cutoff]
     if len(rec) < 4:
@@ -1656,15 +1768,11 @@ def injury(db: DBSession, rid: str):
     signal; a physio-confirmed report (source='physio_conclusion') carries
     evidence grade A, a self-report grade B. 'resolved'/'none' rows don't
     score but are kept and returned as the negative datapoints validation
-    needs. `substantial` mirrors the OSTRC definition (reduced or lost
-    participation/performance, i.e. an item at >=17)."""
+    needs. `substantial` mirrors the OSTRC definition (a moderate or severe
+    reduction in participation, training volume or performance, i.e. an item at
+    >= 17; Clarsen et al., 2013 — v0.9.0 adds the volume item)."""
     cutoff = day_ago(28)
-    rows = (
-        db.query(models.InjuryReport)
-        .filter(models.InjuryReport.runner_id == rid, models.InjuryReport.submitted_at > cutoff)
-        .order_by(models.InjuryReport.submitted_at.desc())
-        .all()
-    )
+    rows = D.stable_desc((x for x in D.of(db, rid).injuries if x.submitted_at > cutoff), lambda x: x.submitted_at)
     if not rows:
         return None
     active = next((r for r in rows if r.status == "active" and (r.severity or 0) > 0), None)
@@ -1675,7 +1783,7 @@ def injury(db: DBSession, rid: str):
             "site": _injury_site_label(active),
             "confirmed": bool(active.confirmed),
             "source": active.source,
-            "substantial": (active.q_participation or 0) >= 17 or (active.q_performance or 0) >= 17,
+            "substantial": max(active.q_participation or 0, active.q_volume or 0, active.q_performance or 0) >= 17,
             "at": active.submitted_at,
         }
     return out
@@ -1723,19 +1831,35 @@ def pain_recurrence(db: DBSession, rid: str, window: int = 28) -> dict:
         if region and date:
             dates.setdefault(region, []).append(date[:10])
 
-    for ck in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at > cut):
-        for p in (ck.pain_points or []):
-            add(p.get("region"), ck.submitted_at)
-    for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid, models.ActivityFeedback.submitted_at > cut):
-        for p in (f.pain_points or []):
-            add(p.get("region"), f.submitted_at)
-    for r in db.query(models.InjuryReport).filter(models.InjuryReport.runner_id == rid, models.InjuryReport.submitted_at > cut):
-        for p in (r.pain_points or []):
-            add(p.get("region"), r.submitted_at)
+    data = D.of(db, rid)
+    for ck in data.checkins:
+        if ck.submitted_at > cut:
+            for p in (ck.pain_points or []):
+                add(p.get("region"), ck.submitted_at)
+    for f in data.feedback:
+        if f.submitted_at > cut:
+            for p in (f.pain_points or []):
+                add(p.get("region"), f.submitted_at)
+    for r in data.injuries:
+        if r.submitted_at > cut:
+            for p in (r.pain_points or []):
+                add(p.get("region"), r.submitted_at)
     return dates
 
 
 RECUR_MIN_DAYS = 3     # same running-relevant site on ≥ 3 different days in 28 = recurring
+# v0.9.0 — men get proportionally more Achilles tendinopathy (Kakouris et al., 2021,
+# citing Francis et al., 2019), so for them an Achilles / calf mark on 2 days already
+# counts as recurring (working assumption on the threshold).
+RECUR_MIN_DAYS_MEN_ACHILLES = 2
+_ACHILLES_CALF_KEYS = ("achill", "lýtk", "lytk", "calf", "gastrocnem", "soleus")
+
+
+def _recur_min_days(sex: str, region) -> int:
+    r = str(region or "").lower()
+    if sex == "m" and any(k in r for k in _ACHILLES_CALF_KEYS):
+        return RECUR_MIN_DAYS_MEN_ACHILLES
+    return RECUR_MIN_DAYS
 PRIOR_UNKNOWN_MONTHS = 6   # a prior injury with no date counts as recent (prevention plan A5)
 FUNCTION_WINDOW_DAYS = 2   # a check-in saying pain limits movement counts today and tomorrow (A1)
 ACUTE_WINDOW_DAYS = 4      # an acute-overload report counts on its day and the 3 after (A2)
@@ -1754,14 +1878,18 @@ _SIDE_CZ = {"left": "vlevo", "right": "vpravo", "both": "oboustranně"}
 
 def recurring_pain(db: DBSession, rid: str, window: int = 28):
     """The running-relevant body site reported on the most different days in the
-    window, when that's ≥ RECUR_MIN_DAYS — {site, days, last} — else None."""
-    rec = pain_recurrence(db, rid, window)
+    window, when that's ≥ RECUR_MIN_DAYS (2 for a man's Achilles / calf) — {site, days,
+    last} — else None."""
+    data = D.of(db, rid)
+    sex = getattr(data.runner, "sex", None) or ""
+    rec = pain_recurrence(data, rid, window)
     best = None
     for region, dates in rec.items():
         if not _run_relevant(region):
             continue
         days = sorted(set(dates))
-        if len(days) >= RECUR_MIN_DAYS and (best is None or len(days) > best["days"]):
+        need = _recur_min_days(sex, region)
+        if len(days) >= need and (best is None or len(days) > best["days"]):
             best = {"site": _REGION_LABEL.get(str(region).lower(), region), "days": len(days), "last": days[-1]}
     return best
 
@@ -1805,9 +1933,7 @@ def prior_injury_sites(db: DBSession, r, rid: str) -> list[dict]:
                 al |= {key, lbl.lower()}
         sites.append({"aliases": al, "side": _SIDE_KEY.get(getattr(r, "prior_injury_side", None) or ""),
                       "months": injury_months(r), "label": r.prior_injury, "profile": True})
-    for rep in db.query(models.InjuryReport).filter(
-        models.InjuryReport.runner_id == rid, models.InjuryReport.submitted_at > day_ago(365)
-    ):
+    for rep in (x for x in D.of(db, rid).injuries if x.submitted_at > day_ago(365)):
         try:
             months = max(0, (today_date() - date.fromisoformat(str(rep.submitted_at)[:10])).days // 30)
         except ValueError:
@@ -1838,14 +1964,42 @@ def prior_site_hits(db: DBSession, rid: str, sites: list[dict], window: int = PR
                     m = site["months"] if site["months"] is not None else PRIOR_UNKNOWN_MONTHS
                     weights.append((clamp(18 * (1 - m / 12), 6, 18), site))
 
-    for ck in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at > cut):
-        scan(ck.pain_points, ck.submitted_at)
-    for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid, models.ActivityFeedback.submitted_at > cut):
-        scan(f.pain_points, f.submitted_at)
+    data = D.of(db, rid)
+    for ck in data.checkins:
+        if ck.submitted_at > cut:
+            scan(ck.pain_points, ck.submitted_at)
+    for f in data.feedback:
+        if f.submitted_at > cut:
+            scan(f.pain_points, f.submitted_at)
     if not days:
         return None
     w, site = max(weights, key=lambda x: x[0])
     return {"days": len(days), "weight": w, "labels": labels, "site": site, "last": max(days)}
+
+
+# Desai, P., Jungmalm, J., Börjesson, M., Karlsson, J., & Grau, S. (2021). Recreational
+#   runners with a history of injury are twice as likely to sustain a running-related
+#   injury as runners with no history of injury: A 1-year prospective cohort study.
+#   JOSPT, 51(3), 144–150. https://doi.org/10.2519/jospt.2021.9673
+# van Poppel, D., van der Worp, M., Slabbekoorn, A., van den Heuvel, S. S. P., van
+#   Middelkoop, M., Koes, B. W., Verhagen, A. P., & Scholten-Peeters, G. G. M. (2021).
+#   Risk factors for overuse injuries in short- and long-distance running: A systematic
+#   review. Journal of Sport and Health Science, 10(1), 14–28.
+#   https://doi.org/10.1016/j.jshs.2020.06.006
+def frailty_of(months) -> float:
+    """How much an injury `months` ago lowers load tolerance (a multiplier ≥ 1; v3
+    turns it into narrower safety margins). 1.20 right after it, fading to 1.06 at
+    12 months; v0.9.0 keeps a residual 1.06 → 1.02 through 24 months instead of
+    dropping to nothing at 12 — a history of injury doubled the risk in a 1-year
+    cohort whatever its age (Desai et al., 2021, HR 1.9) and stayed the strongest
+    predictor in the risk models (van Poppel et al., 2021). The fade = working assumption."""
+    if months is None or months < 0:
+        return 1.0
+    if months <= 12:
+        return 1 + clamp(0.20 * (1 - months / 12), 0.06, 0.20)
+    if months <= 24:
+        return 1.06 - 0.04 * (months - 12) / 12
+    return 1.0
 
 
 def injury_months(r) -> int | None:
@@ -1877,9 +2031,7 @@ def function_limit(db: DBSession, rid: str):
     function, not the pain number, marks an injury — a 2/10 that makes you limp
     matters more than a 5/10 that doesn't. None when nothing was reported."""
     cut = day_ago(FUNCTION_WINDOW_DAYS - 1)
-    rows = (db.query(models.Checkin)
-            .filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= cut)
-            .order_by(models.Checkin.submitted_at.desc()).all())
+    rows = D.stable_desc((c for c in D.of(db, rid).checkins if c.submitted_at >= cut), lambda c: c.submitted_at)
     c = next((x for x in rows if x.limits_movement or x.limping or x.run_modified), None)
     if c is None:
         return None
@@ -1898,7 +2050,8 @@ def acute_overload(db: DBSession, rid: str):
     {at, daysSince, reasons, sites} of the latest trigger in the window, else None."""
     since = day_ago(ACUTE_WINDOW_DAYS - 1)
     trig = []
-    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= since):
+    data = D.of(db, rid)
+    for c in (c for c in data.checkins if c.submitted_at >= since):
         sites = [x for x in _sites(c.pain_points, c.pain_site) if _run_relevant(x)]
         hurts = (c.pain_score or 0) >= 1 or bool(sites)
         why = []
@@ -1908,8 +2061,7 @@ def acute_overload(db: DBSession, rid: str):
             why.append(f"svalová bolest {c.soreness}/10")
         if why:
             trig.append((c.submitted_at[:10], why, sites))
-    for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid,
-                                                      models.ActivityFeedback.submitted_at >= since):
+    for f in (f for f in data.feedback if f.submitted_at >= since):
         sites = [x for x in _sites(f.pain_points, f.pain_site) if _run_relevant(x)]
         hurts = (f.pain_during or 0) >= 1 or bool(sites) or bool(f.niggle)
         why = []
@@ -1961,7 +2113,8 @@ def return_to_run(db: DBSession, rid: str):
     resolved: weeks 1–3 at 50 / 75 / 90 % of the pre-injury week, no intensity
     for the first 14 days. {site, injuryAt, resolvedAt, daysSince, week, factor,
     noQuality, physioPlan} while within 3 weeks of resolving, else None."""
-    reps = db.query(models.InjuryReport).filter(models.InjuryReport.runner_id == rid).all()
+    data = D.of(db, rid)
+    reps = list(data.injuries)
     if any(x.status == "active" and (x.severity or 0) > 0 for x in reps):
         return None                                   # still injured — the injury override applies
     done = [x for x in reps if x.status == "resolved" and x.resolved_at and (x.severity or 0) > 0]
@@ -1974,8 +2127,7 @@ def return_to_run(db: DBSession, rid: str):
     episode = [x for x in done if x.resolved_at[:10] == last]
     first = min(episode, key=lambda x: x.submitted_at)
     wk = days // 7 + 1
-    plan = db.query(models.ReturnToRun).filter(models.ReturnToRun.runner_id == rid,
-                                               models.ReturnToRun.status == "active").first()
+    plan = next((p for p in data.rtr_plans if p.status == "active"), None)
     return {"site": _injury_site_label(first), "injuryAt": first.submitted_at[:10], "resolvedAt": last,
             "daysSince": days, "week": wk, "factor": RTR_FACTORS[wk - 1],
             "noQuality": days < RTR_NO_QUALITY_DAYS,
@@ -1983,7 +2135,7 @@ def return_to_run(db: DBSession, rid: str):
             "physioPlan": plan is not None}
 
 
-def races_for(db: DBSession, r) -> list[dict]:
+def races_for(db, r) -> list[dict]:
     """Plan B4 — the race calendar, plus the profile's goal race (goal_race /
     goal_date) as an A race when the calendar has nothing on that day."""
     if r is None:
@@ -1991,7 +2143,7 @@ def races_for(db: DBSession, r) -> list[dict]:
     today = today_date()
     out = [{"id": x.id, "date": x.date[:10], "name": x.name, "km": x.distance_km, "priority": x.priority or "B",
             "source": "calendar", "ascentM": x.ascent_m, "paceSKm": x.target_pace_s_km}
-           for x in db.query(models.Race).filter(models.Race.runner_id == r.id)]
+           for x in D.of(db, r.id).races]
     if r.goal_date and not any(o["date"] == str(r.goal_date)[:10] for o in out):
         out.append({"id": "goal", "date": str(r.goal_date)[:10], "name": r.goal_race, "km": None, "priority": "A",
                     "source": "profile", "ascentM": None, "paceSKm": None})
@@ -2057,20 +2209,33 @@ def race_outlook(db: DBSession, rid: str, r, efforts: list[dict], readiness_scor
     return {"next": nxt, "nextA": nxt_a, "upcoming": upcoming[:8], "warnings": warnings}
 
 
-def _pain_reports(db: DBSession, rid: str, since: str) -> list[dict]:
+def _rated_runs(data, since: str, strict: bool = False):
+    """(rating, the rated run's started_at) for every rating whose run is on/after
+    `since` (after it when `strict`) — the rating ⋈ activity join the engine used."""
+    out = []
+    for f in data.feedback:
+        started = data.run_day(f)
+        if started is None:
+            continue
+        if (started > since) if strict else (started >= since):
+            out.append((f, started))
+    return out
+
+
+def _pain_reports(db, rid: str, since: str) -> list[dict]:
     """Running-relevant pain reports since `since`: check-ins by their day, run
     ratings by the RUN's day (pain during that run, even if rated later)."""
     out = []
-    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= since):
+    data = D.of(db, rid)
+    for c in data.checkins:
+        if c.submitted_at < since:
+            continue
         sites = _sites(c.pain_points, c.pain_site)
         if sites and not any(_run_relevant(x) for x in sites):
             continue
         out.append({"day": c.submitted_at[:10], "kind": "checkin", "pain": c.pain_score or 0,
                     "sites": [x for x in sites if _run_relevant(x)]})
-    rows = (db.query(models.ActivityFeedback, models.Activity.started_at)
-            .join(models.Activity, models.Activity.id == models.ActivityFeedback.activity_id)
-            .filter(models.ActivityFeedback.runner_id == rid, models.Activity.started_at >= since))
-    for f, started in rows:
+    for f, started in _rated_runs(data, since):
         sites = _sites(f.pain_points, f.pain_site)
         if sites and not any(_run_relevant(x) for x in sites):
             continue
@@ -2152,13 +2317,13 @@ def pain_state(db: DBSession, rid: str, window: int = 28) -> dict:
     t_iso = iso_date(today)
     cut = day_ago(window)
     events = []                                            # (when, painful, sites, pain)
-    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at > cut):
+    data = D.of(db, rid)
+    for c in data.checkins:
+        if c.submitted_at <= cut:
+            continue
         sites = [x for x in _sites(c.pain_points, c.pain_site) if _run_relevant(x)]
         events.append((c.submitted_at, _painful_checkin(c), sites, c.pain_score or 0, "checkin"))
-    rows = (db.query(models.ActivityFeedback, models.Activity.started_at)
-            .join(models.Activity, models.Activity.id == models.ActivityFeedback.activity_id)
-            .filter(models.ActivityFeedback.runner_id == rid, models.Activity.started_at > cut))
-    for f, started in rows:
+    for f, started in _rated_runs(data, cut, strict=True):
         sites = [x for x in _sites(f.pain_points, f.pain_site) if _run_relevant(x)]
         hurt = (f.pain_during or 0) >= 1 or bool(f.niggle) or bool(sites)
         events.append((started or f.submitted_at, hurt, sites, f.pain_during or 0, "run"))
@@ -2194,7 +2359,12 @@ def pain_fade(age_days, cleared: bool) -> float:
 CHECKIN_FLAGS = ("ill", "bone_walk", "bone_rest", "bone_earlier", "red_cauda", "red_systemic")
 HR_PACE_BPM = 6            # heart rate ≥ 6 bpm over the usual for the pace across ≥ 3 runs (working assumption)
 HRV_HIGH_Z = 1.5           # 7-night HRV this far above the norm counts as "high" (working assumption)
+HRV_CV_LOW = 0.6           # v0.9.0: day-to-day HRV variation this far below usual counts as "unusually stable"
 BONE_PAIN_MIN = 3           # bone-typical site: from 3/10 the Silbernagel "≤ 5 is fine" allowance doesn't apply
+# v0.9.0 — female sex is a recognised bone stress injury risk factor (Warden et al.,
+# 2014; Toczyłowska et al., 2025; stress-fracture runners were more often women in Hoffman
+# & Krishnan, 2014), so for women the bone-pain rule starts at 2/10 (working assumption).
+BONE_PAIN_MIN_SEX = {"f": 2}
 SCREEN_WINDOW_DAYS = 2      # a screening answer counts today and tomorrow (like the function rule, A1)
 # Typical bone stress injury sites in runners (Warden et al., 2014): tibial shaft,
 # metatarsals, navicular (midfoot), calcaneus. Plantar fascia / tendon insertions excluded.
@@ -2234,16 +2404,18 @@ def screening(db: DBSession, rid: str) -> dict:
     boneStress — shin / foot pain that is there when walking, at rest or at night,
                  or starts earlier in each run: the warning signs of a bone stress
                  injury (Warden et al., 2014) → no running, physio within 48 h.
-    bonePain   — pain ≥ 3/10 at a bone-typical site: return from bone stress is
+    bonePain   — pain ≥ 3/10 (≥ 2/10 for women) at a bone-typical site: return from bone stress is
                  guided by no pain at all (Warden 2014), unlike tendon pain
                  (Silbernagel 2007) → no running today, cross-training only.
     ill        — the runner reported being ill today / yesterday.
     illDays28  — days with an illness report in the last 28 days."""
     today = today_date()
     cut_screen = iso_date(today - timedelta(days=SCREEN_WINDOW_DAYS - 1))
-    rows = (db.query(models.Checkin).filter(models.Checkin.runner_id == rid,
-                                            models.Checkin.submitted_at >= iso_date(today - timedelta(days=27)))
-            .order_by(models.Checkin.submitted_at.desc()).all())
+    lo = iso_date(today - timedelta(days=27))
+    data = D.of(db, rid)
+    db = data
+    bone_min = BONE_PAIN_MIN_SEX.get(getattr(data.runner, "sex", None) or "", BONE_PAIN_MIN)
+    rows = D.stable_desc((c for c in data.checkins if c.submitted_at >= lo), lambda c: c.submitted_at)
     out = {"redFlag": None, "boneStress": None, "bonePain": None, "ill": None, "illDays28": 0}
     ill_days = set()
     for c in rows:
@@ -2268,7 +2440,7 @@ def screening(db: DBSession, rid: str) -> dict:
     # bone-typical pain (check-ins and run ratings) in the last 14 days
     reps = _pain_reports(db, rid, iso_date(today - timedelta(days=13)))
     hits = [(r["day"], r["pain"], [x for x in r["sites"] if bone_site(x)]) for r in reps]
-    hits = [h for h in hits if h[2] and h[1] >= BONE_PAIN_MIN]
+    hits = [h for h in hits if h[2] and h[1] >= bone_min]
     if hits:
         last = max(hits, key=lambda h: (h[0], h[1]))
         days = sorted({h[0] for h in hits})
@@ -2293,7 +2465,7 @@ def overload_cluster(db: DBSession, rid: str, ill_days28: int, rel_effort: dict 
     Thresholds are working assumptions (4 days of fatigue ≥ 6 in 14, ≥ 2 illness
     days in 28, heart rate at the usual pace ≥ 5 bpm higher over ≥ 3 runs)."""
     cut = day_ago(13)
-    cks = db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= cut).all()
+    cks = [c for c in D.of(db, rid).checkins if c.submitted_at >= cut]
     tired = len({c.submitted_at[:10] for c in cks if (c.stress or 0) >= 6})
     deltas = hr_pace_deltas(rel_effort)
     hr_up = len(deltas) >= 3 and mean(deltas) >= 5
@@ -2311,7 +2483,7 @@ def max_efforts(db: DBSession, rid: str, hrmax: float | None, window: int = MAX_
     title. Each gets a recovery block of ~1 day per 3 km (2–14 days), the first
     third of it rest."""
     runs = acts(db, rid)
-    fb = {f.activity_id: f for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid)}
+    fb = {f.activity_id: f for f in D.of(db, rid).feedback}
     since, today = day_ago(window), today_date()
     out = []
     for a in runs:
@@ -2370,24 +2542,87 @@ def confidence(db: DBSession, rid: str):
     # models — a device swap inside the baseline window silently corrupts
     # the z-score, so it caps confidence below the mechanical-signal gate
     # regardless of how many matched sessions exist.
-    device_log = (
-        db.query(models.DeviceHistory).filter(models.DeviceHistory.runner_id == rid)
-        .order_by(models.DeviceHistory.recorded_at.asc()).all()
-    )
+    device_log = list(D.of(db, rid).devices)
     device_changed = len(device_log) >= 2 and device_log[-1].recorded_at > day_ago(BASE_FROM)
     if device_changed:
         v = min(v, 0.4)
+    step = getattr(_engine_ctx, "mech_step", None)
 
     if device_changed:
         note = "Během baseline okna došlo ke změně hodinek — mechanické signály jsou umlčené, dokud se baseline nepostaví znovu na novém zařízení."
+    elif step:
+        note = (f"Mechanika se {step['date'][8:10].lstrip('0')}. {step['date'][5:7].lstrip('0')}. skokově změnila "
+                f"v {len(step['metrics'])} metrikách najednou ({', '.join(step['labels'])}) a bez hlášených obtíží — "
+                "spíš nové boty, jiný snímač nebo aktualizace hodinek než změna běhu. Baseline se staví znovu od toho dne"
+                + (", do té doby se mechanika nehodnotí." if v < 0.6 else "."))
     elif v < 0.6:
         note = "Baseline se zatím buduje — mechanické signály se nezobrazují."
     else:
         note = "Baseline je dostatečný."
     return {
         "value": v, "sessions": matched, "days": days, "baseSessions": len(base),
-        "note": note, "deviceChanged": device_changed,
+        "note": note, "deviceChanged": device_changed, "equipmentStep": step,
+        # v0.9.0 — the pace classes of the terrain buckets (s/km), the runner's own when "relative"
+        "paceCuts": [round(c) for c in (getattr(_engine_ctx, "pace_cuts", None) or PACE_CUTS_FIXED)],
+        "paceRelative": getattr(_engine_ctx, "pace_cuts", None) is not None,
     }
+
+
+# v0.9.0 — a step in several running-dynamics metrics on the same day, without any
+# reported pain around it and at an unchanged pace, is far more likely new shoes, a
+# different sensor (chest strap / pod / wrist) or a firmware update than a change in
+# the runner (Willy, 2018: manufacturers change the algorithms remotely). The baseline
+# then restarts from that day instead of reading the step as drift. With pain around
+# it the step stays visible: a sudden compensation is exactly what should show.
+STEP_FIELDS = (("vert_osc_cm", "vertikální oscilace"), ("vert_ratio_pct", "vertikální poměr"),
+               ("gct_ms", "kontakt se zemí"), ("stride_len_m", "délka kroku"), ("cadence_spm", "kadence"))
+STEP_MIN_METRICS, STEP_Z, STEP_AGREE, STEP_SPEED = 3, 2.0, 0.8, 0.04
+STEP_BEFORE, STEP_AFTER, STEP_PAIN_DAYS = 8, 4, 7
+
+
+def mech_step_change(db, rid: str):
+    """{date, metrics, labels, shifts} of the latest such step within the last
+    BASE_FROM days, else None (see STEP_* for the rule)."""
+    data = D.of(db, rid)
+    runs = [a for a in all_acts(data, rid, "mech") if is_run(a) and _speed_ms(a)]
+    if len(runs) < STEP_BEFORE + STEP_AFTER:
+        return None
+    lo = day_ago(BASE_FROM)
+    days = sorted({a.started_at[:10] for a in runs if a.started_at[:10] > lo})
+    pain_days = sorted({p["day"] for p in _pain_reports(data, rid, day_ago(BASE_FROM + STEP_PAIN_DAYS)) if p["pain"] >= 1})
+    best = None
+    for d in days:
+        before = [a for a in runs if a.started_at[:10] < d][-STEP_BEFORE:]
+        after = [a for a in runs if a.started_at[:10] >= d][:STEP_BEFORE]
+        if len(before) < 6 or len(after) < STEP_AFTER:
+            continue
+        sb, sa = median([_speed_ms(a) for a in before]), median([_speed_ms(a) for a in after])
+        if abs(sa - sb) / sb > STEP_SPEED:
+            continue                                   # the pace changed too: not a pure equipment step
+        hit, shifts = [], {}
+        for f, lbl in STEP_FIELDS:
+            b = [getattr(a, f) for a in before if getattr(a, f) is not None]
+            x = [getattr(a, f) for a in after if getattr(a, f) is not None]
+            if len(b) < 6 or len(x) < STEP_AFTER:
+                continue
+            mb, s = median(b), max(mad_sd(b), sd(b) * 0.5, abs(median(b)) * 0.005)
+            z = (median(x) - mb) / s if s else 0.0
+            side = sum(1 for v in x if (v - mb) * z > 0) / len(x)
+            if abs(z) >= STEP_Z and side >= STEP_AGREE:
+                hit.append((f, lbl))
+                shifts[f] = r2(z)
+        if len(hit) < STEP_MIN_METRICS:
+            continue
+        d0 = date.fromisoformat(d)
+        if any(abs((date.fromisoformat(p) - d0).days) <= STEP_PAIN_DAYS for p in pain_days):
+            continue
+        cand = {"date": d, "metrics": [f for f, _ in hit], "labels": [lbl for _, lbl in hit], "shifts": shifts,
+                "_score": (len(hit), sum(abs(z) for z in shifts.values()))}
+        if best is None or cand["_score"] > best["_score"]:    # the day that separates best is the step
+            best = cand
+    if best:
+        best.pop("_score")
+    return best
 
 
 # ---------------------------------------------------------------- assess
@@ -2416,10 +2651,11 @@ def _v2_baseline_exclusions(db: DBSession, rid: str, after_days: int = 14, thr: 
         for k in range(after_days + 1):
             out.add((d0 + timedelta(days=k)).isoformat())
 
-    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid).all():
+    data = D.of(db, rid)
+    for c in data.checkins:
         if (c.pain_score or 0) >= thr:
             add(c.submitted_at)
-    for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid).all():
+    for f in data.feedback:
         if (f.pain_during or 0) >= thr:
             add(f.submitted_at)
     return frozenset(out)
@@ -2435,24 +2671,29 @@ def _stream_rows(db: DBSession, rid: str, newest_first: bool = False) -> list[di
     takes the activity's CURRENT surface — segments are cut at fetch time, and a
     later surface refinement (terrain sampling, a manual fix) must reach the
     segment baselines and the regression's surface terms too."""
-    order = models.Activity.started_at.desc() if newest_first else models.Activity.started_at.asc()
-    q = (
-        db.query(models.ActivityStream.segments_json, models.ActivityStream.created_at, models.Activity.id,
-                 models.Activity.started_at, models.Activity.title, models.Activity.distance_km,
-                 models.Activity.surface)
-        .join(models.Activity, models.ActivityStream.activity_id == models.Activity.id)
-        .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.segments_json.isnot(None),
-                (models.Activity.excluded.isnot(True)) | (models.Activity.excluded_scope == "load"))
-        .order_by(order, models.Activity.id.asc())
-    )
+    data = D.of(db, rid)
+    since = getattr(_engine_ctx, "mech_since", None)      # equipment step: the baseline restarts there
+    joined = []
+    for st in data.streams:
+        a = data.act_by_id.get(st.activity_id)
+        if a is None or st.segments_json is None or not (a.excluded is not True or a.excluded_scope == "load"):
+            continue
+        if since is not None and a.started_at < since:
+            continue
+        joined.append((st.segments_json, st.created_at, a.id, a.started_at, a.title, a.distance_km, a.surface,
+                       run_temp(a), winter_run(a)))
+    joined.sort(key=lambda t: t[2])                       # Activity.id asc (secondary key)
+    joined.sort(key=lambda t: t[3] or "", reverse=newest_first)
     out = []
-    for segs, created, aid, started, title, dist, surface in q.all():
+    for segs, created, aid, started, title, dist, surface, temp, winter in joined:
         if not segs:
             continue
         if surface:
             segs = [s if s.get("surface") == surface else {**s, "surface": surface} for s in segs]
+        if temp is not None:                  # v0.9.0: the run's air temperature, a regression covariate
+            segs = [{**s, "tempC": temp} for s in segs]
         out.append({"aid": aid, "created": created or "", "started": started or "", "title": title,
-                    "distanceKm": dist, "surface": surface, "segs": segs})
+                    "distanceKm": dist, "surface": surface, "segs": segs, "temp": temp, "winter": winter})
     return out
 
 
@@ -2473,7 +2714,7 @@ _SEG_FIT_MAX = 512
 
 
 def _seg_cached(kind: str, base_rows: list[dict], field: str, build):
-    key = (kind, field, tuple((r["aid"], r["created"], r["surface"], len(r["segs"])) for r in base_rows))
+    key = (kind, field, tuple((r["aid"], r["created"], r["surface"], r.get("temp"), len(r["segs"])) for r in base_rows))
     with _SEG_FIT_LOCK:
         if key in _SEG_FIT_CACHE:
             _SEG_FIT_CACHE.move_to_end(key)
@@ -2571,7 +2812,8 @@ def segment_mechanics(db: DBSession, rid: str):
         return None
     base_rows = _baseline_rows(rows, _eexcl())
     base_segs = [s for r in base_rows for s in r["segs"]]
-    recent = [r["segs"] for r in rows if r["started"] > day_ago(RECENT)]
+    winter_ok = sum(1 for r in base_rows if r.get("winter")) >= _WINTER_MIN_BASE
+    recent = [r["segs"] for r in rows if r["started"] > day_ago(RECENT) and (winter_ok or not r.get("winter"))]
     if len(base_segs) < 15 or len(base_rows) < _SEG_MIN_BASE_SESS or not recent:
         return None
     stats = seg.baseline_stats(base_segs)
@@ -2706,6 +2948,7 @@ def segment_significance(db: DBSession, rid: str, n_runs: int = 3, min_base: int
     p-values come from Student's t (df from the baseline size), so a small baseline
     bucket is not over-trusted. "Significant" = Benjamini–Hochberg FDR 5 % across
     every segment × metric test shown. Uses stored segments (fetch Detailní data)."""
+    db = D.of(db, rid)
     rows = _stream_rows(db, rid, newest_first=True)
     if not rows:
         return {"runs": [], "note": "no_streams"}
@@ -2722,6 +2965,7 @@ def run_segment_test(db: DBSession, rid: str, aid: int, min_base: int = 5) -> di
     baseline as it stood on that run's day — the 84→29-day window before the run,
     so an older run is never judged by a norm that contains itself or later runs.
     FDR is controlled within the run."""
+    db = D.of(db, rid)
     rows = _stream_rows(db, rid)
     r = next((x for x in rows if x["aid"] == aid), None)
     if r is None:
@@ -2747,6 +2991,7 @@ def run_segment_breakdown(db: DBSession, rid: str, days: int = 60, limit: int = 
     by gradient (sjezd / rovina / výjezd), in session typical-error units (see
     _seg_scale). Surfaces the notable single-band changes the whole-session score
     averages out. Empty until streams are fetched."""
+    db = D.of(db, rid)
     from . import segmentation as seg
     rows = _stream_rows(db, rid, newest_first=True)
     if not rows:
@@ -2803,8 +3048,27 @@ def _mech_flags(tv, gc, cad, strd, vosc) -> tuple[bool, bool]:
     return flag, watch
 
 
-def assess(db: DBSession, rid: str) -> dict:
-    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+def assess(db, rid: str) -> dict:
+    """The engine: a pure function of the runner's RunnerData snapshot (data.py), the
+    engine day (today_pinned) and the engine mode (engine_pinned). Pass a snapshot, or
+    a database session to have one loaded. Nothing is written and, given the snapshot,
+    nothing is read from the database."""
+    data = D.of(db, rid)
+    with mech_scope(data, rid):
+        return _assess(data, rid)
+
+
+def assess_data(data, day=None, mode: str | None = None) -> dict:
+    """assess() with the day and the engine mode passed explicitly."""
+    from contextlib import nullcontext
+    with (today_pinned(day) if day is not None else nullcontext()), \
+            (engine_pinned(mode) if mode is not None else nullcontext()):
+        return assess(data, data.rid)
+
+
+def _assess(db, rid: str) -> dict:
+    data = db
+    r = data.runner
     if _sensitive():
         # Feed pain-period exclusions to the mechanics drift core for this scope.
         _engine_ctx.excl = _v2_baseline_exclusions(db, rid)
@@ -2861,12 +3125,7 @@ def assess(db: DBSession, rid: str) -> dict:
     # Daily check-in is a *today* signal — only the last few days count, so a
     # stale pain report from weeks ago doesn't keep inflating the score forever.
     # Persistent problems live on the weekly OSTRC / injury path (28-day window).
-    ci = (
-        db.query(models.Checkin)
-        .filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at > day_ago(4))
-        .order_by(models.Checkin.submitted_at.desc())
-        .first()
-    )
+    ci = next(iter(D.stable_desc((c for c in data.checkins if c.submitted_at > day_ago(4)), lambda c: c.submitted_at)), None)
 
     sig = []
     pstate = pain_state(db, rid)                  # v0.8.5: pain-free check-ins end an episode
@@ -2881,8 +3140,9 @@ def assess(db: DBSession, rid: str) -> dict:
         return txt + (f" Slábne: poslední hlášení je starší a od té doby "
                       f"{'jste hlásili dny bez bolesti' if pstate['cleared'] else 'uběhlo pár dní'} (×{r2(f)})." if f < 0.99 else "")
 
-    def push(sid, name, grade, pts, val, detail):
-        sig.append({"id": sid, "name": cz_text(name), "grade": grade, "pts": pts, "val": cz_text(val), "detail": cz_text(detail)})
+    def push(sid, name, grade, pts, val, detail, rule=None):
+        sig.append({"id": sid, "name": cz_text(name), "grade": grade, "pts": pts, "val": cz_text(val), "detail": cz_text(detail),
+                    **({"rule": rule} if rule else {})})
 
     mech_score = load_score = symp_score = 0
 
@@ -2898,9 +3158,7 @@ def assess(db: DBSession, rid: str) -> dict:
         for key, lbl in _REGION_LABEL.items():
             if key in low or lbl.lower() in low:
                 prior_regions.add(key)
-    for rep in db.query(models.InjuryReport).filter(
-        models.InjuryReport.runner_id == rid, models.InjuryReport.submitted_at > day_ago(365)
-    ):
+    for rep in (x for x in data.injuries if x.submitted_at > day_ago(365)):
         if rep.body_region:
             prior_regions.add(rep.body_region)
         for pp in (rep.pain_points or []):
@@ -2909,9 +3167,7 @@ def assess(db: DBSession, rid: str) -> dict:
     prior_months = injury_months(r)
     prior_unknown = bool(r and r.prior_injury and not getattr(r, "prior_injury_date", None)
                          and r.prior_injury_months_ago is None)
-    frailty = 1.0
-    if r and r.prior_injury and prior_months is not None and prior_months <= 12:
-        frailty = 1 + clamp(0.20 * (1 - prior_months / 12), 0.04, 0.20)
+    frailty = frailty_of(prior_months) if (r and r.prior_injury) else 1.0
 
     # --- Mechanical drift: scored *continuously* rather than only above a hard
     # z ≥ 1 threshold, so subtle terrain-cleaned changes nudge the drift score up
@@ -2929,7 +3185,11 @@ def assess(db: DBSession, rid: str) -> dict:
         return ("úseky (odchylka v SD): " + " · ".join(parts)) if parts else "měřeno po úsecích běhu"
 
     def _pace_note(m):
-        return " · přepočteno na vaše obvyklé tempo" if (m or {}).get("paceAdjusted") else ""
+        m = m or {}
+        return ((" · přepočteno na vaše obvyklé tempo" if m.get("paceAdjusted") else "")
+                + (" a teplotu" if m.get("paceAdjusted") and m.get("tempAdjusted") else
+                   " · přepočteno na obvyklou teplotu" if m.get("tempAdjusted") else "")
+                + (f" · {m['winterSkipped']}× běh na sněhu či ledu nehodnocen" if m.get("winterSkipped") else ""))
 
     # feedback railway#50 — show the change as a percentage of the runner's own
     # baseline (baseMean → recMean), not a z-score; the z still drives the points.
@@ -2963,7 +3223,7 @@ def assess(db: DBSession, rid: str) -> dict:
     _dev = r.device if r else None
     mech_res = {}
     for sid, fld in (("tavr", "vert_ratio_pct"), ("gct", "gct_ms"), ("cad", "cadence_spm"), ("vosc", "vert_osc_cm")):
-        mp = REF.mech_priors(field=fld, device=_dev) or REF.mech_priors(field=fld)
+        mp = (mech_priors(fld, _dev) if _dev else None) or mech_priors(fld)
         mech_res[sid] = {"dead": round(REF.dead_zone_z(fld, mp["s_rm"] if mp else None, mp), 3),
                          "wf": REF.metric_weight_factor(mp),
                          **({"te": round(mp["te"], 3) if mp.get("te") else None, "swc": round(mp["swc"], 3) if mp.get("swc") else None} if mp else {})}
@@ -3020,13 +3280,23 @@ def assess(db: DBSession, rid: str) -> dict:
             if p:
                 load_score += p
                 push("pace_spike", "Skok v tempu", "C", p, f"×{L['paceSpike']}",
-                     "Nedávný běh byl výrazně rychlejší než vaše obvyklé tempo posledních 30 dní — prudké zrychlení "
-                     "zatěžuje jinak než delší vzdálenost (spíš Achillovka / planta / holeň).")
-        if L["monotony"] > 2.4:
-            p = rnd(clamp((L["monotony"] - 2.4) * 7, 0, 12))
+                     "Nedávný běh byl rychlejší než vaše obvykle nejrychlejší běhy posledních 2 měsíců (s přepočtem "
+                     "na převýšení, bez závodů) — prudké zrychlení zatěžuje jinak než delší vzdálenost "
+                     "(spíš Achillovka / planta / holeň).")
+        # v0.9.0 — monotony (Foster 1998) is a very-low-evidence warning sign and punished
+        # the lowest-risk pattern in the running cohorts: frequent, consistent running
+        # (Abrahamson et al., 2025: 24.7 % injured at 7 runs a week vs 71.8 % at ≤ 1;
+        # Malisoux et al., 2015). Grade C, and scored only when the week's all-sport load
+        # is also above the runner's weekly capacity (strain above what they tolerate).
+        sys_w = (((cap_v3.get("channels") or {}).get("systemic") or {}).get("exact") or {}).get("rw")
+        m_w = (cap_v3.get("margins") or {}).get("week", 0.15)
+        if L["monotony"] > MONO_THR and sys_w is not None and sys_w > 1 + m_w:
+            p = rnd(clamp((L["monotony"] - MONO_THR) * 7, 0, 12))
             if p:
                 load_score += p
-                push("mono", "Monotónní trénink", "B", p, f"{L['monotony']}", f"Chybí skutečně lehké dny · strain {L['strain']}")
+                push("mono", "Monotónní trénink nad kapacitou", "C", p, f"{L['monotony']}",
+                     f"Týden bez skutečně lehkých dnů a zároveň nad stropem vaší týdenní kapacity (×{r2(sys_w)}) · strain {L['strain']}. "
+                     "Pravidelnost sama riziko nezvyšuje — časté běhání má v kohortách nejnižší podíl zranění.")
         # v0.8.4 — internal vs external load: heart rate at a familiar (grade-adjusted)
         # pace drifting up over several runs, hot and very hilly runs left out
         # (Bourdon et al., 2017; Halson, 2014a: single-day HR varies up to 6.5 %, so
@@ -3043,8 +3313,8 @@ def assess(db: DBSession, rid: str) -> dict:
         # overreaching (Plews et al., 2014). Only together with fatigue or a heart rate
         # rising at the usual pace (working assumption: 7-night z ≥ 1.5).
         if rcv and (rcv["hrv"]["z"] or 0) >= HRV_HIGH_Z:
-            tired7 = len({c.submitted_at[:10] for c in db.query(models.Checkin).filter(
-                models.Checkin.runner_id == rid, models.Checkin.submitted_at >= day_ago(6)).all() if (c.stress or 0) >= 6})
+            tired7 = len({c.submitted_at[:10] for c in data.checkins
+                          if c.submitted_at >= day_ago(6) and (c.stress or 0) >= 6})
             hr_up = len(hpd) >= 3 and mean(hpd) >= 5
             if tired7 >= 3 or hr_up:
                 load_score += 6
@@ -3095,8 +3365,9 @@ def assess(db: DBSession, rid: str) -> dict:
             if p:
                 load_score += p
                 push("pace_spike", "Skok v tempu", "C", p, f"×{L['paceSpike']}",
-                     "Nedávný běh byl výrazně rychlejší než vaše obvyklé tempo posledních 30 dní — prudké zrychlení "
-                     "zatěžuje jinak než delší vzdálenost (spíš Achillovka / planta / holeň).")
+                     "Nedávný běh byl rychlejší než vaše obvykle nejrychlejší běhy posledních 2 měsíců (s přepočtem "
+                     "na převýšení, bez závodů) — prudké zrychlení zatěžuje jinak než delší vzdálenost "
+                     "(spíš Achillovka / planta / holeň).")
 
         # v0.6 — ACWR DEMOTED to low-weight context (grade C). The team-sport
         # acute:chronic "sweet spot" does not transfer to distance running — the same
@@ -3132,10 +3403,12 @@ def assess(db: DBSession, rid: str) -> dict:
                      "Zátěž pozvolna roste dva týdny po sobě, i když poměr 7:28 je ještě v klidu — "
                      "plíživé navyšování předchází zranění častěji než jednorázový skok.")
 
-        if L["monotony"] > 2.4:
-            p = rnd(clamp((L["monotony"] - 2.4) * 7, 0, 20))
+        # v0.9.0 — monotony only with a rising load (7:28 above +15 %), grade C (see v3 above)
+        if L["monotony"] > MONO_THR and L["valid"] and (L["ratio"] or 0) > MONO_V1_RATIO:
+            p = rnd(clamp((L["monotony"] - MONO_THR) * 7, 0, 20))
             load_score += p
-            push("mono", "Monotónní trénink", "B", p, f"{L['monotony']}", f"Chybí skutečně lehké dny · strain {L['strain']}")
+            push("mono", "Monotónní trénink při rostoucí zátěži", "C", p, f"{L['monotony']}",
+                 f"Týden bez skutečně lehkých dnů a zároveň rostoucí zátěž (7:28 ×{L['ratio']}) · strain {L['strain']}")
         if L["descentSpike"] is not None and L["descentSpike"] > 1.45:
             p = rnd(clamp((L["descentSpike"] - 1.45) * 15, 0, 14))
             load_score += p
@@ -3166,6 +3439,16 @@ def assess(db: DBSession, rid: str) -> dict:
             load_score += p
             push("hrvcv", "Kolísavá HRV mezi dny", "C", p, f"CV ×{hcv['ratio']}",
                  f"Den-k-dni variabilita HRV {hcv['cvNow']} % proti obvyklým {hcv['cvBase']} %")
+        # v0.9.0 — two-sided: heading into non-functional overreaching the day-to-day
+        # variation FELL while the weekly mean declined (Plews et al., 2012), so an
+        # unusually stable HRV together with a falling 7-night mean counts too.
+        elif hcv and hcv["ratio"] is not None and hcv["ratio"] <= HRV_CV_LOW and rcv and (rcv["hrv"]["z"] or 0) <= -0.5:
+            p = rnd(clamp((HRV_CV_LOW - hcv["ratio"]) * 25, 0, 10))
+            if p:
+                load_score += p
+                push("hrvcv", "Neobvykle stálá HRV při jejím poklesu", "C", p, f"CV ×{hcv['ratio']}",
+                     f"Den-k-dni variabilita HRV {hcv['cvNow']} % proti obvyklým {hcv['cvBase']} % a zároveň nižší "
+                     "týdenní průměr — u přetížení se kolísání HRV spíš ztrácí (Plews et al., 2012).")
         # Fitness–fatigue gap, relative to chronic load so the threshold is unit-free
         # (acute/chronic are now training-load AU, not km).
         if L["valid"] and L["chronic"] and L["tsbBalance"] is not None:
@@ -3323,17 +3606,16 @@ def assess(db: DBSession, rid: str) -> dict:
     # only an *active* report with severity moves the score.
     if inj and inj["active"]:
         ia = inj["active"]
-        sub = "omezená účast nebo výkon" if ia["substantial"] else "plná účast s obtížemi"
+        sub = "omezená účast, objem nebo výkon" if ia["substantial"] else "plná účast s obtížemi"
+        lvl = "alert" if ia["substantial"] else "watch"
         if ia["confirmed"]:
             p = rnd(clamp(ia["severity"] * 0.5, 0, 46))
-            symp_score += p
             push("injury", "Potvrzené zranění (fyzioterapeut)", "A", p, f"OSTRC {ia['severity']}/100",
-                 f"{ia['site']} — {sub}")
+                 f"{ia['site']} — {sub}", rule=lvl)
         else:
             p = rnd(clamp(ia["severity"] * 0.34, 0, 32))
-            symp_score += p
             push("injury", "Nahlášené zranění", "B", p, f"OSTRC {ia['severity']}/100",
-                 f"{ia['site']} — {sub} · self-report, nepotvrzeno fyziem")
+                 f"{ia['site']} — {sub} · self-report, nepotvrzeno fyziem", rule=lvl)
 
     # v0.6 — broad recent-complaint signal. Frandsen 2025: same-site recurrence is
     # rare before injury (6.9 % at 7d), but a problem in *any* location preceded
@@ -3357,24 +3639,22 @@ def assess(db: DBSession, rid: str) -> dict:
     func = function_limit(db, rid)
     if func:
         p = 45 if func["severe"] else 22
-        symp_score += p
         what = "omezený pohyb" if func["limitsMovement"] else "kulhání" if func["limping"] else "upravený běh"
         push("function", "Bolest omezuje pohyb" if func["severe"] else "Bolest omezila běh", "A", p, what,
              f"{func['site'] or 'Nahlášená bolest'} — omezení v pohybu je úroveň zranění i při nízkém čísle bolesti "
-             "(OSTRC). Běh vynechat a nechat posoudit.")
+             "(OSTRC). Běh vynechat a nechat posoudit.", rule="alert" if func["severe"] else "watch")
     acute = acute_overload(db, rid)
     if acute:
-        symp_score += 20
         push("acute", "Akutní přetížení po běhu", "B", 20, f"{acute['daysSince']} d",
-             ", ".join(acute["reasons"]) + " — hned po běhu; den dva bez běhu, pak jen volně.")
+             ", ".join(acute["reasons"]) + " — hned po běhu; den dva bez běhu, pak jen volně.", rule="watch")
     rtr = return_to_run(db, rid)
     pmon = pain_monitor(db, rid)
     if pmon and pmon["morningWorse"]:
         mw = pmon["morningWorse"]
-        symp_score += 25
         push("pain_morning", "Bolest ráno horší než při běhu", "B", 25, f"{mw['morning']}/10 vs {mw['during']}/10",
              f"{mw['site'] or 'Bolest'}: ráno po běhu {mw['morning']}/10, při běhu {mw['during']}/10. Podle modelu "
-             "sledování bolesti (Silbernagel 2007) má bolest do rána odeznít — když je horší, byla zátěž moc; dnes bez běhu.")
+             "sledování bolesti (Silbernagel 2007) má bolest do rána odeznít — když je horší, byla zátěž moc; dnes bez běhu.",
+             rule="watch")
     if pmon and pmon["trend"]:
         tr = pmon["trend"]
         symp_score += 12
@@ -3386,27 +3666,26 @@ def assess(db: DBSession, rid: str) -> dict:
     scr = screening(db, rid)
     if scr["redFlag"]:
         rf = scr["redFlag"]
-        symp_score += 60
         push("red_flag", "Varovné příznaky u bolesti zad", "A", 60,
              "okamžitě k lékaři" if rf["kind"] == "cauda" else "k lékaři",
              ("Bolest zad se změnou močení nebo stolice nebo s necitlivostí v rozkroku patří k příznakům, které "
               "vyžadují okamžité lékařské vyšetření." if rf["kind"] == "cauda" else
               "Bolest zad s horečkou nebo po pádu či úrazu je důvod nechat se co nejdřív vyšetřit lékařem.")
-             + " Tréninková doporučení jsou do té doby pozastavená (Finucane et al., 2020).")
+             + " Tréninková doporučení jsou do té doby pozastavená (Finucane et al., 2020).", rule="alert")
     if scr["boneStress"]:
         bs = scr["boneStress"]
-        symp_score += 40
         push("bone_stress", "Bolest s varovnými znaky přetížení kosti", "B", 40, ", ".join(bs["what"]),
              f"{bs['site']}: {', '.join(bs['what'])}. Takový průběh bývá u únavového přetížení kosti a patří "
-             "k posouzení fyzioterapeutem nebo lékařem, bez ohledu na číslo bolesti (Warden et al., 2014). Dnes bez běhu.")
+             "k posouzení fyzioterapeutem nebo lékařem, bez ohledu na číslo bolesti (Warden et al., 2014). Dnes bez běhu.",
+             rule="alert")
     elif scr["bonePain"]:
         bp = scr["bonePain"]
         p = 22 if bp["repeated"] else 14
-        symp_score += p
         push("bone_pain", "Bolest v místě typickém pro přetížení kosti", "B", p, f"{bp['pain']}/10 · {bp['days14']}× / 14 dní",
              f"{bp['site']}: {bp['pain']}/10. U kosti se bolest nepřechází, návrat k běhu se řídí úplnou absencí bolesti "
              "(Warden et al., 2014), na rozdíl od šlachy, kde je tolerovaná bolest do 5/10 (Silbernagel et al., 2007). "
-             "Dnes bez běhu, jiný sport jen bez bolesti." + (" Bolest se vrací, nechte ji posoudit fyzioterapeutem." if bp["repeated"] else ""))
+             "Dnes bez běhu, jiný sport jen bez bolesti." + (" Bolest se vrací, nechte ji posoudit fyzioterapeutem." if bp["repeated"] else ""),
+             rule="watch")
     cluster = overload_cluster(db, rid, scr["illDays28"], (cap_v3 or {}).get("relativeEffort"))
     if cluster:
         symp_score += 14
@@ -3437,14 +3716,15 @@ def assess(db: DBSession, rid: str) -> dict:
     load_score = rnd(clamp(load_score * (1.0 if _emode() == "v3" else frailty), 0, 100))
     symp_score = rnd(clamp(symp_score, 0, 100))
     # v3 gives the load axis more say in the overall state (0.30 → 0.40).
-    w_load = 0.40 if _emode() == "v3" else 0.30
-    overall = rnd(clamp(mech_score * 0.38 + load_score * w_load + symp_score * 0.52, 0, 100))
+    w_load = W_LOAD_V3 if _emode() == "v3" else W_LOAD
+    overall = rnd(clamp(mech_score * W_MECH + load_score * w_load + symp_score * W_SYMP, 0, 100))
     impact_scale = impact_scales(raw_axes, {"mech": mech_score, "load": load_score, "symp": symp_score},
-                                 {"mech": 0.38, "load": w_load, "symp": 0.52}, overall)
+                                 {"mech": W_MECH, "load": w_load, "symp": W_SYMP}, overall)
     for s_ in sig:
         s_["axis"] = signal_axis(s_["id"])
-        s_["impact"] = round(s_["pts"] * impact_scale[s_["axis"]], 2)
-    prev_row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()
+        # a safety rule is not a model term: it sets the tier floor instead of adding points
+        s_["impact"] = None if s_.get("rule") else round(s_["pts"] * impact_scale[s_["axis"]], 2)
+    prev_quadrant = data.prev_quadrant
     # v2 Phase 2: across-session evidence label (informational — shown to the
     # user, NOT yet a hard quadrant gate). "flag" = persistence (EWMA past its
     # control limit + same sign in ≥2 of last 3 sessions, rule A) or convergence
@@ -3461,7 +3741,7 @@ def assess(db: DBSession, rid: str) -> dict:
     # both cadence and stride. Rule A also needs a real magnitude (≥ "possible"),
     # not just statistical consistency.
     mech_flag, mech_watch = _mech_flags(tv, gc, cad, strd, vosc) if _sensitive() else (False, False)
-    quadrant = quadrant_of(load_score, mech_score, prev_row.quadrant if prev_row else None)
+    quadrant = quadrant_of(load_score, mech_score, prev_quadrant)
     tier = "alert" if overall >= 70 else ("watch" if overall >= 40 else "ok")
     # Repeated pain at the same running-relevant site, even mild, is the classic
     # overuse pattern — never "low risk / carry on": at least "watch", and the v3
@@ -3472,15 +3752,24 @@ def assess(db: DBSession, rid: str) -> dict:
     # A4 — the risk label never contradicts the state (Přetížení / Tichý drift are
     # not "low risk"); A1/A2 — limited function is injury-level, acute overload at least "watch".
     order = {"ok": 0, "watch": 1, "alert": 2}
-    floor = "alert" if (quadrant == "critical" or (func and func["severe"]) or scr["redFlag"] or scr["boneStress"]) else \
-        "watch" if (quadrant in ("overreaching", "silent") or func or acute or pmon or scr["bonePain"] or cluster) else "ok"
+    rule_lvl = max((s_["rule"] for s_ in sig if s_.get("rule")), key=order.get, default="ok")
+    floor = "alert" if (quadrant == "critical" or rule_lvl == "alert") else \
+        "watch" if (quadrant in ("overreaching", "silent") or rule_lvl == "watch" or pmon or cluster) else "ok"
     if order[floor] > order[tier]:
         tier = floor
+    # v0.9.0 — the safety rules (red flags, bone stress, limited function, acute
+    # overload, morning pain, an active injury) sit outside the calibrated score: the
+    # model axes stay what the calibration sees (`sympModel`, `overallModel`), and the
+    # displayed numbers are floored so they never contradict the tier or a rule.
+    symp_model, overall_model = symp_score, overall
+    symp_score = max(symp_score, RULE_FLOOR_PTS[rule_lvl])
+    overall = max(overall, TIER_FLOOR_PTS[tier])
 
     out = {
         "runner_id": rid, "computed_at": now_iso(), "engine": engine_version_for(_emode()),
         "engineMode": _emode(), "mechRes": mech_res, "mechFlag": mech_flag, "mechWatch": mech_watch, "segmentScored": seg_scored,
         "mech": mech_score, "load": load_score, "symp": symp_score, "overall": overall,
+        "sympModel": symp_model, "overallModel": overall_model, "ruleLevel": rule_lvl,
         "tier": tier, "quadrant": quadrant, "confidence": conf,
         "signals": sorted(sig, key=lambda s: -s["pts"]),
         "loadDetail": L, "tavr": tv, "gct": gc, "bal": bal, "dec": dec, "aer": aer, "rcv": rcv, "fb": fb,
@@ -3496,6 +3785,8 @@ def assess(db: DBSession, rid: str) -> dict:
         "paceSpike": L.get("paceSpike"), "safeLongRunKm": L.get("safeLongRunKm"),
         "capacityDeficit": capacity_deficit, "frailty": r2(frailty), "priorRegions": sorted(prior_regions),
         "capacity": cap_v3, "impactScale": impact_scale,
+        # v0.9.0 — Připravenost for every engine (it replaced the Regenerace ring)
+        "readiness": (cap_v3 or {}).get("readiness") or _readiness_block(data, rid),
     }
     # railway#113 — the records behind each signal (not in the history replay: past days
     # show the signals without sources, and 180 replays stay as fast as before)
@@ -3505,11 +3796,22 @@ def assess(db: DBSession, rid: str) -> dict:
     return out
 
 
+def _readiness_block(data, rid):
+    from . import capacity as CAP
+    return CAP.readiness_block(data, rid)
+
+
 # Feedback railway#111 — a signal's effect shown as the percentage points it takes off
 # the overall Skóre (displayed as 100 − overall), not as axis points.
 MECH_SIGNALS = frozenset({"tavr", "gct", "cad", "vosc", "bal", "dec", "gaitcv"})
 LOAD_SIGNALS = frozenset({"pace_spike", "mono", "hr_pace", "hrv_high", "session_spike", "spike_latent", "ewma", "hi_load",
                           "load_creep", "desc", "desc_steep", "aer", "hrv", "rhr", "hrvcv", "tsb", "load_capacity", "taper"})
+
+
+# v0.9.0 — safety rules set floors instead of adding model points
+RULE_SIGNALS = frozenset({"red_flag", "bone_stress", "bone_pain", "function", "acute", "pain_morning", "injury"})
+RULE_FLOOR_PTS = {"ok": 0, "watch": 40, "alert": 70}      # displayed symptom axis under a rule
+TIER_FLOOR_PTS = {"ok": 0, "watch": 40, "alert": 70}      # displayed overall under a tier (the tier cut-offs)
 
 
 def signal_axis(sid: str) -> str:
@@ -3531,20 +3833,31 @@ def impact_scales(raw: dict, final: dict, weights: dict, overall: float) -> dict
 
 DECISION_HEAD = {
     "physio_48h": "Objednat fyzioterapeuta do 48 hodin",
-    "physio_7d": "Vyšetření do 7 dnů — mechanika se mění bez nárůstu objemu",
+    "physio_7d": "Vyšetření do 7 dnů — mechanika se mění a k tomu hlášené obtíže",
     "app_program": "Preventivní program v aplikaci, kontrola za 7 dnů",
     "self_managed": "Pokračovat podle plánu",
 }
 
 
+def mechanics_corroborated(a: dict) -> bool:
+    """Symptoms point the same way as a mechanics drift: the symptom axis over its
+    threshold, or pain recurring at one running-relevant site."""
+    return (a.get("symp") or 0) >= QUAD_THRESHOLD or bool(a.get("painRecurring"))
+
+
 def triage_decision(a: dict) -> str:
     """The engine's own referral decision for an assessment — shared by the triage
-    queue and the v3 training guidance (whose physio override requires it)."""
+    queue and the v3 training guidance (whose physio override requires it).
+
+    v0.9.0: a mechanics drift ALONE ("Tichý drift") no longer refers to a physio —
+    the watch's running-dynamics metrics have no shown link to injury (Mason et al.,
+    2023; Neal et al., 2024). It stays "watch" with lighter guidance; a referral
+    needs symptoms (or, in the critical state, load) pointing the same way."""
     if a["quadrant"] == "critical" or a["tier"] == "alert":
         return "physio_48h"
-    if a["quadrant"] == "silent":
+    if a["quadrant"] == "silent" and mechanics_corroborated(a):
         return "physio_7d"
-    if a["tier"] == "watch":
+    if a["tier"] == "watch" or a["quadrant"] == "silent":
         return "app_program"
     return "self_managed"
 
@@ -3558,15 +3871,20 @@ def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> 
     `data_changed=False` is the day-rollover refresh from
     get_or_refresh_assessment: nothing was written, so the cached history
     stays valid and only needs extending by the new day."""
-    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    data = D.load_runner_data(db, rid)          # the one read; everything below is pure
+    r = data.runner
     with engine_pinned((r.engine_mode if r else None) or "v1"):
-        a = assess(db, rid)
-    # v3: today's training guidance (Trénink tab) — computed on the live recompute
-    # only (every sync / check-in / rating / new day), never in history replays.
-    a["guidance"] = None
-    if a.get("engineMode") == "v3":
-        from . import guidance as G
-        a["guidance"] = cz_deep(G.build_guidance(db, rid, a, r))
+        a = assess(data, rid)
+        # v3: today's training guidance (Trénink tab) — computed on the live recompute
+        # only (every sync / check-in / rating / new day), never in history replays.
+        a["guidance"] = None
+        if a.get("engineMode") == "v3":
+            from . import guidance as G
+            _engine_ctx.priors = data.priors
+            try:
+                a["guidance"] = cz_deep(G.build_guidance(data, rid, a, r))
+            finally:
+                _engine_ctx.priors = None
     row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()
     if row is None:
         row = models.Assessment(runner_id=rid)
@@ -3583,7 +3901,8 @@ def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> 
          "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury",
          "engineMode", "mechRes", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance", "painRecurring",
          "functionLimit", "acuteOverload", "raceRecovery", "maxEfforts", "painMonitor", "returnToRun", "races",
-         "screening", "cluster", "painState", "impactScale")
+         "screening", "cluster", "painState", "impactScale",
+         "readiness", "sympModel", "overallModel", "ruleLevel")          # v0.9.0
     }
     db.flush()
 

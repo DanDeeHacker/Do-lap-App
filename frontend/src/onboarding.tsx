@@ -190,10 +190,10 @@ const TABS: [string, string][] = [["/app/today", "Dnes"], ["/app/training", "Tr�
 // it, `value` why it is worth the runner's attention. No medical claims.
 export const TOUR: TourStep[] = [
   { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-score"]' }, title: "Skóre a osy stavu",
-    body: "Velké číslo je celkové skóre dne od 0 do 100, čím vyšší, tím lépe. Kolem něj jsou čtyři osy: regenerace, příznaky, zátěž a mechanika. Klepnutím na kteroukoli otevřete její trend.",
+    body: "Velké číslo je celkové skóre dne od 0 do 100, čím vyšší, tím lépe. Kolem něj jsou čtyři kruhy: připravenost, příznaky, zátěž a mechanika. Klepnutím na kteroukoli otevřete její trend.",
     value: "Za pár vteřin víte, jak na tom tělo dnes je, a hned vidíte, která oblast skóre táhne dolů." },
   { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-reco"]' }, title: "Dnešní doporučení",
-    body: "Konkrétní typ tréninku na dnešek s rozsahem kilometrů. Vychází z vaší kapacity, ranní regenerace a z toho, co jste odběhli v posledních dnech.",
+    body: "Konkrétní typ tréninku na dnešek s rozsahem kilometrů. Vychází z vaší kapacity, ranní připravenosti a z toho, co jste odběhli v posledních dnech.",
     value: "Nemusíte hádat, jestli dnes přidat, nebo ubrat. Doporučení se každé ráno přepočítá podle nových dat." },
   { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-quadrant"]' }, title: "Kvadrant stavu",
     body: "Zátěž a mechanika společně určí jeden ze čtyř stavů: stabilní, přetížení, tichý drift nebo kritická kombinace. Klepnutím zobrazíte vývoj stavu za posledních 6 měsíců.",

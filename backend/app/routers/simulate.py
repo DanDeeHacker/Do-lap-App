@@ -85,12 +85,15 @@ def calibration_report(force: bool = False, target: float | None = None,
 
 
 @router.get("/calibration/export")
-def calibration_export(user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
-    """Plan phase 4: the labelled daily dataset as CSV, for the offline mixed model."""
+def calibration_export(scale: str = "day", user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Plan phase 4: the labelled daily dataset as CSV, for the offline mixed model
+    (`scale=session`: one row per run, the RUNSAFE session scale)."""
     from fastapi.responses import PlainTextResponse
     from .annotations import is_owner
     from .. import calibration
     if not is_owner(user):
         raise HTTPException(403, "Jen pro vlastníka aplikace")
-    return PlainTextResponse(calibration.to_csv(calibration.dataset(db)), media_type="text/csv",
-                             headers={"Content-Disposition": "attachment; filename=doslap-calibration.csv"})
+    rows = calibration.session_dataset(db) if scale == "session" else calibration.dataset(db)
+    name = "doslap-calibration-sessions.csv" if scale == "session" else "doslap-calibration.csv"
+    return PlainTextResponse(calibration.to_csv(rows), media_type="text/csv",
+                             headers={"Content-Disposition": f"attachment; filename={name}"})
