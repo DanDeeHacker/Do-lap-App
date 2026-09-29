@@ -447,7 +447,8 @@ function RacesCard({ outlook }: { outlook: any }) {
 }
 
 export function Training() {
-  const { boot } = useApp()
+  const { boot, me, refresh, touring } = useApp()
+  const rid = me?.runner_id
   const a = boot?.assessment
   const g = a?.guidance
   const [sel, setSel] = useState<string | null>(null)
@@ -505,7 +506,10 @@ export function Training() {
 
       {g.override && (
         <AlertBanner tone="stop" className="mt-5" title={g.override.title}
-          action={(g.override.kind === "physio" || g.override.kind === "function" || g.override.kind === "bone_stress") ? <Link to="/app/messages" className="btn btn-primary btn-sm">Objednat fyzioterapeuta</Link> : undefined}>
+          action={(g.override.kind === "physio" || g.override.kind === "function" || g.override.kind === "bone_stress") ? <Link to="/app/messages" className="btn btn-primary btn-sm">Objednat fyzioterapeuta</Link>
+            : (g.override.kind === "injury" && g.override.canResolve && rid && !touring) ? <button type="button" className="btn btn-primary btn-sm" data-testid="injury-resolve"
+                onClick={async () => { await api.reportInjury(rid, { resolve: true, q_participation: 0, q_volume: 0, q_performance: 0, q_pain: 0 }); refresh() }}>Zranění je zahojené</button>
+            : undefined}>
           {g.override.text}
         </AlertBanner>
       )}

@@ -73,9 +73,11 @@ def test_bone_pain_has_no_tolerance_but_tendon_pain_does(client, db_session):
     bp = a["screening"]["bonePain"]
     assert bp and bp["pain"] == 3 and not bp["repeated"] and a["tier"] in ("watch", "alert")
     g = a["guidance"]
-    assert g["override"] is None and g["type"] == "volno"
+    # v0.8.5: no running, the non-impact option instead (Warden et al., 2021)
+    assert g["override"] is None and g["type"] == "kolo"
     assert not any(g["types"][k]["allowed"] for k in ("regenerace", "lehký", "dlouhý", "kvalitní"))
-    assert g["types"]["kolo"]["notes"][0] == "Jen pokud při tom nic nebolí."
+    assert "Jen pokud při tom nic nebolí." in g["types"]["kolo"]["notes"]
+    assert any("druhý den" in n for n in g["types"]["kolo"]["notes"])
     # the same number at the Achilles tendon keeps the pain-monitoring allowance (easy running)
     rid2, _ = _runner(client, db_session, "lr3b@test.cz")
     _checkin(db_session, rid2, pain_score=3, pain_points=ACHILLES)

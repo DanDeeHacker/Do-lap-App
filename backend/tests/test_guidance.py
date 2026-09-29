@@ -78,9 +78,9 @@ def test_physio_override_needs_pain_over_5_and_a_referral(client, db_session):
     g = _guide(db_session, rid, r, quadrant="critical")
     assert g["type"] == "volno" and g["override"]["kind"] == "physio" and g["referral"] == "physio_48h"
     assert not any(g["types"][k]["allowed"] for k in ("regenerace", "lehký", "dlouhý", "kvalitní"))
-    # the same pain WITHOUT a referral → easy / regeneration, no physio override
+    # the same pain WITHOUT a referral → cross-training instead of running (v0.8.5), no physio override
     g2 = _guide(db_session, rid, r, quadrant="stable", tier="ok")
-    assert g2["override"] is None and g2["type"] == "regenerace"
+    assert g2["override"] is None and g2["type"] in ("kolo", "voda")
     assert g2["types"]["regenerace"]["allowed"] and not g2["types"]["lehký"]["allowed"]
 
 
@@ -324,3 +324,96 @@ def test_learning_reason_only_while_the_cycle_is_unknown(client, db_session):
     g = _guide(db_session, rid, r, load=0)
     has = any("nastavíme po 4 týdnech" in x for x in g["reasons"])
     assert has == (g["week"]["mode"] == "learning")
+
+
+# ---------------------------------------------------------------- v0.8.5 pain state
+def _ck(db, rid, days_ago, score, region=None, hour="07"):
+    day = (E.today_date() - timedelta(days=days_ago)).isoformat()
+    db.add(models.Checkin(runner_id=rid, submitted_at=f"{day}T{hour}:00:00+02:00", pain_score=score,
+                          pain_points=[{"region": region}] if region else []))
+    db.commit()
+
+
+def test_todays_checkin_decides_over_yesterdays_pain(client, db_session):
+    rid, r = _runner(client, db_session, "g85a@test.cz")
+    _ck(db_session, rid, 1, 6, "Lýtko (gastrocnemius)")
+    g = _guide(db_session, rid, r, quadrant="stable", tier="ok")
+    assert g["pain"] == 6 and not g["types"]["lehký"]["allowed"]            # no check-in yet: yesterday counts
+    assert any("dnešní check-in" in x for x in g["reasons"])
+    _ck(db_session, rid, 0, 0)
+    g = _guide(db_session, rid, r, quadrant="stable", tier="ok")
+    assert g["pain"] == 0 and g["types"]["lehký"]["allowed"]                 # a calm morning lifts the block
+
+
+def test_recurring_pain_releases_after_two_clean_checkins(client, db_session):
+    rid, r = _runner(client, db_session, "g85b@test.cz")
+    for d in (6, 5, 4):
+        _ck(db_session, rid, d, 3, "Lýtko (gastrocnemius)")
+    _ck(db_session, rid, 1, 0)
+    g = _guide(db_session, rid, r, quadrant="stable", tier="ok")
+    held = (g["types"]["dlouhý"]["why"] or "") + (g["types"]["kvalitní"]["why"] or "")
+    assert "uvolní se po" in held                                           # 1 clean check-in: still held
+    _ck(db_session, rid, 0, 0)
+    with E.engine_pinned("v3"):
+        a = E.assess(db_session, rid)
+    assert a["painState"]["cleared"] and a["painRecurring"]                  # remembered, but released
+    g = G.build_guidance(db_session, rid, {**a, "quadrant": "stable", "tier": "ok"}, r)
+    why = " ".join(filter(None, (g["types"][k]["why"] for k in ("dlouhý", "kvalitní"))))
+    assert "Opakovaná bolest" not in why
+    assert any("se uklidnila" in x for x in g["reasons"])
+
+
+def test_bone_site_needs_five_pain_free_days(client, db_session):
+    rid, r = _runner(client, db_session, "g85c@test.cz")
+    for d in (5, 4, 3):
+        _ck(db_session, rid, d, 3, "Tibialis anterior (holeň)")
+    _ck(db_session, rid, 1, 0)
+    _ck(db_session, rid, 0, 0)
+    with E.engine_pinned("v3"):
+        a = E.assess(db_session, rid)
+    assert a["painState"]["cleared"] and not a["painState"]["boneCleared"]  # 3 days since: not yet 5
+    g = G.build_guidance(db_session, rid, {**a, "quadrant": "stable", "tier": "ok"}, r)
+    assert not g["types"]["dlouhý"]["allowed"] and "5 dní bez bolesti" in g["types"]["dlouhý"]["why"]
+
+
+def test_calf_pain_rest_day_offers_water_not_bike(client, db_session):
+    rid, r = _runner(client, db_session, "g85d@test.cz")
+    _ck(db_session, rid, 0, 7, "Lýtko (gastrocnemius)")
+    g = _guide(db_session, rid, r, quadrant="stable", tier="ok")
+    assert g["type"] == "voda" and not g["types"]["kolo"]["allowed"]
+    assert "lýtk" in g["types"]["kolo"]["why"]
+
+
+def test_achilles_pain_rest_day_offers_bike(client, db_session):
+    rid, r = _runner(client, db_session, "g85e@test.cz")
+    _ck(db_session, rid, 0, 7, "Achillova šlacha")
+    g = _guide(db_session, rid, r, quadrant="stable", tier="ok")
+    assert g["type"] == "kolo" and any("Achillovu" in n for n in g["types"]["kolo"]["notes"])
+
+
+def test_cross_for_sites_rules():
+    assert G.cross_for_sites(["Iliotibiální trakt (IT band)"])["kolo"] == "avoid"
+    assert G.cross_for_sites(["Úpon hamstringů (sedací hrbol)"])["kolo"] == "avoid"
+    assert G.cross_for_sites(["Patelární šlacha"])["kolo"] == "caution"
+    assert G.cross_for_sites(["Achillova šlacha, Lýtko"])["kolo"] == "avoid"      # the worst spot wins
+    assert G.cross_for_sites(["Rotátorová manžeta"]) is None
+
+
+def test_old_pain_signals_fade_and_clear():
+    assert E.pain_fade(0, False) == 1.0
+    assert abs(E.pain_fade(7, False) - 0.5) < 1e-9
+    assert abs(E.pain_fade(0, True) - 1 / 3) < 1e-9
+
+
+def test_pain_trend_off_after_a_calm_morning(client, db_session):
+    rid, r = _runner(client, db_session, "g85f@test.cz")
+    _ck(db_session, rid, 10, 0, "koleno")
+    for d in (3, 2, 1):
+        _ck(db_session, rid, d, 4, "koleno")
+    assert (E.pain_monitor(db_session, rid) or {}).get("trend")
+    _ck(db_session, rid, 0, 0)
+    assert not (E.pain_monitor(db_session, rid) or {}).get("trend")
+
+
+def test_new_body_map_regions_are_running_relevant():
+    assert E._run_relevant("Zákolenní šlachy") and E._run_relevant("Vzpřimovače páteře")

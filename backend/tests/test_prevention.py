@@ -161,12 +161,13 @@ def test_prior_injury_without_a_date_counts_as_recent(client, db_session):
                                   pain_points=[{"region": "IT pás", "side": "P"}]))
     db_session.commit()
     pp = next(s for s in _assess(db_session, rid)["signals"] if s["id"] == "pain_prior")
-    assert pp["val"] == "1× / 14 dní" and pp["pts"] == 9 and "doplňte ho v profilu" in pp["detail"]
+    f1 = E.pain_fade(1, False)                                # v0.8.5: a day-old mark counts a little less
+    assert pp["val"] == "1× / 14 dní" and pp["pts"] == round(9 * f1) and "doplňte ho v profilu" in pp["detail"]
     r.prior_injury_date, r.prior_injury_side = E.day_ago(150), "right"
     db_session.commit()
     assert E.injury_months(r) == 5
     pp = next(s for s in _assess(db_session, rid)["signals"] if s["id"] == "pain_prior")
-    assert "vpravo" in pp["detail"] and pp["pts"] == 10
+    assert "vpravo" in pp["detail"] and pp["pts"] == round(18 * (1 - 5 / 12) * f1)
 
 
 def test_prior_site_mark_multiplies_and_clears(client, db_session):
@@ -185,7 +186,7 @@ def test_prior_site_mark_multiplies_and_clears(client, db_session):
                                       pain_points=[{"region": "Achillova šlacha", "side": "P"}]))
     db_session.commit()
     pp = next(s for s in _assess(db_session, rid)["signals"] if s["id"] == "pain_prior")
-    assert pp["val"] == "3× / 14 dní" and pp["pts"] == 2 * w
+    assert pp["val"] == "3× / 14 dní" and pp["pts"] == round(2 * w * E.pain_fade(1, False))
     # marks older than 14 days no longer count
     for ck in db_session.query(models.Checkin).filter(models.Checkin.runner_id == rid):
         ck.submitted_at = E.day_ago(20)
@@ -221,7 +222,8 @@ def test_pain_worse_next_morning_than_during_the_run_stops_running(client, db_se
     assert (mw["morning"], mw["during"]) == (3, 1) and "Tříslo" in mw["site"]
     assert a["tier"] != "ok" and any(s["id"] == "pain_morning" for s in a["signals"])
     g = a["guidance"]
-    assert g["override"]["kind"] == "pain_monitor" and g["type"] == "volno"
+    # v0.8.5: no running, but the non-running option that spares the groin (water; bike only with caution)
+    assert g["override"]["kind"] == "pain_monitor" and g["type"] == "voda"
 
 
 def test_pain_that_settles_by_the_morning_is_fine(client, db_session):

@@ -76,10 +76,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   // public demo: the tour starts on its own; leaving the demo returns to sign-up
   const guestStarted = useRef(false)
   useEffect(() => {
-    if (guest && !guestStarted.current) { guestStarted.current = true; setTourOn(true); nav("/app/today") }
+    if (!guest || guestStarted.current) return
+    guestStarted.current = true
+    // once per demo visit: a page reload keeps the visitor where they were
+    let seen = false
+    try { seen = sessionStorage.getItem("doslap-demo-tour") === "1"; sessionStorage.setItem("doslap-demo-tour", "1") } catch { /* storage blocked */ }
+    if (!seen) { setTourOn(true); nav("/app/today") }
   }, [guest, nav])
   const exitDemo = useCallback(async () => {
     setTourOn(false)
+    try { sessionStorage.removeItem("doslap-demo-tour") } catch { /* storage blocked */ }
     await logout()
     nav("/auth")
     window.scrollTo({ top: 0 })

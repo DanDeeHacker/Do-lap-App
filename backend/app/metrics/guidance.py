@@ -260,19 +260,97 @@ def cycle_position(weeks: list[float]) -> dict | None:
 
 
 def _latest_pain(db, rid, today):
-    """Worst running pain reported today or yesterday (check-in or run rating)."""
+    """v0.8.5 — today's check-in decides (pain-monitoring model: pain has to settle
+    by the next morning, Silbernagel et al., 2007). With a check-in today: its pain
+    and the pain of runs done today. Without one yet: the worst running pain of
+    today and yesterday, as before, until the morning check-in says otherwise.
+    Returns (pain, site, {"checkedIn", "yRun": (pain, site) of yesterday's rated run})."""
+    t_iso = today.isoformat()
     cut = (today - timedelta(days=1)).isoformat()
+    cks = db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= cut).all()
+    rated = (db.query(models.ActivityFeedback, models.Activity.started_at)
+             .join(models.Activity, models.Activity.id == models.ActivityFeedback.activity_id)
+             .filter(models.ActivityFeedback.runner_id == rid, models.Activity.started_at >= cut).all())
+
+    def ck_site(c):
+        regs = [p.get("region") for p in (c.pain_points or []) if p.get("region")]
+        return ", ".join(regs) if regs else (c.pain_site or None)
+
+    def run_site(f):
+        regs = [p.get("region") for p in (f.pain_points or []) if p.get("region")]
+        return ", ".join(regs) if regs else (f.pain_site or None)
+
+    y_run = max(((f.pain_during or 0, run_site(f)) for f, st in rated if (st or "")[:10] < t_iso),
+                key=lambda x: x[0], default=None)
+    today_cks = [c for c in cks if c.submitted_at[:10] == t_iso]
     best, site = 0, None
-    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= cut).all():
+    if today_cks:
+        for c in today_cks:
+            if (c.pain_score or 0) > best:
+                best, site = c.pain_score, ck_site(c)
+        for f, st in rated:
+            if (st or "")[:10] == t_iso and (f.pain_during or 0) > best:
+                best, site = f.pain_during, run_site(f)
+        return best, site, {"checkedIn": True, "yRun": y_run}
+    for c in cks:
         if (c.pain_score or 0) > best:
-            best = c.pain_score
-            regs = [p.get("region") for p in (c.pain_points or []) if p.get("region")]
-            site = ", ".join(regs) if regs else (c.pain_site or None)
+            best, site = c.pain_score, ck_site(c)
     for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid,
                                                       models.ActivityFeedback.submitted_at >= cut).all():
         if (f.pain_during or 0) > best:
             best, site = f.pain_during, f.pain_site
-    return best, site
+    return best, site, {"checkedIn": False, "yRun": y_run}
+
+
+# v0.8.5 — cross-training by painful site: which non-running option does not load it.
+# Order matters (first match wins per spot). kolo: ok | caution | avoid.
+XT_SITES = [
+    (("sedací hrbol", "úpon hamstring", "upon hamstring"), "avoid",
+     "Při bolesti úponu hamstringů kolo zatím vynechte: ohnutá kyčel v sedle úpon stlačuje, a toho se "
+     "v první fázi rehabilitace fyzioterapeuti vyhýbají (Nasser et al., 2020).", None),
+    (("lýtk", "lytk", "gastrocnem", "soleus"), "avoid",
+     "Při bolesti lýtka kolo vynechte: lýtkové svaly patří při šlapání k nejvíc zapojeným (Ericson et al., 1985).",
+     "Plavání s pull-buoyem (bez práce nohou); běh ve vodě jen tehdy, když lýtko nebolí."),
+    (("iliotib", "it band", "it pás", "it pas"), "avoid",
+     "Při bolesti IT pásu kolo vynechte: šlapání opakovaně ohýbá koleno kolem 30°, kde se IT pás "
+     "stlačuje (Farrell et al., 2003).", None),
+    (("achill",), "ok",
+     "Kolo zatěžuje Achillovu šlachu mnohem méně než běh (Gregor et al., 1987). Bolest do 5/10, která do rána "
+     "odezní, je v pořádku.", None),
+    (("patel", "kvadricepsová", "kvadricepsova", "kolen", "čéšk", "cesk"), "caution",
+     "Na kole s výše nastaveným sedlem a lehkým převodem zůstává tlak v čéšce nízký (Ericson & Nisell, 1987).", None),
+    (("metatar", "prsty", "nárt", "nart"), "caution",
+     "Pedál tlačí do přednoží; pokud to v nártu cítíte, zvolte vodu.", None),
+    (("holeň", "holen", "tibial", "bérec", "berec", "pata", "plantár", "plantar", "fasci", "chodid"), "ok",
+     "Bez nárazů, ale jen pokud nebolí při jízdě, po ní ani druhý den (Warden et al., 2021).", None),
+    (("třísl", "trisl", "adduktor"), "caution", "Jen pokud při jízdě nic nebolí.", "Plavání bez prsového kopu."),
+    (("kyčl", "kycl", "kyčel", "ohýbač", "bederní", "bederni", "si kloub", "vzpřimovač", "hamstring", "zákolen",
+      "hlezen", "kotník", "kotnik"), "caution", "Jen pokud při jízdě nic nebolí.", None),
+]
+_XT_RANK = {"ok": 0, "caution": 1, "avoid": 2}
+
+
+def cross_for_sites(sites) -> dict | None:
+    """{"kolo": ok|caution|avoid, "koloNote", "vodaNote", "sites"} for the painful spots, or None."""
+    spots = [x.strip() for s in (sites or []) for x in str(s or "").split(",") if x.strip()]
+    if not spots:
+        return None
+    kolo, knotes, vnotes, hit = "ok", [], [], []
+    for spot in spots:
+        low = spot.lower()
+        for keys, verdict, knote, vnote in XT_SITES:
+            if any(k in low for k in keys):
+                hit.append(spot)
+                if _XT_RANK[verdict] > _XT_RANK[kolo]:
+                    kolo = verdict
+                if knote and knote not in knotes:
+                    knotes.append(knote)
+                if vnote and vnote not in vnotes:
+                    vnotes.append(vnote)
+                break
+    if not hit:
+        return None
+    return {"kolo": kolo, "koloNotes": knotes, "vodaNotes": vnotes, "sites": list(dict.fromkeys(hit))}
 
 
 def _rolling7_dist(day_vals: dict, today, first_day, days: int = DIST_DAYS) -> dict | None:
@@ -323,7 +401,16 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     dm_today = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid,
                                                    models.DailyMetric.date == t_iso).first()
     provisional = not (dm_today and (dm_today.sleep_h is not None or dm_today.hrv_ms is not None))
-    pain, pain_site = _latest_pain(db, rid, today)
+    pain, pain_site, pinfo = _latest_pain(db, rid, today)
+    pstate = a.get("painState") or {}
+    y_run_pain = (pinfo.get("yRun") or (0, None))[0] or 0
+    # yesterday's run hurt more than 5/10 but this morning is calm: the load was too
+    # much, the tissue settled → a lighter day rather than rest (Silbernagel et al., 2007)
+    settled_after_run = pinfo["checkedIn"] and pain < 1 and y_run_pain > 5
+    recurring = a.get("painRecurring")
+    rec_bone = bool(recurring) and E.bone_site(recurring.get("site"))
+    rec_cleared = bool(recurring) and bool(pstate.get("boneCleared") if rec_bone else pstate.get("cleared"))
+    rec_active = bool(recurring) and not rec_cleared
     decision = E.triage_decision(a)
     referral = decision in ("physio_48h", "physio_7d")
     inj = (a.get("injury") or {}).get("active")
@@ -378,6 +465,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         mode, factor = "learning", 1.0
     else:
         mode, factor = ("recovery" if cyc["pos"] == 4 else "build"), CYCLE[cyc["pos"]]
+    rec_hold = rec_cleared and mode == "build" and factor > 1.0
+    if rec_hold:                                 # recurring pain settled: follow the plan, no step up yet
+        factor = 1.0
     pos_now = manual if (manual is not None and mode in ("build", "recovery")) else (cyc or {}).get("pos")
 
     def reference(c):
@@ -504,7 +594,6 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     desc_max = week["descent"]["todayMax"]
     asc_max = week["ascent"]["todayMax"]
     base_km = easy_km or 6.0
-    recurring = a.get("painRecurring")
     func = a.get("functionLimit")               # plan A1 — pain that limits movement / changed a run
     acute = a.get("acuteOverload")              # plan A2 — "too much" right after a run
     race = a.get("raceRecovery")                # plan A3 — recovery block after a race / maximal effort
@@ -514,13 +603,16 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     red, bstress, bpain, ill = scr.get("redFlag"), scr.get("boneStress"), scr.get("bonePain"), scr.get("ill")
     cluster = a.get("cluster")
     acute_mod = bool(acute) and 2 <= acute["daysSince"] <= 3
-    pain_mod = (3 <= pain <= 5 or (bool(recurring) and pain <= 5) or (bool(func) and not func["severe"])
-                or acute_mod or bool(ptrend))
+    pain_mod = (3 <= pain <= 5 or (rec_active and pain <= 5) or (bool(func) and not func["severe"])
+                or acute_mod or bool(ptrend) or settled_after_run)
+    need = (f"{E.CLEAR_BONE_DAYS} dní bez bolesti" if rec_bone else f"{E.CLEAR_CHECKINS} check-iny bez bolesti")
     pain_why = (f"Bolest {pain}/10" if pain >= 3 else
                 "Bolest omezila běh" if (func and not func["severe"]) else
                 "Po akutním přetížení" if acute_mod else
                 f"Bolest roste týden od týdne ({_cz(ptrend['before'])} → {_cz(ptrend['now'])}/10)" if ptrend else
-                f"Opakovaná bolest ({recurring['site']}, {recurring['days']}× za 28 dní)" if recurring else "")
+                f"Včerejší běh bolel {y_run_pain}/10, ráno je klid" if settled_after_run else
+                f"Opakovaná bolest ({recurring['site']}, {recurring['days']}× za 28 dní; uvolní se po: {need})"
+                if rec_active else "")
     km_scale = (0.7 if pain_mod else 1.0) * max(ready, 0.75) * (0.9 if new_block else 1.0)
     # weekly target reached but the 7-day ceiling still has room: a short easy run
     # stays available (not the default) — a rested body may move, the plan isn't risk
@@ -647,9 +739,15 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                      "text": f"Bolest zad ({red['site']}) s horečkou nebo po pádu či úrazu je důvod nechat se co nejdřív "
                              "vyšetřit lékařem. Do té doby bez tréninku."})
     elif inj:
+        # v0.8.5: after pain-free check-ins with normal movement the app asks whether it has
+        # healed instead of silently keeping the rest day (the answer stays the runner's / physio's)
+        can_resolve = bool(pstate.get("cleared")) and not func
         override = {"kind": "injury", "title": "Aktivní zranění — dnes bez běhu",
                     "text": f"{inj.get('site') or 'Nahlášené zranění'} (OSTRC {inj.get('severity')}/100). "
-                            "Běh odložte, dokud se zranění nezlepší; řiďte se doporučením fyzioterapeuta."}
+                            "Běh odložte, dokud se zranění nezlepší; řiďte se doporučením fyzioterapeuta."
+                            + (f" Posledních {pstate.get('cleanCheckins')} check-inů je bez bolesti — pokud je zranění "
+                               "zahojené, označte ho, a trénink se vrátí postupně (50 → 75 → 90 %)." if can_resolve else ""),
+                    "canResolve": can_resolve}
     elif func and func["severe"]:
         override = {"kind": "function", "title": "Bolest omezuje pohyb — dnes neběhat",
                     "text": f"{func['site'] or 'Nahlášená bolest'}: " + ("omezuje běžný pohyb" if func["limitsMovement"]
@@ -778,6 +876,24 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         block("regenerace", no_room.get(vw["limitedBy"], "Na dnešek už nezbývá objem.")
               + " Volno, případně jiný sport bez nárazů (kolo, plavání).")
 
+    # ---- cross-training by painful site (v0.8.5) --------------------------------
+    xt_sites = []
+    if pain >= 1 and pain_site:
+        xt_sites.append(pain_site)
+    if bpain:
+        xt_sites.append(bpain["site"])
+    if rec_active:
+        xt_sites.append(recurring["site"])
+    if inj and inj.get("site"):
+        xt_sites.append(inj["site"])
+    xt = cross_for_sites(xt_sites)
+    if xt:
+        if xt["kolo"] == "avoid":
+            block("kolo", xt["koloNotes"][0])
+        else:
+            types["kolo"]["notes"] = [n for n in xt["koloNotes"] if n not in types["kolo"]["notes"]] + types["kolo"]["notes"]
+        types["voda"]["notes"] = [n for n in xt["vodaNotes"] if n not in types["voda"]["notes"]] + types["voda"]["notes"]
+
     # ---- default type -------------------------------------------------------
     wd = today.weekday()
     ran_recent = sum(1 for k in (1, 2) if vol_daily.get((today - timedelta(days=k)).isoformat()))
@@ -812,6 +928,23 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if (typ == "volno" and not override and not race_rest and run_blocked and ride_day
             and rscore >= READY_EASY_ONLY and types["kolo"]["allowed"] and vw["limitedBy"] != "systemic"):
         typ = "kolo"                      # running tissues are at their limit, the aerobic side isn't
+    # v0.8.5: a rest day because of pain → the non-running option that spares the painful
+    # spot (deep-water running keeps aerobic fitness for 4–6 weeks: Wilber et al., 1996;
+    # Reilly et al., 2003). Not with illness, red flags, limited movement, bone-stress
+    # warning signs, an active injury or a physio referral — those stay rest.
+    pain_rest = (pain > 5 and not override) or bone_block or \
+        (bool(override) and override["kind"] in ("pain_monitor", "acute"))
+    xt_pick = None
+    if typ in ("volno", "regenerace") and pain_rest and not ill and not race_rest and not race_today:
+        kolo_v = (xt or {}).get("kolo", "ok")
+        if kolo_v == "ok" and types["kolo"]["allowed"]:
+            xt_pick = "kolo"
+        elif types["voda"]["allowed"]:
+            xt_pick = "voda"
+        elif kolo_v == "caution" and types["kolo"]["allowed"]:
+            xt_pick = "kolo"
+    if xt_pick:
+        typ = xt_pick
 
     # ---- reasons (most important first) -------------------------------------
     reasons = []  # the override itself is shown as the banner, not repeated here
@@ -830,6 +963,16 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     elif pain_mod:
         reasons.append(f"{pain_why}{f' · {pain_site}' if (pain >= 3 and pain_site) else ''} — odlehčit: běh jen kratší "
                        "a volnější, po rovině nebo měkkém povrchu, bez dlouhého běhu a intenzity.")
+    if xt_pick:
+        reasons.append(f"Místo běhu dnes {types[xt_pick]['label'].lower()}"
+                       + (f" — {', '.join(xt['sites'])} při něm není zatížené" if xt else "")
+                       + ". Jen pokud při tom nic nebolí; ranní check-in ukáže, jestli to tělu sedlo.")
+    if pain >= 1 and not pinfo["checkedIn"]:
+        reasons.append("Bolest ze včerejška platí, dokud nevyplníte dnešní check-in — když bude ráno klid, "
+                       "doporučení se uvolní.")
+    if rec_cleared and not pain_mod:
+        reasons.append(f"Opakovaná bolest ({recurring['site']}, {recurring['days']}× za 28 dní) se uklidnila, "
+                       "trénink jde podle plánu" + (", zatím bez navyšování nad 100 %." if rec_hold else "."))
     if race and not override:
         d = race["daysSince"] + 1
         reasons.append(f"Zotavení po závodním úsilí {_cz(race['km'])} km ({', '.join(race['why'])}) — den {d} z {race['days']}: "
@@ -894,7 +1037,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if cycle["manual"]:
         reasons.append(f"Tento týden jste ručně zvolili {cycle['pos']}. týden cyklu — příští týden se cyklus nastaví "
                        "sám podle toho, jak týden skutečně proběhne.")
-    if typ == "kolo":
+    if typ == "kolo" and not xt_pick:
         reasons.insert(0, "Běžecký objem je na dnešek vyčerpaný, ale celková zátěž má rezervu — kolo zatíží srdce "
                           "a plíce bez nárazů do nohou.")
     if carry and not override:

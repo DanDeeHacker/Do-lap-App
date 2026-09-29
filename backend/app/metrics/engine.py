@@ -34,7 +34,7 @@ from ..serializers import to_dict
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.8.4"   # v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.8.5"   # v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -1548,6 +1548,7 @@ def feedback(db: DBSession, rid: str):
     pains = [f.pain_during or 0 for f in rec]
     return {
         "n": len(rec), "total": len(fb), "niggleCount": len(niggles),
+        "lastNiggleAt": max((f.submitted_at for f in niggles), default=None),
         "niggleRate": r2(len(niggles) / len(rec)),
         "topSite": {"site": top_site[0], "n": top_site[1]} if top_site else None,
         "feelingMean": r1(mean(feels)), "feelingTrend": r2(slope(feels)),
@@ -1637,6 +1638,7 @@ _RUN_PAIN_KEYS = (
     "kvadric", "kyčl", "kyčel", "hýžd", "glute", "chodid", "plantár", "plantar", "kotník",
     "hlezen", "iliotib", "it band", "třísl", "trisl", "bérec", "nárt", "nart", "pata",
     "metatar", "adduktor", "ohýbač kyčle", "bederní", "si kloub", "prsty",
+    "zákolen", "zakolen", "vzpřimovač", "vzprimovac", "gastrocnem", "soleus",
 )
 
 
@@ -1793,7 +1795,7 @@ def prior_site_hits(db: DBSession, rid: str, sites: list[dict], window: int = PR
     if not days:
         return None
     w, site = max(weights, key=lambda x: x[0])
-    return {"days": len(days), "weight": w, "labels": labels, "site": site}
+    return {"days": len(days), "weight": w, "labels": labels, "site": site, "last": max(days)}
 
 
 def injury_months(r) -> int | None:
@@ -2058,13 +2060,83 @@ def pain_monitor(db: DBSession, rid: str):
     now = [v for d, v in by_day.items() if (today - date.fromisoformat(d)).days < 7]
     before = [v for d, v in by_day.items() if 7 <= (today - date.fromisoformat(d)).days < 14]
     trend = None
-    if len(now) >= 2 and before:
+    # v0.8.5: the trend is about pain that keeps growing while training goes on; a
+    # pain-free check-in this morning (< 2/10) means there is nothing growing today
+    today_ci = [r["pain"] for r in reps if r["kind"] == "checkin" and r["day"] == t_iso]
+    settled = bool(today_ci) and max(today_ci) < PAIN_MORNING_MIN
+    if len(now) >= 2 and before and not settled:
         mn, mb = mean(now), mean(before)
         if mn - mb >= PAIN_TREND_RISE and mn >= PAIN_TREND_MIN:
             trend = {"now": r1(mn), "before": r1(mb), "daysNow": len(now), "daysBefore": len(before)}
     if not morning and not trend:
         return None
     return {"morningWorse": morning, "trend": trend}
+
+
+# ---------------------------------------------------------------- v0.8.5 pain state
+# How a pain episode ends. Pain-monitoring model: pain during activity may be
+# acceptable when it settles by the next morning and does not grow week to week
+# (Silbernagel et al., 2007); for bone, the right load gives no symptoms during,
+# after or the day after, and running restarts after 5 pain-free days (Warden et
+# al., 2021). So the morning check-in decides today, and pain-free check-ins lift
+# the restrictions that older reports would otherwise keep for weeks.
+CLEAR_CHECKINS = 2         # soft tissue: pain-free check-ins after the last pain (working assumption)
+CLEAR_BONE_DAYS = 5        # bone-typical site: days without pain (Warden et al., 2021)
+SYMP_HALF_LIFE = 7.0       # days: older pain reports count less on Příznaky (working assumption)
+SYMP_CLEARED = 1 / 3       # what an old pain signal keeps after the clean streak (working assumption)
+
+
+def _painful_checkin(c) -> bool:
+    sites = _sites(c.pain_points, c.pain_site)
+    if sites and not any(_run_relevant(x) for x in sites):
+        return False                                   # an arm or shoulder isn't a running pain
+    return (c.pain_score or 0) >= 1
+
+
+def pain_state(db: DBSession, rid: str, window: int = 28) -> dict:
+    """{todayPain, todaySites, cleanCheckins, lastPainDay, daysSincePain, cleared,
+    boneLastDay, boneCleared}. todayPain is None without a check-in today.
+    A check-in is clean at 0/10 with no running-relevant spot; a run rating counts
+    as pain from 1/10, a niggle or a running-relevant spot (on the run's day)."""
+    today = today_date()
+    t_iso = iso_date(today)
+    cut = day_ago(window)
+    events = []                                            # (when, painful, sites, pain)
+    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at > cut):
+        sites = [x for x in _sites(c.pain_points, c.pain_site) if _run_relevant(x)]
+        events.append((c.submitted_at, _painful_checkin(c), sites, c.pain_score or 0, "checkin"))
+    rows = (db.query(models.ActivityFeedback, models.Activity.started_at)
+            .join(models.Activity, models.Activity.id == models.ActivityFeedback.activity_id)
+            .filter(models.ActivityFeedback.runner_id == rid, models.Activity.started_at > cut))
+    for f, started in rows:
+        sites = [x for x in _sites(f.pain_points, f.pain_site) if _run_relevant(x)]
+        hurt = (f.pain_during or 0) >= 1 or bool(f.niggle) or bool(sites)
+        events.append((started or f.submitted_at, hurt, sites, f.pain_during or 0, "run"))
+    pains = [e for e in events if e[1]]
+    last_pain_at = max((e[0] for e in pains), default=None)
+    clean_days = {e[0][:10] for e in events if e[4] == "checkin" and not e[1]
+                  and (last_pain_at is None or e[0] > last_pain_at)}
+    today_ci = [e for e in events if e[4] == "checkin" and e[0][:10] == t_iso]
+    last_day = last_pain_at[:10] if last_pain_at else None
+    bone_days = [e[0][:10] for e in pains if any(bone_site(x) for x in e[2])]
+    bone_last = max(bone_days, default=None)
+    since = (today - date.fromisoformat(last_day)).days if last_day else None
+    bone_since = (today - date.fromisoformat(bone_last)).days if bone_last else None
+    return {
+        "todayPain": max((e[3] for e in today_ci), default=None) if today_ci else None,
+        "todaySites": list(dict.fromkeys(x for e in today_ci for x in e[2])),
+        "cleanCheckins": len(clean_days), "lastPainDay": last_day, "daysSincePain": since,
+        "cleared": last_day is not None and len(clean_days) >= CLEAR_CHECKINS,
+        "boneLastDay": bone_last,
+        "boneCleared": bone_last is not None and bone_since >= CLEAR_BONE_DAYS and len(clean_days) >= CLEAR_CHECKINS,
+    }
+
+
+def pain_fade(age_days, cleared: bool) -> float:
+    """Weight of an older pain signal on Příznaky: halves every SYMP_HALF_LIFE days
+    and drops to SYMP_CLEARED once pain-free check-ins followed it."""
+    f = 0.5 ** (max(0, age_days or 0) / SYMP_HALF_LIFE)
+    return f * (SYMP_CLEARED if cleared else 1.0)
 
 
 # ---------------------------------------------------------------- v0.8.4 screening
@@ -2747,6 +2819,17 @@ def assess(db: DBSession, rid: str) -> dict:
     )
 
     sig = []
+    pstate = pain_state(db, rid)                  # v0.8.5: pain-free check-ins end an episode
+
+    def age_of(iso):
+        try:
+            return (today_date() - date.fromisoformat(str(iso)[:10])).days
+        except (TypeError, ValueError):
+            return 0
+
+    def faded(txt, f):
+        return txt + (f" Slábne: poslední hlášení je starší a od té doby "
+                      f"{'jste hlásili dny bez bolesti' if pstate['cleared'] else 'uběhlo pár dní'} (×{r2(f)})." if f < 0.99 else "")
 
     def push(sid, name, grade, pts, val, detail):
         sig.append({"id": sid, "name": name, "grade": grade, "pts": pts, "val": val, "detail": detail})
@@ -3073,11 +3156,13 @@ def assess(db: DBSession, rid: str) -> dict:
                  "riziko přetížení těsně před závodem stoupá, zvažte odlehčení místo dalšího navyšování")
 
     if fb and fb["niggleCount"] >= 3:
-        p = rnd(clamp(fb["niggleCount"] * 9, 0, 40))
-        symp_score += p
-        push("niggle", "Opakované bolestivé místo", "A", p, f"{fb['niggleCount']}× / 21 dní",
-             f"{fb['topSite']['site']} — hlášeno {fb['topSite']['n']}× po tréninku" if fb["topSite"]
-             else "Opakované hlášení po tréninku")
+        fn = pain_fade(age_of(fb.get("lastNiggleAt")), pstate["cleared"])
+        p = rnd(clamp(fb["niggleCount"] * 9, 0, 40) * fn)
+        if p:
+            symp_score += p
+            push("niggle", "Opakované bolestivé místo", "A", p, f"{fb['niggleCount']}× / 21 dní",
+                 faded(f"{fb['topSite']['site']} — hlášeno {fb['topSite']['n']}× po tréninku." if fb["topSite"]
+                       else "Opakované hlášení po tréninku.", fn))
     pain_warn = None
     if ci:
         base = 44 if (ci.pain_score or 0) >= 6 else 26 if (ci.pain_score or 0) >= 3 else 8 if (ci.pain_score or 0) >= 1 else 0
@@ -3168,7 +3253,8 @@ def assess(db: DBSession, rid: str) -> dict:
     ph = prior_site_hits(db, rid, prior_injury_sites(db, r, rid))
     if ph:
         mult = 1.0 if ph["days"] == 1 else 1.5 if ph["days"] == 2 else 2.0
-        p = rnd(ph["weight"] * mult)
+        fp = pain_fade(age_of(ph.get("last")), pstate["cleared"])
+        p = rnd(ph["weight"] * mult * fp)
         symp_score += p
         st = ph["site"]
         side = _SIDE_CZ.get(getattr(r, "prior_injury_side", None) or "", "") if st.get("profile") else ""
@@ -3177,7 +3263,8 @@ def assess(db: DBSession, rid: str) -> dict:
              f"jste označil {ph['days']}× za {PRIOR_HIT_WINDOW} dní. U dříve zraněného místa stačí jediné označení "
              f"bez ohledu na intenzitu a váha roste s počtem dní (×{mult:g}). Samotné zranění v anamnéze body "
              f"nepřidává, jen snižuje toleranci zátěže (×{r2(frailty)})."
-             + (" Datum zranění chybí — počítáme ho jako nedávné, doplňte ho v profilu." if prior_unknown and st.get("profile") else ""))
+             + (" Datum zranění chybí — počítáme ho jako nedávné, doplňte ho v profilu." if prior_unknown and st.get("profile") else "")
+             + (f" Slábne s odstupem od posledního označení (×{r2(fp)})." if fp < 0.99 else ""))
 
     # v0.6 — a live reported/confirmed injury (OSTRC-H). Weighted on the
     # symptom axis on a par with an in-run pain report, scaled by severity;
@@ -3205,11 +3292,15 @@ def assess(db: DBSession, rid: str) -> dict:
     rec_all = pain_recurrence(db, rid)
     run_complaint_days = len({d for reg, dts in rec_all.items() if _run_relevant(reg) for d in dts})
     if run_complaint_days >= 3:
-        p = rnd(clamp((run_complaint_days - 2) * 4, 0, 14))
-        symp_score += p
-        push("complaints", "Opakované obtíže (napříč místy)", "B", p, f"{run_complaint_days} dní / 28",
-             "Bolest hlášená ve více dnech za poslední 4 týdny, i když se místo mění. Opakované obtíže "
-             "předcházejí zranění častěji než jednorázová bolest — širší, citlivější varování než jen recidiva stejného místa.")
+        last_c = max((d for reg, dts in rec_all.items() if _run_relevant(reg) for d in dts), default=None)
+        fc = pain_fade(age_of(last_c), pstate["cleared"])
+        p = rnd(clamp((run_complaint_days - 2) * 4, 0, 14) * fc)
+        if p:
+            symp_score += p
+            push("complaints", "Opakované obtíže (napříč místy)", "B", p, f"{run_complaint_days} dní / 28",
+                 faded("Bolest hlášená ve více dnech za poslední 4 týdny, i když se místo mění. Opakované obtíže "
+                       "předcházejí zranění častěji než jednorázová bolest — širší, citlivější varování než jen "
+                       "recidiva stejného místa.", fc))
 
     # Prevention plan A1–A3: function, acute overload right after a run, and
     # races / maximal efforts (the last two feed the v3 guidance and the Dnes banners).
@@ -3341,7 +3432,7 @@ def assess(db: DBSession, rid: str) -> dict:
         "hrvCv": hcv, "sleepReg": sreg, "sleepEff": seff, "stiffness": stiff, "gradientDescent": gdesc, "injury": inj,
         "painRecurring": pain_recur, "functionLimit": func, "acuteOverload": acute, "raceRecovery": race_rec,
         "maxEfforts": efforts, "painMonitor": pmon, "returnToRun": rtr, "races": races,
-        "screening": scr, "cluster": cluster,
+        "screening": scr, "cluster": cluster, "painState": pstate,
         # v0.6 — single-session paradigm surface + capacity/frailty transparency +
         # forward-looking guardrail (the safe next-long-run ceiling).
         "sessionSpike": L.get("sessionSpike"), "spikeLatent": L.get("spikeLatent"),
@@ -3406,7 +3497,7 @@ def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> 
          "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury",
          "engineMode", "mechRes", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance", "painRecurring",
          "functionLimit", "acuteOverload", "raceRecovery", "maxEfforts", "painMonitor", "returnToRun", "races",
-         "screening", "cluster")
+         "screening", "cluster", "painState")
     }
     db.flush()
 
