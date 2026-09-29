@@ -90,3 +90,22 @@ def test_recovery_carries_nights_history_and_spread_for_the_readiness_detail(cli
     assert r["hrv"]["sd"] > 0 and r["rhr"]["sd"] > 0 and r["sleep"]["sd"] > 0
     with E.today_pinned(E.today_date()):
         assert "history" not in E.recovery(db_session, rid)
+
+
+def test_displayed_scores_vary_inside_the_tier_band():
+    """v0.9.2 — no fixed Skóre 60 floor: a raised tier is placed in its band by the
+    trigger's severity and the model; ordinary days spread over the ok band."""
+    ok = [E.display_scores(m, 0, "ok", "ok", [])["overall"] for m in (0, 3, 8, 15, 30)]
+    assert ok == sorted(ok) and ok[0] == 0 and ok[-1] <= 39 and len(set(ok)) == 5 and ok[2] >= 15
+    mild = E.display_scores(8, 0, "watch", "ok", [("watch", 0.125, "painRecurring")])
+    bad = E.display_scores(8, 0, "watch", "ok", [("watch", 0.75, "painRecurring")])
+    assert 40 <= mild["overall"] < bad["overall"] <= 69 and bad["band"]["by"] == "painRecurring"
+    # a tier the model reached itself shows the model value, continuous at the cut-off
+    assert E.display_scores(45, 0, "watch", "ok", [])["overall"] == 45
+    assert E.display_scores(39.9, 0, "ok", "ok", [])["overall"] == 39
+    # a rule lifts the symptom axis into its band by the rule's severity
+    lo = E.display_scores(3, 5, "watch", "watch", [("watch", 0.2, "rule")])["symp"]
+    hi = E.display_scores(3, 5, "watch", "watch", [("watch", 0.9, "rule")])["symp"]
+    assert 40 <= lo < hi <= 69
+    # an alert band stays at 70 or above, never below the model
+    assert 70 <= E.display_scores(50, 30, "alert", "alert", [("alert", 0.3, "rule")])["overall"] <= 100

@@ -34,7 +34,7 @@ from .. import models
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.9.1"  # v0.9.1: recovery nights history and baseline spread for the readiness detail on Zátěž (railway#138), approximate per-item shares of every signal source (railway#132); v0.9.0: engine evaluation 2026-09 — pure snapshot engine (RunnerData, history replays by as_of), jump confirmation by repeats and passive tolerance, pace spike vs own fast runs, monotony only over capacity, RUNSAFE-shaped band curve, weather/equipment/pace-tertile confounders in mechanics, log-HRV readiness (single-night Regenerace removed), injury history to 24 months, under-conditioning, sex-specific TRIMP / bone / Achilles rules, safety rules outside the calibrated score, independent primary outcomes with censoring and session-scale data, LTHR zones and pace-based hard minutes, no physio referral for movement-only drift; v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.9.2"  # v0.9.2: displayed scores by band (tier band, model and trigger severity place the day in it; ok days spread), no fixed Skóre 60 floor; v0.9.1: recovery nights history and baseline spread for the readiness detail on Zátěž (railway#138), approximate per-item shares of every signal source (railway#132); v0.9.0: engine evaluation 2026-09 — pure snapshot engine (RunnerData, history replays by as_of), jump confirmation by repeats and passive tolerance, pace spike vs own fast runs, monotony only over capacity, RUNSAFE-shaped band curve, weather/equipment/pace-tertile confounders in mechanics, log-HRV readiness (single-night Regenerace removed), injury history to 24 months, under-conditioning, sex-specific TRIMP / bone / Achilles rules, safety rules outside the calibrated score, independent primary outcomes with censoring and session-scale data, LTHR zones and pace-based hard minutes, no physio referral for movement-only drift; v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -3720,10 +3720,6 @@ def _assess(db, rid: str) -> dict:
     overall = rnd(clamp(mech_score * W_MECH + load_score * w_load + symp_score * W_SYMP, 0, 100))
     impact_scale = impact_scales(raw_axes, {"mech": mech_score, "load": load_score, "symp": symp_score},
                                  {"mech": W_MECH, "load": w_load, "symp": W_SYMP}, overall)
-    for s_ in sig:
-        s_["axis"] = signal_axis(s_["id"])
-        # a safety rule is not a model term: it sets the tier floor instead of adding points
-        s_["impact"] = None if s_.get("rule") else round(s_["pts"] * impact_scale[s_["axis"]], 2)
     prev_quadrant = data.prev_quadrant
     # v2 Phase 2: across-session evidence label (informational — shown to the
     # user, NOT yet a hard quadrant gate). "flag" = persistence (EWMA past its
@@ -3742,7 +3738,7 @@ def _assess(db, rid: str) -> dict:
     # not just statistical consistency.
     mech_flag, mech_watch = _mech_flags(tv, gc, cad, strd, vosc) if _sensitive() else (False, False)
     quadrant = quadrant_of(load_score, mech_score, prev_quadrant)
-    tier = "alert" if overall >= 70 else ("watch" if overall >= 40 else "ok")
+    tier = tier_of(overall)
     # Repeated pain at the same running-relevant site, even mild, is the classic
     # overuse pattern — never "low risk / carry on": at least "watch", and the v3
     # guidance treats it like moderate pain (odlehčit). Pain > 5 keeps its own path.
@@ -3760,16 +3756,38 @@ def _assess(db, rid: str) -> dict:
     # v0.9.0 — the safety rules (red flags, bone stress, limited function, acute
     # overload, morning pain, an active injury) sit outside the calibrated score: the
     # model axes stay what the calibration sees (`sympModel`, `overallModel`), and the
-    # displayed numbers are floored so they never contradict the tier or a rule.
+    # displayed numbers never contradict the tier or a rule.
+    # v0.9.2 — instead of one fixed floor (every flagged day showed Skóre 60) the tier
+    # sets the band and the model plus the severity of what raised the tier set the
+    # place in it; ordinary days are spread over the ok band (see display_scores).
+    trig = [(s_["rule"], clamp(s_["pts"] / RULE_PTS_MAX, 0, 1), "rule") for s_ in sig if s_.get("rule")]
+    if quadrant == "critical":
+        trig.append(("alert", clamp((min(load_score, mech_score) - QUAD_THRESHOLD) / 50, 0, 1), "quadrant"))
+    elif quadrant == "overreaching":
+        trig.append(("watch", clamp((load_score - QUAD_THRESHOLD) / 50, 0, 1), "quadrant"))
+    elif quadrant == "silent":
+        trig.append(("watch", clamp((mech_score - QUAD_THRESHOLD) / 50, 0, 1), "quadrant"))
+    if pain_recur:
+        trig.append(("watch", clamp((pain_recur["days"] - 1) / 8, 0, 1), "painRecurring"))
+    if pmon:
+        trig.append(("watch", 0.4 if pmon.get("morningWorse") else 0.3, "painMonitor"))
+    if cluster:
+        trig.append(("watch", 0.35, "cluster"))
     symp_model, overall_model = symp_score, overall
-    symp_score = max(symp_score, RULE_FLOOR_PTS[rule_lvl])
-    overall = max(overall, TIER_FLOOR_PTS[tier])
+    disp = display_scores(overall_model, symp_model, tier, rule_lvl, trig)
+    overall, symp_score = disp["overall"], disp["symp"]
+    # impacts in points of the displayed Skóre: the model's share of it, split by signal
+    impact_scale = {k: round(v * disp["modelScale"], 4) for k, v in impact_scale.items()}
+    for s_ in sig:
+        s_["axis"] = signal_axis(s_["id"])
+        # a safety rule is not a model term: it sets the band instead of adding points
+        s_["impact"] = None if s_.get("rule") else round(s_["pts"] * impact_scale[s_["axis"]], 2)
 
     out = {
         "runner_id": rid, "computed_at": now_iso(), "engine": engine_version_for(_emode()),
         "engineMode": _emode(), "mechRes": mech_res, "mechFlag": mech_flag, "mechWatch": mech_watch, "segmentScored": seg_scored,
         "mech": mech_score, "load": load_score, "symp": symp_score, "overall": overall,
-        "sympModel": symp_model, "overallModel": overall_model, "ruleLevel": rule_lvl,
+        "sympModel": symp_model, "overallModel": overall_model, "ruleLevel": rule_lvl, "scoreBand": disp["band"],
         "tier": tier, "quadrant": quadrant, "confidence": conf,
         "signals": sorted(sig, key=lambda s: -s["pts"]),
         "loadDetail": L, "tavr": tv, "gct": gc, "bal": bal, "dec": dec, "aer": aer, "rcv": rcv, "fb": fb,
@@ -3810,8 +3828,58 @@ LOAD_SIGNALS = frozenset({"pace_spike", "mono", "hr_pace", "hrv_high", "session_
 
 # v0.9.0 — safety rules set floors instead of adding model points
 RULE_SIGNALS = frozenset({"red_flag", "bone_stress", "bone_pain", "function", "acute", "pain_morning", "injury"})
-RULE_FLOOR_PTS = {"ok": 0, "watch": 40, "alert": 70}      # displayed symptom axis under a rule
-TIER_FLOOR_PTS = {"ok": 0, "watch": 40, "alert": 70}      # displayed overall under a tier (the tier cut-offs)
+RULE_FLOOR_PTS = {"ok": 0, "watch": 40, "alert": 70}      # lowest displayed symptom axis under a rule
+TIER_FLOOR_PTS = {"ok": 0, "watch": 40, "alert": 70}      # lowest displayed overall under a tier (the tier cut-offs)
+
+# v0.9.2 — displayed scores. The v0.9.0 floor put every flagged day on exactly 40
+# (Skóre 60) and ordinary days on a model risk of 0–8 (Skóre 92–100), so the 6-month
+# chart barely moved. Now:
+#  • the tier sets the band: ok 0–39, watch 40–69, alert 70–100 (unchanged cut-offs);
+#  • a tier the model reached itself shows the model value (ok days through display_ok);
+#  • a tier raised by a trigger (safety rule, quadrant, repeated pain, pain monitoring,
+#    fatigue cluster) is placed in its band by 0.65 × the trigger's severity + 0.35 ×
+#    the model, never below the model value.
+# A display choice of the product team (working assumption), not a calibration: the
+# calibration keeps reading `overallModel` / `sympModel`.
+SCORE_BANDS = {"ok": (0, 39), "watch": (40, 69), "alert": (70, 100)}
+DISPLAY_TAU = 12.0        # ok band curve: model 3 → 9, 8 → 20, 15 → 29, 25 → 35, 39 → 39
+RULE_PTS_MAX = 46.0       # the largest rule points (a confirmed injury) = severity 1
+_TIER_ORDER = {"ok": 0, "watch": 1, "alert": 2}
+
+
+def tier_of(overall) -> str:
+    return "alert" if overall >= 70 else ("watch" if overall >= 40 else "ok")
+
+
+def display_ok(m: float) -> float:
+    """Model risk 0–40 → displayed 0–39, spread at the low end where ordinary days sit."""
+    m = clamp(m, 0, 40)
+    return 39 * (1 - math.exp(-m / DISPLAY_TAU)) / (1 - math.exp(-40 / DISPLAY_TAU))
+
+
+def display_scores(overall_model: float, symp_model: float, tier: str, rule_lvl: str, triggers: list) -> dict:
+    """Displayed overall and symptom scores for a day. `triggers` = [(tier it forces,
+    severity 0–1, what)]. Returns {overall, symp, modelScale, band}: modelScale turns
+    model impacts into points of the displayed Skóre (the model's share of it)."""
+    base = tier_of(overall_model)
+    model_disp = display_ok(overall_model) if base == "ok" else overall_model
+    band = None
+    if tier == base:
+        overall = model_disp
+    else:
+        lo, hi = SCORE_BANDS[tier]
+        at = [t for t in triggers if _TIER_ORDER[t[0]] >= _TIER_ORDER[tier]] or triggers or [(tier, 0.0, "rule")]
+        top = max(at, key=lambda t: t[1])
+        pos = clamp(0.65 * top[1] + 0.35 * (display_ok(overall_model) / 39 if overall_model < 40 else 1.0), 0, 1)
+        overall = max(overall_model, lo + (hi - lo) * pos)
+        band = {"by": top[2], "severity": round(top[1], 2)}
+    symp = symp_model
+    if rule_lvl != "ok":
+        lo, hi = SCORE_BANDS[rule_lvl]
+        rs = max((t[1] for t in triggers if t[2] == "rule" and t[0] == rule_lvl), default=0.0)
+        symp = max(symp_model, lo + (hi - lo) * rs)
+    return {"overall": rnd(clamp(overall, 0, 100)), "symp": rnd(clamp(symp, 0, 100)),
+            "modelScale": (model_disp / overall_model) if overall_model > 0 else 1.0, "band": band}
 
 
 def signal_axis(sid: str) -> str:

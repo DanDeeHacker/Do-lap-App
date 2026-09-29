@@ -428,8 +428,16 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
     if order[floor] > order[tier]:
         tier = floor
     symp_model, overall_model = symp_f, overall
-    symp_f = max(symp_f, E.RULE_FLOOR_PTS[rule_lvl])
-    overall = max(overall, E.TIER_FLOOR_PTS[tier])
+    # v0.9.2 — the displayed scores by band, as assess() (triggers the sandbox has knobs for)
+    trig = [(s["rule"], clamp(s["pts"] / E.RULE_PTS_MAX, 0, 1), "rule") for s in signals if s.get("rule")]
+    if quadrant == "critical":
+        trig.append(("alert", clamp((min(load_f, mech_f) - QUAD_THRESHOLD) / 50, 0, 1), "quadrant"))
+    elif quadrant == "overreaching":
+        trig.append(("watch", clamp((load_f - QUAD_THRESHOLD) / 50, 0, 1), "quadrant"))
+    elif quadrant == "silent":
+        trig.append(("watch", clamp((mech_f - QUAD_THRESHOLD) / 50, 0, 1), "quadrant"))
+    disp = E.display_scores(overall_model, symp_model, tier, rule_lvl, trig)
+    overall, symp_f = disp["overall"], disp["symp"]
     return {
         "signals": sorted(signals, key=lambda s: -s["pts"]),
         "mech": mech_f, "load": load_f, "symp": symp_f, "overall": overall,

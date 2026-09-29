@@ -111,7 +111,8 @@ def test_impacts_add_up_to_the_overall_risk_and_signals_carry_sources(client, db
     client.post(f"/api/runners/{rid}/engine", json={"mode": "v3"})
     a = E.recompute_assessment(db, rid)
     sc = a["impactScale"]
-    assert set(sc) == {"mech", "load", "symp"} and 0 < sc["load"] <= 0.42      # ≤ the weight, up to rounding
+    # v0.9.2 — points of the displayed Skóre: the weight × the ok-band stretch (at most ×3,4 near zero)
+    assert set(sc) == {"mech", "load", "symp"} and 0 < sc["load"] <= 0.42 * 3.4
     for s in a["signals"]:
         assert s["axis"] in sc and abs(s["impact"] - s["pts"] * sc[s["axis"]]) < 0.01
         assert isinstance(s.get("sources"), list)

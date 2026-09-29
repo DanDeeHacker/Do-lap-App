@@ -38,7 +38,7 @@ export const METRIC_INFO: Record<string, string> = {
   mechStability: "Souhrn stability běžecké formy v čase. Klesající křivka = forma se rozpadá (typicky únava); stabilní = držíte techniku.",
 
   // — Stav / kvadrant —
-  overall: "Skóre stavu (0–100): čím vyšší, tím lépe. Počítá se jako 100 minus riziko složené z mechaniky, zátěže a příznaků, vážené podle síly důkazů. 100 = nic k pozornosti. U každého signálu ukazujeme, o kolik procentních bodů Skóre snižuje. Vždy proti vaší vlastní historii.",
+  overall: "Skóre stavu (0–100): čím vyšší, tím lépe. Počítá se jako 100 minus riziko složené z mechaniky, zátěže a příznaků, vážené podle síly důkazů. 100 = nic k pozornosti. Nad 60 je nízké riziko, 31 až 60 sledovat, 30 a méně vysoké riziko. Když den do vyššího pásma posune bezpečnostní pravidlo, opakovaná bolest nebo stav zátěže, místo v pásmu určí jejich závažnost spolu s modelem. U běžných dnů zobrazení zvýrazňuje i malé rozdíly. U každého signálu ukazujeme, o kolik procentních bodů Skóre snižuje. Vždy proti vaší vlastní historii.",
   confidence: "Spolehlivost — nakolik je už postavená vaše baseline (počet srovnatelných tréninků a dní historie). Dokud je nízká, mechanické signály se raději nezobrazují, aby nemátly.",
   // — Kapacitní engine (v3) —
   capacity:
