@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { createPortal } from "react-dom"
 import { ChevronDown, CircleMinus, Info, LoaderCircle, TriangleAlert, type LucideIcon } from "lucide-react"
 import { C } from "@/tokens"
+import { fmtImpact } from "@/lib"
 
 export type Tone = "ok" | "watch" | "alert" | "muted" | "accent" | "info" | "load" | "self"
 const TONE_COL: Record<Tone, string> = { ok: C.ok, watch: C.watch, alert: C.alert, muted: C.fg3, accent: C.accent, info: C.info, load: C.load, self: C.self }
@@ -201,7 +202,8 @@ export function AlertBanner({ tone = "alert", icon, title, children, action, col
 
 /* ---------- FactorBar ---------- */
 // "Co tvoří skóre …" rows: label, value, +points, bar relative to the largest factor.
-export function FactorBar({ label, value, pts, pct, tone = "info", grade }: { label: ReactNode; value?: ReactNode; pts?: number; pct: number; tone?: Tone; grade?: string }) {
+// railway#111 — `impact` (percentage points off the overall Skóre) replaces raw axis points
+export function FactorBar({ label, value, pts, impact, pct, tone = "info", grade }: { label: ReactNode; value?: ReactNode; pts?: number; impact?: number; pct: number; tone?: Tone; grade?: string }) {
   const col = toneCol(tone)
   return (
     <div>
@@ -209,7 +211,8 @@ export function FactorBar({ label, value, pts, pct, tone = "info", grade }: { la
         {grade && <span className="grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-extrabold" style={{ background: `${col}26`, color: col }}>{grade}</span>}
         <span className="min-w-0 flex-1 truncate text-[13px] text-fg">{label}</span>
         {value != null && <span className="tabular-nums text-[12px] text-fg-2">{value}</span>}
-        {pts != null && <b className="tabular-nums text-[12px]" style={{ color: col }}>+{pts}</b>}
+        {impact != null ? <b className="whitespace-nowrap tabular-nums text-[12px]" style={{ color: col }} title="o kolik procentních bodů snižuje celkové Skóre">{fmtImpact(impact)}</b>
+          : pts != null && <b className="tabular-nums text-[12px]" style={{ color: col }}>+{pts}</b>}
       </div>
       <div className={`mt-1.5 h-1.5 rounded-full bg-white/[.08] ${grade ? "ml-7" : ""}`}>
         <i className="block h-full rounded-full" style={{ width: `${Math.max(6, Math.min(100, pct))}%`, background: col }} />

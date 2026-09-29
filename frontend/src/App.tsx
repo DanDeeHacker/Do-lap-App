@@ -15,7 +15,7 @@ import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
 import { EDIT_PROFILE_EVENT, OnboardingProvider, useObSummary, useOnboarding } from "@/onboarding"
 import { useQuadHistory } from "@/history"
-import { clamp, fmtD, initials, QUAD, roleHome } from "@/lib"
+import { clamp, fmtD, fmtImpact, initials, QUAD, roleHome } from "@/lib"
 import { AlertBanner, AxisLineChart, Bars, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, toneCol, useAsync, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { Load as LoadTab, LOAD_IDS, MECH_IDS, Mechanics, Post, weekTones, WeekToneLegend } from "@/tabs"
@@ -30,7 +30,7 @@ import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C, badCol, goodCol } from "@/tokens"
-import { Bandage, ChevronDown, Compass, Play, UserPlus, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
+import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 import { Landing, scrollToLanding } from "@/landing"
 
@@ -105,6 +105,7 @@ function Topbar() {
               <Link
                 key={id}
                 to={to}
+                onClick={() => { if (active) window.scrollTo({ top: 0, behavior: "smooth" }) }}
                 aria-current={active ? "page" : undefined}
                 className={`rounded-full px-3.5 py-1.5 text-[13px] font-bold transition ${
                   active ? "bg-accent text-ink" : "text-fg-2 hover:bg-white/[.06] hover:text-fg"
@@ -274,7 +275,10 @@ function Layout() {
   const [updateReady, setUpdateReady] = useState(false)
   useEffect(() => startUpdateWatcher(() => setUpdateReady(true)), [])
   const navItems = useRunnerNav()
-  const rail = useLocation().pathname.startsWith("/app/")
+  const { pathname } = useLocation()
+  const rail = pathname.startsWith("/app/")
+  // railway#112 — a tab always opens at the top of its page
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
   if (loading)
     return (
       <div className="motion-shell grid min-h-screen place-items-center bg-bg text-fg-2" role="status">
@@ -292,7 +296,7 @@ function Layout() {
         <Topbar />
         {/* FIX-5: bottom padding = tab bar + Check-in button + 16 px, so the button never covers content. */}
         <div className="lg:pl-[220px]">
-          <main className="mx-auto min-h-screen max-w-[1180px] bg-bg px-5 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[calc(6rem+env(safe-area-inset-top))] md:px-9 md:pb-28 md:pt-24">
+          <main className="mx-auto min-h-screen max-w-[1180px] bg-bg px-5 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[calc(5rem+env(safe-area-inset-top))] md:px-9 md:pb-28 md:pt-[5.5rem]">
             {rail ? (
               <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_280px] xl:gap-7">
                 <div className="min-w-0"><Outlet /></div>
@@ -955,7 +959,7 @@ function SymptomPanel({ signals }: { signals: any[] }) {
         <p className="t-label mt-4 !text-fg-3">Co tvoří skóre příznaků</p>
         {sympSig.length ? (
           <div className="mt-2.5 space-y-2.5">
-            {sympSig.map((x) => <FactorBar key={x.id} label={x.name} value={x.val} pts={x.pts} tone="alert" pct={((x.pts || 0) / maxPts) * 100} />)}
+            {sympSig.map((x) => <FactorBar key={x.id} label={x.name} value={x.val} pts={x.pts} impact={x.impact} tone="alert" pct={((x.pts || 0) / maxPts) * 100} />)}
           </div>
         ) : <p className="mt-2 text-[12px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
       </div>
@@ -1184,7 +1188,7 @@ function TodayV2() {
                       </div>
                       {panelSig.length ? (
                         <div className="mt-2.5 space-y-2.5">
-                          {panelSig.map((s: any) => <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} tone={pk === "mech" ? "info" : "load"} pct={(s.pts / Math.max(1, ...panelSig.map((x: any) => x.pts || 0))) * 100} />)}
+                          {panelSig.map((s: any) => <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} impact={s.impact} tone={pk === "mech" ? "info" : "load"} pct={(s.pts / Math.max(1, ...panelSig.map((x: any) => x.pts || 0))) * 100} />)}
                         </div>
                       ) : <p className="mt-2 text-[12px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
                     </div>
@@ -1292,8 +1296,69 @@ function TodayV2() {
 }
 
 // railway#78 — what drives the state as an inverted pyramid: the biggest impact on top
-// and widest, each lower row narrower.
+// and widest, each lower row narrower. railway#113 — each row opens what caused it.
+const SRC_ICON: Record<string, LucideIcon> = { activity: Footprints, rating: MessageSquare, checkin: ClipboardCheck, night: Moon, report: Bandage }
+const SRC_KIND: Record<string, string> = { activity: "aktivita", rating: "hodnocení běhu", checkin: "check-in", night: "noc", report: "hlášení zranění" }
+function SignalSheet({ s, onClose, tone }: { s: any; onClose: () => void; tone: (g: string) => "alert" | "watch" | "ok" }) {
+  const col = toneCol(tone(s.grade))
+  const src = (s.sources || []) as any[]
+  const shared = src.some((x) => x.share != null)
+  return (
+    <Sheet open onClose={onClose} layer="z-[90]">
+      <div data-testid="signal-sheet">
+        <div className="flex items-start gap-2 pr-8">
+          {s.grade && <span className="mt-1 grid size-[22px] shrink-0 place-items-center rounded-full text-[11px] font-extrabold" style={{ background: `${col}30`, color: col }}>{s.grade}</span>}
+          <h2 className="font-serif text-[22px] leading-tight text-fg">{s.name}</h2>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px]">
+          {s.impact != null && <span className="rounded-full px-2.5 py-1 font-bold" style={{ background: `${col}1f`, color: col }}>{fmtImpact(s.impact)} celkového Skóre</span>}
+          {s.val && <span className="rounded-full bg-white/[.06] px-2.5 py-1 font-semibold tabular-nums text-fg-2">{s.val}</span>}
+        </div>
+        {s.detail && <p className="mt-3 text-[13px] leading-5 text-fg-2">{s.detail}</p>}
+        <p className="t-label mt-5 !text-fg-3">{shared ? "Které aktivity k tomu přispívají" : "Z čeho signál vychází"}</p>
+        {src.length ? (
+          <ul className="mt-1 divide-y divide-white/[.07]">
+            {src.map((x, i) => {
+              const Icon = SRC_ICON[x.kind] || ActivityIcon
+              const run = (x.kind === "activity" || x.kind === "rating") && x.aid
+              const body = (
+                <>
+                  <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-white/[.06] text-fg-2"><Icon className="size-4" aria-hidden /></span>
+                  <span className="min-w-0 flex-1">
+                    <b className="block truncate text-[13px] font-bold text-fg">{x.title}</b>
+                    <span className="block text-[11px] leading-4 text-fg-3">{fmtD(x.date)} · {SRC_KIND[x.kind] || x.kind} · {x.detail}</span>
+                    {x.share != null && (
+                      <span className="mt-1.5 block h-1 rounded-full bg-white/[.08]"><i className="block h-full rounded-full" style={{ width: `${Math.max(3, x.share * 100)}%`, background: col }} /></span>
+                    )}
+                  </span>
+                  {x.share != null && s.impact != null && (
+                    <span className="shrink-0 text-right tabular-nums text-[12px] font-bold" style={{ color: col }}>
+                      {fmtImpact(s.impact * x.share)}<small className="block text-[10px] font-medium text-fg-3">{Math.round(x.share * 100)} %</small>
+                    </span>
+                  )}
+                </>
+              )
+              return (
+                <li key={i}>
+                  {run ? <Link to={`/app/post/${x.aid}`} onClick={onClose} className="flex items-center gap-3 py-2.5 transition hover:bg-white/[.03]">{body}</Link>
+                    : <div className="flex items-center gap-3 py-2.5">{body}</div>}
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="mt-2 text-[12px] leading-5 text-fg-3">Signál vychází z dlouhodobého trendu, ne z jednotlivých záznamů.</p>
+        )}
+        {src.length > 0 && !shared && (
+          <p className="mt-3 text-[11px] leading-4 text-fg-3">Tento signál hodnotí vzorec napříč záznamy, ne jejich součet, proto podíl jednotlivých záznamů neuvádíme.</p>
+        )}
+      </div>
+    </Sheet>
+  )
+}
+
 function ImpactPyramid({ signals, tone }: { signals: any[]; tone: (g: string) => "alert" | "watch" | "ok" }) {
+  const [sel, setSel] = useState<any | null>(null)
   const top = [...signals].sort((x, y) => (y.pts || 0) - (x.pts || 0)).slice(0, 4)
   const n = top.length
   const maxPts = Math.max(1, top[0]?.pts || 0)
@@ -1303,18 +1368,24 @@ function ImpactPyramid({ signals, tone }: { signals: any[]; tone: (g: string) =>
         const col = toneCol(tone(s.grade))
         const w = n > 1 ? 100 - (i * 44) / (n - 1) : 100
         return (
-          <div key={s.id} className="relative overflow-hidden rounded-[12px] border px-3 py-2 text-center" style={{ width: `${w}%`, borderColor: `${col}55`, background: `${col}14` }}
-            title={`${s.name}${s.val ? ` · ${s.val}` : ""}${s.pts != null ? ` · ${s.pts} b` : ""}`}>
+          <button type="button" key={s.id} onClick={() => setSel(s)} data-testid="impact-row"
+            className="relative overflow-hidden rounded-[12px] border px-3 py-2 text-center transition hover:brightness-125" style={{ width: `${w}%`, borderColor: `${col}55`, background: `${col}14` }}
+            title={`${s.name}${s.val ? ` · ${s.val}` : ""} · rozkliknout, z čeho vychází`}>
             <i className="absolute inset-y-0 left-0" style={{ width: `${((s.pts || 0) / maxPts) * 100}%`, background: `${col}1c` }} aria-hidden />
             <span className="relative flex items-center justify-center gap-1.5">
               {s.grade && <span className="grid size-[18px] shrink-0 place-items-center rounded-full text-[10px] font-extrabold" style={{ background: `${col}30`, color: col }}>{s.grade}</span>}
               <span className="min-w-0 text-balance text-[12.5px] font-semibold leading-4 text-fg">{s.name}</span>
             </span>
-            {s.val && <span className="relative mt-0.5 block truncate tabular-nums text-[11px] text-fg-2">{s.val}</span>}
-          </div>
+            {(s.val || s.impact != null) && (
+              <span className="relative mt-0.5 block truncate tabular-nums text-[11px] text-fg-2">
+                {s.val}{s.val && s.impact != null ? " · " : ""}{s.impact != null && <b style={{ color: col }}>{fmtImpact(s.impact)}</b>}
+              </span>
+            )}
+          </button>
         )
       })}
       <div className="mt-1 flex w-full justify-between text-[10px] font-bold uppercase tracking-[.1em] text-fg-3"><span>↑ největší vliv</span><span>nejmenší ↓</span></div>
+      {sel && <SignalSheet s={sel} tone={tone} onClose={() => setSel(null)} />}
     </div>
   )
 }
@@ -1825,6 +1896,7 @@ function AtlasNav() {
           <Link
             key={id}
             to={to}
+            onClick={() => { if (on) window.scrollTo({ top: 0, behavior: "smooth" }) }}
             aria-current={on ? "page" : undefined}
             className={`flex min-h-[48px] flex-1 flex-col items-center justify-center gap-1 text-[11px] font-bold ${on ? "text-accent" : "text-fg-3"}`}
           >

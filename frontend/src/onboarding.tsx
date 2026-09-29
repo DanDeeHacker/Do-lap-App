@@ -199,7 +199,7 @@ export const TOUR: TourStep[] = [
     body: "Zátěž a mechanika společně určí jeden ze čtyř stavů: stabilní, přetížení, tichý drift nebo kritická kombinace. Klepnutím zobrazíte vývoj stavu za posledních 6 měsíců.",
     value: "Odliší obyčejnou únavu z objemu od změny techniky, kterou zatím necítíte. Každá z těch situací chce jinou reakci." },
   { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-drivers"]' }, title: "Co ovlivňuje stav",
-    body: "Signály seřazené podle toho, kolik bodů přidávají, například klesání nad kapacitou nebo prodloužený kontakt se zemí. Každý signál má vlastní vysvětlení.",
+    body: "Signály seřazené podle toho, o kolik procentních bodů snižují celkové Skóre, například klesání nad kapacitou nebo prodloužený kontakt se zemí. Po rozkliknutí uvidíte, které aktivity nebo záznamy k signálu přispívají.",
     value: "Skóre není černá skříňka. Vidíte, co přesně ho tvoří, a víte, na co se zaměřit." },
   { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="checkin"]' }, title: "Denní check-in",
     body: "Tlačítko Check-in otevře krátký dotazník na bolest, ztuhlost a únavu. Bolest označíte přímo na mapě těla a celé to zabere pár vteřin.",

@@ -34,7 +34,7 @@ from ..serializers import to_dict
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.8.7"   # v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.8.8"   # v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -3380,6 +3380,7 @@ def assess(db: DBSession, rid: str) -> dict:
     # Frailty (injury history) reduces load tolerance: same objective load/mechanics
     # count for more. Multiplicative, so it amplifies existing signals only. Rounded
     # so scores stay integer end-to-end (and the live-formula backtest matches exactly).
+    raw_axes = {"mech": mech_score, "load": load_score, "symp": symp_score}
     mech_score = rnd(clamp(mech_score * frailty, 0, 100))
     # (v3 already applies injury history by shrinking the capacity margins —
     # multiplying its load score as well would count it twice.)
@@ -3388,6 +3389,11 @@ def assess(db: DBSession, rid: str) -> dict:
     # v3 gives the load axis more say in the overall state (0.30 → 0.40).
     w_load = 0.40 if _emode() == "v3" else 0.30
     overall = rnd(clamp(mech_score * 0.38 + load_score * w_load + symp_score * 0.52, 0, 100))
+    impact_scale = impact_scales(raw_axes, {"mech": mech_score, "load": load_score, "symp": symp_score},
+                                 {"mech": 0.38, "load": w_load, "symp": 0.52}, overall)
+    for s_ in sig:
+        s_["axis"] = signal_axis(s_["id"])
+        s_["impact"] = round(s_["pts"] * impact_scale[s_["axis"]], 2)
     prev_row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()
     # v2 Phase 2: across-session evidence label (informational — shown to the
     # user, NOT yet a hard quadrant gate). "flag" = persistence (EWMA past its
@@ -3421,7 +3427,7 @@ def assess(db: DBSession, rid: str) -> dict:
     if order[floor] > order[tier]:
         tier = floor
 
-    return {
+    out = {
         "runner_id": rid, "computed_at": now_iso(), "engine": engine_version_for(_emode()),
         "engineMode": _emode(), "mechRes": mech_res, "mechFlag": mech_flag, "mechWatch": mech_watch, "segmentScored": seg_scored,
         "mech": mech_score, "load": load_score, "symp": symp_score, "overall": overall,
@@ -3439,8 +3445,38 @@ def assess(db: DBSession, rid: str) -> dict:
         "sessionSpikeBasis": L.get("sessionSpikeBasis"),
         "paceSpike": L.get("paceSpike"), "safeLongRunKm": L.get("safeLongRunKm"),
         "capacityDeficit": capacity_deficit, "frailty": r2(frailty), "priorRegions": sorted(prior_regions),
-        "capacity": cap_v3,
+        "capacity": cap_v3, "impactScale": impact_scale,
     }
+    # railway#113 — the records behind each signal (not in the history replay: past days
+    # show the signals without sources, and 180 replays stay as fast as before)
+    if getattr(_today_override, "value", None) is None:
+        from . import signal_sources as SRC
+        SRC.attach(db, rid, out, r)
+    return out
+
+
+# Feedback railway#111 — a signal's effect shown as the percentage points it takes off
+# the overall Skóre (displayed as 100 − overall), not as axis points.
+MECH_SIGNALS = frozenset({"tavr", "gct", "cad", "vosc", "bal", "dec", "gaitcv"})
+LOAD_SIGNALS = frozenset({"pace_spike", "mono", "hr_pace", "hrv_high", "session_spike", "spike_latent", "ewma", "hi_load",
+                          "load_creep", "desc", "desc_steep", "aer", "hrv", "rhr", "hrvcv", "tsb", "load_capacity", "taper"})
+
+
+def signal_axis(sid: str) -> str:
+    if sid in MECH_SIGNALS:
+        return "mech"
+    if sid in LOAD_SIGNALS or sid.startswith("cap_"):
+        return "load"
+    return "symp"
+
+
+def impact_scales(raw: dict, final: dict, weights: dict, overall: float) -> dict:
+    """{axis: Skóre percentage points per axis point}: the share of the axis points that
+    survive injury history and the 0–100 cap, × the axis weight, × the share of the
+    weighted sum that survives the overall 0–100 cap."""
+    ov_raw = sum(final[k] * weights[k] for k in final)
+    ov_k = overall / ov_raw if ov_raw > 0 else 1.0
+    return {k: round((final[k] / raw[k] if raw[k] > 0 else 1.0) * weights[k] * ov_k, 4) for k in final}
 
 
 DECISION_HEAD = {
@@ -3497,7 +3533,7 @@ def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> 
          "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury",
          "engineMode", "mechRes", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance", "painRecurring",
          "functionLimit", "acuteOverload", "raceRecovery", "maxEfforts", "painMonitor", "returnToRun", "races",
-         "screening", "cluster", "painState")
+         "screening", "cluster", "painState", "impactScale")
     }
     db.flush()
 

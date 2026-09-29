@@ -3,6 +3,21 @@
 export const r1 = (n: number | null | undefined) => (n == null ? null : Math.round(n * 10) / 10)
 export const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
+// Feedback railway#111 — a signal's effect as the percentage points it takes off the
+// overall Skóre (shown as 100 − risk): whole points from 1 up, one decimal below 1.
+export const impactNum = (v: number | null | undefined) => {
+  const x = Math.abs(v || 0)
+  if (x === 0) return "0"
+  if (x < 0.05) return "<0,1"
+  return x < 1 ? x.toFixed(1).replace(".", ",") : String(Math.round(x))
+}
+export const fmtImpact = (v: number | null | undefined, unit = " p. b.") => {
+  const n = impactNum(v)
+  return n === "0" ? `0${unit}` : `−${n}${unit}`
+}
+// axis points → Skóre percentage points with the assessment's per-axis scale
+export const toImpact = (pts: number | null | undefined, scale: number | null | undefined) => (pts || 0) * (scale ?? 0)
+
 export const initials = (name?: string) =>
   (name || "")
     .split(/\s+/)

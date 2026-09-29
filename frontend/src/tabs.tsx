@@ -7,10 +7,10 @@ import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty,
 import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Ship, Waves, type LucideIcon } from "lucide-react"
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
-import { clamp, czk, FEEL_LABEL, fmtD, fmtSlot, paceStr, PHASE, plural, QUAD, sgn } from "@/lib"
+import { clamp, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, PHASE, plural, QUAD, sgn, toImpact } from "@/lib"
 import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/components/MuscleAnatomy"
 import { CAP_SIGNAL_IDS, CapacityPanel } from "@/capacity"
-import { C } from "@/tokens"
+import { C, goodCol } from "@/tokens"
 
 const surf = (s?: string) => ({ road: "silnice", trail: "terén", treadmill: "pás", track: "dráha" } as any)[s || ""] || s || "—"
 const dayAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10)
@@ -1285,7 +1285,7 @@ export function Mechanics() {
                 <p className="t-label !text-fg-3">Co tvoří skóre mechaniky</p>
                 <div className="mt-3 space-y-3">
                   {mechSig.map((s) => (
-                    <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} tone="info" pct={(s.pts / Math.max(1, ...mechSig.map((x) => x.pts || 0))) * 100} />
+                    <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} impact={s.impact} tone="info" pct={(s.pts / Math.max(1, ...mechSig.map((x) => x.pts || 0))) * 100} />
                   ))}
                 </div>
               </div>
@@ -1484,7 +1484,7 @@ export function Load() {
             {loadSig.length > 0 ? (
               <div className="mt-3 space-y-3">
                 {loadSig.map((s) => (
-                  <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} tone="load" pct={(s.pts / Math.max(1, ...loadSig.map((x) => x.pts || 0))) * 100} />
+                  <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} impact={s.impact} tone="load" pct={(s.pts / Math.max(1, ...loadSig.map((x) => x.pts || 0))) * 100} />
                 ))}
               </div>
             ) : <p className="mt-2 text-[13px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
@@ -1498,7 +1498,7 @@ export function Load() {
       </section>
 
       {a.capacity && (
-        <CapacityPanel cap={a.capacity} extra={{
+        <CapacityPanel cap={a.capacity} scale={a.impactScale?.load} extra={{
           // railway#58/#59 — weekly and daily run volume feed the Objem channel
           volume: (
             <div className="grid gap-5 lg:grid-cols-2">
@@ -1659,32 +1659,62 @@ function CrossTraining({ L }: { L: any }) {
 // Zátěž → Historie aktivit: each run or other sport of the last 28 days against the
 // capacity of its day, only in the channels it actually loads (a run: objem,
 // intenzita, klesání, stoupání, celková zátěž; another sport: celková zátěž; strength
-// also silová zátěž), with the points it holds in today's load score.
+// also silová zátěž). railway#110 — drawn rather than written: the activity against
+// the per-run ceiling (overflow in red), the 7-day window against the weekly ceiling,
+// readiness around it and the room left at the same pace. railway#111 — its effect as
+// percentage points of the overall Skóre.
 const BAND_TONE: Record<string, Tone> = { "v kapacitě": "ok", "mírně nad": "watch", nad: "alert", "výrazně nad": "alert" }
 const dur = (m?: number | null) => (m == null ? null : m >= 60 ? `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, "0")} min` : `${Math.round(m)} min`)
-const nfmt = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("cs-CZ"))
+const nfmt = (v: number | null | undefined) => (v == null ? "—" : (Math.round(v * 10) / 10).toLocaleString("cs-CZ"))
+const unitShort = (u: string) => (u === "min v Z4+" ? "min" : u)
 
-function CapBar({ value, ceiling, tone }: { value: number; ceiling: number | null; tone: Tone }) {
+// one activity against the per-run ceiling: fill to the ceiling, the overflow in red past it
+function OverBar({ value, ceiling, tone }: { value: number; ceiling: number | null; tone: Tone }) {
+  if (ceiling == null || ceiling <= 0) return <div className="h-2 rounded-full bg-white/[.08]" />
+  const scale = Math.max(value, ceiling) * 1.06
+  const inside = Math.min(value, ceiling)
+  return (
+    <div className="relative h-2 rounded-full bg-white/[.08]">
+      <i className="absolute inset-y-0 left-0 rounded-l-full" style={{ width: `${(inside / scale) * 100}%`, background: value > ceiling ? C.fg3 : toneCol(tone), borderRadius: value > ceiling ? undefined : 9999 }} />
+      {value > ceiling && <i className="absolute inset-y-0 rounded-r-full" style={{ left: `${(ceiling / scale) * 100}%`, width: `${((value - ceiling) / scale) * 100}%`, background: `repeating-linear-gradient(135deg, ${C.alert}, ${C.alert} 3px, ${C.alert}bb 3px, ${C.alert}bb 6px)` }} />}
+      <i className="absolute -inset-y-1 w-0.5 rounded-full bg-fg" style={{ left: `calc(${(ceiling / scale) * 100}% - 1px)` }} />
+    </div>
+  )
+}
+// the 7-day window ending that day: the other sessions (grey) + this one, against the weekly ceiling
+function WeekBar({ before, value, ceiling, tone }: { before: number; value: number; ceiling: number | null; tone: Tone }) {
+  const tot = before + value
   if (ceiling == null || ceiling <= 0) return <div className="h-1.5 rounded-full bg-white/[.08]" />
-  const scale = Math.max(value, ceiling) * 1.08
+  const scale = Math.max(tot, ceiling) * 1.06
   return (
     <div className="relative h-1.5 rounded-full bg-white/[.08]">
-      <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${(value / scale) * 100}%`, background: toneCol(tone) }} />
-      <i className="absolute -inset-y-1 w-0.5 rounded-full bg-fg" style={{ left: `calc(${(ceiling / scale) * 100}% - 1px)` }} title="strop na jednu aktivitu" />
+      <i className="absolute inset-y-0 left-0 rounded-l-full bg-white/25" style={{ width: `${(before / scale) * 100}%` }} />
+      <i className="absolute inset-y-0" style={{ left: `${(before / scale) * 100}%`, width: `${(value / scale) * 100}%`, background: tot > ceiling ? C.alert : toneCol(tone) }} />
+      <i className="absolute -inset-y-1 w-0.5 rounded-full bg-fg" style={{ left: `calc(${(ceiling / scale) * 100}% - 1px)` }} />
     </div>
   )
 }
 
-function channelWhy(c: any, date: string) {
-  if (c.scorePts > 0) {
-    if (c.driver === "session") return `Tahle aktivita teď určuje kanál ${c.label.toLowerCase()}: +${mfmt(1, c.scorePts)} b ve skóre zátěže.`
-    if (c.driver === "latent") return `Doznívající skok z ${fmtD(date)} teď určuje kanál ${c.label.toLowerCase()}: +${mfmt(1, c.scorePts)} b ve skóre zátěže (riziko vrcholí 1–4 týdny po prudkém nárůstu).`
-    return `Kanál teď určuje nevstřebaná zátěž za 7 dní a tahle aktivita z ní tvoří ${Math.round(c.share * 100)} %: +${mfmt(1, c.scorePts)} b ve skóre zátěže.`
-  }
-  if (c.pts > 0) return `Sama by dala ${mfmt(1, c.pts)} b, kanál teď ale určuje jiná aktivita nebo týdenní součet, proto se nepřičítá.`
-  if (c.ratio != null && c.band === "v kapacitě") return "V rámci vaší kapacity, do skóre nepřidává."
-  if (c.ratio != null) return "Nad kapacitou, ale už vstřebaná, do skóre nepřidává."
-  return null
+function ReadinessStrip({ r, today }: { r: any; today: boolean }) {
+  const pill = (label: string, v: number | null | undefined, sub?: string) => (
+    <span className="min-w-0 flex-1 rounded-[10px] bg-white/[.05] px-2 py-1.5 text-center">
+      <span className="block text-[10px] font-bold uppercase tracking-[.08em] text-fg-3">{label}</span>
+      <b className="t-num block text-[16px] leading-tight" style={{ color: v == null ? C.fg3 : goodCol(v) }}>{v == null ? "—" : `${v} %`}</b>
+      {sub && <span className="block text-[10px] leading-3 text-fg-3">{sub}</span>}
+    </span>
+  )
+  return (
+    <div>
+      <p className="t-label !text-fg-3">Připravenost{r.band ? <span className="ml-1.5 normal-case tracking-normal text-fg-2">· trénink {r.band}</span> : null}</p>
+      <div className="mt-1.5 flex items-center gap-1.5">
+        {pill("ráno", r.before)}
+        <ChevronRight className="size-3.5 shrink-0 text-fg-4" aria-hidden />
+        {pill("po tréninku", r.after, "odhad")}
+        <ChevronRight className="size-3.5 shrink-0 text-fg-4" aria-hidden />
+        {pill("další ráno", r.next, r.next == null ? (today ? "doplní hodinky" : "bez dat") : "naměřeno")}
+      </div>
+    </div>
+  )
 }
 
 function LoadHistory({ rid }: { rid: string }) {
@@ -1701,6 +1731,9 @@ function LoadHistory({ rid }: { rid: string }) {
   }, [open, rid])
   const items: any[] = data && data.items ? data.items : []
   const shown = more ? items : items.slice(0, 12)
+  const scale: number | null = data ? data.impactScale ?? null : null
+  const imp = (pts: number) => (scale != null ? fmtImpact(toImpact(pts, scale)) : pts >= 0.5 ? `+${mfmt(1, pts)} b` : "0 b")
+  const todayIso = new Date().toLocaleDateString("sv-SE")
   return (
     <section className="mt-4" data-testid="load-history">
       <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="card flex w-full items-center gap-4 px-4 py-4 text-left text-fg transition hover:border-load/45 md:px-5">
@@ -1713,17 +1746,13 @@ function LoadHistory({ rid }: { rid: string }) {
           {data === null && <p className="px-1 text-[12px] text-fg-3">Počítám zátěž jednotlivých aktivit…</p>}
           {data === false && <p className="px-1 text-[12px] text-fg-3">Historii zátěže se nepodařilo načíst. Zkuste to prosím později.</p>}
           {data && !data.available && <p className="px-1 text-[12px] text-fg-3">Rozpad zátěže podle kapacity je k dispozici v kapacitním modelu hodnocení.</p>}
-          {data && data.available && (
-            <p className="px-1 text-[12px] leading-5 text-fg-3">
-              Posledních {data.days} dní. Každá aktivita je porovnaná s kapacitou, kterou jste měli v den, kdy proběhla. Běh zatěžuje objem, intenzitu, klesání, stoupání i celkovou zátěž, jiné sporty jen celkovou zátěž (posilování navíc silovou zátěž).
-            </p>
-          )}
           {data && data.available && !items.length && <p className="px-1 text-[12px] text-fg-3">Za posledních {data.days} dní tu zatím není žádná aktivita.</p>}
           {shown.map((x) => {
             const isOpen = sel === x.id
             const Icon = x.run ? Footprints : SPORT_ICON[x.sport] || ActivityIcon
             const pk = x.peak
-            const pkTone: Tone = pk ? BAND_TONE[pk.band] || "muted" : "muted"
+            const over = (x.over || []) as any[]
+            const pkTone: Tone = over.length ? "alert" : (x.weekOver || []).length ? "watch" : pk ? BAND_TONE[pk.band] || "muted" : "muted"
             const meta = [fmtD(x.date), x.sportLabel, x.km ? `${mfmt(1, x.km)} km` : null, dur(x.durationMin), x.avgHr ? `⌀ ${x.avgHr} tep` : null].filter(Boolean).join(" · ")
             return (
               <div key={x.id} className={`overflow-hidden rounded-[18px] border transition ${isOpen ? "border-load/40 bg-panel-2" : "border-white/[.08] bg-white/[.03] hover:border-white/15"}`}>
@@ -1734,59 +1763,80 @@ function LoadHistory({ rid }: { rid: string }) {
                     <span className="block text-[12px] text-fg-3">{meta}</span>
                     {pk && (
                       <span className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ background: `${toneCol(pkTone)}1f`, color: toneCol(pkTone) }}>
-                        nejvíc {pk.label.toLowerCase()} ×{mfmt(2, pk.ratio)} · {pk.band}
+                        {over.length ? `nad stropem: ${over.map((o) => o.label.toLowerCase()).join(", ")}`
+                          : (x.weekOver || []).length ? `týden nad stropem: ${x.weekOver.map((o: any) => o.label.toLowerCase()).join(", ")}`
+                          : `nejvíc ${pk.label.toLowerCase()} ×${mfmt(2, pk.ratio)} · ${pk.band}`}
                       </span>
                     )}
                   </span>
                   <span className="flex items-center gap-2 whitespace-nowrap text-right tabular-nums text-[12px]">
                     <span>
-                      <b className="block text-sm" style={{ color: x.scorePts >= 0.5 ? C.watch : C.fg3 }}>{x.scorePts >= 0.5 ? `+${mfmt(x.scorePts >= 10 ? 0 : 1, x.scorePts)} b` : "0 b"}</b>
-                      <span className="block text-[11px] text-fg-3">dnes ve skóre</span>
+                      <b className="block text-sm" style={{ color: x.scorePts > 0 ? C.watch : C.fg3 }}>{imp(x.scorePts)}</b>
+                      <span className="block text-[11px] text-fg-3">Skóre dnes</span>
                     </span>
                     <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180 text-load" : ""}`} aria-hidden />
                   </span>
                 </button>
                 {isOpen && (
-                  <div className="space-y-3 border-t border-white/[.07] px-4 py-3" data-testid="load-history-detail">
+                  <div className="space-y-4 border-t border-white/[.07] px-4 py-3.5" data-testid="load-history-detail">
+                    {x.readiness && <ReadinessStrip r={x.readiness} today={x.date === todayIso} />}
+                    {over.length > 0 ? (
+                      <p className="rounded-[12px] bg-alert/10 px-3 py-2 text-[13px] font-semibold text-alert-soft" data-testid="lh-over">
+                        Strop jedné aktivity překročen: {over.map((o) => `${o.label.toLowerCase()} o ${nfmt(o.over)} ${unitShort(o.unit)}`).join(", ")}
+                      </p>
+                    ) : (x.weekOver || []).length > 0 ? (
+                      <p className="rounded-[12px] bg-watch/10 px-3 py-2 text-[13px] font-semibold text-watch" data-testid="lh-week-over">
+                        S touto aktivitou 7 dní nad týdenním stropem: {x.weekOver.map((o: any) => `${o.label.toLowerCase()} o ${nfmt(o.over)} ${unitShort(o.unit)}`).join(", ")}
+                      </p>
+                    ) : x.extra ? (
+                      <p className="rounded-[12px] bg-ok/10 px-3 py-2 text-[13px] font-semibold text-ok" data-testid="lh-extra">
+                        {x.extra.min > 0
+                          ? `Ve stejném tempu ještě ~${dur(x.extra.min)}${x.extra.km ? ` (≈ ${mfmt(1, x.extra.km)} km)` : ""}, než narazíte na ${x.extra.by === "week" ? "týdenní strop" : "strop"}: ${x.extra.label.toLowerCase()}`
+                          : `Hraniční: ${x.extra.label.toLowerCase()} už je na ${x.extra.by === "week" ? "týdenním stropu" : "stropu jedné aktivity"}`}
+                      </p>
+                    ) : null}
                     {x.channels.map((c: any) => {
                       const tone: Tone = c.band ? BAND_TONE[c.band] || "muted" : "muted"
-                      const why = channelWhy(c, x.date)
+                      const u = unitShort(c.unit)
+                      const room = c.ceiling != null ? c.ceiling - c.value : null
                       return (
                         <div key={c.ch}>
                           <div className="flex items-baseline justify-between gap-2">
-                            <span className="flex items-center gap-1.5">
+                            <span className="flex min-w-0 items-center gap-1.5">
                               <b className="text-[13px] font-bold text-fg">{c.label}</b>
-                              <span className="grid size-4.5 place-items-center rounded-full bg-white/[.07] text-[10px] font-extrabold text-fg-2">{c.grade}</span>
+                              <b className="tabular-nums text-[13px] text-fg-2">{nfmt(c.value)} {u}</b>
                             </span>
-                            <span className="tabular-nums text-[12px]">
-                              <b className="text-fg">{nfmt(c.value)} {c.unit}</b>
-                              {c.ratio != null && <span className="ml-1.5 font-bold" style={{ color: toneCol(tone) }}>×{mfmt(2, c.ratio)}</span>}
+                            <span className="flex shrink-0 items-center gap-1.5 tabular-nums text-[12px]">
+                              {c.ratio != null && <span className="rounded-full px-1.5 py-px font-bold" style={{ background: `${toneCol(tone)}1f`, color: toneCol(tone) }}>×{mfmt(2, c.ratio)}</span>}
+                              {c.scorePts > 0 && <b style={{ color: C.watch }} title={c.driver === "week" ? `${Math.round(c.share * 100)} % nevstřebané zátěže za 7 dní` : c.driver === "latent" ? "doznívající skok" : "určuje dnešní skóre kanálu"}>{imp(c.scorePts)}</b>}
                             </span>
                           </div>
                           {c.cap != null ? (
                             <>
-                              <div className="mt-1.5"><CapBar value={c.value} ceiling={c.ceiling} tone={tone} /></div>
-                              <p className="mt-1 text-[11px] leading-4 text-fg-3">
-                                kapacita na jednu aktivitu {nfmt(c.cap)} {c.unit}{c.readinessScore < 97 ? ` · připravenost ten den ${c.readinessScore} % (strop ${nfmt(c.ceiling)})` : ""} · {c.band}
-                              </p>
+                              <div className="mt-1.5"><OverBar value={c.value} ceiling={c.ceiling} tone={tone} /></div>
+                              <div className="mt-1 flex justify-between gap-2 text-[11px] tabular-nums text-fg-3">
+                                <span>strop {nfmt(c.ceiling)} {u}{c.readinessScore < 97 ? ` (připravenost ${c.readinessScore} %)` : ""}</span>
+                                {room != null && (room < 0
+                                  ? <b style={{ color: C.alert }}>+{nfmt(-room)} {u} nad</b>
+                                  : <span>rezerva {nfmt(room)} {u}</span>)}
+                              </div>
                             </>
-                          ) : (
-                            <p className="mt-1 text-[11px] leading-4 text-fg-3">Kapacitu jsme v den aktivity ještě neznali, potřebuje aspoň 3 předchozí aktivity za 30 dní.</p>
+                          ) : <p className="mt-1 text-[11px] text-fg-3">kapacita ten den ještě neznámá (potřebuje 3 aktivity za 30 dní)</p>}
+                          {c.weekCeiling != null && (
+                            <>
+                              <div className="mt-2"><WeekBar before={c.weekBefore || 0} value={c.value} ceiling={c.weekCeiling} tone={tone} /></div>
+                              <div className="mt-1 flex justify-between gap-2 text-[11px] tabular-nums text-fg-3">
+                                <span>7 dní: {nfmt(c.weekBefore)} + {nfmt(c.value)} z {nfmt(c.weekCeiling)} {u}</span>
+                                <span>{c.left > 0.005 ? `nevstřebáno ${Math.round(c.left * 100)} %` : "vstřebáno"}</span>
+                              </div>
+                            </>
                           )}
-                          <p className="mt-0.5 text-[11px] leading-4 text-fg-3">
-                            {c.left > 0.005 ? `nevstřebáno ${Math.round(c.left * 100)} % (≈ ${nfmt(c.unabsorbed)} ${c.unit})` : "už vstřebáno"}
-                            {c.weekPct != null ? ` · ${c.weekPct} % týdenní kapacity (${nfmt(c.weekCap)} ${c.unit})` : ""}
-                          </p>
-                          {why && <p className="mt-1 text-[12px] leading-4" style={{ color: c.scorePts > 0 ? C.watch : C.fg2 }}>{why}</p>}
                         </div>
                       )
                     })}
                     <p className="border-t border-white/[.07] pt-2.5 text-[11px] leading-4 text-fg-3">
-                      {x.run
-                        ? "Poměr = hodnota proti kapacitě na jednu aktivitu v ten den, na špatně zregenerovaný den se kapacita zmenšuje. Body se od aktivity počítají 7 dní a noc po noci ubývají, velký skok doznívá až 4 týdny."
-                        : x.sport === "strength"
-                          ? "Posilování se do běžeckých kanálů (objem, intenzita, klesání, stoupání) nepočítá. Ovlivňuje celkovou zátěž a vlastní silovou zátěž."
-                          : "Neběžecký sport se do běžeckých kanálů (objem, intenzita, klesání, stoupání) ani do mechaniky nepočítá. Ovlivňuje jen celkovou zátěž."}
+                      Bílá čárka = strop (kapacita + rezerva, podle připravenosti). Šedě ostatní aktivity 7 dní do tohoto dne.
+                      {x.run ? "" : x.sport === "strength" ? " Posilování ovlivňuje celkovou a silovou zátěž." : " Jiný sport ovlivňuje jen celkovou zátěž."}
                     </p>
                   </div>
                 )}

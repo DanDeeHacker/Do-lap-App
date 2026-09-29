@@ -83,9 +83,61 @@ def test_history_breaks_each_activity_down_by_its_own_channels(client, db_sessio
         got = sum(cc["scorePts"] for x in h for cc in x["channels"] if cc["ch"] == ch)
         assert abs(got - (c.get("pts") or 0)) <= 0.6, ch
     assert abs(sum(x["scorePts"] for x in h) - cap["score"]) <= 1.5
+    # railway#110 — the jump is over the per-run ceiling by value − ceiling, so no room is left
+    assert any(o["ch"] == "volume" and abs(o["over"] - (vol["value"] - vol["ceiling"])) <= 0.15 for o in run["over"])
+    assert run["extra"] is None and vol["weekCeiling"] and vol["weekBefore"] >= 0
+    # a normal run earlier in the window has room: minutes at its own pace up to the nearer ceiling
+    calm = next((x for x in h[1:] if x["run"] and not x["over"] and not x["weekOver"] and x["extra"]), None)
+    if calm:
+        c0 = next(c for c in calm["channels"] if c["ch"] == calm["extra"]["ch"])
+        assert c0["extraMin"] == calm["extra"]["min"] and calm["extra"]["min"] >= 0
+    # readiness around the day: morning, after the session, next morning (None without watch data)
+    assert "readiness" in run
     # the plain assessment stays lean
     with E.engine_pinned("v3"):
         assert "history" not in C.assess_capacity(db, rid, runner=r)
+
+
+def test_impacts_add_up_to_the_overall_risk_and_signals_carry_sources(client, db_session):
+    """railway#111 / #113 — each signal's effect in percentage points of the Skóre, and the
+    records behind it; a capacity channel set by one run names that run with share 1."""
+    rid = register(client, "lh-imp@test.cz", "LH Imp", "runner").json()["runner_id"]
+    db = db_session
+    seed_runs(db, rid, days=100)
+    db.add(models.Activity(runner_id=rid, provider="garmin", external_id="imp-jump", started_at=E.day_ago(0),
+                           sport="running", title="Dlouhý", distance_km=26.0, duration_min=26 * 6,
+                           avg_hr=150, surface="road", ascent_m=40, descent_m=40))
+    db.commit()
+    client.post(f"/api/runners/{rid}/engine", json={"mode": "v3"})
+    a = E.recompute_assessment(db, rid)
+    sc = a["impactScale"]
+    assert set(sc) == {"mech", "load", "symp"} and 0 < sc["load"] <= 0.42      # ≤ the weight, up to rounding
+    for s in a["signals"]:
+        assert s["axis"] in sc and abs(s["impact"] - s["pts"] * sc[s["axis"]]) < 0.01
+        assert isinstance(s.get("sources"), list)
+    # listed signals never claim more than the overall risk (unlisted mechanics points exist)
+    assert sum(s["impact"] for s in a["signals"]) <= a["overall"] + 0.6
+    vol = next(s for s in a["signals"] if s["id"] == "cap_volume")
+    ch = a["capacity"]["channels"]["volume"]
+    if ch["driver"] == "session":
+        assert vol["sources"][0]["share"] == 1.0 and vol["sources"][0]["title"] == "Dlouhý"
+    else:
+        assert abs(sum(x["share"] for x in vol["sources"]) - 1) <= 0.1
+    # past days replayed for the history get no sources (and stay as fast)
+    with E.today_pinned(E.today_date()), E.engine_pinned("v3"):
+        assert all("sources" not in s for s in E.assess(db, rid)["signals"])
+    # the endpoint hands the load scale to the history
+    assert client.get(f"/api/runners/{rid}/load-history").json()["impactScale"] == sc["load"]
+
+
+def test_impact_scale_handles_caps():
+    sc = E.impact_scales({"mech": 50, "load": 200, "symp": 0}, {"mech": 50, "load": 100, "symp": 0},
+                         {"mech": 0.38, "load": 0.4, "symp": 0.52}, 59)
+    # load capped at 100 of 200 raw points → half of each point survives; overall 19 + 40 = 59 uncapped
+    assert sc["load"] == 0.2 and sc["mech"] == 0.38 and sc["symp"] == 0.52
+    sc2 = E.impact_scales({"mech": 100, "load": 100, "symp": 100}, {"mech": 100, "load": 100, "symp": 100},
+                          {"mech": 0.38, "load": 0.4, "symp": 0.52}, 100)
+    assert abs(100 * sum(sc2.values()) - 100) < 0.1        # the overall cap scales every axis alike
 
 
 def test_load_history_endpoint(client, db_session):

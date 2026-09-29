@@ -482,7 +482,9 @@ def load_history(rid: str, user: models.User = Depends(get_current_user), db: DB
     with E.engine_pinned((r.engine_mode if r else None) or "v1"):
         res = CAP.assess_capacity(db, rid, frailty=frailty, runner=r, with_history=True)
     return {"available": True, "days": CAP.HISTORY_DAYS, "sessionDays": CAP.SESSION_DAYS,
-            "score": res["score"], "margins": res["margins"], "items": res["history"]}
+            "score": res["score"], "margins": res["margins"], "items": res["history"],
+            # railway#111 — load points → percentage points of the overall Skóre
+            "impactScale": (a.get("impactScale") or {}).get("load")}
 
 
 @router.get("/{rid}/run-compare/{aid}")

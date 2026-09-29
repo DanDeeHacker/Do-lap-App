@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react"
 import { ChevronDown } from "lucide-react"
 import { InfoDot, Label } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
-import { fmtD } from "@/lib"
+import { fmtD, fmtImpact, toImpact } from "@/lib"
 import { C, goodCol } from "@/tokens"
 
 const CH_ORDER = ["volume", "intensity", "descent", "ascent", "systemic", "strength"] as const
@@ -127,8 +127,8 @@ export function ReadinessFactors({ r }: { r: any }) {
           <p className="t-label mt-3 !text-fg-3">Snižuje ji</p>
           <ul className="divide-y divide-white/[.07]">
             {lower.map((k) => (eff[k] || 0) >= 0.5
-              ? row(k, `−${pts1(eff[k])} b`, eff[k] >= 10 ? C.alert : C.watch)
-              : row(k, <span className="block text-right">0 b<small className="block text-[10px] font-medium text-fg-3">překryto silnějšími</small></span>, C.fg3))}
+              ? row(k, `−${pts1(eff[k])} p. b.`, eff[k] >= 10 ? C.alert : C.watch)
+              : row(k, <span className="block text-right">0 p. b.<small className="block text-[10px] font-medium text-fg-3">překryto silnějšími</small></span>, C.fg3))}
           </ul>
         </>
       )}
@@ -136,7 +136,7 @@ export function ReadinessFactors({ r }: { r: any }) {
         <>
           <p className="t-label mt-3 !text-fg-3">Drží ji nahoře (v normě)</p>
           <ul className="divide-y divide-white/[.07]">
-            {fine.map((k) => row(k, "0 b", C.ok))}
+            {fine.map((k) => row(k, "0 p. b.", C.ok))}
           </ul>
         </>
       )}
@@ -162,14 +162,14 @@ export function ReadinessFactors({ r }: { r: any }) {
             {sess >= 0.5 && (
               <li className="flex justify-between gap-2">
                 <span className="text-fg-2">Dnešní trénink (od rána)</span>
-                <b className="tabular-nums" style={{ color: C.alert }}>▼ −{sess} b</b>
+                <b className="tabular-nums" style={{ color: C.alert }}>▼ −{sess} p. b.</b>
               </li>
             )}
           </ul>
         </>
       )}
       <p className="mt-3 border-t border-white/[.07] pt-2.5 text-[11px] leading-4 text-fg-3">
-        Připravenost = 100 − srážky. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí.
+        Připravenost = 100 % − srážky v procentních bodech. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí.
       </p>
     </div>
   )
@@ -197,12 +197,12 @@ const CH_NOTE: Record<string, string> = {
 // keeps the rest behind a detail arrow. railway#56–#61: the charts that feed a channel
 // (volume bars, HR zones and relative effort, cross-training, descent by slope) live in
 // that channel's detail rather than as separate cards further down the page.
-function ChannelRow({ id, c, margins, extra, open, onToggle }: { id: string; c: any; margins: any; extra?: ReactNode; open: boolean; onToggle: () => void }) {
+function ChannelRow({ id, c, margins, extra, open, onToggle, scale }: { id: string; c: any; margins: any; extra?: ReactNode; open: boolean; onToggle: () => void; scale?: number }) {
   const wk = c.week
   const ses = c.session
   const wTone = toneOf(wk?.ratio, margins.week)
   const sTone = toneOf(ses?.ratio, margins.session)
-  const why = !c.pts ? null : c.driver === "session" ? (id === "strength" ? "body za jedno posilování nad kapacitou" : "body za jeden běh nad kapacitou") : c.driver === "week" ? "body za 7 dní nad kapacitou" : c.driver === "latent" ? "body doznívajícího skoku" : null
+  const why = !c.pts ? null : c.driver === "session" ? (id === "strength" ? "za jedno posilování nad kapacitou" : "za jeden běh nad kapacitou") : c.driver === "week" ? "za 7 dní nad kapacitou" : c.driver === "latent" ? "doznívající skok" : null
   const hasDetail = !!(extra || (c.known && (ses || c.latent || c.pendingJump || CH_NOTE[id])))
   return (
     <div className={`nest p-3.5 transition ${open ? "md:col-span-full !border-accent/60" : ""}`}>
@@ -210,7 +210,8 @@ function ChannelRow({ id, c, margins, extra, open, onToggle }: { id: string; c: 
         <b className="text-sm font-bold text-fg">{c.label}</b>
         <span className="grid size-5 place-items-center rounded-full bg-white/[.07] text-[11px] font-extrabold text-fg-2">{c.grade}</span>
         <span className="ml-auto text-right tabular-nums text-[12px] font-bold" style={{ color: c.pts ? C.watch : C.fg3 }}>
-          {c.pts ? `+${c.pts} b` : "0 b"}
+          {/* railway#111 — percentage points off the overall Skóre, not load points */}
+          <span title="o kolik procentních bodů snižuje celkové Skóre">{scale != null ? fmtImpact(toImpact(c.pts, scale)) : c.pts ? `+${c.pts} b` : "0 b"}</span>
           {why && <span className="block font-sans text-[11px] font-normal text-fg-3">{why}</span>}
         </span>
       </div>
@@ -339,7 +340,7 @@ function RelativeEffort({ re }: { re: any }) {
   )
 }
 
-export function CapacityPanel({ cap, extra = {} }: { cap: any; extra?: Record<string, ReactNode> }) {
+export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Record<string, ReactNode>; scale?: number }) {
   const [open, setOpen] = useState("")
   if (!cap) return null
   const re = cap.relativeEffort || {}
@@ -366,7 +367,7 @@ export function CapacityPanel({ cap, extra = {} }: { cap: any; extra?: Record<st
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2 min-[1600px]:grid-cols-3">
         {CH_ORDER.map((id) => cap.channels?.[id] && (id !== "strength" || cap.channels[id].known) && (
-          <ChannelRow key={id} id={id} c={cap.channels[id]} margins={cap.margins} extra={extras[id]}
+          <ChannelRow key={id} id={id} c={cap.channels[id]} margins={cap.margins} extra={extras[id]} scale={scale}
             open={open === id} onToggle={() => setOpen(open === id ? "" : id)} />
         ))}
       </div>

@@ -911,11 +911,12 @@ def _band_word(r, margin):
     return "v kapacitě" if r <= 1 + margin else "mírně nad" if r <= 1.3 else "nad" if r <= 2.0 else "výrazně nad"
 
 
-def _history_rows(pool, ch, items, rates, ready, daily, first_day, pain, today, t_iso, absorb_days, m_s) -> dict:
+def _history_rows(pool, ch, items, rates, ready, daily, first_day, pain, today, t_iso, absorb_days, m_s, m_w) -> dict:
     """{session id: how that session loads channel `ch`} for the last HISTORY_DAYS days:
-    its value against the per-run capacity of its day (× that day's readiness, as the
-    score does), the share still unabsorbed this morning, the share of the weekly
-    capacity it used and the points it would give on its own today."""
+    its value against the per-run ceiling of its day (capacity × margin × that day's
+    readiness, as the score does) and against the weekly ceiling with the other sessions
+    of that 7-day window, the room left at the same pace (railway#110), the share still
+    unabsorbed this morning and the points it would give on its own today."""
     spec = CHANNELS[ch]
     out, wcap = {}, {}
     for s in pool:
@@ -925,6 +926,7 @@ def _history_rows(pool, ch, items, rates, ready, daily, first_day, pain, today, 
         age = (today - _d(s["date"])).days
         if age < 0 or age >= HISTORY_DAYS:
             continue
+        d0 = _d(s["date"])
         cap = session_capacity(items, s["date"], ch)
         rd, _p, rd_score = ready.get(s["date"], (1.0, {}, 100))
         r = v / (cap * rd) if cap else None
@@ -934,13 +936,29 @@ def _history_rows(pool, ch, items, rates, ready, daily, first_day, pain, today, 
         if s["date"] not in wcap:
             wcap[s["date"]] = weekly_capacity(daily, s["date"], first_day, pain, ch)
         cw = wcap[s["date"]]
+        # the 7-day window ending that day, as the weekly ceiling was then (week-average readiness)
+        win = sum(daily.get((d0 - timedelta(days=k)).isoformat(), 0.0) for k in range(7))
+        wk_rd = E.mean([ready.get((d0 - timedelta(days=k)).isoformat(), (1.0,))[0] for k in range(7)]) or 1.0
+        ceil_s = cap * (1 + m_s) * rd if cap else None
+        ceil_w = cw * (1 + m_w) * wk_rd if cw else None
+        # room left at this session's pace: the nearer of the per-run and the weekly ceiling
+        rooms = [x for x in ((ceil_s - v) if ceil_s else None, (ceil_w - win) if ceil_w else None) if x is not None]
+        room = min(rooms) if rooms else None
+        mins = s.get("durationMin") or 0
+        rate = v / mins if mins > 0 and v > 0 else None
         out[s["id"]] = {
             "ch": ch, "label": spec["label"], "unit": spec["unit"], "grade": spec["grade"],
             "value": _fmt(v, ch), "cap": _fmt(cap, ch) if cap else None,
-            "ceiling": _fmt(cap * (1 + m_s) * rd, ch) if cap else None,
+            "ceiling": _fmt(ceil_s, ch) if cap else None,
+            "over": _fmt(max(0.0, v - ceil_s), ch) if ceil_s else None,
             "ratio": round(r, 2) if r is not None else None, "band": _band_word(r, m_s),
             "readinessScore": rd_score, "left": round(left, 2), "unabsorbed": _fmt(v * left, ch),
             "weekCap": _fmt(cw, ch) if cw else None, "weekPct": round(100 * v / cw) if cw else None,
+            "weekBefore": _fmt(max(0.0, win - v), ch), "weekCeiling": _fmt(ceil_w, ch) if ceil_w else None,
+            "weekOver": _fmt(max(0.0, win - ceil_w), ch) if ceil_w else None,
+            "room": _fmt(max(0.0, room), ch) if room is not None else None,
+            "roomBy": None if room is None else ("session" if ceil_s is not None and room == ceil_s - v else "week"),
+            "extraMin": (round(max(0.0, room) / rate) if (rate and room is not None) else None),
             "pts": round(max(p_ses, p_lat) * spec["w"], 1),
             "ptsKind": "session" if p_ses > 0 and p_ses >= p_lat else "latent" if p_lat > 0 else None,
             "_resid": v * left,
@@ -948,7 +966,28 @@ def _history_rows(pool, ch, items, rates, ready, daily, first_day, pain, today, 
     return out
 
 
-def _history(sessions, hist_ch, channels, today) -> list:
+def _day_readiness(sessions, day, t_iso, ready, nights, hrmax, rhr, cache) -> dict | None:
+    """Readiness around a day's training (railway#110): that morning, the estimate right
+    after the day's sessions (the v0.8.6 after-session rule) and the next morning as the
+    watch measured it. None without the day's data."""
+    if day in cache:
+        return cache[day]
+    _f, parts, before = ready.get(day, (1.0, {}, 100))
+    known = day in nights or bool(parts)
+    eff = day_effort(sessions, day, hrmax, rhr)
+    after = readiness_from({**parts, "session": eff["deficit"]})[1] if (known and eff and eff["deficit"] > 0) else (before if known else None)
+    nd = (_d(day) + timedelta(days=1)).isoformat()
+    nxt = None
+    if nd <= t_iso:
+        _nf, n_parts, n_score = ready.get(nd, (1.0, {}, 100))
+        nxt = n_score if (nd in nights or n_parts) else None
+    out = {"before": before if known else None, "after": after, "next": nxt,
+           "band": eff["band"] if eff else None} if (known or nxt is not None) else None
+    cache[day] = out
+    return out
+
+
+def _history(sessions, hist_ch, channels, today, ready=None, nights=frozenset(), hrmax=None, rhr=None) -> list:
     """The Zátěž tab's activity history (newest first). Each channel's points in today's
     score are attributed to the sessions behind them: the one session (or the one
     fading jump) that sets the channel, or, when the unabsorbed 7-day load sets it,
@@ -973,6 +1012,8 @@ def _history(sessions, hist_ch, channels, today) -> list:
         for x in rows.values():
             x.pop("_resid", None)
     out = []
+    t_iso = today.isoformat()
+    rcache: dict = {}
     for s in sorted(sessions, key=lambda s: (s["date"], s["id"]), reverse=True):
         age = (today - _d(s["date"])).days
         if age < 0 or age >= HISTORY_DAYS:
@@ -985,6 +1026,17 @@ def _history(sessions, hist_ch, channels, today) -> list:
         known = [c for c in chans if c["ratio"] is not None]
         peak = max(known, key=lambda c: c["ratio"]) if known else None
         sport = s.get("sport") or "running"
+        # railway#110 — over a ceiling already, or how much longer at the same pace
+        over = [{"ch": c["ch"], "label": c["label"], "unit": c["unit"], "over": c["over"]} for c in chans if c.get("over")]
+        wover = [{"ch": c["ch"], "label": c["label"], "unit": c["unit"], "over": c["weekOver"]} for c in chans if c.get("weekOver")]
+        timed = [c for c in chans if c.get("extraMin") is not None]
+        lim = min(timed, key=lambda c: c["extraMin"]) if timed and not over and not wover else None
+        extra = None
+        if lim is not None:
+            km = (lim["extraMin"] * s["km"] / s["durationMin"]) if (s["run"] and s.get("km") and s.get("durationMin")) else None
+            extra = {"min": lim["extraMin"], "km": E.r1(km) if km is not None else None, "ch": lim["ch"],
+                     "label": lim["label"], "by": lim["roomBy"]}
+        rdy = _day_readiness(sessions, s["date"], t_iso, ready, nights, hrmax, rhr, rcache) if ready is not None else None
         out.append({
             "id": s["id"], "date": s["date"], "title": s["title"], "sport": sport, "run": s["run"],
             "sportLabel": "běh" if s["run"] else SPORT_CS.get(sport, "jiný sport"),
@@ -992,6 +1044,7 @@ def _history(sessions, hist_ch, channels, today) -> list:
             "avgHr": E.rnd(s.get("avgHr")), "rpe": s.get("rpe"), "age": age, "channels": chans,
             "peak": {k: peak[k] for k in ("ch", "label", "ratio", "band")} if peak else None,
             "scorePts": round(sum(c["scorePts"] for c in chans), 1),
+            "over": over, "weekOver": wover, "extra": extra, "readiness": rdy,
         })
     return out
 
@@ -1086,9 +1139,16 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             ceil_w = capw * (1 + m_w) * wk_ready
             week = {"now": _fmt(now_w, ch), "residual": _fmt(resid_w, ch), "cap": _fmt(capw, ch), "ratio": round(rw, 2),
                     "ceiling": _fmt(ceil_w, ch), "left": _fmt(max(0.0, ceil_w - now_w), ch)}
+        # railway#113 — who carries the unabsorbed 7-day load (the same split as the history)
+        contrib = [(s["exp"][ch] * absorbed_left(rates, s["date"], t_iso, absorb_days), s) for s in pool
+                   if s["exp"].get(ch) and absorb_days[0] <= s["date"] <= t_iso]
+        c_tot = sum(c for c, _ in contrib)
+        week_src = [{"id": s["id"], "date": s["date"], "title": s["title"], "sport": s.get("sport"),
+                     "value": _fmt(s["exp"][ch], ch), "share": round(c / c_tot, 3)}
+                    for c, s in sorted(contrib, key=lambda x: -x[0])[:8] if c_tot > 0 and c / c_tot >= 0.01]
         if with_history:
             hist_ch[ch] = _history_rows(pool, ch, items, rates, ready, daily, first_day, pain, today, t_iso,
-                                        absorb_days, m_s)
+                                        absorb_days, m_s, m_w)
         # --- today's per-run ceiling (capacity from everything before today)
         cap_today = session_capacity(items, (today + timedelta(days=1)).isoformat(), ch)
         # --- the latest jump (plan B1) that doesn't count fully yet: held for
@@ -1113,7 +1173,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             # the per-run ceiling on a normally recovered day — "this week", not scaled by today's readiness
             "ceilingSession": _fmt(cap_today * (1 + m_s), ch) if cap_today is not None else None,
             "latent": {"pts": round(latent[0], 1), "date": latent[1], "ratio": latent[2], "id": latent[3]} if latent[0] else None,
-            "pendingJump": pending,
+            "pendingJump": pending, "weekSources": week_src,
             "raw": round(raw, 1), "driver": driver, "known": worst is not None or week is not None or cap_today is not None,
             "exact": {"rs": worst_r, "rw": rw, "lat": latent[0], "left": worst["left"] if worst else 1.0},
         }
@@ -1173,5 +1233,5 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         "relativeEffort": relative_effort(sessions, t_iso),
     }
     if with_history:
-        out["history"] = _history(sessions, hist_ch, channels, today)
+        out["history"] = _history(sessions, hist_ch, channels, today, ready, nights, hrmax, rhr)
     return out
