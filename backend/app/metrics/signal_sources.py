@@ -9,8 +9,11 @@ signal's effect on the Skóre:
     that residual load (the same split as Zátěž → Historie aktivit);
   • higher heart rate at the usual pace → each run by its share of the excess;
   • repeated niggles → each rated run equally (the engine counts them).
-Elsewhere (pain, recovery, mechanics) the engine scores a pattern, not a sum of records,
-so the sources list what it was read from, without a share.
+Elsewhere (pain, recovery, mechanics) the engine scores a pattern, not a sum of records.
+railway#132 asked to see every item's p. b. there too, so those records get an
+approximate share: by pain intensity, by the night's or run's deviation from the
+runner's norm, by the value in the record, by activity duration, or equally where the
+engine only counts records. `shareNote` tells the popup which split it shows.
 """
 from datetime import timedelta
 
@@ -42,9 +45,21 @@ def _mmss(sec):
     return f"{int(sec // 60)}:{int(round(sec % 60)):02d}"
 
 
-def _src(kind, date, title, detail, share=None, aid=None):
+def _src(kind, date, title, detail, share=None, aid=None, w=None):
     return {"kind": kind, "date": (date or "")[:10], "title": title, "detail": detail,
-            "share": None if share is None else round(share, 3), "aid": aid}
+            "share": None if share is None else round(share, 3), "aid": aid, "_w": w}
+
+
+# railway#132 — how the approximate shares are split, per kind of signal
+SHARE_NOTE = {
+    "pain": "Podíl je přibližný. Signál hodnotí vzorec bolesti, ne součet záznamů, proto ho dělíme podle síly bolesti v záznamu.",
+    "count": "Podíl je přibližný. Signál počítá záznamy stejnou vahou, proto má každý stejný díl.",
+    "equal": "Podíl je přibližný. Záznamy se od vaší normy liší podobně, proto má každý stejný díl.",
+    "night": "Podíl je přibližný. Dělíme ho podle toho, jak moc se noc odchýlila od vaší normy za 4 týdny.",
+    "mech": "Podíl je přibližný. Dělíme ho podle toho, jak moc se běh odchýlil od vaší normy.",
+    "value": "Podíl je přibližný. Dělíme ho podle hodnoty v záznamu.",
+    "duration": "Podíl je přibližný. Dělíme ho podle délky aktivity.",
+}
 
 
 def _region(p):
@@ -73,25 +88,33 @@ def pain_entries(db, rid, days, match=None):
         ps = pts(c.pain_points)
         if (match and ps) or (not match and ((c.pain_score or 0) > 0 or ps)):
             where = ", ".join(_region(p) for p in ps) or (c.pain_site or "bez místa")
-            out.append(_src("checkin", c.submitted_at, "Check-in", f"{where} · bolest {c.pain_score or 0}/10"))
+            out.append(_src("checkin", c.submitted_at, "Check-in", f"{where} · bolest {c.pain_score or 0}/10", w=max(1, c.pain_score or 0)))
     for f in fbs:
         ps = pts(f.pain_points)
         if (match and ps) or (not match and ((f.pain_during or 0) > 0 or f.niggle or ps)):
             where = ", ".join(_region(p) for p in ps) or (f.pain_site or "bez místa")
             out.append(_src("rating", f.submitted_at, titles.get(f.activity_id) or "Hodnocení běhu",
-                            f"{where} · bolest při běhu {f.pain_during or 0}/10", aid=f.activity_id))
+                            f"{where} · bolest při běhu {f.pain_during or 0}/10", aid=f.activity_id, w=max(1, f.pain_during or 0)))
     for rep in db.query(models.InjuryReport).filter(models.InjuryReport.runner_id == rid, models.InjuryReport.submitted_at > cut):
         ps = pts(rep.pain_points)
         if (match and ps) or (not match and (ps or rep.body_region)):
             where = ", ".join(_region(p) for p in ps) or E._REGION_LABEL.get(rep.body_region, rep.body_region or "")
-            out.append(_src("report", rep.submitted_at, "Hlášení zranění", where or "bez místa"))
+            out.append(_src("report", rep.submitted_at, "Hlášení zranění", where or "bez místa", w=5))
     out.sort(key=lambda x: x["date"], reverse=True)
     return out[:MAX_SOURCES]
 
 
-def _nights(db, rid, n=7):
+# signal → (DailyMetric field, +1 when a lower value is worse, −1 when a higher one is)
+NIGHT_DEV = {"hrv": ("hrv_ms", 1), "hrv_high": ("hrv_ms", -1), "rhr": ("resting_hr", -1), "sleep": ("sleep_h", 1),
+             "sleepeff": ("sleep_efficiency", 1)}
+
+
+def _nights(db, rid, n=7, sid=None):
     rows = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid,
-                                               models.DailyMetric.date >= E.day_ago(n)[:10]).all()
+                                               models.DailyMetric.date >= E.day_ago(28)[:10]).all()
+    fld, sign = NIGHT_DEV.get(sid, (None, 0))
+    vals = [getattr(m, fld) for m in rows if fld and getattr(m, fld) is not None]
+    ref = sum(vals) / len(vals) if vals else None
     out = []
     for m in sorted(rows, key=lambda x: x.date, reverse=True)[:n]:
         bits = [m.hrv_ms is not None and f"HRV {_num(m.hrv_ms)} ms", m.resting_hr is not None and f"klidový tep {_num(m.resting_hr)}",
@@ -99,7 +122,9 @@ def _nights(db, rid, n=7):
                 m.sleep_efficiency is not None and f"efektivita {_num(m.sleep_efficiency * 100)} %"]
         bits = [b for b in bits if b]
         if bits:
-            out.append(_src("night", m.date, "Noc", " · ".join(bits)))
+            v = getattr(m, fld) if fld else None
+            w = max(0.0, sign * (ref - v)) if (v is not None and ref is not None) else (0.0 if fld else None)
+            out.append(_src("night", m.date, "Noc", " · ".join(bits), w=w))
     return out
 
 
@@ -148,7 +173,7 @@ def _week_acts(db, rid):
                     key=lambda a: a.started_at, reverse=True):
         bits = [SPORT_CS.get(a.sport or "running", a.sport), a.distance_km and f"{_num(a.distance_km, 1)} km",
                 a.duration_min and f"{_num(a.duration_min)} min"]
-        out.append(_src("activity", a.started_at, a.title, " · ".join(b for b in bits if b), aid=a.id))
+        out.append(_src("activity", a.started_at, a.title, " · ".join(b for b in bits if b), aid=a.id, w=a.duration_min or 0))
     return out[:MAX_SOURCES]
 
 
@@ -163,7 +188,8 @@ def _mech(db, rid, sid, a):
             continue
         detail = f"{_num(v, dec)} {unit}" + (f" (vaše norma {_num(base, dec)} {unit})" if base is not None else "") if fld else \
             f"{_num(x.distance_km, 1)} km"
-        out.append(_src("activity", x.started_at, x.title, detail, aid=x.id))
+        out.append(_src("activity", x.started_at, x.title, detail, aid=x.id,
+                        w=abs(v - base) if (v is not None and base is not None) else None))
     return out[:MAX_SOURCES]
 
 
@@ -177,24 +203,27 @@ def _ratings(db, rid, sid):
         models.Activity.id.in_({f.activity_id for f in fbs}))} if fbs else {}
     out = []
     for f in sorted(fbs, key=lambda f: f.submitted_at, reverse=True):
+        w = None
         if sid == "niggle":
             d = f"{f.pain_site or 'bolestivé místo'} · bolest při běhu {f.pain_during or 0}/10"
         elif sid == "feel":
             d = f"pocit z běhu {f.feeling}/5" if f.feeling is not None else None
+            w = max(0, 5 - (f.feeling or 5))
         else:
             d = f"ztuhlost před během {f.stiffness_pre}/5" + (f" · RPE {f.rpe}" if f.rpe is not None else "") if f.stiffness_pre is not None else None
+            w = f.stiffness_pre or 0
         if d:
             out.append(_src("rating", f.submitted_at, titles.get(f.activity_id) or "Hodnocení běhu", d,
-                            1 / len(fbs) if sid == "niggle" else None, f.activity_id))
+                            1 / len(fbs) if sid == "niggle" else None, f.activity_id, w=w))
     return out[:MAX_SOURCES]
 
 
-def _checkins(db, rid, days, pick):
+def _checkins(db, rid, days, pick, weight=None):
     out = []
     for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at > E.day_ago(days)).all():
         d = pick(c)
         if d:
-            out.append(_src("checkin", c.submitted_at, "Check-in", d))
+            out.append(_src("checkin", c.submitted_at, "Check-in", d, w=weight(c) if weight else None))
     out.sort(key=lambda x: x["date"], reverse=True)
     return out[:MAX_SOURCES]
 
@@ -209,15 +238,15 @@ def sources_for(db, rid, sid, a, cap, runner, titles):
     if sid in ("mono", "session_spike", "spike_latent", "ewma", "hi_load", "load_creep", "desc", "desc_steep", "aer", "taper"):
         return _week_acts(db, rid)
     if sid in RECOVERY:
-        return _nights(db, rid)
+        return _nights(db, rid, sid=sid)
     if sid in MECH_FIELD or sid == "dec":
         return _mech(db, rid, sid, a)
     if sid in ("niggle", "feel", "stiffness"):
         return _ratings(db, rid, sid)
     if sid == "sore":
-        return _checkins(db, rid, 4, lambda c: c.soreness is not None and c.soreness >= 7 and f"svalová únava {c.soreness}/10")
+        return _checkins(db, rid, 4, lambda c: c.soreness is not None and c.soreness >= 7 and f"svalová únava {c.soreness}/10", lambda c: c.soreness)
     if sid == "fatigue":
-        return _checkins(db, rid, 4, lambda c: c.stress is not None and c.stress >= 6 and f"únava {c.stress}/10")
+        return _checkins(db, rid, 4, lambda c: c.stress is not None and c.stress >= 6 and f"únava {c.stress}/10", lambda c: c.stress)
     if sid == "cluster":
         return _checkins(db, rid, 28, lambda c: c.stress is not None and c.stress >= 6 and f"únava {c.stress}/10")
     if sid == "pain_prior":
@@ -232,6 +261,42 @@ def sources_for(db, rid, sid, a, cap, runner, titles):
     return []
 
 
+def _note_kind(sid: str) -> str:
+    if sid in ("pain_prior", "complaints", "cluster"):
+        return "count"
+    if sid in PAIN_DAYS or sid == "injury":
+        return "pain"
+    if sid in RECOVERY:
+        return "night"
+    if sid in MECH_FIELD or sid == "dec":
+        return "mech"
+    if sid in ("feel", "stiffness", "sore", "fatigue"):
+        return "value"
+    return "duration"
+
+
+def split_shares(sid: str, src: list) -> str | None:
+    """railway#132 — fills an approximate `share` where the engine gives none; returns
+    the key of the note that says how (None when the shares are the engine's own)."""
+    if not src:
+        return None
+    if any(x.get("share") is not None for x in src):
+        for x in src:
+            x.pop("_w", None)
+        return None
+    kind = _note_kind(sid)
+    ws = [x.get("_w") for x in src]
+    if kind != "count" and (any(w is None for w in ws) or sum(ws) <= 0):
+        kind = "equal"
+    if kind in ("count", "equal"):
+        ws = [1.0] * len(src)
+    tot = sum(ws)
+    for x, w in zip(src, ws):
+        x["share"] = round(w / tot, 3)
+        x.pop("_w", None)
+    return kind
+
+
 def attach(db, rid, a: dict, runner=None) -> None:
     """Adds `sources` to every signal of an assessment (in place)."""
     cap = a.get("capacity")
@@ -244,5 +309,8 @@ def attach(db, rid, a: dict, runner=None) -> None:
     for s in a.get("signals") or []:
         try:
             s["sources"] = sources_for(db, rid, s["id"], a, cap, runner, titles)
+            note = split_shares(s["id"], s["sources"])
+            s["shareNote"] = SHARE_NOTE.get(note) if note else None
         except Exception:             # a source list is a convenience — never break the assessment
             s["sources"] = []
+            s["shareNote"] = None
