@@ -22,11 +22,13 @@ def test_quadrant_history_ends_today_and_matches_live(client):
     assert hist, "expected a non-empty quadrant history"
     today = E.iso_date(E.today_date())
     assert hist[-1]["date"] == today  # the strip ends on today
-    for k in ("quadrant", "overall", "tier", "mech", "load", "symp", "signals", "rcv", "readiness", "painRecurring"):
+    for k in ("quadrant", "overall", "tier", "mech", "load", "symp", "signals", "readiness", "painRecurring"):
         assert k in hist[-1]
-    # the Dnes overview in the history (railway#88) draws recovery and the drivers' values
-    live_rcv = client.get(f"/api/runners/{rid}/assessment").json().get("rcv") or {}
-    assert hist[-1]["rcv"] == live_rcv.get("score")
+    # the Dnes overview in the history (railway#88) draws readiness and the drivers' values
+    # (v0.9.0: the single-night "Regenerace" score is gone — readiness replaces it)
+    live_ready = client.get(f"/api/runners/{rid}/assessment").json().get("readiness") or {}
+    assert hist[-1]["readiness"] == live_ready.get("score")
+    assert "rcv" not in hist[-1]
     assert all({"id", "name", "pts", "grade", "val"} <= set(s) for s in hist[-1]["signals"])
 
     # The pinned last point is computed from the same data as the live assessment,

@@ -26,8 +26,6 @@ export const METRIC_INFO: Record<string, string> = {
   hrv: "Variabilita tepové frekvence přes noc (ms). Vyšší = lépe zregenerováno. Důležitá je odchylka od VAŠÍ baseline (v procentech), ne absolutní hodnota — výraznější pokles proti vašemu obvyklému rozptylu napovídá únavu nebo blížící se nemoc.",
   rhr: "Klidový tep přes noc. Trvale zvýšený proti vaší baseline = tělo se nedostalo zpět (únava, stres, nemoc). Jednorázový výkyv nevadí; sledujte trend.",
   sleep: "Doba spánku a jeho efektivita. Vztahujeme k vašemu obvyklému množství — kumulovaný spánkový dluh snižuje toleranci k zátěži a zhoršuje regeneraci.",
-  recoveryScore:
-    "Souhrn regenerace přes noc (0–100) z HRV, klidového tepu a spánku proti vaší baseline. Vyšší = tělo je připravenější. Sledujte hlavně změnu oproti včerejšku.",
 
   // — Mechanika (running form) —
   vertRatio:
@@ -52,7 +50,7 @@ export const METRIC_INFO: Record<string, string> = {
   relEffort:
     "Relativní úsilí porovná tepovou zátěž běhu s vašimi běhy za posledních 8 týdnů (pod / obvyklé / nad / výrazně nad obvyklým). ‚Tep při tempu' ukazuje, o kolik byl tep vyšší nebo nižší, než kolik obvykle potřebujete na stejné tempo — výrazně vyšší tep při lehkém tempu bývá známkou únavy, horka nebo nemoci.",
   hrZones:
-    "Tepové zóny z tepové rezervy (Karvonen): maximální tep bereme z profilu, pokud ho zadáte (změřený v testu nebo závodě), jinak ho odhadujeme z vašich nejtěžších běhů a věku — pak je u zón štítek „odhad“. Klidový tep je z nočních měření. Z4+ (≥ 80 % rezervy) = tvrdá práce — z ní se počítá kanál intenzity.",
+    "Tepové zóny z tepové rezervy (Karvonen): maximální tep bereme z profilu, pokud ho zadáte (změřený v testu nebo závodě), jinak ho odhadujeme z vašich nejtěžších běhů a věku — pak je u zón štítek „odhad“. Klidový tep je z nočních měření. Z4+ (≥ 80 % rezervy) = tvrdá práce — z ní se počítá kanál intenzity. Když v profilu zadáte tep na prahu (LTHR), zóny se počítají z něj (Z4 od 95 % prahu). Tep se při krátkých úsecích zpožďuje, proto tvrdé minuty počítáme i z tempa v úsecích běhu (rychlost na rovině, do kopce přepočtená) a bereme vyšší z obou.",
   todayCapacity:
     "Dnešní kapacita = kolik si dnes můžete dovolit, aby: (1) posledních 7 dní nepřekročilo vaši týdenní kapacitu — tu samou, kterou ukazuje Zátěž (kapacita + 15 % rezerva, podle připravenosti v týdnu), (2) tento týden zůstal v cíli podle cyklu (90 / 100 / 110 / 55 %), (3) žádný jednotlivý běh nepřesáhl kapacitu jednoho běhu, (4) celková zátěž (tep × čas ze všech aktivit) zůstala pod stropem. Platí nejpřísnější z nich — u každého kanálu je vidět, který. Když je mechanika nad prahem 25, dnešek se dál zmenšuje (objem −20 %, intenzita a klesání na polovinu); když je nad prahem zátěž, přichází odlehčovací týden. Tak obě osy zůstanou pod prahem.",
   weekBudget:

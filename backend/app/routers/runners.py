@@ -36,6 +36,7 @@ def get_runner(rid: str, user: models.User = Depends(get_current_user), db: DBSe
 ALLOWED_PROFILE_PATCH = {
     "birth_year", "sex", "city", "goal_race", "goal_date", "prior_injury",
     "prior_injury_months_ago", "prior_injury_date", "prior_injury_side", "device", "hr_max",
+    "threshold_hr",
 }
 
 
@@ -184,6 +185,13 @@ def update_runner(rid: str, body: schemas.RunnerProfilePatch,
                 raise HTTPException(status_code=422, detail="Maximální tep musí být číslo") from None
             if not 120 <= v <= 230:
                 raise HTTPException(status_code=422, detail="Maximální tep musí být 120–230 tepů/min")
+        if k == "threshold_hr" and v not in (None, ""):
+            try:
+                v = int(v)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=422, detail="Tep na prahu musí být číslo") from None
+            if not 110 <= v <= 220:
+                raise HTTPException(status_code=422, detail="Tep na prahu musí být 110–220 tepů/min")
         if k == "prior_injury_side" and v not in (None, "", "left", "right", "both"):
             raise HTTPException(status_code=422, detail="Strana zranění: levá, pravá nebo obě")
         if k == "prior_injury_date" and v:
@@ -193,7 +201,7 @@ def update_runner(rid: str, body: schemas.RunnerProfilePatch,
             except ValueError:
                 raise HTTPException(status_code=422, detail="Datum zranění nesmí být v budoucnosti") from None
             v = str(v)[:10]
-        setattr(r, k, (v or None) if k in ("prior_injury_side", "prior_injury_date", "hr_max") else v)
+        setattr(r, k, (v or None) if k in ("prior_injury_side", "prior_injury_date", "hr_max", "threshold_hr") else v)
     db.commit()
     E.recompute_assessment(db, rid)
     db.refresh(r)
@@ -774,7 +782,8 @@ def delete_manual_activity(rid: str, aid: int, user: models.User = Depends(get_c
 @router.get("/{rid}/daily")
 def get_daily(rid: str, days: int = 14, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_read_access(db, user, rid)
-    rows = E.daily(db, rid, days)
+    rows = (db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.date > E.day_ago(days))
+            .order_by(models.DailyMetric.date.asc()).all())
     return to_dicts(list(reversed(rows)))
 
 

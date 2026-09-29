@@ -19,6 +19,22 @@ Method, following the provided literature:
   random intercept the plan asks for is fitted offline from the CSV export
   (`/api/engine/calibration/export`), because the app ships without a statistics
   library.
+
+v0.9.0:
+* the outcome is the PRIMARY event set (app.outcomes), defined independently of the
+  engine's own inputs; the pain-based events are a secondary analysis only;
+* the safety rules (red flags, bone stress, limited function, …) are not part of
+  the calibrated score — the baseline uses `overall_model`, the score before the
+  rule floors — and the report separates an objective-only model (load, mechanics,
+  readiness) from one that adds the symptom axis, so the value of the questionnaire
+  is visible on its own;
+* snapshots recorded after a run of that day, and days without an observed
+  follow-up week, are left out (censoring, not "no event");
+* the daily rows are a discrete-time hazard (pooled logistic; `event1` = next day),
+  plus a session-scale dataset (one row per run, RUNSAFE ratio to the longest run
+  of the last 30 days; Frandsen et al., 2025);
+* event rates by whether the day's recommendation was followed, because a warning
+  that works lowers the very risk it predicts.
 """
 import math
 from collections import defaultdict
@@ -30,6 +46,9 @@ from . import models, outcomes
 KNOT_QUANTILES = {3: (0.10, 0.50, 0.90), 4: (0.05, 0.35, 0.65, 0.95), 5: (0.05, 0.275, 0.50, 0.725, 0.95)}
 FOLDS = 5
 RIDGE = 1e-3
+OBJECTIVE = ("load_x", "mech_z", "ready_def")
+WITH_SYMPTOMS = OBJECTIVE + ("symp",)
+RUNSAFE_BANDS = ((0.0, 1.10, "≤ +10 %"), (1.10, 1.30, "+10–30 %"), (1.30, 2.00, "+30–100 %"), (2.00, 1e9, "> +100 %"))
 
 
 # ---------------------------------------------------------------- data
@@ -44,11 +63,13 @@ def load_ratio(r: dict):
     return max(rs) if rs else None
 
 
-def dataset(db: DBSession) -> list[dict]:
+def dataset(db: DBSession, post_session: bool = False) -> list[dict]:
     rows = []
     rids = [x for (x,) in db.query(models.EngineDailySnapshot.runner_id).distinct()]
     for rid in rids:
         for r in outcomes.labelled_snapshots(db, rid):
+            if r.get("post_session") and not post_session:
+                continue
             r["mech_z"] = mech_composite(r)
             r["load_x"] = load_ratio(r) if load_ratio(r) is not None else (r.get("load") or 0) / 25
             r["ready_def"] = 100 - (r.get("readiness") if r.get("readiness") is not None else 100)
@@ -158,14 +179,21 @@ def design_baseline(rows):
     return [[1.0, (r.get("overall") or 0) / 10] for r in rows]
 
 
-def design_spline(rows, knots):
+def design_spline(rows, knots, keys=WITH_SYMPTOMS):
     X = []
     for r in rows:
         x = [1.0]
-        for key in ("load_x", "mech_z", "ready_def", "symp"):
+        for key in keys:
             x += rcs_basis(float(r.get(key) or 0.0), knots[key])
         X.append(x)
     return X
+
+
+def spline_maker(keys):
+    def make(tr):
+        kn = {key: knots_for([float(r.get(key) or 0.0) for r in tr]) for key in keys}
+        return design_spline(tr, kn, keys), (lambda rs: design_spline(rs, kn, keys))
+    return make
 
 
 # ---------------------------------------------------------------- metrics
@@ -205,17 +233,17 @@ def grouped_folds(rows, k=FOLDS):
     return [fold_of[r["runner_id"]] for r in rows]
 
 
-def cross_validate(rows, make_design):
+def cross_validate(rows, make_design, target="event"):
     """Out-of-fold predictions with every runner wholly in one fold."""
     folds = grouped_folds(rows)
     preds = [None] * len(rows)
     for f in sorted(set(folds)):
         tr = [r for r, g in zip(rows, folds) if g != f]
         te_idx = [i for i, g in enumerate(folds) if g == f]
-        if not tr or not any(r["event"] for r in tr):
+        if not tr or not any(r[target] for r in tr):
             continue
         Xtr, design_te = make_design(tr)
-        beta = fit_logistic(Xtr, [1.0 if r["event"] else 0.0 for r in tr])
+        beta = fit_logistic(Xtr, [1.0 if r[target] else 0.0 for r in tr])
         for i, pi in zip(te_idx, predict(beta, design_te([rows[i] for i in te_idx]))):
             preds[i] = pi
     return preds
@@ -243,12 +271,14 @@ def report(db: DBSession, force: bool = False, target_p: float | None = None) ->
     def base_design(tr):
         return design_baseline(tr), design_baseline
 
-    def spline_design(tr):
-        kn = {key: knots_for([float(r.get(key) or 0.0) for r in tr]) for key in ("load_x", "mech_z", "ready_def", "symp")}
-        return design_spline(tr, kn), (lambda rs: design_spline(rs, kn))
-
     base = _eval(cross_validate(rows, base_design), y)
-    spl = _eval(cross_validate(rows, spline_design), y)
+    objective = _eval(cross_validate(rows, spline_maker(OBJECTIVE)), y)
+    spl = _eval(cross_validate(rows, spline_maker(WITH_SYMPTOMS)), y)
+    extra = {}
+    for tgt in ("event1", "event2"):                   # next-day hazard; the secondary outcome
+        yt = [1 if r.get(tgt) else 0 for r in rows]
+        if any(yt):
+            extra[tgt] = _eval(cross_validate(rows, base_design, tgt), yt)
     null_p = sum(y) / len(y)
     beta = fit_logistic(design_baseline(rows), [float(v) for v in y])
     at = lambda pts: _sig(beta[0] + beta[1] * pts / 10)   # noqa: E731
@@ -256,11 +286,58 @@ def report(db: DBSession, force: bool = False, target_p: float | None = None) ->
     if target_p and beta[1] > 0 and 0 < target_p < 1:
         mapping["pointsForTarget"] = round((math.log(target_p / (1 - target_p)) - beta[0]) / beta[1] * 10, 1)
     better = bool(spl and base and spl["brier"] < base["brier"] and spl["logScore"] > base["logScore"])
-    knots = {key: [round(v, 3) for v in knots_for([float(r.get(key) or 0.0) for r in rows])] for key in ("load_x", "mech_z", "ready_def", "symp")}
+    knots = {key: [round(v, 3) for v in knots_for([float(r.get(key) or 0.0) for r in rows])] for key in WITH_SYMPTOMS}
     return {"status": "ok", "overview": ov, "rows": len(rows), "eventRate": round(null_p, 4),
             "nullBrier": round(brier([null_p] * len(y), y), 5),
-            "baseline": base, "spline": spl, "splineBetter": better, "knots": knots, "mapping": mapping,
-            "note": "Pravděpodobnosti jsou jen interní. Náhodný intercept běžce se fituje offline z exportu."}
+            "baseline": base, "objective": objective, "spline": spl, "withSymptoms": spl, "splineBetter": better,
+            "symptomsAdd": bool(spl and objective and spl["brier"] < objective["brier"] and spl["logScore"] > objective["logScore"]),
+            "hazard1d": extra.get("event1"), "secondary": extra.get("event2"),
+            "adherence": adherence_table(rows), "sessions": session_report(db),
+            "knots": knots, "mapping": mapping,
+            "note": "Pravděpodobnosti jsou jen interní. Náhodný intercept běžce se fituje offline z exportu. "
+                    "Primární událost nezávisí na vstupech modelu; bezpečnostní pravidla nejsou v kalibrovaném skóre."}
+
+
+def adherence_table(rows) -> dict:
+    """Event rate by whether the day's recommendation was followed, overall and on
+    elevated days (model score ≥ 40) — descriptive: a followed warning lowers risk."""
+    out = {}
+    for scope, keep in (("all", lambda r: True), ("elevated", lambda r: (r.get("overall") or 0) >= 40)):
+        cells: dict[str, list[int]] = {}
+        for r in rows:
+            if keep(r) and r.get("adherence"):
+                c = cells.setdefault(r["adherence"], [0, 0])
+                c[0] += 1
+                c[1] += bool(r["event"])
+        out[scope] = {k: {"n": n, "events": e, "rate": round(e / n, 4)} for k, (n, e) in sorted(cells.items())}
+    return out
+
+
+def session_dataset(db: DBSession) -> list[dict]:
+    rids = [x for (x,) in db.query(models.Activity.runner_id).distinct()]
+    return [r for rid in rids for r in outcomes.session_rows(db, rid)]
+
+
+def session_report(db: DBSession) -> dict | None:
+    """Session scale (RUNSAFE): event rate per band of the run's ratio to the longest
+    run of the last 30 days, and a grouped-CV spline on the log ratio."""
+    rows = session_dataset(db)
+    if not rows:
+        return None
+    bands = []
+    for lo, hi, lbl in RUNSAFE_BANDS:
+        sel = [r for r in rows if lo <= r["session_ratio"] < hi]
+        ev = sum(bool(r["event"]) for r in sel)
+        bands.append({"band": lbl, "n": len(sel), "events": ev, "rate": round(ev / len(sel), 4) if sel else None})
+    out = {"rows": len(rows), "events": sum(bool(r["event"]) for r in rows), "bands": bands, "model": None}
+    for r in rows:
+        r["log_ratio"] = math.log(max(r["session_ratio"], 1e-3))
+    y = [1 if r["event"] else 0 for r in rows]
+    if any(y) and len({r["runner_id"] for r in rows}) >= FOLDS:
+        out["model"] = _eval(cross_validate(rows, spline_maker(("log_ratio",))), y)
+        p0 = sum(y) / len(y)
+        out["nullBrier"] = round(brier([p0] * len(y), y), 5)
+    return out
 
 
 def per_runner_counts(rows):

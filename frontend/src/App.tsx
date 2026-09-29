@@ -23,7 +23,7 @@ import { Care, InjurySheet, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
 import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
-import { CapacityMini, Readiness, ReadinessFactors, readinessCol, readinessPct } from "@/capacity"
+import { CapacityMini, ReadinessFactors, readinessCol, readinessPct } from "@/capacity"
 import { Training } from "@/training"
 import { AssistantHeaderButton, AssistantProvider, CoachFab, WhyButton } from "@/assistant"
 import { RunDetail } from "@/rundetail"
@@ -191,7 +191,7 @@ function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void })
         birth_year: r.birth_year ?? "", sex: r.sex ?? "", city: r.city ?? "", device: r.device ?? "",
         goal_race: r.goal_race ?? "", goal_date: (r.goal_date ?? "").slice(0, 10),
         prior_injury: r.prior_injury ?? "", prior_injury_date: (r.prior_injury_date ?? "").slice(0, 10),
-        prior_injury_side: r.prior_injury_side ?? "", hr_max: r.hr_max ?? "",
+        prior_injury_side: r.prior_injury_side ?? "", hr_max: r.hr_max ?? "", threshold_hr: r.threshold_hr ?? "",
       })
   }, [open, r])
   const set = (k: string, v: any) => setF((p) => ({ ...p, [k]: v }))
@@ -205,6 +205,7 @@ function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void })
         prior_injury_date: f.prior_injury_date || null,
         prior_injury_side: f.prior_injury_side || null,
         hr_max: f.hr_max ? Number(f.hr_max) : null,
+        threshold_hr: f.threshold_hr ? Number(f.threshold_hr) : null,
       })
       await refresh()
       onClose()
@@ -224,6 +225,7 @@ function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void })
         <Field label="Dřívější zranění"><input className={inp} value={f.prior_injury ?? ""} onChange={(e) => set("prior_injury", e.target.value)} placeholder="např. Achillova šlacha" /></Field>
         <Field label="Kdy se zranění stalo" hint={f.prior_injury && !f.prior_injury_date ? "bez data ho engine počítá jako nedávné" : undefined}><input type="date" className={inp} value={f.prior_injury_date ?? ""} max={new Date().toISOString().slice(0, 10)} onChange={(e) => set("prior_injury_date", e.target.value)} /></Field>
         <Field label="Maximální tep (změřený)" hint={f.hr_max ? "tepové zóny se počítají z něj" : "z testu nebo závodu do vrchu; bez něj zóny odhadujeme"}><input className={inp} inputMode="numeric" value={f.hr_max ?? ""} placeholder="např. 192" onChange={(e) => set("hr_max", e.target.value.replace(/\D/g, ""))} /></Field>
+        <Field label="Tep na prahu (LTHR)" hint={f.threshold_hr ? "zóny a tvrdé minuty se počítají z prahu" : "z laktátového nebo terénního testu (průměr posledních 20 min 30min testu); nepovinné"}><input className={inp} inputMode="numeric" value={f.threshold_hr ?? ""} placeholder="např. 172" onChange={(e) => set("threshold_hr", e.target.value.replace(/\D/g, ""))} /></Field>
         <Field label="Strana"><select className={inp} value={f.prior_injury_side ?? ""} onChange={(e) => set("prior_injury_side", e.target.value)}><option value="">—</option><option value="left">levá</option><option value="right">pravá</option><option value="both">obě</option></select></Field>
       </div>
       {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
@@ -402,8 +404,9 @@ function RecoveryRanges({ rows }: { rows?: any[] }) {
     <div className="mt-4 space-y-6">
       {rows.map((r: any) => {
         const sd = (r.hi - r.lo) / 2 || 1
-        const dLo = Math.min(r.lo, r.valNum) - sd * 0.8
-        const dHi = Math.max(r.hi, r.valNum) + sd * 0.8
+        const nights = ((r.nights || []) as number[]).filter((v) => v != null)
+        const dLo = Math.min(r.lo, r.valNum, ...nights) - sd * 0.8
+        const dHi = Math.max(r.hi, r.valNum, ...nights) + sd * 0.8
         const P = (x: number) => clamp(((x - dLo) / (dHi - dLo)) * 100, 3, 97)
         const bandL = P(r.lo), bandR = P(r.hi), mk = P(r.valNum), c = col(r.tone)
         const Icon = r.icon as LucideIcon
@@ -418,6 +421,8 @@ function RecoveryRanges({ rows }: { rows?: any[] }) {
               <i className="absolute top-0 h-full rounded-full" style={{ left: `${bandL}%`, width: `${bandR - bandL}%`, background: `${C.ok}52` }} />
               {/* baseline center tick */}
               <i className="absolute top-[-3px] h-3.5 w-px bg-fg-2/80" style={{ left: `${P(r.baseNum)}%` }} />
+              {/* v0.9.0 — the single nights behind the mean, as small dots */}
+              {nights.map((v, k) => <i key={k} className="absolute top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-fg-2/70" style={{ left: `${P(v)}%` }} />)}
               {/* current-value marker + its number */}
               <b className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${mk}%`, backgroundColor: c, boxShadow: `0 0 0 3px ${C.bg}, 0 0 0 6px ${c}40` }} />
               <span className="absolute -top-6 -translate-x-1/2 whitespace-nowrap tabular-nums text-[12px] font-extrabold" style={{ left: `${mk}%`, color: c }}>{fmt(r.valNum)}{r.unit ? ` ${r.unit}` : ""}</span>
@@ -427,10 +432,103 @@ function RecoveryRanges({ rows }: { rows?: any[] }) {
               <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${bandL}%` }}>{fmt(r.lo)}</span>
               <span className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${bandR}%` }}>{fmt(r.hi)}</span>
             </div>
-            <p className="text-[11px] text-fg-3">obvyklé rozmezí {fmt(r.lo)}–{fmt(r.hi)}{r.unit ? ` ${r.unit}` : ""} · obvykle {fmt(r.baseNum)}</p>
+            <p className="text-[11px] text-fg-3">obvyklé rozmezí {fmt(r.lo)}–{fmt(r.hi)}{r.unit ? ` ${r.unit}` : ""} · obvykle {fmt(r.baseNum)}{r.note ? ` · ${r.note}` : ""}</p>
           </div>
         )
       })}
+    </div>
+  )
+}
+// v0.9.0 — Připravenost vs. norma: HRV and resting HR over 7 nights, sleep over the last
+// nights, each against the runner's usual range (mean ± 1 SD of nights 8–56 days back,
+// HRV on the log scale — the engine's own numbers), with the single nights as dots.
+const READY_ROWS: [string, string, LucideIcon, string, string][] = [
+  ["hrv", "HRV · 7 nocí", HeartPulse, "ms", "průměr 7 nocí"],
+  ["rhr", "Klidový tep · 7 nocí", Timer, "", "průměr 7 nocí"],
+  ["sleep", "Spánek · poslední noci", Moon, "h", "průměr posledních nocí"],
+]
+function readinessRows(r: any) {
+  const i = r?.inputs || {}
+  const part: Record<string, number> = r?.parts || {}, eff: Record<string, number> = r?.effects || {}
+  return READY_ROWS.flatMap(([k, label, icon, unit, note]) => {
+    const rng = i.range?.[k], val = i.week?.[k] ?? i.night?.[k], base = i.base?.[k]
+    if (!rng || val == null || base == null) return []
+    const tone = (eff[k] || 0) >= 10 ? "alert" : (part[k] || 0) > 0 ? "watch" : "ok"
+    return [{ label, icon, unit, tone, valNum: val, baseNum: base, lo: rng[0], hi: rng[1], note,
+              nights: ((i.nights || []) as any[]).map((n) => n[k]) }]
+  })
+}
+// readiness words by the engine's cut-offs (capacity.READINESS_LABELS)
+const READY_BANDS: [number, number, string][] = [[20, 45, "nízká"], [45, 65, "snížená"], [65, 85, "dobrá"], [85, 100, "plná"]]
+function ReadinessDetail({ r, fallback }: { r: any; fallback: number | null }) {
+  const score: number | null = r ? readinessPct(r) : fallback
+  const label: string = r?.label ?? (score == null ? "chybí data z hodinek" : "")
+  const y = r?.yesterday
+  const prev: number | null = y?.known ? y.score : null
+  const morning: number | null = r?.morningScore ?? score
+  const delta = prev != null && morning != null ? morning - prev : null
+  const deltaCol = !delta ? C.fg2 : delta > 0 ? C.ok : C.alert
+  const col = score == null ? C.fg3 : readinessCol(score)
+  const i = r?.inputs || {}
+  const drop = r?.afterSession?.drop || 0
+  return (
+    <div className="grid gap-6 md:grid-cols-2 md:gap-8">
+      <div>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <span className="flex items-center gap-1.5"><p className="t-label">Připravenost dnes</p><InfoDot text={MI.readiness} label="Připravenost" /></span>
+          {delta != null && (
+            <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-bold" style={{ background: `${deltaCol}1f`, color: deltaCol }} data-testid="readiness-delta">
+              <span>{delta > 0 ? "▲" : delta < 0 ? "▼" : "▬"}</span>
+              <span>{delta > 0 ? `+${delta}` : delta < 0 ? `−${-delta}` : "beze změny"}</span>
+              <span className="font-medium opacity-80">oproti včerejšímu ránu</span>
+            </span>
+          )}
+        </div>
+        <div className="mt-2 flex items-end justify-between gap-3">
+          <b className="t-num text-[40px] leading-none" style={{ color: col }} data-testid="readiness-score">
+            {score ?? "—"}
+            {score != null && <small className="ml-1 text-sm font-semibold tracking-normal text-fg-3">%</small>}
+          </b>
+          <span className="pb-1 text-right text-[14px] font-bold text-fg">{label}</span>
+        </div>
+        <div className="relative mt-4 h-3 overflow-hidden rounded-full bg-white/[.07]">
+          <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${clamp(score ?? 0, 0, 100)}%`, background: `${col}88` }} />
+          {prev != null && morning != null && !!delta && (
+            <i className="absolute inset-y-0" style={{ left: `${clamp(Math.min(morning, prev), 0, 100)}%`, width: `${Math.abs(morning - prev)}%`, background: deltaCol, opacity: 0.85 }} />
+          )}
+          {prev != null && <i className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `calc(${clamp(prev, 0, 100)}% - 1px)` }} />}
+          {READY_BANDS.slice(1).map(([lo]) => <i key={lo} className="absolute inset-y-0 w-px bg-bg/60" style={{ left: `${lo}%` }} />)}
+        </div>
+        <div className="relative mt-2 h-4 text-[11px] text-fg-3">
+          {READY_BANDS.map(([lo, hi, w]) => <span key={w} className="absolute -translate-x-1/2 whitespace-nowrap" style={{ left: `${(lo + hi) / 2}%` }}>{w}</span>)}
+        </div>
+        {prev != null && (
+          <p className="mt-2 text-[12px] text-fg-3">
+            <span className="mr-1 inline-block h-2 w-0.5 translate-y-px bg-fg" /> včera ráno {prev} %
+            {delta ? <> · <span style={{ color: deltaCol }}>{delta > 0 ? "připravenost stoupla" : "připravenost klesla"} o {Math.abs(delta)}</span></> : " · beze změny"}
+          </p>
+        )}
+        {drop >= 1 && (
+          <p className="mt-1 text-[12px] text-fg-2" data-testid="readiness-after">
+            {r.afterSession.today ? `Po dnešním tréninku −${drop} (ráno ${r.morningScore} %) · ${r.afterSession.today.band}` : `Včerejší náročný trénink ještě doznívá −${drop}`} · zítra ji upřesní noční data
+          </p>
+        )}
+        {(i.week?.hrv != null || i.night?.hrv != null) && (
+          <div className="mt-4 flex items-center gap-3 border-t border-white/[.08] pt-3.5 text-[13px]">
+            <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><Moon className="size-4" aria-hidden /></span>
+            <span><b>HRV {cz(i.week?.hrv ?? i.night?.hrv)} ms</b><small className="ml-2 text-[12px] text-fg-2">
+              {i.week?.hrv != null ? "7 nocí · " : ""}obvykle {cz(i.base?.hrv)} ms{i.night?.sleep != null ? ` · spánek ${cz(i.night.sleep)} h` : ""}</small></span>
+          </div>
+        )}
+      </div>
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="t-label">Připravenost vs. norma</p>
+          <WeeklyCheckButton />
+        </div>
+        <RecoveryRanges rows={readinessRows(r)} />
+        {readinessRows(r).length > 0 && <p className="mt-3 text-[11px] leading-4 text-fg-3">Velký bod = průměr, malé tečky = jednotlivé noci, zelené pásmo = vaše obvyklé rozmezí (průměr ± 1 SD nocí 8–56 dní zpět).</p>}
+      </div>
     </div>
   )
 }
@@ -785,7 +883,7 @@ function BottomSheet({ open, onClose, kicker, title, children }: { open: boolean
   )
 }
 
-// railway#76 — Regenerace, Příznaky, Zátěž and Mechanika as small rings around the score;
+// railway#76 — Připravenost, Příznaky, Zátěž and Mechanika as small rings around the score;
 // the ones with a detail open a panel under the card.
 function MiniRing({ label, value, col, onClick, open, unit }: { label: string; value: number | null | undefined; col: string; onClick?: () => void; open?: boolean; unit?: string }) {
   const R = 2 * Math.PI * 42
@@ -810,11 +908,13 @@ function MiniRing({ label, value, col, onClick, open, unit }: { label: string; v
 
 // railway#88 — the Dnes overview (rings, readiness, verdict, quadrant, drivers) as one
 // component, so the 6-month history shows any past day exactly like today.
-type PanelKey = "mech" | "load" | "recovery" | "readiness" | "symp"
-const PANEL_TITLE: Record<PanelKey, string> = { recovery: "Regenerace", symp: "Příznaky", load: "Zátěž", mech: "Mechanika", readiness: "Připravenost a tréninková zátěž" }
+// v0.9.0 — the single-night "Regenerace" score is gone: Připravenost (readiness, the
+// 7-night + last-night picture against the runner's norm) takes its ring and detail.
+type PanelKey = "mech" | "load" | "readiness" | "symp"
+const PANEL_TITLE: Record<PanelKey, string> = { symp: "Příznaky", load: "Zátěž", mech: "Mechanika", readiness: "Připravenost" }
 type OverviewDay = {
   date?: string; quadrant?: string; overall?: number; tier?: string
-  mech?: number | null; load?: number | null; symp?: number | null; rcv?: number | null; readiness?: number | null
+  mech?: number | null; load?: number | null; symp?: number | null; readiness?: number | null
   painRecurring?: { site: string; days: number } | null; signals?: any[]
 }
 const axisCol = (v: number | null | undefined, hot: string) => (v == null ? C.fg3 : v >= 25 ? hot : v >= 12 ? C.watch : C.fg)
@@ -823,8 +923,6 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
   // railway#99 — shown as 100 − risk, so a better state reads higher (the engine keeps risk)
   const overall = 100 - clamp(d.overall ?? 0, 0, 100)
   const RING = 2 * Math.PI * 44
-  const score = d.rcv ?? null
-  const scoreCol = goodCol(score)
   const tierCol = d.tier === "alert" ? C.alert : d.tier === "watch" ? C.watch : C.ok
   // railway#108 — the Skóre ring by its number (green above 70, red below 40), but never
   // greener than the risk label under it (a critical state or a red flag stays red)
@@ -843,7 +941,7 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
       <div>
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2" data-tour="today-score">
           <div className="grid justify-items-center gap-2">
-            <MiniRing label="Regenerace" value={score} col={scoreCol} onClick={tg("recovery")} open={open === "recovery"} />
+            <MiniRing label="Připravenost" value={d.readiness ?? null} unit={d.readiness != null ? "%" : undefined} col={d.readiness != null ? readinessCol(d.readiness) : C.fg3} onClick={tg("readiness")} open={open === "readiness"} />
             <MiniRing label="Příznaky" value={d.symp} col={badCol(d.symp)} onClick={tg("symp")} open={open === "symp"} />
           </div>
           <div className="relative grid size-[132px] place-items-center">
@@ -862,12 +960,7 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
             <MiniRing label="Mechanika" value={d.mech} col={axisCol(d.mech, C.alert)} onClick={tg("mech")} open={open === "mech"} />
           </div>
         </div>
-        {d.readiness != null && (
-          <div className="mt-2 flex justify-center">
-            <MiniRing label="Připravenost" value={d.readiness} unit="%" col={readinessCol(d.readiness)} onClick={tg("readiness")} open={open === "readiness"} />
-          </div>
-        )}
-        {/* railway#98 — today's recommendation sits between readiness and the verdict */}
+        {/* railway#98 — today's recommendation sits between the rings and the verdict */}
         {recommendation && <div className="mt-4" data-tour="today-reco">{recommendation}</div>}
         <div className="mt-4 text-center">
           <h3 className="font-serif text-[21px] leading-tight text-fg">{verdict}</h3>
@@ -912,7 +1005,9 @@ function SymptomPanel({ signals }: { signals: any[] }) {
   const wk = cis.filter((c) => (c.submitted_at || "") >= cut7)
   const avg = (k: string) => { const v = wk.map((c) => c[k]).filter((x) => x != null) as number[]; return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null }
   const f1 = (v: number | null | undefined) => (v == null ? "—" : (Math.round(v * 10) / 10).toLocaleString("cs-CZ"))
-  const sympSig = signals.filter((x) => !MECH_IDS.has(x.id) && !LOAD_IDS.has(x.id))
+  const sympAll = signals.filter((x) => !MECH_IDS.has(x.id) && !LOAD_IDS.has(x.id))
+  const rules = sympAll.filter((x) => x.rule)
+  const sympSig = sympAll.filter((x) => !x.rule)
   const maxPts = Math.max(1, ...sympSig.map((x) => x.pts || 0))
   const cell = (label: string, v: number | null | undefined, max: number, warnAt: number) => (
     <div className="nest px-2 py-2.5 text-center">
@@ -957,6 +1052,20 @@ function SymptomPanel({ signals }: { signals: any[] }) {
             <p className="mt-2 text-[11px] text-fg-3">{wk.length ? `za 7 dní ${wk.length}× · ø bolest ${f1(avg("pain_score"))}/10 · ø únava ${f1(avg("stress"))}/10` : "za posledních 7 dní žádný check-in"}</p>
           </>
         ) : <p className="mt-2 text-[12px] text-fg-2">Zatím žádný denní check-in — přidáte ho tlačítkem Check-in.</p>}
+        {rules.length > 0 && (
+          <>
+            <p className="t-label mt-4 !text-fg-3">Bezpečnostní pravidla</p>
+            <ul className="mt-1.5 space-y-1.5">
+              {rules.map((x) => (
+                <li key={x.id} className="flex items-start justify-between gap-3 text-[12px]">
+                  <span className="min-w-0"><b className="block text-[13px] text-fg">{x.name}</b><span className="text-fg-3">{x.val}</span></span>
+                  <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `${x.rule === "alert" ? C.alert : C.watch}1f`, color: x.rule === "alert" ? C.alert : C.watch }}>{RULE_WORD[x.rule]}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-[11px] leading-4 text-fg-3">Pravidla nepřičítají body — rovnou drží riziko aspoň na dané úrovni, proto je ukazatel příznaků aspoň {rules.some((x) => x.rule === "alert") ? 70 : 40}.</p>
+          </>
+        )}
         <p className="t-label mt-4 !text-fg-3">Co tvoří skóre příznaků</p>
         {sympSig.length ? (
           <div className="mt-2.5 space-y-2.5">
@@ -974,7 +1083,6 @@ function TodayV2() {
   const { me, boot, refresh, error } = useApp()
   const a = boot?.assessment
   const L = a?.loadDetail
-  const rcv = a?.rcv
   const rid = me?.runner_id
   // one shared, prefetched copy (history.ts) feeds the history sheet and the axis detail
   const quadHist = useQuadHistory(rid)
@@ -982,7 +1090,7 @@ function TodayV2() {
   const closeHist = useCallback(() => setHistOpen(false), [])
   const [alertsOpen, setAlertsOpen] = useState(false)
   // feedback railway#69/#70 — tap Mechanika / Zátěž for its trend + what drives it
-  // railway#79–#81 — Regenerace and Připravenost open their detail the same way
+  // railway#79–#81 — Připravenost opens its detail the same way
   const [statPanel, setStatPanel] = useState<PanelKey | null>(null)
   const togglePanel = (k: PanelKey) => setStatPanel(statPanel === k ? null : k)
   const closePanel = useCallback(() => setStatPanel(null), [])
@@ -1020,30 +1128,7 @@ function TodayV2() {
   const hour = new Date().getHours()
   const greet = hour < 10 ? "Dobré ráno" : hour < 18 ? "Dobrý den" : "Dobrý večer"
 
-  const score = rcv?.score ?? null
-  const scoreLabel = rcv?.scoreLabel ?? "chybí data z hodinek"
-  const scorePrev = rcv?.scorePrev ?? null
-  const scoreDelta = rcv?.scoreDelta ?? null
-  const deltaUp = (scoreDelta ?? 0) > 0
-  const deltaDown = (scoreDelta ?? 0) < 0
-  const deltaCol = deltaUp ? C.ok : deltaDown ? C.alert : C.fg2
-  const scoreCol = goodCol(score)
   const gated = (a?.confidence?.value ?? 0) < 0.6
-  const sleepTone = rcv ? ((rcv.sleep?.debt || 0) >= 4 ? "alert" : (rcv.sleep?.debt || 0) >= 1 ? "watch" : "ok") : "muted"
-  const hrvTone = rcv ? ((rcv.hrv?.z ?? 0) <= -1 ? "alert" : (rcv.hrv?.z ?? 0) < -0.3 ? "watch" : "ok") : "muted"
-  const rhrTone = rcv ? ((rcv.rhr?.z ?? 0) >= 1.2 ? "alert" : (rcv.rhr?.z ?? 0) > 0.5 ? "watch" : "ok") : "muted"
-  const rstd = (arr: number[]) => { if (!arr || arr.length < 2) return 0; const m = arr.reduce((s, x) => s + x, 0) / arr.length; return Math.sqrt(arr.reduce((s, x) => s + (x - m) ** 2, 0) / (arr.length - 1)) }
-  // Numeric usual range = baseline ± 1 SD, so the interval bar can carry a real
-  // axis (band bounds + the current value at the marker) instead of a bare dot.
-  const rrow = (label: string, icon: LucideIcon, unit: string, o: any, tone: string) => {
-    const series = (o?.series || []) as number[]
-    const base = o?.base ?? 0, val = o?.now ?? 0
-    const sd = rstd(series) || Math.max(Math.abs(base) * 0.06, 0.1)
-    return { label, icon, unit, tone, valNum: val, baseNum: base, lo: base - sd, hi: base + sd }
-  }
-  const recoveryRows = rcv
-    ? [rrow("Spánek", Moon, "h", rcv.sleep, sleepTone), rrow("HRV", HeartPulse, "ms", rcv.hrv, hrvTone), rrow("Klidový tep", Timer, "", rcv.rhr, rhrTone)]
-    : undefined
   // Keep this box in sync with the Zátěž tab + quadrant: the load *axis* is a
   // composite (descent spike, high-intensity, load creep, monotony…), not just
   // ACWR — so gate the headline off the same quadrant/axis the state uses,
@@ -1109,13 +1194,15 @@ function TodayV2() {
   const alertCount = alerts.length + (injuryPromptShown ? 1 : 0)
   const hasStop = alerts.some((x) => x.tone === "stop")
   const worstTone = alerts.some((x) => x.tone === "alert") ? "alert" : "watch"
-  const readiness: number | null = a?.capacity?.readiness ? readinessPct(a.capacity.readiness) : a?.guidance ? (a.guidance.readinessScore ?? Math.round((a.guidance.readiness ?? 1) * 100)) : null
+  // v0.9.0 — every engine carries Připravenost (a.readiness); the Kapacitní one also in capacity
+  const rd = a?.readiness ?? a?.capacity?.readiness ?? null
+  const readiness: number | null = rd ? readinessPct(rd) : a?.guidance ? (a.guidance.readinessScore ?? Math.round((a.guidance.readiness ?? 1) * 100)) : null
   const panelSig = pk === "mech" || pk === "load" ? signals.filter((s: any) => (pk === "mech" ? MECH_IDS : LOAD_IDS).has(s.id)) : []
   const axisPoints = (axisHist || []).map((h: any) => ({ t: h.date, v: pk === "mech" ? h.mech : h.load }))
   if (axisPoints.length && a) axisPoints[axisPoints.length - 1] = { t: (a.computed_at || "").slice(0, 10) || axisPoints[axisPoints.length - 1].t, v: (pk === "mech" ? a.mech : a.load) ?? axisPoints[axisPoints.length - 1].v }
   const todayDay: OverviewDay = {
     date: (a?.computed_at || "").slice(0, 10), quadrant: a?.quadrant, overall: a?.overall ?? 0, tier: a?.tier,
-    mech: a ? a.mech : null, load: a ? a.load : null, symp: a ? a.symp : null, rcv: score, readiness,
+    mech: a ? a.mech : null, load: a ? a.load : null, symp: a ? a.symp : null, readiness,
     painRecurring: a?.painRecurring ?? null, signals,
   }
   const firstCollapsible = alerts.find((x) => x.tone !== "stop")?.key ?? null
@@ -1196,77 +1283,23 @@ function TodayV2() {
                   </div>
                 </>
               )}
-              {pk === "recovery" && (
-                <div className="grid gap-6 md:grid-cols-2 md:gap-8">
-                  {/* railway#79 — Regenerace přes noc */}
-                  <div>
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <span className="flex items-center gap-1.5"><p className="t-label">Regenerace přes noc</p><InfoDot text={MI.recoveryScore} label="Regenerace přes noc" /></span>
-                      {scoreDelta != null && (
-                        <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-bold" style={{ background: `${deltaCol}1f`, color: deltaCol }}>
-                          <span>{deltaUp ? "▲" : deltaDown ? "▼" : "▬"}</span>
-                          <span>{scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta < 0 ? scoreDelta : "beze změny"}</span>
-                          <span className="font-medium opacity-80">{scoreDelta !== 0 ? "přes noc" : "oproti včera"}</span>
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-2 flex items-end justify-between gap-3">
-                      <b className="t-num text-[40px] leading-none" style={{ color: scoreCol }}>
-                        {score ?? "—"}
-                        <small className="ml-1 text-sm font-semibold tracking-normal text-fg-3">/ 100</small>
-                      </b>
-                      <span className="pb-1 text-right text-[14px] font-bold text-fg">{scoreLabel}</span>
-                    </div>
-                    <div className="relative mt-4 h-3 overflow-hidden rounded-full bg-white/[.07]">
-                      <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${clamp(score ?? 0, 0, 100)}%`, background: `${scoreCol}88` }} />
-                      {scorePrev != null && !!scoreDelta && (
-                        <i className="absolute inset-y-0" style={{ left: `${clamp(Math.min(score ?? 0, scorePrev), 0, 100)}%`, width: `${Math.abs((score ?? 0) - scorePrev)}%`, background: deltaCol, opacity: 0.85 }} />
-                      )}
-                      {scorePrev != null && <i className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `calc(${clamp(scorePrev, 0, 100)}% - 1px)` }} />}
-                      <i className="absolute inset-y-0 left-1/4 w-px bg-bg/60" />
-                      <i className="absolute inset-y-0 left-1/2 w-px bg-bg/60" />
-                      <i className="absolute inset-y-0 left-3/4 w-px bg-bg/60" />
-                    </div>
-                    <div className="mt-2 flex justify-between text-[11px] text-fg-3"><span>nízká</span><span>vyvážená</span><span>plná</span></div>
-                    {scorePrev != null && (
-                      <p className="mt-2 text-[12px] text-fg-3">
-                        <span className="mr-1 inline-block h-2 w-0.5 translate-y-px bg-fg" /> včera {scorePrev}
-                        {scoreDelta ? <> · <span style={{ color: deltaCol }}>{deltaUp ? "regenerace přes noc stoupla" : "regenerace přes noc klesla"} o {Math.abs(scoreDelta)}</span></> : " · přes noc beze změny"}
-                      </p>
-                    )}
-                    {rcv && (
-                      <div className="mt-4 flex items-center gap-3 border-t border-white/[.08] pt-3.5 text-[13px]">
-                        <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-info/15 text-info"><Moon className="size-4" aria-hidden /></span>
-                        <span><b>HRV {cz(rcv.hrv?.now)} ms</b><small className="ml-2 text-[12px] text-fg-2">baseline {cz(rcv.hrv?.base)} ms · spánek {cz(rcv.sleep?.now)} h</small></span>
-                      </div>
-                    )}
-                  </div>
-                  {/* railway#80 — Regenerace vs. norma */}
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="t-label">Regenerace vs. norma</p>
-                      <WeeklyCheckButton />
-                    </div>
-                    <RecoveryRanges rows={recoveryRows} />
-                  </div>
-                </div>
-              )}
               {pk === "readiness" && (
                 <div>
-                  {/* railway#81 — Připravenost opens the training load: why readiness is what it is, the weeks, today vs. the 7-day room */}
+                  {/* v0.9.0 — Připravenost in the former Regenerace design: the score on a bar with
+                      yesterday's marker, then the nights against the runner's usual range */}
+                  <ReadinessDetail r={rd} fallback={readiness} />
                   {readiness != null && (
-                    <div className="mb-3 flex justify-end">
+                    <div className="mt-4 flex justify-end">
                       <WhyButton question={`Proč mám dnes připravenost ${readiness} % a co ji ovlivňuje?`} context={{ kind: "readiness" }} label="Vysvětlit připravenost" />
                     </div>
                   )}
-                  {a?.capacity?.readiness && <Readiness r={a.capacity.readiness} />}
-                  {a?.capacity?.readiness && <ReadinessFactors r={a.capacity.readiness} />}
-                  <div className="mt-4 grid gap-6 md:grid-cols-2 md:gap-8">
+                  {rd && <ReadinessFactors r={rd} />}
+                  <p className="t-label mt-6">Tréninková zátěž</p>
+                  <div className="mt-2 grid gap-6 md:grid-cols-2 md:gap-8">
                     <div>
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <p className="t-label">Tréninková zátěž</p>
-                          <h2 className="mt-1 font-serif text-2xl">{loadStatus.t}</h2>
+                          <h2 className="font-serif text-2xl">{loadStatus.t}</h2>
                         </div>
                         <Chip tone={loadStatus.tone as any}>tento týden</Chip>
                       </div>
@@ -1312,9 +1345,11 @@ function SignalSheet({ s, onClose, tone }: { s: any; onClose: () => void; tone: 
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px]">
           {s.impact != null && <span className="rounded-full px-2.5 py-1 font-bold" style={{ background: `${col}1f`, color: col }}>{fmtImpact(s.impact)} celkového Skóre</span>}
+          {s.rule && <span className="rounded-full px-2.5 py-1 font-bold" style={{ background: `${col}1f`, color: col }} data-testid="rule-chip">{RULE_WORD[s.rule] || "bezpečnostní pravidlo"}</span>}
           {s.val && <span className="rounded-full bg-white/[.06] px-2.5 py-1 font-semibold tabular-nums text-fg-2">{s.val}</span>}
         </div>
         {s.detail && <p className="mt-3 text-[13px] leading-5 text-fg-2">{s.detail}</p>}
+        {s.rule && <p className="mt-2 text-[12px] leading-5 text-fg-3">Bezpečnostní pravidlo neubírá body jako ostatní signály — nastavuje přímo úroveň rizika a Skóre se podle ní drží nejvýš na {s.rule === "alert" ? 30 : 60}.</p>}
         <p className="t-label mt-5 !text-fg-3">{shared ? "Které aktivity k tomu přispívají" : "Z čeho signál vychází"}</p>
         {src.length ? (
           <ul className="mt-1 divide-y divide-white/[.07]">
@@ -1357,9 +1392,13 @@ function SignalSheet({ s, onClose, tone }: { s: any; onClose: () => void; tone: 
   )
 }
 
+// v0.9.0 — safety rules (red flags, bone stress, limited function, …) sit outside the
+// calibrated score: they set the risk level directly, so they lead the pyramid
+const RULE_WORD: Record<string, string> = { alert: "pravidlo · vysoké riziko", watch: "pravidlo · sledovat" }
+const RULE_RANK: Record<string, number> = { alert: 2, watch: 1 }
 function ImpactPyramid({ signals, tone }: { signals: any[]; tone: (g: string) => "alert" | "watch" | "ok" }) {
   const [sel, setSel] = useState<any | null>(null)
-  const top = [...signals].sort((x, y) => (y.pts || 0) - (x.pts || 0)).slice(0, 4)
+  const top = [...signals].sort((x, y) => (RULE_RANK[y.rule] || 0) - (RULE_RANK[x.rule] || 0) || (y.pts || 0) - (x.pts || 0)).slice(0, 4)
   const n = top.length
   const maxPts = Math.max(1, top[0]?.pts || 0)
   return (
@@ -1376,9 +1415,10 @@ function ImpactPyramid({ signals, tone }: { signals: any[]; tone: (g: string) =>
               {s.grade && <span className="grid size-[18px] shrink-0 place-items-center rounded-full text-[10px] font-extrabold" style={{ background: `${col}30`, color: col }}>{s.grade}</span>}
               <span className="min-w-0 text-balance text-[12.5px] font-semibold leading-4 text-fg">{s.name}</span>
             </span>
-            {(s.val || s.impact != null) && (
+            {(s.val || s.impact != null || s.rule) && (
               <span className="relative mt-0.5 block truncate tabular-nums text-[11px] text-fg-2">
-                {s.val}{s.val && s.impact != null ? " · " : ""}{s.impact != null && <b style={{ color: col }}>{fmtImpact(s.impact)}</b>}
+                {s.val}{s.val && (s.impact != null || s.rule) ? " · " : ""}{s.impact != null && <b style={{ color: col }}>{fmtImpact(s.impact)}</b>}
+                {s.rule && <b style={{ color: col }}>{RULE_WORD[s.rule] || "pravidlo"}</b>}
               </span>
             )}
           </button>
@@ -1612,6 +1652,8 @@ function AtlasBubble() {
   const todayIso = new Date().toLocaleDateString("sv-SE")
   const doneToday = !touring && ((boot?.checkins || []) as any[]).some((c) => String(c.submitted_at || "").slice(0, 10) === todayIso)
   const rcv = boot?.assessment?.rcv
+  const ready = boot?.assessment?.readiness ?? boot?.assessment?.capacity?.readiness
+  const readyDelta: number | null = ready?.yesterday?.known ? (ready.morningScore ?? ready.score) - ready.yesterday.score : null
   const L = boot?.assessment?.loadDetail
   const { busy, run } = useAsync()
   const toast = useToast()
@@ -1840,10 +1882,10 @@ function AtlasBubble() {
               </label>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                 <div className="nest px-2 py-2.5">
-                  <b className="t-num block text-[18px] text-fg">{rcv?.score ?? "—"}<small className="text-[11px] font-semibold text-fg-3">/100</small></b>
-                  <span className="mt-1 block text-[11px] text-fg-2">regenerace</span>
-                  <span className="mt-1 block text-[11px]" style={{ color: (rcv?.scoreDelta ?? 0) > 0 ? C.ok : (rcv?.scoreDelta ?? 0) < 0 ? C.alert : C.fg3 }}>
-                    {rcv?.scoreDelta == null ? (rcv?.scoreLabel || "—") : rcv.scoreDelta === 0 ? "beze změny" : `${rcv.scoreDelta > 0 ? "+" : ""}${rcv.scoreDelta} přes noc`}
+                  <b className="t-num block text-[18px] text-fg">{ready?.score ?? "—"}<small className="text-[11px] font-semibold text-fg-3"> %</small></b>
+                  <span className="mt-1 block text-[11px] text-fg-2">připravenost</span>
+                  <span className="mt-1 block text-[11px]" style={{ color: readyDelta == null || readyDelta === 0 ? C.fg3 : readyDelta > 0 ? C.ok : C.alert }}>
+                    {readyDelta == null ? (ready?.label || "—") : readyDelta === 0 ? "beze změny" : `${readyDelta > 0 ? "+" : "−"}${Math.abs(readyDelta)} od včera`}
                   </span>
                 </div>
                 <div className="nest px-2 py-2.5">

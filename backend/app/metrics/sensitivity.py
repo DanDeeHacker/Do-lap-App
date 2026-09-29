@@ -41,7 +41,7 @@ KNOBS = [
      "desc": "Zbytkové riziko z velkého skoku před 1–4 týdny (dozní­vá lineárně do 28 dní)."},
     {"id": "paceSpike", "axis": "load", "label": "Skok v tempu", "grade": "C", "unit": "×",
      "min": 0.9, "max": 1.5, "step": 0.01, "default": 1.0, "thr": 1.06, "dir": "above",
-     "desc": "Nejrychlejší běh za 7 dní vs. medián tempa za 30 dní. Jiný mechanismus než délka (Achillovka/planta/holeň)."},
+     "desc": "Nejrychlejší běh za 7 dní (s přepočtem na převýšení, bez závodů) vs. vaše obvykle nejrychlejší běhy za 2 měsíce. Jiný mechanismus než délka (Achillovka/planta/holeň)."},
     {"id": "ratio", "axis": "load", "label": "Poměr zátěže 7:28 (ACWR)", "grade": "C", "unit": "×",
      "min": 0.4, "max": 2.2, "step": 0.01, "default": 1.0, "thr": 1.5, "dir": "above",
      "desc": "Akutní:chronická zátěž. Demoted na kontext — u běžců sám nepředpovídá. >1,5 zvýšené, <0,7 náhlý pokles."},
@@ -54,9 +54,9 @@ KNOBS = [
     {"id": "loadCreep", "engine": "v12", "axis": "load", "label": "Postupný nárůst zátěže", "grade": "C", "unit": "×",
      "min": 0.9, "max": 1.6, "step": 0.01, "default": 1.0, "thr": 1.15, "dir": "above",
      "desc": "Akutní zátěž teď vs. před 2 týdny. Plíživé navyšování. Platí jen když poměr 7:28 < 1,3."},
-    {"id": "monotony", "axis": "load", "label": "Monotónnost", "grade": "B", "unit": "",
+    {"id": "monotony", "axis": "load", "label": "Monotónnost", "grade": "C", "unit": "",
      "min": 0.5, "max": 4.0, "step": 0.05, "default": 1.0, "thr": 2.4, "dir": "above",
-     "desc": "Průměr/SD denní zátěže. Chybí skutečně lehké dny."},
+     "desc": "Průměr/SD denní zátěže. Počítá se jen spolu se zátěží nad kapacitou (Kapacitní engine: celková zátěž 7 dní nad kapacitou; Standardní: poměr 7:28 nad 1,15) — samotná pravidelnost riziko nezvyšuje."},
     {"id": "descentSpike", "engine": "v12", "axis": "load", "label": "Nárůst sbíhání", "grade": "C", "unit": "×",
      "min": 0.8, "max": 3.0, "step": 0.01, "default": 1.0, "thr": 1.45, "dir": "above",
      "desc": "Klesání za 7 dní vs. obvyklý týden. Excentrická zátěž kvadricepsů."},
@@ -140,15 +140,18 @@ KNOBS = [
      "desc": "Podíl běhů, kdy runner při ztuhlých nohou přesto tvrdě trénoval (RPE ≥ 6). ≥ 0,5 přidává body."},
     {"id": "injurySeverity", "axis": "symp", "label": "Nahlášené zranění (OSTRC)", "grade": "A", "unit": "/100",
      "min": 0, "max": 100, "step": 1, "default": 0, "thr": 1, "dir": "above",
-     "desc": "Závažnost aktivního zranění. Potvrzené fyziem váží víc (×0,5, strop 46) než self-report (×0,34, strop 32)."},
+     "desc": "Závažnost aktivního zranění. Bezpečnostní pravidlo mimo kalibrovaný model: body jsou jen orientační (fyzio ×0,5, self-report ×0,34), skóre neposouvají — riziko drží aspoň na „sledovat“."},
     {"id": "injuryConfirmed", "axis": "symp", "label": "Zranění potvrzené fyziem", "grade": "A", "kind": "bool",
      "default": False, "desc": "Fyzioterapeutem potvrzené zranění (grade A, vyšší strop)."},
+    {"id": "injurySubstantial", "axis": "symp", "label": "Zranění omezuje účast, objem nebo výkon", "grade": "A", "kind": "bool",
+     "default": False, "desc": "OSTRC: účast, objem nebo výkon omezené alespoň středně (≥ 17). Aktivní zranění je "
+                               "bezpečnostní pravidlo mimo model — nastaví riziko aspoň na „sledovat“, s omezením na „vysoké“."},
     {"id": "complaintDays", "axis": "symp", "label": "Obtíže napříč místy (dní/28)", "grade": "B", "unit": "dní",
      "min": 0, "max": 15, "step": 1, "default": 0, "thr": 3, "dir": "above",
      "desc": "Počet dní s bolestí (jakékoli místo) za 28 dní. Citlivější (méně specifický) signál než recidiva."},
     {"id": "priorInjuryMonths", "axis": "symp", "label": "Zranění v anamnéze (před měsíci)", "grade": "A", "unit": "měs.",
-     "min": -1, "max": 24, "step": 1, "default": -1, "thr": 12, "dir": "below",
-     "desc": "−1 = žádné. ≤ 12 měsíců zvyšuje křehkost (frailty), sama body nepřidává. Váží signál „Bolest v místě dřívějšího zranění“."},
+     "min": -1, "max": 36, "step": 1, "default": -1, "thr": 24, "dir": "below",
+     "desc": "−1 = žádné. Do 12 měsíců výrazně, do 24 měsíců mírně zvyšuje křehkost (frailty), sama body nepřidává. Váží signál „Bolest v místě dřívějšího zranění“."},
 ]
 
 # `engine`: "v12" = only the Standardní/Citlivý load axis, "v3" = only the Kapacitní
@@ -171,6 +174,11 @@ def _v3_knobs():
          "min": -10, "max": 20, "step": 0.5, "default": 0.0, "thr": E.HR_PACE_BPM, "dir": "above",
          "desc": "Průměrný rozdíl tepu proti vaší normě pro dané tempo (přepočteno na převýšení) za poslední 3–4 běhy, "
                  "bez horkých a velmi kopcovitých. Rozchod vnitřní a vnější zátěže bývá známkou únavy."},
+        {"id": "underconditioned", "engine": "v3", "axis": "load", "label": "Nízká běžecká základna", "grade": "B", "kind": "bool",
+         "default": False,
+         "desc": f"Méně než {int(CAP.UNDER_RUNS_WEEK)} běhy a {int(CAP.UNDER_MIN_WEEK)} min týdně za poslední 4 týdny. "
+                 f"Méně trénovanému tělu stačí menší skok — bezpečnostní rezervy se zúží (×{str(CAP.UNDER_FACTOR).replace('.', ',')}, "
+                 "se zraněním v anamnéze ještě víc)."},
         {"id": "hrvHigh", "engine": "v3", "axis": "load", "label": "Vysoká HRV s únavou", "grade": "C", "kind": "bool",
          "default": False, "desc": "HRV za 7 dní ≥ 1,5 SD nad normou a zároveň únava v check-inu nebo vyšší tep při tempu."},
     ]
@@ -227,9 +235,10 @@ def _coerce(inp: dict) -> dict:
 
 
 def _frailty(g) -> float:
-    """Injury-history frailty exactly as assess(): 1.04–1.20 for an injury ≤ 12 months ago."""
+    """Injury-history frailty exactly as assess(): 1.20 → 1.06 over 12 months, a
+    residual 1.06 → 1.02 through 24 months."""
     pm = g["priorInjuryMonths"]
-    return 1 + clamp(0.20 * (1 - pm / 12), 0.04, 0.20) if (pm is not None and 0 <= pm <= 12) else 1.0
+    return E.frailty_of(pm) if (pm is not None and pm >= 0) else 1.0
 
 
 def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> dict:
@@ -245,10 +254,14 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
     signals = []
     mech = load = symp = 0.0
 
-    def push(sid, axis, name, grade, pts, val, detail=""):
+    def push(sid, axis, name, grade, pts, val, detail="", rule=None):
         nonlocal mech, load, symp
         p = rnd(pts)
         if not p:
+            return
+        if rule:                     # a safety rule sets a floor, it adds no model points (as assess())
+            signals.append({"id": sid, "axis": axis, "name": name, "grade": grade, "pts": p, "val": val,
+                            "detail": detail, "rule": rule})
             return
         if axis == "mech":
             mech += p
@@ -261,7 +274,11 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
     # ------------------------------------------------------------------ LOAD
     ratio = g["ratio"]
     if v3:
-        shrink = clamp(1 - 2.5 * (_frailty(g) - 1), 0.5, 1.0)
+        fr = _frailty(g)
+        shrink = clamp(1 - 2.5 * (fr - 1), 0.5, 1.0)
+        if bool(g["underconditioned"]):
+            shrink *= CAP.UNDER_FACTOR * (CAP.UNDER_WITH_INJURY if fr > 1.0 else 1.0)
+        shrink = max(shrink, CAP.SHRINK_MIN)
         m_s, m_w = CAP.MARGIN_SESSION * shrink, CAP.MARGIN_WEEK * shrink
         scale = g["v3readySeed"] / max(g["v3ready"], 0.5)
         scores, shown = {}, {}
@@ -276,8 +293,8 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
                  "Zátěž proti vaší prokázané kapacitě.")
         if valid and g["paceSpike"] > 1.06:
             push("pace_spike", "load", "Skok v tempu", "C", clamp((g["paceSpike"] - 1.06) * 40, 0, 10), f"×{round(g['paceSpike'], 2)}", "Prudké zrychlení proti obvyklému tempu.")
-        if g["monotony"] > 2.4:
-            push("mono", "load", "Monotónní trénink", "B", clamp((g["monotony"] - 2.4) * 7, 0, 12), f"{round(g['monotony'], 2)}", "Chybí skutečně lehké dny.")
+        if g["monotony"] > E.MONO_THR and g["v3_systemic_w"] * scale > 1 + m_w:
+            push("mono", "load", "Monotónní trénink nad kapacitou", "C", clamp((g["monotony"] - E.MONO_THR) * 7, 0, 12), f"{round(g['monotony'], 2)}", "Týden bez lehkých dnů nad kapacitou.")
         if g["hrPace"] >= E.HR_PACE_BPM:
             push("hr_pace", "load", "Vyšší tep při obvyklém tempu", "C", clamp(3 + (g["hrPace"] - E.HR_PACE_BPM) * 1.5, 3, 10),
                  f"+{round(g['hrPace'], 1)} tepu", "Tep při obvyklém tempu nad normou.")
@@ -302,8 +319,8 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
             push("hi_load", "load", "Skok ve vysoké intenzitě", "B", clamp((g["hiRatio"] - 1.5) * 20, 0, 20), f"×{round(g['hiRatio'], 2)}", "Prudký nárůst tvrdé práce na nízké základně.")
         if valid and ratio < 1.3 and g["loadCreep"] >= 1.15:
             push("load_creep", "load", "Postupný nárůst zátěže", "C", clamp((g["loadCreep"] - 1.15) * 30, 0, 10), f"+{round((g['loadCreep'] - 1) * 100)} %", "Plíživé navyšování dva týdny po sobě.")
-        if g["monotony"] > 2.4:
-            push("mono", "load", "Monotónní trénink", "B", clamp((g["monotony"] - 2.4) * 7, 0, 20), f"{round(g['monotony'], 2)}", "Chybí skutečně lehké dny.")
+        if g["monotony"] > E.MONO_THR and valid and ratio > E.MONO_V1_RATIO:
+            push("mono", "load", "Monotónní trénink při rostoucí zátěži", "C", clamp((g["monotony"] - E.MONO_THR) * 7, 0, 20), f"{round(g['monotony'], 2)}", "Týden bez lehkých dnů při rostoucí zátěži.")
         if g["descentSpike"] > 1.45:
             push("desc", "load", "Nárůst sbíhání", "C", clamp((g["descentSpike"] - 1.45) * 15, 0, 14), f"×{round(g['descentSpike'], 2)}", "Víc klesání než obvykle.")
         if g["steepSpike"] > 1.5:
@@ -314,6 +331,8 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
         push("rhr", "load", "Zvýšený klidový tep", "B", E.pts_rhr_high(g["rhrZ"]), f"z {round(g['rhrZ'], 1)}", "Klidový tep nad baseline.")
         if g["hrvCvRatio"] >= 1.4:
             push("hrvcv", "load", "Kolísavá HRV mezi dny", "C", clamp((g["hrvCvRatio"] - 1.4) * 14, 0, 10), f"×{round(g['hrvCvRatio'], 2)}", "Den-k-dni variabilita HRV nad obvyklou.")
+        elif g["hrvCvRatio"] <= E.HRV_CV_LOW and g["hrvZ"] <= -0.5:
+            push("hrvcv", "load", "Neobvykle stálá HRV při jejím poklesu", "C", clamp((E.HRV_CV_LOW - g["hrvCvRatio"]) * 25, 0, 10), f"×{round(g['hrvCvRatio'], 2)}", "Kolísání HRV se ztrácí a týdenní průměr klesá.")
         if valid and g["tsbRel"] <= -0.12:
             push("tsb", "load", "Nepříznivá bilance zátěže", "C", clamp((-g["tsbRel"] - 0.12) * 90, 0, 12), f"{round(g['tsbRel'], 2)}", "Akutní zátěž předbíhá vybudovanou fitness.")
 
@@ -383,27 +402,38 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
         w = clamp(18 * (1 - pm / 12), 6, 18) if has_prior else 6
         push("pain_prior", "symp", "Bolest v místě dřívějšího zranění", "A", w, f"{int(pm)} měs." if has_prior else "—", "Označené místo dřívějšího zranění.")
     sev = g["injurySeverity"]
+    inj_lvl = "alert" if bool(g["injurySubstantial"]) else "watch"
     if sev > 0:
         if bool(g["injuryConfirmed"]):
-            push("injury", "symp", "Potvrzené zranění (fyzioterapeut)", "A", clamp(sev * 0.5, 0, 46), f"OSTRC {int(sev)}/100")
+            push("injury", "symp", "Potvrzené zranění (fyzioterapeut)", "A", clamp(sev * 0.5, 0, 46), f"OSTRC {int(sev)}/100",
+                 rule=inj_lvl)
         else:
-            push("injury", "symp", "Nahlášené zranění", "B", clamp(sev * 0.34, 0, 32), f"OSTRC {int(sev)}/100")
+            push("injury", "symp", "Nahlášené zranění", "B", clamp(sev * 0.34, 0, 32), f"OSTRC {int(sev)}/100", rule=inj_lvl)
     if g["complaintDays"] >= 3:
         push("complaints", "symp", "Opakované obtíže (napříč místy)", "B", clamp((g["complaintDays"] - 2) * 4, 0, 14), f"{int(g['complaintDays'])} dní / 28")
 
     # Frailty (injury history) amplifies the objective axes, exactly as assess().
-    frailty = 1.0
-    if has_prior:
-        frailty = 1 + clamp(0.20 * (1 - pm / 12), 0.04, 0.20)
+    frailty = _frailty(g)
     mech_f = rnd(clamp(mech * frailty, 0, 100))
     load_f = rnd(clamp(load * (1.0 if v3 else frailty), 0, 100))   # v3 applies frailty via the margins
     symp_f = rnd(clamp(symp, 0, 100))
-    overall = rnd(clamp(mech_f * 0.38 + load_f * (0.40 if v3 else 0.30) + symp_f * 0.52, 0, 100))
+    overall = rnd(clamp(mech_f * E.W_MECH + load_f * (E.W_LOAD_V3 if v3 else E.W_LOAD) + symp_f * E.W_SYMP, 0, 100))
     tier = "alert" if overall >= 70 else ("watch" if overall >= 40 else "ok")
     quadrant = quadrant_of(load_f, mech_f, prev_quadrant)
+    # tier floors and the displayed-score floors, as assess() (the rules the sandbox has knobs for)
+    order = {"ok": 0, "watch": 1, "alert": 2}
+    rule_lvl = max((s["rule"] for s in signals if s.get("rule")), key=order.get, default="ok")
+    floor = "alert" if (quadrant == "critical" or rule_lvl == "alert") else \
+        "watch" if (quadrant in ("overreaching", "silent") or rule_lvl == "watch") else "ok"
+    if order[floor] > order[tier]:
+        tier = floor
+    symp_model, overall_model = symp_f, overall
+    symp_f = max(symp_f, E.RULE_FLOOR_PTS[rule_lvl])
+    overall = max(overall, E.TIER_FLOOR_PTS[tier])
     return {
         "signals": sorted(signals, key=lambda s: -s["pts"]),
         "mech": mech_f, "load": load_f, "symp": symp_f, "overall": overall,
+        "sympModel": symp_model, "overallModel": overall_model, "ruleLevel": rule_lvl,
         "tier": tier, "quadrant": quadrant, "frailty": round(frailty, 2),
         "thresholds": {"quadHi": QUAD_THRESHOLD, "quadLo": QUAD_EXIT},
     }
@@ -487,6 +517,7 @@ def inputs_from_assessment(a: dict, runner=None) -> dict:
     if cap.get("channels"):
         ready = (cap.get("readiness") or {}).get("today") or 1.0
         out["v3ready"] = out["v3readySeed"] = ready
+        out["underconditioned"] = bool((cap.get("margins") or {}).get("underconditioned"))
         for ch in CAP.CHANNELS:
             ex = (cap["channels"].get(ch) or {}).get("exact") or {}
             out[f"v3_{ch}_s"] = ex.get("rs") or 0.0
@@ -498,6 +529,7 @@ def inputs_from_assessment(a: dict, runner=None) -> dict:
     if active:
         out["injurySeverity"] = active.get("severity") or 0
         out["injuryConfirmed"] = bool(active.get("confirmed"))
+        out["injurySubstantial"] = bool(active.get("substantial"))
     months = E.injury_months(runner) if runner is not None else None   # date → months → "recent" (plan A5)
     if months is not None:
         out["priorInjuryMonths"] = months

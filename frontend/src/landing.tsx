@@ -360,7 +360,7 @@ function EngineDemo() {
 /* ------------------------------------------------------------------ tabs tour */
 type TabInfo = { t: string; title: string; body: string; points: string[]; viz: "rings" | "bars" | "journal" | "mech" | "load" | "care" }
 const TABS: TabInfo[] = [
-  { t: "Dnes", title: "Ranní přehled za deset vteřin", viz: "rings", body: "Celkové skóre, regenerace, zátěž a mechanika na jednom místě s doporučením, co dnes běžet.",
+  { t: "Dnes", title: "Ranní přehled za deset vteřin", viz: "rings", body: "Celkové skóre, připravenost, zátěž a mechanika na jednom místě s doporučením, co dnes běžet.",
     points: ["Kvadrant stavu a jeho vývoj za 6 měsíců", "Signály seřazené podle vlivu", "Denní check-in přímo z obrazovky"] },
   { t: "Trénink", title: "Kolik toho dnes unesete", viz: "bars", body: "Rozsah kilometrů, tepové zóny a tempo podle toho, co jste v posledních týdnech prokazatelně zvládli.",
     points: ["Dnešní kapacita objemu, intenzity a převýšení", "Čtyřtýdenní cyklus s odlehčovacím týdnem", "Kolo, plavání i posilování s konkrétní dávkou"] },
@@ -377,7 +377,7 @@ function TabViz({ kind }: { kind: TabInfo["viz"] }) {
   if (kind === "rings")
     return (
       <div className="flex items-center justify-center gap-4">
-        {[[72, C.ok, "Regenerace"], [86, C.accent, "Skóre"], [61, C.watch, "Zátěž"]].map(([v, c, l]) => (
+        {[[72, C.ok, "Připravenost"], [86, C.accent, "Skóre"], [61, C.watch, "Zátěž"]].map(([v, c, l]) => (
           <div key={l as string} className="text-center"><ScoreRing value={v as number} color={c as string} size={l === "Skóre" ? 104 : 72} /><p className="t-axis mt-1">{l}</p></div>
         ))}
       </div>

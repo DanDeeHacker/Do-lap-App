@@ -23,10 +23,19 @@ def _sess(n, **exp):
 
 def test_band_points_and_combination():
     assert C.band_points(1.10, 0.10) == 0
-    assert C.band_points(1.30, 0.10) == pytest.approx(6)
-    assert C.band_points(2.00, 0.10) == pytest.approx(20)
-    assert C.band_points(3.00, 0.10) == pytest.approx(40)
-    assert C.band_points(1.25, 0.15) == pytest.approx(4)       # weekly margin: +15 % free
+    # v0.9.0: a smooth step to a plateau (RUNSAFE: +10–30 % and +30–100 % carry a
+    # similar hazard), nearly flat to 2×, then rising — continuous, no cliff at ×1.3
+    assert C.band_points(1.25, 0.10) == pytest.approx(6)        # half-way up the smoothstep
+    assert C.band_points(1.30, 0.10) == pytest.approx(12 * 20 / 27)
+    assert C.band_points(1.40, 0.10) == pytest.approx(12)       # the plateau
+    assert C.band_points(2.00, 0.10) == pytest.approx(14)
+    assert C.band_points(3.00, 0.10) == pytest.approx(34)
+    assert C.band_points(9.00, 0.10) == pytest.approx(40)       # capped
+    assert C.band_points(1.30, 0.15) == pytest.approx(6)        # weekly margin: +15 % free
+    xs = [1 + i / 100 for i in range(0, 400)]
+    ys = [C.band_points(x, 0.10) for x in xs]
+    assert all(b >= a for a, b in zip(ys, ys[1:]))                # non-decreasing
+    assert max(b - a for a, b in zip(ys, ys[1:])) < 2.0          # and without jumps
     # the worst channel counts fully, the 2nd half, the rest a quarter
     assert C.combine({"volume": 20, "descent": 10, "ascent": 4}) == {"volume": 20, "descent": 5, "ascent": 1}
 

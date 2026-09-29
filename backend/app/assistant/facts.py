@@ -109,7 +109,7 @@ def _why_today_max(a, today) -> None:
 
 def _readiness(a) -> dict:
     out = F._recovery(a)
-    cr = (a.get("capacity") or {}).get("readiness") or {}
+    cr = a.get("readiness") or (a.get("capacity") or {}).get("readiness") or {}
     parts = {PART_LABEL.get(k, k): f"{round(v * 100)} %" for k, v in (cr.get("parts") or {}).items() if v and v > 0.05}
     if parts:
         out["whatLowersReadiness"] = parts

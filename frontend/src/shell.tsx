@@ -63,7 +63,10 @@ export function Sidebar({ items }: { items: [string, string][] }) {
 
 /* ---------------- Desktop stat rail (xl+) ---------------- */
 type RailCard = { id: string; label: string; to: string; Icon: LucideIcon; render: () => { value: string; unit?: string; sub?: string; col?: string; pct?: number } | null }
-const DEFAULT_RAIL = ["recovery", "week", "load", "mech"]
+const DEFAULT_RAIL = ["readiness", "week", "load", "mech"]
+// v0.9.0 — the single-night "Regenerace" card is gone; a saved choice of it shows Připravenost
+const RAIL_RENAMED: Record<string, string> = { recovery: "readiness" }
+const migrateRail = (ids: string[]) => [...new Set(ids.map((x) => RAIL_RENAMED[x] ?? x))]
 const fmt1 = (v: number | null | undefined) => (v == null ? "—" : String(Math.round(v * 10) / 10).replace(".", ","))
 
 function useRailCards(): RailCard[] {
@@ -73,14 +76,13 @@ function useRailCards(): RailCard[] {
   const L = a?.loadDetail
   const tierCol = (v: number) => (v >= 25 ? C.alert : v >= 12 ? C.watch : C.ok)
   return useMemo(() => [
-    { id: "recovery", label: "Regenerace přes noc", to: "/app/today", Icon: HeartPulse, render: () => rcv?.score == null ? null : ({ value: String(rcv.score), unit: "/100", sub: rcv.scoreLabel, col: goodCol(rcv.score), pct: rcv.score }) },
     { id: "week", label: "Tento týden", to: "/app/load", Icon: TrendingUp, render: () => L?.weekKm == null ? null : ({ value: fmt1(L.weekKm), unit: "km", sub: `posledních 7 dní ${fmt1(L.runKm7)} km` }) },
     { id: "load", label: "Zátěž", to: "/app/load", Icon: Zap, render: () => a?.load == null ? null : ({ value: String(a.load), unit: "/100", sub: a.load >= 25 ? "nad prahem 25" : "pod prahem 25", col: a.load >= 25 ? C.alert : C.load, pct: a.load }) },
     { id: "mech", label: "Mechanika", to: "/app/mechanics", Icon: Footprints, render: () => a?.mech == null ? null : ({ value: String(a.mech), unit: "/100", sub: a.mech >= 25 ? "drift nad prahem" : "drží na normě", col: tierCol(a.mech), pct: a.mech }) },
     { id: "hrv", label: "HRV", to: "/app/load", Icon: HeartPulse, render: () => rcv?.hrv?.now == null ? null : ({ value: fmt1(rcv.hrv.now), unit: "ms", sub: `obvykle ${fmt1(rcv.hrv.base)} ms`, col: (rcv.hrv.z ?? 0) <= -1 ? C.alert : (rcv.hrv.z ?? 0) < -0.3 ? C.watch : C.ok }) },
     { id: "rhr", label: "Klidový tep", to: "/app/load", Icon: Activity, render: () => rcv?.rhr?.now == null ? null : ({ value: fmt1(rcv.rhr.now), unit: "tep/min", sub: `obvykle ${fmt1(rcv.rhr.base)}`, col: (rcv.rhr.z ?? 0) >= 1.2 ? C.alert : (rcv.rhr.z ?? 0) > 0.5 ? C.watch : C.ok }) },
     { id: "sleep", label: "Spánek", to: "/app/load", Icon: Moon, render: () => rcv?.sleep?.now == null ? null : ({ value: fmt1(rcv.sleep.now), unit: "h", sub: `obvykle ${fmt1(rcv.sleep.base)} h`, col: (rcv.sleep.debt || 0) >= 4 ? C.alert : (rcv.sleep.debt || 0) >= 1 ? C.watch : C.ok }) },
-    { id: "readiness", label: "Připravenost", to: "/app/training", Icon: Gauge, render: () => !a?.capacity?.readiness ? null : (() => { const p = readinessPct(a.capacity.readiness); return { value: String(p), unit: "%", sub: "dnešní stropy kapacity", col: readinessCol(p), pct: p } })() },
+    { id: "readiness", label: "Připravenost", to: "/app/today", Icon: Gauge, render: () => { const rd = a?.readiness ?? a?.capacity?.readiness; if (!rd) return null; const p = readinessPct(rd); return { value: String(p), unit: "%", sub: rd.label || "dnešní stropy kapacity", col: readinessCol(p), pct: p } } },
     { id: "race", label: "Další závod", to: "/app/training", Icon: Flag, render: () => !a?.races?.next ? null : ({ value: a.races.next.daysTo === 0 ? "dnes" : `za ${a.races.next.daysTo} d`, sub: `${a.races.next.name || (a.races.next.priority === "A" ? "Cílový závod" : "Závod")} · ${a.races.next.date?.slice(8, 10).replace(/^0/, "")}. ${a.races.next.date?.slice(5, 7).replace(/^0/, "")}.` }) },
   ], [a, rcv, L])
 }
@@ -93,7 +95,7 @@ export function StatRail() {
   const [editing, setEditing] = useState(false)
   useEffect(() => {
     let alive = true
-    api.getSettings().then((s: any) => alive && setChosen(Array.isArray(s?.rail_cards) && s.rail_cards.length ? s.rail_cards : DEFAULT_RAIL)).catch(() => alive && setChosen(DEFAULT_RAIL))
+    api.getSettings().then((s: any) => alive && setChosen(Array.isArray(s?.rail_cards) && s.rail_cards.length ? migrateRail(s.rail_cards) : DEFAULT_RAIL)).catch(() => alive && setChosen(DEFAULT_RAIL))
     return () => { alive = false }
   }, [])
   const save = (next: string[]) => {

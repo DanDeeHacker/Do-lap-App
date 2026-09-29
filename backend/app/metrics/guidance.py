@@ -10,7 +10,8 @@ Rules, in order:
   1. Overrides (as agreed with the product owner):
      • active injury (OSTRC) → volno;
      • pain > 5/10 AND the engine's own physio referral (critical quadrant,
-       alert tier or silent drift → triage physio_48h / physio_7d) → volno +
+       alert tier, or silent drift together with symptoms → triage physio_48h /
+       physio_7d; a mechanics drift alone never refers, v0.9.0) → volno +
        book the physio;
      • pain > 5 without a referral → regenerace / cross-training, no physio push;
      • pain 3–5, or the same site hurting on ≥ 3 days in 4 weeks (even mildly)
@@ -34,7 +35,7 @@ Rules, in order:
      the 7-day ceiling open, a short easy run stays available (not recommended).
   4. Session type by default from the runner's own pattern (usual run days,
      long-run weekday, hard days over the last 8 weeks); a quality session only
-     ≥ 48 h after the last hard one, readiness ≥ 85 %, intensity budget left,
+     ≥ 48 h after the last hard one, readiness ≥ READY_QUALITY (65 %), intensity budget left,
      no pain ≥ 3, Zátěž < 25 and no mechanics drift. The runner can switch type;
      every type carries its own limits and, if not advisable today, why.
 Recomputed on every live recompute (sync, check-in, run rating); provisional
@@ -42,8 +43,8 @@ until today's sleep / HRV has arrived.
 """
 from datetime import date, timedelta
 
-from .. import models
 from . import capacity as C
+from . import data as D
 from . import engine as E
 from . import weather as W
 
@@ -92,6 +93,9 @@ LONG_SHARE = 0.30       # a long run ≤ 30 % of the weekly volume budget
 Z4_SESSION_MAX = 45     # a quality session's hard minutes are capped here whatever the capacity says
 MIN_RUN_KM = 2.0        # below this there's no meaningful run left today → volno
 NOVICE_DAYS = 42        # plan C1: the first 6 weeks of data run on generic rules…
+# v0.9.0: the 10 % steps are the app's own cautious rule, not an evidence-based threshold —
+# the 10 % rule did not prevent injuries in novices (Buist et al., 2008) and no universal
+# progression rule is supported (Fredette et al., 2022); the text says so to the runner.
 NOVICE_STEP = 1.10      # …weekly volume ≤ +10 % on the last completed week (Nielsen 2014: > 30 % clearly risky)…
 NOVICE_LONG = 1.10      # …a long run ≤ 10 % over the longest run of the last 30 days (RUNSAFE)…
 NOVICE_Z4 = 10          # …and a generic 10 min of hard work in a quality session while intensity capacity is unknown
@@ -111,7 +115,14 @@ CYCLE = {1: 0.90, 2: 1.00, 3: 1.10, 4: 0.55 * 1.10}
 CYCLE_PCT_OF = {1: 90, 2: 100, 3: 110, 4: 55}
 RECOVERY_BELOW = 0.70      # a completed week under 70 % of the 4 before it = a recovery week
 CYCLE_MIN_WEEKS = 4        # completed weeks with data needed to place the runner in the cycle
-Z4_TRIMP_PER_MIN = 0.85 * 0.64 * 2.718281828 ** (1.92 * 0.85)   # Banister TRIMP of a minute at 85 % HRR
+
+
+def z4_trimp_per_min(b: float = E.TRIMP_B_DEFAULT) -> float:
+    """Banister TRIMP of a minute at 85 % HRR (b = the runner's sex coefficient)."""
+    return E._trimp(1.0, 85.0, 100.0, 0.0, b)
+
+
+Z4_TRIMP_PER_MIN = z4_trimp_per_min()
 
 
 def _d(s):
@@ -191,7 +202,15 @@ def _easy_pace(hist):
     return E.median(paces) if paces else None
 
 
-def _hr_band(kind, hrmax, rhr):
+# v0.9.0 — the same session bands as % of a measured LTHR (Friel's running zones;
+# band edges = working assumptions matching the HRR bands above)
+LTHR_BANDS = {"regenerace": (0.75, 0.85), "lehký": (0.82, 0.89), "dlouhý": (0.82, 0.90), "kvalitní": (0.95, 1.02)}
+
+
+def _hr_band(kind, hrmax, rhr, lthr=None):
+    if lthr and rhr < lthr < hrmax:
+        lo, hi = LTHR_BANDS[kind]
+        return (round(lthr * lo), round(min(hrmax, lthr * hi)))
     lo, hi = HRR[kind]
     return (round(rhr + lo * (hrmax - rhr)), round(rhr + hi * (hrmax - rhr)))
 
@@ -268,10 +287,9 @@ def _latest_pain(db, rid, today):
     Returns (pain, site, {"checkedIn", "yRun": (pain, site) of yesterday's rated run})."""
     t_iso = today.isoformat()
     cut = (today - timedelta(days=1)).isoformat()
-    cks = db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= cut).all()
-    rated = (db.query(models.ActivityFeedback, models.Activity.started_at)
-             .join(models.Activity, models.Activity.id == models.ActivityFeedback.activity_id)
-             .filter(models.ActivityFeedback.runner_id == rid, models.Activity.started_at >= cut).all())
+    data = D.of(db, rid)
+    cks = [c for c in data.checkins if c.submitted_at >= cut]
+    rated = E._rated_runs(data, cut)
 
     def ck_site(c):
         regs = [p.get("region") for p in (c.pain_points or []) if p.get("region")]
@@ -296,8 +314,7 @@ def _latest_pain(db, rid, today):
     for c in cks:
         if (c.pain_score or 0) > best:
             best, site = c.pain_score, ck_site(c)
-    for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid,
-                                                      models.ActivityFeedback.submitted_at >= cut).all():
+    for f in (f for f in data.feedback if f.submitted_at >= cut):
         if (f.pain_during or 0) > best:
             best, site = f.pain_during, f.pain_site
     return best, site, {"checkedIn": False, "yRun": y_run}
@@ -404,6 +421,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         return None
     today = E.today_date()
     t_iso = today.isoformat()
+    db = D.of(db, rid)                           # the runner's snapshot (data.py): no queries below
+    tb = E.trimp_b(db.runner)                    # Banister b: 1.92 men / 1.67 women
     hrmax, rhr = cap.get("hrMax") or 185, cap.get("hrRest") or 50
     sessions = C.run_exposures(db, rid, hrmax, rhr)
     runs = [s for s in sessions if s["run"] and s["date"] <= t_iso]
@@ -422,8 +441,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     ch = cap["channels"]
 
     # ---- context ---------------------------------------------------------
-    dm_today = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid,
-                                                   models.DailyMetric.date == t_iso).first()
+    dm_today = db.daily_by_date.get(t_iso)
     provisional = not (dm_today and (dm_today.sleep_h is not None or dm_today.hrv_ms is not None))
     pain, pain_site, pinfo = _latest_pain(db, rid, today)
     pstate = a.get("painState") or {}
@@ -547,7 +565,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                  if s["km"] and s["exp"].get("systemic") and (s["exp"].get("intensity") or 0) < 5]
     per_km = E.median(easy_rate) if len(easy_rate) >= 3 else None
     km_by_sys = sys_left / per_km if (sys_left is not None and per_km) else None
-    for c, cap_c in (() if novice else (("volume", km_by_sys), ("intensity", None if sys_left is None else sys_left / Z4_TRIMP_PER_MIN))):
+    for c, cap_c in (() if novice else (("volume", km_by_sys), ("intensity", None if sys_left is None else sys_left / z4_trimp_per_min(tb)))):
         if cap_c is not None and (week[c]["todayMax"] is None or cap_c < week[c]["todayMax"]):
             week[c]["todayMax"], week[c]["limitedBy"] = cap_c, "systemic"
     if drift:                                  # mechanics over its threshold: keep today well inside capacity
@@ -652,7 +670,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         return x if vol_max is None else min(x, vol_max)
 
     def mk(kind, lo, hi, z4max=None, z4t=None, dfac=1.0, terrain=None, notes=None, vmax=None):
-        hr = _hr_band(kind, hrmax, rhr) if kind in HRR else None
+        hr = _hr_band(kind, hrmax, rhr, getattr(db.runner, "threshold_hr", None)) if kind in HRR else None
         pace = _pace_band(kind, hr, fit, easy_pace, speed_range) if kind != "kvalitní" else None
         lo, hi = (cap_km(lo), cap_km(hi)) if vmax is None else (min(lo, vmax), min(hi, vmax))
         lo = min(lo, hi)
@@ -698,7 +716,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     # ---- cross-training types -------------------------------------------------
     all_list = E.all_acts(db, rid, "load")
     sport_hr = E.sport_hr_max(all_list, hrmax)
-    k_srpe, _k_runs = E.srpe_k(all_list, E.feedback_rpe(db, rid), hrmax, rhr)
+    k_srpe, _k_runs = E.srpe_k(all_list, E.feedback_rpe(db, rid), hrmax, rhr, tb)
     sys_left = week["systemic"]["todayMax"]
 
     def xmk(kind, lo, hi, *, hr=None, zones=None, rpe=None, notes=None, sport=None):
@@ -708,7 +726,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                 "notes": notes or [], "allowed": True, "why": None}
     hm_c = sport_hr.get("cycling", hrmax - 8)
     hr_c = (round(rhr + CYCLE_Z2[0] * (hm_c - rhr)), round(rhr + CYCLE_Z2[1] * (hm_c - rhr)))
-    per_min_c = E._trimp(1.0, rhr + sum(CYCLE_Z2) / 2 * (hm_c - rhr), hm_c, rhr)
+    per_min_c = E._trimp(1.0, rhr + sum(CYCLE_Z2) / 2 * (hm_c - rhr), hm_c, rhr, tb)
     kolo_hi = KOLO_MAX if sys_left is None else min(KOLO_MAX, sys_left / per_min_c)
     types["kolo"] = xmk("kolo", max(CROSS_MIN, 0.6 * kolo_hi), max(CROSS_MIN, kolo_hi), hr=hr_c, zones="Z2 na kole",
                         sport="cycling",
@@ -1045,6 +1063,13 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if new_block and not override:
         reasons.append(f"Nový silový blok od {_dm(new_block['since'])}: první 2–3 týdny bývají nohy těžké, běh je proto "
                        "o desetinu kratší (Rønnestad & Mujika, 2014).")
+    under = (cap.get("margins") or {}).get("underconditioned")
+    if under and not override and not novice:
+        reasons.append(f"Za poslední 4 týdny průměrně {_cz(under['runsPerWeek'])} běhu a {under['minPerWeek']} min týdně — "
+                       "při malé běžecké základně stačí ke zranění menší skok, proto jsou rezervy užší"
+                       + (" (a kvůli dřívějšímu zranění ještě víc)" if under.get("withInjury") else "")
+                       + ". Nejdřív přidávejte četnost krátkých lehkých běhů, teprve potom délku dlouhého běhu "
+                         "(Abrahamson et al., 2025).")
     if cluster and not override:
         reasons.append("Poslední týdny se sešla únava, nemoc nebo pomalejší zotavení najednou — to má mnoho možných "
                        "příčin, proto to stojí za to probrat s fyzioterapeutem nebo lékařem.")
@@ -1065,9 +1090,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         reasons.append(f"{cycle['pos']}. týden cyklu — cíl {round(factor * 100)} % referenčního týdne "
                        f"({_cz(cycle['refKm'])} km).")
     elif mode == "learning" and novice:
-        reasons.append(f"Prvních 6 týdnů (máte {hist_days} dní dat) platí obecná pravidla: týdenní objem nejvýš o 10 % "
-                       "víc než minulý týden, dlouhý běh nejvýš o 10 % delší než nejdelší za 30 dní. Intenzita a převýšení "
-                       "zatím nic neblokují — osobní kapacitu a cyklus poznáme z dalších týdnů.")
+        reasons.append(f"Prvních 6 týdnů (máte {hist_days} dní dat) platí opatrné výchozí pravidlo aplikace: týdenní objem "
+                       "nejvýš o 10 % víc než minulý týden, dlouhý běh nejvýš o 10 % delší než nejdelší za 30 dní. Je to "
+                       "vlastní pojistka aplikace, ne ověřená hranice — výzkum žádné univerzální tempo navyšování nepotvrdil. "
+                       "Intenzita a převýšení zatím nic neblokují — osobní kapacitu a cyklus poznáme z dalších týdnů.")
     elif mode == "learning":
         reasons.append("Čtyřtýdenní cyklus nastavíme po 4 týdnech dat — zatím je cílem vaše týdenní kapacita.")
     if cycle["manual"]:

@@ -75,7 +75,8 @@ class Runner(Base):
     prior_injury_months_ago = Column(Integer)
     prior_injury_date = Column(String)   # ISO date; months are derived from it (plan A5)
     prior_injury_side = Column(String)   # left | right | both
-    hr_max = Column(Integer)             # plan C2: measured max HR (test / race); None → estimated
+    hr_max = Column(Integer)
+    threshold_hr = Column(Integer)   # v0.9.0: lactate-threshold heart rate (lab / field test), optional             # plan C2: measured max HR (test / race); None → estimated
     device = Column(String)
     # Consent gate: a runner is invisible to physios (triage queue / candidate
     # list) until they explicitly opt into the physiotherapy service.
@@ -708,6 +709,8 @@ class EngineDailySnapshot(Base):
     confidence = Column(Float)
     features_json = Column(JSON)
     signals_json = Column(JSON)
+    guidance_json = Column(JSON)                   # v0.9.0: what the app recommended that day
+    post_session = Column(Boolean, default=False)  # v0.9.0: first recorded after a run of that day
     created_at = Column(String)
 
 
