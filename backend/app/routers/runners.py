@@ -464,6 +464,27 @@ def run_history(rid: str, limit: int = 20, user: models.User = Depends(get_curre
     return run_context.run_history(db, rid, max(1, min(limit, 60)))
 
 
+@router.get("/{rid}/load-history")
+def load_history(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Zátěž → Historie aktivit: every session of the last 28 days broken down by the
+    capacity channels it loads (runs: objem, intenzita, klesání, stoupání, celková
+    zátěž; other sports: celková zátěž, strength also silová zátěž) and the points it
+    adds to today's load score. Computed on open, not in every assessment, so the
+    6-month history replay stays as fast as before."""
+    ensure_runner_read_access(db, user, rid)
+    a = E.get_or_refresh_assessment(db, rid) or {}
+    cap = a.get("capacity")
+    if not cap:
+        return {"available": False, "items": []}
+    from ..metrics import capacity as CAP
+    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    frailty = (cap.get("margins") or {}).get("frailty", 1.0)
+    with E.engine_pinned((r.engine_mode if r else None) or "v1"):
+        res = CAP.assess_capacity(db, rid, frailty=frailty, runner=r, with_history=True)
+    return {"available": True, "days": CAP.HISTORY_DAYS, "sessionDays": CAP.SESSION_DAYS,
+            "score": res["score"], "margins": res["margins"], "items": res["history"]}
+
+
 @router.get("/{rid}/run-compare/{aid}")
 def run_compare(rid: str, aid: int, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     """One run's metrics vs. the comparable run from a month before."""

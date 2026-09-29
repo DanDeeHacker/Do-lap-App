@@ -110,6 +110,7 @@ export const api = {
   engineCompare: (id: string) => call("GET", `/api/runners/${id}/engine-compare`),
   outcomesOverview: () => call("GET", "/api/engine/outcomes", undefined, { skipAuthRedirect: true }),
   runHistory: (id: string, limit = 20) => call("GET", `/api/runners/${id}/run-history?limit=${limit}`),
+  loadHistory: (id: string) => call("GET", `/api/runners/${id}/load-history`),
 
   // AI summaries & training commentary (opt-in)
   coach: (rid: string) => call("GET", `/api/runners/${rid}/coach`),

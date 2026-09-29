@@ -23,13 +23,13 @@ import { Care, InjurySheet, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
 import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
-import { CapacityMini, Readiness, readinessCol, readinessPct } from "@/capacity"
+import { CapacityMini, Readiness, ReadinessFactors, readinessCol, readinessPct } from "@/capacity"
 import { Training } from "@/training"
 import { AssistantHeaderButton, AssistantProvider, CoachTextCard, WhyButton } from "@/assistant"
 import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
-import { C } from "@/tokens"
+import { C, badCol, goodCol } from "@/tokens"
 import { Bandage, ChevronDown, Compass, Play, UserPlus, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 import { Landing, scrollToLanding } from "@/landing"
@@ -819,8 +819,13 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
   const overall = 100 - clamp(d.overall ?? 0, 0, 100)
   const RING = 2 * Math.PI * 44
   const score = d.rcv ?? null
-  const scoreCol = score == null ? C.fg3 : score >= 67 ? C.ok : score >= 34 ? C.watch : C.alert
+  const scoreCol = goodCol(score)
   const tierCol = d.tier === "alert" ? C.alert : d.tier === "watch" ? C.watch : C.ok
+  // railway#108 — the Skóre ring by its number (green above 70, red below 40), but never
+  // greener than the risk label under it (a critical state or a red flag stays red)
+  const RANK: Record<string, number> = { [C.ok]: 0, [C.watch]: 1, [C.alert]: 2 }
+  const numCol = goodCol(overall)
+  const ringCol = (RANK[numCol] ?? 0) >= (RANK[tierCol] ?? 0) ? numCol : tierCol
   const tierWord = d.tier === "alert" ? "vysoké riziko" : d.tier === "watch" ? "sledovat" : "nízké riziko"
   const recur = d.painRecurring
   // FIX-4: the quadrant name lives in the chip; the verdict carries the priority
@@ -834,12 +839,12 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2" data-tour="today-score">
           <div className="grid justify-items-center gap-2">
             <MiniRing label="Regenerace" value={score} col={scoreCol} onClick={tg("recovery")} open={open === "recovery"} />
-            <MiniRing label="Příznaky" value={d.symp} col={axisCol(d.symp, C.alert)} onClick={tg("symp")} open={open === "symp"} />
+            <MiniRing label="Příznaky" value={d.symp} col={badCol(d.symp)} onClick={tg("symp")} open={open === "symp"} />
           </div>
           <div className="relative grid size-[132px] place-items-center">
             <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
               <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(255 255 255 / .09)" strokeWidth="8" />
-              <circle cx="50" cy="50" r="44" fill="none" stroke={tierCol} strokeWidth="8" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
+              <circle cx="50" cy="50" r="44" fill="none" stroke={ringCol} strokeWidth="8" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
             </svg>
             <span className="text-center">
               <b className="t-num block text-[40px] leading-none text-fg">{overall}</b>
@@ -1017,7 +1022,7 @@ function TodayV2() {
   const deltaUp = (scoreDelta ?? 0) > 0
   const deltaDown = (scoreDelta ?? 0) < 0
   const deltaCol = deltaUp ? C.ok : deltaDown ? C.alert : C.fg2
-  const scoreCol = score == null ? C.fg3 : score >= 67 ? C.ok : score >= 34 ? C.watch : C.alert
+  const scoreCol = goodCol(score)
   const gated = (a?.confidence?.value ?? 0) < 0.6
   const sleepTone = rcv ? ((rcv.sleep?.debt || 0) >= 4 ? "alert" : (rcv.sleep?.debt || 0) >= 1 ? "watch" : "ok") : "muted"
   const hrvTone = rcv ? ((rcv.hrv?.z ?? 0) <= -1 ? "alert" : (rcv.hrv?.z ?? 0) < -0.3 ? "watch" : "ok") : "muted"
@@ -1250,6 +1255,7 @@ function TodayV2() {
                     </div>
                   )}
                   {a?.capacity?.readiness && <Readiness r={a.capacity.readiness} />}
+                  {a?.capacity?.readiness && <ReadinessFactors r={a.capacity.readiness} />}
                   <div className="mt-4 grid gap-6 md:grid-cols-2 md:gap-8">
                     <div>
                       <div className="flex flex-wrap items-start justify-between gap-3">

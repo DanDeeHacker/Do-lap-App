@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react"
 import { InfoDot, Label } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { fmtD } from "@/lib"
-import { C } from "@/tokens"
+import { C, goodCol } from "@/tokens"
 
 const CH_ORDER = ["volume", "intensity", "descent", "ascent", "systemic", "strength"] as const
 const RUN_CH = ["volume", "intensity", "descent", "ascent"] as const
@@ -20,7 +20,8 @@ const BAND: Record<string, [string, string]> = {
 }
 
 export const readinessPct = (r: any) => (r?.score ?? Math.round((r?.today ?? 1) * 100)) as number
-export const readinessCol = (pct: number) => (pct >= 80 ? TONE.ok : pct >= 60 ? TONE.watch : TONE.alert)
+// railway#108 — green above 70 %, red below 40 %, as on the Dnes rings
+export const readinessCol = (pct: number) => goodCol(pct)
 
 export function Readiness({ r }: { r: any }) {
   const pct = readinessPct(r)
@@ -38,6 +39,138 @@ export function Readiness({ r }: { r: any }) {
         <span key={k} className="rounded-full bg-white/[.06] px-2.5 py-1 text-[11px] font-semibold text-fg-2" style={{ opacity: 0.6 + 0.4 * v }}>{PART_LABEL[k] || k}</span>
       )) : <span className="text-[11px] text-fg-3">bez snížení</span>}
       <InfoDot text={MI.readiness} label="Připravenost" />
+    </div>
+  )
+}
+
+// Feedback railway#107 — what lowers readiness today and what keeps it up, each signal
+// with its reading against the runner's usual value and the points it costs, plus the
+// change since yesterday morning. Points follow the engine: 100 − 80 × combined
+// deficit, the strongest signal fully, the 2nd half, the 3rd a quarter.
+const SLEEP_Q = ["velmi špatně", "špatně", "průměrně", "dobře", "výborně"]
+const FACTOR_LABEL: Record<string, string> = { hrv: "HRV", rhr: "Klidový tep", sleep: "Spánek", soreness: "Svalová bolest", fatigue: "Únava", stress: "Stres mimo trénink", session: "Dnešní trénink" }
+const pctS = (v: number | null | undefined) => (v == null ? null : `${Math.round(v * 100)} %`)
+const vs = (parts: (string | null | false)[]) => parts.filter(Boolean).join(" · ")
+const pts1 = (v: number) => (Math.round(v * 10) / 10).toLocaleString("cs-CZ")
+
+function factorReading(k: string, r: any): string | null {
+  const i = r?.inputs || {}
+  const n = i.night || {}, w = i.week || {}, b = i.base || {}, c = i.checkin
+  if (k === "hrv") return n.hrv == null && w.hrv == null ? null : vs([n.hrv != null && `noc ${n.hrv} ms`, w.hrv != null && `7 nocí ${w.hrv} ms`, b.hrv != null && `obvykle ${b.hrv} ms`])
+  if (k === "rhr") return n.rhr == null && w.rhr == null ? null : vs([n.rhr != null && `noc ${n.rhr}`, w.rhr != null && `7 nocí ${w.rhr}`, b.rhr != null && `obvykle ${b.rhr} tepů/min`])
+  if (k === "sleep") {
+    const q = c?.sleepQuality
+    const line = vs([n.sleep != null && `poslední noc ${num(n.sleep)} h`, w.sleep != null && `3 noci ${num(w.sleep)} h`, b.sleep != null && `obvykle ${num(b.sleep)} h`,
+      n.rest != null && `hluboký + REM ${pctS(n.rest)}${b.rest != null ? ` (obvykle ${pctS(b.rest)})` : ""}`, q != null && SLEEP_Q[q] && `vaše hodnocení: ${SLEEP_Q[q]}`])
+    return line || null
+  }
+  if (k === "soreness") return c?.soreness == null ? null : `v check-inu ${c.soreness}/10 · snižuje od 6/10`
+  if (k === "fatigue") return c?.fatigue == null ? null : `v check-inu ${c.fatigue}/10 · snižuje od 6/10`
+  if (k === "stress") return c?.stress == null ? null : `v check-inu ${c.stress}/10 · snižuje od 6/10, počítá se 0,6×`
+  if (k === "session") {
+    const a = r?.afterSession
+    if (!a) return null
+    const t = a.today
+    return vs([t && `${(t.sessions || []).map((s: any) => s.title).filter(Boolean).join(", ") || "trénink"} · ${t.band}`, a.carry && `doznívá včerejší náročný trénink`, "zítra ji upřesní noční data"])
+  }
+  return null
+}
+
+export function ReadinessFactors({ r }: { r: any }) {
+  if (!r?.inputs) return null
+  const eff: Record<string, number> = r.effects || {}
+  const keys = ["hrv", "rhr", "sleep", "soreness", "fatigue", "stress", "session"]
+  const part: Record<string, number> = r.parts || {}
+  // every signal off its norm is listed, also one that adds nothing because stronger
+  // signals already cover it (only the three strongest count)
+  const lower = keys.filter((k) => (part[k] || 0) > 0).sort((a, b) => (eff[b] || 0) - (eff[a] || 0) || part[b] - part[a])
+  // a signal counts only with today's reading: without last night's data the engine
+  // doesn't judge HRV / resting HR / sleep, so they are listed apart, not as "in norm"
+  const n = r.inputs.night || {}, ci = r.inputs.checkin
+  const today = (k: string) => (k === "hrv" ? n.hrv != null : k === "rhr" ? n.rhr != null : k === "sleep" ? n.sleep != null || ci?.sleepQuality != null : ci?.[k] != null)
+  const fine = keys.filter((k) => k !== "session" && !lower.includes(k) && today(k) && factorReading(k, r))
+  const stale = ["hrv", "rhr", "sleep"].filter((k) => !lower.includes(k) && !today(k) && factorReading(k, r))
+  const noCheckin = !ci
+  const y = r.yesterday
+  const delta = y?.known ? (r.morningScore ?? r.score) - y.score : null
+  // day-over-day by each signal's own deviation (its points depend on the ranking with the
+  // others, so a worse signal could otherwise read as "better" when a stronger one overtakes it)
+  const yPart: Record<string, number> = y?.parts || {}
+  const changes = y?.known
+    ? keys.filter((k) => k !== "session").map((k) => [k, (part[k] || 0) - (yPart[k] || 0)] as [string, number]).filter(([, d]) => Math.abs(d) >= 0.05).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    : []
+  const sess = r.afterSession?.drop || 0
+  const row = (k: string, right: ReactNode, tone: string) => (
+    <li key={k} className="flex items-start justify-between gap-3 py-2">
+      <span className="min-w-0">
+        <b className="text-[13px] font-bold text-fg">{FACTOR_LABEL[k]}</b>
+        <span className="block text-[11px] leading-4 text-fg-3">{factorReading(k, r) || (k === "session" ? "" : "chybí data")}</span>
+      </span>
+      <span className="shrink-0 tabular-nums text-[13px] font-bold" style={{ color: tone }}>{right}</span>
+    </li>
+  )
+  return (
+    <div className="nest mt-3 p-3.5" data-testid="readiness-factors">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label>Co připravenost ovlivňuje</Label>
+        {delta != null && (
+          <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${delta > 0 ? C.ok : delta < 0 ? C.alert : C.fg3}1f`, color: delta > 0 ? C.ok : delta < 0 ? C.alert : C.fg2 }}>
+            {delta > 0 ? "▲" : delta < 0 ? "▼" : "▬"} ráno {delta > 0 ? `+${delta}` : delta < 0 ? delta : "beze změny"} oproti včerejšímu ránu ({y.score} %)
+          </span>
+        )}
+      </div>
+      {!r.known && !lower.length && (
+        <p className="mt-2 text-[12px] leading-5 text-fg-2">Dnes zatím chybí noční data z hodinek{noCheckin ? " i check-in" : ""}, proto připravenost nic nesnižuje. Po synchronizaci se přepočítá.</p>
+      )}
+      {lower.length > 0 && (
+        <>
+          <p className="t-label mt-3 !text-fg-3">Snižuje ji</p>
+          <ul className="divide-y divide-white/[.07]">
+            {lower.map((k) => (eff[k] || 0) >= 0.5
+              ? row(k, `−${pts1(eff[k])} b`, eff[k] >= 10 ? C.alert : C.watch)
+              : row(k, <span className="block text-right">0 b<small className="block text-[10px] font-medium text-fg-3">překryto silnějšími</small></span>, C.fg3))}
+          </ul>
+        </>
+      )}
+      {fine.length > 0 && (
+        <>
+          <p className="t-label mt-3 !text-fg-3">Drží ji nahoře (v normě)</p>
+          <ul className="divide-y divide-white/[.07]">
+            {fine.map((k) => row(k, "0 b", C.ok))}
+          </ul>
+        </>
+      )}
+      {stale.length > 0 && (
+        <>
+          <p className="t-label mt-3 !text-fg-3">Bez dnešní noci (nezapočítává se)</p>
+          <ul className="divide-y divide-white/[.07]">
+            {stale.map((k) => row(k, "—", C.fg3))}
+          </ul>
+        </>
+      )}
+      {noCheckin && <p className="mt-2 text-[11px] leading-4 text-fg-3">Dnešní check-in zatím chybí, svalová bolest, únava a stres se proto nezapočítávají.</p>}
+      {(changes.length > 0 || sess >= 0.5) && (
+        <>
+          <p className="t-label mt-3 !text-fg-3">Oproti včerejšímu ránu</p>
+          <ul className="mt-1 space-y-1 text-[12px]">
+            {changes.map(([k, d]) => (
+              <li key={k} className="flex justify-between gap-2">
+                <span className="text-fg-2">{FACTOR_LABEL[k]}</span>
+                <b style={{ color: d < 0 ? C.ok : C.alert }}>{d < 0 ? "▲ blíž normě" : "▼ dál od normy"}</b>
+              </li>
+            ))}
+            {sess >= 0.5 && (
+              <li className="flex justify-between gap-2">
+                <span className="text-fg-2">Dnešní trénink (od rána)</span>
+                <b className="tabular-nums" style={{ color: C.alert }}>▼ −{sess} b</b>
+              </li>
+            )}
+          </ul>
+        </>
+      )}
+      <p className="mt-3 border-t border-white/[.07] pt-2.5 text-[11px] leading-4 text-fg-3">
+        Připravenost = 100 − srážky. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí.
+      </p>
     </div>
   )
 }

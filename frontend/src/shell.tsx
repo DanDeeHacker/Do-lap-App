@@ -10,7 +10,7 @@ import {
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { QUAD } from "@/lib"
-import { C } from "@/tokens"
+import { C, goodCol } from "@/tokens"
 import { Switch } from "@/ui"
 import { readinessCol, readinessPct } from "@/capacity"
 
@@ -73,7 +73,7 @@ function useRailCards(): RailCard[] {
   const L = a?.loadDetail
   const tierCol = (v: number) => (v >= 25 ? C.alert : v >= 12 ? C.watch : C.ok)
   return useMemo(() => [
-    { id: "recovery", label: "Regenerace přes noc", to: "/app/today", Icon: HeartPulse, render: () => rcv?.score == null ? null : ({ value: String(rcv.score), unit: "/100", sub: rcv.scoreLabel, col: rcv.score >= 67 ? C.ok : rcv.score >= 34 ? C.watch : C.alert, pct: rcv.score }) },
+    { id: "recovery", label: "Regenerace přes noc", to: "/app/today", Icon: HeartPulse, render: () => rcv?.score == null ? null : ({ value: String(rcv.score), unit: "/100", sub: rcv.scoreLabel, col: goodCol(rcv.score), pct: rcv.score }) },
     { id: "week", label: "Tento týden", to: "/app/load", Icon: TrendingUp, render: () => L?.weekKm == null ? null : ({ value: fmt1(L.weekKm), unit: "km", sub: `posledních 7 dní ${fmt1(L.runKm7)} km` }) },
     { id: "load", label: "Zátěž", to: "/app/load", Icon: Zap, render: () => a?.load == null ? null : ({ value: String(a.load), unit: "/100", sub: a.load >= 25 ? "nad prahem 25" : "pod prahem 25", col: a.load >= 25 ? C.alert : C.load, pct: a.load }) },
     { id: "mech", label: "Mechanika", to: "/app/mechanics", Icon: Footprints, render: () => a?.mech == null ? null : ({ value: String(a.mech), unit: "/100", sub: a.mech >= 25 ? "drift nad prahem" : "drží na normě", col: tierCol(a.mech), pct: a.mech }) },
