@@ -7,6 +7,7 @@ uses (build_seed()) so there is one parser, not two drifting copies.
 runner_id is always taken from the session — never trusted from the
 upload — since the endpoint is a write into that runner's own history.
 """
+import datetime as _dt
 import json
 import os
 import secrets
@@ -246,6 +247,26 @@ def _runner_history(db: DBSession, rid: str):
     return dates, last_act
 
 
+def _stored_twin(db: DBSession, rid: str, a: dict) -> bool:
+    """A non-manual activity of the same sport on the same day and within 3 % of the
+    duration (and distance, when both have one) — e.g. a run first imported from a file
+    export under a different id. Keeps the wider sync window from duplicating sessions."""
+    day, dur = str(a.get("started_at") or "")[:10], a.get("duration_min") or 0
+    if not day or not dur:
+        return False
+    for x in db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.started_at == day,
+                                              models.Activity.sport == (a.get("sport") or "running")):
+        if x.provider == "manual" or not x.duration_min:
+            continue
+        if abs(x.duration_min - dur) > 0.03 * max(x.duration_min, dur):
+            continue
+        km, xkm = a.get("distance_km"), x.distance_km
+        if km and xkm and abs(km - xkm) > 0.03 * max(km, xkm):
+            continue
+        return True
+    return False
+
+
 def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -> dict:
     """Additive, idempotent import: inserts only activities whose external_id
     is new and daily rows for dates the runner doesn't have yet. Nothing is
@@ -271,9 +292,12 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
                     if getattr(old, k, None) is None and a.get(k) is not None:
                         setattr(old, k, a[k])
             continue
+        if _stored_twin(db, rid, a):
+            continue                                  # the same session already stored under another id
         row = {k: v for k, v in a.items() if k != "id"}
         row["runner_id"] = rid
         db.add(models.Activity(**row))
+        db.flush()
         added_a += 1
         if ext:
             existing_ext.add(ext)
@@ -325,17 +349,39 @@ def _prune_pending():
         _PENDING_MFA.pop(k, None)
 
 
+SYNC_LOOKBACK_DAYS = 14     # activities that reach Garmin late (another device, a later upload) still arrive
+CROSS_BACKFILL_DAYS = 180   # one-time re-pull: cross-training before 2026-09-25 was never requested
+
+
 def _download_and_merge(db: DBSession, rid: str, garmin) -> dict:
     skip_dates, since = _runner_history(db, rid)
+    # v0.8.6: each sync starts SYNC_LOOKBACK_DAYS before the newest stored activity (merging is
+    # idempotent by activity id), and once per runner the whole CROSS_BACKFILL_DAYS window is
+    # requested again, so rides, swims and strength sessions from before cross-training was
+    # imported arrive as well (summary only: sport, duration, heart rate, Garmin load)
+    runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    meta = dict((runner.onboarding_json or {}) if runner else {})
+    backfill = runner is not None and not meta.get("crossBackfill")
+    if backfill:
+        since = None
+    elif since:
+        try:
+            since = (_dt.date.fromisoformat(since[:10]) - _dt.timedelta(days=SYNC_LOOKBACK_DAYS)).isoformat()
+        except ValueError:
+            pass
     # no sleep stages stored yet → pull 180 days of them once (feedback railway#33)
     has_stages = db.query(models.DailyMetric.id).filter(models.DailyMetric.runner_id == rid,
                                                          models.DailyMetric.deep_min.isnot(None)).first() is not None
     try:
-        seed = garmin_live.download_seed(garmin, skip_dates=skip_dates, since_date=since,
-                                         sleep_backfill_days=0 if has_stages else 180)
+        seed = garmin_live.download_seed(garmin, activity_days=CROSS_BACKFILL_DAYS, skip_dates=skip_dates,
+                                         since_date=since, sleep_backfill_days=0 if has_stages else 180)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Nepodařilo se stáhnout data z Garminu: {e}")
     added = _merge_seed(db, rid, seed, provider="garmin")
+    if backfill:
+        meta["crossBackfill"] = E.iso_date(E.today_date())
+        runner.onboarding_json = meta
+        db.commit()
     return {"ok": True, "runner_id": rid, **added, "meta": seed.get("_meta")}
 
 

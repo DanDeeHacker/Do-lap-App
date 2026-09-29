@@ -164,8 +164,9 @@ def test_incremental_import_no_duplicates(client, monkeypatch):
     r2 = client.post("/api/integrations/garmin/connect", json={"email": "x@y.z", "password": "p"}).json()
     assert r2["added_activities"] == 1
 
-    # the download was told where our history ends (incremental fetch)
-    assert captured.get("since_date", "").startswith("2026-08-02")
+    # the download was told where our history ends, minus the 14-day look-back (v0.8.6:
+    # late uploads still arrive; the first sync was the one-time full window)
+    assert captured.get("since_date", "").startswith("2026-07-19")
 
     acts = client.get(f"/api/runners/{rid}/activities?limit=50").json()
     assert len({a["external_id"] for a in acts}) == 3   # 3 distinct, no duplicate

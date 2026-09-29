@@ -40,7 +40,7 @@ def _sport_of(tk: str) -> str:
     for key, s in _SPORT.items():
         if key in tk:
             return s
-    if "cycl" in tk or "biking" in tk:
+    if "cycl" in tk or "biking" in tk or "bike" in tk or "ride" in tk:
         return "cycling"
     if "swim" in tk:
         return "swimming"

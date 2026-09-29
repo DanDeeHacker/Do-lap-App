@@ -14,7 +14,7 @@ const num = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleStr
 const TONE = { ok: C.ok, watch: C.watch, alert: C.alert, muted: C.fg3 }
 const toneOf = (ratio: number | null | undefined, margin: number) =>
   ratio == null ? "muted" : ratio <= 1 + margin ? "ok" : ratio <= 1.3 ? "watch" : "alert"
-const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší nebo méně kvalitní spánek", soreness: "svalová bolest", fatigue: "únava", stress: "stres mimo trénink" }
+const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší nebo méně kvalitní spánek", soreness: "svalová bolest", fatigue: "únava", stress: "stres mimo trénink", session: "dnešní trénink" }
 const BAND: Record<string, [string, string]> = {
   pod: ["pod obvyklým", TONE.muted], "obvyklé": ["obvyklé", TONE.ok], nad: ["nad obvyklým", TONE.watch], "výrazně nad": ["výrazně nad", TONE.alert],
 }
@@ -29,6 +29,11 @@ export function Readiness({ r }: { r: any }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="rounded-full px-2.5 py-1 text-[12px] font-bold" style={{ background: `${col}1f`, color: col }}>Připravenost dnes {pct} %</span>
+      {r?.afterSession?.drop ? (
+        <span className="basis-full text-[11px] text-fg-2" data-testid="readiness-after">
+          {r.afterSession.today ? `Po dnešním tréninku −${r.afterSession.drop} (ráno ${r.morningScore} %) · ${r.afterSession.today.band}` : `Včerejší náročný trénink ještě doznívá −${r.afterSession.drop}`} · zítra ji upřesní noční data
+        </span>
+      ) : null}
       {parts.length ? parts.map(([k, v]) => (
         <span key={k} className="rounded-full bg-white/[.06] px-2.5 py-1 text-[11px] font-semibold text-fg-2" style={{ opacity: 0.6 + 0.4 * v }}>{PART_LABEL[k] || k}</span>
       )) : <span className="text-[11px] text-fg-3">bez snížení</span>}

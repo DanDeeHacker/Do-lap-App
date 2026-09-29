@@ -1529,8 +1529,11 @@ function AtlasBubble() {
   // Step 2 (where it hurts) is only asked when there is pain; otherwise it's skipped.
   const next = () => setStep((st) => (st === 1 ? (pain > 0 ? 2 : 3) : 3))
   const back = () => setStep((st) => (st === 3 ? (pain > 0 ? 2 : 1) : 1))
-  const { me, boot, refresh } = useApp()
+  const { me, boot, refresh, touring } = useApp()
   const rid = me?.runner_id
+  // today's check-in done → the button is gone until tomorrow (kept in the tour, which points at it)
+  const todayIso = new Date().toLocaleDateString("sv-SE")
+  const doneToday = !touring && ((boot?.checkins || []) as any[]).some((c) => String(c.submitted_at || "").slice(0, 10) === todayIso)
   const rcv = boot?.assessment?.rcv
   const L = boot?.assessment?.loadDetail
   const { busy, run } = useAsync()
@@ -1568,7 +1571,7 @@ function AtlasBubble() {
     })
   return (
     <>
-      {!open && (
+      {!open && !doneToday && (
         // Check-in FAB, parked in the bottom-right corner just above the mobile
         // nav. The earlier full-height side rail sat vertically centered over the
         // right edge and *covered* the right ~40px of every page's content (cards

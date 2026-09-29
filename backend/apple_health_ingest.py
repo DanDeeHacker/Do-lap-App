@@ -41,13 +41,20 @@ CROSS_TITLE = {"cycling": "Kolo", "swimming": "Plavání", "strength": "Posilov�
 def cross_sport(name: str) -> str | None:
     """A Health Auto Export workout name → our cross-training sport, or None."""
     n = (name or "").lower()
-    if "cycl" in n or "bik" in n:
+    # English names plus the Czech ones a phone in Czech may export (v0.8.6)
+    if "cycl" in n or "bik" in n or "cykl" in n or "kolo" in n:
         return "cycling"
-    if "swim" in n or "water fitness" in n:
+    if "swim" in n or "water fitness" in n or "plav" in n:
         return "swimming"
-    if "strength" in n:
+    if "strength" in n or "posil" in n or "silov" in n:
         return "strength"
     return None
+
+
+def is_run_name(name: str) -> bool:
+    """A running workout by its (English or Czech) name."""
+    n = (name or "").lower()
+    return "run" in n or "běh" in n or "beh" in n
 _FMT = "%Y-%m-%d %H:%M:%S %z"
 
 
@@ -163,8 +170,8 @@ def build_seed_from_json(payload: dict, runner_id: str, device: str = "Apple Wat
     activities: list[dict] = []
     for w in workouts:
         name = _norm(w.get("name", "") or w.get("workoutActivityType", ""))
-        cross = None if "run" in name else cross_sport(name)
-        if "run" not in name and not cross:
+        cross = None if is_run_name(name) else cross_sport(name)
+        if not is_run_name(name) and not cross:
             continue
         try:
             start = w.get("start") or w.get("startDate")

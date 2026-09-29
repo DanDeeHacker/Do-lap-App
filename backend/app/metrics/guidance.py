@@ -989,11 +989,23 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         else:
             reasons.append("Na dnešek už nezbývá objem — dnes volno, případně jiný sport bez nárazů.")
     parts = cap["readiness"].get("parts") or {}
+    after = cap["readiness"].get("afterSession") or {}
+    if after.get("drop"):
+        src = after.get("today") or after.get("carry") or {}
+        what = ", ".join(f"{x['title'] or x['sport']} {x['min']} min" for x in src.get("sessions", [])[:2] if x.get("min"))
+        reasons.append((f"Po dnešním tréninku ({what}; {src.get('band')}) je připravenost {rscore} % (ráno "
+                        f"{cap['readiness'].get('morningScore')} %) — další náročný trénink dnes už ne."
+                        if after.get("today") else
+                        f"Včerejší náročný trénink ({what}) ještě doznívá — bez nočních dat počítáme s polovinou "
+                        f"jeho vlivu, připravenost {rscore} %.")
+                       + " Zítra ji upřesní noční HRV, klidový tep a spánek.")
     part_lbl = {"hrv": "nižší HRV", "rhr": "vyšší klidový tep", "sleep": "kratší nebo méně kvalitní spánek",
                 "soreness": "svalová bolest", "fatigue": "únava", "stress": "stres mimo trénink"}
     low = [part_lbl[k] for k, v in sorted(parts.items(), key=lambda kv: -kv[1]) if v > 0.1 and k in part_lbl]
-    if rscore < 90 and low:
-        reasons.append(f"Připravenost {rscore} % ({', '.join(low[:3])} proti vaší normě) — dnešní stropy jsou úměrně nižší"
+    mscore = cap["readiness"].get("morningScore", rscore) if after.get("drop") else rscore   # the night's part
+    if mscore < 90 and low:
+        reasons.append(f"Připravenost {'ráno ' if after.get('drop') else ''}{mscore} % ({', '.join(low[:3])} proti vaší "
+                       "normě) — dnešní stropy jsou úměrně nižší"
                        + (", bez tvrdého tréninku a dlouhého běhu." if rscore < READY_QUALITY else "."))
     elif typ == "volno" and not override and rscore >= READY_EXTRA_EASY:
         reasons.append(f"Připravenost {rscore} % — tělo je zregenerované, volno je kvůli týdennímu plánu, "

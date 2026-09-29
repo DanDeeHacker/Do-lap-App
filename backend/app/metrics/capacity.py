@@ -668,6 +668,88 @@ def readiness_by_day(db, rid, days) -> dict:
     return out
 
 
+# ------------------------------------------------------------------ v0.8.6 after-session readiness
+# A session done today lowers today's readiness until the next night's HRV, resting
+# heart rate and sleep show the body's actual response. Complete cardiac autonomic
+# recovery takes up to 24 h after low-intensity, 24–48 h after threshold and ≥ 48 h
+# after high-intensity aerobic exercise, intensity matters more than duration and
+# fitter people recover faster (Stanley et al., 2013); up to 2 h below the first
+# threshold barely disturbs trained runners (Seiler et al., 2007). The effort is
+# judged against the runner's own days, so the same session costs a fitter runner
+# less. The point values are working assumptions of the product team.
+EFFORT_CURVE = ((0.0, 0.0), (0.25, 0.05), (0.5, 0.10), (0.75, 0.20), (1.0, 0.35))   # own-day percentile → deficit
+EFFORT_EASY_MAX = 0.05     # a session below the first threshold: at most ~4 points
+EFFORT_Z4_BONUS = ((20, 0.15), (10, 0.10))   # minutes in Z4+ → extra deficit (above threshold)
+EFFORT_CAP = 0.45          # at most ~36 points in total
+EFFORT_CARRY = 0.5         # without a night's data, a hard session carries half into the next day
+EFFORT_MIN_DAYS = 8        # active days in the last 8 weeks needed to judge "relative"
+VT1_HRR = 0.70             # Z3 starts at 70 % HRR — a stand-in for the first threshold
+
+
+def _interp(p, curve):
+    for (x0, y0), (x1, y1) in zip(curve, curve[1:]):
+        if p <= x1:
+            return y0 + (y1 - y0) * (p - x0) / (x1 - x0) if x1 > x0 else y1
+    return curve[-1][1]
+
+
+def day_effort(sessions, day: str, hrmax, rhr) -> dict | None:
+    """The day's sessions (any sport) against the runner's own active days of the 56
+    before: {deficit, pct, band, z4, easy, hard, sessions[]} or None without a session
+    or with too little history."""
+    todays = [s for s in sessions if s["date"] == day and s["exp"].get("systemic")]
+    if not todays:
+        return None
+    d0 = _d(day)
+    load = sum(s["exp"]["systemic"] for s in todays)
+    daily = _daily_sums([s for s in sessions if s["exp"].get("systemic")], "systemic")
+    past = [v for k, v in daily.items() if 0 < (d0 - _d(k)).days <= 56 and v > 0]
+    if len(past) < EFFORT_MIN_DAYS:
+        return None
+    pct = min(1.0, _pct_rank(past, load))
+    above_max = load > max(past)
+    z4 = 0.0
+    easy, hard = True, False
+    for s in todays:
+        mins = s.get("durationMin") or 0
+        z = s["exp"].get("intensity")
+        hrr = (s["avgHr"] - rhr) / (hrmax - rhr) if (s.get("avgHr") and hrmax and hrmax > rhr) else None
+        rpe = s.get("rpe")
+        if z is None and s.get("sport") not in ("strength",) and hrr is not None and hrr >= Z4_HRR:
+            z = mins                                   # a cross session held in Z4+ on average
+        z4 += z or 0.0
+        s_easy = (rpe is not None and rpe <= 4) or (hrr is not None and hrr < VT1_HRR and not (z or 0))
+        easy = easy and bool(s_easy)
+        hard = hard or (rpe is not None and rpe >= 7)
+    hard = hard or z4 >= EFFORT_Z4_BONUS[-1][0]
+    deficit = _interp(pct, EFFORT_CURVE)
+    if easy and not hard:
+        deficit = min(deficit, EFFORT_EASY_MAX)
+    else:
+        deficit += next((b for m, b in EFFORT_Z4_BONUS if z4 >= m), 0.0)
+    deficit = min(EFFORT_CAP, deficit)
+    band = ("nejnáročnější za 8 týdnů" if above_max else "náročnější než obvykle" if pct > 0.75
+            else "obvyklá náročnost" if pct >= 0.25 else "lehčí než obvykle")
+    return {"deficit": round(deficit, 3), "pct": round(pct * 100), "band": band, "z4": round(z4),
+            "easy": easy and not hard, "hard": hard,
+            "sessions": [{"title": s["title"], "sport": s.get("sport"), "min": E.rnd(s.get("durationMin"))} for s in todays]}
+
+
+def after_session(sessions, t_iso: str, night_today: bool, hrmax, rhr) -> dict | None:
+    """Today's after-session readiness part: today's effort plus, before this night's
+    data arrive, half of a hard session from yesterday."""
+    today = day_effort(sessions, t_iso, hrmax, rhr)
+    carry = None
+    if not night_today:
+        y = day_effort(sessions, (_d(t_iso) - timedelta(days=1)).isoformat(), hrmax, rhr)
+        if y and y["hard"]:
+            carry = {"deficit": round(y["deficit"] * EFFORT_CARRY, 3), "sessions": y["sessions"], "band": y["band"]}
+    if not today and not carry:
+        return None
+    deficit = min(EFFORT_CAP, (today["deficit"] if today else 0.0) + (carry["deficit"] if carry else 0.0))
+    return {"deficit": round(deficit, 3), "today": today, "carry": carry}
+
+
 def hr_zones(hrmax, rhr):
     return [{"z": z, "lo": round(rhr + a * (hrmax - rhr)), "hi": round(rhr + b * (hrmax - rhr))}
             for z, a, b in ZONES]
@@ -779,6 +861,15 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
         models.DailyMetric.runner_id == rid, models.DailyMetric.date >= absorb_days[0]).all()
         if m.hrv_ms is not None or m.resting_hr is not None or m.sleep_h is not None}
     r_today, parts_today, score_today = ready.get(t_iso, (1.0, {}, 100))
+    # v0.8.6: the shown readiness also reflects today's sessions (the capacity factor that
+    # sizes limits and drives absorption keeps the morning value, so nothing is cut twice)
+    after = after_session(sessions, t_iso, t_iso in nights, hrmax, rhr)
+    morning_score, parts_now = score_today, dict(parts_today)
+    if after and after["deficit"] > 0:
+        parts_now["session"] = after["deficit"]
+        _f, score_now = readiness_from(parts_now)
+        after["drop"] = morning_score - score_now
+        score_today = score_now
     wk_ready = E.mean([ready.get(d, (1.0, {}))[0] for d in recent_days[:7]]) or 1.0
 
     channels, scores, drivers = {}, {}, {}
@@ -903,7 +994,8 @@ def assess_capacity(db, rid, frailty=1.0, runner=None) -> dict:
              "runs": len(week7), "exact": all(s["zoneExact"] for s in week7)} if week7 else None
     return {
         "score": total, "signals": signals, "channels": channels, "zones7d": zone7,
-        "readiness": {"today": r_today, "score": score_today, "parts": parts_today, "week": round(wk_ready, 3)},
+        "readiness": {"today": r_today, "score": score_today, "parts": parts_now, "week": round(wk_ready, 3),
+                      "morningScore": morning_score, "afterSession": after},
         "margins": {"session": round(m_s, 3), "week": round(m_w, 3), "frailty": round(frailty, 2)},
         "zones": hr_zones(hrmax, rhr), "hrMax": E.rnd(hrmax), "hrRest": E.rnd(rhr),
         "hrMaxMeasured": bool(runner and runner.hr_max),
