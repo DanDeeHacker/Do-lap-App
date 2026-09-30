@@ -180,13 +180,16 @@ def test_prior_site_mark_multiplies_and_clears(client, db_session):
                                   pain_points=[{"region": "Achillova šlacha", "side": "L"}]))
     db_session.commit()
     assert not any(s["id"] == "pain_prior" for s in _assess(db_session, rid)["signals"])
-    # three different days on the injured side: ×2
+    # three different days on the injured side: v0.9.3 — no ×2 for the count; the weight
+    # follows the episode: 1/10 each time (median = P75 = 1 → a half lift), and the day-2
+    # check-in marking only the other side counts as a clean day for this one (halves it)
     for d in (1, 3, 5):
         db_session.add(models.Checkin(runner_id=rid, submitted_at=E.day_ago(d), pain_score=1,
                                       pain_points=[{"region": "Achillova šlacha", "side": "P"}]))
     db_session.commit()
     pp = next(s for s in _assess(db_session, rid)["signals"] if s["id"] == "pain_prior")
-    assert pp["val"] == "3× / 14 dní" and pp["pts"] == round(2 * w * E.pain_fade(1, False))
+    level = (0.5 + 0.5 / 2) * 0.5 ** (1 / E.SYMP_HALF_LIFE)       # d5 first, d3 kept at 1, d2 clean → ½, d1 half lift → ¾
+    assert pp["val"] == "3× / 14 dní" and pp["pts"] == round(w * level)
     # marks older than 14 days no longer count
     for ck in db_session.query(models.Checkin).filter(models.Checkin.runner_id == rid):
         ck.submitted_at = E.day_ago(20)

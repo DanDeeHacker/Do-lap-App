@@ -34,7 +34,7 @@ from .. import models
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.9.2"  # v0.9.2: displayed scores by band (tier band, model and trigger severity place the day in it; ok days spread), no fixed Skóre 60 floor; v0.9.1: recovery nights history and baseline spread for the readiness detail on Zátěž (railway#138), approximate per-item shares of every signal source (railway#132); v0.9.0: engine evaluation 2026-09 — pure snapshot engine (RunnerData, history replays by as_of), jump confirmation by repeats and passive tolerance, pace spike vs own fast runs, monotony only over capacity, RUNSAFE-shaped band curve, weather/equipment/pace-tertile confounders in mechanics, log-HRV readiness (single-night Regenerace removed), injury history to 24 months, under-conditioning, sex-specific TRIMP / bone / Achilles rules, safety rules outside the calibrated score, independent primary outcomes with censoring and session-scale data, LTHR zones and pace-based hard minutes, no physio referral for movement-only drift; v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.9.3"  # v0.9.3: graduated pain episodes per site (median / P75 re-marks, clean days halve, 3rd ends), no count escalation; check-in items only on Příznaky, watch sleep only through readiness; v0.9.2: displayed scores by band (tier band, model and trigger severity place the day in it; ok days spread), no fixed Skóre 60 floor; v0.9.1: recovery nights history and baseline spread for the readiness detail on Zátěž (railway#138), approximate per-item shares of every signal source (railway#132); v0.9.0: engine evaluation 2026-09 — pure snapshot engine (RunnerData, history replays by as_of), jump confirmation by repeats and passive tolerance, pace spike vs own fast runs, monotony only over capacity, RUNSAFE-shaped band curve, weather/equipment/pace-tertile confounders in mechanics, log-HRV readiness (single-night Regenerace removed), injury history to 24 months, under-conditioning, sex-specific TRIMP / bone / Achilles rules, safety rules outside the calibrated score, independent primary outcomes with censoring and session-scale data, LTHR zones and pace-based hard minutes, no physio referral for movement-only drift; v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -1876,21 +1876,122 @@ _RACE_WORDS = ("marathon", "maraton", "race", "závod", "zavod", "parkrun", "10k
 _SIDE_CZ = {"left": "vlevo", "right": "vpravo", "both": "oboustranně"}
 
 
+# ---------------------------------------------------------------- v0.9.3 pain episodes
+# Owner feedback 2026-09-30: marking the same spot again must not restart its weight
+# automatically, and marking it over several runs must not keep raising the score until
+# it is reported as an injury. Per running-relevant site, a level 0–1 of its pain
+# still counts, walked day by day through the window:
+#  • the first mark sets it to 1;
+#  • a later mark is compared with the earlier marks at the same site: below their
+#    median it changes nothing, from the median to the 75th percentile it lifts the level
+#    halfway back to 1, above the 75th percentile it resets it to 1;
+#  • a day with a check-in or a rated activity that does NOT mark the site counts as the
+#    pain having passed: the 1st such day halves the level, the 2nd halves it again, the
+#    3rd ends the episode (0);
+#  • with nothing reported at all the level halves every SYMP_HALF_LIFE days (backstop).
+# The points then follow the level and the intensity that set it, never the number of
+# marks. Thresholds and steps are the owner's rules, working assumptions (no study
+# prescribes them); the pain-monitoring idea behind "pain must settle" is Silbernagel
+# et al. (2007).
+EPISODE_CLEAN_STEPS = (0.5, 0.25, 0.0)   # level after the 1st, 2nd and 3rd clean day
+EPISODE_MIN_I = 1                        # a marked spot without a number counts as 1/10
+
+
+def _q(xs, q):
+    xs = sorted(xs)
+    if not xs:
+        return None
+    k = (len(xs) - 1) * q
+    lo, hi = math.floor(k), math.ceil(k)
+    return xs[lo] + (xs[hi] - xs[lo]) * (k - lo)
+
+
+def pain_episodes(db: DBSession, rid: str, window: int = 28) -> dict:
+    """{"region|side": {region, side, level, ref, days, last, marks, clean, median, p75, how,
+    label}} for every running-relevant site (left and right apart) marked in check-ins or
+    run ratings inside the window. `ref` = the intensity that last set the level, `how` =
+    what the latest mark did ("first" / "reset" / "partial" / "kept"), `clean` = clean
+    days since it."""
+    data = D.of(db, rid)
+    cut = day_ago(window)
+    today = today_date()
+    marks: dict = {}                           # (region, side) -> {day: intensity}
+    obs = set()                                # days with a check-in or a rated activity
+
+    def mark(region, side, day, i):
+        reg = _norm_region(region)
+        if not reg or not _run_relevant(reg):
+            return
+        d = marks.setdefault((reg, _SIDE_KEY.get(side or "", "")), {})
+        d[day] = max(d.get(day, 0), max(EPISODE_MIN_I, i or 0))
+
+    for c in data.checkins:
+        if c.submitted_at > cut:
+            day = c.submitted_at[:10]
+            obs.add(day)
+            for p in (c.pain_points or []):
+                mark(p.get("region"), p.get("side"), day, c.pain_score)
+    for f, started in _rated_runs(data, cut, strict=True):
+        day = (started or f.submitted_at)[:10]
+        obs.add(day)
+        pts = [p for p in (f.pain_points or []) if p.get("region")]
+        if pts:
+            for p in pts:
+                mark(p.get("region"), p.get("side"), day, f.pain_during)
+        else:
+            for reg in _sites(None, f.pain_site if (f.niggle or (f.pain_during or 0) >= 1) else None):
+                mark(reg, None, day, f.pain_during)
+    out = {}
+    for (reg, side), byday in marks.items():
+        first = min(byday)
+        level, ref, clean, prev, how, med, p75, last_obs = 0.0, 0, 0, [], "first", None, None, first
+        for day in sorted(d for d in obs | set(byday) if d >= first):
+            if day in byday:
+                i = byday[day]
+                if not prev:
+                    level, ref, how = 1.0, i, "first"
+                else:
+                    med, p75 = _q(prev, 0.5), _q(prev, 0.75)
+                    if i > p75:
+                        level, ref, how = 1.0, i, "reset"
+                    elif i >= med:
+                        level, ref, how = level + (1 - level) / 2, max(ref, i), "partial"
+                    else:
+                        how = "kept"
+                prev.append(i)
+                clean = 0
+            else:
+                clean += 1
+                level = level * 0.5 if clean < len(EPISODE_CLEAN_STEPS) else 0.0
+            last_obs = day
+        gap = max(0, (today - date.fromisoformat(last_obs)).days)
+        level *= 0.5 ** (gap / SYMP_HALF_LIFE)
+        lbl = _REGION_LABEL.get(str(reg).lower(), reg)
+        out[f"{reg}|{side}"] = {"region": reg, "side": side, "level": round(level, 3), "ref": ref, "days": len(byday),
+                                "last": max(byday), "marks": prev, "clean": clean, "median": med, "p75": p75, "how": how,
+                                "label": f"{lbl} ({side})" if side else lbl}
+    return out
+
+
+def episode_points(ep: dict, top: float = 40.0) -> float:
+    """Points of a site's episode: the level × what the intensity that set it is worth
+    (1/10 → 15 … 9/10 → 39, top 40 — the old repeated-niggle range, working assumption)."""
+    return ep["level"] * clamp(12 + 3 * (ep["ref"] or 0), 15, top)
+
+
 def recurring_pain(db: DBSession, rid: str, window: int = 28):
-    """The running-relevant body site reported on the most different days in the
-    window, when that's ≥ RECUR_MIN_DAYS (2 for a man's Achilles / calf) — {site, days,
-    last} — else None."""
+    """The running-relevant site marked on the most different days in the window, when
+    that's ≥ RECUR_MIN_DAYS (2 for a man's Achilles / calf) and its episode still counts
+    (v0.9.3: three clean days end it) — {site, days, last, level, ref} — else None."""
     data = D.of(db, rid)
     sex = getattr(data.runner, "sex", None) or ""
-    rec = pain_recurrence(data, rid, window)
     best = None
-    for region, dates in rec.items():
-        if not _run_relevant(region):
+    for key, ep in pain_episodes(db, rid, window).items():
+        if ep["level"] <= 0.01 or ep["days"] < _recur_min_days(sex, ep["region"]):
             continue
-        days = sorted(set(dates))
-        need = _recur_min_days(sex, region)
-        if len(days) >= need and (best is None or len(days) > best["days"]):
-            best = {"site": _REGION_LABEL.get(str(region).lower(), region), "days": len(days), "last": days[-1]}
+        if best is None or (ep["days"], ep["level"]) > (best["days"], best["level"]):
+            best = {"site": ep["label"], "days": ep["days"], "last": ep["last"], "level": ep["level"], "ref": ep["ref"],
+                    "region": ep["region"], "side": ep["side"]}
     return best
 
 
@@ -3312,16 +3413,14 @@ def _assess(db, rid: str) -> dict:
         # v0.8.4 — a higher HRV isn't automatically good: it rose during functional
         # overreaching (Plews et al., 2014). Only together with fatigue or a heart rate
         # rising at the usual pace (working assumption: 7-night z ≥ 1.5).
+        # v0.9.3 — watch data only: check-in fatigue is scored on Příznaky, not here as well
         if rcv and (rcv["hrv"]["z"] or 0) >= HRV_HIGH_Z:
-            tired7 = len({c.submitted_at[:10] for c in data.checkins
-                          if c.submitted_at >= day_ago(6) and (c.stress or 0) >= 6})
             hr_up = len(hpd) >= 3 and mean(hpd) >= 5
-            if tired7 >= 3 or hr_up:
+            if hr_up:
                 load_score += 6
-                push("hrv_high", "Vysoká HRV spolu s únavou", "C", 6, f"{rcv['hrv']['now']} ms",
-                     f"HRV za 7 dní nad vaší normou ({rcv['hrv']['base']} ms) a zároveň "
-                     + ("únava v check-inu" if tired7 >= 3 else "vyšší tep při obvyklém tempu")
-                     + ". Vyšší HRV není vždy dobrá zpráva, při funkčním přetížení může také stoupat (Plews et al., 2014).")
+                push("hrv_high", "Vysoká HRV spolu s vyšším tepem", "C", 6, f"{rcv['hrv']['now']} ms",
+                     f"HRV za 7 dní nad vaší normou ({rcv['hrv']['base']} ms) a zároveň vyšší tep při obvyklém tempu. "
+                     "Vyšší HRV není vždy dobrá zpráva, při funkčním přetížení může také stoupat (Plews et al., 2014).")
     else:
         # --- Load axis is evidence-weighted (v0.5.2 recalibration). The well-
         # validated grade-B signals (ACWR, high-intensity spike, monotony, HRV,
@@ -3488,14 +3587,33 @@ def _assess(db, rid: str) -> dict:
                  f"{next_a['name'] or 'cílový závod'} za {days_to_race} dní při zvýšené aktuální zátěži — "
                  "riziko přetížení těsně před závodem stoupá, zvažte odlehčení místo dalšího navyšování")
 
-    if fb and fb["niggleCount"] >= 3:
-        fn = pain_fade(age_of(fb.get("lastNiggleAt")), pstate["cleared"])
-        p = rnd(clamp(fb["niggleCount"] * 9, 0, 40) * fn)
+    # v0.9.3 — the repeated sore spot follows its pain episode (graduated re-marks, clean
+    # days halve it), not the count of marks; the previously injured site is scored as
+    # pain_prior below, so it isn't counted twice here.
+    episodes = pain_episodes(db, rid)
+    prior_sites = prior_injury_sites(db, r, rid)
+    _sex = getattr(r, "sex", None) or ""
+
+    def _is_prior(ep):
+        return any(_site_matches(ep["region"], ep["side"] or None, st) for st in prior_sites)
+
+    rep_eps = [(key, ep) for key, ep in episodes.items()
+               if ep["days"] >= _recur_min_days(_sex, ep["region"]) and ep["level"] > 0.01 and not _is_prior(ep)]
+    if rep_eps:
+        reg, ep = max(rep_eps, key=lambda x: episode_points(x[1]))
+        p = rnd(episode_points(ep))
         if p:
             symp_score += p
-            push("niggle", "Opakované bolestivé místo", "A", p, f"{fb['niggleCount']}× / 21 dní",
-                 faded(f"{fb['topSite']['site']} — hlášeno {fb['topSite']['n']}× po tréninku." if fb["topSite"]
-                       else "Opakované hlášení po tréninku.", fn))
+            how = {"reset": "poslední označení bylo nad 75. percentilem dřívějších, váha se vrátila na plnou",
+                   "partial": "poslední označení bylo mezi mediánem a 75. percentilem dřívějších, váha stoupla o polovinu zbytku",
+                   "kept": "poslední označení bylo pod mediánem dřívějších, váhu nezvýšilo",
+                   "first": "váhu určuje první označení"}[ep["how"]]
+            clean = f" Od posledního označení {ep['clean']}× bez bolesti na tomto místě, každý takový den váhu půlí, třetí ji ukončí." \
+                if ep["clean"] else ""
+            push("niggle", "Opakované bolestivé místo", "A", p, f"{ep['days']}× / 28 dní",
+                 f"{ep['label']} — označeno ve {ep['days']} dnech, nejvýš {ep['ref']}/10. Body neroste s počtem označení: "
+                 f"{how}.{clean} Teď se počítá {round(ep['level'] * 100)} % plné váhy.")
+            sig[-1]["region"] = reg          # "region|side", for its sources
     pain_warn = None
     if ci:
         base = 44 if (ci.pain_score or 0) >= 6 else 26 if (ci.pain_score or 0) >= 3 else 8 if (ci.pain_score or 0) >= 1 else 0
@@ -3506,24 +3624,20 @@ def _assess(db, rid: str) -> dict:
             #    overload flag and gets the strongest bonus;
             #  • chronic — the same site recurring over 28 days gets a milder one.
             # A one-off / non-running spot gets the base only.
+            # v0.9.3 — today's reading only: the recurrence is scored by the site's pain
+            # episode ("Opakované bolestivé místo"), which never grows with the count of marks
             ci_regions = [p.get("region") for p in (ci.pain_points or []) if p.get("region")]
             rec = pain_recurrence(db, rid)
             d2 = day_ago(2)
-            rec_n = max((len(rec.get(r, [])) for r in ci_regions), default=0)          # incl. this check-in, 28d
             recent2 = max((sum(1 for d in rec.get(r, []) if d > d2) for r in ci_regions), default=0)  # last 2 days
             run_rel = any(_run_relevant(r) for r in ci_regions)
             site = ", ".join(ci_regions) if ci_regions else (ci.pain_site or "—")
             back_to_back = run_rel and recent2 >= 2
             if back_to_back:
-                bonus = rnd(clamp(recent2 * 8, 8, 26))
-                p = base + bonus
-                push("pain", f"Neustupující bolest: {site} — možné přetížení", "A", p, f"{ci.pain_score}/10",
-                     f"{site} — hlášeno {recent2}× během 2 dnů. Bolest, která mezi běhy neustupuje na stejném místě, je varovný signál přetížení.")
-            elif run_rel and rec_n >= 3:
-                bonus = rnd(clamp((rec_n - 2) * 6, 0, 18))
-                p = base + bonus
-                push("pain", f"Opakující se bolest: {site}", "A", p, f"{ci.pain_score}/10",
-                     f"{site} — hlášeno {rec_n}× za 28 dní napříč check-iny a deníkem. Opakující se lokalizovaná bolest je klasický vzorec přetížení.")
+                p = base
+                push("pain", f"Neustupující bolest: {site}", "A", p, f"{ci.pain_score}/10",
+                     f"{site} — hlášeno {recent2}× během 2 dnů. Bolest, která mezi běhy neustupuje, je varovný signál přetížení. "
+                     "Body určuje dnešní intenzita, opakování počítá signál Opakované bolestivé místo.")
             else:
                 p = base
                 nm = "Bolest při běhu" if base == 44 else "Přetrvávající bolest" if base == 26 else "Mírný diskomfort"
@@ -3543,18 +3657,35 @@ def _assess(db, rid: str) -> dict:
             p = rnd(clamp((ci.stress - 5) * 2.5, 0, 12))
             symp_score += p
             push("fatigue", "Vysoká vnímaná únava", "C", p, f"{ci.stress}/10", "Ze self-reportu v check-inu")
-    if rcv and rcv["sleep"]["debt"] is not None and rcv["sleep"]["debt"] >= 4:
+        # v0.9.3 — check-in items count only here, no longer also through readiness
+        # (owner feedback 2026-09-30); weights are working assumptions.
+        ls = getattr(ci, "life_stress", None)
+        if ls is not None and ls >= 6:
+            p = rnd(clamp((ls - 5) * 1.5, 0, 8))
+            symp_score += p
+            push("life_stress", "Stres mimo trénink", "C", p, f"{ls}/10",
+                 "Ze self-reportu v check-inu. Stres mimo trénink ubírá z regenerace (Saw et al., 2016), počítá se 0,6× únavy.")
+        sq = getattr(ci, "sleep_quality", None)
+        if sq in (0, 1):
+            p = 6 if sq == 0 else 3
+            symp_score += p
+            push("sleep_self", "Špatně prospaná noc", "C", p, "velmi špatně" if sq == 0 else "špatně",
+                 "Vaše hodnocení noci v check-inu.")
+    # v0.9.3 — in the Kapacitní engine the watch's sleep scales capacity through readiness,
+    # so it isn't scored on Příznaky as well (owner feedback 2026-09-30)
+    sleep_on_symp = cap_v3 is None
+    if sleep_on_symp and rcv and rcv["sleep"]["debt"] is not None and rcv["sleep"]["debt"] >= 4:
         p = rnd(clamp(rcv["sleep"]["debt"] * 2.5, 0, 16))
         symp_score += p
         push("sleep", "Spánkový dluh", "B", p, f"−{rcv['sleep']['debt']} h/týden",
              f"{rcv['sleep']['now']} h proti obvyklým {rcv['sleep']['base']} h")
-    if sreg and sreg["ratio"] is not None and sreg["ratio"] >= 1.5:
+    if sleep_on_symp and sreg and sreg["ratio"] is not None and sreg["ratio"] >= 1.5:
         p = rnd(clamp((sreg["ratio"] - 1.5) * 12, 0, 14))
         symp_score += p
         push("sleepreg", "Nepravidelná délka spánku", "C", p, f"SD ×{sreg['ratio']}",
              f"kolísání délky spánku {sreg['sdNow']} h proti obvyklým {sreg['sdBase']} h za 14 dní")
     # v0.5 — low sleep efficiency (fragmented sleep) beyond raw duration
-    if seff and seff["now"] is not None and seff["now"] < 0.85:
+    if sleep_on_symp and seff and seff["now"] is not None and seff["now"] < 0.85:
         p = rnd(clamp((0.85 - seff["now"]) * 60, 0, 16))
         if p:
             symp_score += p
@@ -3583,19 +3714,26 @@ def _assess(db, rid: str) -> dict:
     # response when the runner marks that site again: one mark at any intensity
     # is enough (a new site needs recurrence or pain ≥ 3 first), and the points
     # grow with the number of days it was marked in the last 14.
-    ph = prior_site_hits(db, rid, prior_injury_sites(db, r, rid))
+    ph = prior_site_hits(db, rid, prior_sites)
     if ph:
-        mult = 1.0 if ph["days"] == 1 else 1.5 if ph["days"] == 2 else 2.0
-        fp = pain_fade(age_of(ph.get("last")), pstate["cleared"])
-        p = rnd(ph["weight"] * mult * fp)
+        # v0.9.3 — the weight follows the site's pain episode (graduated re-marks, clean
+        # days halve it, the 3rd ends it), no longer ×1,5 / ×2 for more marked days
+        lv = [ep["level"] for ep in episodes.values() if _site_matches(ep["region"], ep["side"] or None, ph["site"])]
+        mult = max(lv) if lv else pain_fade(age_of(ph.get("last")), pstate["cleared"])
+        if rnd(ph["weight"] * mult) < 1:
+            ph = None                   # the episode has ended: nothing left to show
+    if ph:
+        fp = 1.0
+        p = rnd(ph["weight"] * mult)
         symp_score += p
         st = ph["site"]
         side = _SIDE_CZ.get(getattr(r, "prior_injury_side", None) or "", "") if st.get("profile") else ""
         push("pain_prior", "Bolest v místě dřívějšího zranění", "A", p, f"{ph['days']}× / {PRIOR_HIT_WINDOW} dní",
              f"{', '.join(x for x in ph['labels'] if x)} — místo dřívějšího zranění ({st['label']}{f', {side}' if side else ''}) "
              f"jste označil {ph['days']}× za {PRIOR_HIT_WINDOW} dní. U dříve zraněného místa stačí jediné označení "
-             f"bez ohledu na intenzitu a váha roste s počtem dní (×{mult:g}). Samotné zranění v anamnéze body "
-             f"nepřidává, jen snižuje toleranci zátěže (×{r2(frailty)})."
+             f"bez ohledu na intenzitu. Počet označení váhu nezvyšuje, řídí ji průběh bolesti na místě: teď "
+             f"{round(mult * 100)} % plné váhy (dny bez bolesti ji půlí, třetí ji ukončí). Samotné zranění v anamnéze "
+             f"body nepřidává, jen snižuje toleranci zátěže (×{r2(frailty)})."
              + (" Datum zranění chybí — počítáme ho jako nedávné, doplňte ho v profilu." if prior_unknown and st.get("profile") else "")
              + (f" Slábne s odstupem od posledního označení (×{r2(fp)})." if fp < 0.99 else ""))
 
@@ -3623,9 +3761,11 @@ def _assess(db, rid: str) -> dict:
     # sensitive (if less specific) early flag than same-site recurrence alone.
     rec_all = pain_recurrence(db, rid)
     run_complaint_days = len({d for reg, dts in rec_all.items() if _run_relevant(reg) for d in dts})
-    if run_complaint_days >= 3:
-        last_c = max((d for reg, dts in rec_all.items() if _run_relevant(reg) for d in dts), default=None)
-        fc = pain_fade(age_of(last_c), pstate["cleared"])
+    # v0.9.3 — "napříč místy": only with at least two different sites (one site marked
+    # again and again is the repeated sore spot above), and it fades with the episodes
+    live_sites = [ep for ep in episodes.values() if ep["level"] > 0.01]
+    if run_complaint_days >= 3 and len(live_sites) >= 2:
+        fc = max(ep["level"] for ep in live_sites)
         p = rnd(clamp((run_complaint_days - 2) * 4, 0, 14) * fc)
         if p:
             symp_score += p
@@ -3768,7 +3908,7 @@ def _assess(db, rid: str) -> dict:
     elif quadrant == "silent":
         trig.append(("watch", clamp((mech_score - QUAD_THRESHOLD) / 50, 0, 1), "quadrant"))
     if pain_recur:
-        trig.append(("watch", clamp((pain_recur["days"] - 1) / 8, 0, 1), "painRecurring"))
+        trig.append(("watch", clamp(pain_recur["level"] * (pain_recur["ref"] or 1) / 10, 0.05, 1), "painRecurring"))
     if pmon:
         trig.append(("watch", 0.4 if pmon.get("morningWorse") else 0.3, "painMonitor"))
     if cluster:

@@ -109,3 +109,48 @@ def test_displayed_scores_vary_inside_the_tier_band():
     assert 40 <= lo < hi <= 69
     # an alert band stays at 70 or above, never below the model
     assert 70 <= E.display_scores(50, 30, "alert", "alert", [("alert", 0.3, "rule")])["overall"] <= 100
+
+
+def _ci(db, rid, days_ago, pain, region="Koleno", side="L"):
+    db.add(models.Checkin(runner_id=rid, submitted_at=E.day_ago(days_ago), pain_score=pain,
+                          pain_points=[{"region": region, "side": side}] if pain else []))
+
+
+def test_pain_episode_clean_days_halve_then_end(client, db_session):
+    """v0.9.3 (owner rule) — a day that doesn't mark the site halves its level, the 2nd
+    halves it again, the 3rd ends the episode."""
+    rid = register(client, "ep-clean@test.cz", "Ep", "runner").json()["runner_id"]
+    _ci(db_session, rid, 3, 3); _ci(db_session, rid, 2, 0); _ci(db_session, rid, 1, 0)
+    db_session.commit()
+    ep = next(iter(E.pain_episodes(db_session, rid).values()))
+    assert ep["clean"] == 2 and abs(ep["level"] - 0.25 * 0.5 ** (1 / E.SYMP_HALF_LIFE)) < 0.002
+    _ci(db_session, rid, 0, 0)
+    db_session.commit()
+    assert next(iter(E.pain_episodes(db_session, rid).values()))["level"] == 0
+
+
+def test_pain_episode_re_marks_are_graduated_by_the_sites_median_and_p75(client, db_session):
+    """Below the median of the earlier marks nothing changes, median–P75 lifts the level
+    halfway back to full, above P75 it resets to full."""
+    rid = register(client, "ep-grad@test.cz", "Ep", "runner").json()["runner_id"]
+    for d, pain in ((6, 5), (5, 0), (4, 2), (3, 5), (2, 0), (1, 3), (0, 5)):
+        _ci(db_session, rid, d, pain)
+    db_session.commit()
+    ep = next(iter(E.pain_episodes(db_session, rid).values()))
+    # 5 → 1 · clean → ½ · 2 < median 5: kept ½ · 5 > P75 4,25: reset 1 · clean → ½ ·
+    # 3 < median 5: kept ½ · 5 within median 4 … P75 5: half lift → ¾
+    assert ep["how"] == "partial" and ep["level"] == 0.75 and ep["ref"] == 5 and ep["days"] == 5
+
+
+def test_repeated_marks_do_not_raise_the_points(client, db_session):
+    """Marking the same mild spot on more days keeps its points (until an injury report)."""
+    pts = []
+    for n in (3, 8):             # recurring from 3 marked days (without a set sex)
+        rid = register(client, f"ep-rep{n}@test.cz", "Ep", "runner").json()["runner_id"]
+        for d in range(n):
+            _ci(db_session, rid, d, 2, region="Achillova šlacha", side="P")
+        db_session.commit()
+        a = E.recompute_assessment(db_session, rid)
+        pts.append(next(s["pts"] for s in a["signals"] if s["id"] == "niggle"))
+        assert a["painRecurring"]["level"] == 1.0
+    assert pts[0] == pts[1] == 18

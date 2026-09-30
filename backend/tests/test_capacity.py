@@ -294,10 +294,15 @@ def test_sleep_counts_several_nights_and_an_absolute_floor(client, db_session):
 
 
 def test_checkin_life_stress_and_sleep_quality(client, db_session):
-    """Saw et al. (2016): single well-being items, kept separate."""
+    """Saw et al. (2016): single well-being items, kept separate. v0.9.3: they are scored
+    once, on Příznaky, and no longer lower readiness (owner feedback 2026-09-30)."""
     db = db_session
     rid = register(client, "rdc@test.cz", "Items", "runner").json()["runner_id"]
-    db.add(models.Checkin(runner_id=rid, submitted_at=E.day_ago(0), life_stress=9, sleep_quality=0))
+    db.add(models.Checkin(runner_id=rid, submitted_at=E.day_ago(0), life_stress=9, sleep_quality=0, soreness=8, stress=8))
     db.commit()
     _f, parts, score = C.readiness_by_day(db, rid, [E.day_ago(0)])[E.day_ago(0)]
-    assert parts["stress"] == pytest.approx(0.6 * 0.8) and parts["sleep"] == 0.35 and score < 70
+    assert not ({"stress", "sleep", "soreness", "fatigue"} & set(parts)) and score == 100
+    a = E.recompute_assessment(db, rid)
+    ids = {s["id"]: s for s in a["signals"]}
+    assert {"life_stress", "sleep_self", "sore", "fatigue"} <= set(ids)
+    assert all(E.signal_axis(k) == "symp" for k in ("life_stress", "sleep_self", "sore", "fatigue"))

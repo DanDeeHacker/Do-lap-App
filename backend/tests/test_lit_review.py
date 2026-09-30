@@ -228,4 +228,7 @@ def test_high_hrv_with_fatigue_is_not_good_news(client, db_session):
     with E.engine_pinned("v3"):
         a = E.assess(db_session, rid)
     assert a["rcv"]["hrv"]["z"] >= E.HRV_HIGH_Z
-    assert any(s["id"] == "hrv_high" for s in a["signals"])
+    # v0.9.3 — check-in fatigue is scored on Příznaky only, so with the heart rate at the
+    # usual pace unchanged the high HRV adds no load points (it needs hr_pace)
+    assert not any(s["id"] == "hrv_high" for s in a["signals"])
+    assert any(s["id"] == "fatigue" for s in a["signals"])

@@ -41,7 +41,9 @@ def test_readiness_carries_inputs_effects_and_yesterday(client, db_session):
         a = E.assess(db, rid)
     r = a["capacity"]["readiness"]
     assert r["known"] and r["yesterday"]["known"]
-    assert r["effects"]["hrv"] > 0 and r["effects"]["soreness"] > 0
+    # v0.9.3 — the check-in's soreness is scored on Příznaky, not in readiness
+    assert r["effects"]["hrv"] > 0 and "soreness" not in r["effects"]
+    assert any(s["id"] == "sore" for s in a["signals"])
     assert abs((100 - r["score"]) - sum(r["effects"].values())) <= 0.6
     i = r["inputs"]
     assert i["night"]["hrv"] == 40 and i["night"]["rhr"] == 60 and i["base"]["hrv"] in range(60, 65)

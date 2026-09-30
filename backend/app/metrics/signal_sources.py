@@ -237,8 +237,18 @@ def sources_for(db, rid, sid, a, cap, runner, titles):
         return _nights(db, rid, sid=sid)
     if sid in MECH_FIELD or sid == "dec":
         return _mech(db, rid, sid, a)
-    if sid in ("niggle", "feel", "stiffness"):
+    if sid == "niggle":            # v0.9.3: the repeated sore spot's marks (check-ins and run ratings)
+        reg, _, side = (a.get("_niggleRegion") or "").partition("|")
+        return pain_entries(db, rid, 28, lambda p: (E._norm_region(p.get("region")) or "") == reg
+                            and E._SIDE_KEY.get(p.get("side") or "", "") == side) if reg else []
+    if sid in ("feel", "stiffness"):
         return _ratings(db, rid, sid)
+    if sid == "life_stress":
+        return _checkins(db, rid, 1, lambda c: getattr(c, "life_stress", None) is not None and c.life_stress >= 6
+                         and f"stres mimo trénink {c.life_stress}/10", lambda c: c.life_stress)
+    if sid == "sleep_self":
+        return _checkins(db, rid, 1, lambda c: getattr(c, "sleep_quality", None) in (0, 1)
+                         and f"noc {'velmi špatně' if c.sleep_quality == 0 else 'špatně'}")
     if sid == "sore":
         return _checkins(db, rid, 4, lambda c: c.soreness is not None and c.soreness >= 7 and f"svalová únava {c.soreness}/10", lambda c: c.soreness)
     if sid == "fatigue":
@@ -266,7 +276,7 @@ def _note_kind(sid: str) -> str:
         return "night"
     if sid in MECH_FIELD or sid == "dec":
         return "mech"
-    if sid in ("feel", "stiffness", "sore", "fatigue"):
+    if sid in ("feel", "stiffness", "sore", "fatigue", "life_stress"):
         return "value"
     return "duration"
 
@@ -304,6 +314,8 @@ def attach(db, rid, a: dict, runner=None) -> None:
     if want:
         titles = {x.id: x.title for x in db.activities if x.id in want}
     for s in a.get("signals") or []:
+        if s["id"] == "niggle":
+            a["_niggleRegion"] = s.get("region")
         try:
             s["sources"] = sources_for(db, rid, s["id"], a, cap, runner, titles)
             note = split_shares(s["id"], s["sources"])
@@ -311,3 +323,4 @@ def attach(db, rid, a: dict, runner=None) -> None:
         except Exception:             # a source list is a convenience — never break the assessment
             s["sources"] = []
             s["shareNote"] = None
+    a.pop("_niggleRegion", None)

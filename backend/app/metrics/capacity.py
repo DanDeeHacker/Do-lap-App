@@ -24,8 +24,8 @@ Capacity = demonstrated tolerance:
              > 1.3× their preceding 4 weeks excluded); needs 3 weeks.
 
 Readiness (0.7–1.0) scales capacity DOWN on a poorly recovered day: that night's
-HRV and resting HR against the runner's own 28-day baseline, sleep shortfall and
-check-in soreness/fatigue. A normal run on a bad night therefore counts as an
+HRV and resting HR against the runner's own 28-day baseline and sleep shortfall
+(v0.9.3: check-in items are scored on Příznaky only). A normal run on a bad night therefore counts as an
 exceedance; the same run on a good night doesn't. Injury history (frailty) shrinks
 the safety margins.
 
@@ -848,8 +848,7 @@ def readiness_by_day(db, rid, days) -> dict:
         under 7 h (whichever is worse), compounded with its quality — a lower
         deep + REM share or efficiency than usual (at most half a signal) and the
         runner's own rating of the night;
-      • check-in: soreness / fatigue 6–10, stress outside training 6–10 (0.6×);
-      • check-in soreness / fatigue 6–10.
+      • (v0.9.3: check-in items are scored on Příznaky only, not here).
     Each signal: nothing within ±0.5 SD (normal noise), the full deficit at 3 SD.
     The score (shown as "připravenost") = 100 − 80 × combined deficit: ~70 % when
     HRV and resting HR are both ~1.1 SD off (7-night means ~0.9 SD) or HRV alone
@@ -862,10 +861,6 @@ def readiness_by_day(db, rid, days) -> dict:
     lo = (_d(days[0]) - timedelta(days=READY_BASE[1] + 1)).isoformat()
     data = D.of(db, rid)
     dm = {d.date[:10]: d for d in data.daily if d.date >= lo}
-    cks = {}
-    for c in data.checkins:
-        if c.submitted_at >= lo:
-            cks.setdefault(c.submitted_at[:10], []).append(c)
     from . import reference as REF
     pri = {f: E.recovery_priors(f, data) for f in REF.RECOVERY_FIELDS}
     wk_min = READY_WEEK_MIN["trained" if trained_runner(data, rid, days[-1]) else "rec"]
@@ -913,17 +908,9 @@ def readiness_by_day(db, rid, days) -> dict:
             wk.update(_sleep_window(dm, d0))
             parts = readiness_parts({**{f: _ln_hrv(f, getattr(night, f)) for f in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency")},
                                      "rest_share": rest_share(night)}, wk, base, zover)
-        for c in cks.get(day, []):
-            if c.soreness is not None and c.soreness >= 6:
-                parts["soreness"] = max(parts.get("soreness", 0), round(E.clamp((c.soreness - 5) / 5, 0, 1), 2))
-            if c.stress is not None and c.stress >= 6:
-                parts["fatigue"] = max(parts.get("fatigue", 0), round(E.clamp((c.stress - 5) / 5, 0, 1), 2))
-            ls = getattr(c, "life_stress", None)
-            if ls is not None and ls >= 6:
-                parts["stress"] = max(parts.get("stress", 0), round(LIFE_STRESS_W * E.clamp((ls - 5) / 5, 0, 1), 2))
-            sq = getattr(c, "sleep_quality", None)
-            if sq in SLEEP_QUALITY_DEFICIT:                       # the runner's own night: compounds with the watch's
-                parts["sleep"] = round(1 - (1 - parts.get("sleep", 0.0)) * (1 - SLEEP_QUALITY_DEFICIT[sq]), 2)
+        # v0.9.3 — check-in items (soreness, fatigue, stress outside training, the night's
+        # rating) no longer enter readiness: they are scored once, on Příznaky (owner
+        # feedback 2026-09-30). Readiness = the watch's recovery markers and today's session.
         factor, score = readiness_from(parts)
         out[day] = (factor, parts, score)
     return out
