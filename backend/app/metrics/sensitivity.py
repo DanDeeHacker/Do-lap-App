@@ -199,6 +199,11 @@ def _v3_knobs():
             # railway#100 — share of that run still unabsorbed after the nights since it
             {"id": f"v3_{ch}_left", "engine": "v3", "hidden": True, "axis": "load", "label": "", "grade": "—",
              "min": 0.0, "max": 1.0, "step": 0.01, "default": 1.0, "desc": ""},
+            # v0.10.0 — the share of the safety margin pain leaves (1 = full, 0 = none)
+            {"id": f"v3_{ch}_hs", "engine": "v3", "hidden": True, "axis": "load", "label": "", "grade": "—",
+             "min": 0.0, "max": 1.0, "step": 0.01, "default": 1.0, "desc": ""},
+            {"id": f"v3_{ch}_hw", "engine": "v3", "hidden": True, "axis": "load", "label": "", "grade": "—",
+             "min": 0.0, "max": 1.0, "step": 0.01, "default": 1.0, "desc": ""},
         ]
     return ks
 
@@ -284,7 +289,8 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
         scores, shown = {}, {}
         for ch, spec in CAP.CHANNELS.items():
             rs, rw = g[f"v3_{ch}_s"] * scale, g[f"v3_{ch}_w"] * scale
-            ps, pw = CAP.band_points(rs, m_s) * g.get(f"v3_{ch}_left", 1.0), CAP.band_points(rw, m_w)
+            ps = CAP.band_points(rs, m_s * g.get(f"v3_{ch}_hs", 1.0)) * g.get(f"v3_{ch}_left", 1.0)
+            pw = CAP.band_points(rw, m_w * g.get(f"v3_{ch}_hw", 1.0))
             scores[ch] = max(ps, pw, g[f"v3_{ch}_lat"]) * spec["w"]
             shown[ch] = f"×{round(rs if ps >= pw else rw, 2)}"
         contrib = CAP.combine(scores)
@@ -532,6 +538,8 @@ def inputs_from_assessment(a: dict, runner=None) -> dict:
             out[f"v3_{ch}_w"] = ex.get("rw") or 0.0
             out[f"v3_{ch}_lat"] = ex.get("lat") or 0.0
             out[f"v3_{ch}_left"] = ex.get("left", 1.0)
+            out[f"v3_{ch}_hs"] = ex.get("hs", 1.0)
+            out[f"v3_{ch}_hw"] = ex.get("hw", 1.0)
     inj = a.get("injury") or {}
     active = inj.get("active") or {}
     if active:

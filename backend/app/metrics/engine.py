@@ -34,7 +34,7 @@ from .. import models
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.9.4"  # v0.9.4: the check-in steers the training recommendation again (not the Skóre or readiness), guidance.checkinReadiness; v0.9.3: graduated pain episodes per site (median / P75 re-marks, clean days halve, 3rd ends), no count escalation; check-in items only on Příznaky, watch sleep only through readiness; v0.9.2: displayed scores by band (tier band, model and trigger severity place the day in it; ok days spread), no fixed Skóre 60 floor; v0.9.1: recovery nights history and baseline spread for the readiness detail on Zátěž (railway#138), approximate per-item shares of every signal source (railway#132); v0.9.0: engine evaluation 2026-09 — pure snapshot engine (RunnerData, history replays by as_of), jump confirmation by repeats and passive tolerance, pace spike vs own fast runs, monotony only over capacity, RUNSAFE-shaped band curve, weather/equipment/pace-tertile confounders in mechanics, log-HRV readiness (single-night Regenerace removed), injury history to 24 months, under-conditioning, sex-specific TRIMP / bone / Achilles rules, safety rules outside the calibrated score, independent primary outcomes with censoring and session-scale data, LTHR zones and pace-based hard minutes, no physio referral for movement-only drift; v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.10.0"  # v0.10.0: pain and injury act on the capacity itself by the pain-monitoring model (hold inside it, one step back over it, no running on worse morning pain or an active injury, graded return caps the week), readiness per tissue (muscle / tendon / bone channels take HRV and resting HR at half weight); Příznaky and the readiness score unchanged; v0.9.4: the check-in steers the training recommendation again (not the Skóre or readiness), guidance.checkinReadiness; v0.9.3: graduated pain episodes per site (median / P75 re-marks, clean days halve, 3rd ends), no count escalation; check-in items only on Příznaky, watch sleep only through readiness; v0.9.2: displayed scores by band (tier band, model and trigger severity place the day in it; ok days spread), no fixed Skóre 60 floor; v0.9.1: recovery nights history and baseline spread for the readiness detail on Zátěž (railway#138), approximate per-item shares of every signal source (railway#132); v0.9.0: engine evaluation 2026-09 — pure snapshot engine (RunnerData, history replays by as_of), jump confirmation by repeats and passive tolerance, pace spike vs own fast runs, monotony only over capacity, RUNSAFE-shaped band curve, weather/equipment/pace-tertile confounders in mechanics, log-HRV readiness (single-night Regenerace removed), injury history to 24 months, under-conditioning, sex-specific TRIMP / bone / Achilles rules, safety rules outside the calibrated score, independent primary outcomes with censoring and session-scale data, LTHR zones and pace-based hard minutes, no physio referral for movement-only drift; v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -4004,15 +4004,19 @@ def display_scores(overall_model: float, symp_model: float, tier: str, rule_lvl:
     base = tier_of(overall_model)
     model_disp = display_ok(overall_model) if base == "ok" else overall_model
     band = None
-    if tier == base:
+    lo, hi = SCORE_BANDS[tier]
+    held = [t for t in triggers if _TIER_ORDER[t[0]] >= _TIER_ORDER[tier]]
+    if tier == base and not (held and tier != "ok"):
         overall = model_disp
     else:
-        lo, hi = SCORE_BANDS[tier]
-        at = [t for t in triggers if _TIER_ORDER[t[0]] >= _TIER_ORDER[tier]] or triggers or [(tier, 0.0, "rule")]
+        # v0.10.0 — a trigger's position also holds when the model reaches the same tier
+        # itself, so more load can never show a lower Skóre than the trigger alone did
+        at = held or triggers or [(tier, 0.0, "rule")]
         top = max(at, key=lambda t: t[1])
         pos = clamp(0.65 * top[1] + 0.35 * (display_ok(overall_model) / 39 if overall_model < 40 else 1.0), 0, 1)
-        overall = max(overall_model, lo + (hi - lo) * pos)
-        band = {"by": top[2], "severity": round(top[1], 2)}
+        overall = max(model_disp if tier == base else overall_model, lo + (hi - lo) * pos)
+        if overall > model_disp or tier != base:
+            band = {"by": top[2], "severity": round(top[1], 2)}
     symp = symp_model
     if rule_lvl != "ok":
         lo, hi = SCORE_BANDS[rule_lvl]

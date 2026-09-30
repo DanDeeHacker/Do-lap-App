@@ -405,7 +405,8 @@ def health():
     # `persistent` lets you verify from the running app that account history
     # will survive a redeploy (i.e. the DB is on a mounted volume, not the image).
     info = dbmod.db_location_info()
-    return {"ok": True, "db_persistent": info["persistent"], "db_exists": info["exists"]}
+    from .metrics import engine as _E    # the running engine version, to confirm a deploy landed
+    return {"ok": True, "db_persistent": info["persistent"], "db_exists": info["exists"], "engine": _E.ENGINE_VERSION}
 
 
 # Frontend is edited live (static HTML/JS, no build step) — tell the browser
