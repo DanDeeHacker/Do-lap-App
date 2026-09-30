@@ -704,6 +704,35 @@ def readiness_parts(night: dict, week: dict, base: dict, zover: dict | None = No
     return parts
 
 
+def checkin_parts(c) -> dict:
+    """v0.9.3 — a check-in's items as readiness-style deficits (the pre-v0.9.3 rules),
+    for the training recommendation only: on the Skóre they count once, on Příznaky,
+    and they no longer enter readiness (owner feedback 2026-09-30)."""
+    parts = {}
+    if c is None:
+        return parts
+    if c.soreness is not None and c.soreness >= 6:
+        parts["soreness"] = round(E.clamp((c.soreness - 5) / 5, 0, 1), 2)
+    if c.stress is not None and c.stress >= 6:
+        parts["fatigue"] = round(E.clamp((c.stress - 5) / 5, 0, 1), 2)
+    ls = getattr(c, "life_stress", None)
+    if ls is not None and ls >= 6:
+        parts["stress"] = round(LIFE_STRESS_W * E.clamp((ls - 5) / 5, 0, 1), 2)
+    sq = getattr(c, "sleep_quality", None)
+    if sq in SLEEP_QUALITY_DEFICIT:
+        parts["sleepSelf"] = SLEEP_QUALITY_DEFICIT[sq]
+    return parts
+
+
+def with_checkin(parts: dict, ci: dict) -> dict:
+    """Watch readiness parts + check-in parts; the runner's own night compounds with
+    the watch's sleep, as it did inside readiness before v0.9.3."""
+    out = {**parts, **{k: v for k, v in ci.items() if k != "sleepSelf"}}
+    if "sleepSelf" in ci:
+        out["sleep"] = round(1 - (1 - parts.get("sleep", 0.0)) * (1 - ci["sleepSelf"]), 2)
+    return out
+
+
 def readiness_from(parts: dict) -> tuple[float, int]:
     """(capacity factor 0.7–1.0, readiness score 20–100 %) from per-signal deficits.
     Agreeing signals compound: the worst counts fully, the 2nd half, the 3rd a quarter."""

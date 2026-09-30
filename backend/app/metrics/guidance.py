@@ -438,6 +438,22 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     speed_range = (speeds[int(0.05 * (len(speeds) - 1))], speeds[int(0.95 * (len(speeds) - 1))]) if len(speeds) >= 5 else None
     ready = cap["readiness"]["today"]                      # capacity factor 0.7–1.0 (scales sizes)
     rscore = cap["readiness"].get("score", round(ready * 100))   # readiness shown to the runner, 20–100 %
+    # v0.9.3 — today's check-in (soreness, fatigue, stress, the night's rating) no longer
+    # lowers readiness (it is scored on Příznaky only), but the recommendation still
+    # follows it: the same deficits as before, combined with the watch's, decide the
+    # session type and scale its size (owner feedback 2026-09-30).
+    ci_today = max((c for c in db.checkins if (c.submitted_at or "")[:10] == t_iso),
+                   key=lambda c: c.submitted_at or "", default=None)
+    ci_parts = C.checkin_parts(ci_today)
+    gready, gscore = ready, rscore
+    if ci_parts:
+        f2, s2 = C.readiness_from(C.with_checkin(cap["readiness"].get("parts") or {}, ci_parts))
+        gready, gscore = min(ready, f2), min(rscore, s2)
+    ci_lbl = {"soreness": "svalová bolest", "fatigue": "únava", "stress": "stres mimo trénink", "sleepSelf": "špatně prospaná noc"}
+    ci_note = ", ".join(ci_lbl[k] for k in sorted(ci_parts, key=lambda k: -ci_parts[k]) if k in ci_lbl)
+
+    def rtxt():
+        return f"Připravenost {rscore} %" + (f", s dnešním check-inem ({ci_note}) {gscore} %" if gscore < rscore else "")
     ch = cap["channels"]
 
     # ---- context ---------------------------------------------------------
@@ -655,7 +671,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                 f"Včerejší běh bolel {y_run_pain}/10, ráno je klid" if settled_after_run else
                 f"Opakovaná bolest ({recurring['site']}, {recurring['days']}× za 28 dní; uvolní se po: {need})"
                 if rec_active else "")
-    km_scale = (0.7 if pain_mod else 1.0) * max(ready, 0.75) * (0.9 if new_block else 1.0)
+    km_scale = (0.7 if pain_mod else 1.0) * max(gready, 0.75) * (0.9 if new_block else 1.0)
     # weekly target reached but the 7-day ceiling still has room: a short easy run
     # stays available (not the default) — a rested body may move, the plan isn't risk
     vw = week["volume"]
@@ -664,7 +680,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     easy_room = [x for x in (vw["left7"], vw["ceilingRun"], km_by_sys7) if x is not None]
     easy_room = min(easy_room) if easy_room else None
     extra_easy = (vw["limitedBy"] == "week" and (vol_max or 0) < MIN_RUN_KM and easy_room is not None
-                  and easy_room >= MIN_RUN_KM and rscore >= READY_EXTRA_EASY and not pain_mod and pain < 3)
+                  and easy_room >= MIN_RUN_KM and gscore >= READY_EXTRA_EASY and not pain_mod and pain < 3)
 
     def cap_km(x):
         return x if vol_max is None else min(x, vol_max)
@@ -859,9 +875,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         block("kvalitní", f"{pain_why} — dnes bez intenzity.")
     if rtr and rtr["noQuality"]:
         block("kvalitní", f"Návrat po zranění — bez intenzity do {_dm(rtr['noQualityUntil'])}.")
-    if rscore < READY_QUALITY:
-        block("kvalitní", f"Připravenost {rscore} % — na tvrdý trénink je potřeba aspoň {READY_QUALITY} %.")
-        block("dlouhý", f"Připravenost {rscore} % — dlouhý běh přesuňte na odpočatější den.")
+    if gscore < READY_QUALITY:
+        block("kvalitní", f"{rtxt()} — na tvrdý trénink je potřeba aspoň {READY_QUALITY} %.")
+        block("dlouhý", f"{rtxt()} — dlouhý běh přesuňte na odpočatější den.")
     if load >= 25:
         block("kvalitní", "Zátěž je zvýšená — týden odlehčujeme, bez tvrdých úseků.")
     if a.get("quadrant") in ("overreaching", "critical"):     # A4: the recommendation follows the state label
@@ -946,7 +962,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         typ = "volno"
     elif pain > 5:
         typ = "regenerace"
-    elif rscore < READY_EASY_ONLY:
+    elif gscore < READY_EASY_ONLY:
         typ = "regenerace" if types["regenerace"]["allowed"] else "volno"
     elif pat["runDays"] and wd not in pat["runDays"] and runs_last6 >= pat["runsPerWeek"] - 1:
         typ = "volno"
@@ -968,7 +984,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     run_blocked = vol_max is not None and vol_max < MIN_RUN_KM and not extra_easy
     ride_day = (not pat["runDays"]) or wd in pat["runDays"]
     if (typ == "volno" and not override and not race_rest and run_blocked and ride_day
-            and rscore >= READY_EASY_ONLY and types["kolo"]["allowed"] and vw["limitedBy"] != "systemic"):
+            and gscore >= READY_EASY_ONLY and types["kolo"]["allowed"] and vw["limitedBy"] != "systemic"):
         typ = "kolo"                      # running tissues are at their limit, the aerobic side isn't
     # v0.8.5: a rest day because of pain → the non-running option that spares the painful
     # spot (deep-water running keeps aerobic fitness for 4–6 weeks: Wilber et al., 1996;
@@ -1049,10 +1065,14 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         reasons.append(f"Připravenost {'ráno ' if after.get('drop') else ''}{mscore} % ({', '.join(low[:3])} proti vaší "
                        "normě) — dnešní stropy jsou úměrně nižší"
                        + (", bez tvrdého tréninku a dlouhého běhu." if rscore < READY_QUALITY else "."))
-    elif typ == "volno" and not override and rscore >= READY_EXTRA_EASY:
+    elif typ == "volno" and not override and gscore >= READY_EXTRA_EASY:
         reasons.append(f"Připravenost {rscore} % — tělo je zregenerované, volno je kvůli týdennímu plánu, "
                        "ne kvůli únavě." + (f" Pokud máte chuť, krátký regenerační běh do {_cz(extra_cap)} km nic nezhorší."
                                             if extra_easy else ""))
+    if gscore < rscore:
+        reasons.append(f"Dnešní check-in ({ci_note}) doporučení snižuje, jako by připravenost byla {gscore} % místo {rscore} %"
+                       + (", proto bez tvrdého tréninku a dlouhého běhu" if gscore < READY_QUALITY <= rscore else "")
+                       + ". Do Skóre se check-in počítá jen v Příznacích.")
     for w in ro.get("warnings") or []:            # plan B4: a race too close to a maximal effort / race-day state
         if w["kind"] != "race_day" or race_today or w["gap"] == 1:
             reasons.append(w["text"])
@@ -1129,7 +1149,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     return {
         "date": t_iso, "engine": "v3", "type": typ, "typeLabel": TYPE_LABEL[typ],
         "provisional": provisional, "override": override, "referral": decision if referral else None,
-        "pain": pain or 0, "readiness": ready, "readinessScore": rscore, "types": types,
+        "pain": pain or 0, "readiness": ready, "readinessScore": rscore, "checkinReadiness": gscore if gscore < rscore else None,
+        "types": types,
         "axes": {"load": load, "mech": a.get("mech") or 0, "threshold": E.QUAD_THRESHOLD},
         "week": {"channels": week, "mode": mode, "progression": round(factor, 3), "cycle": cycle,
                  "novice": {"days": hist_days, "until": (today + timedelta(days=NOVICE_DAYS - hist_days)).isoformat()} if novice else None},

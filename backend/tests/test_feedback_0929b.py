@@ -154,3 +154,23 @@ def test_repeated_marks_do_not_raise_the_points(client, db_session):
         pts.append(next(s["pts"] for s in a["signals"] if s["id"] == "niggle"))
         assert a["painRecurring"]["level"] == 1.0
     assert pts[0] == pts[1] == 18
+
+
+def test_checkin_still_steers_the_recommendation_without_touching_readiness(client, db_session):
+    """v0.9.3 — the check-in counts on the Skóre only in Příznaky, but the training
+    recommendation still follows it (owner feedback 2026-09-30)."""
+    from app.metrics import guidance as G
+    from .test_guidance import _guide, _runner
+    rid, r = _runner(client, db_session, "ci-guide@test.cz")
+    calm = _guide(db_session, rid, r)
+    assert calm["checkinReadiness"] is None
+    db_session.add(models.Checkin(runner_id=rid, submitted_at=E.now_iso(), pain_score=0, pain_points=[],
+                                  soreness=9, stress=9))
+    db_session.commit()
+    with E.engine_pinned("v3"):
+        a = E.assess(db_session, rid)
+    assert "soreness" not in (a["capacity"]["readiness"].get("parts") or {})     # readiness is the watch's
+    g = G.build_guidance(db_session, rid, a, r)
+    assert g["checkinReadiness"] is not None and g["checkinReadiness"] < G.READY_QUALITY <= g["readinessScore"]
+    assert not g["types"]["kvalitní"]["allowed"] and not g["types"]["dlouhý"]["allowed"]
+    assert any("Dnešní check-in" in x for x in g["reasons"])
