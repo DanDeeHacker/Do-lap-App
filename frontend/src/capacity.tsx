@@ -249,7 +249,7 @@ function ChannelRow({ id, c, margins, extra, open, onToggle, scale }: { id: stri
           )}
           {c.known && wk?.residual != null && (
             <p className="mt-1 text-[11px] text-fg-3">
-              Nevstřebáno <b className="text-fg">{num(wk.residual)} {c.unit}</b> (týdenní ekvivalent, klesá každou noc) proti kapacitě {num(wk.cap)}
+              Nevstřebáno <b className="text-fg">{num(wk.residual)} {c.unit}</b> (týdenní ekvivalent, klesá každou noc) {wk.capPeak != null ? <>proti vaší obvyklé týdenní špičce {num(wk.capPeak)} · ×{num(wk.ratio)}</> : <>proti kapacitě {num(wk.cap)}</>}
               {ses?.left != null && ses.left < 0.99 ? ` · z nejnáročnějšího běhu zbývá asi ${Math.round(ses.left * 100)} %` : ""}
             </p>
           )}

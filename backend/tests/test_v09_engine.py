@@ -204,3 +204,44 @@ def test_every_engine_carries_readiness(client, db_session):
     db_session.commit()
     with E.engine_pinned("v1"):
         assert E.assess(db_session, rid2)["readiness"] is None       # no watch data: "—", not 100 %
+
+
+def test_a_weekly_session_is_not_over_capacity_on_its_own_day(client, db_session):
+    """v0.10.1 — the routine runner (3 easy runs + 1 tempo a week) on every weekday,
+    the tempo day included: the weekly score compares like with like."""
+    from datetime import date
+    for k in range(7):
+        day = date(2026, 9, 28) + timedelta(days=k)
+        with E.today_pinned(day):
+            rid = f"v09-wd-{k}"
+            _runner(db_session, rid)
+            _routine(db_session, rid)
+            a = _assess(db_session, rid)
+        ch = a["capacity"]["channels"]["intensity"]
+        ex = ch["exact"]
+        assert ex["rw"] < 1 + C.MARGIN_WEEK and ch.get("driver") != "week", (day.strftime("%a"), ex, ch.get("week"))
+        assert (ch.get("pts") or 0) <= 1                                 # at most a faint latent echo, never the week
+        assert ch["week"]["capPeak"] is not None
+
+
+def test_a_real_rise_over_the_weekly_habit_still_scores(client, db_session):
+    """Doubling the weekly hard work (a second tempo, a longer one) is still over capacity."""
+    rid = "v09-wd-rise"
+    _runner(db_session, rid)
+    n = _routine(db_session, rid)
+    _run(db_session, rid, 1, 14, 290, 168, n + 1)                  # a 14 km tempo the day before the usual one
+    _run(db_session, rid, 0, 12, 290, 168, n + 2)
+    db_session.commit()
+    a = _assess(db_session, rid)
+    ch = a["capacity"]["channels"]["intensity"]
+    assert ch["exact"]["rw"] > 1.3 and (ch.get("pts") or 0) > 0
+
+
+def test_peak_capacity_equals_the_plain_one_on_steady_training():
+    from datetime import date
+    days = [(date(2026, 6, 1) + timedelta(days=k)).isoformat() for k in range(120)]
+    daily = {d: 10.0 for d in days}
+    ref = days[-1]
+    plain = C.weekly_capacity(daily, ref, days[0], set(), "volume")
+    peak = C.weekly_capacity_residual(daily, ref, days[0], set(), "volume")
+    assert abs(peak - plain) / plain < 0.02

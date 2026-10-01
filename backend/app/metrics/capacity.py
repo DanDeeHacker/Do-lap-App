@@ -591,6 +591,58 @@ def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch):
     return max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"])
 
 
+# v0.10.1 — the weekly score compares the unabsorbed load (residual_week, an EWMA in
+# weekly-equivalent units) with a capacity in THE SAME units: the runner's usual
+# weekly PEAK of that residual. The EWMA jumps on the day of a session (7 × one step
+# ≈ 1.3–1.5 × the session), so a once-a-week tempo or long run read as 1.5–1.85 ×
+# the plain 7-day capacity on its own day, every week. Against the usual peak the
+# habit scores 1.0, and only a real rise above it counts. On steady daily training
+# the peak equals the plain 7-day sum, so nothing changes there. The reference series
+# runs at the nominal rate (habit, not last week's nights); the plain capacity stays
+# for the ceilings, the room left and the guidance, which are in km / min / m.
+RES_WARMUP = 28        # days the EWMA runs before the oldest reference window
+
+
+def _residual_series(daily: dict, days_oldest_first: list, k: float) -> list:
+    level, out = 0.0, []
+    for d in days_oldest_first:
+        level = level * (1 - k) + k * daily.get(d, 0.0)
+        out.append(7 * level)
+    return out
+
+
+def weekly_capacity_residual(daily: dict, ref_day: str, first_day: str, pain: set, ch):
+    """weekly_capacity() in residual_week() units: the mean weekly peak of the residual
+    over the 4 weeks before the current 7-day window, or 0.9 × the best pain-free
+    window's peak of the 6 weeks before it (decayed, spikes left out by the same rule)."""
+    ref = _d(ref_day)
+    known = (ref - _d(first_day)).days
+    if known < 27:
+        return None
+    n = 77
+    iso = [(ref - timedelta(days=k)).isoformat() for k in range(n + RES_WARMUP)]   # iso[k] = k days ago
+    k_ref = _k(HALF_CARDIO_REF if ch in CARDIO else HALF_MSK)
+    res = _residual_series(daily, iso[::-1], k_ref)[::-1]                          # res[k] = k days ago
+    vals = [daily.get(d, 0.0) for d in iso[:n]]
+    painful = [d in pain for d in iso[:n]]
+
+    def peak(back):
+        return max(res[back:back + 7])
+    chronic = sum(peak(b) for b in (7, 14, 21, 28)) / 4
+    best = 0.0
+    for back in range(7, 42):
+        if any(painful[back:back + 7]):
+            continue
+        w = sum(vals[back:back + 7])
+        prior = vals[back + 7:min(back + 35, known + 1)]
+        if len(prior) >= 14:
+            before = sum(prior) / (len(prior) / 7)
+            if before > 0 and w > JUMP_RATIO * before:
+                continue
+        best = max(best, peak(back) * BREAK_DECAY ** max(0.0, (back - 14) / 7))
+    return max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"])
+
+
 READY_BASE = (8, 56)    # baseline nights: 8–56 days back (a strained stretch doesn't become its own norm)
 READY_TOLERANCE = 0.5   # SD — ordinary night-to-night noise costs nothing
 READY_FULL = 3.0        # SD off the baseline = the whole deficit for that signal
@@ -1524,8 +1576,11 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         p_w = 0.0
         rw = None
         resid_w = residual_week(daily, absorb_days, rates, ch)
+        cap_peak = weekly_capacity_residual(daily, t_iso, first_day, pain, ch) if capw is not None else None
+        if cap_peak is not None and cap_base:
+            cap_peak *= capw / cap_base          # a return-to-run cap scales the peak the same way
         if capw is not None:
-            rw = resid_w / (capw * wk_ready_c * wk_bscore)
+            rw = resid_w / ((cap_peak or capw) * wk_ready_c * wk_bscore)
             p_w = band_points(rw, m_w * wk_hold)
             # the ceiling is exactly where the weekly score starts: capacity × the
             # week's average readiness × (1 + margin) — not today's readiness, so
@@ -1533,6 +1588,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             # (v0.10.0) likewise by the week's average
             ceil_w = capw * (1 + m_w * wk_hold) * wk_ready_c * wk_bfac
             week = {"now": _fmt(now_w, ch), "residual": _fmt(resid_w, ch), "cap": _fmt(capw, ch), "ratio": round(rw, 2),
+                    "capPeak": _fmt(cap_peak, ch) if cap_peak is not None else None,
                     "ceiling": _fmt(ceil_w, ch), "left": _fmt(max(0.0, ceil_w - now_w), ch)}
             if capw != cap_base:
                 week["capBase"] = _fmt(cap_base, ch)
@@ -1605,7 +1661,8 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             w = info["week"]
             val = f"×{w['ratio']}"
             detail = (f"Nevstřebaná zátěž {w['residual']} {unit} (týdenní ekvivalent, za 7 dní celkem {w['now']} {unit}) "
-                      f"proti vaší týdenní kapacitě {w['cap']} {unit}"
+                      + (f"proti vaší obvyklé týdenní špičce {w['capPeak']} {unit} (kapacita {w['cap']} {unit} za 7 dní)"
+                         if w.get("capPeak") is not None else f"proti vaší týdenní kapacitě {w['cap']} {unit}")
                       + (f" (bez návratu po zranění {w['capBase']} {unit})" if w.get("capBase") is not None else "")
                       + (f" · dnes: {'; '.join(info['body']['reasons'])}" if info.get("body") and info["body"]["reasons"] else ""))
         else:
