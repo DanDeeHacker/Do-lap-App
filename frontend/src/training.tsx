@@ -7,6 +7,8 @@ import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
+import { useQuadHistory } from "@/history"
+import { ReadinessTrend } from "@/tabs"
 import { AlertBanner, Button, Card, Chip, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { readinessCol } from "@/capacity"
@@ -653,6 +655,7 @@ export function Training() {
   const { boot, me, refresh, touring } = useApp()
   const rid = me?.runner_id
   const a = boot?.assessment
+  const quadHist = useQuadHistory(rid)
   const g = a?.guidance
   const [sel, setSel] = useState<string | null>(null)
   const [why, setWhy] = useState(false)
@@ -784,6 +787,8 @@ export function Training() {
         </Sheet>
       )}
 
+      {/* railway#142 — readiness (trend + the nights behind it) right above today's capacity */}
+      <section className="card mt-4 p-4 md:p-6"><ReadinessTrend a={a} hist={quadHist} /></section>
       <TodayCapacity g={g} cycle={<WeekPanel g={g} embedded />} />
       <RacesCard outlook={a.races} g={g} cap={a.capacity} />
 

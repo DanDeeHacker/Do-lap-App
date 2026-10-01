@@ -190,7 +190,7 @@ const TABS: [string, string][] = [["/app/today", "Dnes"], ["/app/training", "Tr�
 // it, `value` why it is worth the runner's attention. No medical claims.
 export const TOUR: TourStep[] = [
   { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-score"]' }, title: "Skóre a osy stavu",
-    body: "Velké číslo je celkové skóre dne od 0 do 100, čím vyšší, tím lépe. Kolem něj jsou čtyři kruhy: připravenost, příznaky, zátěž a mechanika. Klepnutím na kteroukoli otevřete její trend.",
+    body: "Velké číslo je celkové skóre dne od 0 do 100, čím vyšší, tím lépe. Klepnutím na něj (šipka u Skóre) otevřete vývoj stavu za 6 měsíců. Kolem něj jsou čtyři kruhy: připravenost, příznaky, zátěž a mechanika, klepnutím na kterýkoli otevřete jeho detail.",
     value: "Za pár vteřin víte, jak na tom tělo dnes je, a hned vidíte, která oblast skóre táhne dolů." },
   { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-reco"]' }, title: "Dnešní doporučení",
     body: "Konkrétní typ tréninku na dnešek s rozsahem kilometrů. Vychází z vaší kapacity, ranní připravenosti a z toho, co jste odběhli v posledních dnech.",
@@ -208,6 +208,9 @@ export const TOUR: TourStep[] = [
   { route: "/app/training", tab: "Trénink", target: { sel: '[data-tour="training-session"]' }, title: "Dnešní trénink",
     body: "Doporučený typ dne s konkrétními mantinely: vzdálenost, čas, tepové pásmo, tempo, minuty v Z4+ a maximum stoupání i klesání. Dlaždicemi přepnete na jiný typ a limity se přepočítají.",
     value: "Víte nejen, co běžet, ale i kde je dnes strop. Tempo a tep jsou spočítané z vašich vlastních běhů." },
+  { route: "/app/training", tab: "Trénink", target: { text: "Připravenost — trend" }, title: "Připravenost",
+    body: "Připravenost po dnech. Pod grafem otevřete spánek, HRV a klidový tep z hodinek, vždy proti vaší vlastní normě.",
+    value: "Po špatné noci unesete méně. Došlap podle toho ráno sníží dnešní stropy." },
   { route: "/app/training", tab: "Trénink", target: { text: "Dnešní kapacita" }, title: "Dnešní kapacita",
     body: "Pět kanálů zátěže: objem, intenzita, klesání, stoupání a celková zátěž. U každého vidíte, kolik z týdenní kapacity máte za sebou a kolik si dnes ještě můžete dovolit.",
     value: "Kapacita roste s tím, co prokazatelně zvládáte, a hlídá prudké skoky, které tělo nestihne vstřebat." },
@@ -265,12 +268,9 @@ export const TOUR: TourStep[] = [
   { route: "/app/load", tab: "Zátěž", target: { text: "Co tvoří skóre zátěže" }, title: "Co tvoří zátěž",
     body: "Kanály seřazené podle toho, kolik přidávají k dnešnímu skóre zátěže.",
     value: "Hned víte, čím ubrat, jestli objemem, intenzitou, nebo seběhy." },
-  { route: "/app/load", tab: "Zátěž", target: { text: "Připravenost — trend" }, title: "Připravenost",
-    body: "Připravenost po dnech. Pod grafem otevřete spánek, HRV a klidový tep z hodinek, vždy proti vaší vlastní normě.",
-    value: "Po špatné noci unesete méně. Došlap podle toho ráno sníží dnešní stropy." },
 
   { route: "/app/messages", tab: "Péče", care: "physio", target: { sel: '[data-tour="care-tabs"]' }, title: "Tři části péče",
-    body: "Fyzioterapeut pro zprávy a schůzky, Program s cviky na míru a Zranění pro nahlášení obtíží a závěry z prohlídek.",
+    body: "Program s cviky na míru, Fyzioterapeut pro zprávy a schůzky a Zranění pro nahlášení obtíží a závěry z prohlídek.",
     value: "Všechno kolem péče o tělo je na jednom místě a navazuje na vaše data." },
   { route: "/app/messages", tab: "Péče", care: "physio", target: { sel: '[data-tour="care-chat"]' }, title: "Zprávy fyzioterapeutovi",
     body: "Chat s fyzioterapeutem přímo v aplikaci. V ukázce fyzioterapeut podle dat upravil program ještě před další kontrolou. Vaše data uvidí až poté, co potvrdíte zájem a on převezme váš případ.",

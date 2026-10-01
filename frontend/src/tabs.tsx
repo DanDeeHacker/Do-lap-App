@@ -166,155 +166,9 @@ export function Post() {
     setRate({ act, initial: f })
   }
 
-  return (
+  // railway#144 — the check-in summary sits under the diary summary, above the pain map
+  const ciBlock = (
     <>
-      <Head
-        kicker="Deník běhů"
-        title={unrated.length ? `${unrated.length} ${plural(unrated.length, "běh čeká", "běhy čekají", "běhů čeká")} na zápis` : "Deník máte kompletní"}
-      />
-      {rate && <RateSheet act={rate.act} initial={rate.initial} rid={rid} onClose={() => setRate(null)} onDone={() => { setRate(null); refresh() }} />}
-      {crossOpen && <CrossSheet rid={rid} onClose={() => setCrossOpen(false)} onDone={() => { setCrossOpen(false); refresh() }} />}
-      <div className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
-        <div className="grid content-start gap-4">
-          {/* railway#135/#136 — one box: runs waiting for a note, the latest notes as a detail under
-              them, and the other sports of the last 14 days */}
-          <Card>
-            <Label>Čeká na zápis</Label>
-            {unrated.length ? (
-              <div className="mt-2 divide-y divide-white/[.07]">
-                {unrated.map((x) => (
-                  <ListRow key={x.id} onClick={() => setRate({ act: x })} icon={actIcon(x)} tone="info"
-                    title={actTitle(x)}
-                    meta={isCross(x) ? `${fmtD(x.started_at)} · jiný sport${x.avg_hr ? ` · ${Math.round(x.avg_hr)} tep/min` : ""}` : `${fmtD(x.started_at)} · ${surf(x.surface)} · ${paceStr(x.pace_s_km)}/km · ${cz(x.descent_m)} m klesání`}
-                    trailing={<span className="btn btn-primary btn-sm shrink-0">Zapsat</span>} />
-                ))}
-              </div>
-            ) : (
-              <div className="mt-3"><Empty>Nic nečeká. Další zápis se objeví po příštím běhu.</Empty></div>
-            )}
-            {sorted.length > 0 && (
-              <>
-                <button type="button" onClick={() => setLatestOpen((v) => !v)} aria-expanded={latestOpen} data-testid="latest-toggle"
-                  className="nest mt-4 flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left transition hover:border-white/20">
-                  <span className="t-label">Poslední zápisy</span>
-                  <span className="flex items-center gap-2 text-[12px] text-fg-3">{Math.min(10, sorted.length)} · klepnutím upravíte<ChevronDown className={`size-4 transition ${latestOpen ? "rotate-180 text-accent" : ""}`} aria-hidden /></span>
-                </button>
-                {latestOpen && (
-                  <div className="mt-1 origin-top animate-[careReveal_.28s_ease-out] divide-y divide-white/[.07]" data-testid="latest-list">
-                    {sorted.slice(0, 10).map((f) => {
-                      const act = actById.get(f.activity_id)
-                      const hurt = f.pain_during >= 4
-                      return (
-                        <div key={f.id} className="flex items-center gap-1">
-                          <ListRow onClick={() => editEntry(f)} icon={actIcon(act)} tone={hurt ? "alert" : "ok"}
-                            title={act ? actTitle(act) : "Běh"}
-                            meta={<>{fmtD(f.submitted_at)}{act?.surface ? ` · ${surf(act.surface)}` : ""} · pocit {FEEL_LABEL[f.feeling] || "—"} · nohy {f.legs}/5{f.pain_during > 0 ? ` · bolest ${f.pain_during}/10` : ""}</>}
-                            extra={f.pain_site ? <span className="mt-1.5 block sm:hidden"><Chip tone="alert">{f.pain_site}</Chip></span> : undefined}
-                            trailing={<>
-                              {f.pain_site && <span className="hidden shrink-0 sm:block"><Chip tone="alert">{f.pain_site}</Chip></span>}
-                              <span className="flex shrink-0 items-center gap-1 text-[12px] font-bold text-fg-3 transition group-hover:text-info">
-                                <span className="hidden opacity-0 transition group-hover:opacity-100 md:inline">Upravit</span>
-                                <ChevronRight className="size-4" aria-hidden />
-                              </span>
-                            </>} />
-                          {act && (
-                            <Link to={`/app/post/${act.id}`} aria-label="Detail běhu" title="Detail běhu"
-                              className="grid size-9 shrink-0 place-items-center rounded-full text-fg-3 hover:bg-info/10 hover:text-info">
-                              <ActivityIcon className="size-4" aria-hidden />
-                            </Link>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-            <div id="jiny-sport" className="mt-5 scroll-mt-24 border-t border-white/[.08] pt-4" data-tour="journal-cross">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label>Jiný sport · 14 dní</Label>
-                <Button size="sm" variant="secondary" onClick={() => setCrossOpen(true)}>Přidat trénink</Button>
-              </div>
-              <p className="mt-1 text-[12px] leading-5 text-fg-3">Kolo, plavání a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Posilování hodinky často nezaznamenají, zapište ho tady.</p>
-              {crossRecent.length ? (
-                <div className="mt-2 divide-y divide-white/[.07]">
-                  {crossRecent.slice(0, 8).map((x) => {
-                    const r = rpeOf.get(x.id)
-                    return (
-                      <ListRow key={x.id} icon={actIcon(x)} tone={r != null ? "ok" : "info"} title={actTitle(x)}
-                        onClick={() => { const f = fb.find((y) => y.activity_id === x.id); setRate({ act: x, initial: f }) }}
-                        meta={`${fmtD(x.started_at)}${r != null ? ` · náročnost ${r}/10` : " · bez hodnocení"}${x.strength_focus ? ` · ${(FOCUS_OPTS.find((o) => o[0] === x.strength_focus) || [0, ""])[1]}` : ""}${x.provider === "manual" ? " · zapsáno ručně" : ""}`}
-                        trailing={x.provider === "manual" ? (
-                          <button type="button" onClick={(e) => { e.stopPropagation(); api.deleteActivity(rid, x.id).then(() => { toastX({ title: "Trénink smazán" }); refresh() }).catch(() => {}) }}
-                            className="shrink-0 rounded-full px-2 py-1 text-[12px] font-bold text-fg-3 hover:bg-alert/10 hover:text-alert">Smazat</button>
-                        ) : undefined} />
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="mt-2 text-[12px] text-fg-3">Za posledních 14 dní žádný jiný sport.</p>
-              )}
-            </div>
-          </Card>
-        </div>
-        <div className="grid content-start gap-4">
-          {/* feedback railway#44/#45 — one summary box: diary (with the reading behind a
-              detail toggle) and the check-in summary under it, for comparison */}
-          <Card>
-            <Label>Souhrn deníku</Label>
-            {ov ? (
-              <>
-                <div data-tour="journal-summary">
-                <div className="mt-3 flex items-baseline gap-2">
-                  <p className="t-num text-[44px] leading-none">{mfmt(1, ov.feelingMean)}</p>
-                  <span className="text-sm text-fg-3">/5 pocit</span>
-                  {ov.feelingTrend !== 0 && <span className="ml-auto rounded-full px-2.5 py-1 tabular-nums text-[12px] font-bold" style={{ color: ov.feelingTrend > 0 ? C.ok : C.alert, background: `${ov.feelingTrend > 0 ? C.ok : C.alert}1f` }}>{sgn(ov.feelingTrend)} trend</span>}
-                </div>
-                <p className="mt-1.5 text-[12px] text-fg-3">{ov.n} {plural(ov.n, "zápis", "zápisy", "zápisů")} · nohy v průměru {mfmt(1, ov.legsMean)}/5</p>
-                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                  <div className="nest px-2 py-3"><p className="t-num text-[22px]">{ov.n21}</p><p className="text-[11px] text-fg-3">za 21 dní</p></div>
-                  <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ov.niggleCount >= 3 ? C.alert : undefined }}>{ov.niggleCount}×</p><p className="text-[11px] text-fg-3">s bolestí</p></div>
-                  <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ov.painMax >= 4 ? C.alert : undefined }}>{ov.painMax}</p><p className="text-[11px] text-fg-3">max bolest</p></div>
-                </div>
-                </div>
-                {Object.keys(ov.painMap).length > 0 && (
-                  <div className="mt-4 border-t border-white/[.08] pt-4">
-                    <Label>Kde to nejčastěji bolí</Label>
-                    <p className="mt-1 text-[12px] leading-5 text-fg-3">Podle zápisů za posledních 30 dní — čím výraznější místo, tím častěji jste ho označil jako bolestivé.</p>
-                    <div className="mt-3"><PainHeatmap counts={ov.painSided} /></div>
-                    <div className="mt-4 space-y-1.5" data-tour="journal-sites">
-                      {ov.topSites.slice(0, 5).map(([region, count]) => {
-                        const w = Math.round((count / ov.topSites[0][1]) * 100)
-                        return (
-                          <div key={region} className="flex items-center gap-2 text-[12px]">
-                            <span className="w-32 shrink-0 truncate text-fg-soft">{region}</span>
-                            <div className="h-1.5 flex-1 rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-alert" style={{ width: `${w}%` }} /></div>
-                            <span className="tabular-nums text-fg-2">{count}×</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-                <button type="button" onClick={() => setInsOpen((v) => !v)} aria-expanded={insOpen}
-                  className="nest mt-4 flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left transition hover:border-white/20">
-                  <span className="t-label">Co z toho čteme</span>
-                  <ChevronDown className={`size-4 text-fg-3 transition ${insOpen ? "rotate-180 text-accent" : ""}`} aria-hidden />
-                </button>
-                {insOpen && (
-                  <ul className="mt-3 origin-top animate-[careReveal_.28s_ease-out] space-y-2.5">
-                    {ov.insights.map((t, i) => (
-                      <li key={i} className="flex gap-2.5 text-sm leading-5">
-                        <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: t.tone === "alert" ? C.alert : t.tone === "watch" ? C.watch : C.ok }} />
-                        <span className="text-fg-soft">{t.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </>
-            ) : (
-              <div className="mt-3"><Empty>Zatím málo zápisů na to, aby z nich šel číst vzorec. Užitečné to začne být zhruba od čtvrtého.</Empty></div>
-            )}
             {!ciSum && (
               <div className="mt-5 border-t border-white/[.08] pt-4">
                 <Label>Souhrn check-inů</Label>
@@ -372,6 +226,163 @@ export function Post() {
                   </div>
                 )}
               </div>
+            )}
+    </>
+  )
+
+  return (
+    <>
+      <Head
+        kicker="Deník běhů"
+        title={unrated.length ? `${unrated.length} ${plural(unrated.length, "běh čeká", "běhy čekají", "běhů čeká")} na zápis` : "Deník máte kompletní"}
+      />
+      {rate && <RateSheet act={rate.act} initial={rate.initial} rid={rid} onClose={() => setRate(null)} onDone={() => { setRate(null); refresh() }} />}
+      {crossOpen && <CrossSheet rid={rid} onClose={() => setCrossOpen(false)} onDone={() => { setCrossOpen(false); refresh() }} />}
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
+        <div className="grid content-start gap-4">
+          {/* railway#135/#136 — one box: runs waiting for a note, the latest notes as a detail under
+              them, and the other sports of the last 14 days */}
+          <Card>
+            <Label>Čeká na zápis</Label>
+            {unrated.length ? (
+              <div className="mt-2 divide-y divide-white/[.07]">
+                {unrated.map((x) => (
+                  <ListRow key={x.id} onClick={() => setRate({ act: x })} icon={actIcon(x)} tone="info"
+                    title={actTitle(x)}
+                    meta={isCross(x) ? `${fmtD(x.started_at)} · jiný sport${x.avg_hr ? ` · ${Math.round(x.avg_hr)} tep/min` : ""}` : `${fmtD(x.started_at)} · ${surf(x.surface)} · ${paceStr(x.pace_s_km)}/km · ${cz(x.descent_m)} m klesání`}
+                    trailing={<span className="btn btn-primary btn-sm shrink-0">Zapsat</span>} />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3"><Empty>Nic nečeká. Další zápis se objeví po příštím běhu.</Empty></div>
+            )}
+            {/* railway#141 — other sports right under the waiting list, the latest notes as the last detail */}
+            <div id="jiny-sport" className="mt-5 scroll-mt-24 border-t border-white/[.08] pt-4" data-tour="journal-cross">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label>Jiný sport · 14 dní</Label>
+                <Button size="sm" variant="secondary" onClick={() => setCrossOpen(true)}>Přidat trénink</Button>
+              </div>
+              <p className="mt-1 text-[12px] leading-5 text-fg-3">Kolo, plavání a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Posilování hodinky často nezaznamenají, zapište ho tady.</p>
+              {crossRecent.length ? (
+                <div className="mt-2 divide-y divide-white/[.07]">
+                  {crossRecent.slice(0, 8).map((x) => {
+                    const r = rpeOf.get(x.id)
+                    return (
+                      <ListRow key={x.id} icon={actIcon(x)} tone={r != null ? "ok" : "info"} title={actTitle(x)}
+                        onClick={() => { const f = fb.find((y) => y.activity_id === x.id); setRate({ act: x, initial: f }) }}
+                        meta={`${fmtD(x.started_at)}${r != null ? ` · náročnost ${r}/10` : " · bez hodnocení"}${x.strength_focus ? ` · ${(FOCUS_OPTS.find((o) => o[0] === x.strength_focus) || [0, ""])[1]}` : ""}${x.provider === "manual" ? " · zapsáno ručně" : ""}`}
+                        trailing={x.provider === "manual" ? (
+                          <button type="button" onClick={(e) => { e.stopPropagation(); api.deleteActivity(rid, x.id).then(() => { toastX({ title: "Trénink smazán" }); refresh() }).catch(() => {}) }}
+                            className="shrink-0 rounded-full px-2 py-1 text-[12px] font-bold text-fg-3 hover:bg-alert/10 hover:text-alert">Smazat</button>
+                        ) : undefined} />
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="mt-2 text-[12px] text-fg-3">Za posledních 14 dní žádný jiný sport.</p>
+              )}
+            </div>
+            {sorted.length > 0 && (
+              <>
+                <button type="button" onClick={() => setLatestOpen((v) => !v)} aria-expanded={latestOpen} data-testid="latest-toggle"
+                  className="nest mt-4 flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left transition hover:border-white/20">
+                  <span className="t-label">Poslední zápisy</span>
+                  <span className="flex items-center gap-2 text-[12px] text-fg-3">{Math.min(10, sorted.length)} · klepnutím upravíte<ChevronDown className={`size-4 transition ${latestOpen ? "rotate-180 text-accent" : ""}`} aria-hidden /></span>
+                </button>
+                {latestOpen && (
+                  <div className="mt-1 origin-top animate-[careReveal_.28s_ease-out] divide-y divide-white/[.07]" data-testid="latest-list">
+                    {sorted.slice(0, 10).map((f) => {
+                      const act = actById.get(f.activity_id)
+                      const hurt = f.pain_during >= 4
+                      return (
+                        <div key={f.id} className="flex items-center gap-1">
+                          <ListRow onClick={() => editEntry(f)} icon={actIcon(act)} tone={hurt ? "alert" : "ok"}
+                            title={act ? actTitle(act) : "Běh"}
+                            meta={<>{fmtD(f.submitted_at)}{act?.surface ? ` · ${surf(act.surface)}` : ""} · pocit {FEEL_LABEL[f.feeling] || "—"} · nohy {f.legs}/5{f.pain_during > 0 ? ` · bolest ${f.pain_during}/10` : ""}</>}
+                            extra={f.pain_site ? <span className="mt-1.5 block sm:hidden"><Chip tone="alert">{f.pain_site}</Chip></span> : undefined}
+                            trailing={<>
+                              {f.pain_site && <span className="hidden shrink-0 sm:block"><Chip tone="alert">{f.pain_site}</Chip></span>}
+                              <span className="flex shrink-0 items-center gap-1 text-[12px] font-bold text-fg-3 transition group-hover:text-info">
+                                <span className="hidden opacity-0 transition group-hover:opacity-100 md:inline">Upravit</span>
+                                <ChevronRight className="size-4" aria-hidden />
+                              </span>
+                            </>} />
+                          {act && (
+                            <Link to={`/app/post/${act.id}`} aria-label="Detail běhu" title="Detail běhu"
+                              className="grid size-9 shrink-0 place-items-center rounded-full text-fg-3 hover:bg-info/10 hover:text-info">
+                              <ActivityIcon className="size-4" aria-hidden />
+                            </Link>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </Card>
+        </div>
+        <div className="grid content-start gap-4">
+          {/* feedback railway#44/#45 — one summary box: diary (with the reading behind a
+              detail toggle) and the check-in summary under it, for comparison */}
+          <Card>
+            <Label>Souhrn deníku</Label>
+            {ov ? (
+              <>
+                <div data-tour="journal-summary">
+                <div className="mt-3 flex items-baseline gap-2">
+                  <p className="t-num text-[44px] leading-none">{mfmt(1, ov.feelingMean)}</p>
+                  <span className="text-sm text-fg-3">/5 pocit</span>
+                  {ov.feelingTrend !== 0 && <span className="ml-auto rounded-full px-2.5 py-1 tabular-nums text-[12px] font-bold" style={{ color: ov.feelingTrend > 0 ? C.ok : C.alert, background: `${ov.feelingTrend > 0 ? C.ok : C.alert}1f` }}>{sgn(ov.feelingTrend)} trend</span>}
+                </div>
+                <p className="mt-1.5 text-[12px] text-fg-3">{ov.n} {plural(ov.n, "zápis", "zápisy", "zápisů")} · nohy v průměru {mfmt(1, ov.legsMean)}/5</p>
+                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                  <div className="nest px-2 py-3"><p className="t-num text-[22px]">{ov.n21}</p><p className="text-[11px] text-fg-3">za 21 dní</p></div>
+                  <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ov.niggleCount >= 3 ? C.alert : undefined }}>{ov.niggleCount}×</p><p className="text-[11px] text-fg-3">s bolestí</p></div>
+                  <div className="nest px-2 py-3"><p className="t-num text-[22px]" style={{ color: ov.painMax >= 4 ? C.alert : undefined }}>{ov.painMax}</p><p className="text-[11px] text-fg-3">max bolest</p></div>
+                </div>
+                </div>
+                {ciBlock}
+                {Object.keys(ov.painMap).length > 0 && (
+                  <div className="mt-4 border-t border-white/[.08] pt-4">
+                    <Label>Kde to nejčastěji bolí</Label>
+                    <p className="mt-1 text-[12px] leading-5 text-fg-3">Podle zápisů za posledních 30 dní — čím výraznější místo, tím častěji jste ho označil jako bolestivé.</p>
+                    <div className="mt-3"><PainHeatmap counts={ov.painSided} /></div>
+                    <div className="mt-4 space-y-1.5" data-tour="journal-sites">
+                      {ov.topSites.slice(0, 5).map(([region, count]) => {
+                        const w = Math.round((count / ov.topSites[0][1]) * 100)
+                        return (
+                          <div key={region} className="flex items-center gap-2 text-[12px]">
+                            <span className="w-32 shrink-0 truncate text-fg-soft">{region}</span>
+                            <div className="h-1.5 flex-1 rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-alert" style={{ width: `${w}%` }} /></div>
+                            <span className="tabular-nums text-fg-2">{count}×</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+                <button type="button" onClick={() => setInsOpen((v) => !v)} aria-expanded={insOpen}
+                  className="nest mt-4 flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left transition hover:border-white/20">
+                  <span className="t-label">Co z toho čteme</span>
+                  <ChevronDown className={`size-4 text-fg-3 transition ${insOpen ? "rotate-180 text-accent" : ""}`} aria-hidden />
+                </button>
+                {insOpen && (
+                  <ul className="mt-3 origin-top animate-[careReveal_.28s_ease-out] space-y-2.5">
+                    {ov.insights.map((t, i) => (
+                      <li key={i} className="flex gap-2.5 text-sm leading-5">
+                        <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: t.tone === "alert" ? C.alert : t.tone === "watch" ? C.watch : C.ok }} />
+                        <span className="text-fg-soft">{t.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="mt-3"><Empty>Zatím málo zápisů na to, aby z nich šel číst vzorec. Užitečné to začne být zhruba od čtvrtého.</Empty></div>
+                {ciBlock}
+              </>
             )}
           </Card>
         </div>
@@ -1469,7 +1480,7 @@ export function Load() {
           )}
           <p className="mt-1 text-[11px] text-fg-3">skóre zátěže po dnech · po běhu se vstřebává noc po noci · nad prahem 25 = zvýšená</p>
         </div>
-        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <div className="mt-5">
           <div>
             <p className="t-label !text-fg-3">Co tvoří skóre zátěže</p>
             {loadSig.length > 0 ? (
@@ -1479,10 +1490,6 @@ export function Load() {
                 ))}
               </div>
             ) : <p className="mt-2 text-[13px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
-          </div>
-          <div className="grid content-start gap-3">
-            {/* railway#137/#138 — readiness over time instead of the 7:28 ratio; HRV, resting HR and sleep open under it */}
-            <ReadinessTrend a={a} hist={hist} />
           </div>
         </div>
       </section>
@@ -1517,9 +1524,11 @@ export function Load() {
 }
 
 const readinessWord = (p: number) => (p >= 70 ? "dobrá" : p >= 40 ? "snížená" : "nízká")
-function ReadinessTrend({ a, hist }: { a: any; hist: any[] | null }) {
+// railway#137/#138 — readiness over time; HRV, resting HR and sleep open under it.
+// railway#142 — lives on Trénink, above today's capacity.
+export function ReadinessTrend({ a, hist }: { a: any; hist: any[] | null }) {
   const [open, setOpen] = useState(false)
-  const r = a?.capacity?.readiness
+  const r = a?.readiness ?? a?.capacity?.readiness
   const rcv = a?.rcv
   const pct = r ? readinessPct(r) : null
   const col = pct != null ? readinessCol(pct) : C.fg3

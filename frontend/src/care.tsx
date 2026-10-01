@@ -25,7 +25,7 @@ export function Care() {
   const { me, boot, refresh } = useApp()
   const rid = me!.runner_id!
   const rtr = boot?.rtr
-  const [sub, setSub] = useState<"physio" | "program" | "health">("physio")
+  const [sub, setSub] = useState<"physio" | "program" | "health">("program")
   const [findOpen, setFindOpen] = useState(false)
   const [injOpen, setInjOpen] = useState(false)
   const [rtrOpen, setRtrOpen] = useState(false)
@@ -44,7 +44,8 @@ export function Care() {
     if (wantHealed && boot?.assessment?.injury?.active) { setHealedOpen(true); setWantHealed(false) }
   }, [wantHealed, boot])
 
-  const subtabs: [typeof sub, string][] = [["physio", "Fyzioterapeut"], ["program", "Program"], ["health", "Zranění"]]
+  // railway#143 — Program first, Fyzioterapeut second (and Program opens by default)
+  const subtabs: [typeof sub, string][] = [["program", "Program"], ["physio", "Fyzioterapeut"], ["health", "Zranění"]]
   // the getting-started tour switches sub-tabs to show the program and the visit summary
   useEffect(() => {
     const on = (e: Event) => setSub((e as CustomEvent).detail)

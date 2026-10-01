@@ -30,7 +30,7 @@ import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C, badCol, goodCol } from "@/tokens"
-import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Maximize2, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
+import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 import { Landing, scrollToLanding } from "@/landing"
 
@@ -592,14 +592,10 @@ function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; o
   const Wrap = onHistory ? "button" : "div"
   return (
     <div>
-      {/* railway#72 — the 6-month history opens from the quadrant graphic itself */}
+      {/* railway#72 — the 6-month history opens from the quadrant graphic itself;
+          railway#140 — and from the Skóre ring (its arrow), so no separate button here */}
       <div className="mb-2.5 flex min-h-[30px] items-center justify-between gap-2">
         <p className="t-label !text-fg-3">Kvadrant stavu</p>
-        {onHistory && (
-          <button type="button" onClick={onHistory} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/14 px-3 py-1.5 text-[12px] font-bold text-info transition hover:border-info/50 hover:bg-info/[.07]">
-            historie 6 měsíců <Maximize2 className="size-3.5" aria-hidden />
-          </button>
-        )}
       </div>
       <div className="grid grid-cols-[22px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_24px] gap-x-1.5 gap-y-1">
         {/* y axis: load ↑ */}
@@ -944,15 +940,28 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
             <MiniRing label="Připravenost" value={d.readiness ?? null} unit={d.readiness != null ? "%" : undefined} col={d.readiness != null ? readinessCol(d.readiness) : C.fg3} onClick={tg("readiness")} open={open === "readiness"} />
             <MiniRing label="Příznaky" value={d.symp} col={badCol(d.symp)} onClick={tg("symp")} open={open === "symp"} />
           </div>
-          <div className="relative grid size-[132px] place-items-center">
-            <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
-              <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(255 255 255 / .09)" strokeWidth="8" />
-              <circle cx="50" cy="50" r="44" fill="none" stroke={ringCol} strokeWidth="8" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
-            </svg>
-            <span className="text-center">
-              <b className="t-num block text-[40px] leading-none text-fg">{overall}</b>
-              <span className="mt-1 block text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">Skóre</span>
-            </span>
+          {/* railway#140 — the Skóre ring opens the 6-month history; only an arrow marks it */}
+          <div className="relative size-[132px]">
+            {(() => {
+              const ring = (
+                <>
+                  <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
+                    <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(255 255 255 / .09)" strokeWidth="8" />
+                    <circle cx="50" cy="50" r="44" fill="none" stroke={ringCol} strokeWidth="8" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
+                  </svg>
+                  <span className="relative text-center">
+                    <b className="t-num block text-[40px] leading-none text-fg">{overall}</b>
+                    <span className="mt-1 flex items-center justify-center gap-0.5 text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">
+                      Skóre{onHistory && <ChevronRight className="size-3.5 text-fg-3 transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />}
+                    </span>
+                  </span>
+                </>
+              )
+              return onHistory
+                ? <button type="button" onClick={onHistory} title="Vývoj stavu za 6 měsíců" aria-label="Skóre — vývoj stavu za 6 měsíců" data-testid="score-history"
+                    className="group grid size-full place-items-center rounded-full transition hover:bg-white/[.04]">{ring}</button>
+                : <div className="grid size-full place-items-center">{ring}</div>
+            })()}
             <span className="absolute -right-1 top-1"><InfoDot text={MI.overall} label="Skóre" /></span>
           </div>
           <div className="grid justify-items-center gap-2">
