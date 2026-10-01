@@ -125,6 +125,7 @@ export const api = {
   // Physio AI Assistant (chat over the runner's data and the reviewed literature)
   assistant: (rid: string) => call("GET", `/api/runners/${rid}/assistant`),
   assistantAsk: (rid: string, body: { question: string; context?: any; thread_id?: string }) => call("POST", `/api/runners/${rid}/assistant/ask`, body),
+  assistantSummary: (rid: string, tab: string) => call("GET", `/api/runners/${rid}/assistant/summary?tab=${encodeURIComponent(tab)}`),
   assistantForget: (rid: string) => call("DELETE", `/api/runners/${rid}/assistant/history`),
   assistantFeedback: (rid: string, mid: number, value: number, note?: string) => call("POST", `/api/runners/${rid}/assistant/messages/${mid}/feedback`, { value, note }),
   assistantCard: (id: string) => call("GET", `/api/assistant/cards/${id}`),

@@ -4,7 +4,7 @@
 // literature, and the backend validates it before it arrives here.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useLocation, useNavigate } from "react-router"
-import { Bot, BookOpen, ExternalLink, FileUp, Send, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react"
+import { Bot, BookOpen, ChevronDown, ExternalLink, FileUp, Send, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Card, Label, Sheet, useToast } from "@/ui"
@@ -19,9 +19,14 @@ const LINK_PATH: Record<string, string> = { Dnes: "/app/today", "Trénink": "/ap
 const STRENGTH_TONE: Record<string, string> = { "silné": "text-ok", "střední": "text-watch", "slabé": "text-fg-2" }
 const STEPS = ["Čtu vaše data…", "Hledám v odborných zdrojích…", "Píšu odpověď…", "Kontroluji odpověď…"]
 
-type AssistantApi = { available: boolean; status: Status | null; open: (question?: string, context?: Ctx) => void; coachTexts: any }
+type AssistantApi = { available: boolean; status: Status | null; open: (question?: string, context?: Ctx) => void }
 export const ASSISTANT_REFRESH_EVENT = "doslap:assistant-refresh"
-const AssistantCtx = createContext<AssistantApi>({ available: false, status: null, open: () => {}, coachTexts: null })
+const AssistantCtx = createContext<AssistantApi>({ available: false, status: null, open: () => {} })
+
+// The tab the assistant is opened from decides its summary and the default subject
+// of a question (backend assistant/service.TAB_SUMMARY, selector.TAB_INTENTS).
+const TAB_NAME: Record<string, string> = { today: "Dnes", training: "Trénink", post: "Deník", mechanics: "Pohyb", load: "Zátěž", messages: "Péče" }
+const tabOf = (path: string) => { const t = path.split("/")[2] || "today"; return TAB_NAME[t] ? t : "today" }
 export const useAssistant = () => useContext(AssistantCtx)
 
 export function AssistantProvider({ children }: { children: ReactNode }) {
@@ -29,9 +34,9 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   // Tour mode shows the shared demo runner, whose chat would be shared too, so the
   // assistant stays hidden until the tour ends.
   const rid = touring ? undefined : (me?.runner_id as string | undefined)
+  const loc = useLocation()
   const [status, setStatus] = useState<Status | null>(null)
-  const [coachTexts, setCoachTexts] = useState<any>(null)
-  const [openState, setOpenState] = useState<{ q?: string; ctx?: Ctx; n: number } | null>(null)
+  const [openState, setOpenState] = useState<{ q?: string; ctx?: Ctx; tab: string; n: number } | null>(null)
   const load = useCallback(() => {
     if (!rid) return Promise.resolve()
     return api.assistant(rid).then(setStatus).catch(() => setStatus(null))
@@ -43,27 +48,15 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(ASSISTANT_REFRESH_EVENT, again)
   }, [])
   useEffect(() => { if (rid) load(); else setStatus(null) }, [rid, load, rev])
-  useEffect(() => {
-    if (!rid) { setCoachTexts(null); return }
-    let alive = true
-    let timer = 0
-    const get = (retry: boolean) => api.coach(rid).then((d: any) => {
-      if (!alive) return
-      setCoachTexts(d?.consent ? d.texts || null : null)
-      // stale texts are regenerated in the background, look once more a bit later
-      if (retry && d?.pending?.length) timer = window.setTimeout(() => get(false), 8000)
-    }).catch(() => alive && setCoachTexts(null))
-    get(true)
-    return () => { alive = false; window.clearTimeout(timer) }
-  }, [rid, rev])
   const available = !!status && (status.access.enabled || status.access.reason === "consent")
-  const open = useCallback((q?: string, ctx?: Ctx) => setOpenState((s) => ({ q, ctx, n: (s?.n || 0) + 1 })), [])
-  const value = useMemo(() => ({ available, status, open, coachTexts }), [available, status, open, coachTexts])
+  const path = loc.pathname
+  const open = useCallback((q?: string, ctx?: Ctx) => setOpenState((s) => ({ q, ctx, tab: tabOf(path), n: (s?.n || 0) + 1 })), [path])
+  const value = useMemo(() => ({ available, status, open }), [available, status, open])
   return (
     <AssistantCtx.Provider value={value}>
       {children}
       {openState && status && rid && (
-        <AssistantSheet key={openState.n} rid={rid} status={status} initialQ={openState.q} initialCtx={openState.ctx}
+        <AssistantSheet key={openState.n} rid={rid} status={status} tab={openState.tab} initialQ={openState.q} initialCtx={openState.ctx}
           onClose={() => { setOpenState(null); load() }} />
       )}
     </AssistantCtx.Provider>
@@ -148,28 +141,43 @@ function SourceSheet({ src, onClose }: { src: Source; onClose: () => void }) {
   )
 }
 
-function AssistantSheet({ rid, status, initialQ, initialCtx, onClose }: { rid: string; status: Status; initialQ?: string; initialCtx?: Ctx; onClose: () => void }) {
+type Summary = { tab: string; title: string; text: string; source: string; sources?: Source[]; links?: string[]; createdAt?: string }
+
+// Product request 2026-10-01 — the assistant belongs to the tab it is opened from: the chat
+// window on top, the summary of that tab under it (Dnes the whole day, Trénink today's
+// session, …), earlier conversations folded away at the bottom.
+function AssistantSheet({ rid, status, tab, initialQ, initialCtx, onClose }: { rid: string; status: Status; tab: string; initialQ?: string; initialCtx?: Ctx; onClose: () => void }) {
   const nav = useNavigate()
   const toast = useToast()
-  const [msgs, setMsgs] = useState<Msg[]>(status.history || [])
+  const [msgs, setMsgs] = useState<Msg[]>([])
+  const [older, setOlder] = useState<Msg[]>(status.history || [])
+  const [olderOpen, setOlderOpen] = useState(false)
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
   const [step, setStep] = useState(0)
-  const [thread, setThread] = useState<string | undefined>(() => {
-    const last = (status.history || []).slice(-1)[0]
-    return last?.threadId
-  })
+  const [thread, setThread] = useState<string | undefined>(undefined)
   const [src, setSrc] = useState<Source | null>(null)
   const [used, setUsed] = useState(status.used)
+  const [sum, setSum] = useState<Summary | null>(null)
+  const [sumState, setSumState] = useState<"loading" | "ok" | "error">("loading")
   const endRef = useRef<HTMLDivElement>(null)
   const sentInitial = useRef(false)
-  useEffect(() => { endRef.current?.scrollIntoView({ block: "end" }) }, [msgs.length, busy])
+  const noAccess = !status.access.enabled
+  useEffect(() => { if (msgs.length) endRef.current?.scrollIntoView({ block: "nearest" }) }, [msgs.length, busy])
   useEffect(() => {
     if (!busy) return
     setStep(0)
     const t = [1500, 4500, 14000].map((ms, i) => window.setTimeout(() => setStep(i + 1), ms))
     return () => t.forEach(window.clearTimeout)
   }, [busy])
+  useEffect(() => {
+    if (noAccess) return
+    let alive = true
+    setSumState("loading")
+    api.assistantSummary(rid, tab).then((d: any) => { if (alive) { setSum(d); setSumState("ok") } })
+      .catch(() => alive && setSumState("error"))
+    return () => { alive = false }
+  }, [rid, tab, noAccess])
   const ask = async (q: string, ctx?: Ctx) => {
     const question = q.trim()
     if (!question || busy) return
@@ -177,7 +185,7 @@ function AssistantSheet({ rid, status, initialQ, initialCtx, onClose }: { rid: s
     setMsgs((m) => [...m, { id: -Date.now(), role: "user", text: question }])
     setBusy(true)
     try {
-      const out: any = await api.assistantAsk(rid, { question, context: ctx || null, thread_id: thread })
+      const out: any = await api.assistantAsk(rid, { question, context: ctx || { kind: "tab", id: tab }, thread_id: thread })
       setThread(out.threadId)
       setUsed((u) => u + 1)
       setMsgs((m) => [...m, out])
@@ -196,7 +204,9 @@ function AssistantSheet({ rid, status, initialQ, initialCtx, onClose }: { rid: s
   const feedback = async (m: Msg, value: number) => {
     try {
       await api.assistantFeedback(rid, m.id, value)
-      setMsgs((all) => all.map((x) => (x.id === m.id ? { ...x, feedback: value } : x)))
+      const upd = (all: Msg[]) => all.map((x) => (x.id === m.id ? { ...x, feedback: value } : x))
+      setMsgs(upd)
+      setOlder(upd)
       toast({ title: value > 0 ? "Díky za zpětnou vazbu" : "Díky, odpověď projdeme" })
     } catch { /* feedback is best effort */ }
   }
@@ -204,164 +214,147 @@ function AssistantSheet({ rid, status, initialQ, initialCtx, onClose }: { rid: s
     if (!confirm("Smazat celou historii konverzací s asistentem?")) return
     await api.assistantForget(rid)
     setMsgs([])
+    setOlder([])
     setThread(undefined)
     toast({ title: "Historie smazána" })
   }
-  const sourceOf = (m: Msg, n: number) => (m.sources || []).find((s) => s.n === n)
-  const noAccess = !status.access.enabled
+  const go = (l: string) => { onClose(); nav(LINK_PATH[l]) }
+  const limitHit = used >= status.limit
+  const bubble = (m: Msg) => m.role === "user" ? (
+    <div key={m.id} className="flex justify-end"><p className="max-w-[85%] rounded-[16px] rounded-br-md bg-accent/15 px-3.5 py-2.5 text-[14px] leading-6 text-fg">{m.text}</p></div>
+  ) : (
+    <div key={m.id} className="max-w-[95%]">
+      <div className="rounded-[16px] rounded-bl-md border border-white/10 bg-white/[.03] px-3.5 py-3">
+        <AnswerText text={m.text} onCite={(n) => { const x = (m.sources || []).find((y) => y.n === n); if (x) setSrc(x) }} />
+        <Extras links={m.links} sources={m.sources} onLink={go} onSource={setSrc} />
+      </div>
+      {m.id > 0 && m.source !== "gate" && (
+        <div className="mt-1 flex items-center gap-1 pl-1 text-fg-3">
+          <span className="mr-1 text-[10px]">{m.source === "llm" ? "AI" : m.source === "fallback" ? "stručná odpověď aplikace" : ""}</span>
+          <button onClick={() => feedback(m, 1)} aria-label="Užitečná odpověď" aria-pressed={m.feedback === 1} className={`grid size-7 place-items-center rounded-full hover:text-fg ${m.feedback === 1 ? "text-ok" : ""}`}><ThumbsUp className="size-3.5" aria-hidden /></button>
+          <button onClick={() => feedback(m, -1)} aria-label="Neužitečná nebo chybná odpověď" aria-pressed={m.feedback === -1} className={`grid size-7 place-items-center rounded-full hover:text-fg ${m.feedback === -1 ? "text-alert" : ""}`}><ThumbsDown className="size-3.5" aria-hidden /></button>
+        </div>
+      )}
+    </div>
+  )
   return (
-    <Sheet open onClose={onClose} layer="z-[95]"
-      footer={noAccess ? undefined : (
-        <form onSubmit={(e) => { e.preventDefault(); ask(input) }} className="flex items-end gap-2">
-          <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={1} maxLength={800} aria-label="Otázka pro asistenta"
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(input) } }}
-            placeholder="Zeptejte se na trénink, data, aplikaci…"
-            className="max-h-32 min-h-11 flex-1 resize-none rounded-[14px] border border-white/12 bg-white/[.04] px-3 py-2.5 text-[14px] text-fg" />
-          <button type="submit" disabled={busy || !input.trim() || used >= status.limit} aria-label="Odeslat"
-            className="btn btn-primary grid size-11 place-items-center !p-0"><Send className="size-4" aria-hidden /></button>
-        </form>
-      )}>
+    <Sheet open onClose={onClose} layer="z-[95]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="t-label flex items-center gap-1.5"><Sparkles className="size-3.5 text-accent" aria-hidden />AI asistent · beta</p>
+          <p className="t-label flex items-center gap-1.5"><Sparkles className="size-3.5 text-accent" aria-hidden />AI asistent · {TAB_NAME[tab]}</p>
           <h2 className="mt-1 font-serif text-[24px] leading-tight">{status.name}</h2>
         </div>
-        <div className="flex shrink-0 gap-2">
-          {msgs.length > 0 && <button onClick={forget} aria-label="Smazat historii" className="grid size-9 place-items-center rounded-full border border-white/15 text-fg-2 hover:text-fg"><Trash2 className="size-4" aria-hidden /></button>}
-        </div>
+        {(msgs.length > 0 || older.length > 0) && (
+          <button onClick={forget} aria-label="Smazat historii" className="grid size-9 shrink-0 place-items-center rounded-full border border-white/15 text-fg-2 hover:text-fg"><Trash2 className="size-4" aria-hidden /></button>
+        )}
       </div>
-      <p className="mt-2 text-[11px] leading-5 text-fg-3">{status.disclaimer} Konverzace vidíte {status.visibleDays} dní.</p>
       {noAccess ? (
-        <div className="nest mt-4 p-4">
-          <p className="text-[14px] leading-6 text-fg">Asistent pracuje s vašimi daty, proto potřebuje souhlas se zpracováním AI.</p>
-          <button onClick={() => { onClose(); nav("/data") }} className="btn btn-primary mt-3 text-sm">Zapnout v Data a připojení</button>
+        <div className="nest mt-4 p-4" data-testid="assistant-no-access">
+          {status.access.reason === "consent" ? (
+            <>
+              <p className="text-[14px] leading-6 text-fg">Asistent pracuje s vašimi daty, proto potřebuje souhlas se zpracováním AI.</p>
+              <button onClick={() => { onClose(); nav("/data") }} className="btn btn-primary mt-3 text-sm">Zapnout v Data a připojení</button>
+            </>
+          ) : (
+            <p className="text-[14px] leading-6 text-fg">{status.access.reason === "off" ? "AI asistent je teď vypnutý." : "AI asistent je zatím zapnutý jen pro testovací účty, brzy ho zpřístupníme všem."}</p>
+          )}
         </div>
       ) : (
-        <div className="mt-4 space-y-4 pb-2" data-testid="assistant-thread">
-          {msgs.length === 0 && !busy && (
-            <div className="nest p-4">
-              <p className="text-[13px] leading-5 text-fg-2">Ptejte se na své data, dnešní trénink, plánování, zátěž, bolest nebo na to, kde co v aplikaci najdete.</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {(status.suggestions || []).map((s) => (
-                  <button key={s} onClick={() => ask(s)} className="rounded-full border border-white/15 px-3 py-1.5 text-left text-[12px] font-semibold text-fg-soft hover:border-accent/50">{s}</button>
-                ))}
-              </div>
+        <>
+          {/* the chat window first */}
+          <form onSubmit={(e) => { e.preventDefault(); ask(input) }} className="mt-4 flex items-end gap-2" data-testid="assistant-form">
+            <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={1} maxLength={800} aria-label="Otázka pro asistenta"
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(input) } }}
+              placeholder={`Zeptejte se na ${TAB_ASK[tab]}…`}
+              className="max-h-32 min-h-11 flex-1 resize-none rounded-[14px] border border-white/12 bg-white/[.04] px-3 py-2.5 text-[14px] text-fg" />
+            <button type="submit" disabled={busy || !input.trim() || limitHit} aria-label="Odeslat"
+              className="btn btn-primary grid size-11 place-items-center !p-0"><Send className="size-4" aria-hidden /></button>
+          </form>
+          {msgs.length === 0 && !busy && (status.suggestions || []).length > 0 && (
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {(status.suggestions || []).map((q) => (
+                <button key={q} onClick={() => ask(q)} className="rounded-full border border-white/15 px-3 py-1.5 text-left text-[12px] font-semibold text-fg-soft hover:border-accent/50">{q}</button>
+              ))}
             </div>
           )}
-          {msgs.map((m) => m.role === "user" ? (
-            <div key={m.id} className="flex justify-end"><p className="max-w-[85%] rounded-[16px] rounded-br-md bg-accent/15 px-3.5 py-2.5 text-[14px] leading-6 text-fg">{m.text}</p></div>
-          ) : (
-            <div key={m.id} className="max-w-[95%]">
-              <div className="rounded-[16px] rounded-bl-md border border-white/10 bg-white/[.03] px-3.5 py-3">
-                <AnswerText text={m.text} onCite={(n) => { const s = sourceOf(m, n); if (s) setSrc(s) }} />
-                {(m.links?.length || 0) > 0 && (
-                  <div className="mt-2.5 flex flex-wrap gap-1.5">
-                    {m.links!.map((l) => LINK_PATH[l] && (
-                      <button key={l} onClick={() => { onClose(); nav(LINK_PATH[l]) }} className="rounded-full bg-white/[.07] px-2.5 py-1 text-[11px] font-bold text-fg-soft hover:bg-white/[.12]">Otevřít {l}</button>
-                    ))}
-                  </div>
-                )}
-                {(m.sources?.length || 0) > 0 && (
-                  <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-white/[.07] pt-2">
-                    {m.sources!.map((s) => (
-                      <button key={s.n} onClick={() => setSrc(s)} className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/12 px-2 py-0.5 text-[11px] text-fg-2 hover:border-accent/40">
-                        <BookOpen className="size-3 shrink-0" aria-hidden /><span className="truncate">[{s.n}] {s.kind === "card" ? s.title : s.cite}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {m.id > 0 && m.source !== "gate" && (
-                <div className="mt-1 flex items-center gap-1 pl-1 text-fg-3">
-                  <span className="mr-1 text-[10px]">{m.source === "llm" ? "AI" : m.source === "fallback" ? "stručná odpověď aplikace" : ""}</span>
-                  <button onClick={() => feedback(m, 1)} aria-label="Užitečná odpověď" aria-pressed={m.feedback === 1} className={`grid size-7 place-items-center rounded-full hover:text-fg ${m.feedback === 1 ? "text-ok" : ""}`}><ThumbsUp className="size-3.5" aria-hidden /></button>
-                  <button onClick={() => feedback(m, -1)} aria-label="Neužitečná nebo chybná odpověď" aria-pressed={m.feedback === -1} className={`grid size-7 place-items-center rounded-full hover:text-fg ${m.feedback === -1 ? "text-alert" : ""}`}><ThumbsDown className="size-3.5" aria-hidden /></button>
-                </div>
-              )}
+          {(msgs.length > 0 || busy) && (
+            <div className="mt-4 space-y-4" data-testid="assistant-thread">
+              {msgs.map(bubble)}
+              {busy && <p className="animate-pulse text-[12px] text-fg-2" role="status">{STEPS[step]}</p>}
+              <div ref={endRef} />
             </div>
-          ))}
-          {busy && <p className="animate-pulse text-[12px] text-fg-2" role="status">{STEPS[step]}</p>}
-          {used >= status.limit && <p className="text-[11px] text-watch">Dnešní limit {status.limit} otázek je vyčerpaný.</p>}
-          <div ref={endRef} />
-        </div>
+          )}
+          {limitHit && <p className="mt-2 text-[11px] text-watch">Dnešní limit {status.limit} otázek je vyčerpaný.</p>}
+
+          {/* the summary of the tab under it */}
+          <section className="nest mt-5 p-4" data-testid="assistant-summary">
+            <p className="t-label flex items-center gap-1.5"><Bot className="size-3.5 text-accent" aria-hidden />Shrnutí · {sum?.title || TAB_NAME[tab]}</p>
+            {sumState === "loading" ? <p className="mt-2 animate-pulse text-[13px] text-fg-2" role="status">Připravuji shrnutí…</p>
+              : sumState === "error" || !sum ? <p className="mt-2 text-[13px] text-fg-2">Shrnutí se teď nepodařilo načíst. Zkuste to prosím za chvíli.</p>
+              : (
+                <>
+                  <div className="mt-2"><AnswerText text={sum.text} onCite={(n) => { const x = (sum.sources || []).find((y) => y.n === n); if (x) setSrc(x) }} /></div>
+                  <Extras links={sum.links} sources={sum.sources} onLink={go} onSource={setSrc} />
+                  <p className="mt-2 text-[11px] text-fg-3">{sum.source === "llm" ? "Napsala AI z vašich dat, text prošel kontrolou." : "Sestaveno aplikací z vašich dat."}</p>
+                </>
+              )}
+          </section>
+
+          {older.length > 0 && (
+            <>
+              <button type="button" onClick={() => setOlderOpen((v) => !v)} aria-expanded={olderOpen}
+                className="nest mt-4 flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left transition hover:border-white/20">
+                <span className="t-label">Předchozí konverzace</span>
+                <span className="flex items-center gap-2 text-[12px] text-fg-3">{older.filter((m) => m.role === "user").length}<ChevronDown className={`size-4 transition ${olderOpen ? "rotate-180 text-accent" : ""}`} aria-hidden /></span>
+              </button>
+              {olderOpen && <div className="mt-3 space-y-4">{older.map(bubble)}</div>}
+            </>
+          )}
+          <p className="mt-4 text-[11px] leading-5 text-fg-3">{status.disclaimer} Konverzace vidíte {status.visibleDays} dní.</p>
+        </>
       )}
       {src && <SourceSheet src={src} onClose={() => setSrc(null)} />}
     </Sheet>
   )
 }
 
-// The Phase 1 AI texts, placed on the tabs (daily summary on Dnes, the training
-// commentary on Trénink, the weekly summary in Deník, the last run in run detail).
-export function CoachTextCard({ kind, title, question, className = "" }: { kind: string; title: string; question: string; className?: string }) {
-  const { coachTexts } = useAssistant()
-  const t = coachTexts?.[kind]
-  if (!t?.text) return null
+const TAB_ASK: Record<string, string> = { today: "dnešní stav", training: "dnešní trénink", post: "své běhy a deník", mechanics: "svou techniku", load: "zátěž a kapacitu", messages: "bolest a péči o tělo" }
+
+function Extras({ links, sources, onLink, onSource }: { links?: string[]; sources?: Source[]; onLink: (l: string) => void; onSource: (s: Source) => void }) {
   return (
-    <Card className={className}>
-      <div className="flex items-center justify-between gap-3">
-        <Label><span className="inline-flex items-center gap-1.5"><Sparkles className="size-3.5 text-accent" aria-hidden />{title}</span></Label>
-        <WhyButton question={question} context={{ kind: "summary", id: kind }} label="Zeptat se" />
-      </div>
-      <p className="mt-2 whitespace-pre-line text-[14px] leading-6 text-fg">{t.text}</p>
-      <p className="mt-2 text-[11px] text-fg-3">{t.source === "llm" ? "Napsala AI z vašich dat, text prošel kontrolou." : "Sestaveno aplikací z vašich dat."}</p>
-    </Card>
+    <>
+      {(links?.length || 0) > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {links!.map((l) => LINK_PATH[l] && (
+            <button key={l} onClick={() => onLink(l)} className="rounded-full bg-white/[.07] px-2.5 py-1 text-[11px] font-bold text-fg-soft hover:bg-white/[.12]">Otevřít {l}</button>
+          ))}
+        </div>
+      )}
+      {(sources?.length || 0) > 0 && (
+        <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-white/[.07] pt-2">
+          {sources!.map((x) => (
+            <button key={x.n} onClick={() => onSource(x)} className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/12 px-2 py-0.5 text-[11px] text-fg-2 hover:border-accent/40">
+              <BookOpen className="size-3 shrink-0" aria-hidden /><span className="truncate">[{x.n}] {x.kind === "card" ? x.title : x.cite}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </>
   )
 }
 
-// Feedback railway#121 — the AI texts no longer sit as cards in the tabs: a small round
-// robot button bottom-left, above the tab bar (the check-in sits bottom-right), opens the
-// text that belongs to the current tab first and the others below it. It fills in as soon
-// as the AI provider is configured; until then the app's own summary shows.
-const COACH_FOR: Record<string, { kind: string; title: string; question: string }> = {
-  today: { kind: "daily_summary", title: "Shrnutí dne", question: "Co z dnešního shrnutí je pro mě nejdůležitější?" },
-  training: { kind: "daily_commentary", title: "Komentář k dnešnímu tréninku", question: "Jak mám dnešní trénink pojmout?" },
-  post: { kind: "weekly_summary", title: "Shrnutí týdne", question: "Co si mám z tohoto týdne odnést do plánu na další týden?" },
-}
-const COACH_ORDER = ["daily_summary", "daily_commentary", "weekly_summary"]
-const COACH_TITLE: Record<string, string> = { daily_summary: "Shrnutí dne", daily_commentary: "Komentář k dnešnímu tréninku", weekly_summary: "Shrnutí týdne" }
-
+// Feedback railway#121 — a small round robot button bottom-left, above the tab bar (the
+// check-in sits bottom-right). Since 2026-10-01 it opens the assistant for the current
+// tab: the chat window and that tab's summary under it.
 export function CoachFab() {
   const { me, touring } = useApp()
-  const { coachTexts, status } = useAssistant()
-  const loc = useLocation()
-  const [open, setOpen] = useState(false)
-  useEffect(() => { setOpen(false) }, [loc.pathname])
-  if (touring || !me?.runner_id || me?.guest) return null
-  const tab = loc.pathname.split("/")[2] || "today"
-  const main = COACH_FOR[tab] || COACH_FOR.today
-  const kinds = [main.kind, ...COACH_ORDER.filter((k) => k !== main.kind)]
-  const texts = kinds.map((k) => [k, coachTexts?.[k]] as const).filter(([, t]) => t?.text)
-  const needsConsent = status?.access?.reason === "consent"
+  const { status, open } = useAssistant()
+  if (touring || !me?.runner_id || me?.guest || !status) return null
   return (
-    <>
-      <button type="button" onClick={() => setOpen(true)} aria-label="AI shrnutí a komentáře" data-testid="coach-fab"
-        className="fixed left-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[55] grid size-12 place-items-center rounded-full border border-white/12 bg-raised/95 text-accent shadow-[0_12px_30px_rgb(0_0_0_/_0.45)] backdrop-blur transition hover:border-accent/50 hover:bg-accent/10 md:bottom-7 md:left-7 lg:left-[calc(220px+1.75rem)]">
-        <Bot className="size-6" aria-hidden />
-      </button>
-      {open && (
-        <Sheet open onClose={() => setOpen(false)}>
-          <div data-testid="coach-sheet">
-            <p className="t-label flex items-center gap-1.5"><Bot className="size-3.5 text-accent" aria-hidden />AI shrnutí</p>
-            {texts.length ? texts.map(([k, t], i) => (
-              <div key={k} className={i ? "mt-5 border-t border-white/[.08] pt-4" : "mt-2"}>
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className={i ? "text-[15px] font-bold text-fg" : "font-serif text-[22px] leading-tight text-fg"}>{COACH_TITLE[k]}</h2>
-                  {k === main.kind && <WhyButton question={main.question} context={{ kind: "summary", id: k }} label="Zeptat se" />}
-                </div>
-                <p className="mt-2 whitespace-pre-line text-[14px] leading-6 text-fg">{t.text}</p>
-                <p className="mt-1.5 text-[11px] text-fg-3">{t.source === "llm" ? "Napsala AI z vašich dat, text prošel kontrolou." : "Sestaveno aplikací z vašich dat."}</p>
-              </div>
-            )) : (
-              <p className="mt-3 text-[14px] leading-6 text-fg-2">
-                {needsConsent ? <>AI shrnutí se zapne se souhlasem s asistentem v <a href="/data" className="font-bold text-accent">Data a propojení</a>.</>
-                  : !status?.access?.enabled ? "AI shrnutí se tu objeví, jakmile bude AI asistent zapnutý."
-                  : "Shrnutí se připravuje. Zkuste to prosím za chvíli."}
-              </p>
-            )}
-          </div>
-        </Sheet>
-      )}
-    </>
+    <button type="button" onClick={() => open()} aria-label="AI asistent a shrnutí" data-testid="coach-fab"
+      className="fixed left-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[55] grid size-12 place-items-center rounded-full border border-white/12 bg-raised/95 text-accent shadow-[0_12px_30px_rgb(0_0_0_/_0.45)] backdrop-blur transition hover:border-accent/50 hover:bg-accent/10 md:bottom-7 md:left-7 lg:left-[calc(220px+1.75rem)]">
+      <Bot className="size-6" aria-hidden />
+    </button>
   )
 }
 

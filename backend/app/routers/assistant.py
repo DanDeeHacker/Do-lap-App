@@ -79,6 +79,18 @@ def assistant_ask(rid: str, body: AskRequest, user: models.User = Depends(get_cu
     return S.ask(db, r, body.question, body.context, body.thread_id, user)
 
 
+@router.get("/api/runners/{rid}/assistant/summary")
+def assistant_summary(rid: str, tab: str = "today", user: models.User = Depends(get_current_user),
+                      db: DBSession = Depends(get_db)):
+    """The summary the assistant opens with on a tab (cached per day until the data change)."""
+    ensure_runner_self(user, rid)
+    r = _runner(db, rid)
+    acc = S.access(db, r, user)
+    if not acc["enabled"]:
+        raise HTTPException(403, {"reason": acc["reason"]})
+    return S.tab_summary(db, r, tab, user)
+
+
 @router.delete("/api/runners/{rid}/assistant/history", dependencies=[Depends(verify_csrf)])
 def assistant_forget(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_self(user, rid)
@@ -129,7 +141,7 @@ def _llm_check(model: str | None, embed_model: str | None = None) -> dict:
         if m is not None and not re.fullmatch(r"[\w./:-]{1,100}", m):
             raise HTTPException(400, "Neplatný název modelu")
     return {"chat": llm.probe("chat", model), "embed": llm.probe("embed", embed_model),
-            "host": llm.ASSISTANT_BASE_URL, "embedHost": llm.EMBED_BASE_URL}
+            "host": llm.ASSISTANT_BASE_URL, "embedHost": llm.EMBED_BASE_URL, "mode": S.mode()}
 
 
 @router.get("/api/assistant/admin/llm-check")

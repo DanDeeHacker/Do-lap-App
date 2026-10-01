@@ -8,6 +8,7 @@
 The engine stays the source of truth: the model only explains and plans inside
 today's recommendation, and the validator rejects anything that contradicts it.
 """
+import hashlib
 import json
 import logging
 import os
@@ -52,6 +53,10 @@ def _pause_for(err: dict) -> float:
         return min(120.0, wait + 1)
     return PAUSE_SLOW_S
 PASSAGE_CHARS = 800                                # keeps the prompt short enough for free-tier hosts
+# Groq's free tier allows ~7 000 input tokens a minute and one answer takes ~3 600, so a
+# tab summary and a question in the same minute hit 429 "try again in 3 s". A short wait
+# like that (up to 20 s) is waited out once instead of answering from the fallback.
+RATE_WAIT_MAX = 20.0
 DISCLAIMER = "Odpověď napsala AI z vašich dat a z odborné literatury. Může se mýlit a nenahrazuje fyzioterapeuta."
 
 
@@ -80,11 +85,13 @@ def is_demo(db, rid: str, user=None) -> bool:
 def access(db, runner, user=None) -> dict:
     """{enabled, reason, needsConsent}. Demo data is synthetic, so demo accounts need
     no AI consent; real runners do (their facts go to the hosted model)."""
+    from ..routers.annotations import is_owner
     m = mode()
     demo = is_demo(db, runner.id, user)
     if m == "off":
         return {"enabled": False, "reason": "off", "needsConsent": False}
-    if m == "demo" and not demo:
+    # rollout: demo / tutorial accounts, and the app's owners (DOSSLAP_OWNER_EMAILS) to try it on real data
+    if m == "demo" and not demo and not (user is not None and is_owner(user)):
         return {"enabled": False, "reason": "rollout", "needsConsent": False}
     if not demo and not runner.coach_consent:
         return {"enabled": False, "reason": "consent", "needsConsent": True}
@@ -229,29 +236,31 @@ def _store(db, rid, thread, role, text, **kw) -> models.AssistantMessage:
 
 
 def ask(db, runner, question: str, context: dict | None = None, thread_id: str | None = None, user=None,
-        dry_run: bool = False, model_override: str | None = None) -> dict:
+        dry_run: bool = False, model_override: str | None = None, store: bool = True, n_passages: int = 2) -> dict:
     """The whole pipeline. `dry_run` (ops model comparison on the demo runner)
     stores nothing, ignores the daily limit and the circuit breaker, and returns
-    the raw model text and the validator's issues as well."""
+    the raw model text and the validator's issues as well. `store=False` (the tab
+    summaries) stores nothing and skips the daily limit, but respects the breaker."""
     t0 = time.time()
     rid = runner.id
     question = (question or "").strip()[:800]
     thread = thread_id or uuid.uuid4().hex[:16]
     if not question:
         return {"error": "empty"}
-    if not dry_run:
+    ephemeral = dry_run or not store
+    if not ephemeral:
         purge(db, rid)
 
     def fixed(text, source="gate", issues=None):
-        if dry_run:
-            return {"text": text, "source": source, "issues": issues}
+        if ephemeral:
+            return {"text": text, "source": source, "issues": issues, "sources": [], "links": []}
         _store(db, rid, thread, "user", question, context_json=context)
         row = _store(db, rid, thread, "assistant", text, source=source, issues_json=issues, context_json=context,
                      prompt_version=PROMPT_VERSION, latency_ms=int((time.time() - t0) * 1000))
         db.commit()
         return {**public(row), "disclaimer": DISCLAIMER}
 
-    if not dry_run and _used_today(db, rid) >= daily_limit():
+    if not ephemeral and _used_today(db, rid) >= daily_limit():
         return {**fixed(GATE.LIMIT_REPLY, issues=[{"code": "daily_limit"}]), "limited": True}
     g = GATE.check(question)
     if g:
@@ -265,7 +274,7 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
     active = [s["id"] for s in a.get("signals") or [] if (s.get("pts") or 0) > 0]
     facts = FA.build(db, rid, a, sel)
     kb = K.search(db, question, topics=sel["topics"], signals=sel["signals"], active=active,
-                  want_guide=sel["wantGuide"] or not sel["intents"], n_passages=2)
+                  want_guide=sel["wantGuide"] or not sel["intents"], n_passages=n_passages)
     if sel["wantGuide"] and len(sel["intents"]) == 1:
         kb["passages"] = []                         # an app question needs the guide, not papers
     sources = _number_sources(kb)
@@ -285,9 +294,20 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
             msgs.append({"role": r.role, "content": r.text})
         msgs.append({"role": "user", "content": _user_message(question, facts, sources, guide)})
         model = model_override or llm.ASSISTANT_MODEL
+        waited = False
+
+        def call():
+            return llm.chat_messages(msgs, temperature=0.2, max_tokens=600, timeout=LLM_TIMEOUT_S, model=model,
+                                     base_url=llm.ASSISTANT_BASE_URL, api_key=llm.ASSISTANT_API_KEY)
         for attempt in range(2):
-            out = llm.chat_messages(msgs, temperature=0.2, max_tokens=600, timeout=LLM_TIMEOUT_S, model=model,
-                                    base_url=llm.ASSISTANT_BASE_URL, api_key=llm.ASSISTANT_API_KEY)
+            out = call()
+            if not out and not waited:
+                err = llm.LAST_ERROR.get("chat") or {}
+                wait = _pause_for(err) if err.get("status") == 429 else None
+                if wait is not None and wait <= RATE_WAIT_MAX:
+                    waited = True
+                    time.sleep(wait)
+                    out = call()
             if not out:
                 err = llm.LAST_ERROR.get("chat") or {}
                 issues.append({"code": "llm_error", "detail": err})
@@ -327,10 +347,10 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
                  next((s.get("app") for s in sources if s["kind"] == "card" and s.get("app")), None))
         links = [app_links[first]] if first in app_links else []
     cited = {int(x) for x in VAL._CITE.findall(clean)}
-    if dry_run:
+    if ephemeral:
         return {"text": clean, "source": source, "issues": issues, "llmText": llm_text, "model": model,
                 "latencyMs": int((time.time() - t0) * 1000), "sources": _public_sources(sources, cited),
-                "links": links, "searchMode": kb.get("mode")}
+                "links": links, "searchMode": kb.get("mode"), "facts": facts}
     _store(db, rid, thread, "user", question, context_json=context, intent_json=sel)
     row = _store(db, rid, thread, "assistant", clean, context_json=context, intent_json=sel,
                  sources_json=_public_sources(sources, cited), facts_json=facts, links_json=links, source=source,
@@ -338,6 +358,59 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
                  latency_ms=int((time.time() - t0) * 1000))
     db.commit()
     return {**public(row), "disclaimer": DISCLAIMER, "searchMode": kb.get("mode")}
+
+
+# ------------------------------------------------------------------ tab summaries
+# The assistant opened on a tab starts with a summary of that tab (product request
+# 2026-10-01): the same pipeline as a question — facts, evidence, validator, fallback —
+# kept per runner, tab and day until the facts change, so opening the sheet again costs
+# no model call and nothing counts towards the daily question limit.
+TAB_SUMMARY = {
+    "today": ("Shrnutí dne", "Shrň mi stručně můj dnešní stav: skóre, připravenost, zátěž, mechaniku a příznaky, "
+                             "a co z toho plyne pro dnešní trénink."),
+    "training": ("Dnešní trénink", "Shrň mi stručně dnešní doporučený trénink: proč právě tento, jeho mantinely "
+                                   "a jak ho pojmout."),
+    "load": ("Zátěž a kapacita", "Shrň mi stručně moji zátěž a kapacitu: kde jsem proti své kapacitě, co ji teď "
+                                 "nejvíc ovlivňuje a na co si dát pozor."),
+    "mechanics": ("Běžecká mechanika", "Shrň mi stručně, jak se moje běžecká mechanika drží proti mé normě a co z toho plyne."),
+    "post": ("Deník", "Shrň mi stručně moje poslední běhy z deníku: jak se mi běželo, únava a bolest."),
+    "messages": ("Péče o tělo", "Shrň mi stručně, co je teď důležité pro péči o tělo: bolest, zranění a kdy je "
+                                "namístě fyzioterapeut."),
+}
+SUMMARY_RETRY_AFTER = timedelta(minutes=3)     # a fallback summary (rate limit, pause) is retried with the model after this
+
+
+def tab_summary(db, runner, tab: str, user=None) -> dict:
+    """{tab, title, text, source, sources, links, createdAt, cached} for one tab."""
+    if tab not in TAB_SUMMARY:
+        tab = "today"
+    title, question = TAB_SUMMARY[tab]
+    rid = runner.id
+    ctx = {"kind": "tab", "id": tab}
+    a = E.get_or_refresh_assessment(db, rid)
+    sel = SEL.classify(question, ctx)
+    facts = FA.build(db, rid, a, sel)
+    key = f"{PROMPT_VERSION}|{llm.ASSISTANT_MODEL}|" + json.dumps(facts, sort_keys=True, ensure_ascii=False, default=str)
+    fh = hashlib.sha256(key.encode()).hexdigest()[:16]
+    kind, period = f"tab:{tab}", E.today_date().isoformat()
+    row = (db.query(models.CoachText).filter(models.CoachText.runner_id == rid, models.CoachText.kind == kind,
+                                             models.CoachText.period == period)
+           .order_by(models.CoachText.id.desc()).first())
+    fresh = row is not None and row.facts_hash == fh and not (
+        row.source != "llm" and llm.assistant_available()
+        and datetime.fromisoformat(row.created_at) < datetime.now(E.LOCAL_TZ) - SUMMARY_RETRY_AFTER)
+    if not fresh:
+        out = ask(db, runner, question, ctx, user=user, store=False, n_passages=1)
+        row = models.CoachText(runner_id=rid, kind=kind, period=period, facts_json=out.get("facts"), facts_hash=fh,
+                               prompt_version=PROMPT_VERSION, model=out.get("model"), llm_text=out.get("llmText"),
+                               text=out["text"], source=out["source"], issues_json=out.get("issues") or None,
+                               cards_json={"sources": out.get("sources") or [], "links": out.get("links") or []},
+                               latency_ms=out.get("latencyMs"), created_at=_now())
+        db.add(row)
+        db.commit()
+    extra = row.cards_json if isinstance(row.cards_json, dict) else {}
+    return {"tab": tab, "title": title, "text": row.text, "source": row.source, "sources": extra.get("sources") or [],
+            "links": extra.get("links") or [], "createdAt": row.created_at, "cached": fresh}
 
 
 def suggestions(a: dict) -> list[str]:

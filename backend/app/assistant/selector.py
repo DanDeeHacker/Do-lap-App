@@ -57,7 +57,16 @@ _PAIN_SUB = [
 _WD = {"pondeli": 0, "utery": 1, "stredu": 2, "ctvrtek": 3, "patek": 4, "sobotu": 5, "nedeli": 6}
 _TYPE_RX = [(re.compile(r"interval\w*|tempov\w*|kvalitn\w*|tvrd\w* trenink"), "kvalitní"), (re.compile(r"dlouh\w* beh"), "dlouhý"),
             (re.compile(r"posil\w*|silov\w*"), "posilování"), (re.compile(r"\bkol[oe]\b"), "kolo"), (re.compile(r"plav\w*"), "voda")]
-CONTEXT_KINDS = ("guidance", "type", "signal", "readiness", "run", "summary", "card")
+CONTEXT_KINDS = ("guidance", "type", "signal", "readiness", "run", "summary", "card", "tab")
+# A question asked from a tab is about that tab unless it names its own subject.
+TAB_INTENTS = {
+    "today": ["today", "readiness", "load", "mechanics", "pain"],
+    "training": ["today", "plan"],
+    "load": ["load", "readiness"],
+    "mechanics": ["mechanics"],
+    "post": ["run", "pain"],
+    "messages": ["pain"],
+}
 
 
 def classify(question: str, context: dict | None = None) -> dict:
@@ -65,6 +74,15 @@ def classify(question: str, context: dict | None = None) -> dict:
     t = fold(question)
     intents = [k for k, rx in _RX.items() if rx.search(t)]
     ctx = context if isinstance(context, dict) and context.get("kind") in CONTEXT_KINDS else None
+    tab = str(ctx.get("id")) if ctx and ctx.get("kind") == "tab" else None
+    if tab is not None:
+        # the tab only sets the default focus: a navigation question or one with its
+        # own subject keeps it, a vague one ("co s tím?") is about what's on screen
+        if not intents:
+            intents = list(TAB_INTENTS.get(tab, []))
+        elif intents == ["app"] and not _NAV.search(t):     # "co znamená tohle?" — the guide and what's on screen
+            intents = ["app"] + TAB_INTENTS.get(tab, [])
+        ctx = None
     signals = []
     if ctx:
         kind = ctx["kind"]
