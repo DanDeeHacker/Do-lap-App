@@ -414,6 +414,22 @@ class AccessLog(Base):
     __table_args__ = (UniqueConstraint("runner_id", "physio_id", "date", "action", name="uq_access_daily"),)
 
 
+class AdminAccessLog(Base):
+    """The app owner's admin view ("Zobrazit jako") of a runner's record — logged like
+    a physio's access and shown to the runner in the same list (GDPR transparency).
+    Deduped per (runner, admin, day) with a running count."""
+    __tablename__ = "admin_access_log"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    admin_user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    date = Column(String, nullable=False)
+    resource = Column(String)
+    access_count = Column(Integer, default=1)
+    first_at = Column(String)
+    last_at = Column(String)
+    __table_args__ = (UniqueConstraint("runner_id", "admin_user_id", "date", name="uq_admin_access_daily"),)
+
+
 class PhysioSlot(Base):
     """A concrete availability slot a physio offers (den + čas). The runner
     browses open slots filtered by their own preferred days/parts-of-day and

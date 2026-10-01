@@ -26,11 +26,12 @@ import { EngineCompare } from "@/enginecompare"
 import { CapacityMini, ReadinessFactors, readinessCol, readinessPct } from "@/capacity"
 import { Training } from "@/training"
 import { AssistantHeaderButton, AssistantProvider, CoachFab, WhyButton } from "@/assistant"
+import { AdminPage, ViewAsBanner } from "@/admin"
 import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C, badCol, goodCol } from "@/tokens"
-import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
+import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, Users, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 import { Landing, scrollToLanding } from "@/landing"
 
@@ -77,7 +78,7 @@ function useDynamicReveal() {
 function Topbar() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
-  const { me, boot, logout } = useApp()
+  const { me, realMe, boot, logout, viewing } = useApp()
   const nav = useNavigate()
   const { pathname } = useLocation()
   const runner = boot?.runner
@@ -116,7 +117,7 @@ function Topbar() {
             )
           })}
         </nav>
-        <p className="hidden text-[15px] font-extrabold tracking-[-.02em] text-fg lg:block">{navItems.find(([id]) => pathname === `/app/${id}` || pathname.startsWith(`/app/${id}/`))?.[1] ?? (pathname === "/data" ? "Data a připojení" : pathname === "/engines" ? "Porovnání enginů" : pathname.startsWith("/engine") ? "Citlivostní analýza" : "")}</p>
+        <p className="hidden text-[15px] font-extrabold tracking-[-.02em] text-fg lg:block">{navItems.find(([id]) => pathname === `/app/${id}` || pathname.startsWith(`/app/${id}/`))?.[1] ?? (pathname === "/data" ? "Data a připojení" : pathname === "/admin" ? "Správa uživatelů" : pathname === "/engines" ? "Porovnání enginů" : pathname.startsWith("/engine") ? "Citlivostní analýza" : "")}</p>
         {demo.guest ? (
           <div className="flex shrink-0 items-center gap-1.5" data-testid="demo-controls">
             <button onClick={demo.restartTour} aria-label="Spustit průvodce znovu" title="Průvodce"
@@ -129,7 +130,8 @@ function Topbar() {
         <div className="relative flex shrink-0 items-center gap-2">
           <AnnotateToggle />
           <AssistantHeaderButton />
-          <button
+          {/* the admin view hides the viewed runner's Profil (the banner leads back) */}
+          {!viewing && <button
             onClick={() => setProfileOpen(!profileOpen)}
             className="relative grid size-9 place-items-center rounded-full bg-accent text-[11px] font-extrabold text-ink"
             aria-expanded={profileOpen}
@@ -137,7 +139,7 @@ function Topbar() {
           >
             {ini}
             {ob.show && ob.pending > 0 && <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-alert text-[9px] font-extrabold text-ink" aria-label={`Začínáme: zbývá ${ob.pending}`}>{ob.pending}</span>}
-          </button>
+          </button>}
           {profileOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setProfileOpen(false)} />
@@ -162,6 +164,7 @@ function Topbar() {
                   <button onClick={() => { setProfileOpen(false); setEditOpen(true) }} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><UserPen className="size-4 text-fg-2" aria-hidden />Upravit profil</button>
                   <Link to="/data" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Database className="size-4 text-fg-2" aria-hidden />Data a připojení</Link>
                   <Link to="/engine" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><SlidersHorizontal className="size-4 text-fg-2" aria-hidden />Citlivostní analýza</Link>
+                  {realMe?.owner && <Link to="/admin" onClick={() => setProfileOpen(false)} data-testid="menu-admin" className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Users className="size-4 text-fg-2" aria-hidden />Správa uživatelů</Link>}
                 </div>
                 <button
                   onClick={async () => { setProfileOpen(false); await logout(); nav("/auth") }}
@@ -270,7 +273,7 @@ function useAutoGarminSync(active: boolean) {
   }, [active]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 function Layout() {
-  const { me, loading } = useApp()
+  const { me, loading, viewing } = useApp()
   useAutoGarminSync(!!me && me.role === "runner" && !me.guest)
   // New deployments: reload when the app returns to the foreground, or offer a
   // reload if one lands while it's in use (home-screen apps never reload alone).
@@ -289,6 +292,8 @@ function Layout() {
     )
   if (!me) return <Navigate to="/auth" replace />
   if (me.role !== "runner") return <RunnerOnlyNotice />
+  // the admin view shows every tab, not the viewed runner's Data a připojení or the engine lab
+  if (viewing && (pathname === "/data" || pathname.startsWith("/engine"))) return <Navigate to="/app/today" replace />
   return (
     <AnnotateProvider>
       <OnboardingProvider>
@@ -299,6 +304,7 @@ function Layout() {
         {/* FIX-5: bottom padding = tab bar + Check-in button + 16 px, so the button never covers content. */}
         <div className="lg:pl-[220px]">
           <main className="mx-auto min-h-screen max-w-[1180px] bg-bg px-5 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-[calc(5rem+env(safe-area-inset-top))] md:px-9 md:pb-28 md:pt-[5.5rem]">
+            <ViewAsBanner />
             {rail ? (
               <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_280px] xl:gap-7">
                 <div className="min-w-0"><Outlet /></div>
@@ -1089,7 +1095,7 @@ function SymptomPanel({ signals }: { signals: any[] }) {
 
 type AlertRow = { key: string; tone: "stop" | "alert" | "watch" | "info"; icon?: LucideIcon; title: React.ReactNode; body: React.ReactNode }
 function TodayV2() {
-  const { me, boot, refresh, error } = useApp()
+  const { me, boot, refresh, error, viewing } = useApp()
   const a = boot?.assessment
   const L = a?.loadDetail
   const rid = me?.runner_id
@@ -1235,7 +1241,7 @@ function TodayV2() {
         </AlertBanner>
       )}
       <section className="card mt-6 p-4 text-fg md:p-6">
-        <QuadrantHead quadrant={a?.quadrant} live={a} onSync={doSync} syncing={syncing} syncMsg={syncMsg} canSync={!!gStatus?.connected}
+        <QuadrantHead quadrant={a?.quadrant} live={a} onSync={viewing ? undefined : doSync} syncing={syncing} syncMsg={syncMsg} canSync={!!gStatus?.connected}
           alertSlot={alertCount > 0 && (
             <button type="button" onClick={() => setAlertsOpen((v) => !v)} aria-expanded={alertsOpen} aria-label={`Upozornění (${alertCount})`} title="Upozornění"
               className={`relative inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-extrabold transition ${hasStop ? "bg-alert text-ink motion-safe:animate-pulse" : worstTone === "alert" ? "bg-alert/15 text-alert-soft ring-1 ring-alert/40" : "bg-watch/15 text-watch ring-1 ring-watch/40"}`}>
@@ -1657,7 +1663,7 @@ function AtlasBubble() {
   // Step 2 (where it hurts) is only asked when there is pain; otherwise it's skipped.
   const next = () => setStep((st) => (st === 1 ? (pain > 0 ? 2 : 3) : 3))
   const back = () => setStep((st) => (st === 3 ? (pain > 0 ? 2 : 1) : 1))
-  const { me, boot, refresh, touring } = useApp()
+  const { me, boot, refresh, touring, viewing } = useApp()
   const rid = me?.runner_id
   // today's check-in done → the button is gone until tomorrow (kept in the tour, which points at it)
   const todayIso = new Date().toLocaleDateString("sv-SE")
@@ -1701,7 +1707,7 @@ function AtlasBubble() {
     })
   return (
     <>
-      {!open && !doneToday && (
+      {!open && !doneToday && !viewing && (
         // Check-in FAB, parked in the bottom-right corner just above the mobile
         // nav. The earlier full-height side rail sat vertically centered over the
         // right edge and *covered* the right ~40px of every page's content (cards
@@ -1975,6 +1981,7 @@ const router = createBrowserRouter([
       { path: "/app/:tab", Component: RunnerPage },
       { path: "/app/post/:aid", Component: RunDetail },
       { path: "/data", Component: DataPage },
+      { path: "/admin", Component: AdminPage },
       { path: "/engine", Component: EngineLab },
       { path: "/engines", Component: EngineCompare },
     ],

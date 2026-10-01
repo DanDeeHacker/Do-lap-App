@@ -123,6 +123,7 @@ export const api = {
   refreshCoach: (rid: string) => call("POST", `/api/runners/${rid}/coach/refresh`),
 
   // Physio AI Assistant (chat over the runner's data and the reviewed literature)
+  adminRunners: () => call("GET", "/api/admin/runners"),
   assistant: (rid: string) => call("GET", `/api/runners/${rid}/assistant`),
   assistantAsk: (rid: string, body: { question: string; context?: any; thread_id?: string }) => call("POST", `/api/runners/${rid}/assistant/ask`, body),
   assistantSummary: (rid: string, tab: string) => call("GET", `/api/runners/${rid}/assistant/summary?tab=${encodeURIComponent(tab)}`),
@@ -212,6 +213,8 @@ export type Me = {
   employer_id?: string
   partner_id?: string
   provider?: string
+  /** the app's owner (DOSSLAP_OWNER_EMAILS): feedback for everyone, admin "Zobrazit jako" */
+  owner?: boolean
   /** public demo ("Vyzkoušej hned!"): read-only guest session on the tutorial runner */
   guest?: boolean
   demo_rid?: string

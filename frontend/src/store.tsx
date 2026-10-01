@@ -11,11 +11,18 @@
 // Guest mode (public demo, "Vyzkoušej hned!" on /auth): a read-only guest session
 // whose `me.demo_rid` is the same tutorial runner. The store treats a guest as
 // permanently touring; leaving the demo is a logout.
+//
+// Admin view ("Zobrazit jako", app owners only): `me.runner_id` and `me.name` point at
+// another registered runner and `boot` is theirs. Like the tour it is read-only —
+// the server lets an owner read any runner but writes only their own — so `touring`
+// is set too (no check-in, no assistant); `viewing` names whom the owner is looking at.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { api, ApiError, type Me } from "@/api"
 import { clearQuadHistory, loadQuadHistory } from "@/history"
 
 type Tour = { rid: string; boot: any }
+type View = { rid: string; name: string; boot: any }
+const VIEW_KEY = "doslap.viewAs"
 
 type AppState = {
   me: Me | null
@@ -24,6 +31,9 @@ type AppState = {
   loading: boolean
   error: string | null
   touring: boolean
+  viewing: { rid: string; name: string } | null
+  startViewAs: (rid: string, name: string) => Promise<boolean>
+  endViewAs: () => void
   reloadMe: () => Promise<Me | null>
   refresh: () => Promise<void>
   logout: () => Promise<void>
@@ -39,6 +49,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tour, setTour] = useState<Tour | null>(null)
+  const [view, setView] = useState<View | null>(null)
 
   const reloadMe = useCallback(async () => {
     try {
@@ -55,6 +66,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const personalise = useCallback((b: any) => (b && !me?.guest ? { ...b, runner: { ...(b.runner || {}), name: me?.name || b.runner?.name } } : b), [me?.name, me?.guest])
 
   const refresh = useCallback(async () => {
+    if (view) {
+      try { const b = await api.bootstrap(view.rid); setView((v) => (v && v.rid === view.rid ? { ...v, boot: b } : v)) } catch { /* keep the old copy */ }
+      return
+    }
     if (tour) {
       try { setTour({ ...tour, boot: personalise(await api.bootstrap(tour.rid)) }) } catch { /* keep the old copy */ }
       return
@@ -69,7 +84,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Nepodařilo se načíst data")
     }
-  }, [me?.runner_id, tour, personalise])
+  }, [me?.runner_id, tour, personalise, view])
+
+  const startViewAs = useCallback(async (rid: string, name: string) => {
+    if (!me?.owner) return false
+    if (rid === me.runner_id) { setView(null); try { sessionStorage.removeItem(VIEW_KEY) } catch { /* ignore */ } return true }
+    try {
+      const b = await api.bootstrap(rid)
+      setTour(null)
+      setView({ rid, name, boot: b })
+      try { sessionStorage.setItem(VIEW_KEY, JSON.stringify({ rid, name })) } catch { /* ignore */ }
+      return true
+    } catch {
+      return false
+    }
+  }, [me?.owner, me?.runner_id])
+  const endViewAs = useCallback(() => {
+    setView(null)
+    try { sessionStorage.removeItem(VIEW_KEY) } catch { /* ignore */ }
+  }, [])
+  // a page reload keeps the admin view of the same runner (this tab only)
+  useEffect(() => {
+    if (!me?.owner || view) return
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(VIEW_KEY) || "null")
+      if (saved?.rid && saved.rid !== me.runner_id) startViewAs(saved.rid, saved.name || "Běžec")
+    } catch { /* ignore */ }
+  }, [me?.owner]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const startTour = useCallback(async () => {
     const rid = me?.runner_id
@@ -100,6 +141,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
     setTour(null)
+    setView(null)
+    try { sessionStorage.removeItem(VIEW_KEY) } catch { /* ignore */ }
     setMe(null)
     setBoot(null)
     setError(null)
@@ -118,8 +161,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (me?.runner_id) refresh()
   }, [me?.runner_id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shownMe = useMemo(() => (tour && me ? { ...me, runner_id: tour.rid } : me?.guest && me.demo_rid ? { ...me, runner_id: me.demo_rid } : me), [tour, me])
-  const shownBoot = tour ? tour.boot : boot
+  const shownMe = useMemo(() => (view && me ? { ...me, runner_id: view.rid, name: view.name }
+    : tour && me ? { ...me, runner_id: tour.rid } : me?.guest && me.demo_rid ? { ...me, runner_id: me.demo_rid } : me), [view, tour, me])
+  const shownBoot = view ? view.boot : tour ? tour.boot : boot
+  const viewing = useMemo(() => (view ? { rid: view.rid, name: view.name } : null), [view])
 
   // Prefetch the daily history behind the trend charts as soon as the bootstrap
   // lands, and revalidate it whenever the assessment is recomputed (a sync, a
@@ -132,7 +177,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [histRid, histVer])
 
   return (
-    <Ctx.Provider value={{ me: shownMe, realMe: me, boot: shownBoot, loading, error, touring: !!tour || !!me?.guest, reloadMe, refresh, logout, startTour, endTour }}>
+    <Ctx.Provider value={{ me: shownMe, realMe: me, boot: shownBoot, loading, error, touring: !!tour || !!me?.guest || !!view, viewing, startViewAs, endViewAs, reloadMe, refresh, logout, startTour, endTour }}>
       {children}
     </Ctx.Provider>
   )

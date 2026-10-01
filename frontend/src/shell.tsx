@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router"
 import {
-  Activity, Database, Flag, Footprints, Gauge, HeartHandshake, HeartPulse, House, Moon, NotebookPen, Pencil, SlidersHorizontal, Target, TrendingUp, Zap,
+  Activity, Database, Flag, Footprints, Gauge, HeartHandshake, HeartPulse, House, Moon, NotebookPen, Pencil, SlidersHorizontal, Target, TrendingUp, Users, Zap,
   type LucideIcon,
 } from "lucide-react"
 import { api } from "@/api"
@@ -33,6 +33,7 @@ export function Mark({ size = 36 }: { size?: number }) {
 /* ---------------- Desktop sidebar (lg+) ---------------- */
 export function Sidebar({ items }: { items: [string, string][] }) {
   const { pathname } = useLocation()
+  const { realMe, viewing } = useApp()
   const link = (to: string, label: string, Icon: LucideIcon, key: string) => {
     const on = pathname === to || pathname.startsWith(to + "/")
     return (
@@ -53,8 +54,9 @@ export function Sidebar({ items }: { items: [string, string][] }) {
       <div className="mt-6 border-t border-white/[.07] pt-4">
         <p className="t-label mb-2 px-3 !text-fg-3">Nastavení</p>
         <nav className="grid gap-1">
-          {link("/data", "Data a připojení", Database, "data")}
-          {link("/engine", "Citlivostní analýza", SlidersHorizontal, "engine")}
+          {!viewing && link("/data", "Data a připojení", Database, "data")}
+          {!viewing && link("/engine", "Citlivostní analýza", SlidersHorizontal, "engine")}
+          {realMe?.owner && link("/admin", "Správa uživatelů", Users, "admin")}
         </nav>
       </div>
     </aside>

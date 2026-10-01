@@ -6,6 +6,8 @@ Depends — path params name the resource differently per route (runner id,
 program id, exercise id...), and an explicit `ensure_*` call at the top of
 each handler is easier to audit than dependency-injection indirection.
 """
+import os
+
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session as DBSession
 
@@ -77,17 +79,40 @@ def tutorial_demo_runner_id(db: DBSession | None = None) -> str:
     return TUTORIAL_RID
 
 
+def owner_emails() -> set[str]:
+    return {e.strip().lower() for e in os.environ.get("DOSSLAP_OWNER_EMAILS", "").split(",") if e.strip()}
+
+
+def is_owner(user: models.User | None) -> bool:
+    """The app's owners (DOSSLAP_OWNER_EMAILS): feedback for everyone, the owner-only
+    reports and the admin "Zobrazit jako" (read-only view of any runner)."""
+    return user is not None and (user.email or "").lower() in owner_emails()
+
+
 def ensure_runner_read_access(db: DBSession, user: models.User, runner_id: str) -> None:
     """Runner reading their own data, or a physio who has claimed this patient.
     Any signed-in user may also READ the synthetic tour demo runner (its login is
-    public anyway); writes still go through ensure_runner_self."""
+    public anyway); writes still go through ensure_runner_self. The app's owners
+    may read any runner (admin view, logged in the runner's access log); a write
+    that only checks read access must therefore not act as the runner (see
+    ensure_runner_write_access)."""
     if user.role == "runner" and user.runner_id == runner_id:
         return
     if runner_id == tutorial_demo_runner_id():
         return
     if user.role == "physio" and has_care_assignment(db, user.physio_id, runner_id):
         return
+    if is_owner(user):
+        return
     raise HTTPException(status_code=403, detail="Nemáte přístup k tomuto běžci")
+
+
+def ensure_runner_write_access(db: DBSession, user: models.User, runner_id: str) -> None:
+    """Writes a runner (themself) or their claimed physio may perform — never the
+    admin view of someone else's record."""
+    if user.role == "physio" and has_care_assignment(db, user.physio_id, runner_id):
+        return
+    ensure_runner_self(user, runner_id)
 
 
 def ensure_runner_self(user: models.User, runner_id: str) -> None:

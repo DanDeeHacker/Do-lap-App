@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from .. import models
 from ..db import get_db
-from ..deps import get_current_user, verify_csrf
+from ..deps import get_current_user, is_owner, verify_csrf  # is_owner lives in deps (one definition)
 from ..metrics import engine as E
 
 router = APIRouter(prefix="/api/annotations", tags=["annotations"])
@@ -29,12 +29,6 @@ STATUSES = {"open", "done", "wontfix"}
 MAX_OPEN_PER_USER = 300
 
 
-def _owner_emails() -> set[str]:
-    return {e.strip().lower() for e in os.environ.get("DOSSLAP_OWNER_EMAILS", "").split(",") if e.strip()}
-
-
-def is_owner(user: models.User) -> bool:
-    return (user.email or "").lower() in _owner_emails()
 
 
 def _out(a: models.Annotation, author: models.User | None, viewer: models.User | None = None) -> dict:

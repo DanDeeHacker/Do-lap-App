@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from .. import models, schemas
 from ..db import get_db
-from ..deps import GUEST_PROVIDER, get_current_user, verify_csrf
+from ..deps import GUEST_PROVIDER, get_current_user, is_owner, verify_csrf
 from ..metrics import engine as E
 from ..security import (
     COOKIE_SECURE, SESSION_COOKIE, SESSION_TTL_DAYS, client_ip, create_session, hash_password,
@@ -49,7 +49,7 @@ def _user_dict(db: DBSession, u: models.User) -> dict:
         "id": u.id, "email": u.email, "name": u.name, "role": u.role,
         "runner_id": u.runner_id, "physio_id": u.physio_id,
         "employer_id": u.employer_id, "partner_id": u.partner_id,
-        "provider": u.provider, "profile": profile,
+        "provider": u.provider, "profile": profile, "owner": is_owner(u),
         **({"guest": True, "demo_rid": _demo_rid()} if u.provider == GUEST_PROVIDER else {}),
     }
 

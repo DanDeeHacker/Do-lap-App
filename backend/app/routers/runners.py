@@ -13,7 +13,7 @@ from .. import history as H
 from .. import models, precompute, schemas
 from ..db import get_db
 from ..deps import (
-    ensure_runner_read_access, ensure_runner_self, get_current_user, or_404, verify_csrf,
+    ensure_runner_read_access, ensure_runner_self, ensure_runner_write_access, get_current_user, or_404, verify_csrf,
 )
 from ..metrics import coach_texts
 from ..metrics import engine as E
@@ -278,19 +278,7 @@ def bootstrap(rid: str, user: models.User = Depends(get_current_user), db: DBSes
     if rtr_plan:
         from ..routers.rtr import _plan_dict
         rtr_out = _plan_dict(db, rtr_plan)
-    access_rows = (
-        db.query(models.AccessLog).filter(models.AccessLog.runner_id == rid)
-        .order_by(models.AccessLog.last_at.desc()).limit(20).all()
-    )
-    access_names = {
-        p.id: p.name for p in
-        db.query(models.Physio).filter(models.Physio.id.in_({a.physio_id for a in access_rows})).all()
-    } if access_rows else {}
-    access_out = []
-    for a in access_rows:
-        d = to_dict(a)
-        d["physio_name"] = access_names.get(a.physio_id)
-        access_out.append(d)
+    access_out = _access_log(db, rid, 20)
     from ..routers.booking import due_reminders
     reminders = due_reminders(db, runner_id=rid)
 
@@ -559,20 +547,27 @@ def access_log(rid: str, user: models.User = Depends(get_current_user), db: DBSe
     """GDPR transparency: who accessed this runner's record. Visible to the
     runner themself and to a physio who has claimed them."""
     ensure_runner_read_access(db, user, rid)
-    rows = (
-        db.query(models.AccessLog).filter(models.AccessLog.runner_id == rid)
-        .order_by(models.AccessLog.last_at.desc()).limit(50).all()
-    )
-    names = {
-        p.id: p.name for p in
-        db.query(models.Physio).filter(models.Physio.id.in_({r.physio_id for r in rows})).all()
-    } if rows else {}
+    return _access_log(db, rid, 50)
+
+
+def _access_log(db: DBSession, rid: str, limit: int) -> list[dict]:
+    """Who touched the record: claimed physios, and the app owner's admin view
+    ("Správce aplikace", read-only), newest first."""
+    rows = (db.query(models.AccessLog).filter(models.AccessLog.runner_id == rid)
+            .order_by(models.AccessLog.last_at.desc()).limit(limit).all())
+    names = {p.id: p.name for p in db.query(models.Physio).filter(models.Physio.id.in_({r.physio_id for r in rows})).all()} if rows else {}
     out = []
     for r in rows:
         d = to_dict(r)
         d["physio_name"] = names.get(r.physio_id)
         out.append(d)
-    return out
+    for r in (db.query(models.AdminAccessLog).filter(models.AdminAccessLog.runner_id == rid)
+              .order_by(models.AdminAccessLog.last_at.desc()).limit(limit).all()):
+        out.append({"id": f"admin-{r.id}", "runner_id": rid, "physio_id": None, "actor_role": "admin", "action": "read",
+                    "date": r.date, "resource": r.resource, "access_count": r.access_count, "first_at": r.first_at,
+                    "last_at": r.last_at, "physio_name": "Správce aplikace"})
+    out.sort(key=lambda d: d.get("last_at") or "", reverse=True)
+    return out[:limit]
 
 
 @router.get("/{rid}/assessment")
@@ -880,7 +875,7 @@ def get_messages(rid: str, user: models.User = Depends(get_current_user), db: DB
 
 @router.post("/{rid}/messages", dependencies=[Depends(verify_csrf)])
 def post_message(rid: str, body: schemas.SendMessageRequest, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
-    ensure_runner_read_access(db, user, rid)
+    ensure_runner_write_access(db, user, rid)
     sender = "physio" if user.role == "physio" else "runner"
     physio_id = user.physio_id if user.role == "physio" else (
         db.query(models.Program.physio_id).filter(models.Program.runner_id == rid).scalar()

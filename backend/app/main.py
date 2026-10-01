@@ -19,9 +19,10 @@ from . import security
 from . import seed as seed_module
 from . import db as dbmod
 from .db import Base, SessionLocal, engine
+from .deps import is_owner, tutorial_demo_runner_id
 from .metrics import engine as E
 from .routers import (
-    ai, annotations, auth, booking, coach, conclusions, employers, integrations, partners, physios, programs, rtr,
+    admin, ai, annotations, auth, booking, coach, conclusions, employers, integrations, partners, physios, programs, rtr,
     runners, self_programs, simulate, triage, assistant,
 )
 
@@ -354,6 +355,18 @@ def _record_access(db, rid: str, physio_id: str, method: str, resource: str) -> 
     db.commit()
 
 
+def _record_admin_access(db, rid: str, user_id: int, resource: str) -> None:
+    today, now = E.iso_date(E.today_date()), E.now_iso()
+    row = db.query(models.AdminAccessLog).filter_by(runner_id=rid, admin_user_id=user_id, date=today).first()
+    if row:
+        row.access_count = (row.access_count or 0) + 1
+        row.last_at, row.resource = now, resource
+    else:
+        db.add(models.AdminAccessLog(runner_id=rid, admin_user_id=user_id, date=today, resource=resource,
+                                     access_count=1, first_at=now, last_at=now))
+    db.commit()
+
+
 @app.middleware("http")
 async def audit_access(request, call_next):
     """Logs a physio's access to a runner's record (GDPR right-of-access
@@ -374,6 +387,9 @@ async def audit_access(request, call_next):
                 if user and user.role == "physio" and user.physio_id:
                     _record_access(db, rid, user.physio_id, request.method,
                                    parts[4] if len(parts) > 4 else "profil")
+                elif user and user.runner_id != rid and is_owner(user) and rid != tutorial_demo_runner_id():
+                    # the owner's admin view of someone else's record (read-only by construction)
+                    _record_admin_access(db, rid, user.id, parts[4] if len(parts) > 4 else "profil")
             finally:
                 db.close()
     except Exception:
@@ -398,6 +414,7 @@ app.include_router(annotations.router)
 app.include_router(coach.router)
 app.include_router(assistant.router)
 app.include_router(self_programs.router)
+app.include_router(admin.router)
 
 
 @app.get("/api/health")
