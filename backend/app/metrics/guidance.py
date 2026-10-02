@@ -402,6 +402,57 @@ LOAD_LADDER = {"volno": 0.0, "regenerace": 1.0, "voda": 1.5, "kolo": 2.0, "posil
                "lehký": 3.0, "dlouhý": 4.0, "kvalitní": 5.0, "závod": 6.0}
 
 
+RUN_TYPES = ("regenerace", "lehký", "dlouhý", "kvalitní")
+DONE_ENOUGH = 0.8        # a run of ≥ 80 % of today's recommended distance counts as today's session (working assumption)
+
+
+def _after_done(typ, types, today_runs, today_other, vol_max, override, race_today) -> dict | None:
+    """Feedback #154/#158 — today's recommendation once something was already done today:
+    a run that covered the recommendation (or a hard one) closes the running day, a short
+    run leaves the rest as an easy top-up, a hard session in another sport takes today's
+    quality session down to an easy run. None when nothing was done or nothing changes."""
+    if override or race_today or not (today_runs or today_other):
+        return None
+    km = sum(x.get("km") or 0 for x in today_runs)
+    hard_run = any(is_hard(x) for x in today_runs)
+    hard_other = any(is_hard(x) or (x.get("rpe") or 0) >= HARD_RPE for x in today_other)
+    names = [f"běh {_cz(km)} km"] if today_runs else []
+    names += [f"{(x.get('title') or x.get('sport') or 'aktivita').lower()} {round(x['durationMin'])} min"
+              for x in today_other if x.get("durationMin")][:2]
+    what = ", ".join(names) or "dnešní aktivita"
+    rec = types.get(typ) or {}
+    lo = ((rec.get("km") or {}).get("lo") or 0) if typ in RUN_TYPES else 0
+    room = vol_max if vol_max is not None else None
+    if today_runs:
+        if hard_run or typ not in RUN_TYPES or (lo and km >= DONE_ENOUGH * lo) or (room is not None and room < MIN_RUN_KM):
+            why = ("byl to tvrdý trénink" if hard_run else
+                   "pokryl dnešní doporučení" if (lo and km >= DONE_ENOUGH * lo) else
+                   "na další běh už dnes nezbývá objem" if (room is not None and room < MIN_RUN_KM) else
+                   "dnes byl naplánovaný den volna")
+            return {"type": "volno", "doneKm": _r(km), "hard": hard_run,
+                    "text": f"Dnes už máte hotovo ({what}) a {why} — zbytek dne volno, nanejvýš procházka nebo protažení."}
+        # a short run: the rest of today's distance as an easy, separate top-up
+        top = typ if typ != "kvalitní" else "lehký"
+        if not types.get(top, {}).get("allowed"):
+            top = "regenerace" if types.get("regenerace", {}).get("allowed") else "volno"
+        if top == "volno":
+            return {"type": "volno", "doneKm": _r(km), "hard": False,
+                    "text": f"Dnes už máte hotovo ({what}) — zbytek dne volno."}
+        return {"type": top, "doneKm": _r(km), "hard": False,
+                "text": f"Dnes už máte hotovo ({what}). Pokud chcete, zbývá ještě krátký lehký běh do "
+                        f"{_cz(room if room is not None else (rec.get('km') or {}).get('hi'))} km — bez intenzity."}
+    if hard_other and typ == "kvalitní":
+        top = "lehký" if types.get("lehký", {}).get("allowed") else "volno"
+        return {"type": top, "doneKm": 0, "hard": True,
+                "text": f"Dnes už máte za sebou náročný trénink ({what}) — místo kvalitního tréninku jen "
+                        + ("lehký běh." if top == "lehký" else "volno.")}
+    if hard_other and typ == "dlouhý":
+        top = "lehký" if types.get("lehký", {}).get("allowed") else "volno"
+        return {"type": top, "doneKm": 0, "hard": True,
+                "text": f"Dnes už máte za sebou náročný trénink ({what}) — dlouhý běh přesuňte na odpočatější den."}
+    return None
+
+
 def rank_types(types: dict, typ: str, strength_due: bool, xt: dict | None = None) -> list:
     base = LOAD_LADDER.get(typ, 3.0)
     kolo_v = (xt or {}).get("kolo", "ok")
@@ -1004,8 +1055,16 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if xt_pick:
         typ = xt_pick
 
+    # ---- feedback #154/#158: an activity already done today shapes the rest of the day
+    today_other = [x for x in sessions if not x["run"] and x["date"] == t_iso and x.get("sport") != "walking"]
+    after_done = _after_done(typ, types, today_runs, today_other, vol_max, override, race_today)
+    if after_done:
+        typ = after_done["type"]
+
     # ---- reasons (most important first) -------------------------------------
     reasons = []  # the override itself is shown as the banner, not repeated here
+    if after_done:
+        reasons.append(after_done["text"])
     if override:
         pass
     elif bone_block:
@@ -1157,7 +1216,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         "pattern": {**pat, "runDayNames": [WD[w] for w in pat["runDays"]],
                     "longDayName": WD[pat["longDay"]] if pat["longDay"] is not None else None,
                     "hardDayNames": [WD[w] for w in pat["hardDays"]], "easyKm": _r(easy_km), "easyPace": _r(easy_pace, 0)},
-        "reasons": reasons[:5], "done": done, "rank": rank,
+        "reasons": reasons[:5], "done": done, "rank": rank, "afterDone": after_done,
         "heat": heat, "hardWeek": {"done": hard7, "cap": hard_cap},
         "strength": {"done": s_done, "target": s_target, "today": s_today, "lastAge": s_last_age, "newBlock": new_block,
                      "suggestToday": strength_due,

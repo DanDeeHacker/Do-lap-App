@@ -1262,7 +1262,8 @@ def _gradient_bucket_index(pct: float) -> int:
     return min(idx, len(GRADIENT_LABELS) - 1)
 
 
-def _descent_gradient_totals(activities) -> list[float]:
+def _descent_gradient_totals(activities, up: bool = False) -> list[float]:
+    """Metres of descent (or, with up=True, of ascent) per 2.5 % gradient bucket."""
     buckets = [0.0] * len(GRADIENT_LABELS)
     for a in activities:
         profile = a.elevation_profile
@@ -1274,9 +1275,9 @@ def _descent_gradient_totals(activities) -> list[float]:
             seg_dist = d1 - d0
             if seg_dist <= 0:
                 continue
-            drop = alt0 - alt1
+            drop = (alt1 - alt0) if up else (alt0 - alt1)
             if drop <= 0:
-                continue  # ascending or flat segment
+                continue  # the other direction or flat
             pct = drop / seg_dist * 100
             buckets[_gradient_bucket_index(pct)] += drop
     return buckets
@@ -1300,6 +1301,16 @@ def descent_by_gradient(db: DBSession, rid: str):
         "steepBaseWeekly": rnd(steep_base_weekly), "steepSpike": spike,
         "nActivities7": len(recent),
     }
+
+
+def ascent_by_gradient(db: DBSession, rid: str):
+    """Feedback #160 — the last 7 days' ascent per gradient band (display only, no score)."""
+    recent = [a for a in acts(db, rid, "load") if a.elevation_profile and a.started_at > day_ago(7)]
+    if not recent:
+        return None
+    b = _descent_gradient_totals(recent, up=True)
+    return {"buckets": [rnd(x) for x in b], "labels": GRADIENT_LABELS, "total7": rnd(sum(b)),
+            "steep7": rnd(sum(b[STEEP_BUCKET_FROM:])), "nActivities7": len(recent)}
 
 
 def decouple(db: DBSession, rid: str):
@@ -3221,6 +3232,7 @@ def _assess(db, rid: str) -> dict:
     seff = sleep_efficiency(db, rid)
     stiff = stiffness_pattern(db, rid)
     gdesc = descent_by_gradient(db, rid)
+    gasc = ascent_by_gradient(db, rid)
     inj = injury(db, rid)
 
     # Daily check-in is a *today* signal — only the last few days count, so a
@@ -3932,7 +3944,7 @@ def _assess(db, rid: str) -> dict:
         "signals": sorted(sig, key=lambda s: -s["pts"]),
         "loadDetail": L, "tavr": tv, "gct": gc, "bal": bal, "dec": dec, "aer": aer, "rcv": rcv, "fb": fb,
         "cadence": cad, "stride": strd, "vosc": vosc, "duty": duty, "gaitCv": gcv, "painWarn": pain_warn,
-        "hrvCv": hcv, "sleepReg": sreg, "sleepEff": seff, "stiffness": stiff, "gradientDescent": gdesc, "injury": inj,
+        "hrvCv": hcv, "sleepReg": sreg, "sleepEff": seff, "stiffness": stiff, "gradientDescent": gdesc, "gradientAscent": gasc, "injury": inj,
         "painRecurring": pain_recur, "functionLimit": func, "acuteOverload": acute, "raceRecovery": race_rec,
         "maxEfforts": efforts, "painMonitor": pmon, "returnToRun": rtr, "races": races,
         "screening": scr, "cluster": cluster, "painState": pstate,
@@ -4110,7 +4122,7 @@ def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> 
     row.detail_json = {
         k: a[k] for k in
         ("loadDetail", "tavr", "gct", "bal", "dec", "aer", "rcv", "fb", "cadence", "stride", "vosc",
-         "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "injury",
+         "duty", "gaitCv", "painWarn", "hrvCv", "sleepReg", "sleepEff", "stiffness", "gradientDescent", "gradientAscent", "injury",
          "engineMode", "mechRes", "mechFlag", "mechWatch", "segmentScored", "capacity", "guidance", "painRecurring",
          "functionLimit", "acuteOverload", "raceRecovery", "maxEfforts", "painMonitor", "returnToRun", "races",
          "screening", "cluster", "painState", "impactScale",

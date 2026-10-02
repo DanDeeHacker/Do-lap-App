@@ -3215,7 +3215,8 @@
   "t": "třísl",
   "files": [
    "metrics/engine.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "programs_library.py"
   ]
  },
  {
@@ -3824,6 +3825,36 @@
   ]
  },
  {
+  "t": "Dnes už máte hotovo ({}) a {} — zbytek dne volno, nanejvýš procházka nebo protažení.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Dnes už máte hotovo ({}) — zbytek dne volno.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Dnes už máte hotovo ({}). Pokud chcete, zbývá ještě krátký lehký běh do {} km — bez intenzity.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Dnes už máte za sebou náročný trénink ({}) — dlouhý běh přesuňte na odpočatější den.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Dnes už máte za sebou náročný trénink ({}) — místo kvalitního tréninku jen",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Dnešní check-in ({}) doporučení snižuje, jako by připravenost byla {} % místo {} %",
   "files": [
    "metrics/guidance.py"
@@ -4387,7 +4418,31 @@
   ]
  },
  {
+  "t": "byl to tvrdý trénink",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "běh {} km",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "dlouhý",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "dnes byl naplánovaný den volna",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "dnešní aktivita",
   "files": [
    "metrics/guidance.py"
   ]
@@ -4443,7 +4498,19 @@
   ]
  },
  {
+  "t": "lehký běh.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "libovolný, do stropu klesání",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "na další běh už dnes nezbývá objem",
   "files": [
    "metrics/guidance.py"
   ]
@@ -4474,6 +4541,12 @@
  },
  {
   "t": "omezuje běžný pohyb",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "pokryl dnešní doporučení",
   "files": [
    "metrics/guidance.py"
   ]
@@ -7137,6 +7210,12 @@
   ]
  },
  {
+  "t": "2–3 × 5 každá strana",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "3 × 10 každá noha",
   "files": [
    "programs_library.py"
@@ -7198,6 +7277,12 @@
  },
  {
   "t": "Bolest při cvičení do 5 z 10 je v pořádku, do druhého rána musí odeznít a nesmí týden od týdne růst. Když roste nebo je ráno horší, uberte počet opakování.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Boční plank s horní nohou na lavici: spodní nohu přitáhněte k lavici a pomalu ji spusťte. Začněte s kolenem na lavici.",
   "files": [
    "programs_library.py"
   ]
@@ -7353,6 +7438,18 @@
   ]
  },
  {
+  "t": "Horní nohu pokrčte a chodidlo položte na zem před spodní koleno.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Horní nohu položte na lavici, na začátek kolenem, později kotníkem.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Horní nohu zvedněte mírně za osu těla, špička míří dopředu, ne ke stropu.",
   "files": [
    "programs_library.py"
@@ -7431,6 +7528,12 @@
   ]
  },
  {
+  "t": "Kodaňský plank (Copenhagen)",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Kolena jsou jen mírně pokrčená a odraz jde hlavně z kotníků.",
   "files": [
    "programs_library.py"
@@ -7462,6 +7565,12 @@
  },
  {
   "t": "Kolena se zvedají jen nízko a chodidlo došlapuje aktivně pod tělo přes přední část.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Kolena stlačte proti míči a vydržte 30 sekund.",
   "files": [
    "programs_library.py"
   ]
@@ -7533,6 +7642,18 @@
   ]
  },
  {
+  "t": "Lehněte si na bok vedle lavice, loket dejte pod rameno.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na bok, hlavu opřete o spodní ruku.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Lehněte si na bok, kyčle a kolena pokrčte a chodidla dejte k sobě.",
   "files": [
    "programs_library.py"
@@ -7552,6 +7673,12 @@
  },
  {
   "t": "Lehněte si na záda a paty položte dál od těla než u běžného mostu, špičky mohou jít nahoru.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na záda, kolena pokrčte a mezi ně dejte míč nebo srolovaný polštář.",
   "files": [
    "programs_library.py"
   ]
@@ -7827,6 +7954,12 @@
   ]
  },
  {
+  "t": "Pomalu ji spusťte k zemi a pánev položte.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Pomalu natáhněte jednu nohu a opačnou ruku k zemi, bedra se přitom nezvedají.",
   "files": [
    "programs_library.py"
@@ -7929,6 +8062,12 @@
   ]
  },
  {
+  "t": "Postupně rostoucí zátěž adduktorů: výdrž, pohyb a nakonec kodaňský plank.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Postupně rostoucí zátěž šlachy výpony. Běhat se může dál, když bolest drží pravidlo níže.",
   "files": [
    "programs_library.py"
@@ -7936,6 +8075,12 @@
  },
  {
   "t": "Posílení kyčle a kolena dohromady.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Povolte, krátce si odpočiňte a opakujte.",
   "files": [
    "programs_library.py"
   ]
@@ -8091,6 +8236,12 @@
   ]
  },
  {
+  "t": "Přetáčení pánve dozadu.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Při každém kroku zvedněte koleno švihové nohy do vodorovné polohy.",
   "files": [
    "programs_library.py"
@@ -8098,6 +8249,12 @@
  },
  {
   "t": "Při potížích se zadní stranou stehna ho zatím vynechte.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Přitahování spodní nohy vleže na boku",
   "files": [
    "programs_library.py"
   ]
@@ -8223,6 +8380,12 @@
   ]
  },
  {
+  "t": "Spodní propnutou nohu zvedněte co nejvýš a nahoře vydržte 1 sekundu.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Spouštění paty ze schodu, pokrčené koleno",
   "files": [
    "programs_library.py"
@@ -8266,6 +8429,18 @@
  },
  {
   "t": "Stejně jako se spouštěním paty, jen s mírně pokrčeným kolenem, aby pracoval hlubší lýtkový sval.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Stlačování do ostré bolesti v třísle.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Stlačování míče koleny",
   "files": [
    "programs_library.py"
   ]
@@ -8337,6 +8512,12 @@
   ]
  },
  {
+  "t": "Studie zkoumaly hlavně fotbalisty, dávkování pro běžce je pracovní předpoklad. Bolest v třísle bez vazby na pohyb nechte posoudit.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Stupňované rovinky",
   "files": [
    "programs_library.py"
@@ -8356,6 +8537,12 @@
  },
  {
   "t": "Síla lýtka propnutým i pokrčeným kolenem, na závěr pružnost poskoky.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Sílu přidávejte postupně, bolest při cvičení nesmí přesáhnout 5 z 10.",
   "files": [
    "programs_library.py"
   ]
@@ -8403,7 +8590,19 @@
   ]
  },
  {
+  "t": "Tříslo (adduktory)",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "U bolesti kolena vpředu odborný konsenzus doporučuje cvičení, nejlépe kombinaci cviků na kyčel a na koleno (Collins et al., 2018). Kombinace ulevila od bolesti víc než samotné cviky na koleno (van der Heijden et al., 2016).",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "U dlouhodobé bolesti třísla z adduktorů vedl aktivní posilovací program v randomizované studii k návratu ke sportu bez bolesti mnohem častěji než pasivní fyzioterapie (Hölmich et al., 1999). Program s kodaňským plankem snížil výskyt potíží s tříslem zhruba o 40 % (Harøy et al., 2019).",
   "files": [
    "programs_library.py"
   ]
@@ -8427,6 +8626,12 @@
   ]
  },
  {
+  "t": "Vleže na boku opřete horní nohu chodidlem před tělem a spodní propnutou nohu zvedejte k horní. Pomalu dolů.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Vleže na boku s pokrčenými koleny a spojenými chodidly otvírejte horní koleno, pánev se neotáčí. Zesílíte gumou.",
   "files": [
    "programs_library.py"
@@ -8440,6 +8645,12 @@
  },
  {
   "t": "Vleže na zádech pomalu natahujte opačnou ruku a nohu k zemi, bedra zůstávají na podložce.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Vleže na zádech s pokrčenými koleny stlačte míč mezi koleny a vydržte 30 s. Síla jen do nepohodlí, ne do ostré bolesti.",
   "files": [
    "programs_library.py"
   ]
@@ -8619,6 +8830,12 @@
   ]
  },
  {
+  "t": "Za 3 sekundy ji pomalu spusťte.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Za 3 sekundy se spusťte až na patu.",
   "files": [
    "programs_library.py"
@@ -8691,6 +8908,18 @@
   ]
  },
  {
+  "t": "Začátek s kotníkem na lavici dřív, než to jde bez bolesti s kolenem.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Zařaďte ho až ve chvíli, kdy stlačování míče a přitahování nohy nebolí.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Zařaďte ho až ve chvíli, kdy zadní strana stehna při běžné chůzi a mostu nebolí.",
   "files": [
    "programs_library.py"
@@ -8722,6 +8951,12 @@
  },
  {
   "t": "Zvedněte paty co nejvýš a nahoře vydržte 1 sekundu.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Zvedněte pánev do přímky a spodní nohu přitáhněte k lavici.",
   "files": [
    "programs_library.py"
   ]
@@ -8800,6 +9035,12 @@
  },
  {
   "t": "Zátěž volte tak, abyste zvládli právě 12 opakování, a přidávejte ji batohem.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "adduktory (tříslo)",
   "files": [
    "programs_library.py"
   ]
@@ -8921,6 +9162,12 @@
  },
  {
   "t": "Šetrný začátek výdrží v mostu, pak síla v prodloužení.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Švihání nohou místo pomalého pohybu.",
   "files": [
    "programs_library.py"
   ]

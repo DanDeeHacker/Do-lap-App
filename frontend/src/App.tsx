@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
   createBrowserRouter,
@@ -18,7 +18,7 @@ import { useQuadHistory } from "@/history"
 import { clamp, cz, fmtD, fmtImpact, initials, QUAD, roleHome } from "@/lib"
 import { AlertBanner, AxisLineChart, Bars, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, toneCol, useAsync, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
-import { Load as LoadTab, LOAD_IDS, MECH_IDS, Mechanics, Post, weekTones, WeekToneLegend } from "@/tabs"
+import { Load as LoadTab, LOAD_IDS, MECH_IDS, MechMini, Mechanics, Post, weekTones, WeekToneLegend } from "@/tabs"
 import { Care, InjurySheet, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
 import { EngineLab } from "@/enginelab"
@@ -31,7 +31,7 @@ import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C, badCol, goodCol } from "@/tokens"
-import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, Users, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
+import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, Users, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, NotebookPen, LogOut, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 import { Landing, scrollToLanding } from "@/landing"
 import { LangSwitch } from "@/i18n/LangSwitch"
@@ -1302,6 +1302,9 @@ function TodayV2() {
                       ) : <p className="mt-2 text-[12px] text-fg-2">Nic nad vaší obvyklou úrovní — skóre je 0.</p>}
                     </div>
                   </div>
+                  {/* feedback #156 — what the score is made of, as on the tab, in brief */}
+                  {pk === "load" && a?.capacity && <CapacityMini cap={a.capacity} week={a?.guidance?.week?.channels} />}
+                  {pk === "mech" && a && <MechMini a={a} acts={boot?.activities || []} />}
                 </>
               )}
               {pk === "readiness" && (
@@ -1674,9 +1677,20 @@ function AtlasBubble() {
   const back = () => setStep((st) => (st === 3 ? (pain > 0 ? 2 : 1) : 1))
   const { me, boot, refresh, touring, viewing } = useApp()
   const rid = me?.runner_id
-  // today's check-in done → the button is gone until tomorrow (kept in the tour, which points at it)
+  // today's check-in done → the check-in button is gone until tomorrow (kept in the tour, which points at it)
   const todayIso = new Date().toLocaleDateString("sv-SE")
   const doneToday = !touring && ((boot?.checkins || []) as any[]).some((c) => String(c.submitted_at || "").slice(0, 10) === todayIso)
+  // feedback #155: once today's check-in is in, the same button asks for a note on the
+  // latest activity (of the last 3 days) that has none yet — right after it syncs
+  const goNav = useNavigate()
+  const toRate = useMemo(() => {
+    if (!doneToday) return null
+    const rated = new Set(((boot?.activity_feedback || []) as any[]).map((f) => f.activity_id))
+    const since = new Date(Date.now() - 3 * 86400000).toLocaleDateString("sv-SE")
+    return ((boot?.activities || []) as any[])
+      .filter((x) => String(x.started_at || "").slice(0, 10) >= since && !rated.has(x.id) && !x.excluded)
+      .sort((x, y) => String(y.started_at).localeCompare(String(x.started_at)))[0] || null
+  }, [doneToday, boot?.activities, boot?.activity_feedback])
   const rcv = boot?.assessment?.rcv
   const ready = boot?.assessment?.readiness ?? boot?.assessment?.capacity?.readiness
   const readyDelta: number | null = ready?.yesterday?.known ? (ready.morningScore ?? ready.score) - ready.yesterday.score : null
@@ -1730,6 +1744,17 @@ function AtlasBubble() {
         >
           <span className="grid size-6 place-items-center rounded-full bg-ink/10"><Heart className="size-4" strokeWidth={2.4} aria-hidden /></span>
           <span className="whitespace-nowrap">Check-in</span>
+        </button>
+      )}
+      {!open && doneToday && toRate && !viewing && (
+        <button
+          onClick={() => goNav(`/app/post#zapsat-${toRate.id}`)}
+          aria-label="Zapsat poslední aktivitu do deníku"
+          data-testid="diary-fab"
+          className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[55] flex items-center gap-2 rounded-full bg-accent py-3 pl-3 pr-4 text-sm font-extrabold text-ink shadow-[0_12px_30px_rgb(0_0_0_/_0.45),0_0_0_1px_rgb(0_0_0_/_0.1)] hover:brightness-105 md:bottom-7 md:right-7"
+        >
+          <span className="grid size-6 place-items-center rounded-full bg-ink/10"><NotebookPen className="size-4" strokeWidth={2.4} aria-hidden /></span>
+          <span className="whitespace-nowrap">{!toRate.sport || toRate.sport === "running" ? "Zapsat běh" : "Zapsat aktivitu"}</span>
         </button>
       )}
       {open && (

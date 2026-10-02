@@ -457,3 +457,50 @@ export default function MuscleAnatomy({
     </div>
   )
 }
+
+// Feedback #159 — how full each body region's capacity is from the last 7 days of
+// running (fills keyed by the region's base title, 1 = at the ceiling). Both legs
+// carry the same value; the number sits on one side only. Regions with recent pain
+// get a ring. The fills come from capacity.tsx (bodyLoad), a working model.
+export function BodyLoadMap({ fills, pain = new Set<string>() }: { fills: Record<string, number>; pain?: Set<string> }) {
+  const baseOf = (t: string) => t.replace(/ \((L|P)\)$/, "")
+  const has = (v: "front" | "back") => hotspots[v].some((h) => fills[baseOf(h.title)] != null)
+  const sum = (v: "front" | "back") => hotspots[v].reduce((t, h) => t + (fills[baseOf(h.title)] || 0), 0)
+  const [view, setView] = useState<"front" | "back">(sum("back") >= sum("front") ? "back" : "front")
+  const pts = hotspots[view].filter((h) => fills[baseOf(h.title)] != null)
+  const col = (f: number) => (f >= 1 ? C.alert : f >= 0.7 ? C.watch : C.ok)
+  return (
+    <div className="mx-auto w-full max-w-[280px]" data-testid="body-load-map">
+      {has("front") && has("back") && (
+        <div className="mb-3 flex items-center justify-center gap-2">
+          {(["front", "back"] as const).map((v) => (
+            <button key={v} type="button" onClick={() => setView(v)} className={`rounded-full px-3 py-1 text-[11px] font-bold transition ${view === v ? "bg-accent text-ink" : "border border-white/10 text-fg-2 hover:border-accent/40"}`}>{v === "front" ? "Zepředu" : "Zezadu"}</button>
+          ))}
+        </div>
+      )}
+      <div className="relative w-full overflow-hidden rounded-[22px] border border-white/10 bg-panel" style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}>
+        <img src={bases[view]} alt="Silueta těla" className="absolute inset-0 h-full w-full object-cover opacity-20 grayscale" />
+        <div className="absolute inset-0 bg-panel/50" />
+        {pts.map((h) => {
+          const b = baseOf(h.title)
+          const f = fills[b] || 0
+          const c = col(f)
+          return (
+            <span key={h.id} aria-hidden className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full"
+              style={{
+                top: `${(h.top / CANVAS_H) * 100}%`, left: `${(h.left / CANVAS_W) * 100}%`, width: `${10 + Math.min(f, 1.3) * 10}%`, aspectRatio: "1",
+                background: `radial-gradient(closest-side, ${c}cc, ${c}55 55%, ${c}00)`,
+                boxShadow: pain.has(b) ? `0 0 0 2px ${C.alert}` : undefined,
+              }} />
+          )
+        })}
+        {pts.filter((h) => h.side !== "P").map((h) => (
+          <span key={`${h.id}-n`} className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 tabular-nums text-[10.5px] font-bold text-white"
+            style={{ top: `${(h.top / CANVAS_H) * 100}%`, left: `${(h.left / CANVAS_W) * 100}%`, textShadow: "0 1px 2px rgb(0 0 0 / .9)" }}>
+            {Math.round((fills[baseOf(h.title)] || 0) * 100)} %
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}

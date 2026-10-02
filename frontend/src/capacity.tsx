@@ -8,6 +8,8 @@ import { METRIC_INFO as MI } from "@/metricinfo"
 import { fmtD, fmtImpact, toImpact } from "@/lib"
 import { C, goodCol } from "@/tokens"
 import { Waterfall, type WStep } from "@/waterfall"
+import { BodyLoadMap } from "@/components/MuscleAnatomy"
+import { useApp } from "@/store"
 
 const CH_ORDER = ["volume", "intensity", "descent", "ascent", "systemic", "strength"] as const
 const RUN_CH = ["volume", "intensity", "descent", "ascent"] as const
@@ -419,6 +421,85 @@ function RelativeEffort({ re }: { re: any }) {
   )
 }
 
+// Feedback #159 — which body regions the last 7 days of running loaded and how full
+// their capacity is. A region's fill is a weighted mix of the run channels' fill
+// (last 7 days ÷ the 7-day ceiling). The weights are the app's working model built on
+// where each kind of load lands: distance mainly at the knee, shin and IT band; pace
+// at the Achilles, calf and sole (Nielsen et al., 2014); descent at the quadriceps and
+// knee, ascent at the calf, Achilles and hip extensors (Vernillo et al., 2017); faster
+// running shifts work to the calf and, near sprinting, the hamstrings (Dorn et al., 2012).
+export const BODY_REGIONS: { title: string; label: string; w: Partial<Record<(typeof RUN_CH)[number], number>> }[] = [
+  { title: "Patelární šlacha", label: "Koleno", w: { volume: 0.5, descent: 0.5 } },
+  { title: "Kvadriceps", label: "Přední strana stehna", w: { descent: 0.7, volume: 0.3 } },
+  { title: "Tibialis anterior (holeň)", label: "Holeň", w: { volume: 0.6, descent: 0.2, intensity: 0.2 } },
+  { title: "Iliotibiální trakt (IT band)", label: "IT pás", w: { volume: 0.7, descent: 0.3 } },
+  { title: "Lýtko (gastrocnemius)", label: "Lýtko", w: { intensity: 0.4, ascent: 0.35, volume: 0.25 } },
+  { title: "Achillova šlacha", label: "Achillova šlacha", w: { intensity: 0.45, ascent: 0.3, volume: 0.25 } },
+  { title: "Úpon plantární fascie (pata)", label: "Plantární fascie", w: { volume: 0.4, intensity: 0.4, ascent: 0.2 } },
+  { title: "Hamstring", label: "Zadní strana stehna", w: { intensity: 0.7, ascent: 0.3 } },
+  { title: "Hýždě (gluteus)", label: "Hýždě", w: { ascent: 0.5, volume: 0.3, intensity: 0.2 } },
+]
+
+export function bodyLoad(cap: any): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const r of BODY_REGIONS) {
+    let num = 0, den = 0
+    for (const [id, w] of Object.entries(r.w)) {
+      const wk = cap?.channels?.[id]?.week
+      if (wk?.now == null || !wk?.ceiling) continue
+      num += (w as number) * (wk.now / wk.ceiling)
+      den += w as number
+    }
+    if (den >= 0.5) out[r.title] = num / den
+  }
+  return out
+}
+
+function BodyLoad({ cap }: { cap: any }) {
+  const { boot } = useApp()
+  const fills = bodyLoad(cap)
+  if (!Object.keys(fills).length) return null
+  // regions marked painful in the last 14 days get a ring
+  const since = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10)
+  const pain = new Set<string>()
+  for (const c of (boot?.checkins || []) as any[]) {
+    if (String(c.submitted_at || "") < since || !(c.pain_score > 0)) continue
+    for (const p of (c.pain_points || []) as any[]) pain.add(String(p.region || "").replace(/ \((L|P)\)$/, ""))
+  }
+  const rows = BODY_REGIONS.filter((r) => fills[r.title] != null).sort((x, y) => fills[y.title] - fills[x.title])
+  const col = (f: number) => (f >= 1 ? C.alert : f >= 0.7 ? C.watch : C.ok)
+  return (
+    <div className="mt-5 border-t border-white/[.07] pt-4" data-testid="body-load">
+      <p className="t-label !text-fg-3">Kde běh zatěžuje tělo · 7 dní</p>
+      <div className="mt-3 grid items-start gap-5 sm:grid-cols-[220px_1fr]">
+        <BodyLoadMap fills={fills} pain={pain} />
+        <div className="space-y-2.5">
+          {rows.map((r) => {
+            const f = fills[r.title]
+            return (
+              <div key={r.title}>
+                <div className="flex items-baseline justify-between gap-2 text-[12px]">
+                  <span className="font-semibold text-fg-soft">{r.label}{pain.has(r.title) ? <span className="ml-1.5 text-[10.5px] font-bold text-alert-soft">bolest</span> : null}</span>
+                  <span className="tabular-nums font-bold" style={{ color: col(f) }}>{Math.round(f * 100)} %</span>
+                </div>
+                <div className="relative mt-1 h-1.5 rounded-full bg-white/[.06]">
+                  <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (f / 1.2) * 100)}%`, background: col(f) }} />
+                  <i className="absolute -top-0.5 h-2.5 w-px bg-fg-2" style={{ left: `${100 / 1.2}%` }} title="strop 7 dní" />
+                </div>
+              </div>
+            )
+          })}
+          <p className="pt-1 text-[11px] leading-4 text-fg-3">
+            Procento = jak plná je kapacita oblasti za posledních 7 dní (100 % = strop). Rozdělení zátěže mezi oblasti je pracovní model aplikace:
+            vzdálenost zatěžuje hlavně koleno, holeň a IT pás, tempo Achillovu šlachu, lýtko a chodidlo (Nielsen et al., 2014), klesání
+            přední stranu stehna a koleno, stoupání lýtko a hýždě (Vernillo et al., 2017). Kroužek = místo, kde jste za 14 dní hlásili bolest.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Record<string, ReactNode>; scale?: number }) {
   const [open, setOpen] = useState("")
   if (!cap) return null
@@ -426,7 +507,7 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
   // intensity = minutes in Z4+, so its detail carries the HR zones and relative effort (railway#56/#57)
   const extras: Record<string, ReactNode> = {
     ...extra,
-    systemic: <SystemicWaterfall c={cap.channels?.systemic} />,
+    systemic: <><SystemicWaterfall c={cap.channels?.systemic} /><BodyLoad cap={cap} /></>,
     intensity: (
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <RelativeEffort re={re} />

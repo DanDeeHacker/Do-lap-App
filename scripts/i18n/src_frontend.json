@@ -3264,6 +3264,27 @@
   "kind": "jsx"
  },
  {
+  "t": "Zapsat aktivitu",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zapsat běh",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zapsat poslední aktivitu do deníku",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "zátěž",
   "files": [
    "App.tsx",
@@ -4438,6 +4459,14 @@
   "kind": "tpl"
  },
  {
+  "t": "Holeň",
+  "files": [
+   "capacity.tsx",
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "HRV pod normou",
   "files": [
    "capacity.tsx"
@@ -4445,9 +4474,25 @@
   "kind": "str"
  },
  {
+  "t": "Hýždě",
+  "files": [
+   "capacity.tsx",
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "i check-in",
   "files": [
    "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "IT pás",
+  "files": [
+   "capacity.tsx",
+   "care.tsx"
   ],
   "kind": "str"
  },
@@ -4510,6 +4555,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Kde běh zatěžuje tělo · 7 dní",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Klidový tep",
   "files": [
    "capacity.tsx",
@@ -4522,6 +4574,14 @@
   "t": "klidový tep nad normou",
   "files": [
    "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Koleno",
+  "files": [
+   "capacity.tsx",
+   "care.tsx"
   ],
   "kind": "str"
  },
@@ -4677,6 +4737,14 @@
   "kind": "str"
  },
  {
+  "t": "Plantární fascie",
+  "files": [
+   "capacity.tsx",
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Plavání",
   "files": [
    "capacity.tsx",
@@ -4750,11 +4818,25 @@
   "kind": "jsx"
  },
  {
+  "t": "Přední strana stehna",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "překryv a zaokrouhlení",
   "files": [
    "capacity.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Procento = jak plná je kapacita oblasti za posledních 7 dní (100 % = strop). Rozdělení zátěže mezi oblasti je pracovní model aplikace: vzdálenost zatěžuje hlavně koleno, holeň a IT pás, tempo Achillovu šlachu, lýtko a chodidlo (Nielsen et al., 2014), klesání přední stranu stehna a koleno, stoupání lýtko a hýždě (Vernillo et al., 2017). Kroužek = místo, kde jste za 14 dní hlásili bolest.",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "proti kapacitě",
@@ -5063,6 +5145,13 @@
   "kind": "str"
  },
  {
+  "t": "Zadní strana stehna",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Zatím málo běhů s tepem.",
   "files": [
    "capacity.tsx"
@@ -5311,27 +5400,6 @@
   "kind": "tpl"
  },
  {
-  "t": "Holeň",
-  "files": [
-   "care.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Hýždě",
-  "files": [
-   "care.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "IT pás",
-  "files": [
-   "care.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Jde o sebehodnocení podle kritérií, která se při návratu k běhu běžně používají, ne o vyšetření. U bolesti kosti se návrat řídí úplnou absencí bolesti (Warden et al., 2014).",
   "files": [
    "care.tsx"
@@ -5365,13 +5433,6 @@
    "care.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Koleno",
-  "files": [
-   "care.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Kotník",
@@ -5603,13 +5664,6 @@
    "care.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Plantární fascie",
-  "files": [
-   "care.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Plná bez obtíží",
@@ -9550,6 +9604,15 @@
   "kind": "tpl"
  },
  {
+  "t": "0 0 0 2px {}",
+  "files": [
+   "MuscleAnatomy.tsx",
+   "tabs.tsx",
+   "ui.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "0 0 0 6px rgb(228 125 81 / .25)",
   "files": [
    "MuscleAnatomy.tsx"
@@ -9564,9 +9627,17 @@
   "kind": "str"
  },
  {
+  "t": "0 1px 2px rgb(0 0 0 / .9)",
+  "files": [
+   "MuscleAnatomy.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Achillova šlacha",
   "files": [
    "MuscleAnatomy.tsx",
+   "capacity.tsx",
    "care.tsx"
   ],
   "kind": "str"
@@ -9624,6 +9695,7 @@
   "t": "Hamstring",
   "files": [
    "MuscleAnatomy.tsx",
+   "capacity.tsx",
    "care.tsx"
   ],
   "kind": "str"
@@ -9645,14 +9717,16 @@
  {
   "t": "Hýždě (gluteus)",
   "files": [
-   "MuscleAnatomy.tsx"
+   "MuscleAnatomy.tsx",
+   "capacity.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Iliotibiální trakt (IT band)",
   "files": [
-   "MuscleAnatomy.tsx"
+   "MuscleAnatomy.tsx",
+   "capacity.tsx"
   ],
   "kind": "str"
  },
@@ -9688,6 +9762,7 @@
   "t": "Kvadriceps",
   "files": [
    "MuscleAnatomy.tsx",
+   "capacity.tsx",
    "care.tsx"
   ],
   "kind": "str"
@@ -9717,6 +9792,7 @@
   "t": "Lýtko",
   "files": [
    "MuscleAnatomy.tsx",
+   "capacity.tsx",
    "care.tsx"
   ],
   "kind": "str"
@@ -9724,7 +9800,8 @@
  {
   "t": "Lýtko (gastrocnemius)",
   "files": [
-   "MuscleAnatomy.tsx"
+   "MuscleAnatomy.tsx",
+   "capacity.tsx"
   ],
   "kind": "str"
  },
@@ -9752,7 +9829,8 @@
  {
   "t": "Patelární šlacha",
   "files": [
-   "MuscleAnatomy.tsx"
+   "MuscleAnatomy.tsx",
+   "capacity.tsx"
   ],
   "kind": "str"
  },
@@ -9913,7 +9991,8 @@
  {
   "t": "Tibialis anterior (holeň)",
   "files": [
-   "MuscleAnatomy.tsx"
+   "MuscleAnatomy.tsx",
+   "capacity.tsx"
   ],
   "kind": "str"
  },
@@ -9976,7 +10055,8 @@
  {
   "t": "Úpon plantární fascie (pata)",
   "files": [
-   "MuscleAnatomy.tsx"
+   "MuscleAnatomy.tsx",
+   "capacity.tsx"
   ],
   "kind": "str"
  },
@@ -12137,6 +12217,13 @@
   "kind": "str"
  },
  {
+  "t": "60 dní · 0–100 %",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "7 dní:",
   "files": [
    "tabs.tsx"
@@ -12772,7 +12859,7 @@
   "files": [
    "tabs.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "km ·",
@@ -12881,6 +12968,13 @@
  },
  {
   "t": "Metrika",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Metriky běhu · proti vaší normě",
   "files": [
    "tabs.tsx"
   ],
@@ -13555,6 +13649,13 @@
  },
  {
   "t": "stoupání",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Stoupání za 7 dní podle sklonu",
   "files": [
    "tabs.tsx"
   ],
@@ -14261,6 +14362,13 @@
   "kind": "jsx"
  },
  {
+  "t": "zelený pás = vaše obvyklé rozmezí, tečka = poslední běhy",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Změny v programu",
   "files": [
    "tabs.tsx"
@@ -14324,21 +14432,7 @@
   "kind": "jsx"
  },
  {
-  "t": ". Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": ". týden",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": ". týden cyklu (",
   "files": [
    "training.tsx"
   ],
@@ -14443,6 +14537,20 @@
   "kind": "tpl"
  },
  {
+  "t": "{}. týden cyklu ({} %)",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}. týden cyklu ({} %) — cíl objemu ≈ {} km{}.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{}. týden ze 4 ·",
   "files": [
    "training.tsx"
@@ -14455,13 +14563,6 @@
    "training.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "%) — cíl objemu ≈",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "≈ {} min",
@@ -14826,6 +14927,13 @@
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Kapacitu jednoho běhu zatím poznáváme.",
@@ -15757,13 +15865,6 @@
    "training.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "0 0 0 2px {}",
-  "files": [
-   "ui.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "absolute left-1/2 top-0 -translate-x-1/2 text-[11px] font-bold tabular-nums {}",

@@ -110,6 +110,16 @@ export function Post() {
   useEffect(() => {
     if (window.location.hash === "#jiny-sport") setTimeout(() => document.getElementById("jiny-sport")?.scrollIntoView({ block: "center" }), 300)
   }, [])
+  // feedback #155: the "Zapsat běh" button opens the note for that activity straight away
+  const wantRate = window.location.hash.startsWith("#zapsat-") ? window.location.hash.slice(8) : null
+  useEffect(() => {
+    if (!wantRate) return
+    const x = ((boot?.activities || []) as any[]).find((a) => String(a.id) === wantRate)
+    if (x) {
+      setRate({ act: x })
+      history.replaceState(null, "", window.location.pathname)
+    }
+  }, [wantRate, boot?.activities])
   const [insOpen, setInsOpen] = useState(false)
   const [latestOpen, setLatestOpen] = useState(false)
   const [ciOpen, setCiOpen] = useState(false)
@@ -1283,32 +1293,8 @@ function MonthCompare({ data }: { data: any }) {
   )
 }
 
-export function Mechanics() {
-  const { me, boot } = useApp()
-  const rid = me?.runner_id
-  const a = boot?.assessment
-  const allActs = (boot?.activities || []) as any[]
-  // excluded runs don't count for mechanics — unless they were excluded from load only (railway#47)
-  const acts = useMemo(() => allActs.filter((x) => !x.excluded || x.excluded_scope === "load"), [allActs])
-  const [openMetric, setOpenMetric] = useState("Vertikální poměr")
-  const [terr, setTerr] = useState(false)
-  const mechHist = useQuadHistory(rid)   // prefetched by the store (history.ts)
-  if (!a) return <LoadGate />
-  if ((a.confidence?.value ?? 0) < 0.6)
-    return (
-      <>
-        <Head kicker="Mechanika" title="Baseline se zatím buduje" />
-        <AlertBanner tone="info" icon={Gauge} title={`Spolehlivost ${Math.round((a.confidence?.value ?? 0) * 100)} %`}>
-          — {a.confidence?.sessions} tréninků ve srovnatelných podmínkách, {a.confidence?.days} dní historie. Než tohle číslo překročí 60 %, mechanické signály se nezobrazují.
-          <span className="relative mt-2.5 block h-2 rounded-full bg-white/[.08]" aria-hidden>
-            <i className="absolute inset-y-0 left-0 rounded-full bg-info" style={{ width: `${clamp((a.confidence?.value ?? 0) * 100, 2, 100)}%` }} />
-            <i className="absolute -inset-y-1 left-[60%] w-0.5 bg-fg" title="60 %" />
-          </span>
-        </AlertBanner>
-        <Card className="mt-4"><Label>Co pomůže nejrychleji</Label><p className="mt-2 text-sm text-fg-2">Opakovat podobné běhy — stejný povrch, podobné tempo. Baseline se počítá po skupinách povrch × sklon × tempo.</p></Card>
-      </>
-    )
-
+// The mechanics metric cards (Pohyb) — also summarised on Dnes (feedback #156).
+export function buildMechMetrics(a: any, acts: any[]): Metric[] {
   // engine metric → card, aligning the value series with the run dates so the
   // per-run charts can show real dates on the x-axis
   const eng = (series0: number[], field: string, label: string, unit: string, dec: number, value: number, baseline: number, z: number, delta: string, hot: boolean, position: number, terrain = true): Metric => {
@@ -1359,6 +1345,70 @@ export function Mechanics() {
   // stable, so ties keep the engine's order.
   const devKey = (m: Metric) => Math.abs(m.z) / (m.label === "Symetrie kontaktu" ? 0.8 : 1)
   metrics.sort((x, y) => devKey(y) - devKey(x))
+  return metrics
+}
+
+// feedback #156 — the metrics behind the mechanics score, compact: each with its
+// position against the runner's usual range
+export function MechMini({ a, acts }: { a: any; acts: any[] }) {
+  const ms = buildMechMetrics(a, (acts || []).filter((x: any) => !x.excluded || x.excluded_scope === "load"))
+  if (!ms.length) return null
+  return (
+    <div className="mt-4 border-t border-white/10 pt-4" data-testid="mech-mini">
+      <p className="t-label !text-fg-3">Metriky běhu · proti vaší normě</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {ms.map((m) => {
+          const st = normStatus(m)
+          const col = st.tone === "alert" ? C.alert : st.tone === "watch" ? C.watch : C.ok
+          const { lo, hi, isd } = usualRange(m)
+          const dLo = Math.min(lo, m.value) - isd * 0.8, dHi = Math.max(hi, m.value) + isd * 0.8
+          const P = (x: number) => clamp(((x - dLo) / (dHi - dLo)) * 100, 4, 96)
+          return (
+            <div key={m.label}>
+              <div className="flex items-baseline justify-between gap-2 text-[12px]">
+                <span className="font-semibold text-fg-soft">{m.label}</span>
+                <span className="tabular-nums text-fg-2"><b className="text-fg">{mfmt(m.dec, m.value)}</b> {m.unit} · <span style={{ color: col }}>{st.word}</span></span>
+              </div>
+              <div className="relative mt-1.5 h-1.5 rounded-full bg-white/[.06]">
+                <i className="absolute top-0 h-full rounded-full" style={{ left: `${P(lo)}%`, width: `${P(hi) - P(lo)}%`, background: `${C.ok}52` }} />
+                <i className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${P(m.value)}%`, background: col, boxShadow: `0 0 0 2px ${C.bg}` }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <p className="mt-2 text-[11px] text-fg-3">zelený pás = vaše obvyklé rozmezí, tečka = poslední běhy</p>
+    </div>
+  )
+}
+
+export function Mechanics() {
+  const { me, boot } = useApp()
+  const rid = me?.runner_id
+  const a = boot?.assessment
+  const allActs = (boot?.activities || []) as any[]
+  // excluded runs don't count for mechanics — unless they were excluded from load only (railway#47)
+  const acts = useMemo(() => allActs.filter((x) => !x.excluded || x.excluded_scope === "load"), [allActs])
+  const [openMetric, setOpenMetric] = useState("Vertikální poměr")
+  const [terr, setTerr] = useState(false)
+  const mechHist = useQuadHistory(rid)   // prefetched by the store (history.ts)
+  if (!a) return <LoadGate />
+  if ((a.confidence?.value ?? 0) < 0.6)
+    return (
+      <>
+        <Head kicker="Mechanika" title="Baseline se zatím buduje" />
+        <AlertBanner tone="info" icon={Gauge} title={`Spolehlivost ${Math.round((a.confidence?.value ?? 0) * 100)} %`}>
+          — {a.confidence?.sessions} tréninků ve srovnatelných podmínkách, {a.confidence?.days} dní historie. Než tohle číslo překročí 60 %, mechanické signály se nezobrazují.
+          <span className="relative mt-2.5 block h-2 rounded-full bg-white/[.08]" aria-hidden>
+            <i className="absolute inset-y-0 left-0 rounded-full bg-info" style={{ width: `${clamp((a.confidence?.value ?? 0) * 100, 2, 100)}%` }} />
+            <i className="absolute -inset-y-1 left-[60%] w-0.5 bg-fg" title="60 %" />
+          </span>
+        </AlertBanner>
+        <Card className="mt-4"><Label>Co pomůže nejrychleji</Label><p className="mt-2 text-sm text-fg-2">Opakovat podobné běhy — stejný povrch, podobné tempo. Baseline se počítá po skupinách povrch × sklon × tempo.</p></Card>
+      </>
+    )
+
+  const metrics = buildMechMetrics(a, acts)
 
   // State label follows the quadrant (post-hysteresis), so Pohyb matches the
   // kvadrant exactly — not a separate ≥25 / tavr-z cutoff that could disagree.
@@ -1487,14 +1537,14 @@ export function WeekToneLegend() {
 }
 // OPT-7 · the 13 descent bins (2,5 % steps) grouped into 4 slope bands; ≥ 10 % matches the "steep" total.
 const SLOPE_BANDS: [string, number, number, Tone][] = [["0–5 %", 0, 2, "muted"], ["5–10 %", 2, 4, "info"], ["10–20 %", 4, 8, "watch"], ["20 % +", 8, 13, "alert"]]
-function DescentBySlope({ g }: { g: any }) {
+function DescentBySlope({ g, up = false }: { g: any; up?: boolean }) {
   const [detail, setDetail] = useState(false)
   const b: number[] = g.buckets || []
   const bands = SLOPE_BANDS.map(([l, a, z, t]) => ({ l, t, v: b.slice(a, z).reduce((s: number, x: number) => s + (x || 0), 0) }))
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Label>Klesání za 7 dní podle sklonu</Label>
+        <Label>{up ? "Stoupání za 7 dní podle sklonu" : "Klesání za 7 dní podle sklonu"}</Label>
         <Segmented size="sm" ariaLabel="Rozlišení sklonu" options={[["bands", "4 pásma"], ["bins", "po 2,5 %"]] as const} value={detail ? "bins" : "bands"} onChange={(k) => setDetail(k === "bins")} />
       </div>
       {detail
@@ -1593,6 +1643,8 @@ export function Load() {
           ),
           // railway#61 — descent by slope belongs to the Klesání channel
           ...(a?.gradientDescent?.buckets?.some((v: number) => v > 0) ? { descent: <DescentBySlope g={a.gradientDescent} /> } : {}),
+          // feedback #160 — the same view for ascent
+          ...(a?.gradientAscent?.buckets?.some((v: number) => v > 0) ? { ascent: <DescentBySlope g={a.gradientAscent} up /> } : {}),
         }} />
       )}
       {a.capacity && <LoadHistory rid={rid} />}
@@ -1610,14 +1662,16 @@ export function ReadinessTrend({ a, hist }: { a: any; hist: any[] | null }) {
   const pct = r ? readinessPct(r) : null
   const col = pct != null ? readinessCol(pct) : C.fg3
   const asOf = (a?.computed_at || "").slice(0, 10)
-  const pts = (hist || []).filter((h) => h.readiness != null).map((h) => ({ t: h.date as string, v: h.readiness as number }))
+  // feedback #157: the last two months only
+  const since = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)
+  const pts = (hist || []).filter((h) => h.readiness != null && h.date >= since).map((h) => ({ t: h.date as string, v: h.readiness as number }))
   if (pts.length && pct != null) pts[pts.length - 1] = { t: asOf || pts[pts.length - 1].t, v: pct }
   if (pct == null && !rcv) return <p className="nest px-3.5 py-3 text-[12px] text-fg-3">Chybí souvislá data z hodinek za posledních 35 dní (HRV, klidový tep, spánek).</p>
   return (
     <div className="nest p-3.5" data-testid="readiness-trend">
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Připravenost — trend</span><InfoDot text={MI.readiness} label="Připravenost" /></span>
-        <span className="text-[11px] text-fg-3">0–100 %</span>
+        <span className="text-[11px] text-fg-3">60 dní · 0–100 %</span>
       </div>
       {pct != null && (
         <div className="mt-1.5 flex items-end gap-2">
