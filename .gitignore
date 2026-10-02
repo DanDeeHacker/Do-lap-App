@@ -26,3 +26,4 @@ backend/backtest_engine_compare.xlsx
 
 # In-app annotation mirror for Claude Code (user notes) — backend/feedback_sync.py
 feedback/
+*.tsbuildinfo
