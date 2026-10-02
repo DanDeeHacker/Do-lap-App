@@ -67,6 +67,9 @@ def assistant_status(rid: str, request: Request, user: models.User = Depends(get
         out["history"] = S.history(db, rid)
         if request_lang(request, user) == "en":
             out["history"] = [T.message_en(db, m) for m in out["history"]]
+            out["suggestions"] = [T.SUGGESTIONS_EN.get(q, q) for q in out["suggestions"]]
+    if request_lang(request, user) == "en":
+        out["disclaimer"] = T.DISCLAIMER_EN
     return out
 
 
@@ -98,7 +101,7 @@ def assistant_summary(rid: str, request: Request, tab: str = "today", user: mode
     out = S.tab_summary(db, r, tab, user)
     if request_lang(request, user) == "en":
         en = T.to_en(db, out.get("text"))
-        out = {**out, "text": en or out.get("text"), "lang": "en" if en else "cs"}
+        out = {**out, "text": en or out.get("text"), "lang": "en" if en else "cs", "sources": T.sources_en(out.get("sources"))}
     return out
 
 

@@ -1,0 +1,215 @@
+{
+ "about": "British English versions of cards.json (title, claim, limits), shown to accounts set to English. Keep in step with cards.json.",
+ "cards": {
+  "a-10-procent": {
+   "title": "The 10 % rule is not proven",
+   "claim": "In a randomised study of novice runners, a more gradual increase in training did not reduce the number of injuries: 20.8 % vs 20.3 % of runners were injured. Reviews find no single safe limit for weekly increases, so the app works from your own proven capacity, not from a general percentage.",
+   "limits": "The study looked at beginners and the average rate of increase over the whole programme, not sudden jumps from week to week."
+  },
+  "a-tydenni-skok": {
+   "title": "A sudden jump in weekly volume",
+   "claim": "When preparing for a half marathon, runners who increased their volume over the last 7 days by 20 to 60 % compared with the previous 7 days had a higher share of injuries over the following 3 weeks. The app therefore checks the week against your capacity, not just the overall trend.",
+   "limits": "The link was not confirmed over longer follow-up and was not significant for even larger increases; the estimates are imprecise."
+  },
+  "a-absolutni-zaklad": {
+   "title": "Small volume, big percentages",
+   "claim": "A relative increase depends on the starting volume: adding 1 km at 2 km a week is a 50 % jump, adding 3 km at 100 km a week only 3 %. For small volumes the app therefore uses a minimum capacity, so that small steps don't look like sharp jumps.",
+   "limits": "This is a methodological argument from a review, not a tested rule."
+  },
+  "a-predchozi-zraneni": {
+   "title": "A previous injury increases sensitivity",
+   "claim": "A previous injury, usually within the last 12 months, was the most often confirmed risk factor for a new injury, in one cohort with an odds ratio of 1.88. For runners with an injury history the app therefore lowers load tolerance and watches pain at the earlier site more closely.",
+   "limits": "Most studies were small, and training variables in them had weak and inconsistent results."
+  },
+  "a-zatez-kapacita": {
+   "title": "Load versus tissue capacity",
+   "claim": "Overload occurs when the load on a particular tissue exceeds what it can withstand. The same distance therefore loads different runners differently depending on terrain, surface, body weight or previous injury, and the app tracks volume, intensity, descent, ascent and total load separately.",
+   "limits": "This is a theoretical framework without its own data; it doesn't support specific thresholds."
+  },
+  "a-maratonsky-blok": {
+   "title": "The late weeks of marathon preparation",
+   "claim": "Among New York Marathon runners, overuse injuries increased as preparation progressed, while acute injuries stayed the same. The last weeks of a block therefore deserve attention to pain and fatigue.",
+   "limits": "One cohort from one race; injuries were reported by the runners themselves."
+  },
+  "a-trail-profil": {
+   "title": "Typical injuries in trail running",
+   "claim": "On trails the most common problems are with the foot and ankle, sprains and blisters, which the review authors link to uneven terrain. The app therefore assesses technical sections and descents separately.",
+   "limits": "The risk factors come mainly from small cross-sectional studies and aren't suitable as rules."
+  },
+  "b-vnitrni-vnejsi": {
+   "title": "The same run, a different effort",
+   "claim": "External load is what you ran; internal load is what it cost your body. A higher heart rate or higher perceived effort at your usual pace can indicate fatigue, which is why the app compares heart rate with your usual heart rate for that pace.",
+   "limits": "Heart rate is also affected by heat, terrain and hydration, so hot and very hilly runs are left out of the comparison."
+  },
+  "b-rpe": {
+   "title": "Rating how hard a run was",
+   "claim": "Effort from 1 to 10 multiplied by session duration is a valid way to measure internal load, and it also works for intervals, where heart rate lags behind. That's why the app asks for a short rating after a run and uses it for cycling, swimming and strength training too.",
+   "limits": "The authors proposed derived measures of monotony and strain but didn't test their link with injury."
+  },
+  "b-subjektivni": {
+   "title": "How you feel matters",
+   "claim": "In a systematic review, subjective measures responded to changes in load more sensitively and reliably than objective ones, and when they disagreed, the subjective ones performed better in 85 % of cases. That's why the check-in with fatigue, muscle soreness, stress and sleep directly affects your readiness.",
+   "limits": "The studies mainly involved elite athletes and didn't compare the check-in with watch data such as HRV."
+  },
+  "b-chronicka-zatez": {
+   "title": "Gradually built load protects",
+   "claim": "Athletes used to higher load tend to have fewer injuries than those who train little, and both too little and too much training can do harm. That's why capacity drops after a break and the app recommends regularity instead of erratic weeks.",
+   "limits": "It comes from team sports, with specific thresholds from unpublished data; it can't be transferred to runners."
+  },
+  "b-acwr": {
+   "title": "The 7:28 load ratio only as a supplement",
+   "claim": "The acute:chronic load ratio comes from team sports and its validity is questioned. The app therefore shows it only as supplementary information and decides by your capacity in the individual channels.",
+   "limits": "Convincing data on threshold values of the ratio are lacking for runners."
+  },
+  "b-kolisani-tepu": {
+   "title": "Heart rate varies from day to day",
+   "claim": "Heart rate at the same submaximal intensity can vary between days by up to 6.5 %. The app therefore assesses heart rate at pace as an average of several runs, and a single higher heart rate means nothing on its own.",
+   "limits": "The review is based mainly on elite sport, and the recommendations are expert opinion."
+  },
+  "c-tydenni-hrv": {
+   "title": "Weekly HRV average instead of a single night",
+   "claim": "Individual nights are unreliable: changes in 10 km performance were linked to the weekly HRV average, not to the values of individual days. That's why one worse night lowers readiness only a little unless the seven-day average confirms it.",
+   "limits": "The data come from small groups of elite athletes and from morning measurements, not from overnight watch measurements."
+  },
+  "c-pocet-noci": {
+   "title": "How many nights of HRV are needed",
+   "claim": "For the weekly HRV average to mean anything, recreational runners need about 5 valid measurements a week and trained runners at least 3. When more nights are missing, the app leaves the weekly HRV average out of readiness.",
+   "limits": "An analysis of two small datasets with morning measurement; transferring it to overnight watch data is an assumption."
+  },
+  "c-vysoka-hrv": {
+   "title": "Higher HRV isn't always good news",
+   "claim": "In functionally overreached triathletes, HRV rose during overload instead of falling. The app therefore doesn't automatically treat high HRV as good news if it comes with fatigue or a higher heart rate at your usual pace.",
+   "limits": "It is based on small studies, and HRV also reacts to influences outside training."
+  },
+  "c-hrv-trenink": {
+   "title": "What HRV-guided training brings",
+   "claim": "A meta-analysis of 8 studies found only a small and non-significant improvement in fitness and performance with HRV-guided training, but individual studies showed fewer people responding poorly to training. Adjusting by HRV is therefore more of a safeguard than an accelerator.",
+   "limits": "Few, small studies with an unclear risk of bias."
+  },
+  "c-hrv-zivot": {
+   "title": "HRV also reacts to life outside training",
+   "claim": "HRV is changed by illness, alcohol, sleep, hydration, the menstrual cycle and the environment, and it says little about muscle recovery. That's why the app combines HRV with resting heart rate, sleep and your check-in and never decides on HRV alone.",
+   "limits": "This is a narrative review without a systematic search."
+  },
+  "d-vetsina-lehce": {
+   "title": "Most training easy",
+   "claim": "Successful endurance athletes run roughly 80 % of their sessions easy and only two to three sessions a week hard, with hard days alternating with easy ones. The app therefore watches the spacing between hard sessions and their number per week.",
+   "limits": "It describes mainly elite athletes who train up to twice a day; transferring it to recreational runners is an assumption."
+  },
+  "d-polarizace": {
+   "title": "Easy days easy, hard days hard",
+   "claim": "In a nine-week randomised study, a programme dominated by easy training with a smaller share of genuinely hard training improved laboratory measures of endurance more than a programme based on volume or tempo runs.",
+   "limits": "A short study with small groups and laboratory outcomes, not races."
+  },
+  "d-lehky-tep": {
+   "title": "Easy runs by heart rate",
+   "claim": "Athletes who were meant to go easy without heart-rate feedback unknowingly drifted into the moderate zone. That's why the app gives a specific heart-rate range for easy runs.",
+   "limits": "A conference abstract with 15 elite rowers; transferring it to runners is an assumption."
+  },
+  "d-zamer-treninku": {
+   "title": "Hard training by intention",
+   "claim": "Heart rate lags in short repetitions, so minutes in zones underestimate hard work. The app therefore counts a run as hard even when you rate its effort 7 or more and it isn't a long run.",
+   "limits": "The effort limit of 7 and the 75-minute duration are working assumptions of the app."
+  },
+  "e-seby": {
+   "title": "Downhill running loads more than heart rate shows",
+   "claim": "When running downhill, impact forces and braking increase; in one study the braking impulse on a 15.8 % slope was 108 % higher than on the flat, even though heart rate tends to be lower. The app therefore tracks descent as a separate load channel.",
+   "limits": "Small laboratory studies on gentle slopes, without direct tracking of injuries."
+  },
+  "e-stoupani": {
+   "title": "Climbing increases the demand",
+   "claim": "Energy cost rises with every percent of gradient, and the natural slowing on a hill doesn't offset it. When comparing heart rate with pace, the app therefore converts hilly runs to the flat.",
+   "limits": "The equations describe an average runner and come mainly from treadmill running."
+  },
+  "e-technika": {
+   "title": "There is no universally economical technique",
+   "claim": "Runners naturally optimise their stride length and frequency, and an imposed change, such as forefoot striking in heel strikers, worsened economy at slower paces. The app therefore shows changes in technique metrics as a trend against your norm, not as an error to correct.",
+   "limits": "It concerns running economy, not injury, and mostly trained runners on a treadmill."
+  },
+  "f-horko": {
+   "title": "The first hot days",
+   "claim": "In the heat, heart rate at the same pace is higher and performance lower; most adaptation happens during the first week of repeated running in the heat and is almost complete after about 10 to 14 days. The app therefore doesn't treat a higher heart rate in the heat as a loss of fitness.",
+   "limits": "The recommendations target mainly elite athletes and rely on laboratory studies."
+  },
+  "f-piti": {
+   "title": "Drinking in the heat without overdoing it",
+   "claim": "In the heat the body loses more fluid through sweat, but the consensus also warns recreational athletes against drinking too much. The app doesn't recommend specific amounts; drink according to thirst and the length of the run.",
+   "limits": "Hydration recommendations are partly disputed and target elite sport."
+  },
+  "g-7-hodin": {
+   "title": "At least 7 hours of sleep",
+   "claim": "Professional societies recommend that adults regularly sleep at least 7 hours; shorter sleep is linked, among other things, to impaired performance and immunity. Repeated nights under 7 hours therefore lower your readiness, even if that is your usual sleep length.",
+   "limits": "A recommendation for the general adult population; for athletes in hard training it is a minimum, not an optimum."
+  },
+  "g-vice-noci": {
+   "title": "Several nights in a row matter",
+   "claim": "Lack of sleep adds up over nights and affects longer endurance performance more than short maximal efforts. The app therefore assesses sleep over the last three nights, not just last night.",
+   "limits": "Mostly small laboratory studies with a larger sleep deficit than athletes usually have."
+  },
+  "h-slacha": {
+   "title": "Tendon pain and the pain-monitoring model",
+   "claim": "In Achilles tendinopathy, continuing to run according to the pain-monitoring model was no worse than rest: pain during activity up to 5 out of 10, settling by the next morning and not increasing from week to week. The app therefore tracks morning pain and its weekly trend.",
+   "limits": "It applies to diagnosed tendinopathy under the guidance of a physiotherapist, not to running with new or unexplained pain."
+  },
+  "h-kost": {
+   "title": "With bone, you don't run through pain",
+   "claim": "Warning signs of bone stress from overload are pain that appears earlier and earlier when running, persists after running, appears when walking and eventually at rest or at night. Return to running with bone is guided by complete absence of pain, so with shin or foot pain the app recommends another sport, and with warning signs a physiotherapist.",
+   "limits": "Expert commentary, not a systematic review. The app determines nothing; it only recommends an assessment."
+  },
+  "h-zada": {
+   "title": "Warning signs with back pain",
+   "claim": "A change in urination or bowel movements and numbness in the groin area with back pain require immediate medical examination. Individual warning signs have weak predictive value on their own, so the doctor decides on the next steps.",
+   "limits": "An international consensus based on clinical reasoning, not on new diagnostic studies."
+  },
+  "h-navrat": {
+   "title": "Return to sport is a progression",
+   "claim": "Return after injury leads from participation through return to sport to the original performance, and the decision to clear someone is shared, with the physiotherapist having the say where health is concerned. The app therefore increases load gradually on return and never clears anyone by itself.",
+   "limits": "A consensus based mainly on team sports; research on specific criteria is sparse."
+  },
+  "h-kombinace": {
+   "title": "Fatigue, illness and a drop in performance together",
+   "claim": "The same symptoms, such as long-term fatigue, repeated illness or a drop in performance, can have many causes, from load through sleep and stress to nutrition. When they come together, it's worth discussing them with a physiotherapist or doctor rather than looking for a single cause.",
+   "limits": "A critical review; the proposed checklist hasn't been validated yet."
+  },
+  "i-sila-zraneni": {
+   "title": "Strength training and fewer injuries",
+   "claim": "In a meta-analysis of randomised studies, exercise programmes led to fewer sports injuries, with strength training having the strongest effect and stretching none. The app therefore recommends strength training and reminds you when it has been missing for a long time.",
+   "limits": "The strength studies didn't include runners; they involved mainly soldiers and team sports."
+  },
+  "i-sila-ekonomika": {
+   "title": "Strength training improves running economy",
+   "claim": "Adding strength training improved running economy by 2 to 8 % without impairing aerobic capacity or increasing body weight, most often with two sessions a week. Heavier strength training or a combination with jumps helps most.",
+   "limits": "Mostly trained runners and short time trials; the benefit for the marathon and trail running is inferred."
+  },
+  "i-udrzovani": {
+   "title": "Before a race, maintenance is enough",
+   "claim": "During the competition period, roughly one short and intense strength session a week maintains strength. That's why the app lowers the strength target to once a week before a target race.",
+   "limits": "A narrative review based on a small number of studies with trained athletes."
+  },
+  "i-novy-blok": {
+   "title": "A new strength block and heavy legs",
+   "claim": "In the first two to three weeks of a new strength programme, the legs are often heavy and sore, and the authors recommend cutting back on endurance training during that time. The app therefore shortens runs slightly in the first two weeks of a new block.",
+   "limits": "A practical recommendation from a review, not a tested approach for recreational runners."
+  },
+  "i-odstup": {
+   "title": "Spacing strength training from hard runs",
+   "claim": "The review authors recommend leaving at least three hours after an intense run before strength training. In addition, the app doesn't recommend leg strength training the day before a usual hard session.",
+   "limits": "The recommendation comes from expert interpretation, not a direct comparison."
+  },
+  "a-ultra-zkusenost": {
+   "title": "Ultra and trail: experience more than kilometres",
+   "claim": "Among 1,212 ultramarathon runners, injured and uninjured runners didn't differ in annual volume, but the injured ones had fewer years of running experience. The body takes years to adapt to high volumes, so the app builds capacity gradually based on what you have already managed.",
+   "limits": "A cross-sectional study with retrospectively reported injuries; association doesn't mean causation."
+  },
+  "e-kadence": {
+   "title": "A small change in cadence",
+   "claim": "In trained runners, the most economical step frequency is on average only about 3 % higher than the one they choose themselves, and shortening the stride by 3 % didn't worsen economy. A slight increase in cadence, which a physiotherapist may suggest, therefore usually doesn't make running more costly.",
+   "limits": "It concerns running economy on a treadmill, not injury. A change in technique is best handled with a physiotherapist."
+  },
+  "h-rehab-bolest": {
+   "title": "Tolerable pain during rehabilitation exercise",
+   "claim": "In long-term musculoskeletal pain, exercise in which tolerable pain was allowed was no worse than pain-free exercise, and in the short term it relieved pain slightly. This applies to exercises guided by a physiotherapist, not to running with new pain.",
+   "limits": "Seven small studies in middle-aged people with chronic pain, none in runners or in acute problems."
+  }
+ }
+}

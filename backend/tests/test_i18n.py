@@ -80,3 +80,24 @@ def test_a_failed_translation_shows_the_czech_original(client, kb, monkeypatch):
     out = client.post(f"/api/runners/{rid}/assistant/ask", json={"question": "Můžu dnes dát intervaly?"},
                       headers={"X-Doslap-Lang": "en"}).json()
     assert out["lang"] == "cs" and out["text"]
+
+
+def test_every_evidence_card_has_an_english_version():
+    from app.assistant import knowledge as K
+    en = T._cards_en()
+    for c in K.cards():
+        assert c["id"] in en and all(en[c["id"]].get(k) for k in ("title", "claim", "limits")), c["id"]
+        # the numbers of the claim survive the translation
+        assert T._ok(c["claim"], en[c["id"]]["claim"]), c["id"]
+
+
+def test_english_status_suggestions_disclaimer_and_sources(client, kb, monkeypatch):  # noqa: F811
+    rid, r, u = _demo(client, kb)
+    st = client.get(f"/api/runners/{rid}/assistant", headers={"X-Doslap-Lang": "en"}).json()
+    assert st["disclaimer"] == T.DISCLAIMER_EN
+    assert st["suggestions"] and all(q in T.SUGGESTIONS_EN.values() for q in st["suggestions"])
+    card = {"n": 1, "kind": "card", "id": "a-10-procent", "title": "Pravidlo 10 % není prokázané", "claim": "x",
+            "limits": "y", "strength": "střední"}
+    out = T.sources_en([card, {"n": 2, "kind": "summary", "id": "buist-et-al-2008", "title": "Buist et al. (2008)"}])
+    assert out[0]["title"] == "The 10 % rule is not proven" and out[0]["strength"] == "střední"
+    assert out[1]["title"] == "Buist et al. (2008)"

@@ -9,5 +9,7 @@
 "{} j.z.": "{0} LU",
 "{}. týden cyklu ({} %)": "week {0} of the cycle ({1} %)",
 "{}. týden cyklu ({} %) — cíl objemu ≈ {} km{}.": "week {0} of the cycle ({1} %) — volume target ≈ {2} km{3}.",
-"Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.": "Capacity is recalculated after each week according to what you actually ran."
+"Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.": "Capacity is recalculated after each week according to what you actually ran.",
+"slabé": "weak",
+"část:": "section:"
 }

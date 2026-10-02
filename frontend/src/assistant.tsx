@@ -6,6 +6,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useLocation, useNavigate } from "react-router"
 import { Bot, BookOpen, ChevronDown, ExternalLink, FileUp, Send, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react"
 import { api } from "@/api"
+import { getLang } from "@/i18n/lang"
+import { translate } from "@/i18n/translator"
 import { useApp } from "@/store"
 import { Card, Label, Sheet, useToast } from "@/ui"
 
@@ -168,7 +170,8 @@ function AssistantSheet({ rid, status, tab, initialQ, initialCtx, onClose }: { r
     return () => { alive = false }
   }, [rid, tab, noAccess])
   const ask = async (q: string, ctx?: Ctx) => {
-    const question = q.trim()
+    // the app's own Czech questions ("Proč?" buttons) go out as the runner sees them
+    const question = getLang() === "en" ? translate(q.trim()) : q.trim()
     if (!question || busy) return
     setInput("")
     setMsgs((m) => [...m, { id: -Date.now(), role: "user", text: question }])

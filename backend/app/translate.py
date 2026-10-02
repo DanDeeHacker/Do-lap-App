@@ -15,7 +15,10 @@ The static texts of the app (engine signals, guidance, labels) are translated
 in the browser from a fixed dictionary (frontend/src/i18n), not here.
 """
 import hashlib
+import json
 import re
+from functools import lru_cache
+from pathlib import Path
 
 from . import llm, models
 from .metrics import engine as E
@@ -47,8 +50,12 @@ def _key(text: str, lang: str) -> str:
     return hashlib.sha256(f"{lang}|{text}".encode()).hexdigest()[:32]
 
 
-def _nums(text: str) -> list[str]:
-    return sorted(n.replace(",", ".") for n in _NUM.findall(_CITE.sub(" ", text or "")))
+def _nums(text: str, en: bool = False) -> list[str]:
+    """The numbers of a text; thousands separators dropped (Czech "1 212", English "1,212"),
+    decimals with a point."""
+    t = _CITE.sub(" ", text or "")
+    t = re.sub(r"(\d),(\d{3})(?!\d)", r"\1\2", t) if en else re.sub(r"(\d)[ \u00a0\u202f](\d{3})(?!\d)", r"\1\2", t)
+    return sorted(n.replace(",", ".") for n in _NUM.findall(t))
 
 
 def _ok(src: str, out: str) -> bool:
@@ -59,7 +66,7 @@ def _ok(src: str, out: str) -> bool:
     # dates move from "3. 10." to "3 Oct", so compare the numbers as a multiset of
     # values found in the source that are not day / month pairs
     src_n = _nums(re.sub(r"\b\d{1,2}\.\s?\d{1,2}\.(\s?\d{4})?", " ", src))
-    out_n = _nums(out)
+    out_n = _nums(out, en=True)
     return all(out_n.count(n) >= src_n.count(n) for n in set(src_n))
 
 
@@ -108,9 +115,45 @@ def to_cs(db, text: str) -> str:
     return out
 
 
+# ------------------------------------------------------------------ fixed texts
+DISCLAIMER_EN = ("The answer was written by AI from your data and the research literature. It can be wrong "
+                 "and doesn't replace a physiotherapist.")
+SUGGESTIONS_EN = {
+    "Co mám dělat s bolestí holeně nebo chodidla?": "What should I do about shin or foot pain?",
+    "Proč mám dnes nižší připravenost?": "Why is my readiness lower today?",
+    "Proč dnes nemůžu dát intervaly?": "Why can't I do intervals today?",
+    "Co znamená tichý drift?": "What does silent drift mean?",
+    "Proč je moje zátěž zvýšená?": "Why is my load elevated?",
+    "Jak dnes běhat v horku?": "How should I run in the heat today?",
+    "Jak zařadit posilování do týdne?": "How do I fit strength training into my week?",
+    "Co mám dnes běžet a proč?": "What should I run today and why?",
+    "Jak vypadá můj tréninkový týden?": "What does my training week look like?",
+    "Kde v aplikaci najdu svou kapacitu?": "Where in the app do I find my capacity?",
+}
+
+
+@lru_cache(maxsize=1)
+def _cards_en() -> dict:
+    p = Path(__file__).parent / "knowledge" / "cards.en.json"
+    return json.loads(p.read_text(encoding="utf-8"))["cards"]
+
+
+def sources_en(sources: list | None) -> list:
+    """Evidence cards in English (study summaries and article passages are English already).
+    The strength stays a key ("silné"…) the app translates on screen."""
+    out = []
+    for s in sources or []:
+        en = _cards_en().get(s.get("id")) if s.get("kind") == "card" else None
+        out.append({**s, **en} if en else s)
+    return out
+
+
 def message_en(db, m: dict) -> dict:
     """An assistant message dict in English (user messages are shown as typed)."""
     if not m or m.get("role") != "assistant":
         return m
     en = to_en(db, m.get("text"))
-    return {**m, "text": en, "lang": "en"} if en else {**m, "lang": "cs"}
+    out = {**m, "sources": sources_en(m.get("sources"))}
+    if m.get("disclaimer"):
+        out["disclaimer"] = DISCLAIMER_EN
+    return {**out, "text": en, "lang": "en"} if en else {**out, "lang": "cs"}
