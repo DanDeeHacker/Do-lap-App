@@ -11,5 +11,18 @@
 "{}. týden cyklu ({} %) — cíl objemu ≈ {} km{}.": "week {0} of the cycle ({1} %) — volume target ≈ {2} km{3}.",
 "Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.": "Capacity is recalculated after each week according to what you actually ran.",
 "slabé": "weak",
-"část:": "section:"
+"část:": "section:",
+"Zeptejte se na {}…": "Ask about {0}…",
+"dnešní stav": "today's state",
+"dnešní trénink": "today's training",
+"své běhy a deník": "your runs and diary",
+"svou techniku": "your technique",
+"zátěž a kapacitu": "load and capacity",
+"bolest a péči o tělo": "pain and body care",
+"lehký běh": "an easy run",
+"dlouhý běh": "a long run",
+"kvalitní trénink": "a quality session",
+"regenerační běh": "a recovery run",
+"volno": "a rest day",
+"den závodu": "race day"
 }

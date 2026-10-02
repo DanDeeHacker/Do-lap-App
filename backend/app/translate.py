@@ -16,12 +16,15 @@ in the browser from a fixed dictionary (frontend/src/i18n), not here.
 """
 import hashlib
 import json
+import logging
 import re
 from functools import lru_cache
 from pathlib import Path
 
 from . import llm, models
 from .metrics import engine as E
+
+log = logging.getLogger("doslap.translate")
 
 GLOSSARY = (
     "Glossary (Czech → British English): Dnes → Today, Trénink → Training, Deník → Diary, Pohyb → Movement, "
@@ -34,8 +37,8 @@ GLOSSARY = (
 SYSTEM_EN = (
     "You translate texts from Došlap, a running app that helps runners and physiotherapists, from Czech into "
     "British English (British spelling, metric units). Translate faithfully: do not add, drop or soften anything, "
-    "and keep the tone calm, plain and polite. Keep every number exactly, but write decimals with a point "
-    "(7,4 → 7.4). Keep citation markers such as [1] or [2][3] exactly where they are, keep line breaks and the "
+    "and keep the tone calm, plain and polite. Keep every number exactly and always in digits, never as words "
+    "(3 stays 3, not three; 1. týden is week 1), but write decimals with a point (7,4 → 7.4). Keep citation markers such as [1] or [2][3] exactly where they are, keep line breaks and the "
     "bullet character •. Write dates as day month (3. 10. → 3 Oct). Reply with the translation only.\n" + GLOSSARY
 )
 SYSTEM_CS = (
@@ -58,23 +61,41 @@ def _nums(text: str, en: bool = False) -> list[str]:
     return sorted(n.replace(",", ".") for n in _NUM.findall(t))
 
 
-def _ok(src: str, out: str) -> bool:
+_WORDS = {"0": ("zero",), "1": ("one", "first"), "2": ("two", "second", "both", "twice"),
+          "3": ("three", "third"), "4": ("four", "fourth"), "5": ("five", "fifth"), "6": ("six", "sixth"),
+          "7": ("seven", "seventh"), "8": ("eight", "eighth"), "9": ("nine", "ninth"), "10": ("ten", "tenth")}
+
+
+def _problems(src: str, out: str) -> list[str]:
+    """Why a translation can't be shown (empty when it can)."""
     if not out or not out.strip():
-        return False
+        return ["empty"]
+    bad = []
     if sorted(_CITE.findall(src)) != sorted(_CITE.findall(out)):
-        return False
+        bad.append(f"citations {sorted(_CITE.findall(src))} → {sorted(_CITE.findall(out))}")
     # dates move from "3. 10." to "3 Oct", so compare the numbers as a multiset of
-    # values found in the source that are not day / month pairs
+    # values found in the source that are not day / month pairs; a small whole number
+    # the model wrote as a word ("three", "first") still counts
     src_n = _nums(re.sub(r"\b\d{1,2}\.\s?\d{1,2}\.(\s?\d{4})?", " ", src))
     out_n = _nums(out, en=True)
-    return all(out_n.count(n) >= src_n.count(n) for n in set(src_n))
+    low = (out or "").lower()
+    for n in set(src_n):
+        short = src_n.count(n) - out_n.count(n)
+        if short > 0 and not (n in _WORDS and any(re.search(rf"\b{w}\b", low) for w in _WORDS[n])):
+            bad.append(f"number {n} missing")
+    return bad
+
+
+def _ok(src: str, out: str) -> bool:
+    return not _problems(src, out)
 
 
 def _llm(system: str, text: str, max_tokens: int) -> str | None:
     if not llm.assistant_available():
         return None
+    # the assistant model is a large shared one: a long summary takes well over 30 s
     return llm.chat_messages([{"role": "system", "content": system}, {"role": "user", "content": text}],
-                             temperature=0.1, max_tokens=max_tokens, timeout=30,
+                             temperature=0.1, max_tokens=max_tokens, timeout=90,
                              model=llm.ASSISTANT_MODEL, base_url=llm.ASSISTANT_BASE_URL, api_key=llm.ASSISTANT_API_KEY)
 
 
@@ -89,12 +110,36 @@ def to_en(db, text: str | None) -> str | None:
     row = _cached(db, text, "en")
     if row is not None:
         return row.out
-    out = _llm(SYSTEM_EN, text, max_tokens=900)
-    out = (out or "").strip()
-    if not _ok(text, out):
-        return None
+    out = _translate_en(text)
+    if out is None:
+        # a long text in one piece failed: translate it paragraph by paragraph
+        paras = text.split("\n")
+        if len([p for p in paras if p.strip()]) < 2:
+            return None
+        done = []
+        for p in paras:
+            if not p.strip():
+                done.append(p)
+                continue
+            t = _translate_en(p)
+            if t is None:
+                return None
+            done.append(t)
+        out = "\n".join(done)
     db.add(models.Translation(key=_key(text, "en"), lang="en", src=text, out=out, created_at=E.now_iso()))
     db.commit()
+    return out
+
+
+def _translate_en(text: str) -> str | None:
+    """One model call; None (logged) when it fails or the result doesn't keep the numbers."""
+    out = (_llm(SYSTEM_EN, text, max_tokens=min(3000, 400 + len(text))) or "").strip()
+    # a model sometimes wraps the reply in quotes or a lead-in
+    out = re.sub(r"^(here is the translation:?\s*)", "", out, flags=re.I).strip()
+    bad = _problems(text, out)
+    if bad:
+        log.warning("translation rejected (%d chars): %s", len(text), "; ".join(bad[:5]))
+        return None
     return out
 
 
@@ -130,6 +175,10 @@ SUGGESTIONS_EN = {
     "Jak vypadá můj tréninkový týden?": "What does my training week look like?",
     "Kde v aplikaci najdu svou kapacitu?": "Where in the app do I find my capacity?",
 }
+
+SUMMARY_TITLES_EN = {"Shrnutí dne": "Today's summary", "Dnešní trénink": "Today's training",
+                     "Zátěž a kapacita": "Load and capacity", "Běžecká mechanika": "Running mechanics",
+                     "Deník": "Diary", "Péče o tělo": "Body care"}
 
 
 @lru_cache(maxsize=1)

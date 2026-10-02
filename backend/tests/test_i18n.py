@@ -101,3 +101,14 @@ def test_english_status_suggestions_disclaimer_and_sources(client, kb, monkeypat
     out = T.sources_en([card, {"n": 2, "kind": "summary", "id": "buist-et-al-2008", "title": "Buist et al. (2008)"}])
     assert out[0]["title"] == "The 10 % rule is not proven" and out[0]["strength"] == "střední"
     assert out[1]["title"] == "Buist et al. (2008)"
+
+
+def test_small_numbers_as_words_and_paragraph_fallback(db_session, monkeypatch):
+    assert T._ok("1. týden ze 3, cíl 50 %.", "The first week of three, target 50 %.")
+    assert not T._ok("Bolest 4/10, cíl 50 %.", "Pain 4/10, target 5 %.")
+    # the whole text fails once (e.g. a time-out), each paragraph then succeeds
+    src = "Ve vašich datech:\n• připravenost 74 %\n• strop 7,4 km"
+    replies = {src: None, "Ve vašich datech:": "In your data:", "• připravenost 74 %": "• readiness 74 %",
+               "• strop 7,4 km": "• ceiling 7.4 km"}
+    monkeypatch.setattr(T, "_llm", lambda system, text, max_tokens: replies[text])
+    assert T.to_en(db_session, src) == "In your data:\n• readiness 74 %\n• ceiling 7.4 km"

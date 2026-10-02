@@ -212,7 +212,12 @@ function walk(root: Node) {
   if (skipped(el)) return
   doAttrs(el)
   const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
-    acceptNode: (n) => (n.nodeType === Node.ELEMENT_NODE && skipped(n as Element) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    acceptNode: (n) => {
+      if (n.nodeType !== Node.ELEMENT_NODE || !skipped(n as Element)) return NodeFilter.FILTER_ACCEPT
+      // a text field's placeholder is the app's text even though its value is not
+      if ((n as Element).matches("input, textarea")) doAttrs(n as Element)
+      return NodeFilter.FILTER_REJECT
+    },
   })
   let n: Node | null = tw.nextNode()
   while (n) {

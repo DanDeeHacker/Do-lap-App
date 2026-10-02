@@ -101,7 +101,8 @@ def assistant_summary(rid: str, request: Request, tab: str = "today", user: mode
     out = S.tab_summary(db, r, tab, user)
     if request_lang(request, user) == "en":
         en = T.to_en(db, out.get("text"))
-        out = {**out, "text": en or out.get("text"), "lang": "en" if en else "cs", "sources": T.sources_en(out.get("sources"))}
+        out = {**out, "text": en or out.get("text"), "lang": "en" if en else "cs", "sources": T.sources_en(out.get("sources")),
+               "title": T.SUMMARY_TITLES_EN.get(out.get("title"), out.get("title"))}
     return out
 
 
