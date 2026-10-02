@@ -193,6 +193,23 @@ EXERCISES = {
                         "Tělo držte v jedné přímce od hlavy po paty, lehce zpevněte břicho a hýždě.",
                         "Dýchejte plynule a vydržte."],
               "mistakes": ["Propadlá bedra.", "Pánev vystrčená příliš vysoko."]},
+    "curl_up": {"name": "Zvednutí hlavy a ramen s výdrží (curl-up)", "area": "přímý břišní sval",
+                "how": "Vleže na zádech s jednou pokrčenou nohou zvedněte hlavu a ramena jen kousek nad podložku a vydržte 10 s. Bedra zůstávají v klidu.",
+                "dose": "3 × 5 výdrží po 10 s", "perWeek": 4,
+                "steps": ["Lehněte si na záda, jednu nohu pokrčte a druhou nechte nataženou, ruce dejte pod bedra.",
+                          "Zpevněte břicho a zvedněte hlavu a ramena jen pár centimetrů nad podložku.",
+                          "Vydržte 10 sekund a plynule dýchejte.",
+                          "Pomalu položte, po pěti výdržích vyměňte nohy."],
+                "mistakes": ["Velký sed-leh místo malého zvednutí.", "Tahání hlavy rukama za krk."]},
+    "pelvic_tilt": {"name": "Podsazení pánve a zvednutí pánve vleže", "area": "dolní část břicha",
+                    "how": "Vleže s pokrčenými koleny podsaďte pánev, bedra přitiskněte k podložce, vydržte a povolte. Později přitáhněte kolena k hrudníku a pánev nadzvedněte.",
+                    "dose": "3 × 10", "perWeek": 4,
+                    "steps": ["Lehněte si na záda, kolena pokrčte a chodidla dejte na zem.",
+                              "Podsaďte pánev, až se bedra dotknou podložky, a vydržte 5 sekund.",
+                              "Povolte a opakujte.",
+                              "Když to nebolí, zvedněte nohy a pánev pomalu nadzvedněte pár centimetrů nad podložku."],
+                    "mistakes": ["Švih nohama místo práce břicha.", "Pokračování přes ostrou bolest v podbřišku."],
+                    "caution": "Zvedání pánve zařaďte až ve chvíli, kdy podsazení pánve nebolí."},
     "add_squeeze": {"name": "Stlačování míče koleny", "area": "adduktory (tříslo)",
                     "how": "Vleže na zádech s pokrčenými koleny stlačte míč mezi koleny a vydržte 30 s. Síla jen do nepohodlí, ne do ostré bolesti.",
                     "dose": "10 × 30 s", "perWeek": 3,
@@ -369,6 +386,16 @@ PROGRAMS = [
                  "zhruba o 40 % (Harøy et al., 2019).",
      "refs": ["Hölmich et al., 1999", "Harøy et al., 2019"],
      "assumption": "Studie zkoumaly hlavně fotbalisty, dávkování pro běžce je pracovní předpoklad. Bolest v třísle bez vazby na pohyb nechte posoudit."},
+    {"key": "lower_abs", "group": "pain", "physio": PHYSIO + "Groin_Pain", "name": "Dolní břicho (úpon břišních svalů)", "weeks": 8,
+     "match": ["břiš", "abdom"],
+     "summary": "Postupně rostoucí zátěž břišních svalů a třísla: výdrže, pak pohyb, nakonec plank.",
+     "exercises": ["pelvic_tilt", "curl_up", "dead_bug", "add_squeeze", "side_plank", "plank"],
+     "evidence": "Bolest v podbřišku a třísle se u sportovců dělí podle místa na adduktorovou, iliopsoatickou, inguinální a pubickou (Weir et al., 2015). "
+                 "Aktivní posilovací program, který zahrnoval i cviky na břišní svaly, vedl u dlouhodobé bolesti třísla k návratu ke sportu bez bolesti "
+                 "mnohem častěji než pasivní fyzioterapie (Hölmich et al., 1999).",
+     "refs": ["Weir et al., 2015", "Hölmich et al., 1999"],
+     "assumption": "Samostatná studie cvičení na úpon břišních svalů u běžců chybí, výběr cviků a dávkování jsou pracovní předpoklad. "
+                   "Bolest u stydké kosti, při kašli nebo kýchnutí, nebo vyboulení v třísle nechte posoudit fyzioterapeutem nebo lékařem."},
     {"key": "core", "group": "performance", "physio": PHYSIO + "Core_Stability", "name": "Core pro běžce", "weeks": 8,
      "match": [],
      "summary": "Vytrvalost svalů trupu a stabilita pánve, třikrát týdně po tréninku.",
@@ -392,6 +419,7 @@ PROGRAMS = [
 PROGRAM_BY_KEY = {p["key"]: p for p in PROGRAMS}
 
 REFERENCES = {
+    "Weir et al., 2015": "Weir, A., Brukner, P., Delahunt, E., Ekstrand, J., Griffin, D., Khan, K. M., Lovell, G., Meyers, W. C., Muschaweck, U., Orchard, J., Paajanen, H., Philippon, M., Reboul, G., Robinson, P., Schache, A. G., Schilders, E., Serner, A., Silvers, H., Thorborg, K., … Hölmich, P. (2015). Doha agreement meeting on terminology and definitions in groin pain in athletes. British Journal of Sports Medicine, 49(12), 768–774.",
     "Hölmich et al., 1999": "Hölmich, P., Uhrskou, P., Ulnits, L., Kanstrup, I.-L., Nielsen, M. B., Bjerg, A. M., & Krogsgaard, K. (1999). Effectiveness of active physical training as treatment for long-standing adductor-related groin pain in athletes: Randomised trial. The Lancet, 353(9151), 439–443.",
     "Harøy et al., 2019": "Harøy, J., Clarsen, B., Wiger, E. G., Øyen, M. G., Serner, A., Thorborg, K., Hölmich, P., Andersen, T. E., & Bahr, R. (2019). The Adductor Strengthening Programme prevents groin problems among male football players: A cluster-randomised controlled trial. British Journal of Sports Medicine, 53(3), 150–157.",
     "Alfredson et al., 1998": "Alfredson, H., Pietilä, T., Jonsson, P., & Lorentzon, R. (1998). Heavy-load eccentric calf muscle training for the treatment of chronic Achilles tendinosis. The American Journal of Sports Medicine, 26(3), 360–366.",

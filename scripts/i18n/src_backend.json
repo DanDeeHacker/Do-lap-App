@@ -7240,6 +7240,12 @@
   ]
  },
  {
+  "t": "3 × 5 výdrží po 10 s",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "3 × 8 každá noha",
   "files": [
    "programs_library.py"
@@ -7277,6 +7283,12 @@
  },
  {
   "t": "Bolest při cvičení do 5 z 10 je v pořádku, do druhého rána musí odeznít a nesmí týden od týdne růst. Když roste nebo je ráno horší, uberte počet opakování.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Bolest v podbřišku a třísle se u sportovců dělí podle místa na adduktorovou, iliopsoatickou, inguinální a pubickou (Weir et al., 2015). Aktivní posilovací program, který zahrnoval i cviky na břišní svaly, vedl u dlouhodobé bolesti třísla k návratu ke sportu bez bolesti mnohem častěji než pasivní fyzioterapie (Hölmich et al., 1999).",
   "files": [
    "programs_library.py"
   ]
@@ -7337,6 +7349,12 @@
  },
  {
   "t": "Dlouhé skoky střídavě z nohy na nohu s mohutnou prací paží.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Dolní břicho (úpon břišních svalů)",
   "files": [
    "programs_library.py"
   ]
@@ -7493,6 +7511,12 @@
  },
  {
   "t": "Když to jde bez bolesti, zkuste poskoky na jedné noze.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Když to nebolí, zvedněte nohy a pánev pomalu nadzvedněte pár centimetrů nad podložku.",
   "files": [
    "programs_library.py"
   ]
@@ -7673,6 +7697,18 @@
  },
  {
   "t": "Lehněte si na záda a paty položte dál od těla než u běžného mostu, špičky mohou jít nahoru.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na záda, jednu nohu pokrčte a druhou nechte nataženou, ruce dejte pod bedra.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na záda, kolena pokrčte a chodidla dejte na zem.",
   "files": [
    "programs_library.py"
   ]
@@ -7936,6 +7972,24 @@
   ]
  },
  {
+  "t": "Podsazení pánve a zvednutí pánve vleže",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Podsaďte pánev, až se bedra dotknou podložky, a vydržte 5 sekund.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Pokračování přes ostrou bolest v podbřišku.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Pokrčování stojného kolena.",
   "files": [
    "programs_library.py"
@@ -7967,6 +8021,12 @@
  },
  {
   "t": "Pomalu nohu spusťte.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Pomalu položte, po pěti výdržích vyměňte nohy.",
   "files": [
    "programs_library.py"
   ]
@@ -8063,6 +8123,12 @@
  },
  {
   "t": "Postupně rostoucí zátěž adduktorů: výdrž, pohyb a nakonec kodaňský plank.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Postupně rostoucí zátěž břišních svalů a třísla: výdrže, pak pohyb, nakonec plank.",
   "files": [
    "programs_library.py"
   ]
@@ -8338,6 +8404,12 @@
   ]
  },
  {
+  "t": "Samostatná studie cvičení na úpon břišních svalů u běžců chybí, výběr cviků a dávkování jsou pracovní předpoklad. Bolest u stydké kosti, při kašli nebo kýchnutí, nebo vyboulení v třísle nechte posoudit fyzioterapeutem nebo lékařem.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Sedněte si na židli a kolem kotníku dejte zátěž nebo gumu uchycenou za nohu židle.",
   "files": [
    "programs_library.py"
@@ -8548,6 +8620,12 @@
   ]
  },
  {
+  "t": "Tahání hlavy rukama za krk.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Technická rozcvička před rychlejším tréninkem: skipinky, zakopávání, odpichy a rovinky.",
   "files": [
    "programs_library.py"
@@ -8620,6 +8698,12 @@
   ]
  },
  {
+  "t": "Velký sed-leh místo malého zvednutí.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Vkleče s fixovanými kotníky se pomalu naklánějte dopředu s rovnými zády, brzděte zadní stranou stehen, pak se zachyťte rukama.",
   "files": [
    "programs_library.py"
@@ -8650,6 +8734,12 @@
   ]
  },
  {
+  "t": "Vleže na zádech s jednou pokrčenou nohou zvedněte hlavu a ramena jen kousek nad podložku a vydržte 10 s. Bedra zůstávají v klidu.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Vleže na zádech s pokrčenými koleny stlačte míč mezi koleny a vydržte 30 s. Síla jen do nepohodlí, ne do ostré bolesti.",
   "files": [
    "programs_library.py"
@@ -8657,6 +8747,12 @@
  },
  {
   "t": "Vleže na zádech s pokrčenými koleny zvedněte pánev do přímky, nahoře 2 s výdrž. Pokročile na jedné noze.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Vleže s pokrčenými koleny podsaďte pánev, bedra přitiskněte k podložce, vydržte a povolte. Později přitáhněte kolena k hrudníku a pánev nadzvedněte.",
   "files": [
    "programs_library.py"
   ]
@@ -8681,6 +8777,12 @@
  },
  {
   "t": "Vsedě s koleny v pravém úhlu a se zátěží na stehnech zvedejte paty. Pomalu nahoru i dolů.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Vydržte 10 sekund a plynule dýchejte.",
   "files": [
    "programs_library.py"
   ]
@@ -8932,6 +9034,12 @@
   ]
  },
  {
+  "t": "Zpevněte břicho a zvedněte hlavu a ramena jen pár centimetrů nad podložku.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Zpět nahoru se vraťte oběma nohama nebo s pomocí zdravé nohy.",
   "files": [
    "programs_library.py"
@@ -8945,6 +9053,12 @@
  },
  {
   "t": "Zpět se vraťte chůzí nebo klusem a opakujte.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Zvednutí hlavy a ramen s výdrží (curl-up)",
   "files": [
    "programs_library.py"
   ]
@@ -9004,6 +9118,12 @@
   ]
  },
  {
+  "t": "Zvedání pánve zařaďte až ve chvíli, kdy podsazení pánve nebolí.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Zvedání špiček",
   "files": [
    "programs_library.py"
@@ -9050,6 +9170,18 @@
   "files": [
    "programs_library.py",
    "seed.py"
+  ]
+ },
+ {
+  "t": "břiš",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "dolní část břicha",
+  "files": [
+   "programs_library.py"
   ]
  },
  {
@@ -9125,6 +9257,12 @@
   ]
  },
  {
+  "t": "přímý břišní sval",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "soleus (hluboké lýtko)",
   "files": [
    "programs_library.py"
@@ -9162,6 +9300,12 @@
  },
  {
   "t": "Šetrný začátek výdrží v mostu, pak síla v prodloužení.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Švih nohama místo práce břicha.",
   "files": [
    "programs_library.py"
   ]
