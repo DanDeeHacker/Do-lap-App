@@ -22,6 +22,8 @@ export type Note = {
   resolution: string | null
   createdAt: string
   author: { name: string | null; role: string | null; isOwner: boolean }
+  approvedAt?: string | null
+  ready?: boolean
   own?: boolean
 }
 type Draft = { el: Element; fx: number; fy: number; body: any }
@@ -283,7 +285,10 @@ export function AnnotationLayer() {
       {shown.map(({ n, num }) => {
         const p = pinPoint(n)
         if (!p || p.y < 60 || p.y > innerHeight + 20) return null
-        const col = n.status === "open" ? (n.own === false ? "bg-watch text-ink" : "bg-accent text-ink") : "bg-fg-4 text-white"
+        // feedback #152: the owner's notes go straight to implementation (accent); other
+        // users' notes wait for approval (blue) and turn amber once approved
+        const col = n.status !== "open" ? "bg-fg-4 text-white"
+          : n.author?.isOwner ? "bg-accent text-ink" : n.ready ? "bg-watch text-ink" : "bg-self text-ink"
         return (
           <button
             key={n.id}
@@ -317,6 +322,7 @@ export function AnnotationLayer() {
           num={numbered.find((x) => x.n.id === openNote.id)!.num}
           at={openPt}
           showAuthor={owner && openNote.own === false}
+          canApprove={owner && !openNote.author?.isOwner}
           onClose={() => setOpenId(null)}
           onChange={(u) => setNotes((ns) => ns.map((x) => (x.id === u.id ? u : x)))}
           onDelete={() => { setNotes((ns) => ns.filter((x) => x.id !== openNote.id)); setOpenId(null) }}
@@ -389,8 +395,8 @@ function DraftCard({ at, anchor, onCancel, onSave }: {
   )
 }
 
-function NoteCard({ note, num, at, showAuthor, onClose, onChange, onDelete }: {
-  note: Note; num: number; at: { x: number; y: number } | null; showAuthor: boolean
+function NoteCard({ note, num, at, showAuthor, canApprove, onClose, onChange, onDelete }: {
+  note: Note; num: number; at: { x: number; y: number } | null; showAuthor: boolean; canApprove: boolean
   onClose: () => void; onChange: (n: Note) => void; onDelete: () => void
 }) {
   const [editing, setEditing] = useState(false)
@@ -423,6 +429,9 @@ function NoteCard({ note, num, at, showAuthor, onClose, onChange, onDelete }: {
         <span className="grid size-6 place-items-center rounded-full bg-accent text-[11px] font-extrabold text-ink">{num}</span>
         <span className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] font-bold text-fg-soft">{KIND_LABEL[note.kind] || note.kind}</span>
         <span className={`text-[11px] ${note.status === "open" ? "text-accent" : "text-fg-2"}`}>{STATUS_LABEL[note.status]}</span>
+        {!note.author?.isOwner && note.status === "open" && (
+          <span className={`text-[11px] font-bold ${note.ready ? "text-watch" : "text-self"}`}>{note.ready ? "schváleno" : "čeká na schválení"}</span>
+        )}
         <button onClick={onClose} aria-label="Zavřít" className="ml-auto grid size-6 place-items-center rounded-full text-fg-2 hover:bg-white/[.06]">×</button>
       </div>
       {editing ? (
@@ -455,6 +464,12 @@ function NoteCard({ note, num, at, showAuthor, onClose, onChange, onDelete }: {
             <button onClick={() => void patch({ status: note.status === "open" ? "done" : "open" })} className="rounded-full bg-white/[.06] px-3 py-1.5 text-[11px] font-bold text-fg-soft">
               {note.status === "open" ? "Označit vyřešené" : "Znovu otevřít"}
             </button>
+            {canApprove && note.status === "open" && (
+              <button onClick={() => void patch({ approved: !note.ready })}
+                className={`rounded-full px-3 py-1.5 text-[11px] font-bold ${note.ready ? "bg-white/[.06] text-fg-soft" : "bg-self text-ink"}`}>
+                {note.ready ? "Zrušit schválení" : "Schválit k implementaci"}
+              </button>
+            )}
             <button onClick={() => setConfirmDel(true)} className="ml-auto rounded-full px-2.5 py-1.5 text-[11px] font-bold text-alert hover:bg-alert/10">Smazat</button>
           </>
         )}

@@ -1166,6 +1166,7 @@ def relative_effort(sessions, ref_day: str, n_runs=6):
             row["band"] = ("pod" if v < q1 else "obvyklé" if v <= q3 else "nad" if v <= max(past) else "výrazně nad")
             row["pct"] = round(_pct_rank(past, v) * 100)
             row["usual"] = [E.rnd(q1), E.rnd(q3)]
+            row["overMax"] = round(v / max(past), 2) if v > max(past) else None   # feedback #148: how far past the hardest
         fit = hr_speed_fit(runs, s["date"])
         spd = s.get("gSpeed") or s["speed"]          # v0.8.4: hills priced in (Minetti 2002)
         row["hot"] = bool(s.get("hot"))
@@ -1599,6 +1600,12 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         week_src = [{"id": s["id"], "date": s["date"], "title": s["title"], "sport": s.get("sport"),
                      "value": _fmt(s["exp"][ch], ch), "share": round(c / c_tot, 3)}
                     for c, s in sorted(contrib, key=lambda x: -x[0])[:8] if c_tot > 0 and c / c_tot >= 0.01]
+        # feedback #149 — every session of the last 7 days with what it added (the waterfall)
+        d7 = (today - timedelta(days=6)).isoformat()
+        week7 = [{"id": s["id"], "date": s["date"], "title": s["title"], "sport": s.get("sport"), "run": s["run"],
+                  "value": _fmt(s["exp"][ch], ch)}
+                 for s in sorted(pool, key=lambda x: (x["date"], str(x["id"])))
+                 if s["exp"].get(ch) and d7 <= s["date"] <= t_iso]
         if with_history:
             hist_ch[ch] = _history_rows(pool, ch, items, rates, ready, daily, first_day, pain, today, t_iso,
                                         absorb_days, m_s, m_w, body_before)
@@ -1632,7 +1639,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             # the per-run ceiling on a normally recovered day — "this week", not scaled by today's readiness
             "ceilingSession": _fmt(cap_today * (1 + m_s), ch) if cap_today is not None else None,
             "latent": {"pts": round(latent[0], 1), "date": latent[1], "ratio": latent[2], "id": latent[3]} if latent[0] else None,
-            "pendingJump": pending, "weekSources": week_src,
+            "pendingJump": pending, "weekSources": week_src, "week7": week7,
             "raw": round(raw, 1), "driver": driver, "known": worst is not None or week is not None or cap_today is not None,
             "exact": {"rs": worst_r, "rw": rw, "lat": latent[0], "left": worst["left"] if worst else 1.0,
                       "hs": worst.pop("_hold", 1.0) if worst else 1.0, "hw": wk_hold},

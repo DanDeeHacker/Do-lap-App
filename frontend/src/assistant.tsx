@@ -4,7 +4,7 @@
 // literature, and the backend validates it before it arrives here.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useLocation, useNavigate } from "react-router"
-import { Bot, BookOpen, ChevronDown, ExternalLink, FileUp, Send, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react"
+import { Bot, BookOpen, ChevronDown, ExternalLink, FileUp, Send, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Card, Label, Sheet, useToast } from "@/ui"
@@ -63,17 +63,6 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export function AssistantHeaderButton() {
-  const { available, open } = useAssistant()
-  if (!available) return null
-  return (
-    <button onClick={() => open()} data-testid="assistant-open" aria-label="Otevřít Physio AI Assistant"
-      className="grid size-9 place-items-center rounded-full border border-white/12 bg-white/[.04] text-accent hover:border-accent/50 hover:bg-accent/10">
-      <Sparkles className="size-[18px]" aria-hidden />
-    </button>
-  )
-}
-
 // A small "Proč?" button next to anything the assistant can explain.
 export function WhyButton({ question, context, label = "Proč?", className = "" }: { question: string; context?: Ctx; label?: string; className?: string }) {
   const { available, open } = useAssistant()
@@ -81,7 +70,7 @@ export function WhyButton({ question, context, label = "Proč?", className = "" 
   return (
     <button type="button" onClick={(e) => { e.stopPropagation(); open(question, context) }} data-testid="why-button"
       className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-accent/35 bg-accent/[.08] px-2.5 py-1 text-[11px] font-bold text-accent hover:bg-accent/15 ${className}`}>
-      <Sparkles className="size-3" aria-hidden />{label}
+      <Bot className="size-3.5" aria-hidden />{label}
     </button>
   )
 }
@@ -241,7 +230,7 @@ function AssistantSheet({ rid, status, tab, initialQ, initialCtx, onClose }: { r
     <Sheet open onClose={onClose} layer="z-[95]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="t-label flex items-center gap-1.5"><Sparkles className="size-3.5 text-accent" aria-hidden />AI asistent · {TAB_NAME[tab]}</p>
+          <p className="t-label flex items-center gap-1.5"><Bot className="size-3.5 text-accent" aria-hidden />AI asistent · {TAB_NAME[tab]}</p>
           <h2 className="mt-1 font-serif text-[24px] leading-tight">{status.name}</h2>
         </div>
         {(msgs.length > 0 || older.length > 0) && (

@@ -176,3 +176,7 @@ html, body { overflow-x:clip; }
   .reveal { transform:none; transition:opacity .3s; }
   .cue-bounce { animation:none; }
 }
+
+/* feedback #147 — run detail flips between Pohyb and Zátěž */
+@keyframes runFlip { from { opacity:0; transform: perspective(900px) rotateY(-14deg) scale(.98); } }
+@media (prefers-reduced-motion: reduce) { .animate-\[runFlip_\.35s_ease-out\] { animation:none !important; } }

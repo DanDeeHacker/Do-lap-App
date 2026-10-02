@@ -381,6 +381,60 @@ function weekEnd(iso: string) {
   d.setDate(d.getDate() + (6 - ((d.getDay() + 6) % 7)))
   return d.toLocaleDateString("sv-SE")
 }
+// Feedback #151 — how hard to run the race: three effort levels, the one the app
+// recommends from the remaining capacity, and the pace, heart rate and strategy for each.
+const LEVEL_UI: Record<string, { label: string; col: string; sub: string }> = {
+  "trénink": { label: "Tréninkově", col: C.ok, sub: "jako delší trénink" },
+  "střední": { label: "Středně", col: C.watch, sub: "svižně, bez krajnosti" },
+  naplno: { label: "Naplno", col: C.alert, sub: "závodní úsilí" },
+}
+function RacePlan({ rid, race }: { rid: string; race: any }) {
+  const [plan, setPlan] = useState<any | null | false>(null)
+  const [sel, setSel] = useState<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    setPlan(null)
+    api.racePlan(rid, race.id).then((p) => { if (alive) { setPlan(p || false); setSel(p?.recommended || null) } }).catch(() => alive && setPlan(false))
+    return () => { alive = false }
+  }, [rid, race.id, race.km, race.ascentM, race.priority, race.date])
+  if (plan === null) return <p className="mt-4 text-[12px] text-fg-3">Počítám plán závodu…</p>
+  if (!plan) return null
+  const lv = plan.levels.find((l: any) => l.id === sel) || plan.levels[0]
+  const ui = LEVEL_UI[lv.id]
+  return (
+    <div className="nest mt-4 p-3.5" data-testid="race-plan">
+      <p className="t-label !text-fg-3">Jak závod běžet</p>
+      <div className="mt-2 grid grid-cols-3 gap-1.5" role="radiogroup">
+        {plan.levels.map((l: any) => {
+          const u = LEVEL_UI[l.id]
+          const on = l.id === lv.id
+          return (
+            <button key={l.id} role="radio" aria-checked={on} onClick={() => setSel(l.id)}
+              className={`relative rounded-[12px] border px-2 py-2 text-left transition ${on ? "bg-white/[.06]" : "border-white/[.08] hover:border-white/20"}`}
+              style={on ? { borderColor: u.col } : undefined}>
+              <b className="block text-[13px]" style={{ color: on ? u.col : undefined }}>{u.label}</b>
+              <span className="block text-[10.5px] leading-[13px] text-fg-3">{u.sub}</span>
+              {l.id === plan.recommended && <span className="absolute -top-2 right-1.5 rounded-full bg-accent px-1.5 py-px text-[9.5px] font-extrabold text-ink">doporučeno</span>}
+            </button>
+          )
+        })}
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+        <div><p className="t-num text-[19px]" style={{ color: ui.col }}>{lv.pace ? paceStr(lv.pace) : "—"}</p><p className="text-[10.5px] text-fg-3">tempo /km</p></div>
+        <div><p className="t-num text-[19px] text-fg">{lv.time ? hms(lv.time) : "—"}</p><p className="text-[10.5px] text-fg-3">odhad času</p></div>
+        <div><p className="t-num text-[19px] text-fg">{lv.hr[0]}–{lv.hr[1]}</p><p className="text-[10.5px] text-fg-3">tep</p></div>
+      </div>
+      <p className="mt-2 text-[12px] text-fg-2">Úsilí {lv.rpe}{lv.recoveryDays ? ` · zotavení ~${lv.recoveryDays} ${lv.recoveryDays === 1 ? "den" : lv.recoveryDays < 5 ? "dny" : "dní"}` : ""}</p>
+      <ul className="mt-2 space-y-1.5 text-[12px] leading-5 text-fg-soft">
+        {lv.strategy.map((t: string, i: number) => <li key={i} className="flex gap-2"><span style={{ color: ui.col }}>›</span><span>{t}</span></li>)}
+      </ul>
+      <p className="mt-3 border-t border-white/[.07] pt-2 text-[11px] leading-4 text-fg-3">
+        Doporučení <b style={{ color: LEVEL_UI[plan.recommended]?.col }}>{LEVEL_UI[plan.recommended]?.label.toLowerCase()}</b>: {plan.why.join(" · ")}.
+        {" "}{plan.paceKnown ? (lv.id === "naplno" && lv.basis ? `Tempo naplno z vašeho běhu ${fmtD(lv.basis.date)} (${String(lv.basis.km).replace(".", ",")} km) přepočtené na délku a převýšení závodu.` : "Tempa z vašeho vlastního vztahu tepu a rychlosti.") : "Na odhad tempa zatím chybí běhy s tepem."}
+      </p>
+    </div>
+  )
+}
 function RaceSheet({ race, g, cap, rid, onClose, onSaved }: { race: any; g: any; cap: any; rid: string; onClose: () => void; onSaved: (races: any[]) => void }) {
   const toast = useToast()
   const [editing, setEditing] = useState(false)
@@ -447,6 +501,7 @@ function RaceSheet({ race, g, cap, rid, onClose, onSaved }: { race: any; g: any;
         ) : race.daysTo >= 0 ? (
           <p className="mt-4 text-[12px] leading-5 text-fg-3">Porovnání s týdenním cílem a kapacitou se ukáže v týdnu závodu, kdy odpovídá aktuálním číslům.</p>
         ) : null}
+        {race.daysTo >= 0 && race.km ? <RacePlan rid={rid} race={race} /> : null}
         {race.source === "calendar" ? (editing ? (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <label className="text-[12px] font-semibold text-fg-2">Název<input className={inp} value={f.name} maxLength={80} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>

@@ -105,6 +105,8 @@ def _migrate(engine):
     # v0.9.0 — the calibration record: the day's recommendation and a post-run flag
     add("engine_daily_snapshots", "guidance_json", "guidance_json JSON")
     add("engine_daily_snapshots", "post_session", "post_session BOOLEAN")
+    # feedback #152 — notes from other users wait for the owner's approval
+    add("annotations", "approved_at", "approved_at VARCHAR")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.

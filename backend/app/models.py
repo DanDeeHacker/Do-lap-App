@@ -656,6 +656,7 @@ class Annotation(Base):
     kind = Column(String, default="idea")           # bug | idea | copy | other
     status = Column(String, default="open")         # open | done | wontfix
     resolution = Column(Text)                       # what was done about it (commit), from the sync script
+    approved_at = Column(String)                    # owner approved a non-owner note for implementation
     created_at = Column(String)
     updated_at = Column(String)
     resolved_at = Column(String)

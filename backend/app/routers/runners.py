@@ -151,6 +151,19 @@ def update_race(rid: str, race_id: str, body: schemas.RaceUpdateRequest,
     return {"races": E.races_for(db, r), "assessment": E.recompute_assessment(db, rid)}
 
 
+@router.get("/{rid}/races/{race_id}/plan")
+def race_plan(rid: str, race_id: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Feedback #151 — effort levels for one race (training / moderate / all-out), the
+    recommended one from the remaining capacity, and pace, heart rate and strategy."""
+    from ..metrics import data as D
+    from ..metrics import race_plan as RP
+    ensure_runner_read_access(db, user, rid)
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    race = or_404(next((x for x in E.races_for(db, r) if str(x["id"]) == race_id), None), "Závod nenalezen")
+    a = E.get_or_refresh_assessment(db, rid) or {}
+    return E.cz_deep(RP.build(D.load_runner_data(db, rid), rid, r, race, a))
+
+
 @router.delete("/{rid}/races/{race_id}", dependencies=[Depends(verify_csrf)])
 def delete_race(rid: str, race_id: str,
                 user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):

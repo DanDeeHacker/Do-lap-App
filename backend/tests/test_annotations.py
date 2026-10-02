@@ -102,3 +102,24 @@ def test_sync_script_mirrors_both_sources_and_resolves(client, monkeypatch, tmp_
     md = (tmp_path / "OPEN.md").read_text(encoding="utf-8")
     assert f"railway#{a['id']}" not in md and f"local#{a['id']}" not in md   # same row in both sources here
     assert FS.main(["resolve", "bogus"]) == 2
+
+
+def test_only_the_owners_notes_are_ready_until_approved(client, monkeypatch):
+    """Feedback #152 — another user's note waits for the owner's approval."""
+    monkeypatch.setenv("DOSSLAP_OWNER_EMAILS", "chief@test.cz")
+    monkeypatch.setenv("DOSSLAP_FEEDBACK_TOKEN", TOKEN)
+    _login(client, "ann7@test.cz")
+    theirs = client.post("/api/annotations", json=NOTE).json()
+    assert theirs["ready"] is False and theirs["approvedAt"] is None
+    assert client.patch(f"/api/annotations/{theirs['id']}", json={"approved": True}).status_code == 403
+    _login(client, "chief@test.cz")
+    mine = client.post("/api/annotations", json=NOTE).json()
+    assert mine["ready"] is True
+    auth = {"Authorization": f"Bearer {TOKEN}"}
+    ready = [x["id"] for x in client.get("/api/annotations/export?ready=true", headers=auth).json()["items"]]
+    assert mine["id"] in ready and theirs["id"] not in ready
+    ok = client.patch(f"/api/annotations/{theirs['id']}", json={"approved": True}).json()
+    assert ok["ready"] is True and ok["approvedAt"]
+    ready = [x["id"] for x in client.get("/api/annotations/export?ready=true", headers=auth).json()["items"]]
+    assert theirs["id"] in ready
+    assert client.patch(f"/api/annotations/{theirs['id']}", json={"approved": False}).json()["ready"] is False

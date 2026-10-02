@@ -9,6 +9,10 @@ For Claude Code, scripts/feedback_sync.py pulls every note through the
 token-protected export (Authorization: Bearer $DOSSLAP_FEEDBACK_TOKEN) into a
 local mirror, and marks notes resolved once they are implemented. Without the
 token configured the export and resolve endpoints don't exist (404).
+
+Only the owner's own notes go straight to implementation. A note from anyone
+else first needs the owner's approval (feedback #152): until then it is shown in
+a different colour and the export marks it `ready: false`.
 """
 import hmac
 import os
@@ -32,13 +36,16 @@ MAX_OPEN_PER_USER = 300
 
 
 def _out(a: models.Annotation, author: models.User | None, viewer: models.User | None = None) -> dict:
+    from_owner = bool(author and is_owner(author))
     return {
         "id": a.id, "route": a.route, "selector": a.selector, "anchorText": a.anchor_text,
         "context": a.context_json or {}, "note": a.note, "kind": a.kind, "status": a.status,
         "resolution": a.resolution, "createdAt": a.created_at, "updatedAt": a.updated_at,
-        "resolvedAt": a.resolved_at,
+        "resolvedAt": a.resolved_at, "approvedAt": a.approved_at,
+        # ready for implementation: the owner's own note, or one the owner approved
+        "ready": from_owner or bool(a.approved_at),
         "author": {"name": author.name if author else None, "role": author.role if author else None,
-                   "isOwner": bool(author and is_owner(author))},
+                   "isOwner": from_owner},
         **({"own": a.user_id == viewer.id} if viewer is not None else {}),
     }
 
@@ -61,6 +68,7 @@ class AnnotationPatch(BaseModel):
     note: str | None = Field(default=None, min_length=1, max_length=4000)
     kind: str | None = None
     status: str | None = None
+    approved: bool | None = None       # owner only: approve another user's note for implementation
 
 
 def _check_kind_status(kind: str | None, status: str | None):
@@ -129,6 +137,10 @@ def update_annotation(aid: int, body: AnnotationPatch, user: models.User = Depen
         a.note = body.note.strip()
     if body.kind is not None:
         a.kind = body.kind
+    if body.approved is not None:
+        if not is_owner(user):
+            raise HTTPException(status_code=403, detail="Schvalovat poznámky může jen vlastník aplikace")
+        a.approved_at = E.now_iso() if body.approved else None
     if body.status is not None and body.status != a.status:
         a.status = body.status
         a.resolved_at = E.now_iso() if body.status != "open" else None
@@ -158,15 +170,18 @@ def require_feedback_token(authorization: str | None = Header(default=None)) -> 
 
 
 @router.get("/export", dependencies=[Depends(require_feedback_token)])
-def export_annotations(status: str = "all", since: str | None = None, db: DBSession = Depends(get_db)):
-    """Every note (no author e-mails) for the local Claude Code mirror."""
+def export_annotations(status: str = "all", since: str | None = None, ready: bool = False,
+                       db: DBSession = Depends(get_db)):
+    """Every note (no author e-mails) for the local Claude Code mirror. `ready=true`
+    keeps only the notes cleared for implementation (the owner's, or approved)."""
     q = db.query(models.Annotation, models.User).join(models.User, models.Annotation.user_id == models.User.id)
     if status != "all":
         _check_kind_status(None, status)
         q = q.filter(models.Annotation.status == status)
     if since:
         q = q.filter(models.Annotation.updated_at > since)
-    return {"items": [_out(a, u) for a, u in q.order_by(models.Annotation.id.asc()).all()]}
+    items = [_out(a, u) for a, u in q.order_by(models.Annotation.id.asc()).all()]
+    return {"items": [x for x in items if x["ready"]] if ready else items}
 
 
 class ResolveIn(BaseModel):

@@ -7,6 +7,7 @@ import { InfoDot, Label } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { fmtD, fmtImpact, toImpact } from "@/lib"
 import { C, goodCol } from "@/tokens"
+import { Waterfall, type WStep } from "@/waterfall"
 
 const CH_ORDER = ["volume", "intensity", "descent", "ascent", "systemic", "strength"] as const
 const RUN_CH = ["volume", "intensity", "descent", "ascent"] as const
@@ -15,9 +16,6 @@ const TONE = { ok: C.ok, watch: C.watch, alert: C.alert, muted: C.fg3 }
 const toneOf = (ratio: number | null | undefined, margin: number) =>
   ratio == null ? "muted" : ratio <= 1 + margin ? "ok" : ratio <= 1.3 ? "watch" : "alert"
 const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší nebo méně kvalitní spánek", soreness: "svalová bolest", fatigue: "únava", stress: "stres mimo trénink", session: "dnešní trénink" }
-const BAND: Record<string, [string, string]> = {
-  pod: ["pod obvyklým", TONE.muted], "obvyklé": ["obvyklé", TONE.ok], nad: ["nad obvyklým", TONE.watch], "výrazně nad": ["výrazně nad", TONE.alert],
-}
 
 export const readinessPct = (r: any) => (r?.score ?? Math.round((r?.today ?? 1) * 100)) as number
 // railway#108 — green above 70 %, red below 40 %, as on the Dnes rings
@@ -93,22 +91,48 @@ export function ReadinessFactors({ r }: { r: any }) {
   const noCheckin = !ci
   const y = r.yesterday
   const delta = y?.known ? (r.morningScore ?? r.score) - y.score : null
-  // day-over-day by each signal's own deviation (its points depend on the ranking with the
-  // others, so a worse signal could otherwise read as "better" when a stronger one overtakes it)
-  const yPart: Record<string, number> = y?.parts || {}
-  const changes = y?.known
-    ? keys.filter((k) => k !== "session").map((k) => [k, (part[k] || 0) - (yPart[k] || 0)] as [string, number]).filter(([, d]) => Math.abs(d) >= 0.05).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-    : []
   const sess = r.afterSession?.drop || 0
-  const row = (k: string, right: ReactNode, tone: string) => (
-    <li key={k} className="flex items-start justify-between gap-3 py-2">
-      <span className="min-w-0">
-        <b className="text-[13px] font-bold text-fg">{FACTOR_LABEL[k]}</b>
-        <span className="block text-[11px] leading-4 text-fg-3">{factorReading(k, r) || (k === "session" ? "" : "chybí data")}</span>
-      </span>
-      <span className="shrink-0 tabular-nums text-[13px] font-bold" style={{ color: tone }}>{right}</span>
-    </li>
-  )
+  // feedback #146 — a waterfall: from yesterday morning (or from full readiness when
+  // yesterday is unknown) each signal's change raises (green) or lowers (red) the score
+  const mEff: Record<string, number> = r.morningEffects || eff
+  const morning: number = r.morningScore ?? r.score
+  const covered = lower.filter((k) => (eff[k] || 0) < 0.5)
+  const wf = (() => {
+    const steps: WStep[] = []
+    let cum: number
+    if (y?.known) {
+      const yEff: Record<string, number> = y.effects || {}
+      cum = y.score
+      steps.push({ key: "y", label: "Včera ráno", total: y.score })
+      keys.filter((k) => k !== "session")
+        .map((k) => [k, (yEff[k] || 0) - (mEff[k] || 0)] as [string, number])
+        .filter(([, d]) => Math.abs(d) >= 0.5)
+        .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+        .forEach(([k, d]) => {
+          cum += d
+          steps.push({ key: k, label: FACTOR_LABEL[k], sub: d > 0 ? "blíž normě" : factorReading(k, r) || "dál od normy", delta: d })
+        })
+    } else {
+      cum = 100
+      steps.push({ key: "full", label: "Plná připravenost", total: 100 })
+      keys.filter((k) => k !== "session" && (mEff[k] || 0) >= 0.5)
+        .sort((a, b) => (mEff[b] || 0) - (mEff[a] || 0))
+        .forEach((k) => {
+          cum -= mEff[k]
+          steps.push({ key: k, label: FACTOR_LABEL[k], sub: factorReading(k, r) || undefined, delta: -mEff[k] })
+        })
+    }
+    if (Math.abs(morning - cum) >= 1) steps.push({ key: "round", label: "Souhrn signálů", sub: "překryv a zaokrouhlení", delta: morning - cum, color: C.fg3 })
+    if (sess >= 0.5) {
+      steps.push({ key: "m", label: "Dnes ráno", total: morning })
+      steps.push({ key: "session", label: FACTOR_LABEL.session, sub: factorReading("session", r) || undefined, delta: -sess })
+    }
+    const now: number = r.score ?? morning
+    steps.push({ key: "now", label: sess >= 0.5 ? "Teď" : "Dnes", total: now, color: readinessCol(now) })
+    let run = 0, min = 100
+    for (const st of steps) { run = st.total ?? run + (st.delta || 0); min = Math.min(min, run) }
+    return { steps, lo: Math.max(0, Math.floor((min - 10) / 10) * 10) }
+  })()
   return (
     <div className="nest mt-3 p-3.5" data-testid="readiness-factors">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -122,54 +146,27 @@ export function ReadinessFactors({ r }: { r: any }) {
       {!r.known && !lower.length && (
         <p className="mt-2 text-[12px] leading-5 text-fg-2">Dnes zatím chybí noční data z hodinek{noCheckin ? " i check-in" : ""}, proto připravenost nic nesnižuje. Po synchronizaci se přepočítá.</p>
       )}
-      {lower.length > 0 && (
-        <>
-          <p className="t-label mt-3 !text-fg-3">Snižuje ji</p>
-          <ul className="divide-y divide-white/[.07]">
-            {lower.map((k) => (eff[k] || 0) >= 0.5
-              ? row(k, `−${pts1(eff[k])} p. b.`, eff[k] >= 10 ? C.alert : C.watch)
-              : row(k, <span className="block text-right">0 p. b.<small className="block text-[10px] font-medium text-fg-3">překryto silnějšími</small></span>, C.fg3))}
-          </ul>
-        </>
-      )}
-      {fine.length > 0 && (
-        <>
-          <p className="t-label mt-3 !text-fg-3">Drží ji nahoře (v normě)</p>
-          <ul className="divide-y divide-white/[.07]">
-            {fine.map((k) => row(k, "0 p. b.", C.ok))}
-          </ul>
-        </>
+      {(r.known || lower.length > 0) && <Waterfall steps={wf.steps} lo={wf.lo} hi={100} unit=" %" testid="readiness-waterfall" />}
+      {(fine.length > 0 || covered.length > 0) && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {fine.map((k) => (
+            <span key={k} className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: `${C.ok}1f`, color: C.ok }} title={factorReading(k, r) || ""}>
+              {FACTOR_LABEL[k]} v normě
+            </span>
+          ))}
+          {covered.map((k) => (
+            <span key={k} className="rounded-full bg-white/[.06] px-2.5 py-1 text-[11px] font-semibold text-fg-3" title={factorReading(k, r) || ""}>
+              {FACTOR_LABEL[k]} mimo normu, překryto silnějšími
+            </span>
+          ))}
+        </div>
       )}
       {stale.length > 0 && (
-        <>
-          <p className="t-label mt-3 !text-fg-3">Bez dnešní noci (nezapočítává se)</p>
-          <ul className="divide-y divide-white/[.07]">
-            {stale.map((k) => row(k, "—", C.fg3))}
-          </ul>
-        </>
+        <p className="mt-2 text-[11px] leading-4 text-fg-3">Bez dnešní noci, nezapočítává se: {stale.map((k) => FACTOR_LABEL[k]).join(", ")}.</p>
       )}
-      {noCheckin && <p className="mt-2 text-[11px] leading-4 text-fg-3">Dnešní check-in zatím chybí, svalová bolest, únava a stres se proto nezapočítávají.</p>}
-      {(changes.length > 0 || sess >= 0.5) && (
-        <>
-          <p className="t-label mt-3 !text-fg-3">Oproti včerejšímu ránu</p>
-          <ul className="mt-1 space-y-1 text-[12px]">
-            {changes.map(([k, d]) => (
-              <li key={k} className="flex justify-between gap-2">
-                <span className="text-fg-2">{FACTOR_LABEL[k]}</span>
-                <b style={{ color: d < 0 ? C.ok : C.alert }}>{d < 0 ? "▲ blíž normě" : "▼ dál od normy"}</b>
-              </li>
-            ))}
-            {sess >= 0.5 && (
-              <li className="flex justify-between gap-2">
-                <span className="text-fg-2">Dnešní trénink (od rána)</span>
-                <b className="tabular-nums" style={{ color: C.alert }}>▼ −{sess} p. b.</b>
-              </li>
-            )}
-          </ul>
-        </>
-      )}
+      {noCheckin && <p className="mt-1 text-[11px] leading-4 text-fg-3">Dnešní check-in zatím chybí, svalová bolest, únava a stres se proto nezapočítávají.</p>}
       <p className="mt-3 border-t border-white/[.07] pt-2.5 text-[11px] leading-4 text-fg-3">
-        Připravenost = 100 % − srážky v procentních bodech. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí.
+        Zelená zvyšuje, červená snižuje. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí.
       </p>
     </div>
   )
@@ -190,14 +187,13 @@ function HeadroomBar({ now, ceiling, tone }: { now: number | null; ceiling: numb
 
 const CH_NOTE: Record<string, string> = {
   strength: "Posilování: náročnost po tréninku (0–10) × minuty, cvičení nohou a celého těla plně, horní polovina těla z menší části. Hlídá prudké skoky, třeba první plyometrii po pauze. Těžké posilování nohou navíc na 24–48 hodin sníží v Tréninku strop minut v Z4+.",
-  systemic: "Tep × čas ze všech aktivit (běh i jiné sporty) — objem a intenzita v jednom čísle. Co z ní zbývá, omezuje v Tréninku i dnešní kilometry a minuty v Z4+.",
 }
 
 // Feedback railway#53 — each channel box shows its headline (capacity vs 7 days) and
 // keeps the rest behind a detail arrow. railway#56–#61: the charts that feed a channel
 // (volume bars, HR zones and relative effort, cross-training, descent by slope) live in
 // that channel's detail rather than as separate cards further down the page.
-function ChannelRow({ id, c, margins, extra, open, onToggle, scale }: { id: string; c: any; margins: any; extra?: ReactNode; open: boolean; onToggle: () => void; scale?: number }) {
+function ChannelRow({ id, c, margins, extra, open, onToggle, scale, sub }: { id: string; c: any; margins: any; extra?: ReactNode; open: boolean; onToggle: () => void; scale?: number; sub?: any }) {
   const wk = c.week
   const ses = c.session
   const wTone = toneOf(wk?.ratio, margins.week)
@@ -210,8 +206,8 @@ function ChannelRow({ id, c, margins, extra, open, onToggle, scale }: { id: stri
         <b className="text-sm font-bold text-fg">{c.label}</b>
         <span className="grid size-5 place-items-center rounded-full bg-white/[.07] text-[11px] font-extrabold text-fg-2">{c.grade}</span>
         <span className="ml-auto text-right tabular-nums text-[12px] font-bold" style={{ color: c.pts ? C.watch : C.fg3 }}>
-          {/* railway#111 — percentage points off the overall Skóre, not load points */}
-          <span title="o kolik procentních bodů snižuje celkové Skóre">{scale != null ? fmtImpact(toImpact(c.pts, scale)) : c.pts ? `+${c.pts} b` : "0 b"}</span>
+          {/* railway#111 — percentage points off the overall Skóre, not load points (#150: incl. strength) */}
+          <span title="o kolik procentních bodů snižuje celkové Skóre">{scale != null ? fmtImpact(toImpact((c.pts || 0) + (sub?.pts || 0), scale)) : c.pts ? `+${c.pts} b` : "0 b"}</span>
           {why && <span className="block font-sans text-[11px] font-normal text-fg-3">{why}</span>}
         </span>
       </div>
@@ -232,6 +228,16 @@ function ChannelRow({ id, c, margins, extra, open, onToggle, scale }: { id: stri
           </div>
         </>
       )}
+      {sub?.known && sub.week && (
+        // feedback #150 — strength load lives in the all-sport card, as its own sub-channel
+        <div className="mt-3 border-t border-white/[.07] pt-2.5" data-testid="strength-sub">
+          <div className="mb-1 flex justify-between gap-2 text-[11px] text-fg-3">
+            <span><b className="text-fg-soft">z toho posilování</b> · 7 dní <b className="text-fg">{num(sub.week.now)}</b> {sub.unit}</span>
+            <span>{sub.week.left > 0 ? `do stropu ${num(sub.week.left)}` : "strop vyčerpán"}{sub.pts ? ` · ${scale != null ? fmtImpact(toImpact(sub.pts, scale)) : `+${sub.pts} b`}` : ""}</span>
+          </div>
+          <HeadroomBar now={sub.week.now} ceiling={sub.week.ceiling} tone={toneOf(sub.week.ratio, margins.week)} />
+        </div>
+      )}
       {hasDetail && (
         <button type="button" onClick={onToggle} aria-expanded={open}
           className="mt-3 flex w-full items-center justify-between gap-2 border-t border-white/[.07] pt-2.5 text-left text-[12px] font-semibold text-fg-2 transition hover:text-fg">
@@ -241,13 +247,13 @@ function ChannelRow({ id, c, margins, extra, open, onToggle, scale }: { id: stri
       )}
       {open && hasDetail && (
         <div className="origin-top animate-[careReveal_.28s_ease-out] pt-2">
-          {c.known && ses && (
+          {c.known && ses && id !== "systemic" && (
             <p className="text-[11px] text-fg-3">
               Nejnáročnější {id === "strength" ? "posilování" : "běh"} 7 dní ({fmtD(ses.date)}): <b style={{ color: (TONE as any)[sTone] }}>{num(ses.value)} {c.unit} · ×{num(ses.ratio)}</b> proti kapacitě {id === "strength" ? "jednoho posilování" : "jednoho běhu"} {num(ses.cap)}
               {(ses.readinessScore ?? 100) < 97 ? ` · připravenost ${ses.readinessScore} %` : ""}
             </p>
           )}
-          {c.known && wk?.residual != null && (
+          {c.known && wk?.residual != null && id !== "systemic" && (
             <p className="mt-1 text-[11px] text-fg-3">
               Nevstřebáno <b className="text-fg">{num(wk.residual)} {c.unit}</b> (týdenní ekvivalent, klesá každou noc) {wk.capPeak != null ? <>proti vaší obvyklé týdenní špičce {num(wk.capPeak)} · ×{num(wk.ratio)}</> : <>proti kapacitě {num(wk.cap)}</>}
               {ses?.left != null && ses.left < 0.99 ? ` · z nejnáročnějšího běhu zbývá asi ${Math.round(ses.left * 100)} %` : ""}
@@ -259,6 +265,38 @@ function ChannelRow({ id, c, margins, extra, open, onToggle, scale }: { id: stri
           {extra && <div className="mt-4">{extra}</div>}
         </div>
       )}
+    </div>
+  )
+}
+
+// Feedback #149 — what each activity of the last 7 days added to the all-sport load,
+// as a waterfall up to the 7-day total, with the weekly ceiling as the last bar.
+const SPORT_CS: Record<string, string> = { running: "Běh", cycling: "Kolo", swimming: "Plavání", strength: "Posilování", rowing: "Veslování", elliptical: "Orbitrek", hiking: "Turistika", walking: "Chůze", other: "Jiný sport" }
+const sportCol = (x: any) => (x.run ? C.accent : x.sport === "strength" ? C.self : C.info)
+
+export function SystemicWaterfall({ c }: { c: any }) {
+  const list: any[] = c?.week7 || []
+  const wk = c?.week
+  if (!list.length) return <p className="text-[12px] text-fg-3">Za posledních 7 dní žádná aktivita se zátěží.</p>
+  const tot = list.reduce((a, x) => a + (x.value || 0), 0)
+  const steps: WStep[] = list.map((x) => ({
+    key: String(x.id), label: x.title || SPORT_CS[x.sport] || "Aktivita", sub: `${fmtD(x.date)} · ${SPORT_CS[x.run ? "running" : x.sport] || "jiný sport"}`,
+    delta: x.value || 0, color: sportCol(x), value: `+${num(x.value)}`,
+  }))
+  steps.push({ key: "sum", label: "7 dní celkem", total: tot, color: wk?.ceiling && tot > wk.ceiling ? C.alert : C.ok, value: num(Math.round(tot)) })
+  if (wk?.ceiling) steps.push({ key: "ceil", label: "Týdenní strop", total: wk.ceiling, color: C.fg4, value: num(wk.ceiling) })
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label>Co přidala každá aktivita (7 dní)</Label>
+        <span className="flex gap-2.5 text-[10.5px] text-fg-3">
+          <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.accent }} />běh</span>
+          <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.info }} />jiný sport</span>
+          <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.self }} />posilování</span>
+        </span>
+      </div>
+      <Waterfall steps={steps} hi={Math.max(tot, wk?.ceiling || 0) * 1.04} testid="systemic-waterfall" />
+      <p className="mt-2 text-[11px] text-fg-3">j.z. = tep × čas, u posilování a plavání náročnost × minuty</p>
     </div>
   )
 }
@@ -309,32 +347,73 @@ function ZoneTime({ cap }: { cap: any }) {
   )
 }
 
+// Feedback #148 — relative effort on an interval scale: where each run sits against the
+// runner's usual efforts of the last 8 weeks. Light green = well below, dark green =
+// around the middle, orange = above the usual range, red = harder than any of them.
+const EFFORT_GRAD = "linear-gradient(90deg, #b4f0cd 0%, #6fd9a3 18%, #2c9a6a 32%, #2c9a6a 58%, #f3a54b 72%, #f3a54b 80%, #f0795a 86%, #e2553a 100%)"
+const EFFORT_BAND: Record<string, [string, string]> = {
+  pod: ["pod obvyklým", "#6fd9a3"], "obvyklé": ["obvyklé", "#3fb784"], nad: ["nad obvyklým", "#f3a54b"], "výrazně nad": ["výrazně nad", C.alert],
+}
+// 0–85 % of the scale = the percentile among the last 8 weeks' runs, 85–100 % = beyond the hardest
+const effortPos = (r: any): number | null => {
+  if (r.pct == null) return null
+  if (r.band === "výrazně nad") return 86 + Math.min(13, Math.max(1, ((r.overMax ?? 1.1) - 1) * 45))
+  return Math.min(84, r.pct * 0.84)
+}
+
+function EffortScale({ pos, col }: { pos: number | null; col: string }) {
+  return (
+    <span className="relative block h-2.5 w-full rounded-full" style={{ background: EFFORT_GRAD, opacity: pos == null ? 0.25 : 1 }}>
+      {pos != null && (
+        <i className="absolute top-1/2 block size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-ink shadow" style={{ left: `${pos}%`, background: col }} />
+      )}
+    </span>
+  )
+}
+
 function RelativeEffort({ re }: { re: any }) {
+  const wk = re.week
+  // the week has the usual range only: lo → 21 %, hi → 63 % of the scale (the middle quartiles)
+  const wkPos = wk ? (wk.now <= wk.lo ? Math.max(2, (wk.now / Math.max(wk.lo, 1)) * 21)
+    : wk.now <= wk.hi ? 21 + ((wk.now - wk.lo) / Math.max(wk.hi - wk.lo, 1)) * 42
+      : Math.min(97, 63 + ((wk.now - wk.hi) / Math.max(wk.hi, 1)) * 60)) : null
   return (
     <div>
       <span className="flex items-center gap-1.5"><Label>Relativní úsilí posledních běhů</Label><InfoDot text={MI.relEffort} label="Relativní úsilí" /></span>
       {re.runs?.length ? (
-        <div className="mt-2 divide-y divide-white/[.06]">
-          {re.runs.map((r: any, i: number) => {
-            const [bl, bc] = BAND[r.band] || ["málo historie", TONE.muted]
-            return (
-              <div key={i} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-[12px]">
-                <span className="w-14 shrink-0 whitespace-nowrap tabular-nums text-[11px] text-fg-3">{fmtD(r.date)}</span>
-                <span className="min-w-0 flex-1 truncate text-fg">{r.title || "Běh"}{r.km ? ` · ${num(r.km)} km` : ""}</span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <span className="w-16 whitespace-nowrap text-right tabular-nums text-[11px] text-fg-2">{r.effort} j.z.</span>
-                  <span className="min-w-[6.5rem] text-center"><span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `${bc}1f`, color: bc }}>{bl}</span></span>
-                  <span className="w-[5.5rem] whitespace-nowrap text-[11px]" style={{ color: (r.hrDelta ?? 0) > 0 ? TONE.watch : TONE.ok }}>
-                    {r.hrDelta != null && Math.abs(r.hrDelta) >= 5 ? `tep při tempu ${r.hrDelta > 0 ? "+" : ""}${r.hrDelta}` : ""}
-                  </span>
-                </span>
-              </div>
-            )
-          })}
-        </div>
+        <>
+          <div className="mt-2 flex justify-between text-[10px] text-fg-3"><span>lehčí</span><span>obvyklé úsilí</span><span>těžší</span></div>
+          <div className="divide-y divide-white/[.06]" data-testid="effort-scale">
+            {re.runs.map((r: any, i: number) => {
+              const [bl, bc] = EFFORT_BAND[r.band] || ["málo historie", TONE.muted]
+              return (
+                <div key={i} className="py-2 text-[12px]">
+                  <div className="flex items-baseline gap-2">
+                    <span className="w-12 shrink-0 whitespace-nowrap tabular-nums text-[11px] text-fg-3">{fmtD(r.date)}</span>
+                    <span className="min-w-0 flex-1 truncate text-fg">{r.title || "Běh"}{r.km ? ` · ${num(r.km)} km` : ""}</span>
+                    <b className="shrink-0 whitespace-nowrap text-[11px]" style={{ color: bc }}>{bl}</b>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="w-12 shrink-0 whitespace-nowrap text-right tabular-nums text-[10.5px] text-fg-3">{r.effort} j.z.</span>
+                    <span className="flex-1"><EffortScale pos={effortPos(r)} col={bc} /></span>
+                  </div>
+                  {r.hrDelta != null && Math.abs(r.hrDelta) >= 5 && (
+                    <p className="mt-1 pl-14 text-[10.5px]" style={{ color: r.hrDelta > 0 ? TONE.watch : TONE.ok }}>tep při tomto tempu {r.hrDelta > 0 ? "+" : ""}{r.hrDelta} oproti obvyklému</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </>
       ) : <p className="mt-2 text-xs text-fg-3">Zatím málo běhů s tepem.</p>}
-      {re.week && (
-        <p className="mt-2 text-[11px] text-fg-2">Týden: <b className="text-fg">{re.week.now} j.z.</b> · obvykle {re.week.lo}–{re.week.hi} · <b style={{ color: (BAND[re.week.band] || [])[1] }}>{(BAND[re.week.band] || [re.week.band])[0]}</b></p>
+      {wk && (
+        <div className="mt-2 border-t border-white/[.07] pt-2">
+          <div className="flex items-baseline justify-between gap-2 text-[11px] text-fg-2">
+            <span>Týden: <b className="text-fg">{wk.now} j.z.</b> · obvykle {wk.lo}–{wk.hi}</span>
+            <b style={{ color: (EFFORT_BAND[wk.band] || [])[1] }}>{(EFFORT_BAND[wk.band] || [wk.band])[0]}</b>
+          </div>
+          <div className="mt-1.5"><EffortScale pos={wkPos} col={(EFFORT_BAND[wk.band] || [])[1] || C.fg3} /></div>
+        </div>
       )}
     </div>
   )
@@ -347,6 +426,7 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
   // intensity = minutes in Z4+, so its detail carries the HR zones and relative effort (railway#56/#57)
   const extras: Record<string, ReactNode> = {
     ...extra,
+    systemic: <SystemicWaterfall c={cap.channels?.systemic} />,
     intensity: (
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <RelativeEffort re={re} />
@@ -366,8 +446,9 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
         <Readiness r={cap.readiness} />
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2 min-[1600px]:grid-cols-3">
-        {CH_ORDER.map((id) => cap.channels?.[id] && (id !== "strength" || cap.channels[id].known) && (
+        {CH_ORDER.map((id) => cap.channels?.[id] && id !== "strength" && (
           <ChannelRow key={id} id={id} c={cap.channels[id]} margins={cap.margins} extra={extras[id]} scale={scale}
+            sub={id === "systemic" ? cap.channels.strength : undefined}
             open={open === id} onToggle={() => setOpen(open === id ? "" : id)} />
         ))}
       </div>

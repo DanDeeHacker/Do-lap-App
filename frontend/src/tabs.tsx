@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react"
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { useQuadHistory } from "@/history"
@@ -838,7 +838,6 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
   const rid = me?.runner_id
   const [open, setOpen] = useState(false)
   const [run, setRun] = useState<number | null>(null)
-  const [cmp, setCmp] = useState<Record<number, any>>({})
   const [ctx, setCtx] = useState<any[] | null | false>(null) // null = not loaded, false = failed
   useEffect(() => {
     if (!open || !rid || ctx !== null) return
@@ -847,14 +846,6 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, rid])
-  useEffect(() => {
-    if (run == null || !rid || cmp[run] !== undefined) return
-    let alive = true
-    setCmp((c) => ({ ...c, [run]: null })) // mark loading
-    api.runCompare(rid, run).then((d) => alive && setCmp((c) => ({ ...c, [run]: d || false }))).catch(() => alive && setCmp((c) => ({ ...c, [run]: false })))
-    return () => { alive = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [run, rid])
   // the context endpoint when it answered, else the boot activities without context
   const rows: any[] = ctx ? ctx : acts.slice().sort((a, b) => (b.started_at || "").localeCompare(a.started_at || "")).slice(0, 20)
   return (
@@ -870,7 +861,6 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
           {ctx === false && <p className="px-1 text-[12px] text-fg-3">Kontext terénu a počasí se nepodařilo načíst — zobrazuji jen statistiky.</p>}
           {rows.map((x) => {
             const isOpen = run === x.id
-            const d = cmp[x.id]
             const tl = terrainLine(x.terrain)
             const wl = weatherLine(x.weather)
             return (
@@ -891,27 +881,13 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
                   </span>
                   <span className="flex items-center gap-2 whitespace-nowrap tabular-nums text-[12px] text-fg-2">VR {cz(x.vert_ratio_pct)} <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180 text-info" : ""}`} aria-hidden /></span>
                 </button>
-                {isOpen && ctx && <RunContext x={x} />}
-                {isOpen && rid && !x.excluded && <SegmentTimeline rid={rid} aid={x.id} />}
-                {isOpen && (
-                  d && d.metrics ? (
-                    <MonthCompare data={d} />
-                  ) : d === false ? (
-                    <dl className="grid grid-cols-3 gap-2 border-t border-white/[.07] px-4 py-3 text-[11px] md:grid-cols-6">
-                      {[["Kadence", x.cadence_spm && `${x.cadence_spm} spm`], ["Kontakt", x.gct_ms && `${x.gct_ms} ms`], ["Krok", x.stride_len_m && `${cz(x.stride_len_m)} m`], ["Osc.", x.vert_osc_cm && `${cz(x.vert_osc_cm)} cm`], ["Balance", x.gct_balance_l ? `${x.gct_balance_l} %` : "—"], ["Klesání", x.descent_m != null && `${x.descent_m} m`]].map(([k, v]) => (
-                        <div key={k as string}><dt className="uppercase tracking-[.1em] text-fg-3">{k}</dt><dd className="mt-0.5 tabular-nums text-[11px] text-fg">{v || "—"}</dd></div>
-                      ))}
-                    </dl>
-                  ) : (
-                    <p className="border-t border-white/[.07] px-4 py-3 text-[12px] text-fg-3">Načítám srovnání s během před měsícem…</p>
-                  )
-                )}
-                {isOpen && rid && ctx && (
-                  <ExcludeRun rid={rid} x={x} onDone={(ex, scope) => {
-                    setCtx((c) => (c ? c.map((r: any) => (r.id === x.id ? { ...r, excluded: ex, excluded_scope: scope } : r)) : c))
-                    setCmp({})
-                    refresh()
-                  }} />
+                {isOpen && rid && (
+                  <RunFlip initial="move"
+                    move={<MovementRunPanel rid={rid} x={x} hasCtx={!!ctx} onExcluded={(ex, scope) => {
+                      setCtx((c) => (c ? c.map((r: any) => (r.id === x.id ? { ...r, excluded: ex, excluded_scope: scope } : r)) : c))
+                      refresh()
+                    }} />}
+                    load={<LoadRunPanelById rid={rid} aid={x.id} />} />
                 )}
               </div>
             )
@@ -920,6 +896,109 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
       )}
     </>
   )
+}
+
+// Feedback #147 — one run, two faces: its movement detail (Pohyb) and its load detail
+// (Zátěž). Swipe right → Zátěž, swipe left → Pohyb, or tap the switch; the card flips.
+function RunFlip({ move, load, initial }: { move: ReactNode; load: ReactNode; initial: "move" | "load" }) {
+  const [face, setFace] = useState<"move" | "load">(initial)
+  const [anim, setAnim] = useState(0)
+  const start = useRef<{ x: number; y: number } | null>(null)
+  const go = (f: "move" | "load") => { if (f !== face) { setFace(f); setAnim((n) => n + 1) } }
+  return (
+    <div className="border-t border-white/[.07]" data-testid="run-flip"
+      onTouchStart={(e) => { const t = e.touches[0]; start.current = { x: t.clientX, y: t.clientY } }}
+      onTouchEnd={(e) => {
+        const s0 = start.current; start.current = null
+        if (!s0) return
+        const t = e.changedTouches[0], dx = t.clientX - s0.x, dy = t.clientY - s0.y
+        if (Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) go(dx > 0 ? "load" : "move")
+      }}>
+      <div className="flex items-center justify-between gap-2 px-4 pt-3">
+        <div className="inline-flex rounded-full bg-white/[.06] p-0.5 text-[11px] font-bold" role="tablist">
+          {(["move", "load"] as const).map((f) => (
+            <button key={f} role="tab" aria-selected={face === f} onClick={() => go(f)}
+              className={`rounded-full px-3 py-1 transition ${face === f ? (f === "move" ? "bg-info text-ink" : "bg-load text-ink") : "text-fg-2"}`}>
+              {f === "move" ? "Pohyb" : "Zátěž"}
+            </button>
+          ))}
+        </div>
+        <span className="text-[10.5px] text-fg-3">{face === "move" ? "swipe doprava → zátěž" : "← swipe doleva pohyb"}</span>
+      </div>
+      <div key={anim} className={anim ? "animate-[runFlip_.35s_ease-out]" : ""} style={{ transformOrigin: "center", backfaceVisibility: "hidden" }}>
+        {face === "move" ? move : load}
+      </div>
+    </div>
+  )
+}
+
+// cached per runner for a minute, so flipping back and forth doesn't refetch
+const _flipCache = new Map<string, { at: number; p: Promise<any> }>()
+function cached(key: string, f: () => Promise<any>) {
+  const hit = _flipCache.get(key)
+  if (hit && Date.now() - hit.at < 60_000) return hit.p
+  const p = f().catch(() => null)
+  _flipCache.set(key, { at: Date.now(), p })
+  return p
+}
+
+function MovementRunPanel({ rid, x, hasCtx, onExcluded }: { rid: string; x: any; hasCtx: boolean; onExcluded?: (ex: boolean, scope?: string | null) => void }) {
+  const [d, setD] = useState<any | null | false>(null)
+  useEffect(() => {
+    let alive = true
+    setD(null)
+    api.runCompare(rid, x.id).then((r) => alive && setD(r || false)).catch(() => alive && setD(false))
+    return () => { alive = false }
+  }, [rid, x.id])
+  return (
+    <>
+      {hasCtx && <RunContext x={x} />}
+      {!x.excluded && <SegmentTimeline rid={rid} aid={x.id} />}
+      {d && d.metrics ? (
+        <MonthCompare data={d} />
+      ) : d === false ? (
+        <dl className="grid grid-cols-3 gap-2 border-t border-white/[.07] px-4 py-3 text-[11px] md:grid-cols-6">
+          {[["Kadence", x.cadence_spm && `${x.cadence_spm} spm`], ["Kontakt", x.gct_ms && `${x.gct_ms} ms`], ["Krok", x.stride_len_m && `${cz(x.stride_len_m)} m`], ["Osc.", x.vert_osc_cm && `${cz(x.vert_osc_cm)} cm`], ["Balance", x.gct_balance_l ? `${x.gct_balance_l} %` : "—"], ["Klesání", x.descent_m != null && `${x.descent_m} m`]].map(([k, v]) => (
+            <div key={k as string}><dt className="uppercase tracking-[.1em] text-fg-3">{k}</dt><dd className="mt-0.5 tabular-nums text-[11px] text-fg">{v || "—"}</dd></div>
+          ))}
+        </dl>
+      ) : (
+        <p className="border-t border-white/[.07] px-4 py-3 text-[12px] text-fg-3">Načítám srovnání s během před měsícem…</p>
+      )}
+      {hasCtx && onExcluded && <ExcludeRun rid={rid} x={x} onDone={onExcluded} />}
+    </>
+  )
+}
+
+// the movement face for a run opened from Zátěž → historie aktivit
+function MovementRunPanelById({ rid, aid }: { rid: string; aid: any }) {
+  const { boot } = useApp()
+  const [rows, setRows] = useState<any[] | null | false>(null)
+  useEffect(() => {
+    let alive = true
+    cached(`rh:${rid}`, () => api.runHistory(rid, 40)).then((d) => alive && setRows(Array.isArray(d) ? d : false))
+    return () => { alive = false }
+  }, [rid])
+  if (rows === null) return <p className="px-4 py-3 text-[12px] text-fg-3">Načítám pohyb běhu…</p>
+  const x = (rows || []).find((r: any) => r.id === aid) || (boot?.activities || []).find((r: any) => r.id === aid)
+  if (!x) return <p className="px-4 py-3 text-[12px] text-fg-3">Pro tento běh nejsou data o pohybu.</p>
+  return <MovementRunPanel rid={rid} x={x} hasCtx={!!rows && rows.some((r: any) => r.id === aid)} />
+}
+
+// the load face for a run opened from Pohyb → historie běhů
+function LoadRunPanelById({ rid, aid }: { rid: string; aid: any }) {
+  const [data, setData] = useState<any | null | false>(null)
+  useEffect(() => {
+    let alive = true
+    cached(`lh:${rid}`, () => api.loadHistory(rid)).then((d) => alive && setData(d || false))
+    return () => { alive = false }
+  }, [rid])
+  if (data === null) return <p className="px-4 py-3 text-[12px] text-fg-3">Počítám zátěž běhu…</p>
+  const x = data && data.items ? data.items.find((i: any) => i.id === aid) : null
+  if (!x) return <p className="px-4 py-3 text-[12px] text-fg-3">Zátěž je k dispozici pro aktivity posledních {data?.days || 28} dní v kapacitním modelu.</p>
+  const scale: number | null = data.impactScale ?? null
+  const imp = (pts: number) => (scale != null ? fmtImpact(toImpact(pts, scale)) : pts >= 0.5 ? `+${mfmt(1, pts)} b` : "0 b")
+  return <LoadRunPanel x={x} imp={imp} todayIso={new Date().toLocaleDateString("sv-SE")} />
 }
 
 // ---- Úseky běhu: per-segment test of one run vs the norm as of that run's day ----
@@ -1512,8 +1591,6 @@ export function Load() {
               </div>
             </div>
           ),
-          // railway#60 — cross-training is part of the all-activity (systemic) load
-          systemic: <CrossTraining L={L} />,
           // railway#61 — descent by slope belongs to the Klesání channel
           ...(a?.gradientDescent?.buckets?.some((v: number) => v > 0) ? { descent: <DescentBySlope g={a.gradientDescent} /> } : {}),
         }} />
@@ -1755,63 +1832,8 @@ function SleepHistory({ h }: { h: any[] }) {
 
 const SPORT_ICON: Record<string, LucideIcon> = { cycling: Bike, swimming: Waves, strength: Dumbbell, rowing: Ship, elliptical: Orbit, hiking: Mountain, walking: Footprints, other: ActivityIcon }
 
-const CROSS_INFO = "Neběžecké sporty nepočítáme do běžeckých kilometrů ani do mechaniky, ale přispívají do celkové tréninkové zátěže i únavy. Kolo se počítá z tepu proti maximu pro kolo (bývá o 6–10 tepů nižší než při běhu), plavání a posilování z vaší náročnosti tréninku (0–10) × minuty, převedené na stejné jednotky jako tep. Proto je zátěž porovnatelná napříč sporty."
 
 // railway#55 — share of run vs other sport as a pie
-function LoadPie({ run, cross }: { run: number; cross: number }) {
-  const tot = run + cross || 1
-  const f = cross / tot
-  const R = 42, cx = 50, cy = 50
-  const ang = f * 2 * Math.PI
-  const x = cx + R * Math.sin(ang), y = cy - R * Math.cos(ang)
-  const large = f > 0.5 ? 1 : 0
-  return (
-    <svg viewBox="0 0 100 100" className="size-28 shrink-0" role="img" aria-label={`běh ${Math.round((1 - f) * 100)} %, jiný sport ${Math.round(f * 100)} %`}>
-      <circle cx={cx} cy={cy} r={R} fill={C.accent} />
-      {f >= 0.999 ? <circle cx={cx} cy={cy} r={R} fill={C.info} />
-        : f > 0.001 && <path d={`M${cx},${cy} L${cx},${cy - R} A${R},${R} 0 ${large} 1 ${x},${y} Z`} fill={C.info} />}
-      <circle cx={cx} cy={cy} r={R} fill="none" stroke="rgb(6 16 16)" strokeWidth="1.5" />
-    </svg>
-  )
-}
-
-function CrossTraining({ L }: { L: any }) {
-  const list = (L.crossList || []) as any[]
-  const run = L.runLoad7 || 0
-  const cross = L.crossLoad7 || 0
-  const head = (
-    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-      <span className="flex items-center gap-1.5 whitespace-nowrap"><Label>Křížový trénink (7 dní)</Label><InfoDot text={CROSS_INFO} label="Křížový trénink" /></span>
-      <span className="text-[12px] text-fg-3">započítáno do zátěže · j.z.</span>
-    </div>
-  )
-  if (!list.length) {
-    return <div>{head}<p className="mt-2 text-[12px] text-fg-3">Tento týden jen běh. Kolo, plavání nebo silovku z hodinek automaticky započítáme do celkové zátěže stejně jako běh.</p></div>
-  }
-  const tot = run + cross || 1
-  const runPct = Math.round((run / tot) * 100)
-  return (
-    <div>
-      {head}
-      <div className="mt-3 flex flex-wrap items-center gap-5">
-        <LoadPie run={run} cross={cross} />
-        <div className="space-y-2">
-          <p className="flex items-center gap-2"><i className="size-2.5 rounded-full bg-accent" /><span className="t-num text-[22px] text-accent">{L.runLoad7}</span><span className="text-[12px] text-fg-3">běh · {runPct} %</span></p>
-          <p className="flex items-center gap-2"><i className="size-2.5 rounded-full bg-info" /><span className="t-num text-[22px] text-info">{L.crossLoad7}</span><span className="text-[12px] text-fg-3">jiný sport · {100 - runPct} %</span></p>
-          <p className="text-[11px] text-fg-3">j.z. za 7 dní · {L.crossCount7} {L.crossCount7 === 1 ? "aktivita" : L.crossCount7 < 5 ? "aktivity" : "aktivit"}</p>
-        </div>
-      </div>
-      <div className="mt-3 divide-y divide-white/[.07]">
-        {list.map((c, i) => (
-          <ListRow key={i} icon={SPORT_ICON[c.sport] || ActivityIcon} tone="info" title={c.sportLabel}
-            meta={`${fmtD(c.date)} · ${c.durationMin} min${c.avgHr ? ` · ⌀ ${c.avgHr} tep` : ""}`}
-            trailing={<span className="shrink-0 tabular-nums text-sm font-bold text-info">{c.load} j.z.</span>} />
-        ))}
-      </div>
-    </div>
-  )
-}
-
 // Zátěž → Historie aktivit: each run or other sport of the last 28 days against the
 // capacity of its day, only in the channels it actually loads (a run: objem,
 // intenzita, klesání, stoupání, celková zátěž; another sport: celková zátěž; strength
@@ -1933,69 +1955,9 @@ function LoadHistory({ rid }: { rid: string }) {
                     <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180 text-load" : ""}`} aria-hidden />
                   </span>
                 </button>
-                {isOpen && (
-                  <div className="space-y-4 border-t border-white/[.07] px-4 py-3.5" data-testid="load-history-detail">
-                    {x.readiness && <ReadinessStrip r={x.readiness} today={x.date === todayIso} />}
-                    {over.length > 0 ? (
-                      <p className="rounded-[12px] bg-alert/10 px-3 py-2 text-[13px] font-semibold text-alert-soft" data-testid="lh-over">
-                        Strop jedné aktivity překročen: {over.map((o) => `${o.label.toLowerCase()} o ${nfmt(o.over)} ${unitShort(o.unit)}`).join(", ")}
-                      </p>
-                    ) : (x.weekOver || []).length > 0 ? (
-                      <p className="rounded-[12px] bg-watch/10 px-3 py-2 text-[13px] font-semibold text-watch" data-testid="lh-week-over">
-                        S touto aktivitou 7 dní nad týdenním stropem: {x.weekOver.map((o: any) => `${o.label.toLowerCase()} o ${nfmt(o.over)} ${unitShort(o.unit)}`).join(", ")}
-                      </p>
-                    ) : x.extra ? (
-                      <p className="rounded-[12px] bg-ok/10 px-3 py-2 text-[13px] font-semibold text-ok" data-testid="lh-extra">
-                        {x.extra.min > 0
-                          ? `Ve stejném tempu ještě ~${dur(x.extra.min)}${x.extra.km ? ` (≈ ${mfmt(1, x.extra.km)} km)` : ""}, než narazíte na ${x.extra.by === "week" ? "týdenní strop" : "strop"}: ${x.extra.label.toLowerCase()}`
-                          : `Hraniční: ${x.extra.label.toLowerCase()} už je na ${x.extra.by === "week" ? "týdenním stropu" : "stropu jedné aktivity"}`}
-                      </p>
-                    ) : null}
-                    {x.channels.map((c: any) => {
-                      const tone: Tone = c.band ? BAND_TONE[c.band] || "muted" : "muted"
-                      const u = unitShort(c.unit)
-                      const room = c.ceiling != null ? c.ceiling - c.value : null
-                      return (
-                        <div key={c.ch}>
-                          <div className="flex items-baseline justify-between gap-2">
-                            <span className="flex min-w-0 items-center gap-1.5">
-                              <b className="text-[13px] font-bold text-fg">{c.label}</b>
-                              <b className="tabular-nums text-[13px] text-fg-2">{nfmt(c.value)} {u}</b>
-                            </span>
-                            <span className="flex shrink-0 items-center gap-1.5 tabular-nums text-[12px]">
-                              {c.ratio != null && <span className="rounded-full px-1.5 py-px font-bold" style={{ background: `${toneCol(tone)}1f`, color: toneCol(tone) }}>×{mfmt(2, c.ratio)}</span>}
-                              {c.scorePts > 0 && <b style={{ color: C.watch }} title={c.driver === "week" ? `${Math.round(c.share * 100)} % nevstřebané zátěže za 7 dní` : c.driver === "latent" ? "doznívající skok" : "určuje dnešní skóre kanálu"}>{imp(c.scorePts)}</b>}
-                            </span>
-                          </div>
-                          {c.cap != null ? (
-                            <>
-                              <div className="mt-1.5"><OverBar value={c.value} ceiling={c.ceiling} tone={tone} /></div>
-                              <div className="mt-1 flex justify-between gap-2 text-[11px] tabular-nums text-fg-3">
-                                <span>strop {nfmt(c.ceiling)} {u}{c.readinessScore < 97 ? ` (připravenost ${c.readinessScore} %)` : ""}</span>
-                                {room != null && (room < 0
-                                  ? <b style={{ color: C.alert }}>+{nfmt(-room)} {u} nad</b>
-                                  : <span>rezerva {nfmt(room)} {u}</span>)}
-                              </div>
-                            </>
-                          ) : <p className="mt-1 text-[11px] text-fg-3">kapacita ten den ještě neznámá (potřebuje 3 aktivity za 30 dní)</p>}
-                          {c.weekCeiling != null && (
-                            <>
-                              <div className="mt-2"><WeekBar before={c.weekBefore || 0} value={c.value} ceiling={c.weekCeiling} tone={tone} /></div>
-                              <div className="mt-1 flex justify-between gap-2 text-[11px] tabular-nums text-fg-3">
-                                <span>7 dní: {nfmt(c.weekBefore)} + {nfmt(c.value)} z {nfmt(c.weekCeiling)} {u}</span>
-                                <span>{c.left > 0.005 ? `nevstřebáno ${Math.round(c.left * 100)} %` : "vstřebáno"}</span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )
-                    })}
-                    <p className="border-t border-white/[.07] pt-2.5 text-[11px] leading-4 text-fg-3">
-                      Bílá čárka = strop (kapacita + rezerva, podle připravenosti). Šedě ostatní aktivity 7 dní do tohoto dne.
-                      {x.run ? "" : x.sport === "strength" ? " Posilování ovlivňuje celkovou a silovou zátěž." : " Jiný sport ovlivňuje jen celkovou zátěž."}
-                    </p>
-                  </div>
-                )}
+                {isOpen && (x.run
+                  ? <RunFlip initial="load" load={<LoadRunPanel x={x} imp={imp} todayIso={todayIso} />} move={<MovementRunPanelById rid={rid} aid={x.id} />} />
+                  : <div className="border-t border-white/[.07]"><LoadRunPanel x={x} imp={imp} todayIso={todayIso} /></div>)}
               </div>
             )
           })}
@@ -2007,6 +1969,73 @@ function LoadHistory({ rid }: { rid: string }) {
         </div>
       )}
     </section>
+  )
+}
+
+function LoadRunPanel({ x, imp, todayIso }: { x: any; imp: (pts: number) => string; todayIso: string }) {
+  const over = (x.over || []) as any[]
+  return (
+    <div className="space-y-4 px-4 py-3.5" data-testid="load-history-detail">
+    {x.readiness && <ReadinessStrip r={x.readiness} today={x.date === todayIso} />}
+    {over.length > 0 ? (
+      <p className="rounded-[12px] bg-alert/10 px-3 py-2 text-[13px] font-semibold text-alert-soft" data-testid="lh-over">
+        Strop jedné aktivity překročen: {over.map((o) => `${o.label.toLowerCase()} o ${nfmt(o.over)} ${unitShort(o.unit)}`).join(", ")}
+      </p>
+    ) : (x.weekOver || []).length > 0 ? (
+      <p className="rounded-[12px] bg-watch/10 px-3 py-2 text-[13px] font-semibold text-watch" data-testid="lh-week-over">
+        S touto aktivitou 7 dní nad týdenním stropem: {x.weekOver.map((o: any) => `${o.label.toLowerCase()} o ${nfmt(o.over)} ${unitShort(o.unit)}`).join(", ")}
+      </p>
+    ) : x.extra ? (
+      <p className="rounded-[12px] bg-ok/10 px-3 py-2 text-[13px] font-semibold text-ok" data-testid="lh-extra">
+        {x.extra.min > 0
+          ? `Ve stejném tempu ještě ~${dur(x.extra.min)}${x.extra.km ? ` (≈ ${mfmt(1, x.extra.km)} km)` : ""}, než narazíte na ${x.extra.by === "week" ? "týdenní strop" : "strop"}: ${x.extra.label.toLowerCase()}`
+          : `Hraniční: ${x.extra.label.toLowerCase()} už je na ${x.extra.by === "week" ? "týdenním stropu" : "stropu jedné aktivity"}`}
+      </p>
+    ) : null}
+    {x.channels.map((c: any) => {
+      const tone: Tone = c.band ? BAND_TONE[c.band] || "muted" : "muted"
+      const u = unitShort(c.unit)
+      const room = c.ceiling != null ? c.ceiling - c.value : null
+      return (
+        <div key={c.ch}>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <b className="text-[13px] font-bold text-fg">{c.label}</b>
+              <b className="tabular-nums text-[13px] text-fg-2">{nfmt(c.value)} {u}</b>
+            </span>
+            <span className="flex shrink-0 items-center gap-1.5 tabular-nums text-[12px]">
+              {c.ratio != null && <span className="rounded-full px-1.5 py-px font-bold" style={{ background: `${toneCol(tone)}1f`, color: toneCol(tone) }}>×{mfmt(2, c.ratio)}</span>}
+              {c.scorePts > 0 && <b style={{ color: C.watch }} title={c.driver === "week" ? `${Math.round(c.share * 100)} % nevstřebané zátěže za 7 dní` : c.driver === "latent" ? "doznívající skok" : "určuje dnešní skóre kanálu"}>{imp(c.scorePts)}</b>}
+            </span>
+          </div>
+          {c.cap != null ? (
+            <>
+              <div className="mt-1.5"><OverBar value={c.value} ceiling={c.ceiling} tone={tone} /></div>
+              <div className="mt-1 flex justify-between gap-2 text-[11px] tabular-nums text-fg-3">
+                <span>strop {nfmt(c.ceiling)} {u}{c.readinessScore < 97 ? ` (připravenost ${c.readinessScore} %)` : ""}</span>
+                {room != null && (room < 0
+                  ? <b style={{ color: C.alert }}>+{nfmt(-room)} {u} nad</b>
+                  : <span>rezerva {nfmt(room)} {u}</span>)}
+              </div>
+            </>
+          ) : <p className="mt-1 text-[11px] text-fg-3">kapacita ten den ještě neznámá (potřebuje 3 aktivity za 30 dní)</p>}
+          {c.weekCeiling != null && (
+            <>
+              <div className="mt-2"><WeekBar before={c.weekBefore || 0} value={c.value} ceiling={c.weekCeiling} tone={tone} /></div>
+              <div className="mt-1 flex justify-between gap-2 text-[11px] tabular-nums text-fg-3">
+                <span>7 dní: {nfmt(c.weekBefore)} + {nfmt(c.value)} z {nfmt(c.weekCeiling)} {u}</span>
+                <span>{c.left > 0.005 ? `nevstřebáno ${Math.round(c.left * 100)} %` : "vstřebáno"}</span>
+              </div>
+            </>
+          )}
+        </div>
+      )
+    })}
+    <p className="border-t border-white/[.07] pt-2.5 text-[11px] leading-4 text-fg-3">
+      Bílá čárka = strop (kapacita + rezerva, podle připravenosti). Šedě ostatní aktivity 7 dní do tohoto dne.
+      {x.run ? "" : x.sport === "strength" ? " Posilování ovlivňuje celkovou a silovou zátěž." : " Jiný sport ovlivňuje jen celkovou zátěž."}
+    </p>
+  </div>
   )
 }
 

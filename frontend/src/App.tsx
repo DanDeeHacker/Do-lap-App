@@ -25,7 +25,7 @@ import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
 import { CapacityMini, ReadinessFactors, readinessCol, readinessPct } from "@/capacity"
 import { Training } from "@/training"
-import { AssistantHeaderButton, AssistantProvider, CoachFab, WhyButton } from "@/assistant"
+import { AssistantProvider, CoachFab, WhyButton } from "@/assistant"
 import { AdminPage, ViewAsBanner } from "@/admin"
 import { RunDetail } from "@/rundetail"
 import { startUpdateWatcher } from "@/updateCheck"
@@ -129,7 +129,7 @@ function Topbar() {
         ) : (
         <div className="relative flex shrink-0 items-center gap-2">
           <AnnotateToggle />
-          <AssistantHeaderButton />
+          {/* feedback #145: the assistant opens only from the robot button bottom-left */}
           {/* the admin view hides the viewed runner's Profil (the banner leads back) */}
           {!viewing && <button
             onClick={() => setProfileOpen(!profileOpen)}
