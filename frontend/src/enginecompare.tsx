@@ -177,7 +177,7 @@ export function EngineCompare() {
                 </div>
               ))}
             </div>
-            <p className="mt-4 text-[11px] leading-5 text-fg-3">Celkové skóre = 0,38 × mechanika + 0,30 × zátěž (Kapacitní 0,40) + 0,52 × symptomy, nejvýš 100. Kvadrant se řídí osami zátěže a mechaniky (práh 25), riziko celkovým skóre; opakovaná bolest na stejném místě zvedne riziko nejméně na „sledovat“.</p>
+            <p className="mt-4 text-[11px] leading-5 text-fg-3">Celkové skóre = 0,25 × mechanika + 0,30 × zátěž (Kapacitní 0,40) + 0,52 × symptomy, nejvýš 100. Kvadrant se řídí osami zátěže a mechaniky (práh 25), riziko celkovým skóre; opakovaná bolest na stejném místě zvedne riziko nejméně na „sledovat“.</p>
           </Card>
         </>
       )}

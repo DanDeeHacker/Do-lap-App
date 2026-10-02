@@ -1,6 +1,7 @@
 // Typed client for the Došlap FastAPI backend — TS port of the vanilla
 // core.js `api` object. All calls go through the Vite dev proxy (/api → :8000)
 // with the session cookie (credentials: "include").
+import { getLang } from "@/i18n/lang"
 
 export class ApiError extends Error {
   status: number
@@ -17,7 +18,8 @@ async function call<T = any>(
   body?: any,
   opts: { skipAuthRedirect?: boolean } = {},
 ): Promise<T> {
-  const init: RequestInit = { method, credentials: "include", headers: {} }
+  // the server answers the AI assistant in the app's language (British English or Czech)
+  const init: RequestInit = { method, credentials: "include", headers: { "X-Doslap-Lang": getLang() } }
   if (body instanceof FormData) {
     init.body = body
   } else if (body !== undefined) {
@@ -74,6 +76,7 @@ export const api = {
     call("POST", "/api/auth/session", { email, password, expected_role: expectedRole || undefined }, { skipAuthRedirect: true }),
   authLogout: () => call("POST", "/api/auth/logout"),
   authGuest: () => call<Me>("POST", "/api/auth/guest", undefined, { skipAuthRedirect: true }),
+  setLang: (lang: string) => call<Me>("PUT", "/api/auth/lang", { lang }),
   getSettings: () => call("GET", "/api/auth/settings"),
   patchSettings: (patch: any) => call("PATCH", "/api/auth/settings", patch),
 
@@ -219,4 +222,6 @@ export type Me = {
   /** public demo ("Vyzkoušej hned!"): read-only guest session on the tutorial runner */
   guest?: boolean
   demo_rid?: string
+  /** the account's language: cs | en (British English) */
+  lang?: string
 }

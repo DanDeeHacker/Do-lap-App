@@ -34,6 +34,8 @@ import { C, badCol, goodCol } from "@/tokens"
 import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, Users, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, LogOut, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
 import { Landing, scrollToLanding } from "@/landing"
+import { LangSwitch } from "@/i18n/LangSwitch"
+import { getLang } from "@/i18n/lang"
 
 // Only runners sign in here. Fyzioterapeuti dostanou vlastní rozhraní pro
 // svou infrastrukturu; zaměstnavatelé a partneři se v této aplikaci nepřihlašují.
@@ -147,13 +149,17 @@ function Topbar() {
                 <div className="flex items-center gap-3">
                   <span className="grid size-10 place-items-center rounded-full bg-accent text-xs font-bold text-ink">{ini}</span>
                   <div>
-                    <b>{me?.name}</b>
+                    <b translate="no">{me?.name}</b>
                     <p className="text-[11px] text-fg-2">běžecký profil</p>
                   </div>
                 </div>
                 <div className="mt-4 border-t border-white/10 pt-3 text-xs text-fg-2">
                   <p>{boot?.integration?.status === "connected" ? "Zdroj dat připojen" : "Data zatím nepřipojena"}</p>
                   {runner?.goal_race && <p className="mt-1">Cíl: {runner.goal_race}</p>}
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <span className="text-[12px] font-bold text-fg-2">Jazyk</span>
+                  <LangSwitch account={!me?.guest} />
                 </div>
                 <div className="mt-3 grid gap-1.5">
                   {ob.show && (
@@ -1493,7 +1499,7 @@ function Auth() {
     setBusy(true)
     try {
       if (mode === "register") {
-        await api.authRegister({ email, password, name: name || email, role })
+        await api.authRegister({ email, password, name: name || email, role, lang: getLang() })
       }
       await api.authSignIn(email, password, role)
       const me = await reloadMe()
@@ -1561,9 +1567,12 @@ function Auth() {
           {mode === "login" ? "Přihlášení" : "Nová registrace"}
         </h1>
         <Card className="mt-5">
-          <p className="font-serif text-xl">
-            {mode === "login" ? "Přihlásit se" : "Registrovat se"}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-serif text-xl">
+              {mode === "login" ? "Přihlásit se" : "Registrovat se"}
+            </p>
+            <LangSwitch />
+          </div>
           {mode === "register" && (
             <input
               ref={nameRef}

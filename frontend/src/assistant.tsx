@@ -210,7 +210,7 @@ function AssistantSheet({ rid, status, tab, initialQ, initialCtx, onClose }: { r
   const go = (l: string) => { onClose(); nav(LINK_PATH[l]) }
   const limitHit = used >= status.limit
   const bubble = (m: Msg) => m.role === "user" ? (
-    <div key={m.id} className="flex justify-end"><p className="max-w-[85%] rounded-[16px] rounded-br-md bg-accent/15 px-3.5 py-2.5 text-[14px] leading-6 text-fg">{m.text}</p></div>
+    <div key={m.id} className="flex justify-end"><p translate="no" className="max-w-[85%] rounded-[16px] rounded-br-md bg-accent/15 px-3.5 py-2.5 text-[14px] leading-6 text-fg">{m.text}</p></div>
   ) : (
     <div key={m.id} className="max-w-[95%]">
       <div className="rounded-[16px] rounded-bl-md border border-white/10 bg-white/[.03] px-3.5 py-3">

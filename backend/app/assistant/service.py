@@ -236,7 +236,8 @@ def _store(db, rid, thread, role, text, **kw) -> models.AssistantMessage:
 
 
 def ask(db, runner, question: str, context: dict | None = None, thread_id: str | None = None, user=None,
-        dry_run: bool = False, model_override: str | None = None, store: bool = True, n_passages: int = 2) -> dict:
+        dry_run: bool = False, model_override: str | None = None, store: bool = True, n_passages: int = 2,
+        shown_question: str | None = None) -> dict:
     """The whole pipeline. `dry_run` (ops model comparison on the demo runner)
     stores nothing, ignores the daily limit and the circuit breaker, and returns
     the raw model text and the validator's issues as well. `store=False` (the tab
@@ -244,6 +245,9 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
     t0 = time.time()
     rid = runner.id
     question = (question or "").strip()[:800]
+    # an English account's question is answered from its Czech translation, but
+    # the chat keeps what the runner typed (translate.py)
+    shown = (shown_question or question).strip()[:800]
     thread = thread_id or uuid.uuid4().hex[:16]
     if not question:
         return {"error": "empty"}
@@ -254,7 +258,7 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
     def fixed(text, source="gate", issues=None):
         if ephemeral:
             return {"text": text, "source": source, "issues": issues, "sources": [], "links": []}
-        _store(db, rid, thread, "user", question, context_json=context)
+        _store(db, rid, thread, "user", shown, context_json=context)
         row = _store(db, rid, thread, "assistant", text, source=source, issues_json=issues, context_json=context,
                      prompt_version=PROMPT_VERSION, latency_ms=int((time.time() - t0) * 1000))
         db.commit()
@@ -351,7 +355,7 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
         return {"text": clean, "source": source, "issues": issues, "llmText": llm_text, "model": model,
                 "latencyMs": int((time.time() - t0) * 1000), "sources": _public_sources(sources, cited),
                 "links": links, "searchMode": kb.get("mode"), "facts": facts}
-    _store(db, rid, thread, "user", question, context_json=context, intent_json=sel)
+    _store(db, rid, thread, "user", shown, context_json=context, intent_json=sel)
     row = _store(db, rid, thread, "assistant", clean, context_json=context, intent_json=sel,
                  sources_json=_public_sources(sources, cited), facts_json=facts, links_json=links, source=source,
                  issues_json=issues or None, llm_text=llm_text, prompt_version=PROMPT_VERSION, model=model,

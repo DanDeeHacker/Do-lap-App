@@ -222,7 +222,7 @@ export function RunDetail() {
                   <Tile label="Ztuhlost" value={fb.stiffness_pre != null ? `${fb.stiffness_pre}/5` : "—"} sub="před během" />
                 </div>
                 {regions.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{regions.map((r) => <Chip key={r} tone="alert">{r}</Chip>)}</div>}
-                {fb.note && <p className="nest mt-3 p-3 text-[13px] leading-5 text-fg-soft">„{fb.note}“</p>}
+                {fb.note && <p translate="no" className="nest mt-3 p-3 text-[13px] leading-5 text-fg-soft">„{fb.note}“</p>}
               </>
             ) : (
               <div className="mt-3"><Empty>Tento běh ještě nemá zápis. Zapište, jak se cítil.</Empty></div>

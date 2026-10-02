@@ -230,7 +230,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
       </div>
       {cyc.next && (
         <p className="mt-3 text-[13px] leading-5 text-fg-2">
-          <b className="text-fg">Příští týden:</b> {cyc.next.pos}. týden cyklu ({cyc.next.pct} %) — cíl objemu ≈ {num(cyc.next.km)} km{cyc.next.pos === 1 ? ", nový cyklus na vyšší úrovni" : ""}. Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.
+          <b className="text-fg">Příští týden:</b> {`${cyc.next.pos}. týden cyklu (${cyc.next.pct} %) — cíl objemu ≈ ${num(cyc.next.km)} km${cyc.next.pos === 1 ? ", nový cyklus na vyšší úrovni" : ""}.`} Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.
         </p>
       )}
     </section>
@@ -342,7 +342,7 @@ function WeekPanel({ g, embedded = false }: { g: any; embedded?: boolean }) {
       </p>
       {ask != null && (
         <div className="nest mt-2 !border-accent/35 !bg-accent/[.06] p-3 text-[13px] leading-5 text-fg">
-          Přepnout tento týden na <b>{ask}. týden cyklu ({CYCLE_PCT[ask - 1]} %)</b>{ask === 4 ? " — odlehčovací" : ""}? Týdenní cíle, dnešní limity i doporučení se hned přepočítají.
+          Přepnout tento týden na <b>{`${ask}. týden cyklu (${CYCLE_PCT[ask - 1]} %)`}</b>{ask === 4 ? " — odlehčovací" : ""}? Týdenní cíle, dnešní limity i doporučení se hned přepočítají.
           Příští týden se cyklus nastaví sám podle toho, jak tenhle týden skutečně proběhne.
           <div className="mt-2 flex gap-2">
             <Button size="sm" onClick={() => void pick(ask)} disabled={busy}>{busy ? "Přepočítávám…" : "Přepnout"}</Button>

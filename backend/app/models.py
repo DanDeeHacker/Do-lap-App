@@ -616,6 +616,7 @@ class User(Base):
     employer_id = Column(String, ForeignKey("employers.id"))
     partner_id = Column(String, ForeignKey("partners.id"))
     provider = Column(String, default="password")
+    lang = Column(String, default="cs")           # UI and AI language: cs | en (British English)
     created_at = Column(String)
 
 
@@ -817,3 +818,15 @@ class AssistantMessage(Base):
     feedback = Column(Integer)                     # +1 / -1
     feedback_note = Column(Text)
     created_at = Column(String, index=True)
+
+
+class Translation(Base):
+    """Cached machine translations of AI assistant texts (translate.py): one row per
+    source text and target language."""
+    __tablename__ = "translations"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String, unique=True, index=True, nullable=False)   # sha256(lang|text)[:32]
+    lang = Column(String, nullable=False)                           # target: en | cs
+    src = Column(Text, nullable=False)
+    out = Column(Text, nullable=False)
+    created_at = Column(String)

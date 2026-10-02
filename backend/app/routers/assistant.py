@@ -4,15 +4,16 @@ feedback and the evidence card sheet; plus admin endpoints for the knowledge bas
 import os
 import re
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DBSession
 
 from .. import llm, models
+from .. import translate as T
 from ..assistant import knowledge as K
 from ..assistant import service as S
 from ..db import SessionLocal, get_db
-from ..deps import ensure_runner_self, get_current_user, verify_csrf
+from ..deps import ensure_runner_self, get_current_user, request_lang, verify_csrf
 from ..metrics import engine as E
 from .annotations import require_feedback_token
 
@@ -54,7 +55,7 @@ def _admin(user):
 
 
 @router.get("/api/runners/{rid}/assistant")
-def assistant_status(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+def assistant_status(rid: str, request: Request, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_self(user, rid)
     r = _runner(db, rid)
     acc = S.access(db, r, user)
@@ -64,11 +65,14 @@ def assistant_status(rid: str, user: models.User = Depends(get_current_user), db
         a = E.get_or_refresh_assessment(db, rid)
         out["suggestions"] = S.suggestions(a)
         out["history"] = S.history(db, rid)
+        if request_lang(request, user) == "en":
+            out["history"] = [T.message_en(db, m) for m in out["history"]]
     return out
 
 
 @router.post("/api/runners/{rid}/assistant/ask", dependencies=[Depends(verify_csrf)])
-def assistant_ask(rid: str, body: AskRequest, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+def assistant_ask(rid: str, body: AskRequest, request: Request, user: models.User = Depends(get_current_user),
+                  db: DBSession = Depends(get_db)):
     ensure_runner_self(user, rid)
     r = _runner(db, rid)
     acc = S.access(db, r, user)
@@ -76,11 +80,14 @@ def assistant_ask(rid: str, body: AskRequest, user: models.User = Depends(get_cu
         raise HTTPException(403, {"reason": acc["reason"]})
     if not (body.question or "").strip():
         raise HTTPException(400, "Prázdná otázka")
+    if request_lang(request, user) == "en":
+        q_cs = T.to_cs(db, body.question)
+        return T.message_en(db, S.ask(db, r, q_cs, body.context, body.thread_id, user, shown_question=body.question))
     return S.ask(db, r, body.question, body.context, body.thread_id, user)
 
 
 @router.get("/api/runners/{rid}/assistant/summary")
-def assistant_summary(rid: str, tab: str = "today", user: models.User = Depends(get_current_user),
+def assistant_summary(rid: str, request: Request, tab: str = "today", user: models.User = Depends(get_current_user),
                       db: DBSession = Depends(get_db)):
     """The summary the assistant opens with on a tab (cached per day until the data change)."""
     ensure_runner_self(user, rid)
@@ -88,7 +95,11 @@ def assistant_summary(rid: str, tab: str = "today", user: models.User = Depends(
     acc = S.access(db, r, user)
     if not acc["enabled"]:
         raise HTTPException(403, {"reason": acc["reason"]})
-    return S.tab_summary(db, r, tab, user)
+    out = S.tab_summary(db, r, tab, user)
+    if request_lang(request, user) == "en":
+        en = T.to_en(db, out.get("text"))
+        out = {**out, "text": en or out.get("text"), "lang": "en" if en else "cs"}
+    return out
 
 
 @router.delete("/api/runners/{rid}/assistant/history", dependencies=[Depends(verify_csrf)])

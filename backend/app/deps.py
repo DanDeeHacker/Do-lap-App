@@ -130,3 +130,19 @@ def or_404(obj, msg: str = "Nenalezeno"):
     if obj is None:
         raise HTTPException(status_code=404, detail=msg)
     return obj
+
+
+LANGS = ("cs", "en")
+
+
+def norm_lang(v) -> str | None:
+    v = (v or "").strip().lower()[:5]
+    return "en" if v.startswith("en") else "cs" if v.startswith("cs") else None
+
+
+def request_lang(request, user=None) -> str:
+    """The language a response should be in: the X-Doslap-Lang header the app sends
+    (the shared guest account and the sign-up page have no stored choice), else the
+    account's own setting, else Czech."""
+    h = norm_lang(request.headers.get("x-doslap-lang")) if request is not None else None
+    return h or norm_lang(getattr(user, "lang", None)) or "cs"

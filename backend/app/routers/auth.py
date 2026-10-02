@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from .. import models, schemas
 from ..db import get_db
-from ..deps import GUEST_PROVIDER, get_current_user, is_owner, verify_csrf
+from ..deps import GUEST_PROVIDER, get_current_user, is_owner, norm_lang, verify_csrf
 from ..metrics import engine as E
 from ..security import (
     COOKIE_SECURE, SESSION_COOKIE, SESSION_TTL_DAYS, client_ip, create_session, hash_password,
@@ -49,7 +49,7 @@ def _user_dict(db: DBSession, u: models.User) -> dict:
         "id": u.id, "email": u.email, "name": u.name, "role": u.role,
         "runner_id": u.runner_id, "physio_id": u.physio_id,
         "employer_id": u.employer_id, "partner_id": u.partner_id,
-        "provider": u.provider, "profile": profile, "owner": is_owner(u),
+        "provider": u.provider, "profile": profile, "owner": is_owner(u), "lang": u.lang or "cs",
         **({"guest": True, "demo_rid": _demo_rid()} if u.provider == GUEST_PROVIDER else {}),
     }
 
@@ -107,7 +107,7 @@ def register(body: schemas.RegisterRequest, response: Response, db: DBSession = 
 
     user = models.User(
         email=email, password_hash=hash_password(body.password), name=body.name, role=role,
-        provider=body.provider or "password", created_at=E.now_iso(), **fk,
+        provider=body.provider or "password", created_at=E.now_iso(), lang=norm_lang(body.lang) or "cs", **fk,
     )
     db.add(user)
     db.flush()
@@ -204,6 +204,18 @@ def logout(request: Request, response: Response, db: DBSession = Depends(get_db)
 
 @router.get("/me")
 def me(user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    return _user_dict(db, user)
+
+
+@router.put("/lang", dependencies=[Depends(verify_csrf)])
+def set_lang(body: schemas.LangRequest, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """The account's language (Čeština / British English) for the app and the AI assistant."""
+    lang = norm_lang(body.lang)
+    if lang is None:
+        raise HTTPException(status_code=422, detail="Unsupported language")
+    if user.provider != GUEST_PROVIDER:           # the shared guest account keeps it client-side
+        user.lang = lang
+        db.commit()
     return _user_dict(db, user)
 
 

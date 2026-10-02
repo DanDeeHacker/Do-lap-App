@@ -441,7 +441,7 @@ function NoteCard({ note, num, at, showAuthor, canApprove, onClose, onChange, on
             className="mt-2 w-full resize-y rounded-xl border border-white/10 bg-black/25 p-2.5 text-[13px] leading-5 text-fg focus:border-accent/60 focus:outline-none" />
         </>
       ) : (
-        <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-[13px] leading-5">{note.note}</p>
+        <p translate="no" className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-[13px] leading-5">{note.note}</p>
       )}
       {note.resolution && <p className="mt-2 rounded-lg bg-black/25 px-2 py-1.5 text-[11px] leading-4 text-info">Vyřešeno: {note.resolution}</p>}
       <p className="mt-2 text-[11px] text-fg-3">{when}{showAuthor ? ` · ${note.author.name || "?"} (${note.author.role || "?"})` : ""}{note.anchorText ? ` · „${note.anchorText.slice(0, 40)}${note.anchorText.length > 40 ? "…" : ""}“` : ""}</p>

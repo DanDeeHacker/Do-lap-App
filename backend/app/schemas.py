@@ -20,6 +20,7 @@ class RegisterRequest(Lenient):
     name: str
     role: str = "runner"
     provider: str = "password"
+    lang: Optional[str] = None        # cs | en, chosen on the sign-up page
 
 
 class LoginRequest(Lenient):
@@ -243,6 +244,10 @@ class ConclusionPatch(Lenient):
     out_pain: Optional[int] = None
     out_region: Optional[str] = None
     out_side: Optional[str] = None
+
+
+class LangRequest(Lenient):
+    lang: str
 
 
 class SettingsPatch(Lenient):

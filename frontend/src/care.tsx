@@ -156,7 +156,7 @@ function PhysioChat() {
       <div className="mt-4 flex max-h-[52vh] min-h-[180px] flex-1 flex-col gap-2 overflow-y-auto pr-1">
         {ms.length ? ms.map((m) => (
           <div key={m.id} className={`max-w-[85%] rounded-[18px] px-3.5 py-2 text-sm leading-5 ${m.sender === "runner" ? "ml-auto rounded-tr-[6px] bg-accent text-ink" : m.sender === "system" ? "mx-auto rounded-[12px] bg-white/[.05] text-center text-[12px] text-fg-2" : "rounded-tl-[6px] bg-info-bg text-fg"}`}>
-            {m.body}<span className="mt-1 block text-[11px] opacity-60">{fmtDT(m.created_at)}</span>
+            {m.sender === "system" ? m.body : <span translate="no">{m.body}</span>}<span className="mt-1 block text-[11px] opacity-60">{fmtDT(m.created_at)}</span>
           </div>
         )) : <p className="m-auto text-sm text-fg-3">{open ? "Zatím žádné zprávy. Napište první." : "Zatím žádné zprávy."}</p>}
       </div>
@@ -212,7 +212,7 @@ function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; on
           <Card className="lg:col-span-2">
             <Label>Závěr z prohlídky</Label>
             {conclusion.finding && <p className="mt-2 font-serif text-lg">{conclusion.finding}</p>}
-            <p className="mt-1 whitespace-pre-wrap text-sm text-fg-2">{conclusion.summary}</p>
+            <p translate="no" className="mt-1 whitespace-pre-wrap text-sm text-fg-2">{conclusion.summary}</p>
           </Card>
         )}
       </div>

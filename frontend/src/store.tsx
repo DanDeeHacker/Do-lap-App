@@ -17,6 +17,7 @@
 // the server lets an owner read any runner but writes only their own — so `touring`
 // is set too (no check-in, no assistant); `viewing` names whom the owner is looking at.
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { adoptAccountLang } from "@/i18n/lang"
 import { api, ApiError, type Me } from "@/api"
 import { clearQuadHistory, loadQuadHistory } from "@/history"
 
@@ -54,6 +55,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const reloadMe = useCallback(async () => {
     try {
       const u = await api.authMe()
+      if (!u?.guest) adoptAccountLang(u?.lang)      // the account's language (British English or Czech)
       setMe(u)
       return u
     } catch {

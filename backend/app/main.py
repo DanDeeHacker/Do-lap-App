@@ -107,6 +107,8 @@ def _migrate(engine):
     add("engine_daily_snapshots", "post_session", "post_session BOOLEAN")
     # feedback #152 — notes from other users wait for the owner's approval
     add("annotations", "approved_at", "approved_at VARCHAR")
+    # British English: the account's language (UI and AI assistant)
+    add("users", "lang", "lang VARCHAR", "UPDATE users SET lang = 'cs' WHERE lang IS NULL")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.
