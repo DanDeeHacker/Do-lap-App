@@ -571,9 +571,15 @@ function metricFromActs(acts: any[], field: string, label: string, unit: string,
 
 // Usual range = baseline ± 1 SD, the SD backed out from the z-score — shared by
 // the card's interval bar and the band in the full-trend chart.
-function usualRange(m: Metric) {
+export function usualRange(m: Metric) {
   // plan phase 3: the individual reference SD from the backend when population priors exist
-  const isd = m.refSd ? m.refSd : Math.abs(m.z) > 0.15 ? Math.abs(m.value - m.baseline) / Math.abs(m.z) : (Math.abs(m.baseline) * 0.03 || 1)
+  const fallback = Math.abs(m.baseline) * 0.03 || 1
+  let isd = m.refSd ? m.refSd : Math.abs(m.z) > 0.15 ? Math.abs(m.value - m.baseline) / Math.abs(m.z) : fallback
+  // The SD is backed out of (value − baseline) / z. When the two means round to the
+  // same number (1,07 → 1,07) while z ≠ 0, that gives 0 — a zero-width range, and the
+  // bar's scale divides by zero (bug report 2026-10-02: no band, the dot at the far left).
+  // Keep the range at least 1 % of the baseline wide.
+  if (!Number.isFinite(isd) || isd < Math.abs(m.baseline) * 0.01) isd = fallback
   return { lo: m.baseline - isd, hi: m.baseline + isd, isd }
 }
 
@@ -1343,7 +1349,7 @@ export function buildMechMetrics(a: any, acts: any[]): Metric[] {
   // OPT-6: worst deviation first, measured against each card's own "hot" gate
   // (|z| ≥ 1; balance carries its excursion in p.b. with a 0.8 gate). Array.sort is
   // stable, so ties keep the engine's order.
-  const devKey = (m: Metric) => Math.abs(m.z) / (m.label === "Symetrie kontaktu" ? 0.8 : 1)
+  const devKey = (m: Metric) => (Number.isFinite(m.z) ? Math.abs(m.z) : 0) / (m.label === "Symetrie kontaktu" ? 0.8 : 1)
   metrics.sort((x, y) => devKey(y) - devKey(x))
   return metrics
 }
