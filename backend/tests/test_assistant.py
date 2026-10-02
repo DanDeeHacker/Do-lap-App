@@ -51,7 +51,7 @@ def _demo(client, db, email=None):
 # ---------------------------------------------------------------- A: knowledge base
 def test_cards_are_grounded_in_the_literature_summary():
     ids = K.summary_by_id()
-    assert len(K.summaries()["entries"]) == 54 and len(K.cards()) >= 40
+    assert len(K.summaries()["entries"]) == 56 and len(K.cards()) >= 40
     for c in K.cards():
         assert c["sources"] and all(s in ids for s in c["sources"]), c["id"]
         assert c["strength"] in K.STRENGTH_ORDER and c["claim"] and c["limits"]

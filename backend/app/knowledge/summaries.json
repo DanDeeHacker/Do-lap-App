@@ -1,5 +1,5 @@
 {
- "source": "Doslap_Literature_Summary.docx (project doc), 54 sources, 2026-09-27",
+ "source": "Doslap_Literature_Summary.docx (project doc), 56 sources, 2026-10-02",
  "categories": {
   "A": "Load progression and running injury",
   "B": "Load monitoring concepts and ACWR",
@@ -1277,6 +1277,52 @@
    "relevance": "The study is consistent with the reviews in this section but adds nothing that they do not already establish. It should not be used on an evidence card.",
    "limits": "Very small sample, adolescent athletes, group allocation by baseline performance rather than randomisation, field-estimated outcomes and implausibly large effects. Evidence strength is weak.",
    "strength": null
+  },
+  {
+   "id": "nielsen-et-al-2014",
+   "cite": "Nielsen et al. (2014)",
+   "category": "A",
+   "apa": "Nielsen, R. O., Parner, E. T., Nohr, E. A., Sørensen, H., Lind, M., & Rasmussen, S. (2014). Excessive progression in weekly running distance and risk of running-related injuries: An association which varies according to type of injury. Journal of Orthopaedic & Sports Physical Therapy, 44(10), 739–747. https://doi.org/10.2519/jospt.2014.5164",
+   "doi": "10.2519/jospt.2014.5164",
+   "facts": {
+    "Design": "Exploratory 1-year prospective cohort (DANO-RUN) with a time-dependent exposure recalculated after every run",
+    "Population": "873 healthy novice runners with a self-structured programme, a GPS watch and neutral shoes; 148,491 km in 35,410 sessions",
+    "Exposure": "Change in running distance between the last 7 days and the 7 days before that: under 10% (incl. regression), 10 to 30%, over 30%",
+    "Outcome": "First running-related injury restricting running for at least 1 week, diagnosed by a physiotherapist and grouped into distance-related, pace-related, other overuse and traumatic injuries",
+    "Main result": "Progression over 30% was linked to more distance-related injuries (HR 1.59, 95% CI 0.96 to 2.66, P = .07), not to pace-related or other injuries"
+   },
+   "findings": [
+    "202 of 873 runners were injured. Across all injuries, progression over 30% did not change the injury rate (HR 1.17, 95% CI 0.84 to 1.63).",
+    "Distance-related injuries (n = 76: patellofemoral pain, iliotibial band syndrome, medial tibial stress syndrome, patellar tendinopathy, gluteus medius injury, greater trochanteric bursitis and tensor fasciae latae injury) were more frequent after progression over 30% than under 10% (HR 1.59, 95% CI 0.96 to 2.66, P = .07). Progression of 10 to 30% did not differ from under 10% (HR 1.03).",
+    "Pace-related injuries (n = 58: plantar fasciitis, Achilles tendinopathy, tibial stress fracture, hamstring and iliopsoas injuries and triceps surae injuries) showed no increase with distance progression (HR 0.83 for over 30%). The authors attribute these injuries to sudden increases in pace rather than distance, but could not test pace because GPS pace was too imprecise.",
+    "The proposed mechanism is that longer runs are run slower, with more steps and a higher cumulative load at the knee, and possibly at the lateral hip and medial lower leg, whereas faster running raises the load at the ankle more than at the knee.",
+    "Distance progression explained only 76 of the 202 injuries (37.6%); the training errors behind the rest remain unknown."
+   ],
+   "relevance": "This is the source for splitting load by structure in the body map on the Load tab: distance progression maps to the knee, IT band, medial shin and lateral hip, and pace to the Achilles tendon, calf, plantar fascia, hamstrings and hip flexors. It also supports tracking a short-term (2-week) jump in distance rather than a long-run average.",
+   "limits": "Exploratory observational study of novice, mostly rearfoot-striking runners; the distance/pace classification of injuries is the authors' hypothesis and was not validated, the main estimate did not reach significance, and the pace hypothesis was not tested. Evidence strength for the card: low to moderate.",
+   "strength": "low to moderate."
+  },
+  {
+   "id": "dorn-et-al-2012",
+   "cite": "Dorn et al. (2012)",
+   "category": "E",
+   "apa": "Dorn, T. W., Schache, A. G., & Pandy, M. G. (2012). Muscular strategy shift in human running: Dependence of running speed on hip and ankle muscle performance. Journal of Experimental Biology, 215(11), 1944–1956. https://doi.org/10.1242/jeb.064527",
+   "doi": "10.1242/jeb.064527",
+   "facts": {
+    "Design": "Laboratory study combining gait data with a musculoskeletal computer model (OpenSim)",
+    "Participants": "9 trained runners/sprinters at four speeds: 3.5, 5.2, 7.0 and 9.0 m/s",
+    "Measures": "Muscle forces, muscle work and each muscle's contribution to the ground reaction force and joint accelerations",
+    "Main result": "Up to 7 m/s the soleus and gastrocnemius produce most of the support force; above it, the strategy shifts to faster leg swing driven by the iliopsoas, gluteus maximus and hamstrings"
+   },
+   "findings": [
+    "Up to about 7 m/s, faster running came mainly from longer strides produced by larger support forces, and the ankle plantarflexors (soleus and gastrocnemius) contributed most to vertical support.",
+    "The peak vertical ground force rose from 2.7 body weights at 3.5 m/s to 3.6 body weights at 7.0 m/s and did not increase further.",
+    "Above about 7 m/s, the plantarflexors shortened too fast to raise their force, and speed increased mainly through stride frequency, achieved by the iliopsoas, gluteus maximus and hamstrings accelerating the hip and knee during swing.",
+    "The hamstrings' work rose most at the highest speeds, consistent with their role in late swing."
+   ],
+   "relevance": "Supports weighting the calf and Achilles tendon most for faster running at recreational paces (all well below 7 m/s, i.e. 2:23 min/km), and the hamstrings and hip flexors only for sprint-like efforts. Used in the body map on the Load tab.",
+   "limits": "Nine trained athletes on a running track, steady-state running only and a modelling approach; it describes muscle function, not injury risk, and recreational paces cover only the lowest speed studied. Evidence strength for the card: low (mechanistic).",
+   "strength": "low (mechanistic)."
   }
  ]
 }

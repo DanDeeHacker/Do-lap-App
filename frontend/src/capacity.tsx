@@ -423,21 +423,24 @@ function RelativeEffort({ re }: { re: any }) {
 
 // Feedback #159 — which body regions the last 7 days of running loaded and how full
 // their capacity is. A region's fill is a weighted mix of the run channels' fill
-// (last 7 days ÷ the 7-day ceiling). The weights are the app's working model built on
-// where each kind of load lands: distance mainly at the knee, shin and IT band; pace
-// at the Achilles, calf and sole (Nielsen et al., 2014); descent at the quadriceps and
-// knee, ascent at the calf, Achilles and hip extensors (Vernillo et al., 2017); faster
-// running shifts work to the calf and, near sprinting, the hamstrings (Dorn et al., 2012).
+// (last 7 days ÷ the 7-day ceiling). The weights are the app's working model from the
+// Literature Summary: injuries that follow jumps in distance (patellofemoral pain, IT
+// band, medial shin, lateral hip) vs. those attributed to pace (Achilles, calf, plantar
+// fascia, tibial stress fracture, hamstrings, iliopsoas) (Nielsen et al., 2014); downhill
+// braking at the knee and higher tibial shock, more hip work uphill (Vernillo et al.,
+// 2017); the calf carries most of the support at all recreational paces, the hamstrings
+// and hip flexors take over only near sprinting (Dorn et al., 2012).
 export const BODY_REGIONS: { title: string; label: string; w: Partial<Record<(typeof RUN_CH)[number], number>> }[] = [
   { title: "Patelární šlacha", label: "Koleno", w: { volume: 0.5, descent: 0.5 } },
   { title: "Kvadriceps", label: "Přední strana stehna", w: { descent: 0.7, volume: 0.3 } },
-  { title: "Tibialis anterior (holeň)", label: "Holeň", w: { volume: 0.6, descent: 0.2, intensity: 0.2 } },
+  { title: "Tibialis anterior (holeň)", label: "Holeň", w: { volume: 0.5, intensity: 0.3, descent: 0.2 } },
   { title: "Iliotibiální trakt (IT band)", label: "IT pás", w: { volume: 0.7, descent: 0.3 } },
-  { title: "Lýtko (gastrocnemius)", label: "Lýtko", w: { intensity: 0.4, ascent: 0.35, volume: 0.25 } },
+  { title: "Lýtko (gastrocnemius)", label: "Lýtko", w: { intensity: 0.45, ascent: 0.3, volume: 0.25 } },
   { title: "Achillova šlacha", label: "Achillova šlacha", w: { intensity: 0.45, ascent: 0.3, volume: 0.25 } },
-  { title: "Úpon plantární fascie (pata)", label: "Plantární fascie", w: { volume: 0.4, intensity: 0.4, ascent: 0.2 } },
+  { title: "Úpon plantární fascie (pata)", label: "Plantární fascie", w: { intensity: 0.5, volume: 0.3, ascent: 0.2 } },
   { title: "Hamstring", label: "Zadní strana stehna", w: { intensity: 0.7, ascent: 0.3 } },
-  { title: "Hýždě (gluteus)", label: "Hýždě", w: { ascent: 0.5, volume: 0.3, intensity: 0.2 } },
+  { title: "Ohýbač kyčle", label: "Ohýbač kyčle", w: { intensity: 0.7, volume: 0.3 } },
+  { title: "Hýždě (gluteus)", label: "Hýždě", w: { volume: 0.4, ascent: 0.4, intensity: 0.2 } },
 ]
 
 export function bodyLoad(cap: any): Record<string, number> {
@@ -491,8 +494,10 @@ function BodyLoad({ cap }: { cap: any }) {
           })}
           <p className="pt-1 text-[11px] leading-4 text-fg-3">
             Procento = jak plná je kapacita oblasti za posledních 7 dní (100 % = strop). Rozdělení zátěže mezi oblasti je pracovní model aplikace:
-            vzdálenost zatěžuje hlavně koleno, holeň a IT pás, tempo Achillovu šlachu, lýtko a chodidlo (Nielsen et al., 2014), klesání
-            přední stranu stehna a koleno, stoupání lýtko a hýždě (Vernillo et al., 2017). Kroužek = místo, kde jste za 14 dní hlásili bolest.
+            po skoku ve vzdálenosti přibývá zranění kolene, IT pásu, holeně a boku kyčle, s tempem se spojuje Achillova šlacha, lýtko, plantární
+            fascie a zadní strana stehna (Nielsen et al., 2014). Klesání víc zatěžuje koleno a holeň, stoupání kyčel (Vernillo et al., 2017).
+            Lýtko nese většinu odrazu v každém běžeckém tempu, zadní strana stehna a ohýbač kyčle až blízko sprintu (Dorn et al., 2012).
+            Kroužek = místo, kde jste za 14 dní hlásili bolest.
           </p>
         </div>
       </div>
