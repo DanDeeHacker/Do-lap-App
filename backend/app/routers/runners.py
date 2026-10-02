@@ -670,11 +670,11 @@ def unrated_activities(rid: str, user: models.User = Depends(get_current_user), 
     }
     rows = (
         db.query(models.Activity)
-        .filter(models.Activity.runner_id == rid, models.Activity.started_at > cutoff,
-                models.Activity.excluded.isnot(True))
+        .filter(models.Activity.runner_id == rid, models.Activity.started_at > cutoff)
         .order_by(models.Activity.started_at.desc()).all()
     )
-    return to_dicts([a for a in rows if a.id not in done_ids])
+    # a run out of mechanics only (e.g. an auto-excluded treadmill run) still gets its note
+    return to_dicts([a for a in rows if a.id not in done_ids and not (a.excluded and (a.excluded_scope or "all") != "mech")])
 
 
 @router.post("/{rid}/activities/{aid}/exclude", dependencies=[Depends(verify_csrf)])
@@ -689,9 +689,12 @@ def exclude_activity(rid: str, aid: int, body: schemas.ExcludeActivityRequest, b
     scope = (body.scope or "all") if body.excluded else None
     if scope is not None and scope not in E.EXCLUDE_SCOPES:
         raise HTTPException(status_code=422, detail="Neplatný rozsah vyřazení")
+    if not body.excluded and a.auto_excluded:
+        a.mech_keep = True                      # feedback #165: put back by the runner, stays in
     a.excluded = bool(body.excluded)
     a.excluded_at = E.now_iso() if body.excluded else None
     a.excluded_scope = scope
+    a.auto_excluded = None
     db.commit()
     out = E.recompute_assessment(db, rid)
     background.add_task(coach_texts.refresh_bg, rid)

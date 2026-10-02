@@ -1688,7 +1688,7 @@ function AtlasBubble() {
     const rated = new Set(((boot?.activity_feedback || []) as any[]).map((f) => f.activity_id))
     const since = new Date(Date.now() - 3 * 86400000).toLocaleDateString("sv-SE")
     return ((boot?.activities || []) as any[])
-      .filter((x) => String(x.started_at || "").slice(0, 10) >= since && !rated.has(x.id) && !x.excluded)
+      .filter((x) => String(x.started_at || "").slice(0, 10) >= since && !rated.has(x.id) && (!x.excluded || x.excluded_scope === "mech"))
       .sort((x, y) => String(y.started_at).localeCompare(String(x.started_at)))[0] || null
   }, [doneToday, boot?.activities, boot?.activity_feedback])
   const rcv = boot?.assessment?.rcv

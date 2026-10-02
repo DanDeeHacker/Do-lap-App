@@ -226,7 +226,6 @@
   "files": [
    "annotate.tsx",
    "onboarding.tsx",
-   "selfprograms.tsx",
    "shell.tsx",
    "tabs.tsx"
   ],
@@ -4830,13 +4829,6 @@
    "capacity.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "Procento = jak plná je kapacita oblasti za posledních 7 dní (100 % = strop). Rozdělení zátěže mezi oblasti je pracovní model aplikace: po skoku ve vzdálenosti přibývá zranění kolene, IT pásu, holeně a boku kyčle, s tempem se spojuje Achillova šlacha, lýtko, plantární fascie a zadní strana stehna (Nielsen et al., 2014). Klesání víc zatěžuje koleno a holeň, stoupání kyčel (Vernillo et al., 2017). Lýtko nese většinu odrazu v každém běžeckém tempu, zadní strana stehna a ohýbač kyčle až blízko sprintu (Dorn et al., 2012). Kroužek = místo, kde jste za 14 dní hlásili bolest.",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "proti kapacitě",
@@ -11374,6 +11366,20 @@
   "kind": "jsx"
  },
  {
+  "t": "{}. série{}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}/{} sérií",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "× týdně",
   "files": [
    "selfprograms.tsx"
@@ -11381,11 +11387,11 @@
   "kind": "jsx"
  },
  {
-  "t": "✓ dnes",
+  "t": "Celý postup a chyby →",
   "files": [
    "selfprograms.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "cviků",
@@ -11416,11 +11422,32 @@
   "kind": "tpl"
  },
  {
+  "t": "grid h-8 min-w-8 place-items-center rounded-full px-2 text-[12px] font-bold transition active:scale-95 {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "grid size-5 shrink-0 place-items-center rounded-md border {}",
   "files": [
    "selfprograms.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "hotová",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "hotovo dnes",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "K tématu více na Physiopedii (anglicky):",
@@ -11460,6 +11487,13 @@
  },
  {
   "t": "noopener noreferrer",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pozastavit výdrž",
   "files": [
    "selfprograms.tsx"
   ],
@@ -11529,11 +11563,25 @@
   "kind": "tpl"
  },
  {
+  "t": "py-3 transition {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Schematická ilustrace pohybu",
   "files": [
    "selfprograms.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Série: {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Síla a technika",
@@ -11543,7 +11591,23 @@
   "kind": "jsx"
  },
  {
+  "t": "size-4 shrink-0 text-fg-3 transition {}",
+  "files": [
+   "selfprograms.tsx",
+   "tabs.tsx",
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Skrýt literaturu",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Spustit výdrž",
   "files": [
    "selfprograms.tsx"
   ],
@@ -11597,6 +11661,13 @@
    "selfprograms.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Vynulovat",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Za poslední 4 týdny jste neoznačili bolest, ke které máme program. Níže jsou všechny programy.",
@@ -11942,6 +12013,13 @@
    "tabs.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "(pás mívá jinou kalibraci rychlosti, bez větru a s jiným odrazem).",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "(připravenost {} %)",
@@ -12310,6 +12388,13 @@
  },
  {
   "t": "Běh je rozdělený na úseky po 20–60 s ustáleného běhu. Každý úsek se porovná s tím, co od vás čeká vaše vlastní norma přesně pro ten úsek — při jeho tempu, sklonu, čase v běhu a povrchu. Norma je z běhů 29–84 dní PŘED tímto během, takže i starší běh se posuzuje tím, jak jste běhali tehdy. Procenta = o kolik se úsek liší od hodnoty, kterou pro něj čeká vaše norma. „Významné“ = po korekci na počet testů (FDR 5 %), ne jen p < 0,05. Úseky mimo vaši obvyklou rychlost / sklon / povrch se netestují.",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Běh na pásu se automaticky nepočítá do mechaniky, protože jeho metriky výrazně vybočily z vaší normy z běhů venku",
   "files": [
    "tabs.tsx"
   ],
@@ -12800,6 +12885,13 @@
   "kind": "str"
  },
  {
+  "t": "Kadence pod 160 kroků za minutu. Nižší kadence při stejném tempu znamená delší krok a větší zatížení kolene a kyčle",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "kapacita ten den ještě neznámá (potřebuje 3 aktivity za 30 dní)",
   "files": [
    "tabs.tsx"
@@ -13024,6 +13116,13 @@
   "kind": "str"
  },
  {
+  "t": "ml-2 rounded-full px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] {}",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Na trend připravenosti je zatím málo historie.",
   "files": [
    "tabs.tsx"
@@ -13150,6 +13249,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Nízká kadence — podrobnosti",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "nízká přesnost",
   "files": [
    "tabs.tsx"
@@ -13234,18 +13340,18 @@
   "kind": "tpl"
  },
  {
-  "t": "overflow-hidden rounded-[18px] border transition {} {}",
+  "t": "overflow-hidden rounded-[20px] border transition {}",
   "files": [
    "tabs.tsx"
   ],
   "kind": "tpl"
  },
  {
-  "t": "overflow-hidden rounded-[20px] border transition {}",
+  "t": "pás · automaticky bez mechaniky",
   "files": [
    "tabs.tsx"
   ],
-  "kind": "tpl"
+  "kind": "str"
  },
  {
   "t": "Plyometrie",
@@ -13360,6 +13466,13 @@
   "kind": "str"
  },
  {
+  "t": "Pokud je běh v pořádku, vraťte ho níže tlačítkem.",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Posilování ovlivňuje celkovou a silovou zátěž.",
   "files": [
    "tabs.tsx"
@@ -13396,6 +13509,13 @@
  },
  {
   "t": "Předchozí úsek",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "předpovídá, ale zatím spolehlivě doloženo není, a hranice 160 je pracovní práh aplikace. Kadence klesá i s pomalejším",
   "files": [
    "tabs.tsx"
   ],
@@ -13500,6 +13620,13 @@
   "kind": "jsx"
  },
  {
+  "t": "s kadencí pod 166 kroků za minutu byla častější zranění holeně (Luedke et al., 2016). Že nízká kadence sama zranění",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "S touto aktivitou 7 dní nad týdenním stropem:",
   "files": [
    "tabs.tsx"
@@ -13507,17 +13634,16 @@
   "kind": "jsx"
  },
  {
-  "t": "size-3.5 transition {}",
+  "t": "scroll-mt-24 overflow-hidden rounded-[18px] border transition {} {}",
   "files": [
    "tabs.tsx"
   ],
   "kind": "tpl"
  },
  {
-  "t": "size-4 shrink-0 text-fg-3 transition {}",
+  "t": "size-3.5 transition {}",
   "files": [
-   "tabs.tsx",
-   "training.tsx"
+   "tabs.tsx"
   ],
   "kind": "tpl"
  },
@@ -13717,6 +13843,13 @@
    "tabs.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "tempem. Pokud ji chcete zvýšit, přidávejte nejvýš 5–10 % a ideálně to proberte s fyzioterapeutem.",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "tenká čára jednotlivé noci · plná průměr 7 nocí",
@@ -13990,6 +14123,13 @@
    "tabs.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "v každém kroku: zvýšení kadence o 5–10 % ho v laboratoři snížilo (Heiderscheit et al., 2011). U středoškolských běžců",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "v místě startu (±10 km)",
@@ -14396,6 +14536,13 @@
    "tabs.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Zobrazit v historii běhů →",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "zvýšená",

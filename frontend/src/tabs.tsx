@@ -3,7 +3,7 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { useQuadHistory } from "@/history"
 import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, FactorBar, toneCol, type Tone, Field, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
-import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Ship, Waves, type LucideIcon } from "lucide-react"
+import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Ship, TriangleAlert, Waves, type LucideIcon } from "lucide-react"
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
 import { clamp, cz, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, PHASE, plural, QUAD, sgn, toImpact } from "@/lib"
@@ -127,7 +127,7 @@ export function Post() {
   const acts = (boot?.activities || []) as any[]
   const cutoff = dayAgo(14)
   const rated = new Set(fb.map((f) => f.activity_id))
-  const unrated = acts.filter((a) => a.started_at > cutoff && !rated.has(a.id) && !a.excluded)
+  const unrated = acts.filter((a) => a.started_at > cutoff && !rated.has(a.id) && (!a.excluded || a.excluded_scope === "mech"))
   const actById = useMemo(() => new Map(acts.map((a) => [a.id, a])), [acts])
   const sorted = useMemo(() => fb.slice().sort((x, y) => y.submitted_at.localeCompare(x.submitted_at)), [fb])
   const ov = useMemo(() => diaryOverview(fb), [fb])
@@ -488,6 +488,11 @@ export function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; ri
     >
       <h2 className="font-serif text-2xl leading-tight">{edit ? "Upravit zápis" : cross ? actTitle(act) : `${act.title}${act.distance_km ? ` · ${cz(act.distance_km)} km` : ""}`}</h2>
       <p className="mt-1 text-[13px] text-fg-2">{fmtD(act.started_at)}{act.pace_s_km ? ` · ${paceStr(act.pace_s_km)}/km` : ""}{act.surface ? ` · ${surf(act.surface)}` : ""}{act.descent_m ? ` · ${cz(act.descent_m)} m sklesáno` : ""}</p>
+      {act.auto_excluded === "treadmill" && act.excluded && (
+        <p className="mt-3 rounded-[12px] border border-watch/30 bg-watch/[.07] p-3 text-[12px] leading-5 text-fg-soft" data-testid="rate-auto-excluded">
+          {AUTO_TREADMILL_TEXT} <Link to={`/app/mechanics#beh-${act.id}`} onClick={onClose} className="font-bold text-accent">Zobrazit v historii běhů →</Link>
+        </p>
+      )}
       <div className="mt-4 grid gap-x-6 gap-y-4 md:grid-cols-2">
         <div>
           {cross ? (
@@ -583,6 +588,26 @@ export function usualRange(m: Metric) {
   return { lo: m.baseline - isd, hi: m.baseline + isd, isd }
 }
 
+// Feedback #164 — a cadence below 160 steps/min (the app's working threshold) gets a
+// warning with the research behind it; runs below it are marked in the run history.
+export const LOW_CADENCE = 160
+export const LOW_CADENCE_TEXT =
+  "Kadence pod 160 kroků za minutu. Nižší kadence při stejném tempu znamená delší krok a větší zatížení kolene a kyčle " +
+  "v každém kroku: zvýšení kadence o 5–10 % ho v laboratoři snížilo (Heiderscheit et al., 2011). U středoškolských běžců " +
+  "s kadencí pod 166 kroků za minutu byla častější zranění holeně (Luedke et al., 2016). Že nízká kadence sama zranění " +
+  "předpovídá, ale zatím spolehlivě doloženo není, a hranice 160 je pracovní práh aplikace. Kadence klesá i s pomalejším " +
+  "tempem. Pokud ji chcete zvýšit, přidávejte nejvýš 5–10 % a ideálně to proberte s fyzioterapeutem."
+export function LowCadenceAlert({ className = "" }: { className?: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className={className} onClick={(e) => e.stopPropagation()}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-label="Nízká kadence — podrobnosti" data-testid="low-cadence"
+        className="inline-grid size-6 place-items-center rounded-full bg-watch/15 text-watch"><TriangleAlert className="size-3.5" aria-hidden /></button>
+      {open && <span className="mt-2 block w-full basis-full rounded-[12px] border border-watch/30 bg-watch/[.07] p-3 text-[12px] leading-5 text-fg-soft">{LOW_CADENCE_TEXT}</span>}
+    </span>
+  )
+}
+
 function MechMetricCard({ m, open, onSelect }: { m: Metric; open: boolean; onSelect: () => void }) {
   const { label, unit, dec, value, baseline, delta, approx } = m
   const st = normStatus(m)
@@ -601,6 +626,7 @@ function MechMetricCard({ m, open, onSelect }: { m: Metric; open: boolean; onSel
           <span className="text-[14px] font-bold text-fg">{label}</span>
           <span data-norm={st.word} className="rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold" style={{ color: col, background: `${col}1f` }}>{st.word}</span>
           {MECH_INFO_BY_LABEL[label] && <InfoDot text={MECH_INFO_BY_LABEL[label]} label={label} />}
+          {label === "Kadence" && value < LOW_CADENCE && <LowCadenceAlert className="contents" />}
           {m.lowRes && <span title="Hodinky tuto metriku měří s větším šumem, než je nejmenší smysluplná změna, proto se do skóre počítá polovinou." className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-fg-2">nízká přesnost</span>}
           {approx && <span title="Málo dat v jednotlivých profilech terénu — hrubý odhad z průměru běhů napříč terénem, ne terénně očištěná odchylka enginu." className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-fg-2">odhad</span>}
         </span>
@@ -849,11 +875,20 @@ function ExcludeRun({ rid, x, onDone }: { rid: string; x: any; onDone: (excluded
   )
 }
 
+export const AUTO_TREADMILL_TEXT =
+  "Běh na pásu se automaticky nepočítá do mechaniky, protože jeho metriky výrazně vybočily z vaší normy z běhů venku " +
+  "(pás mívá jinou kalibraci rychlosti, bez větru a s jiným odrazem)."
 function RunHistoryReal({ acts }: { acts: any[] }) {
   const { me, refresh } = useApp()
   const rid = me?.runner_id
-  const [open, setOpen] = useState(false)
-  const [run, setRun] = useState<number | null>(null)
+  // feedback #165: the diary links to one run here (#beh-<id>) — open the list on it
+  const wantRun = window.location.hash.startsWith("#beh-") ? Number(window.location.hash.slice(5)) : null
+  const [open, setOpen] = useState(!!wantRun)
+  const [run, setRun] = useState<number | null>(wantRun)
+  useEffect(() => {
+    if (!wantRun) return
+    setTimeout(() => document.getElementById(`beh-${wantRun}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 700)
+  }, [wantRun])
   const [ctx, setCtx] = useState<any[] | null | false>(null) // null = not loaded, false = failed
   useEffect(() => {
     if (!open || !rid || ctx !== null) return
@@ -880,12 +915,13 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
             const tl = terrainLine(x.terrain)
             const wl = weatherLine(x.weather)
             return (
-              <div key={x.id} className={`overflow-hidden rounded-[18px] border transition ${isOpen ? "border-info/40 bg-panel-2" : "border-white/[.08] bg-white/[.03] hover:border-white/15"} ${x.excluded ? "opacity-60" : ""}`}>
+              <div key={x.id} id={`beh-${x.id}`} className={`scroll-mt-24 overflow-hidden rounded-[18px] border transition ${isOpen ? "border-info/40 bg-panel-2" : "border-white/[.08] bg-white/[.03] hover:border-white/15"} ${x.excluded ? "opacity-60" : ""}`}>
                 <button onClick={() => setRun(isOpen ? null : x.id)} aria-expanded={isOpen} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 text-left">
                   <span className="grid size-[34px] place-items-center rounded-[10px] bg-info/15 text-info">{x.surface === "trail" ? <Mountain className="size-4" aria-hidden /> : <Footprints className="size-4" aria-hidden />}</span>
                   <span className="min-w-0">
                     <b className="text-sm font-bold">{x.title}</b>
-                    {x.excluded && <span className="ml-2 rounded-full bg-white/[.08] px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] text-fg-2">{(x.excluded_scope || "all") === "all" ? "vyřazeno" : x.excluded_scope === "mech" ? "bez mechaniky" : "bez zátěže"}</span>}
+                    {x.excluded && <span title={x.auto_excluded === "treadmill" ? AUTO_TREADMILL_TEXT : undefined} className={`ml-2 rounded-full px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] ${x.auto_excluded ? "bg-watch/15 text-watch" : "bg-white/[.08] text-fg-2"}`}>{x.auto_excluded === "treadmill" ? "pás · automaticky bez mechaniky" : (x.excluded_scope || "all") === "all" ? "vyřazeno" : x.excluded_scope === "mech" ? "bez mechaniky" : "bez zátěže"}</span>}
+                    {x.cadence_spm != null && x.cadence_spm < LOW_CADENCE && <span title={LOW_CADENCE_TEXT} data-testid="run-low-cadence" className="ml-2 rounded-full bg-watch/15 px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] text-watch">kadence {Math.round(x.cadence_spm)}</span>}
                     {x.postStrength && <span title="Do 48 hodin po těžkém posilování nohou se technika běhu mění (Doma et al., 2017), proto se tento běh do driftu mechaniky počítá polovinou." className="ml-2 rounded-full bg-self/15 px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] text-self">po posilovně</span>}
                     <span className="block text-[12px] text-fg-3">{fmtD(x.started_at)}{x.start_time ? ` ${x.start_time}` : ""} · {surf(x.surface)} · {cz(x.distance_km)} km · {paceStr(x.pace_s_km)}/km · {x.avg_hr} tep</span>
                     {(tl || wl) && (
@@ -980,6 +1016,11 @@ function MovementRunPanel({ rid, x, hasCtx, onExcluded }: { rid: string; x: any;
         </dl>
       ) : (
         <p className="border-t border-white/[.07] px-4 py-3 text-[12px] text-fg-3">Načítám srovnání s během před měsícem…</p>
+      )}
+      {x.auto_excluded === "treadmill" && x.excluded && (
+        <p className="mx-4 mt-3 rounded-[12px] border border-watch/30 bg-watch/[.07] p-3 text-[12px] leading-5 text-fg-soft" data-testid="auto-excluded-note">
+          {AUTO_TREADMILL_TEXT} Pokud je běh v pořádku, vraťte ho níže tlačítkem.
+        </p>
       )}
       {hasCtx && onExcluded && <ExcludeRun rid={rid} x={x} onDone={onExcluded} />}
     </>
@@ -1372,7 +1413,7 @@ export function MechMini({ a, acts }: { a: any; acts: any[] }) {
           return (
             <div key={m.label}>
               <div className="flex items-baseline justify-between gap-2 text-[12px]">
-                <span className="font-semibold text-fg-soft">{m.label}</span>
+                <span className="flex items-center gap-1.5 font-semibold text-fg-soft">{m.label}{m.label === "Kadence" && m.value < LOW_CADENCE && <LowCadenceAlert />}</span>
                 <span className="tabular-nums text-fg-2"><b className="text-fg">{mfmt(m.dec, m.value)}</b> {m.unit} · <span style={{ color: col }}>{st.word}</span></span>
               </div>
               <div className="relative mt-1.5 h-1.5 rounded-full bg-white/[.06]">

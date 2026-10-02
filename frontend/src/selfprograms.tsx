@@ -8,7 +8,7 @@ import { useEffect, useState } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Button, Card, Chip, Label, Sheet, useToast } from "@/ui"
-import { BookOpen, Check, ChevronRight, Dumbbell, ExternalLink, Info, Plus, Sparkles, Timer } from "lucide-react"
+import { BookOpen, Check, ChevronDown, ChevronRight, Dumbbell, ExternalLink, Info, Pause, Play, Plus, RotateCcw, Sparkles, Timer } from "lucide-react"
 import { fmtD, plural } from "@/lib"
 import { ExerciseFigure, ExerciseThumb, hasFigure } from "@/exfigure"
 
@@ -23,6 +23,101 @@ export function shortRegion(r: string) {
   s = s.split(" / ")[0].replace(/\s+[–-]\s+/g, ", ").trim()
   s = s.charAt(0).toUpperCase() + s.slice(1)
   return s.length > 18 ? s.slice(0, 17).trimEnd() + "…" : s
+}
+
+// Feedback #163 — each exercise of the running programme as its own module: tick the
+// sets one by one (kept on this device for today), a hold timer where the dose has
+// seconds, the moving figure inline; the last set logs the exercise as done.
+const setsOf = (dose: string) => Math.min(10, Math.max(1, Number((dose.match(/(\d+)\s*×/) || [])[1]) || 1))
+const holdOf = (dose: string) => Number((dose.match(/(\d+)\s*s\b/) || [])[1]) || 0
+const todayKey = () => new Date().toLocaleDateString("sv-SE")
+function loadSets(key: string): number {
+  try { return Number(localStorage.getItem(key)) || 0 } catch { return 0 }
+}
+function saveSets(key: string, n: number) {
+  try { if (n) localStorage.setItem(key, String(n)); else localStorage.removeItem(key) } catch { /* private mode */ }
+}
+
+function HoldTimer({ secs, onDone }: { secs: number; onDone: () => void }) {
+  const [left, setLeft] = useState(secs)
+  const [run, setRun] = useState(false)
+  useEffect(() => {
+    if (!run) return
+    if (left <= 0) { setRun(false); onDone(); setLeft(secs); return }
+    const t = setTimeout(() => setLeft((x) => x - 1), 1000)
+    return () => clearTimeout(t)
+  }, [run, left, secs, onDone])
+  const pct = ((secs - left) / secs) * 100
+  return (
+    <div className="flex items-center gap-2.5">
+      <button type="button" onClick={() => setRun((v) => !v)} aria-label={run ? "Pozastavit výdrž" : "Spustit výdrž"} data-testid="hold-timer"
+        className="relative grid size-11 place-items-center rounded-full bg-accent/15 text-accent">
+        <svg viewBox="0 0 36 36" className="absolute inset-0 size-11 -rotate-90" aria-hidden>
+          <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeOpacity=".2" strokeWidth="3" />
+          <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray={`${pct} 100`} pathLength={100} strokeLinecap="round" />
+        </svg>
+        {run ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
+      </button>
+      <span className="tabular-nums text-[13px] font-bold text-fg">{left} s</span>
+      {!run && left !== secs && <button type="button" onClick={() => setLeft(secs)} aria-label="Vynulovat" className="text-fg-3"><RotateCcw className="size-3.5" aria-hidden /></button>}
+    </div>
+  )
+}
+
+function ExerciseModule({ e, progId, onToggle, onOpen }: { e: any; progId: any; onToggle: (done: boolean) => Promise<void>; onOpen: () => void }) {
+  const sets = setsOf(e.dose || "")
+  const hold = holdOf(e.dose || "")
+  const key = `dl-sets:${progId}:${e.id}:${todayKey()}`
+  const [n, setN] = useState(() => (e.doneToday ? sets : Math.min(loadSets(key), sets)))
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { if (e.doneToday) setN(sets) }, [e.doneToday, sets])
+  const tick = async (k: number) => {
+    if (busy) return
+    const next = k < n ? k : k + 1            // tapping a filled set steps back to it
+    setN(next)
+    saveSets(key, next)
+    if (next >= sets && !e.doneToday) { setBusy(true); try { await onToggle(true) } finally { setBusy(false) } }
+    else if (next < sets && e.doneToday) { setBusy(true); try { await onToggle(false) } finally { setBusy(false) } }
+  }
+  const done = n >= sets
+  return (
+    <div className={`py-3 transition ${done ? "opacity-90" : ""}`} data-testid="exercise-module">
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={onOpen} data-testid="self-ex-open" aria-label={`Provedení: ${e.name}`} className="shrink-0"><Thumb id={e.id} /></button>
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="min-w-0 flex-1 text-left">
+          <b className="flex items-center gap-1.5 text-sm font-bold">{done && <Check className="size-4 text-accent" aria-hidden />}{e.name}</b>
+          <span className="block text-[12px] text-fg-3">{e.dose} · tento týden {e.doneWeek}/{e.perWeek}×</span>
+        </button>
+        <ChevronDown className={`size-4 shrink-0 text-fg-3 transition ${open ? "rotate-180 text-accent" : ""}`} aria-hidden />
+      </div>
+      {/* the sets of today */}
+      <div className="mt-2.5 flex flex-wrap items-center gap-1.5" role="group" aria-label={`Série: ${e.name}`}>
+        {Array.from({ length: sets }, (_, k) => (
+          <button key={k} type="button" onClick={() => tick(k)} disabled={busy} data-testid="set-dot"
+            aria-label={`${k + 1}. série${k < n ? " hotová" : ""}`}
+            className={`grid h-8 min-w-8 place-items-center rounded-full px-2 text-[12px] font-bold transition active:scale-95 ${k < n ? "bg-accent text-ink" : "border border-white/15 text-fg-2 hover:border-accent/60"}`}>
+            {k < n ? <Check className="size-3.5" strokeWidth={3} aria-hidden /> : k + 1}
+          </button>
+        ))}
+        <span className="ml-1 text-[11px] text-fg-3">{done ? "hotovo dnes" : `${n}/${sets} sérií`}</span>
+      </div>
+      {/* this week, one dot per planned session */}
+      <div className="mt-2 flex gap-1" aria-hidden>
+        {Array.from({ length: Math.max(1, e.perWeek) }, (_, k) => <i key={k} className={`h-1.5 flex-1 rounded-full ${k < e.doneWeek ? "bg-accent" : "bg-white/[.08]"}`} />)}
+      </div>
+      {open && (
+        <div className="mt-3 grid origin-top animate-[careReveal_.28s_ease-out] gap-3 rounded-[14px] bg-white/[.03] p-3 sm:grid-cols-[180px_1fr]">
+          {hasFigure(e.id) ? <ExerciseFigure id={e.id} className="mx-auto block w-full max-w-[220px]" /> : null}
+          <div className="grid content-start gap-2.5">
+            {e.how && <p className="text-[13px] leading-5 text-fg-soft">{e.how}</p>}
+            {hold > 0 && <HoldTimer secs={hold} onDone={() => { if (n < sets) tick(n) }} />}
+            <button type="button" onClick={onOpen} className="justify-self-start text-[12px] font-bold text-accent">Celý postup a chyby →</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function Thumb({ id }: { id: string }) {
@@ -194,9 +289,6 @@ export function SelfPrograms() {
     try { await api.startSelfProgram(rid, body); setOpen(null); setBuild(false); toast({ title: "Program spuštěn" }); await load() }
     catch (e: any) { toast({ title: e?.message || "Program se nepodařilo spustit" }) } finally { setBusy(false) }
   }
-  const toggle = async (ex: any) => {
-    try { setD({ ...d, active: await api.logSelfProgram(rid, act.id, ex.id, !ex.doneToday) }) } catch (e: any) { toast({ title: e?.message || "Nepodařilo se zapsat" }) }
-  }
   const row = (p: Prog, recommended: boolean) => (
     <button key={p.key} type="button" onClick={() => setOpen(p)} data-testid="program-row"
       className="flex w-full items-center gap-3 py-3 text-left">
@@ -224,18 +316,11 @@ export function SelfPrograms() {
           </div>
           <div className="mt-2 divide-y divide-white/[.07]">
             {act.exercises.map((e: any) => (
-              <div key={e.id} className="flex items-center gap-3 py-3">
-                <button type="button" onClick={() => setExId(e.id)} data-testid="self-ex-open" aria-label={`Provedení: ${e.name}`}
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                  <Thumb id={e.id} />
-                  <span className="min-w-0 flex-1">
-                    <b className="text-sm font-bold">{e.name}</b>
-                    <span className="block text-[12px] text-fg-3">{e.dose} · tento týden {e.doneWeek}/{e.perWeek}×</span>
-                    <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-accent" style={{ width: `${Math.min(100, Math.round((e.doneWeek / Math.max(1, e.perWeek)) * 100))}%` }} /></span>
-                  </span>
-                </button>
-                <Button size="sm" variant={e.doneToday ? "secondary" : "outline"} onClick={() => toggle(e)} data-testid="self-ex-done">{e.doneToday ? "✓ dnes" : "Hotovo"}</Button>
-              </div>
+              <ExerciseModule key={e.id} e={{ ...lib.exercises[e.id], ...e }} progId={act.id} onOpen={() => setExId(e.id)}
+                onToggle={async (done) => {
+                  try { setD({ ...d, active: await api.logSelfProgram(rid, act.id, e.id, done) }) }
+                  catch (err: any) { toast({ title: err?.message || "Nepodařilo se zapsat" }) }
+                }} />
             ))}
           </div>
           <p className="mt-2 text-[11px] leading-4 text-fg-3">{lib.painRule}</p>

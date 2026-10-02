@@ -4086,6 +4086,59 @@ def triage_decision(a: dict) -> str:
     return "self_managed"
 
 
+# Feedback #165 — treadmill runs whose mechanics stand far off the runner's outdoor
+# norm (belt speed calibration, no wind, a different footstrike) are taken out of
+# mechanics automatically. Shown in the run history, and the runner can put them back.
+_TREADMILL_TITLE = re.compile(r"treadmill|běžeck\w* pás|\bpás\b|\bpas\b|indoor run", re.I)
+TREADMILL_Z = 2.5          # |z| in any metric against the outdoor norm (working assumption)
+TREADMILL_FIELDS = ("vert_ratio_pct", "gct_ms", "cadence_spm", "vert_osc_cm", "stride_len_m")
+
+
+def is_treadmill(a) -> bool:
+    return (a.surface or "") == "treadmill" or bool(_TREADMILL_TITLE.search(a.title or ""))
+
+
+def treadmill_outliers(acts_all) -> dict:
+    """{activity id: (field, z)} for treadmill runs of the last 90 days whose metric is
+    ≥ TREADMILL_Z SDs off the median of the runner's other runs (≥ 6 of them)."""
+    since = day_ago(90)
+    runs = [a for a in acts_all if is_run(a) and a.started_at > since]
+    norm = [a for a in runs if not is_treadmill(a) and not (a.excluded and (a.excluded_scope or "all") in ("all", "mech"))]
+    out = {}
+    stats = {}
+    for f in TREADMILL_FIELDS:
+        v = [getattr(a, f) for a in norm if getattr(a, f) is not None]
+        if len(v) >= 6:
+            m = median(v)
+            s = max(sd(v), abs(m) * 0.01)
+            stats[f] = (m, s)
+    for a in runs:
+        if not is_treadmill(a) or a.mech_keep or a.excluded:
+            continue
+        worst = None
+        for f, (m, s) in stats.items():
+            x = getattr(a, f)
+            if x is None:
+                continue
+            z = (x - m) / s
+            if abs(z) >= TREADMILL_Z and (worst is None or abs(z) > abs(worst[1])):
+                worst = (f, round(z, 1))
+        if worst:
+            out[a.id] = worst
+    return out
+
+
+def auto_exclude_treadmill(db: DBSession, rid: str) -> int:
+    rows = db.query(models.Activity).filter(models.Activity.runner_id == rid).all()
+    hits = treadmill_outliers(rows)
+    for a in rows:
+        if a.id in hits:
+            a.excluded, a.excluded_scope, a.excluded_at, a.auto_excluded = True, "mech", now_iso(), "treadmill"
+    if hits:
+        db.flush()
+    return len(hits)
+
+
 def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> dict:
     """Recomputes assess() and persists it, mirroring core.js's top-level
     assess(db,rid) which also upserts the runner's triage row. Call this
@@ -4095,6 +4148,8 @@ def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> 
     `data_changed=False` is the day-rollover refresh from
     get_or_refresh_assessment: nothing was written, so the cached history
     stays valid and only needs extending by the new day."""
+    if data_changed:
+        auto_exclude_treadmill(db, rid)          # feedback #165, before the snapshot is read
     data = D.load_runner_data(db, rid)          # the one read; everything below is pure
     r = data.runner
     with engine_pinned((r.engine_mode if r else None) or "v1"):

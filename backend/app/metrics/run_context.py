@@ -84,5 +84,6 @@ def run_history(db, rid: str, limit: int = 20) -> list[dict]:
             "weatherNote": None if a.weather_json else _weather_note(a, runner),
             "excluded": bool(a.excluded),
             "excluded_scope": (a.excluded_scope or "all") if a.excluded else None,
+            "auto_excluded": a.auto_excluded,
         })
     return out

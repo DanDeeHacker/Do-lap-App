@@ -25,5 +25,22 @@
 "regenerační běh": "a recovery run",
 "volno": "a rest day",
 "den závodu": "race day",
-"Ohýbač kyčle": "Hip flexor"
+"Ohýbač kyčle": "Hip flexor",
+"Kadence pod 160 kroků za minutu. Nižší kadence při stejném tempu znamená delší krok a větší zatížení kolene a kyčle v každém kroku: zvýšení kadence o 5–10 % ho v laboratoři snížilo (Heiderscheit et al., 2011). U středoškolských běžců s kadencí pod 166 kroků za minutu byla častější zranění holeně (Luedke et al., 2016). Že nízká kadence sama zranění předpovídá, ale zatím spolehlivě doloženo není, a hranice 160 je pracovní práh aplikace. Kadence klesá i s pomalejším tempem. Pokud ji chcete zvýšit, přidávejte nejvýš 5–10 % a ideálně to proberte s fyzioterapeutem.": "Cadence below 160 steps per minute. At the same pace, a lower cadence means a longer stride and more load on the knee and hip with every step: raising cadence by 5–10 % reduced it in the laboratory (Heiderscheit et al., 2011). In high-school runners with a cadence below 166 steps per minute, shin injuries were more frequent (Luedke et al., 2016). That a low cadence by itself predicts injury has not yet been reliably shown, however, and 160 is the app's working threshold. Cadence also falls at slower paces. If you want to raise it, add at most 5–10 % and ideally discuss it with a physiotherapist.",
+"Běh na pásu se automaticky nepočítá do mechaniky, protože jeho metriky výrazně vybočily z vaší normy z běhů venku (pás mívá jinou kalibraci rychlosti, bez větru a s jiným odrazem).": "This treadmill run doesn't count towards mechanics automatically, because its metrics deviated markedly from your outdoor norm (a treadmill often has a different speed calibration, no wind and a different push-off).",
+"{}. série{}": "set {0}{1}",
+"{}/{} sérií": "{0}/{1} sets",
+"Celý postup a chyby →": "Full instructions and common mistakes →",
+" hotová": " done",
+"hotová": "done",
+"hotovo dnes": "done today",
+"Pozastavit výdrž": "Pause the hold",
+"Série: {}": "Sets: {0}",
+"Spustit výdrž": "Start the hold",
+"Vynulovat": "Reset",
+"Nízká kadence — podrobnosti": "Low cadence — details",
+"pás · automaticky bez mechaniky": "treadmill · automatically without mechanics",
+"Pokud je běh v pořádku, vraťte ho níže tlačítkem.": "If the run is fine, put it back with the button below.",
+"Zobrazit v historii běhů →": "Show in the run history →",
+"kadence {}": "cadence {0}"
 }

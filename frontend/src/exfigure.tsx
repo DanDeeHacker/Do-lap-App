@@ -115,6 +115,24 @@ const SPECS: Record<string, Spec> = {
     { t: 98, a: [2, 0], b: [2, 0], l: [12, 22, -10], r: [-82, 4, 4], ms: 1400, hold: 400 }] },
   plank: { mode: "hold", pin: "elbowN", f: [{ t: 100, h: -5, a: [0, 90], b: [0, 90], l: [-62.7, 42.3, 90], r: [-62.7, 42.3, 90], ms: 900, hold: 300 },
     { t: 95, h: -5, a: [0, 90], b: [0, 90], l: [-85, 0, -5], r: [-85, 0, -5], ms: 800, hold: 2000 }] },
+  // feedback #163 — figures for the groin and lower-abdomen programmes
+  add_squeeze: { mode: "hold", f: [{ t: -90, a: [97, 0], b: [97, 0], l: [125, 95, 30], r: [125, 95, 30], ms: 900, hold: 300 },
+    { t: -90, h: 0, a: [97, 0], b: [97, 0], l: [127, 98, 30], r: [127, 98, 30], ms: 500, hold: 2000 }],
+    props: [{ k: "weight", j: "kneeN", dx: 0, dy: 0, live: true }] },
+  curl_up: { mode: "hold", pin: "hip", f: [{ t: -90, a: [97, 0], b: [97, 0], l: [125, 95, 30], r: [90, 0, -20], ms: 900, hold: 300 },
+    { t: -103, h: -10, a: [95, 0], b: [95, 0], l: [125, 95, 30], r: [90, 0, -20], ms: 900, hold: 1500 }] },
+  pelvic_tilt: { f: [{ t: -90, a: [97, 0], b: [97, 0], l: [125, 95, 30], r: [125, 95, 30], ms: 1000, hold: 300 },
+    { t: -84, a: [97, 0], b: [97, 0], l: [170, 105, 20], r: [170, 105, 20], ms: 1100, hold: 900 }] },
+  side_adduction: { pts: [
+    { p: { ...SIDE_LYING, kneeF: [68, 81], ankleF: [85, 83], toeF: [89, 81], kneeN: [62, 68], ankleN: [66, 84], toeN: [70, 84] }, ms: 1200, hold: 300 },
+    { p: { ...SIDE_LYING, kneeF: [68, 77], ankleF: [85, 73], toeF: [89, 71], kneeN: [62, 68], ankleN: [66, 84], toeN: [70, 84] }, ms: 900, hold: 600 }], lines: LYING_LINES },
+  copenhagen: { pts: [
+    { p: { head: [23, 70], neck: [30, 72], elbowN: [30, 85], handN: [37, 85.5], elbowF: [41, 75], handF: [51.5, 80], hip: [52, 82],
+      kneeN: [69, 76], ankleN: [86, 71], toeN: [89, 69], kneeF: [68, 83], ankleF: [85, 85], toeF: [89, 84] }, ms: 1000, hold: 300 },
+    { p: { head: [23.1, 70.8], neck: [30, 72], elbowN: [30, 85], handN: [37, 85.5], elbowF: [41.5, 71], handF: [52.5, 74.5], hip: [53.6, 74.5],
+      kneeN: [70, 72.5], ankleN: [86, 71], toeN: [89, 69], kneeF: [70, 75], ankleF: [86, 74.5], toeF: [89.5, 73] }, ms: 1100, hold: 900 }],
+    lines: [[["neck", "elbowF", "handF"], 1], [["hip", "kneeF", "ankleF", "toeF"], 1], [["neck", "hip", "kneeN", "ankleN", "toeN"], 0], [["neck", "elbowN", "handN"], 0]],
+    props: [{ k: "rect", x0: 80, x1: 104, y: 72 }] },
   side_plank: { pts: [
     { p: { head: [23, 70], neck: [30, 72], elbowN: [30, 85], handN: [37, 85.5], elbowF: [41, 75], handF: [51.5, 80], hip: [52, 82.5], knee: [69.5, 83.2], ankle: [87, 84], toe: [89, 82] }, ms: 900, hold: 300 },
     { p: { head: [23.1, 70.8], neck: [30, 72], elbowN: [30, 85], handN: [37, 85.5], elbowF: [41.5, 71], handF: [52.5, 74.5], hip: [53.6, 76.1], knee: [70.3, 79.1], ankle: [87, 82], toe: [89, 80] }, ms: 900, hold: 1800 }],

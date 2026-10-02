@@ -236,6 +236,11 @@ class Activity(Base):
     # behaviour), "mech" (mechanics / terrain baselines only) or "load" (load and
     # capacity only). `excluded` stays True for any scope.
     excluded_scope = Column(String)
+    # feedback #165 — "treadmill" when the app itself took a treadmill run out of
+    # mechanics because its metrics stood far off the runner's norm; mech_keep = the
+    # runner put it back, so it is never auto-excluded again
+    auto_excluded = Column(String)
+    mech_keep = Column(Boolean, default=False)
 
 
 class ActivityFeedback(Base):

@@ -492,13 +492,6 @@ function BodyLoad({ cap }: { cap: any }) {
               </div>
             )
           })}
-          <p className="pt-1 text-[11px] leading-4 text-fg-3">
-            Procento = jak plná je kapacita oblasti za posledních 7 dní (100 % = strop). Rozdělení zátěže mezi oblasti je pracovní model aplikace:
-            po skoku ve vzdálenosti přibývá zranění kolene, IT pásu, holeně a boku kyčle, s tempem se spojuje Achillova šlacha, lýtko, plantární
-            fascie a zadní strana stehna (Nielsen et al., 2014). Klesání víc zatěžuje koleno a holeň, stoupání kyčel (Vernillo et al., 2017).
-            Lýtko nese většinu odrazu v každém běžeckém tempu, zadní strana stehna a ohýbač kyčle až blízko sprintu (Dorn et al., 2012).
-            Kroužek = místo, kde jste za 14 dní hlásili bolest.
-          </p>
         </div>
       </div>
     </div>
