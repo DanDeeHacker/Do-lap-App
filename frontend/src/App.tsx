@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ReportEntry } from "@/report"
+import { ReportIcon, ReportProvider } from "@/report"
 import { createPortal } from "react-dom"
 import {
   createBrowserRouter,
@@ -305,6 +305,7 @@ function Layout() {
     <AnnotateProvider>
       <OnboardingProvider>
       <AssistantProvider>
+      <ReportProvider>
       <div className="motion-shell min-h-screen bg-bg text-fg">
         <Sidebar items={navItems} />
         <Topbar />
@@ -333,6 +334,7 @@ function Layout() {
         )}
         <AnnotationLayer />
       </div>
+      </ReportProvider>
       </AssistantProvider>
       </OnboardingProvider>
     </AnnotateProvider>
@@ -1241,7 +1243,6 @@ function TodayV2() {
           </h1>
         </div>
       </div>
-      {a && !viewing && <ReportEntry />}
       {error && !a && (
         <AlertBanner tone="alert" className="mt-5" title="Data se nepodařilo načíst"
           action={<Button size="sm" onClick={() => refresh()}>Zkusit znovu</Button>}>
@@ -1250,12 +1251,12 @@ function TodayV2() {
       )}
       <section className="card mt-6 p-4 text-fg md:p-6">
         <QuadrantHead quadrant={a?.quadrant} live={a} onSync={viewing ? undefined : doSync} syncing={syncing} syncMsg={syncMsg} canSync={!!gStatus?.connected}
-          alertSlot={alertCount > 0 && (
+          alertSlot={<><ReportIcon />{alertCount > 0 && (
             <button type="button" onClick={() => setAlertsOpen((v) => !v)} aria-expanded={alertsOpen} aria-label={`Upozornění (${alertCount})`} title="Upozornění"
               className={`relative inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-extrabold transition ${hasStop ? "bg-alert text-ink motion-safe:animate-pulse" : worstTone === "alert" ? "bg-alert/15 text-alert-soft ring-1 ring-alert/40" : "bg-watch/15 text-watch ring-1 ring-watch/40"}`}>
               <TriangleAlert className="size-4" aria-hidden />{alertCount}
             </button>
-          )} />
+          )}</>} />
         {/* feedback railway#37 — every alert sits behind the ! icon in this box */}
         {alertsOpen && alertCount > 0 && (
           <div className="mt-4 grid origin-top animate-[careReveal_.28s_ease-out] gap-2.5">

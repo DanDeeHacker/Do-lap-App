@@ -2,7 +2,7 @@
 // cards — tap the right side (or swipe) for the next card, the left side for the
 // previous one — with a way into the assistant on the last card. The numbers come
 // from backend/app/metrics/daily_report.py; every chart here is drawn in SVG.
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { api } from "@/api"
 import { useApp } from "@/store"
@@ -517,49 +517,76 @@ function NightSky() {
   )
 }
 
-// ---- entry on Dnes ----------------------------------------------------------------------------
-export function ReportEntry() {
-  const { me } = useApp()
-  const rid = me?.runner_id as string | undefined
+// ---- when a report is offered -------------------------------------------------------------
+// Owner request 2026-10-03: the report pops up when the app is opened (once a day per
+// report, remembered on this device), the morning one from 6:00 to 10:00 once the night
+// is synced, the evening one from 20:00 to midnight. Once closed it stays available as a
+// small icon next to the state on Dnes until its window ends.
+type Kind = "morning" | "evening"
+export const reportWindow = (d: Date): Kind | null => {
+  const h = d.getHours()
+  return h >= 6 && h < 10 ? "morning" : h >= 20 ? "evening" : null
+}
+const seenKey = (rid: string, day: string, k: Kind) => `dl-report-seen:${rid}:${day}:${k}`
+const wasSeen = (key: string) => { try { return !!localStorage.getItem(key) } catch { return false } }
+const markSeen = (key: string) => { try { localStorage.setItem(key, "1") } catch { /* private mode */ } }
+
+type ReportApi = { kind: Kind | null; open: () => void }
+const ReportCtx = createContext<ReportApi>({ kind: null, open: () => {} })
+export const useReport = () => useContext(ReportCtx)
+
+export function ReportProvider({ children }: { children: ReactNode }) {
+  const { me, boot, viewing, touring } = useApp()
+  const rid = (viewing || touring) ? undefined : (me?.runner_id as string | undefined)
   const { available, open: ask } = useAssistant()
-  const hour = new Date().getHours()
-  const primary: "morning" | "evening" = hour < 15 ? "morning" : "evening"
-  const [rep, setRep] = useState<Record<string, any>>({})
-  const [openKind, setOpenKind] = useState<"morning" | "evening" | null>(null)
+  const [now, setNow] = useState(() => new Date())
+  const [rep, setRep] = useState<{ kind: Kind; day: string; data: any } | null>(null)
+  const [show, setShow] = useState(false)
+  const stamp = boot?.assessment?.computed_at          // a sync recomputes it → the night may have arrived
+  // re-check the window every minute and whenever the app comes back to the front
   useEffect(() => {
-    if (!rid) return
+    const tick = () => setNow(new Date())
+    const t = setInterval(tick, 60_000)
+    const vis = () => { if (document.visibilityState === "visible") tick() }
+    document.addEventListener("visibilitychange", vis)
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", vis) }
+  }, [])
+  const kind = reportWindow(now)
+  const day = now.toLocaleDateString("sv-SE")
+  useEffect(() => {
+    if (!rid || !kind) { setRep(null); setShow(false); return }
     let alive = true
-    api.report(rid, primary).then((r: any) => alive && setRep((x) => ({ ...x, [primary]: r }))).catch(() => {})
+    api.report(rid, kind).then((r: any) => {
+      if (!alive) return
+      // the morning report waits for the synced night
+      if (kind === "morning" && !r?.night) { setRep(null); return }
+      setRep({ kind, day, data: r })
+      if (!wasSeen(seenKey(rid, day, kind))) { setShow(true); markSeen(seenKey(rid, day, kind)) }
+    }).catch(() => alive && setRep(null))
     return () => { alive = false }
-  }, [rid, primary])
-  const openR = async (k: "morning" | "evening") => {
-    if (!rep[k] && rid) { try { const r = await api.report(rid, k); setRep((x) => ({ ...x, [k]: r })) } catch { return } }
-    setOpenKind(k)
-  }
-  if (!rid) return null
-  const r = rep[primary]
-  const other = primary === "morning" ? "evening" : "morning"
-  const onAsk = (q: string) => { setOpenKind(null); setTimeout(() => ask(q), 50) }
-  const cards = openKind && rep[openKind] ? (openKind === "morning" ? morningCards(rep[openKind], onAsk, available) : eveningCards(rep[openKind], onAsk, available)) : null
-  const morning = primary === "morning"
+  }, [rid, kind, day, stamp])
+  const value = useMemo<ReportApi>(() => ({ kind: rep ? rep.kind : null, open: () => setShow(true) }), [rep])
+  const onAsk = (q: string) => { setShow(false); setTimeout(() => ask(q), 50) }
+  const cards = show && rep ? (rep.kind === "morning" ? morningCards(rep.data, onAsk, available) : eveningCards(rep.data, onAsk, available)) : null
   return (
-    <>
-      <button type="button" onClick={() => openR(primary)} data-testid="report-entry"
-        className="mt-5 flex w-full items-center gap-3.5 overflow-hidden rounded-[22px] border border-white/10 p-3.5 text-left transition active:scale-[.99]"
-        style={{ background: morning ? "linear-gradient(120deg, rgb(255 190 110 / .20), rgb(108 230 211 / .06) 70%)" : "linear-gradient(120deg, rgb(138 149 255 / .24), rgb(192 132 252 / .06) 70%)" }}>
-        <span className="grid size-12 shrink-0 place-items-center rounded-full" style={{ background: morning ? "rgb(255 210 122 / .2)" : "rgb(138 149 255 / .22)" }}>
-          {morning ? <Sun className="size-6 text-watch" aria-hidden /> : <Moon className="size-6 text-load" aria-hidden />}
-        </span>
-        <span className="min-w-0 flex-1">
-          <b className="block text-[15px] text-fg">{morning ? "Ranní report" : "Večerní report"}</b>
-          <span className="line-clamp-2 text-[12px] leading-4 text-fg-2">{r?.summary || (morning ? "Noc, regenerace a plán dne" : "Den, týden a plán na noc")}</span>
-        </span>
-        <ChevronRight className="size-5 shrink-0 text-fg-2" aria-hidden />
-      </button>
-      <button type="button" onClick={() => openR(other)} className="mt-1.5 text-[12px] font-bold text-fg-3 hover:text-fg-2" data-testid="report-entry-other">
-        {other === "morning" ? "Ranní report" : "Večerní report"} →
-      </button>
-      {openKind && cards && <Stories kind={openKind} cards={cards} onClose={() => setOpenKind(null)} />}
-    </>
+    <ReportCtx.Provider value={value}>
+      {children}
+      {cards && rep && <Stories kind={rep.kind} cards={cards} onClose={() => setShow(false)} />}
+    </ReportCtx.Provider>
+  )
+}
+
+/** The small icon next to the state on Dnes while a report is available. */
+export function ReportIcon() {
+  const { kind, open } = useReport()
+  if (!kind) return null
+  const morning = kind === "morning"
+  return (
+    <button type="button" onClick={open} data-testid="report-icon" aria-label={morning ? "Ranní report" : "Večerní report"} title={morning ? "Ranní report" : "Večerní report"}
+      className="relative inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-extrabold transition"
+      style={morning ? { background: "rgb(255 210 122 / .16)", color: C.watch, boxShadow: "inset 0 0 0 1px rgb(255 210 122 / .4)" }
+        : { background: "rgb(138 149 255 / .18)", color: C.load, boxShadow: "inset 0 0 0 1px rgb(138 149 255 / .45)" }}>
+      {morning ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden />}
+    </button>
   )
 }
