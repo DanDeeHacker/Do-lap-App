@@ -998,6 +998,7 @@
   "files": [
    "App.tsx",
    "capacity.tsx",
+   "daytoday.tsx",
    "report.tsx",
    "tabs.tsx",
    "training.tsx"
@@ -1252,6 +1253,7 @@
    "App.tsx",
    "assistant.tsx",
    "capacity.tsx",
+   "daytoday.tsx",
    "landing.tsx",
    "onboarding.tsx",
    "report.tsx"
@@ -2215,6 +2217,7 @@
   "files": [
    "App.tsx",
    "assistant.tsx",
+   "daytoday.tsx",
    "landing.tsx",
    "onboarding.tsx",
    "report.tsx",
@@ -2900,6 +2903,7 @@
   "files": [
    "App.tsx",
    "assistant.tsx",
+   "daytoday.tsx",
    "landing.tsx",
    "onboarding.tsx",
    "report.tsx",
@@ -4213,7 +4217,8 @@
  {
   "t": "{} min zvýšeného tepu v klidu",
   "files": [
-   "capacity.tsx"
+   "capacity.tsx",
+   "daytoday.tsx"
   ],
   "kind": "tpl"
  },
@@ -4459,6 +4464,7 @@
   "t": "Dnešní trénink",
   "files": [
    "capacity.tsx",
+   "daytoday.tsx",
    "onboarding.tsx",
    "report.tsx"
   ],
@@ -5043,7 +5049,8 @@
  {
   "t": "Teď",
   "files": [
-   "capacity.tsx"
+   "capacity.tsx",
+   "daytoday.tsx"
   ],
   "kind": "str"
  },
@@ -5841,7 +5848,8 @@
  {
   "t": "Ráno",
   "files": [
-   "care.tsx"
+   "care.tsx",
+   "daytoday.tsx"
   ],
   "kind": "str"
  },
@@ -7426,6 +7434,195 @@
    "datapage.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "· obvykle {}",
+  "files": [
+   "daytoday.tsx",
+   "report.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "+{} j.z.",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Celodenní tep z hodinek za dnešek zatím nedorazil. Po synchronizaci se průběh dne doplní.",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dnešní den",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dnešní den · do teď",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klid",
+  "files": [
+   "daytoday.tsx",
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "kroků",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Mimo trénink",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "mimo trénink {} j.z.",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou. Bílá čárka je váš obvyklý den mimo trénink. j.z. = tep × čas",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Mimo trénink zatím běžný den, připravenost nesnižuje.",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Načítám průběh dne…",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nad obvyklý den, do Celkové zátěže",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "obvyklý den mimo trénink",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "po noci",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "pohyb +{} j.z. nad obvyklý den",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Pohybu mimo trénink je dnes víc než obvykle, připravenost to zatím nesnižuje o celý bod.",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Připravenost během dne",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Připravenost ráno vychází z noci (HRV, klidový tep, spánek). Během dne ji snižuje dnešní trénink podle náročnosti proti vašim obvyklým dnům a od v0.10.4 i den mimo trénink: pohyb nad váš obvyklý den (nejvýš asi 8 bodů) a zvýšený tep v klidu. Druhý den ráno ji nahradí noční data. Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou; do Celkové zátěže jde jen to, co je nad mediánem vašich posledních 28 dní. Obvyklý den potřebuje aspoň 7 dní celodenního tepu z hodinek.",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Průběh dne",
+  "files": [
+   "daytoday.tsx",
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "táhněte prstem pro detail",
+  "files": [
+   "daytoday.tsx",
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "trénink {} j.z.",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Váš obvyklý den se teprve skládá: potřebuje aspoň 7 dní celodenního tepu z hodinek. Do té doby se den mimo trénink do připravenosti nepočítá.",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Včerejší trénink doznívá",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zátěž dne",
+  "files": [
+   "daytoday.tsx",
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zvýšený tep",
+  "files": [
+   "daytoday.tsx",
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "← Data a připojení",
@@ -11191,14 +11388,6 @@
   "kind": "tpl"
  },
  {
-  "t": "· obvykle {}",
-  "files": [
-   "report.tsx",
-   "tabs.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "{} h",
   "files": [
    "report.tsx",
@@ -11488,13 +11677,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Klid",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Kofein ještě 6 hodin před spaním zkracuje a zhoršuje spánek (Drake et al., 2013).",
   "files": [
    "report.tsx"
@@ -11730,13 +11912,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Průběh dne",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Průběh noci",
   "files": [
    "report.tsx"
@@ -11865,13 +12040,6 @@
   "kind": "str"
  },
  {
-  "t": "táhněte prstem pro detail",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Tempo",
   "files": [
    "report.tsx",
@@ -11982,13 +12150,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Zátěž dne",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Zavřít report",
   "files": [
    "report.tsx"
@@ -12022,13 +12183,6 @@
    "report.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Zvýšený tep",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Zvýšený tep v klidu",
@@ -17676,6 +17830,13 @@
    "ui.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "block text-[10.5px] leading-[14px] text-fg-3 {}",
+  "files": [
+   "waterfall.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "block truncate text-[12px] {}",

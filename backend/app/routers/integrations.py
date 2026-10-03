@@ -432,33 +432,55 @@ def _download_and_merge(db: DBSession, rid: str, garmin) -> dict:
 
 
 DAY_DETAIL_RECENT, DAY_DETAIL_BACKFILL = 3, 14
+DAY_RAW_RETRY = _dt.timedelta(hours=20)
+
+
+def _raw_done(row, now) -> bool:
+    """An older day needs no new download: it has the all-day heart rate, or it was asked
+    for it in the last DAY_RAW_RETRY (raw = {} — the watch had nothing for that day)."""
+    if row is None or row.raw is None:
+        return False
+    if row.raw:
+        return True
+    try:
+        return now - _dt.datetime.fromisoformat(row.fetched_at) < DAY_RAW_RETRY
+    except (TypeError, ValueError):
+        return False
 
 
 def fetch_day_details(db: DBSession, rid: str, garmin, today=None) -> int:
-    """Morning / evening report: the last nights and days in detail (hypnogram, stress and
-    Body Battery curves). Today and the two days before are fetched again on every sync
-    (the night and the day keep filling in); the first time 14 days back. Fills the daily
-    Body Battery and stress average when the day row has none. Never raises."""
+    """Morning / evening report and the day outside training: the last nights and days in
+    detail (hypnogram, all-day heart rate and steps). Today and the two days before are
+    fetched again on every sync (the night and the day keep filling in); older days of the
+    last 14 until each has its all-day heart rate. (Rows saved by the first reports had the
+    night and the day but no heart rate, so "a row exists" is not "done": the day outside
+    training needs 7 earlier days with it, v0.10.4.) Fills the daily Body Battery and
+    stress average when the day row has none. Never raises."""
     try:
         today = today or E.today_date()
-        have = {r.date for r in db.query(models.DailyDetail.date).filter(models.DailyDetail.runner_id == rid).all()}
-        days = DAY_DETAIL_RECENT if have else DAY_DETAIL_BACKFILL
+        rows = {r.date: r for r in db.query(models.DailyDetail).filter(models.DailyDetail.runner_id == rid).all()}
+        now = _dt.datetime.fromisoformat(E.now_iso())
+        days = DAY_DETAIL_BACKFILL
         n = 0
         for k in range(days):
             d = (today - _dt.timedelta(days=k)).isoformat()
-            if k >= DAY_DETAIL_RECENT and d in have:
+            row = rows.get(d)
+            if k >= DAY_DETAIL_RECENT and _raw_done(row, now):
                 continue
             det = garmin_live.fetch_day_detail(garmin, d)
-            if not det.get("sleep") and not det.get("day") and not det.get("raw"):
+            got = bool(det.get("sleep") or det.get("day") or det.get("raw"))
+            if not got and k < DAY_DETAIL_RECENT:
                 continue
-            row = db.query(models.DailyDetail).filter(models.DailyDetail.runner_id == rid, models.DailyDetail.date == d).first()
             if row is None:
                 row = models.DailyDetail(runner_id=rid, date=d)
                 db.add(row)
             row.sleep = det.get("sleep") or row.sleep
             row.day = det.get("day") or row.day
-            row.raw = det.get("raw") or row.raw
+            # an older day the watch has no heart rate for: {} remembers the attempt (DAY_RAW_RETRY)
+            row.raw = det.get("raw") or row.raw or ({} if k >= DAY_DETAIL_RECENT else None)
             row.fetched_at = E.now_iso()
+            if not got:
+                continue
             dm = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.date == d).first()
             day = det.get("day") or {}
             if dm is not None:

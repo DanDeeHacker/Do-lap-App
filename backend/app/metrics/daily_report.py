@@ -569,6 +569,38 @@ def build(db, rid: str, kind: str) -> dict:
     return r
 
 
+def day_today(db, rid: str) -> dict:
+    """The day so far for the Trénink tab (owner request 2026-10-03): the evening report's
+    day without the story — the timeline with the energy curve and the states, minutes per
+    state, the day's load (training and outside it against the usual day, and the part
+    above the usual day that Celková zátěž counts) and readiness from the morning to now
+    (today's sessions, the day outside training, v0.10.4)."""
+    today = E.today_date()
+    a = E.get_or_refresh_assessment(db, rid)
+    dm, det = _rows(db, rid, today)
+    rec = _recovery(a, det, today)
+    try:
+        hh = E.now_iso()[11:16]
+        now_min = int(hh[:2]) * 60 + int(hh[3:5])
+    except (ValueError, TypeError):
+        now_min = None
+    view = _day_view(db, rid, today, rec.get("score"), _energy_k(db, rid, today), now_min)
+    r = rec.get("readiness") or {}
+    after = r.get("afterSession") or {}
+    t = today.isoformat()
+    w7 = ((((a or {}).get("capacity") or {}).get("channels") or {}).get("systemic") or {}).get("week7") or []
+    excess = sum(x.get("value") or 0 for x in w7 if x.get("sport") == "daily" and x.get("date") == t)
+    load = {"train": _r(view["trainLoad"], 0) if view else None, "nt": _r(view["ntLoad"], 0) if view else None,
+            "usualNt": _r(_usual(dm, today, "nt_load"), 0), "excess": _r(excess, 0)}
+    ses = after.get("today") or {}
+    readiness = {"morning": rec.get("score"), "now": r.get("score"), "label": rec.get("label"),
+                 "sessionDrop": after.get("sessionDrop") or 0, "dayDrop": after.get("dayDrop") or 0,
+                 "carry": bool(after.get("carry") and not after.get("today")),
+                 "sessions": [x.get("title") or x.get("sport") for x in ses.get("sessions") or []], "band": ses.get("band"),
+                 "nt": after.get("nt"), "stress": after.get("stress")}
+    return {"date": t, "nowMin": now_min, "view": view, "load": load, "readiness": readiness}
+
+
 def _summary_morning(night, rec, plan) -> str:
     """Three or four sentences from the facts (no model)."""
     s = []

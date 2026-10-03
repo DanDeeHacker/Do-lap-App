@@ -193,7 +193,7 @@ const LANES: { st: number[]; label: string; col: string }[] = [
 ]
 const STATE_NAME = ["spánek", "klid", "mírně zvýšený tep v klidu", "výrazně zvýšený tep v klidu", "lehký pohyb", "pohyb", "trénink"]
 
-function DayTimeline({ v, until, compact = false }: { v: any; until?: number | null; compact?: boolean }) {
+export function DayTimeline({ v, until, compact = false }: { v: any; until?: number | null; compact?: boolean }) {
   const tl: [number, number, number, number, number][] = v?.timeline || []
   const en: [number, number][] = v?.energy || []
   const [pick, setPick] = useState<number | null>(null)

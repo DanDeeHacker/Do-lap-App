@@ -1004,6 +1004,14 @@ def get_daily_report(rid: str, request: Request, kind: str = "morning", user: mo
     return _report_lang(db, r, request)
 
 
+@router.get("/{rid}/day-today")
+def get_day_today(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """The day so far on Trénink: timeline, load outside training, readiness through the day."""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import daily_report as DR
+    return DR.day_today(db, rid)
+
+
 def _report_lang(db, r: dict, request) -> dict:
     """British English card notes when the app asks for it (the rest is translated in the page)."""
     if (request.headers.get("X-Doslap-Lang") or "").lower() != "en":
