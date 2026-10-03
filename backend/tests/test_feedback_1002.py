@@ -80,3 +80,15 @@ def test_an_early_sync_does_not_leave_today_without_the_night(client, db_session
     db_session.commit()
     row = db_session.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.date == t).first()
     assert row.sleep_h == 7.4 and row.hrv_ms == 61.0 and row.steps == 4000 and row.resting_hr == 50
+
+
+def test_programme_payload_has_week_overview_and_next_session(client, db_session):
+    """Feedback #170 — what the 'trénink hotový' summary shows."""
+    from .conftest import register
+    rid = register(client, "fb1002prog@test.cz", "Prog", "runner").json()["runner_id"]
+    p = client.post(f"/api/runners/{rid}/self-programs", json={"template": "calf"}).json()
+    for x in p["exercises"]:
+        p = client.patch(f"/api/runners/{rid}/self-programs/{p['id']}/log", json={"exercise": x["id"], "done": True}).json()
+    assert p["weekNo"] == 1 and p["weeks"] == 6 and p["weeksLeft"] == 5 and p["sessionsTotal"] == 1
+    assert len(p["weekDays"]) == 7 and sum(d["full"] for d in p["weekDays"]) == 1
+    assert p["next"]["exercises"] and p["next"]["date"] > E.iso_date(E.today_date())

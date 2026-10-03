@@ -65,9 +65,27 @@ def _out(p: models.SelfProgram) -> dict:
             for x in ids:
                 week[x] = week.get(x, 0) + 1
     tpl = PL.PROGRAM_BY_KEY.get(p.template or "")
-    return {"id": p.id, "template": p.template, "name": p.name, "startedOn": p.started_on, "weeks": tpl["weeks"] if tpl else None,
+    exs = [x for x in (p.exercises or []) if x in PL.EXERCISES]
+    weeks = tpl["weeks"] if tpl else None
+    # feedback #170 — the week at a glance (which days were trained), the programme's
+    # progress and the next session, for the "trénink hotový" summary
+    try:
+        week_no = (today - date.fromisoformat(p.started_on)).days // 7 + 1
+    except (TypeError, ValueError):
+        week_no = 1
+    week_days = []
+    for k in range(7):
+        d = (_week_start(today) + timedelta(days=k)).isoformat()
+        n = len([x for x in (log.get(d) or []) if x in exs])
+        week_days.append({"date": d, "done": n, "full": bool(exs) and n >= len(exs)})
+    left = [x for x in exs if week.get(x, 0) < PL.EXERCISES[x].get("perWeek", 3)]
+    next_day = today + timedelta(days=1) if left else _week_start(today) + timedelta(days=7)
+    return {"id": p.id, "template": p.template, "name": p.name, "startedOn": p.started_on, "weeks": weeks,
+            "weekNo": week_no, "weeksLeft": (max(0, weeks - week_no) if weeks else None),
+            "weekDays": week_days, "sessionsTotal": sum(1 for ids in log.values() if exs and set(exs) <= set(ids)),
+            "next": {"date": next_day.isoformat(), "exercises": left or exs},
             "exercises": [{"id": x, **PL.EXERCISES[x], "doneWeek": week.get(x, 0), "doneToday": x in (log.get(today.isoformat()) or [])}
-                          for x in (p.exercises or []) if x in PL.EXERCISES]}
+                          for x in exs]}
 
 
 @router.get("/{rid}/self-programs")

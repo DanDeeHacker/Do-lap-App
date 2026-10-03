@@ -120,6 +120,66 @@ function ExerciseModule({ e, progId, onToggle, onOpen }: { e: any; progId: any; 
   )
 }
 
+// Feedback #170 — once every exercise of the day is done, the session closes into a
+// summary: the week at a glance, where the programme stands, and the next session.
+const WD_SHORT = ["po", "út", "st", "čt", "pá", "so", "ne"]
+function SessionDone({ act, lib, onReopen }: { act: any; lib: any; onReopen: () => void }) {
+  const [next, setNext] = useState(false)
+  const today = new Date().toLocaleDateString("sv-SE")
+  const days = (act.weekDays || []) as { date: string; done: number; full: boolean }[]
+  const nx = act.next || {}
+  const tomorrow = new Date(Date.now() + 864e5).toLocaleDateString("sv-SE")
+  return (
+    <div className="mt-3 animate-[careReveal_.28s_ease-out]" data-testid="session-done">
+      <div className="flex items-center gap-3 rounded-[16px] bg-accent/[.1] p-3.5">
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent text-ink"><Check className="size-5" strokeWidth={3} aria-hidden /></span>
+        <div className="min-w-0">
+          <b className="block text-[15px] text-fg">Trénink hotový</b>
+          <span className="text-[12px] text-fg-2">
+            {act.weeks ? `${act.weekNo}. týden z ${act.weeks}${act.weeksLeft != null ? ` · zbývá ${act.weeksLeft} ${plural(act.weeksLeft, "týden", "týdny", "týdnů")}` : ""}` : `${act.weekNo}. týden`}
+            {act.sessionsTotal ? ` · celkem ${act.sessionsTotal} ${plural(act.sessionsTotal, "trénink", "tréninky", "tréninků")}` : ""}
+          </span>
+        </div>
+      </div>
+      {act.weeks ? (
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[.08]" aria-hidden>
+          <i className="block h-full rounded-full bg-accent" style={{ width: `${Math.min(100, Math.round((Math.min(act.weekNo, act.weeks) / act.weeks) * 100))}%` }} />
+        </div>
+      ) : null}
+      <p className="t-label mt-4 !text-fg-3">Tento týden</p>
+      <div className="mt-2 grid grid-cols-7 gap-1.5" data-testid="week-days">
+        {days.map((d, i) => (
+          <div key={d.date} className="text-center">
+            <span className={`mx-auto grid size-8 place-items-center rounded-full text-[11px] font-bold ${d.full ? "bg-accent text-ink" : d.done ? "bg-accent/30 text-fg" : "bg-white/[.06] text-fg-3"} ${d.date === today ? "ring-2 ring-fg/60" : ""}`}>
+              {d.full ? <Check className="size-3.5" strokeWidth={3} aria-hidden /> : d.done || ""}
+            </span>
+            <span className={`mt-1 block text-[10.5px] ${d.date === today ? "font-bold text-fg" : "text-fg-3"}`}>{WD_SHORT[i]}</span>
+          </div>
+        ))}
+      </div>
+      {!next ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => setNext(true)} data-testid="next-session">Pokračovat na další trénink</Button>
+          <Button size="sm" variant="outline" onClick={onReopen}>Dnešní cviky</Button>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-[14px] border border-white/[.08] bg-white/[.03] p-3" data-testid="next-session-card">
+          <b className="text-sm text-fg">Další trénink · {nx.date === tomorrow ? "zítra" : fmtD(nx.date)}</b>
+          <div className="mt-2 divide-y divide-white/[.06]">
+            {(nx.exercises || []).map((id: string) => (
+              <div key={id} className="flex items-center gap-3 py-2">
+                <Thumb id={id} />
+                <span className="min-w-0"><b className="block text-[13px] font-bold">{lib.exercises[id]?.name}</b><span className="text-[12px] text-fg-3">{lib.exercises[id]?.dose}</span></span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-fg-3">Odškrtávat půjde v den tréninku — tělo potřebuje mezi tréninky čas.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Thumb({ id }: { id: string }) {
   return hasFigure(id)
     ? <span className="grid size-11 shrink-0 place-items-center rounded-[10px] bg-white/[.04]"><ExerciseThumb id={id} className="size-10" /></span>
@@ -274,6 +334,7 @@ export function SelfPrograms() {
   const [open, setOpen] = useState<Prog | null>(null)
   const [build, setBuild] = useState(false)
   const [exId, setExId] = useState<string | null>(null)
+  const [reopen, setReopen] = useState(false)
   const [busy, setBusy] = useState(false)
   const load = () => api.selfPrograms(rid).then(setD).catch(() => setD(false))
   useEffect(() => { load() }, [rid]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -314,6 +375,9 @@ export function SelfPrograms() {
             </div>
             <Button size="sm" variant="outline" onClick={async () => { await api.endSelfProgram(rid, act.id); load() }}>Ukončit</Button>
           </div>
+          {act.exercises.length > 0 && act.exercises.every((e: any) => e.doneToday) && !reopen ? (
+            <SessionDone act={act} lib={lib} onReopen={() => setReopen(true)} />
+          ) : (
           <div className="mt-2 divide-y divide-white/[.07]">
             {act.exercises.map((e: any) => (
               <ExerciseModule key={e.id} e={{ ...lib.exercises[e.id], ...e }} progId={act.id} onOpen={() => setExId(e.id)}
@@ -323,6 +387,7 @@ export function SelfPrograms() {
                 }} />
             ))}
           </div>
+          )}
           <p className="mt-2 text-[11px] leading-4 text-fg-3">{lib.painRule}</p>
         </Card>
       )}
