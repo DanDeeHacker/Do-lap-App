@@ -75,5 +75,6 @@
 "ne": "Sun",
 "zbytek celkové zátěže (≈ km lehkého běhu)": "remaining total load (≈ km of easy running)",
 "mechanika nad prahem (−20 %)": "mechanics over threshold (−20 %)",
-"Oblouk: posledních 7 dní · světlé prodloužení: kolik dnes ještě smíte (končí u limitu, který omezuje) · dutá bílá čárka: strop 7 dní · klepnutím zobrazíte výpočet": "Arc: last 7 days · light extension: what you may still do today (ends at the binding limit) · hollow white mark: 7-day ceiling · tap to show the calculation"
+"dnes zbývá {} {}": "{0} {1} left today",
+"Oblouk: posledních 7 dní · světlé prodloužení: kolik dnes ještě smíte · oranžová čárka a šrafovaný úsek: limit, který omezuje, a za ním už prostor není · dutá bílá čárka: strop 7 dní · klepnutím zobrazíte výpočet": "Arc: last 7 days · light extension: what you may still do today · amber mark and shaded section: the binding limit, with no room beyond it · hollow white mark: 7-day ceiling · tap to show the calculation"
 }
