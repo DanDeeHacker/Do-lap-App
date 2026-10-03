@@ -159,6 +159,7 @@ class RaceUpdateRequest(Lenient):
 
 class CycleWeekRequest(Lenient):
     pos: int | None = None  # 1–4 = this week's place in the 4-week cycle; None = automatic again
+    skip_return: bool | None = None  # feedback #190 — True: the normal 4-week cycle instead of the graded return
 
 
 class SlotBookRequest(Lenient):

@@ -10,7 +10,7 @@ import { ASSISTANT_REFRESH_EVENT, KnowledgeAdminCard } from "@/assistant"
 type Result = { ok?: boolean; loading?: boolean; error?: string; activities?: number; addedDaily?: number; meta?: any; source?: string; mfa?: boolean; mfaToken?: string }
 
 export function DataView() {
-  const { me, boot, refresh } = useApp()
+  const { me, realMe, boot, refresh } = useApp()
   const rid = me!.runner_id!
   const integ = boot?.integration
   const acts = boot?.activities || []
@@ -221,6 +221,8 @@ export function DataView() {
         </div>
       </div>
 
+      {/* feedback #182 — the engine choice is for the app's owners only */}
+      {realMe?.owner && (
       <Card className="mt-4">
         <div className="flex items-center justify-between gap-2">
           <Label>Engine hodnocení</Label>
@@ -264,6 +266,7 @@ export function DataView() {
         </div>
         <p className="mt-2 text-[11px] leading-4 text-fg-3">Backtest = souhrn v1 vs v2. Detailní = rozpad skóre po jednotlivých signálech + drivery + legenda vzorců. Data = kompletní JSON <b>bez tokenů a hesel</b>.</p>
       </Card>
+      )}
 
       <CoachConsentCard rid={rid} />
       <KnowledgeAdminCard />

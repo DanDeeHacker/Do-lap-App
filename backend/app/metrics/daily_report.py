@@ -190,7 +190,8 @@ def _plan(a, db, rid):
            "terrain": t.get("terrain"), "notes": (t.get("notes") or [])[:3], "reasons": (g.get("reasons") or [])[:3],
            "override": (g.get("override") or {}).get("title"), "afterDone": g.get("afterDone"),
            "strength": None, "readinessScore": g.get("readinessScore")}
-    prog = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.active.is_(True)).first()
+    progs = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.active.is_(True)).all()
+    prog = next((x for x in progs if x.template == "durability"), progs[0] if progs else None)
     if prog is not None and prog.template == "durability":
         from .. import durability as DU
         pick = DU.choose(db, rid, a, prog.state or {}, E.today_date())

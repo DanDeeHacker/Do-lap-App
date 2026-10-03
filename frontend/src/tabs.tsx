@@ -269,60 +269,43 @@ export function Post() {
             {/* railway#141 — other sports right under the waiting list, the latest notes as the last detail */}
             <div id="jiny-sport" className="mt-5 scroll-mt-24 border-t border-white/[.08] pt-4" data-tour="journal-cross">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label>Jiný sport · 14 dní</Label>
+                <Label>Jiný sport</Label>
                 <Button size="sm" variant="secondary" onClick={() => setCrossOpen(true)}>Přidat trénink</Button>
               </div>
-              <p className="mt-1 text-[12px] leading-5 text-fg-3">Kolo, plavání a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Posilování hodinky často nezaznamenají, zapište ho tady.</p>
-              {crossRecent.length ? (
-                <div className="mt-2 divide-y divide-white/[.07]">
-                  {crossRecent.slice(0, 8).map((x) => {
-                    const r = rpeOf.get(x.id)
-                    return (
-                      <ListRow key={x.id} icon={actIcon(x)} tone={r != null ? "ok" : "info"} title={actTitle(x)}
-                        onClick={() => { const f = fb.find((y) => y.activity_id === x.id); setRate({ act: x, initial: f }) }}
-                        meta={`${fmtD(x.started_at)}${r != null ? ` · náročnost ${r}/10` : " · bez hodnocení"}${x.strength_focus ? ` · ${(FOCUS_OPTS.find((o) => o[0] === x.strength_focus) || [0, ""])[1]}` : ""}${x.provider === "manual" ? " · zapsáno ručně" : ""}`}
-                        trailing={x.provider === "manual" ? (
-                          <button type="button" onClick={(e) => { e.stopPropagation(); api.deleteActivity(rid, x.id).then(() => { toastX({ title: "Trénink smazán" }); refresh() }).catch(() => {}) }}
-                            className="shrink-0 rounded-full px-2 py-1 text-[12px] font-bold text-fg-3 hover:bg-alert/10 hover:text-alert">Smazat</button>
-                        ) : undefined} />
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="mt-2 text-[12px] text-fg-3">Za posledních 14 dní žádný jiný sport.</p>
-              )}
+              <p className="mt-1 text-[12px] leading-5 text-fg-3">Kolo, plavání a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Posilování hodinky často nezaznamenají, zapište ho tady. Zapsané tréninky najdete v Posledních zápisech.</p>
             </div>
             {sorted.length > 0 && (
               <>
                 <button type="button" onClick={() => setLatestOpen((v) => !v)} aria-expanded={latestOpen} data-testid="latest-toggle"
                   className="nest mt-4 flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left transition hover:border-white/20">
                   <span className="t-label">Poslední zápisy</span>
-                  <span className="flex items-center gap-2 text-[12px] text-fg-3">{Math.min(10, sorted.length)} · klepnutím upravíte<ChevronDown className={`size-4 transition ${latestOpen ? "rotate-180 text-accent" : ""}`} aria-hidden /></span>
+                  <span className="flex items-center gap-2 text-[12px] text-fg-3">{Math.min(10, sorted.length)}<ChevronDown className={`size-4 transition ${latestOpen ? "rotate-180 text-accent" : ""}`} aria-hidden /></span>
                 </button>
                 {latestOpen && (
                   <div className="mt-1 origin-top animate-[careReveal_.28s_ease-out] divide-y divide-white/[.07]" data-testid="latest-list">
+                    {/* feedback #176/#177 — every sport in one list, read only (a rating is given once) */}
                     {sorted.slice(0, 10).map((f) => {
                       const act = actById.get(f.activity_id)
                       const hurt = f.pain_during >= 4
+                      const cross = act && isCross(act)
                       return (
                         <div key={f.id} className="flex items-center gap-1">
-                          <ListRow onClick={() => editEntry(f)} icon={actIcon(act)} tone={hurt ? "alert" : "ok"}
+                          <ListRow icon={actIcon(act)} tone={hurt ? "alert" : "ok"}
                             title={act ? actTitle(act) : "Běh"}
-                            meta={<>{fmtD(f.submitted_at)}{act?.surface ? ` · ${surf(act.surface)}` : ""} · pocit {FEEL_LABEL[f.feeling] || "—"} · nohy {f.legs}/5{f.pain_during > 0 ? ` · bolest ${f.pain_during}/10` : ""}</>}
+                            meta={cross
+                              ? `${fmtD(f.submitted_at)}${f.rpe != null ? ` · náročnost ${f.rpe}/10` : ""}${act.strength_focus ? ` · ${(FOCUS_OPTS.find((o) => o[0] === act.strength_focus) || [0, ""])[1]}` : ""}${act.provider === "manual" ? " · zapsáno ručně" : ""}`
+                              : <>{fmtD(f.submitted_at)}{act?.surface ? ` · ${surf(act.surface)}` : ""} · pocit {FEEL_LABEL[f.feeling] || "—"} · nohy {f.legs}/5{f.pain_during > 0 ? ` · bolest ${f.pain_during}/10` : ""}</>}
                             extra={f.pain_site ? <span className="mt-1.5 block sm:hidden"><Chip tone="alert">{f.pain_site}</Chip></span> : undefined}
-                            trailing={<>
-                              {f.pain_site && <span className="hidden shrink-0 sm:block"><Chip tone="alert">{f.pain_site}</Chip></span>}
-                              <span className="flex shrink-0 items-center gap-1 text-[12px] font-bold text-fg-3 transition group-hover:text-info">
-                                <span className="hidden opacity-0 transition group-hover:opacity-100 md:inline">Upravit</span>
-                                <ChevronRight className="size-4" aria-hidden />
-                              </span>
-                            </>} />
-                          {act && (
+                            trailing={f.pain_site ? <span className="hidden shrink-0 sm:block"><Chip tone="alert">{f.pain_site}</Chip></span> : undefined} />
+                          {cross && act.provider === "manual" ? (
+                            <button type="button" onClick={() => { api.deleteActivity(rid, act.id).then(() => { toastX({ title: "Trénink smazán" }); refresh() }).catch(() => {}) }}
+                              className="shrink-0 rounded-full px-2 py-1 text-[12px] font-bold text-fg-3 hover:bg-alert/10 hover:text-alert">Smazat</button>
+                          ) : act && !cross ? (
                             <Link to={`/app/post/${act.id}`} aria-label="Detail běhu" title="Detail běhu"
                               className="grid size-9 shrink-0 place-items-center rounded-full text-fg-3 hover:bg-info/10 hover:text-info">
                               <ActivityIcon className="size-4" aria-hidden />
                             </Link>
-                          )}
+                          ) : null}
                         </div>
                       )
                     })}
@@ -1005,7 +988,6 @@ function MovementRunPanel({ rid, x, hasCtx, onExcluded }: { rid: string; x: any;
   return (
     <>
       {hasCtx && <RunContext x={x} />}
-      {!x.excluded && <SegmentTimeline rid={rid} aid={x.id} />}
       {d && d.metrics ? (
         <MonthCompare data={d} />
       ) : d === false ? (
@@ -1017,6 +999,8 @@ function MovementRunPanel({ rid, x, hasCtx, onExcluded }: { rid: string; x: any;
       ) : (
         <p className="border-t border-white/[.07] px-4 py-3 text-[12px] text-fg-3">Načítám srovnání s během před měsícem…</p>
       )}
+      {/* feedback #178 — the segments under the comparison with a run a month back */}
+      {!x.excluded && <SegmentTimeline rid={rid} aid={x.id} />}
       {x.auto_excluded === "treadmill" && x.excluded && (
         <p className="mx-4 mt-3 rounded-[12px] border border-watch/30 bg-watch/[.07] p-3 text-[12px] leading-5 text-fg-soft" data-testid="auto-excluded-note">
           {AUTO_TREADMILL_TEXT} Pokud je běh v pořádku, vraťte ho níže tlačítkem.
@@ -1436,7 +1420,7 @@ export function Mechanics() {
   const allActs = (boot?.activities || []) as any[]
   // excluded runs don't count for mechanics — unless they were excluded from load only (railway#47)
   const acts = useMemo(() => allActs.filter((x) => !x.excluded || x.excluded_scope === "load"), [allActs])
-  const [openMetric, setOpenMetric] = useState("Vertikální poměr")
+  const [openMetric, setOpenMetric] = useState("Vertikální oscilace")   // feedback #185 — oscillation opens first
   const [terr, setTerr] = useState(false)
   const mechHist = useQuadHistory(rid)   // prefetched by the store (history.ts)
   if (!a) return <LoadGate />
@@ -1598,7 +1582,7 @@ function DescentBySlope({ g, up = false }: { g: any; up?: boolean }) {
         ? <Bars vals={b} unit="m" labels={g.labels} axisLabels={(g.labels || []).map((l: string) => (l.includes("–") ? l.split("–")[0] : l))}
             tones={b.map((_, i) => SLOPE_BANDS.find(([, a, z]) => i >= a && i < z)?.[3] || "muted")} />
         : <Bars vals={bands.map((x) => x.v)} unit="m" labels={bands.map((x) => x.l)} tones={bands.map((x) => x.t)} />}
-      <p className="mt-2 text-[12px] text-fg-3">{cz(g.total7)} m celkem · {cz(g.steep7)} m na sklonu ≥10 %.</p>
+      <p className="mt-2 text-[12px] text-fg-3">{(g.total7 || 0) > 0 ? `${cz(g.total7)} m celkem · ${cz(g.steep7)} m na sklonu ≥10 %.` : `Za posledních 7 dní žádné ${up ? "stoupání" : "klesání"} z běhů s výškovým profilem. Rozdělení se doplní po běhu do kopce.`}</p>
     </div>
   )
 }
@@ -1691,7 +1675,8 @@ export function Load() {
           // railway#61 — descent by slope belongs to the Klesání channel
           ...(a?.gradientDescent?.buckets?.some((v: number) => v > 0) ? { descent: <DescentBySlope g={a.gradientDescent} /> } : {}),
           // feedback #160 — the same view for ascent
-          ...(a?.gradientAscent?.buckets?.some((v: number) => v > 0) ? { ascent: <DescentBySlope g={a.gradientAscent} up /> } : {}),
+          // feedback #180 — always shown for ascent; without hilly runs it says why it's empty
+          ascent: <DescentBySlope g={a?.gradientAscent || { buckets: [], labels: [], total7: 0, steep7: 0 }} up />,
         }} />
       )}
       {a.capacity && <LoadHistory rid={rid} />}
@@ -2124,7 +2109,8 @@ function LoadRunPanel({ x, imp, todayIso }: { x: any; imp: (pts: number) => stri
             <>
               <div className="mt-2"><WeekBar before={c.weekBefore || 0} value={c.value} ceiling={c.weekCeiling} tone={tone} /></div>
               <div className="mt-1 flex justify-between gap-2 text-[11px] tabular-nums text-fg-3">
-                <span>7 dní: {nfmt(c.weekBefore)} + {nfmt(c.value)} z {nfmt(c.weekCeiling)} {u}</span>
+                {/* feedback #179 — say what the three numbers are */}
+                <span>{`7 dní do tohoto dne: ostatní aktivity ${nfmt(c.weekBefore)} + tato ${nfmt(c.value)} ${u}, týdenní strop ${nfmt(c.weekCeiling)} ${u}`}</span>
                 <span>{c.left > 0.005 ? `nevstřebáno ${Math.round(c.left * 100)} %` : "vstřebáno"}</span>
               </div>
             </>

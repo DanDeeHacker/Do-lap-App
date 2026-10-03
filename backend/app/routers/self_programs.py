@@ -152,11 +152,13 @@ def _out(p: models.SelfProgram, db=None) -> dict:
 @router.get("/{rid}/self-programs")
 def get_self_programs(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_read_access(db, user, rid)
-    active = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid,
-                                                  models.SelfProgram.active.is_(True)).order_by(models.SelfProgram.id.desc()).first()
+    # feedback #186 — several programmes can run at once; the newest first
+    actives = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid,
+                                                   models.SelfProgram.active.is_(True)).order_by(models.SelfProgram.id.desc()).all()
     marks = _marked_regions(db, rid)
+    outs = [_out(p, db) for p in actives]
     return {"library": PL.library(), "recommended": PL.programs_for_regions([r for _, r in marks]),
-            "regions": _regions_by_recency(marks), "active": _out(active, db) if active else None}
+            "regions": _regions_by_recency(marks), "active": outs[0] if outs else None, "actives": outs}
 
 
 @router.post("/{rid}/self-programs", dependencies=[Depends(verify_csrf)])
@@ -175,8 +177,12 @@ def start_self_program(rid: str, body: StartRequest, user: models.User = Depends
         if len(ex) > 12:
             raise HTTPException(status_code=422, detail="Nejvýš 12 cviků")
         name = (body.name or "").strip()[:60] or "Vlastní trénink"
-    for old in db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.active.is_(True)):
-        old.active = False
+    # feedback #186 — a new programme doesn't end the others; the same ready-made one isn't started twice
+    if body.template:
+        same = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.active.is_(True),
+                                                   models.SelfProgram.template == body.template).first()
+        if same is not None:
+            return _out(same, db)
     p = models.SelfProgram(runner_id=rid, template=body.template if body.template else "custom", name=name, exercises=ex,
                            log={}, started_on=E.today_date().isoformat(), active=True,
                            state={"levels": {"A": 0, "B": 0}, "steps": {"A": 0, "B": 0}, "history": []} if body.template == "durability" else None)

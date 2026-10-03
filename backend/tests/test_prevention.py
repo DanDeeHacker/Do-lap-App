@@ -304,6 +304,12 @@ def test_resolved_injury_returns_gradually(client, db_session):
     assert any("Návrat po zranění" in x and "1. týden ze 3" in x for x in g["reasons"])
     ref = g["week"]["cycle"]["refKm"]
     assert ref and g["week"]["channels"]["volume"]["budget"] <= 0.5 * ref + 0.1
+    # feedback #190 — the runner may switch to the normal 4-week cycle (no-intensity weeks stay) and back
+    a2 = client.put(f"/api/runners/{rid}/cycle", json={"skip_return": True}).json()["assessment"]
+    g2 = a2["guidance"]
+    assert g2["week"]["mode"] != "return" and g2["week"]["cycle"]["returnSkipped"] and not g2["types"]["kvalitní"]["allowed"]
+    a3 = client.put(f"/api/runners/{rid}/cycle", json={"skip_return": False}).json()["assessment"]
+    assert a3["guidance"]["week"]["mode"] == "return"
     for back, wk, q in ((8, 2, True), (15, 3, False)):
         db_session.query(models.InjuryReport).filter(models.InjuryReport.runner_id == rid).update({"resolved_at": E.day_ago(back)[:10]})
         db_session.commit()

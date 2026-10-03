@@ -4,7 +4,7 @@
 // Content and sources live in backend/app/programs_library.py. Every exercise opens a
 // detail with an own illustration, numbered steps and the common faults; Physiopedia is
 // only linked for further reading (its licence is non-commercial).
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Button, Card, Chip, Label, Sheet, useToast } from "@/ui"
@@ -450,6 +450,62 @@ function BuilderSheet({ lib, onClose, onStart, busy, onOpenEx }: { lib: any; onC
   )
 }
 
+// feedback #186 — one running programme (several can run at once, swiped between)
+function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any; lib: any; rid: string; onChange: (a: any) => void; onEnd: () => void; onOpenEx: (id: string) => void }) {
+  const toast = useToast()
+  const [reopen, setReopen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [force, setForce] = useState(false)
+  const [rerate, setRerate] = useState(false)
+  const setExId = onOpenEx
+  const finish = async (feel: string) => {
+    setBusy(true)
+    try { onChange(await api.finishSelfProgram(rid, act.id, feel)); setRerate(false); setReopen(false); toast({ title: "Trénink zapsán do zátěže" }) }
+    catch (e: any) { toast({ title: e?.message || "Hodnocení se nepodařilo uložit" }) } finally { setBusy(false) }
+  }
+  return (
+    <Card className="h-full">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <Label>Váš program</Label>
+          <h3 className="mt-1 font-serif text-[22px] leading-tight">{act.name}</h3>
+          <p className="text-[12px] text-fg-3">od {fmtD(act.startedOn)}{act.weeks ? ` · ${act.weeks} týdnů` : ""}</p>
+        </div>
+        <Button size="sm" variant="outline" onClick={onEnd}>Ukončit</Button>
+      </div>
+      {act.durability && <DurabilityHead d={act.durability} />}
+      {(act.durability ? act.durability.doneToday && !rerate : act.exercises.length > 0 && act.exercises.every((e: any) => e.doneToday)) ? (
+        reopen ? <LastSession act={act} lib={lib} onBack={() => setReopen(false)} />
+          : <SessionDone act={act} lib={lib} onReopen={() => setReopen(true)} onRerate={act.durability ? () => setRerate(true) : undefined} />
+      ) : act.durability && (rerate || (act.exercises.every((e: any) => e.doneToday) && !act.durability.doneToday)) ? (
+        <FeelPrompt busy={busy} onPick={finish} />
+      ) : act.durability?.blocked && !act.durability.doneToday && !force ? (
+        <div className="mt-3 rounded-[14px] border border-white/[.08] bg-white/[.03] p-3" data-testid="durability-blocked">
+          <p className="text-[13px] leading-5 text-fg">{act.durability.blocked}</p>
+          <p className="t-label mt-3 !text-fg-3">Další session</p>
+          <div className="mt-1 divide-y divide-white/[.06]">
+            {act.exercises.map((e: any) => (
+              <div key={e.id} className="flex items-center gap-3 py-2"><Thumb id={e.id} /><span className="min-w-0"><b className="block text-[13px] font-bold">{e.name}</b><span className="text-[12px] text-fg-3">{e.dose}</span></span></div>
+            ))}
+          </div>
+          <Button size="sm" variant="outline" className="mt-2" onClick={() => setForce(true)} data-testid="durability-force">Přesto odcvičit dnes</Button>
+        </div>
+      ) : (
+      <div className="mt-2 divide-y divide-white/[.07]">
+        {act.exercises.map((e: any) => (
+          <ExerciseModule key={e.id} e={{ ...lib.exercises[e.id], ...e }} progId={act.id} onOpen={() => setExId(e.id)}
+            onToggle={async (done) => {
+              try { onChange(await api.logSelfProgram(rid, act.id, e.id, done)) }
+              catch (err: any) { toast({ title: err?.message || "Nepodařilo se zapsat" }) }
+            }} />
+        ))}
+      </div>
+      )}
+      <p className="mt-2 text-[11px] leading-4 text-fg-3">{lib.painRule}</p>
+    </Card>
+  )
+}
+
 export function SelfPrograms() {
   const { me } = useApp()
   const rid = me!.runner_id!
@@ -458,10 +514,11 @@ export function SelfPrograms() {
   const [open, setOpen] = useState<Prog | null>(null)
   const [build, setBuild] = useState(false)
   const [exId, setExId] = useState<string | null>(null)
-  const [reopen, setReopen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [force, setForce] = useState(false)
-  const [rerate, setRerate] = useState(false)
+  const [slide, setSlide] = useState(0)
+  const rail = useRef<HTMLDivElement>(null)
+  const onRail = () => { const el = rail.current; if (el) setSlide(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))) }
+  const goSlide = (i: number) => { const el = rail.current; if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" }) }
   const load = () => api.selfPrograms(rid).then(setD).catch(() => setD(false))
   useEffect(() => { load() }, [rid]) // eslint-disable-line react-hooks/exhaustive-deps
   if (d === null) return <p className="mt-4 text-sm text-fg-3">Načítám programy…</p>
@@ -470,12 +527,7 @@ export function SelfPrograms() {
   const progs: Prog[] = lib.programs
   const rec = (d.recommended || []) as string[]
   const regions = (d.regions || []) as string[]
-  const act = d.active
-  const finish = async (feel: string) => {
-    setBusy(true)
-    try { setD({ ...d, active: await api.finishSelfProgram(rid, act.id, feel) }); setRerate(false); setReopen(false); toast({ title: "Trénink zapsán do zátěže" }) }
-    catch (e: any) { toast({ title: e?.message || "Hodnocení se nepodařilo uložit" }) } finally { setBusy(false) }
-  }
+  const actives: any[] = d.actives || (d.active ? [d.active] : [])
   const start = async (body: any) => {
     setBusy(true)
     try { await api.startSelfProgram(rid, body); setOpen(null); setBuild(false); toast({ title: "Program spuštěn" }); await load() }
@@ -496,46 +548,29 @@ export function SelfPrograms() {
   const perfProgs = progs.filter((p) => p.group === "performance")
   return (
     <div className="mt-4 grid gap-4" data-testid="self-programs">
-      {act && (
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <Label>Váš program</Label>
-              <h3 className="mt-1 font-serif text-[22px] leading-tight">{act.name}</h3>
-              <p className="text-[12px] text-fg-3">od {fmtD(act.startedOn)}{act.weeks ? ` · ${act.weeks} týdnů` : ""}</p>
-            </div>
-            <Button size="sm" variant="outline" onClick={async () => { await api.endSelfProgram(rid, act.id); load() }}>Ukončit</Button>
-          </div>
-          {act.durability && <DurabilityHead d={act.durability} />}
-          {(act.durability ? act.durability.doneToday && !rerate : act.exercises.length > 0 && act.exercises.every((e: any) => e.doneToday)) ? (
-            reopen ? <LastSession act={act} lib={lib} onBack={() => setReopen(false)} />
-              : <SessionDone act={act} lib={lib} onReopen={() => setReopen(true)} onRerate={act.durability ? () => setRerate(true) : undefined} />
-          ) : act.durability && (rerate || (act.exercises.every((e: any) => e.doneToday) && !act.durability.doneToday)) ? (
-            <FeelPrompt busy={busy} onPick={finish} />
-          ) : act.durability?.blocked && !act.durability.doneToday && !force ? (
-            <div className="mt-3 rounded-[14px] border border-white/[.08] bg-white/[.03] p-3" data-testid="durability-blocked">
-              <p className="text-[13px] leading-5 text-fg">{act.durability.blocked}</p>
-              <p className="t-label mt-3 !text-fg-3">Další session</p>
-              <div className="mt-1 divide-y divide-white/[.06]">
-                {act.exercises.map((e: any) => (
-                  <div key={e.id} className="flex items-center gap-3 py-2"><Thumb id={e.id} /><span className="min-w-0"><b className="block text-[13px] font-bold">{e.name}</b><span className="text-[12px] text-fg-3">{e.dose}</span></span></div>
+      {actives.length > 0 && (
+        <div data-testid="active-programs">
+          {actives.length > 1 && (
+            <div className="mb-2 flex items-center justify-between gap-2 px-1">
+              <span className="t-label !text-fg-3">{`Běžící programy · ${slide + 1} / ${actives.length}`}</span>
+              <span className="flex gap-1.5">
+                {actives.map((a: any, i: number) => (
+                  <button key={a.id} type="button" aria-label={a.name} onClick={() => goSlide(i)}
+                    className={`h-2 rounded-full transition-all ${i === slide ? "w-5 bg-accent" : "w-2 bg-white/25"}`} />
                 ))}
-              </div>
-              <Button size="sm" variant="outline" className="mt-2" onClick={() => setForce(true)} data-testid="durability-force">Přesto odcvičit dnes</Button>
+              </span>
             </div>
-          ) : (
-          <div className="mt-2 divide-y divide-white/[.07]">
-            {act.exercises.map((e: any) => (
-              <ExerciseModule key={e.id} e={{ ...lib.exercises[e.id], ...e }} progId={act.id} onOpen={() => setExId(e.id)}
-                onToggle={async (done) => {
-                  try { setD({ ...d, active: await api.logSelfProgram(rid, act.id, e.id, done) }) }
-                  catch (err: any) { toast({ title: err?.message || "Nepodařilo se zapsat" }) }
-                }} />
+          )}
+          <div ref={rail} onScroll={onRail} className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+            {actives.map((a: any) => (
+              <div key={a.id} className="w-full shrink-0 snap-center">
+                <ActiveProgram act={a} lib={lib} rid={rid} onOpenEx={setExId}
+                  onChange={(n) => setD({ ...d, actives: actives.map((x: any) => (x.id === n.id ? n : x)), active: d.active?.id === n.id ? n : d.active })}
+                  onEnd={async () => { await api.endSelfProgram(rid, a.id); load() }} />
+              </div>
             ))}
           </div>
-          )}
-          <p className="mt-2 text-[11px] leading-4 text-fg-3">{lib.painRule}</p>
-        </Card>
+        </div>
       )}
       <Card>
         <div className="flex min-w-0 items-center justify-between gap-2">

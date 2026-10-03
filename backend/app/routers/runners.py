@@ -68,8 +68,18 @@ def set_cycle_week(rid: str, body: schemas.CycleWeekRequest,
         raise HTTPException(status_code=422, detail="Týden cyklu musí být 1–4")
     r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
     from ..metrics.guidance import week_start
-    r.cycle_override = None if body.pos is None else {
-        "week": week_start(E.today_date()).isoformat(), "pos": body.pos, "setAt": E.now_iso()}
+    keep = {k: v for k, v in (r.cycle_override or {}).items() if k == "noReturn"}
+    if body.skip_return is not None:
+        # feedback #190 — leave the 3-week return after an injury for the normal cycle (or go back to it);
+        # tied to that injury, so a new one starts its own return again
+        rtr = (E.get_or_refresh_assessment(db, rid) or {}).get("returnToRun") or {}
+        prev = {k: v for k, v in (r.cycle_override or {}).items() if k != "noReturn"}
+        if body.skip_return and rtr.get("injuryAt"):
+            prev["noReturn"] = rtr["injuryAt"]
+        r.cycle_override = prev or None
+    else:
+        r.cycle_override = ({**keep} or None) if body.pos is None else {
+            **keep, "week": week_start(E.today_date()).isoformat(), "pos": body.pos, "setAt": E.now_iso()}
     db.commit()
     return {"ok": True, "assessment": E.recompute_assessment(db, rid)}
 

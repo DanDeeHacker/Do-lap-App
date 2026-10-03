@@ -38,7 +38,7 @@ const TYPE_ICON: Record<string, LucideIcon> = { volno: Sofa, regenerace: Leaf, "
 // Half-gauge. Fill = the last 7 days on a scale from 0 to the higher of the 7-day
 // ceiling and now. The only mark is the ceiling, a hollow white tick that stays
 // inside the arc band (feedback railway#87/#92, percentile marks removed).
-function HalfGauge({ value, scale, ceiling, col, size, allow }: { value: number | null; scale: number; ceiling?: number | null; col: string; size: "lg" | "sm"; allow?: number | null }) {
+function HalfGauge({ value, scale, ceiling, col, size, allow, labels }: { value: number | null; scale: number; ceiling?: number | null; col: string; size: "lg" | "sm"; allow?: number | null; labels?: { v: number; text: string; col: string }[] }) {
   const lg = size === "lg"
   const W = lg ? 220 : 80, R = lg ? 90 : 32, SW = lg ? 14 : 7, cy = lg ? 108 : 40, x0 = (W - 2 * R) / 2
   const arc = `M${x0} ${cy} A${R} ${R} 0 0 1 ${x0 + 2 * R} ${cy}`
@@ -66,8 +66,14 @@ function HalfGauge({ value, scale, ceiling, col, size, allow }: { value: number 
       </g>
     )
   })()
+  // feedback #184 — the numbers sit on the arc itself (lg): today's max and the week's target
+  const tags = (labels || []).filter((l) => l.v > 0).map((l, i) => {
+    const t = fr(l.v), [x, y] = pt(t, R + SW / 2 + 9)
+    return <text key={i} x={x} y={y + 3} fontSize="10.5" fontWeight="700" fill={l.col} textAnchor={t < 0.35 ? "end" : t > 0.65 ? "start" : "middle"}>{l.text}</text>
+  })
+  const pad = lg && tags.length ? 44 : 2
   return (
-    <svg viewBox={`-2 -2 ${W + 4} ${lg ? 116 : 46}`} className={lg ? "w-full max-w-[230px]" : "w-[84px]"} aria-hidden>
+    <svg viewBox={`${-pad} ${lg && tags.length ? -16 : -2} ${W + 2 * pad} ${(lg ? 116 : 46) + (lg && tags.length ? 14 : 0)}`} className={lg ? "w-full max-w-[300px]" : "w-[84px]"} aria-hidden>
       <path d={arc} fill="none" stroke="rgb(255 255 255 / .08)" strokeWidth={SW} strokeLinecap="butt" />
       {/* what today still allows on top of the last 7 days — ends where the binding limit is */}
       {fa > f && <path d={arc} fill="none" stroke={C.ok} strokeOpacity={0.35} strokeWidth={SW} strokeLinecap="butt" strokeDasharray={`0 ${L * f} ${L * (fa - f)} ${L}`} data-testid="gauge-allow" />}
@@ -77,6 +83,7 @@ function HalfGauge({ value, scale, ceiling, col, size, allow }: { value: number 
       {f > 0 && <path d={arc} fill="none" stroke={col} strokeWidth={SW} strokeLinecap="butt" strokeDasharray={`${L * f} ${L}`} />}
       {ceil}
       {limTick}
+      {lg && tags}
     </svg>
   )
 }
@@ -90,7 +97,7 @@ const CeilSw = () => (
 
 // feedback railway#93 — the longest safe run inside the Objem detail: every limit
 // on one scale, the binding (shortest) one highlighted.
-function SafeRunLimits({ limits, today }: { limits: [number, string][]; today: number | null }) {
+function SafeRunLimits({ limits, today, week }: { limits: [number, string][]; today: number | null; week?: any }) {
   if (!limits.length) return null
   const bind = limits.reduce((m, x) => (x[0] < m[0] ? x : m))
   const scale = Math.max(...limits.map((x) => x[0]), 0.1)
@@ -99,7 +106,7 @@ function SafeRunLimits({ limits, today }: { limits: [number, string][]; today: n
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <span className="flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold text-fg-2"><MoveDiagonal className="size-3.5 text-info" aria-hidden />Nejdelší bezpečný běh</span>
         <span className="whitespace-nowrap tabular-nums text-[12px] text-fg-3">
-          týden <b className="text-[15px] text-fg">≈ {num(bind[0])} km</b>{today != null ? <> · dnes <b className="text-fg">≈ {num(today)} km</b></> : null}
+          {today != null ? <>dnes <b className="text-[15px] text-fg">≈ {num(today)} km</b> · </> : null}tento týden <b className="text-fg">≈ {num(bind[0])} km</b>
         </span>
       </div>
       <div className="mt-2.5 space-y-1.5">
@@ -116,6 +123,11 @@ function SafeRunLimits({ limits, today }: { limits: [number, string][]; today: n
           )
         })}
       </div>
+      {/* feedback #189 — what the single-run capacity is and why the shorter limit wins */}
+      <p className="mt-2.5 text-[11px] leading-4 text-fg-3" data-testid="safe-run-why">
+        Kapacita jednoho běhu je nejdelší běh za posledních 30 dní, který proběhl bez bolesti (starší se počítají méně), plus 10 % rezerva.
+        Nevychází z objemu týdnů, říká jen, jak dlouhý jeden běh tělo zvládá.{week?.budget != null ? ` Tento týden je v cyklu cíl ${num(week.budget)} km, odběhnuto ${num(week.done ?? 0)} km, takže delší běh než ${num(week.left ?? 0)} km by cíl překročil.` : ""} Platí vždy nižší z limitů.
+      </p>
     </div>
   )
 }
@@ -159,9 +171,9 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
   const safe = (() => {
     const base = capVol?.ceilingSession ?? boot?.assessment?.loadDetail?.safeLongRunKm
     if (base == null) return null
-    const limits: [number, string][] = [[base, capVol?.ceilingSession != null ? "kapacita jednoho běhu + 10 %" : "nejdelší běh 30 dní + 10 %"]]
-    if (vol.left != null) limits.push([vol.left, "zbytek cíle tohoto týdne"])
-    if (vol.left7 != null) limits.push([vol.left7, "zbytek stropu 7 dní"])
+    // feedback #188/#189 — no 7-day ceiling here; the single-run capacity named for what it is
+    const limits: [number, string][] = [[base, "nejdelší zvládnutý běh (30 dní) + 10 %"]]
+    if (vol.left != null) limits.push([vol.left, "zbytek cíle tohoto týdne v cyklu"])
     // railway: the binding limit of today may be Celková zátěž (its km equivalent) or the mechanics cut
     if (vol.sysKm != null) limits.push([vol.sysKm, "zbytek celkové zátěže (≈ km lehkého běhu)"])
     if (vol.limitedBy === "mechanics" && vol.todayMax != null) limits.push([vol.todayMax, "mechanika nad prahem (−20 %)"])
@@ -175,32 +187,37 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
       ? { col: C.watch, text: `Mechanika ${ax.mech} je nad prahem ${th} — dnes o 20 % méně objemu, poloviční intenzita a klesání, raději rovina.` }
       : null   // railway#131 — nothing to say when both axes are under the threshold
   // feedback railway#94 — the channels sit one under another, each a full-width row
+  // feedback #183/#184 — every channel against this week in the cycle (not the rolling 7 days):
+  // the arc fills with what was done since Monday, today's allowance extends it, the end is
+  // the week's target; the numbers are written on the arc
   const channel = (id: (typeof CH_ORDER)[number]) => {
     const c = wk.channels?.[id]
     if (!c) return null
     const d = id === "volume" ? 1 : 0
-    const past6 = c.done7 != null ? c.done7 - (c.doneToday ?? 0) : null
-    const ratio = c.done7 != null && c.ceiling7 ? c.done7 / c.ceiling7 : null
-    const scale = Math.max(c.ceiling7 || 0, c.done7 || 0) * 1.08
-    // nothing left for today (whichever limit binds) → the arc says so too, not only the 7-day ratio
+    const ref: number | null = c.budget ?? c.ceilingRun ?? null
+    const done: number = (c.budget != null ? c.done : c.doneToday) ?? 0
+    const ratio = ref ? done / ref : null
+    const scale = Math.max(ref || 0, done + Math.max(0, c.todayMax || 0), done, 0.1) * 1.04
+    // nothing left for today (whichever limit binds) → the arc says so too
     const spent = c.todayMax != null && c.todayMax <= 0
     const col = spent ? C.watch : id === "systemic" ? C.load : ratio == null ? C.fg3 : ratio > 1 ? C.alert : ratio > 0.85 ? C.watch : C.ok
     const big = id === "volume"
     const value = id === "systemic" ? (c.todayMax != null ? `${num(c.todayMax, 0)}` : "—") : c.todayMax != null ? `max ${num(c.todayMax, d)}` : "—"
     const isOpen = !!open[id]
     const limit = c.limitedBy ? <span className="text-[11px] font-semibold leading-4 text-watch">omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</span> : null
-    const ceilNote = c.ceiling7 != null && <span className="inline-flex items-center gap-1 tabular-nums text-[11px] text-fg-3"><CeilSw />strop 7 dní {num(c.ceiling7, d)} · teď {num(c.done7, d)}</span>
-    // railway: say plainly that the room under the ceiling is not today's room
-    const leftNote = c.todayMax != null && c.ceiling7 != null && c.done7 != null && c.todayMax < c.ceiling7 - c.done7 - 0.05
-      ? <span className="tabular-nums text-[11px] font-semibold text-watch">{`dnes zbývá ${num(c.todayMax, d)} ${c.unit}`}</span> : null
+    const weekNote = c.budget != null
+      ? <span className="inline-flex items-center gap-1 tabular-nums text-[11px] text-fg-3"><CeilSw />{`týden v cyklu ${num(c.done ?? 0, d)} z ${num(c.budget, d)} ${c.unit}`}</span>
+      : c.ceilingRun != null ? <span className="tabular-nums text-[11px] text-fg-3">{`jeden běh nejvýš ${num(c.ceilingRun, d)} ${c.unit}`}</span> : null
+    const labels = [
+      ...(c.todayMax != null && c.todayMax > 0 ? [{ v: done + c.todayMax, text: `dnes +${num(c.todayMax, d)}`, col: C.ok }] : []),
+      ...(ref ? [{ v: ref, text: `${c.budget != null ? "týden" : "běh"} ${num(ref, d)}`, col: C.fg2 }] : []),
+    ]
     const rows = (
       <div className="mt-3 w-full space-y-2.5 border-t border-white/[.07] pt-3 text-left">
-        <UsageBar label="Posledních 7 dní · strop" used={c.done7} total={c.ceiling7} unit={c.unit} d={d}
-          note={c.capacity != null ? `kapacita ${num(c.capacity, d)}${c.ceiling7 != null && c.ceiling7 < c.capacity ? " ↓" : ""}` : undefined} />
         <UsageBar label={`Tento týden v cyklu${cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden, ${pct} %)` : ""}`} used={c.done} total={c.budget} unit={c.unit} d={d} />
         {c.ceilingRun != null && <UsageBar label="Jeden běh · dnes max" used={c.todayMax} total={c.ceilingRun} unit={c.unit} d={d} col={C.info} />}
-        {past6 != null && c.doneToday ? <p className="text-[11px] text-fg-3">z toho dnes {num(c.doneToday, d)} {c.unit}</p> : null}
-        {id === "volume" && safe && <SafeRunLimits limits={safe.limits} today={safe.today} />}
+        {c.doneToday ? <p className="text-[11px] text-fg-3">z toho dnes {num(c.doneToday, d)} {c.unit}</p> : null}
+        {id === "volume" && safe && <SafeRunLimits limits={safe.limits} today={safe.today} week={vol} />}
         {/* railway#122 — the week's place in the 4-week cycle belongs to the volume */}
         {id === "volume" && cycle}
       </div>
@@ -208,7 +225,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     return (
       <div key={id} className={`nest ${big ? "p-4" : "px-3.5 py-3"}`}>
         <button type="button" onClick={() => setOpen((o) => ({ ...o, [id]: !o[id] }))} aria-expanded={isOpen}
-          title="Oblouk: posledních 7 dní · světlé prodloužení: kolik dnes ještě smíte · oranžová čárka a šrafovaný úsek: limit, který omezuje, a za ním už prostor není · dutá bílá čárka: strop 7 dní · klepnutím zobrazíte výpočet" className="w-full text-left">
+          title="Oblouk: odvedeno tento týden (od pondělí) · světlé prodloužení: kolik dnes ještě smíte · oranžová čárka a šrafovaný úsek: limit, který omezuje · dutá bílá čárka: cíl týdne v cyklu · klepnutím zobrazíte výpočet" className="w-full text-left">
           {big ? (
             <span className="grid justify-items-center text-center">
               <span className="flex w-full items-center justify-between">
@@ -216,21 +233,21 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
                 <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180" : ""}`} aria-hidden />
               </span>
               <span className="relative mt-1 grid w-full justify-items-center">
-                <HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} col={col} size="lg" allow={c.todayMax} />
+                <HalfGauge value={done} scale={scale} ceiling={ref} col={col} size="lg" allow={c.todayMax} labels={labels} />
                 <span className="absolute inset-x-0 bottom-1 text-center">
                   <b className="t-num text-[28px] leading-none text-fg">{value}</b>
                   <span className="text-[13px] font-semibold text-fg-3"> {c.unit}</span>
                 </span>
               </span>
-              <span className="mt-2 flex flex-col items-center gap-1">{limit}{leftNote}{ceilNote}</span>
+              <span className="mt-2 flex flex-col items-center gap-1">{limit}{weekNote}</span>
             </span>
           ) : (
             <span className="flex items-center gap-3.5">
-              <HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} col={col} size="sm" allow={c.todayMax} />
+              <HalfGauge value={done} scale={scale} ceiling={ref} col={col} size="sm" allow={c.todayMax} />
               <span className="min-w-0 flex-1">
                 <span className="block text-[12px] font-bold text-fg-2">{CH_ICON[id]}</span>
                 <span className="mt-0.5 block"><b className="t-num text-[18px] leading-none text-fg">{value}</b> <span className="text-[11px] font-semibold text-fg-3">{c.unit}</span></span>
-                <span className="mt-1 flex flex-col gap-0.5">{limit}{leftNote}{ceilNote}</span>
+                <span className="mt-1 flex flex-col gap-0.5">{limit}{weekNote}</span>
               </span>
               <ChevronDown className={`size-4 shrink-0 text-fg-3 transition ${isOpen ? "rotate-180" : ""}`} aria-hidden />
             </span>
@@ -240,6 +257,18 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
       </div>
     )
   }
+  // feedback #175 — the channel that limits most comes first: over its week's target by the
+  // most, then the least room left today against the target
+  const pressure = (id: string) => {
+    const c = wk.channels?.[id]
+    if (!c) return 9
+    const ref = c.budget ?? c.ceilingRun
+    if (!ref) return 5
+    const over = c.budget != null ? ((c.done ?? 0) - c.budget) / c.budget : 0
+    if (over > 0) return -over
+    return c.todayMax != null ? c.todayMax / ref : 4
+  }
+  const order = [...CH_ORDER].sort((a, b) => pressure(a) - pressure(b))
   return (
     <section className="card mt-4 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -248,7 +277,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
       </div>
       {status && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
       <div className="mt-4 grid gap-3">
-        {CH_ORDER.map((id) => channel(id))}
+        {order.map((id) => channel(id))}
       </div>
       {cyc.next && (
         <p className="mt-3 text-[13px] leading-5 text-fg-2">
@@ -384,6 +413,23 @@ function WeekPanel({ g, embedded = false }: { g: any; embedded?: boolean }) {
             <Button size="sm" onClick={() => void pick(ask)} disabled={busy}>{busy ? "Přepočítávám…" : "Přepnout"}</Button>
             <Button size="sm" variant="secondary" onClick={() => setAsk(null)}>Zrušit</Button>
           </div>
+        </div>
+      )}
+      {/* feedback #190 — the runner may leave the graded return for the normal 4-week cycle (and come back) */}
+      {(wk.mode === "return" || cyc.returnSkipped) && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] text-fg-2" data-testid="return-switch">
+          <span>{wk.mode === "return" ? "Cítíte se po zranění v pořádku?" : "Návrat po zranění je vypnutý, běží běžný 4týdenní cyklus."}</span>
+          <button disabled={busy} data-testid="return-switch-btn"
+            onClick={async () => {
+              if (!me?.runner_id || busy) return
+              setBusy(true)
+              try { await api.setReturnCycle(me.runner_id, wk.mode === "return"); await refresh(); toast({ title: wk.mode === "return" ? "Běží běžný 4týdenní cyklus" : "Zpět v režimu návratu po zranění" }) }
+              catch (e: any) { toast({ title: e?.message || "Změna se nepodařila" }) } finally { setBusy(false) }
+            }}
+            className="rounded-full border border-white/15 px-2.5 py-1 font-bold text-fg hover:bg-white/[.06]">
+            {wk.mode === "return" ? "Přepnout na běžný 4týdenní cyklus" : "Vrátit návrat po zranění"}
+          </button>
+          {wk.mode === "return" && <span className="w-full text-[11px] text-fg-3">Týdenní cíl pak vychází z posledních týdnů, ne z týdne před zraněním. Bez intenzity zůstává, dokud to plán návratu určuje.</span>}
         </div>
       )}
       {cyc.manual && (

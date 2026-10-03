@@ -175,14 +175,15 @@ export function ReadinessFactors({ r }: { r: any }) {
 }
 
 // now vs ceiling on one bar; the ceiling marker sits where the bar would hit it
-function HeadroomBar({ now, ceiling, tone }: { now: number | null; ceiling: number | null; tone: string }) {
+function HeadroomBar({ now, ceiling, tone, target }: { now: number | null; ceiling: number | null; tone: string; target?: number | null }) {
   if (now == null || ceiling == null || ceiling <= 0) return <div className="h-2 rounded-full bg-white/[.08]" />
-  const scale = Math.max(now, ceiling) * 1.08
+  const scale = Math.max(now, ceiling, target || 0) * 1.08
   const col = (TONE as any)[tone] || TONE.ok
   return (
     <div className="relative h-2 rounded-full bg-white/[.08]">
       <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${(now / scale) * 100}%`, background: col }} />
       <i className="absolute -inset-y-1 w-0.5 rounded-full bg-fg" style={{ left: `calc(${(ceiling / scale) * 100}% - 1px)` }} title="strop" />
+      {target != null && <i className="absolute -inset-y-1 w-0.5 rounded-full" style={{ left: `calc(${(target / scale) * 100}% - 1px)`, background: C.watch }} title="cíl týdne v cyklu" />}
     </div>
   )
 }
@@ -195,7 +196,7 @@ const CH_NOTE: Record<string, string> = {
 // keeps the rest behind a detail arrow. railway#56–#61: the charts that feed a channel
 // (volume bars, HR zones and relative effort, cross-training, descent by slope) live in
 // that channel's detail rather than as separate cards further down the page.
-function ChannelRow({ id, c, margins, extra, open, onToggle, scale, sub }: { id: string; c: any; margins: any; extra?: ReactNode; open: boolean; onToggle: () => void; scale?: number; sub?: any }) {
+function ChannelRow({ id, c, margins, extra, open, onToggle, scale, sub, target }: { id: string; c: any; margins: any; extra?: ReactNode; open: boolean; onToggle: () => void; scale?: number; sub?: any; target?: { budget: number; done: number } | null }) {
   const wk = c.week
   const ses = c.session
   const wTone = toneOf(wk?.ratio, margins.week)
@@ -226,8 +227,15 @@ function ChannelRow({ id, c, margins, extra, open, onToggle, scale, sub }: { id:
               <span>posledních 7 dní <b className="text-fg">{num(wk.now)}</b> {c.unit}</span>
               <span>{wk.left > 0 ? `do stropu zbývá ${num(wk.left)}` : "strop vyčerpán"}</span>
             </div>
-            <HeadroomBar now={wk.now} ceiling={wk.ceiling} tone={wTone} />
+            <HeadroomBar now={wk.now} ceiling={wk.ceiling} tone={wTone} target={target && target.budget < wk.ceiling - 0.05 ? target.budget : null} />
           </div>
+          {/* feedback #181 — the week's target from Trénink, when it is lower than the ceiling */}
+          {target && target.budget < wk.ceiling - 0.05 && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-fg-3" data-testid="cycle-target">
+              <i className="h-2.5 w-0.5 rounded-full" style={{ background: C.watch }} />
+              {`cíl týdne v cyklu ${num(target.budget)} ${c.unit} · od pondělí ${num(target.done)}`}
+            </p>
+          )}
         </>
       )}
       {sub?.known && sub.week && (
@@ -276,7 +284,7 @@ function ChannelRow({ id, c, margins, extra, open, onToggle, scale, sub }: { id:
 const SPORT_CS: Record<string, string> = { running: "Běh", cycling: "Kolo", swimming: "Plavání", strength: "Posilování", rowing: "Veslování", elliptical: "Orbitrek", hiking: "Turistika", walking: "Chůze", other: "Jiný sport" }
 const sportCol = (x: any) => (x.run ? C.accent : x.sport === "strength" ? C.self : C.info)
 
-export function SystemicWaterfall({ c }: { c: any }) {
+export function SystemicWaterfall({ c, target }: { c: any; target?: number | null }) {
   const list: any[] = c?.week7 || []
   const wk = c?.week
   if (!list.length) return <p className="text-[12px] text-fg-3">Za posledních 7 dní žádná aktivita se zátěží.</p>
@@ -287,6 +295,8 @@ export function SystemicWaterfall({ c }: { c: any }) {
   }))
   steps.push({ key: "sum", label: "7 dní celkem", total: tot, color: wk?.ceiling && tot > wk.ceiling ? C.alert : C.ok, value: num(Math.round(tot)) })
   if (wk?.ceiling) steps.push({ key: "ceil", label: "Týdenní strop", total: wk.ceiling, color: C.fg4, value: num(wk.ceiling) })
+  // feedback #181 — the week's target in the training cycle, when Trénink sets a lower one
+  if (target != null && (!wk?.ceiling || target < wk.ceiling - 0.5)) steps.push({ key: "target", label: "Cíl týdne v cyklu", sub: "z Tréninku, počítá se od pondělí", total: target, color: C.watch, value: num(Math.round(target)) })
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -297,7 +307,7 @@ export function SystemicWaterfall({ c }: { c: any }) {
           <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.self }} />posilování</span>
         </span>
       </div>
-      <Waterfall steps={steps} hi={Math.max(tot, wk?.ceiling || 0) * 1.04} testid="systemic-waterfall" />
+      <Waterfall steps={steps} hi={Math.max(tot, wk?.ceiling || 0, target || 0) * 1.04} testid="systemic-waterfall" />
       <p className="mt-2 text-[11px] text-fg-3">j.z. = tep × čas, u posilování a plavání náročnost × minuty</p>
     </div>
   )
@@ -500,12 +510,15 @@ function BodyLoad({ cap }: { cap: any }) {
 
 export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Record<string, ReactNode>; scale?: number }) {
   const [open, setOpen] = useState("")
+  const { boot } = useApp()
+  const gch = boot?.assessment?.guidance?.week?.channels || {}
+  const targets: Record<string, number | null> = Object.fromEntries(Object.entries(gch).map(([k, v]: any) => [k, v?.budget ?? null]))
   if (!cap) return null
   const re = cap.relativeEffort || {}
   // intensity = minutes in Z4+, so its detail carries the HR zones and relative effort (railway#56/#57)
   const extras: Record<string, ReactNode> = {
     ...extra,
-    systemic: <><SystemicWaterfall c={cap.channels?.systemic} /><BodyLoad cap={cap} /></>,
+    systemic: <><SystemicWaterfall c={cap.channels?.systemic} target={targets?.systemic} /><BodyLoad cap={cap} /></>,
     intensity: (
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <RelativeEffort re={re} />
@@ -527,6 +540,7 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
       <div className="mt-4 grid gap-3 md:grid-cols-2 min-[1600px]:grid-cols-3">
         {CH_ORDER.map((id) => cap.channels?.[id] && id !== "strength" && (
           <ChannelRow key={id} id={id} c={cap.channels[id]} margins={cap.margins} extra={extras[id]} scale={scale}
+            target={gch[id]?.budget != null ? { budget: gch[id].budget, done: gch[id].done ?? 0 } : null}
             sub={id === "systemic" ? cap.channels.strength : undefined}
             open={open === id} onToggle={() => setOpen(open === id ? "" : id)} />
         ))}

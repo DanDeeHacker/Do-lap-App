@@ -170,7 +170,8 @@ function Topbar() {
                   )}
                   <button onClick={() => { setProfileOpen(false); setEditOpen(true) }} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><UserPen className="size-4 text-fg-2" aria-hidden />Upravit profil</button>
                   <Link to="/data" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Database className="size-4 text-fg-2" aria-hidden />Data a připojení</Link>
-                  <Link to="/engine" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><SlidersHorizontal className="size-4 text-fg-2" aria-hidden />Citlivostní analýza</Link>
+                  {/* feedback #187 — the engine sandbox is for the app's owners only */}
+                  {realMe?.owner && <Link to="/engine" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><SlidersHorizontal className="size-4 text-fg-2" aria-hidden />Citlivostní analýza</Link>}
                   {realMe?.owner && <Link to="/admin" onClick={() => setProfileOpen(false)} data-testid="menu-admin" className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Users className="size-4 text-fg-2" aria-hidden />Správa uživatelů</Link>}
                 </div>
                 <button
@@ -280,7 +281,7 @@ function useAutoGarminSync(active: boolean) {
   }, [active]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 function Layout() {
-  const { me, loading, viewing } = useApp()
+  const { me, realMe, loading, viewing } = useApp()
   useAutoGarminSync(!!me && me.role === "runner" && !me.guest)
   // New deployments: reload when the app returns to the foreground, or offer a
   // reload if one lands while it's in use (home-screen apps never reload alone).
@@ -301,6 +302,7 @@ function Layout() {
   if (me.role !== "runner") return <RunnerOnlyNotice />
   // the admin view shows every tab, not the viewed runner's Data a připojení or the engine lab
   if (viewing && (pathname === "/data" || pathname.startsWith("/engine"))) return <Navigate to="/app/today" replace />
+  if (pathname.startsWith("/engine") && !realMe?.owner) return <Navigate to="/app/today" replace />
   return (
     <AnnotateProvider>
       <OnboardingProvider>

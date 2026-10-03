@@ -107,6 +107,7 @@ export const api = {
   runCompare: (id: string, aid: number) => call("GET", `/api/runners/${id}/run-compare/${aid}`),
   runSegmentTest: (id: string, aid: number) => call("GET", `/api/runners/${id}/run-segments/${aid}`),
   setCycle: (id: string, pos: number | null) => call("PUT", `/api/runners/${id}/cycle`, { pos }),
+  setReturnCycle: (id: string, skip: boolean) => call("PUT", `/api/runners/${id}/cycle`, { skip_return: skip }),
   races: (id: string) => call("GET", `/api/runners/${id}/races`),
   addRace: (id: string, body: { date: string; name?: string; distance_km?: number | null; priority: string }) => call("POST", `/api/runners/${id}/races`, body),
   deleteRace: (id: string, raceId: number | string) => call("DELETE", `/api/runners/${id}/races/${raceId}`),

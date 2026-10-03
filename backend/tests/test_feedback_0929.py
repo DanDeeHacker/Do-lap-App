@@ -88,10 +88,13 @@ def test_self_programs_recommend_start_log_and_end(client, db_session):
     assert lg["exercises"][0]["doneToday"] and lg["exercises"][0]["doneWeek"] == 1
     un = client.patch(f"/api/runners/{rid}/self-programs/{p['id']}/log", json={"exercise": "towel_raise", "done": False}).json()
     assert not un["exercises"][0]["doneToday"]
-    # an own session replaces the running program
+    # feedback #186 — an own session runs next to the program (newest first); the same template isn't doubled
     own = client.post(f"/api/runners/{rid}/self-programs", json={"name": "Moje", "exercises": ["bridge", "clamshell", "nope"]}).json()
     assert own["name"] == "Moje" and [e["id"] for e in own["exercises"]] == ["bridge", "clamshell"]
-    assert client.get(f"/api/runners/{rid}/self-programs").json()["active"]["id"] == own["id"]
+    d = client.get(f"/api/runners/{rid}/self-programs").json()
+    assert d["active"]["id"] == own["id"] and [x["id"] for x in d["actives"]] == [own["id"], p["id"]]
+    assert client.post(f"/api/runners/{rid}/self-programs", json={"template": "plantar"}).json()["id"] == p["id"]
     assert client.post(f"/api/runners/{rid}/self-programs", json={"exercises": []}).status_code == 422
     assert client.delete(f"/api/runners/{rid}/self-programs/{own['id']}").status_code == 200
+    assert client.delete(f"/api/runners/{rid}/self-programs/{p['id']}").status_code == 200
     assert client.get(f"/api/runners/{rid}/self-programs").json()["active"] is None

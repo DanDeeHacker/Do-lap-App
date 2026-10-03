@@ -560,6 +560,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     ov = (runner.cycle_override or {}) if runner is not None else {}
     manual = ov.get("pos") if ov.get("week") == ws.isoformat() and ov.get("pos") in CYCLE else None
     rtr = a.get("returnToRun")                  # plan B3 — graded return after a resolved injury
+    rtr_all = rtr                               # the no-intensity weeks stay even in the normal cycle
+    rtr_skipped = bool(rtr and ov.get("noReturn") and ov.get("noReturn") == rtr.get("injuryAt"))
+    if rtr_skipped:                             # feedback #190 — the runner chose the normal cycle
+        rtr = None
     if rtr:
         mode, factor = "return", rtr["factor"]
     elif days_to_race is not None and 0 < days_to_race <= 14:
@@ -675,7 +679,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         "returnSteps": ([round(x * 100) for x in E.RTR_FACTORS] if mode == "return" else None),
         "returnWeek": (rtr["week"] if mode == "return" else None),
         "next": nxt,
-        "pos": pos_now, "autoPos": cyc["pos"] if cyc else None, "manual": manual is not None and mode in ("build", "recovery"),
+        "pos": pos_now, "autoPos": cyc["pos"] if cyc else None, "manual": manual is not None and mode in ("build", "recovery"), "returnSkipped": rtr_skipped,
         "how": cyc["how"] if cyc else None, "factor": round(factor, 3),
         "refKm": _r(reference("volume") or week["volume"]["capacity"]) if (cyc or mode == "return") else _r(week["volume"]["capacity"]),
         "refWeek": (ws - timedelta(days=7 * cyc["refBack"])).isoformat() if cyc and cyc["refBack"] else None,
@@ -940,8 +944,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if pain_mod:
         block("dlouhý", f"{pain_why} — dnes bez dlouhého běhu.")
         block("kvalitní", f"{pain_why} — dnes bez intenzity.")
-    if rtr and rtr["noQuality"]:
-        block("kvalitní", f"Návrat po zranění — bez intenzity do {_dm(rtr['noQualityUntil'])}.")
+    if rtr_all and rtr_all["noQuality"]:
+        block("kvalitní", f"Návrat po zranění — bez intenzity do {_dm(rtr_all['noQualityUntil'])}.")
     if gscore < READY_QUALITY:
         block("kvalitní", f"{rtxt()} — na tvrdý trénink je potřeba aspoň {READY_QUALITY} %.")
         block("dlouhý", f"{rtxt()} — dlouhý běh přesuňte na odpočatější den.")

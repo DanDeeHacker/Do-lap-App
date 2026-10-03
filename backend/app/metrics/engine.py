@@ -1306,9 +1306,7 @@ def descent_by_gradient(db: DBSession, rid: str):
 def ascent_by_gradient(db: DBSession, rid: str):
     """Feedback #160 — the last 7 days' ascent per gradient band (display only, no score)."""
     recent = [a for a in acts(db, rid, "load") if a.elevation_profile and a.started_at > day_ago(7)]
-    if not recent:
-        return None
-    b = _descent_gradient_totals(recent, up=True)
+    b = _descent_gradient_totals(recent, up=True)   # empty week → zero bands (the detail says why)
     return {"buckets": [rnd(x) for x in b], "labels": GRADIENT_LABELS, "total7": rnd(sum(b)),
             "steep7": rnd(sum(b[STEEP_BUCKET_FROM:])), "nActivities7": len(recent)}
 
