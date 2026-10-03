@@ -107,8 +107,13 @@ export function Post() {
   const [rate, setRate] = useState<{ act: any; initial?: any } | null>(null)
   const [crossOpen, setCrossOpen] = useState(false)
   const toastX = useToast()
+  // railway#193 — no "Jiný sport" block here any more (other sports sit in the lists with
+  // the runs); Trénink's "Zapsat do deníku" for a cross session still opens the form
   useEffect(() => {
-    if (window.location.hash === "#jiny-sport") setTimeout(() => document.getElementById("jiny-sport")?.scrollIntoView({ block: "center" }), 300)
+    if (window.location.hash === "#jiny-sport") {
+      setCrossOpen(true)
+      history.replaceState(null, "", window.location.pathname)
+    }
   }, [])
   // feedback #155: the "Zapsat běh" button opens the note for that activity straight away
   const wantRate = window.location.hash.startsWith("#zapsat-") ? window.location.hash.slice(8) : null
@@ -266,14 +271,6 @@ export function Post() {
             ) : (
               <div className="mt-3"><Empty>Nic nečeká. Další zápis se objeví po příštím běhu.</Empty></div>
             )}
-            {/* railway#141 — other sports right under the waiting list, the latest notes as the last detail */}
-            <div id="jiny-sport" className="mt-5 scroll-mt-24 border-t border-white/[.08] pt-4" data-tour="journal-cross">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label>Jiný sport</Label>
-                <Button size="sm" variant="secondary" onClick={() => setCrossOpen(true)}>Přidat trénink</Button>
-              </div>
-              <p className="mt-1 text-[12px] leading-5 text-fg-3">Kolo, plavání a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Posilování hodinky často nezaznamenají, zapište ho tady. Zapsané tréninky najdete v Posledních zápisech.</p>
-            </div>
             {sorted.length > 0 && (
               <>
                 <button type="button" onClick={() => setLatestOpen((v) => !v)} aria-expanded={latestOpen} data-testid="latest-toggle"
@@ -1691,24 +1688,27 @@ export function ReadinessTrend({ a, hist }: { a: any; hist: any[] | null }) {
   const [open, setOpen] = useState(false)
   const r = a?.readiness ?? a?.capacity?.readiness
   const rcv = a?.rcv
-  const pct = r ? readinessPct(r) : null
+  // railway#194 — the morning's readiness (after the night, before today's training and the
+  // day outside it lowered it), day by day; how the day lowers it is in Dnešní den below
+  const pct = r ? (r.morningScore ?? readinessPct(r)) : null
   const col = pct != null ? readinessCol(pct) : C.fg3
   const asOf = (a?.computed_at || "").slice(0, 10)
   // feedback #157: the last two months only
   const since = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)
-  const pts = (hist || []).filter((h) => h.readiness != null && h.date >= since).map((h) => ({ t: h.date as string, v: h.readiness as number }))
+  const mornings = (hist || []).map((h) => ({ t: h.date as string, v: (h.readinessMorning ?? h.readiness) as number | null }))
+  const pts = mornings.filter((h) => h.v != null && h.t >= since) as { t: string; v: number }[]
   if (pts.length && pct != null) pts[pts.length - 1] = { t: asOf || pts[pts.length - 1].t, v: pct }
   if (pct == null && !rcv) return <p className="nest px-3.5 py-3 text-[12px] text-fg-3">Chybí souvislá data z hodinek za posledních 35 dní (HRV, klidový tep, spánek).</p>
   return (
     <div className="nest p-3.5" data-testid="readiness-trend">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Připravenost — trend</span><InfoDot text={MI.readiness} label="Připravenost" /></span>
+        <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Ranní připravenost — trend</span><InfoDot text={MI.readiness} label="Připravenost" /></span>
         <span className="text-[11px] text-fg-3">60 dní · 0–100 %</span>
       </div>
       {pct != null && (
         <div className="mt-1.5 flex items-end gap-2">
           <b className="t-num text-[30px] leading-none" style={{ color: col }}>{pct}<small className="text-[14px] font-semibold"> %</small></b>
-          <small className="pb-0.5 text-[12px] text-fg-2">dnes · {readinessWord(pct)}</small>
+          <small className="pb-0.5 text-[12px] text-fg-2">dnes ráno · {readinessWord(pct)}</small>
         </div>
       )}
       {hist === null ? <p className="mt-2 text-[12px] text-fg-3">Počítám trend v čase…</p>

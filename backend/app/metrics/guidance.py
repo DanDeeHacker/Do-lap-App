@@ -534,9 +534,12 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     days_to_race = next_a["daysTo"] if next_a else None
     race_today = bool(next_any) and next_any["daysTo"] == 0
     race_warn = [w for w in ro.get("warnings") or [] if w["kind"] == "race_day"]
-    hard_dates = [s["date"] for s in runs if is_hard(s) and s["date"] < t_iso]
+    # v0.10.5 (railway#192): a hard ride or swim is a hard day too
+    cardio = [s for s in sessions if (s["run"] or s.get("sport") in C.CROSS_CARDIO) and s["date"] <= t_iso]
+    hard_dates = [s["date"] for s in cardio if is_hard(s) and s["date"] < t_iso]
     days_since_hard = (today - _d(max(hard_dates))).days if hard_dates else None
-    hard7 = len({d for d in hard_dates if (today - _d(d)).days <= 6} | ({t_iso} if any(is_hard(s) for s in today_runs) else set()))
+    hard7 = len({d for d in hard_dates if (today - _d(d)).days <= 6}
+                | ({t_iso} if any(is_hard(s) for s in cardio if s["date"] == t_iso) else set()))
     hard_cap = HARD_CAP_FEW if (pat["runsPerWeek"] or 0) <= 4 else HARD_CAP
 
     # ---- this week's target: the 4-week cycle, never above capacity -------------
@@ -550,6 +553,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                 out[s["date"]] = out.get(s["date"], 0.0) + v
         return out
     daily = {c: sums(runs, c) for c in CHS}
+    daily["intensity"] = sums(cardio, "intensity")          # v0.10.5: hard minutes of every cardio sport
     daily["systemic"] = sums([s for s in sessions if s["date"] <= t_iso], "systemic")   # all sports
     for d, v in C.nontraining_daily(db, rid).items():                                      # + the day outside training
         if d <= t_iso:

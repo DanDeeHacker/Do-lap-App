@@ -30,5 +30,12 @@
 "{} grid gap-2": "",
 "block text-[14px] {}": "",
 "po noci": "after the night",
-"Zátěž dne": "Today's load"
+"Zátěž dne": "Today's load",
+"· bez detailních dat odhad z průměrného tepu": "· without detailed data, estimated from average heart rate",
+"{} {}{} · celkem {} min{}": "{0} {1}{2} · {3} min in total{4}",
+"+ {} kolo / plavání (podle jejich tepových zón)": "+ {0} cycling / swimming (by their own heart rate zones)",
+"dnes ráno ·": "this morning ·",
+"Ranní připravenost — trend": "Morning readiness — trend",
+"připravenost teď": "readiness now",
+"Tepové zóny z tepové rezervy (Karvonen): maximální tep bereme z profilu, pokud ho zadáte (změřený v testu nebo závodě), jinak ho odhadujeme z vašich nejtěžších běhů a věku — pak je u zón štítek „odhad“. Klidový tep je z nočních měření. Z4+ (≥ 80 % rezervy) = tvrdá práce — z ní se počítá kanál intenzity. Když v profilu zadáte tep na prahu (LTHR), zóny se počítají z něj (Z4 od 95 % prahu). Tep se při krátkých úsecích zpožďuje, proto tvrdé minuty počítáme i z tempa v úsecích běhu (rychlost na rovině, do kopce přepočtená) a bereme vyšší z obou. Do intenzity se počítají i tvrdé minuty z kola a plavání, a to podle jejich vlastního maximálního tepu (na kole obvykle o 6–10 tepů nižší než při běhu, v plavání asi o 12).": "Heart rate zones from heart rate reserve (Karvonen): we take the maximum heart rate from your profile if you enter it (measured in a test or race), otherwise we estimate it from your hardest runs and age — the zones are then labelled “estimate”. Resting heart rate comes from overnight measurements. Z4+ (≥ 80 % of reserve) = hard work — the intensity channel is counted from it. If you enter your threshold heart rate (LTHR) in the profile, the zones are based on it (Z4 from 95 % of threshold). Heart rate lags behind in short efforts, so we also count hard minutes from pace in running intervals (speed on the flat, converted uphill) and take the higher of the two. Hard minutes from cycling and swimming count towards intensity too, against their own maximum heart rate (on the bike usually 6–10 beats lower than when running, in swimming about 12)."
 }

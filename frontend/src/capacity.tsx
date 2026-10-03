@@ -367,7 +367,7 @@ function ZoneTime({ cap }: { cap: any }) {
         })}
       </div>
       <p className="mt-1.5 text-[11px] leading-4 text-fg-3">
-        {cap.zones7d ? `${cap.zones7d.runs} ${cap.zones7d.runs === 1 ? "běh" : cap.zones7d.runs < 5 ? "běhy" : "běhů"} · celkem ${total} min${cap.zones7d.exact ? "" : " · u běhů bez detailních dat odhad z průměrného tepu"}` : "Za posledních 7 dní žádný běh s tepem."}
+        {cap.zones7d ? `${cap.zones7d.runs} ${cap.zones7d.runs === 1 ? "běh" : cap.zones7d.runs < 5 ? "běhy" : "běhů"}${cap.zones7d.cross ? ` + ${cap.zones7d.cross} kolo / plavání (podle jejich tepových zón)` : ""} · celkem ${total} min${cap.zones7d.exact ? "" : " · bez detailních dat odhad z průměrného tepu"}` : "Za posledních 7 dní žádný běh s tepem."}
         {" "}· max {cap.hrMaxMeasured ? `${cap.hrMax} (změřený)` : `≈ ${cap.hrMax} (odhad — změřený zadejte v profilu)`} · klid ≈ {cap.hrRest} tep/min · kanál intenzity = minuty v Z4+
       </p>
     </div>

@@ -2389,8 +2389,7 @@
   "t": "připravenost",
   "files": [
    "App.tsx",
-   "capacity.tsx",
-   "training.tsx"
+   "capacity.tsx"
   ],
   "kind": "jsx"
  },
@@ -4105,6 +4104,13 @@
   "kind": "jsx"
  },
  {
+  "t": "· bez detailních dat odhad z průměrného tepu",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "· klid ≈",
   "files": [
    "capacity.tsx"
@@ -4138,13 +4144,6 @@
    "capacity.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "· u běhů bez detailních dat odhad z průměrného tepu",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "· z nejnáročnějšího běhu zbývá asi {} %",
@@ -4197,7 +4196,7 @@
   "kind": "tpl"
  },
  {
-  "t": "{} {} · celkem {} min{}",
+  "t": "{} {}{} · celkem {} min{}",
   "files": [
    "capacity.tsx"
   ],
@@ -4235,6 +4234,13 @@
    "capacity.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "+ {} kolo / plavání (podle jejich tepových zón)",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "+{} b",
@@ -4312,8 +4318,7 @@
   "t": "běh",
   "files": [
    "capacity.tsx",
-   "tabs.tsx",
-   "training.tsx"
+   "tabs.tsx"
   ],
   "kind": "str"
  },
@@ -9870,7 +9875,7 @@
   "kind": "str"
  },
  {
-  "t": "Tepové zóny z tepové rezervy (Karvonen): maximální tep bereme z profilu, pokud ho zadáte (změřený v testu nebo závodě), jinak ho odhadujeme z vašich nejtěžších běhů a věku — pak je u zón štítek „odhad“. Klidový tep je z nočních měření. Z4+ (≥ 80 % rezervy) = tvrdá práce — z ní se počítá kanál intenzity. Když v profilu zadáte tep na prahu (LTHR), zóny se počítají z něj (Z4 od 95 % prahu). Tep se při krátkých úsecích zpožďuje, proto tvrdé minuty počítáme i z tempa v úsecích běhu (rychlost na rovině, do kopce přepočtená) a bereme vyšší z obou.",
+  "t": "Tepové zóny z tepové rezervy (Karvonen): maximální tep bereme z profilu, pokud ho zadáte (změřený v testu nebo závodě), jinak ho odhadujeme z vašich nejtěžších běhů a věku — pak je u zón štítek „odhad“. Klidový tep je z nočních měření. Z4+ (≥ 80 % rezervy) = tvrdá práce — z ní se počítá kanál intenzity. Když v profilu zadáte tep na prahu (LTHR), zóny se počítají z něj (Z4 od 95 % prahu). Tep se při krátkých úsecích zpožďuje, proto tvrdé minuty počítáme i z tempa v úsecích běhu (rychlost na rovině, do kopce přepočtená) a bereme vyšší z obou. Do intenzity se počítají i tvrdé minuty z kola a plavání, a to podle jejich vlastního maximálního tepu (na kole obvykle o 6–10 tepů nižší než při běhu, v plavání asi o 12).",
   "files": [
    "metricinfo.ts"
   ],
@@ -10908,8 +10913,7 @@
  {
   "t": "Připravenost — trend",
   "files": [
-   "onboarding.tsx",
-   "tabs.tsx"
+   "onboarding.tsx"
   ],
   "kind": "str"
  },
@@ -13131,8 +13135,7 @@
  {
   "t": "týden",
   "files": [
-   "selfprograms.tsx",
-   "training.tsx"
+   "selfprograms.tsx"
   ],
   "kind": "str"
  },
@@ -14205,7 +14208,7 @@
   "kind": "jsx"
  },
  {
-  "t": "dnes ·",
+  "t": "dnes ráno ·",
   "files": [
    "tabs.tsx"
   ],
@@ -14465,13 +14468,6 @@
  },
  {
   "t": "km ·",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Kolo, plavání a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Posilování hodinky často nezaznamenají, zapište ho tady. Zapsané tréninky najdete v Posledních zápisech.",
   "files": [
    "tabs.tsx"
   ],
@@ -15024,13 +15020,6 @@
   "kind": "tpl"
  },
  {
-  "t": "Přidat trénink",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "pro tento běh (Data a připojení → ⛰ Detailní data).",
   "files": [
    "tabs.tsx"
@@ -15071,6 +15060,13 @@
    "tabs.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Ranní připravenost — trend",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "REM {}",
@@ -15145,8 +15141,7 @@
  {
   "t": "size-4 text-fg-3 transition {}",
   "files": [
-   "tabs.tsx",
-   "training.tsx"
+   "tabs.tsx"
   ],
   "kind": "tpl"
  },
@@ -16474,13 +16469,6 @@
   "kind": "str"
  },
  {
-  "t": "dnes +{}",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "Dnes nedoporučujeme:",
   "files": [
    "training.tsx"
@@ -16803,13 +16791,6 @@
   "kind": "str"
  },
  {
-  "t": "nest {}",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "Objem",
   "files": [
    "training.tsx"
@@ -17053,6 +17034,13 @@
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "připravenost teď",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Příští týden:",

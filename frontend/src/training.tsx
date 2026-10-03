@@ -202,17 +202,12 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     // nothing left for today (whichever limit binds) → the arc says so too
     const spent = c.todayMax != null && c.todayMax <= 0
     const col = spent ? C.watch : id === "systemic" ? C.load : ratio == null ? C.fg3 : ratio > 1 ? C.alert : ratio > 0.85 ? C.watch : C.ok
-    const big = id === "volume"
     const value = id === "systemic" ? (c.todayMax != null ? `${num(c.todayMax, 0)}` : "—") : c.todayMax != null ? `max ${num(c.todayMax, d)}` : "—"
     const isOpen = !!open[id]
     const limit = c.limitedBy ? <span className="text-[11px] font-semibold leading-4 text-watch">omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</span> : null
     const weekNote = c.budget != null
       ? <span className="inline-flex items-center gap-1 tabular-nums text-[11px] text-fg-3"><CeilSw />{`týden v cyklu ${num(c.done ?? 0, d)} z ${num(c.budget, d)} ${c.unit}`}</span>
       : c.ceilingRun != null ? <span className="tabular-nums text-[11px] text-fg-3">{`jeden běh nejvýš ${num(c.ceilingRun, d)} ${c.unit}`}</span> : null
-    const labels = [
-      ...(c.todayMax != null && c.todayMax > 0 ? [{ v: done + c.todayMax, text: `dnes +${num(c.todayMax, d)}`, col: C.ok }] : []),
-      ...(ref ? [{ v: ref, text: `${c.budget != null ? "týden" : "běh"} ${num(ref, d)}`, col: C.fg2 }] : []),
-    ]
     const rows = (
       <div className="mt-3 w-full space-y-2.5 border-t border-white/[.07] pt-3 text-left">
         <UsageBar label={`Tento týden v cyklu${cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden, ${pct} %)` : ""}`} used={c.done} total={c.budget} unit={c.unit} d={d} />
@@ -224,25 +219,10 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
       </div>
     )
     return (
-      <div key={id} className={`nest ${big ? "p-4" : "px-3.5 py-3"}`}>
+      <div key={id} className="nest px-3.5 py-3">
         <button type="button" onClick={() => setOpen((o) => ({ ...o, [id]: !o[id] }))} aria-expanded={isOpen}
           title="Oblouk: odvedeno tento týden (od pondělí) · světlé prodloužení: kolik dnes ještě smíte · oranžová čárka a šrafovaný úsek: limit, který omezuje · dutá bílá čárka: cíl týdne v cyklu · klepnutím zobrazíte výpočet" className="w-full text-left">
-          {big ? (
-            <span className="grid justify-items-center text-center">
-              <span className="flex w-full items-center justify-between">
-                <span className="t-label">{CH_ICON[id]}</span>
-                <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180" : ""}`} aria-hidden />
-              </span>
-              <span className="relative mt-1 grid w-full justify-items-center">
-                <HalfGauge value={done} scale={scale} ceiling={ref} col={col} size="lg" allow={c.todayMax} labels={labels} />
-                <span className="absolute inset-x-0 bottom-1 text-center">
-                  <b className="t-num text-[28px] leading-none text-fg">{value}</b>
-                  <span className="text-[13px] font-semibold text-fg-3"> {c.unit}</span>
-                </span>
-              </span>
-              <span className="mt-2 flex flex-col items-center gap-1">{limit}{weekNote}</span>
-            </span>
-          ) : (
+          {/* railway#191 — Objem is a row like the other channels */}
             <span className="flex items-center gap-3.5">
               <HalfGauge value={done} scale={scale} ceiling={ref} col={col} size="sm" allow={c.todayMax} />
               <span className="min-w-0 flex-1">
@@ -252,7 +232,6 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
               </span>
               <ChevronDown className={`size-4 shrink-0 text-fg-3 transition ${isOpen ? "rotate-180" : ""}`} aria-hidden />
             </span>
-          )}
         </button>
         {isOpen && rows}
       </div>
@@ -868,7 +847,8 @@ export function Training() {
             const col = readinessCol(rp)
             return (
               <span className="flex items-center gap-1.5 rounded-full py-1 pl-3 pr-1.5 text-[12px] font-bold" style={{ background: `${col}1f`, color: col }}>
-                připravenost {rp} %<InfoDot text={MI.readinessTraining} label="Připravenost" />
+                {/* railway#195 — the readiness right now (after today's training and the day so far) */}
+                připravenost teď {rp} %<InfoDot text={MI.readinessTraining} label="Připravenost" />
               </span>
             )
           })()}

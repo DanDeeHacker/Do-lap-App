@@ -1,6 +1,7 @@
 """v0.8.7 — Zátěž → Historie aktivit (per-activity channel breakdown) and the readiness
 breakdown behind the Připravenost detail (feedback railway#107)."""
 from datetime import timedelta
+import pytest
 
 from app import models
 from app.metrics import capacity as C
@@ -74,7 +75,8 @@ def test_history_breaks_each_activity_down_by_its_own_channels(client, db_sessio
     ride = next(x for x in h if x["sport"] == "cycling")
     lift = next(x for x in h if x["sport"] == "strength")
     run = h[0]
-    assert [c["ch"] for c in ride["channels"]] == ["systemic"] and ride["sportLabel"] == "kolo"
+    # v0.10.5 (railway#192): a ride's hard minutes count in Intenzita, no running tissue channel
+    assert [c["ch"] for c in ride["channels"]] in (["systemic"], ["intensity", "systemic"]) and ride["sportLabel"] == "kolo"
     assert {c["ch"] for c in lift["channels"]} <= {"systemic", "strength"} and "strength" in {c["ch"] for c in lift["channels"]}
     assert {c["ch"] for c in run["channels"]} >= {"volume", "systemic"}
     assert not {c["ch"] for c in run["channels"]} & {"strength"}
@@ -174,3 +176,37 @@ def test_runner_facing_texts_use_the_czech_decimal_comma(client, db_session):
     a = E.recompute_assessment(db_session, rid)
     dot = re.compile(r"\d\.\d")
     assert a["signals"] and not any(dot.search(f"{s['val']} {s['detail']}") for s in a["signals"])
+
+
+def test_hard_minutes_of_a_ride_or_swim_count_in_intensity(client, db_session):
+    """Feedback railway#192: an intensive ride (or swim) is intensity too — its minutes in
+    Z4+ against the sport's own HR max go into Intenzita, and it is a hard day."""
+    from app.metrics import guidance as G
+    rid = register(client, "lh-cardio@test.cz", "LH Cardio", "runner").json()["runner_id"]
+    db = db_session
+    seed_runs(db, rid, days=80)
+    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    r.engine_mode = "v3"
+    db.commit()
+    hrmax, rhr = 190.0, 50.0
+    easy = models.Activity(runner_id=rid, provider="garmin", external_id="cx-easy", started_at=E.day_ago(3),
+                           sport="cycling", title="Kolo volně", duration_min=60, avg_hr=118)
+    hard = models.Activity(runner_id=rid, provider="garmin", external_id="cx-hard", started_at=E.day_ago(1),
+                           sport="cycling", title="Kolo intervaly", duration_min=60, avg_hr=168,
+                           hr_thirds=[150, 172, 176])
+    db.add_all([easy, hard])
+    db.commit()
+    ses = {s["id"]: s for s in C.run_exposures(db, rid, hrmax, rhr)}
+    # against the cycling HR max (8 bpm lower) the hard ride has real Z4+ minutes, the easy one ~none
+    assert ses[hard.id]["exp"]["intensity"] > 25 and (ses[easy.id]["exp"]["intensity"] or 0) < 2
+    assert sum(ses[hard.id]["zoneMin"][3:]) == pytest.approx(ses[hard.id]["exp"]["intensity"], rel=0.01)
+    assert "volume" not in ses[hard.id]["exp"]              # the running tissues stay with running
+    a = E.recompute_assessment(db, rid)
+    w7 = a["capacity"]["channels"]["intensity"]["week7"]
+    assert any(x["id"] == hard.id for x in w7)
+    assert a["capacity"]["zones7d"]["cross"] >= 1
+    g = a["guidance"]
+    assert g["week"]["channels"]["intensity"]["done"] >= ses[hard.id]["exp"]["intensity"] - 0.5 or \
+        G.week_start(E.today_date()).isoformat() > ses[hard.id]["date"]
+    # the hard ride yesterday is a hard day: no quality session within 48 h
+    assert g["types"]["kvalitní"]["allowed"] is False

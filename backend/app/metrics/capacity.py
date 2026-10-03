@@ -78,6 +78,11 @@ CHANNELS = {
                  "floor_s": 120.0, "floor_w": 240.0},
 }
 RUN_CHANNELS = ("volume", "intensity", "descent", "ascent")
+# v0.10.5 (feedback railway#192) — hard minutes are cardiovascular work in any sport: a
+# cycling or swimming session's minutes in Z4+, against that sport's own heart-rate max
+# (engine.sport_hr_max), go into Intenzita too — the weekly load, the per-session
+# capacity and the spacing of hard days. The running tissues stay with running.
+CROSS_CARDIO = ("cycling", "swimming")
 
 MARGIN_SESSION = 0.10   # RUNSAFE: risk starts rising above +10 % of the 30-day longest run
 MARGIN_WEEK = 0.15      # Nielsen 2014: > 30 %/week clearly risky; 10–15 % conservative
@@ -405,6 +410,11 @@ def run_exposures(db, rid, hrmax, rhr):
         if a.sport == "strength":
             exp["strength"] = E.strength_exposure(a, ctx)
         zones = None
+        if not run and (a.sport or "") in CROSS_CARDIO and hrmax > rhr:
+            hm = ctx["hr"].get(a.sport, hrmax)
+            lt = lthr - (hrmax - hm) if lthr else None       # the threshold shifts with the sport's HR max
+            exp["intensity"] = z4_minutes(a, hists.get(a.id), hm, rhr, lt)
+            zones = zone_minutes(a, hists.get(a.id), hm, rhr, lt)
         if run:
             desc = a.descent_m
             if desc is None and a.elevation_profile:
@@ -1427,7 +1437,8 @@ def _history(sessions, hist_ch, channels, today, ready=None, nights=frozenset(),
         age = (today - _d(s["date"])).days
         if age < 0 or age >= HISTORY_DAYS:
             continue
-        order = RUN_CHANNELS + ("systemic",) if s["run"] else ("systemic", "strength")
+        order = (RUN_CHANNELS + ("systemic",) if s["run"] else ("intensity", "systemic") if s.get("sport") in CROSS_CARDIO
+                 else ("systemic", "strength"))
         chans = [hist_ch[ch][s["id"]] for ch in order
                  if s["id"] in hist_ch.get(ch, {}) and hist_ch[ch][s["id"]]["value"]]
         if not chans:
@@ -1635,11 +1646,13 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
     hist_ch: dict = {}
     tol: dict = {}
     runs_pool = [s for s in sessions if s["run"]]
+    cardio_pool = [s for s in sessions if s["run"] or s.get("sport") in CROSS_CARDIO]   # v0.10.5: Intenzita
     strength_pool = [s for s in sessions if s.get("sport") == "strength"]
     active_days = {s["date"] for s in sessions}
     since = (today - timedelta(days=ITEMS_LOOKBACK)).isoformat()
     for ch, spec in CHANNELS.items():
-        pool = sessions if ch == "systemic" else strength_pool if ch == "strength" else runs_pool
+        pool = (sessions if ch == "systemic" else strength_pool if ch == "strength"
+                else cardio_pool if ch == "intensity" else runs_pool)
         items = channel_items(pool, ch, pain, tol, reports, active_days, since)
         rates = night_rates(ch, absorb_days, ready, nights)
         # --- per session: the recent session whose exceedance is still the largest
@@ -1806,10 +1819,11 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
                 "systemic": "Celková zátěž nad kapacitou", "strength": "Silová zátěž nad kapacitou"}[ch]
         signals.append({"id": f"cap_{ch}", "name": name, "grade": spec["grade"], "pts": pts, "val": E.cz_text(val),
                         "detail": E.cz_text(detail)})
-    week7 = [s for s in runs_pool if 0 <= (today - _d(s["date"])).days < 7 and s.get("zoneMin")]
+    week7 = [s for s in cardio_pool if 0 <= (today - _d(s["date"])).days < 7 and s.get("zoneMin")]
     zmin = [sum(s["zoneMin"][i] for s in week7) for i in range(len(ZONES))]
     zone7 = {"minutes": [{"z": z, "min": round(m)} for (z, _, _), m in zip(ZONES, zmin)],
-             "runs": len(week7), "exact": all(s["zoneExact"] for s in week7)} if week7 else None
+             "runs": len([s for s in week7 if s["run"]]), "cross": len([s for s in week7 if not s["run"]]),
+             "exact": all(s["zoneExact"] for s in week7)} if week7 else None
     # railway#107 — what lowers readiness now, and what changed since yesterday morning
     y_iso = (today - timedelta(days=1)).isoformat()
     _yf, y_parts, y_score = ready.get(y_iso, (1.0, {}, 100))
