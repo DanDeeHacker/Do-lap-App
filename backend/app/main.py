@@ -96,6 +96,9 @@ def _migrate(engine):
     add("activities", "strength_focus", "strength_focus VARCHAR")
     add("activities", "strength_type", "strength_type VARCHAR")
     add("self_programs", "state", "state JSON")
+    add("daily_details", "raw", "raw JSON")
+    for col in ("nt_load", "nt_active_min", "rest_mild_min", "rest_high_min", "rest_hr_med"):
+        add("daily_metrics", col, f"{col} FLOAT")
     add("checkins", "limits_movement", "limits_movement BOOLEAN")
     add("checkins", "run_modified", "run_modified BOOLEAN")
     add("checkins", "limping", "limping BOOLEAN")

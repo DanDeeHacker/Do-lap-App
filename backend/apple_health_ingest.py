@@ -239,9 +239,24 @@ def build_seed_from_json(payload: dict, runner_id: str, device: str = "Apple Wat
     }
 
 
+DAY_RAW_DAYS = 21     # all-day heart rate and steps kept for the own day metrics (dayload.py)
+
+
+def _minute(ts: str | None) -> int | None:
+    """'2026-10-03 07:12:00 +0200' → 432 (the local minute of the day, the export's own clock)."""
+    try:
+        h, m = ts[11:13], ts[14:16]
+        return int(h) * 60 + int(m)
+    except (TypeError, ValueError):
+        return None
+
+
 def build_seed(path: str, runner_id: str, device: str = "Apple Watch") -> dict:
     src = _open_xml(path)
     daily: dict[str, dict] = {}
+    from datetime import date as _date_cls, timedelta as _td
+    raw_from = (_date_cls.today() - _td(days=DAY_RAW_DAYS)).isoformat()
+    day_raw: dict[str, dict] = {}
     sleep_secs: dict[str, float] = {}
     activities: list[dict] = []
 
@@ -254,6 +269,16 @@ def build_seed(path: str, runner_id: str, device: str = "Apple Watch") -> dict:
             if tag == "Record":
                 rtype = el.get("type", "")
                 try:
+                    if rtype in ("HKQuantityTypeIdentifierHeartRate", "HKQuantityTypeIdentifierStepCount") \
+                            and (el.get("startDate") or "")[:10] >= raw_from:
+                        dd, mm = (el.get("startDate") or "")[:10], _minute(el.get("startDate"))
+                        if mm is not None:
+                            slot = day_raw.setdefault(dd, {"hr": [], "steps": {}})
+                            if rtype == "HKQuantityTypeIdentifierHeartRate":
+                                slot["hr"].append([mm, int(round(float(el.get("value"))))])
+                            else:
+                                q = mm // 15 * 15
+                                slot["steps"][q] = slot["steps"].get(q, 0) + int(float(el.get("value")))
                     if rtype == "HKQuantityTypeIdentifierHeartRateVariabilitySDNN":
                         day(_date(el.get("startDate"))).setdefault("hrv", []).append(float(el.get("value")))
                     elif rtype == "HKQuantityTypeIdentifierRestingHeartRate":
@@ -340,8 +365,10 @@ def build_seed(path: str, runner_id: str, device: str = "Apple Watch") -> dict:
     def cov(field):
         return round(sum(1 for a in activities if a.get(field) is not None) / len(activities) * 100) if activities else 0
 
+    raw_out = {d: {"hr": sorted(v["hr"]), "steps": sorted([m, n] for m, n in v["steps"].items())}
+               for d, v in day_raw.items() if len(v["hr"]) >= 10}
     return {
-        "activities": activities, "daily_metrics": daily_metrics, "activity_feedback": [],
+        "activities": activities, "daily_metrics": daily_metrics, "activity_feedback": [], "day_raw": raw_out,
         "runners": [{"device": device}],
         "_meta": {
             "source": "apple_health",

@@ -117,6 +117,7 @@ export const api = {
   startSelfProgram: (id: string, body: { template?: string; name?: string; exercises?: string[] }) => call("POST", `/api/runners/${id}/self-programs`, body),
   logSelfProgram: (id: string, pid: number, exercise: string, done: boolean) => call("PATCH", `/api/runners/${id}/self-programs/${pid}/log`, { exercise, done }),
   report: (id: string, kind: "morning" | "evening") => call("GET", `/api/runners/${id}/report?kind=${kind}`),
+  reportAi: (id: string, kind: "morning" | "evening") => call("POST", `/api/runners/${id}/report/ai?kind=${kind}`, {}),
   finishSelfProgram: (id: string, pid: number, feel: string) => call("POST", `/api/runners/${id}/self-programs/${pid}/finish`, { feel }),
   endSelfProgram: (id: string, pid: number) => call("DELETE", `/api/runners/${id}/self-programs/${pid}`),
   engineCompare: (id: string) => call("GET", `/api/runners/${id}/engine-compare`),

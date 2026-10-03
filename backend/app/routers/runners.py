@@ -6,7 +6,7 @@ write on the runner's behalf) once they've claimed the case.
 """
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy.orm import Session as DBSession
 
 from .. import history as H
@@ -989,11 +989,39 @@ def create_checkin(rid: str, body: schemas.CheckinRequest, background: Backgroun
 
 
 @router.get("/{rid}/report")
-def get_daily_report(rid: str, kind: str = "morning", user: models.User = Depends(get_current_user),
+def get_daily_report(rid: str, request: Request, kind: str = "morning", user: models.User = Depends(get_current_user),
                      db: DBSession = Depends(get_db)):
     """Morning / evening report (owner request 2026-10-03), metrics/daily_report.py."""
     ensure_runner_read_access(db, user, rid)
     if kind not in ("morning", "evening"):
         raise HTTPException(status_code=422, detail="Report je ranní, nebo večerní")
     from ..metrics import daily_report as DR
-    return DR.build(db, rid, kind)
+    from ..metrics import report_ai as RA
+    r = DR.build(db, rid, kind)
+    ai = RA.cached(db, rid, r)
+    r["notes"] = {**r["notes"], **(ai or {})}
+    r["aiPending"] = ai is None
+    return _report_lang(db, r, request)
+
+
+def _report_lang(db, r: dict, request) -> dict:
+    """British English card notes when the app asks for it (the rest is translated in the page)."""
+    if (request.headers.get("X-Doslap-Lang") or "").lower() != "en":
+        return r
+    from .. import translate as T
+    r["notes"] = {k: (T.to_en(db, v) or v) for k, v in (r.get("notes") or {}).items()}
+    return r
+
+
+@router.post("/{rid}/report/ai", dependencies=[Depends(verify_csrf)])
+def daily_report_ai(rid: str, request: Request, kind: str = "morning", user: models.User = Depends(get_current_user),
+                    db: DBSession = Depends(get_db)):
+    """The model-written sentences of each report card (validated; the rule-based ones otherwise)."""
+    ensure_runner_read_access(db, user, rid)
+    if kind not in ("morning", "evening"):
+        raise HTTPException(status_code=422, detail="Report je ranní, nebo večerní")
+    from ..metrics import daily_report as DR
+    from ..metrics import report_ai as RA
+    r = DR.build(db, rid, kind)
+    out = RA.generate(db, rid, r)
+    return _report_lang(db, {"notes": out["notes"], "source": out["source"]}, request)

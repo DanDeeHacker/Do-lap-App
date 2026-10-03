@@ -139,6 +139,11 @@ def seed_details(db, rid, days=14, today=None):
             row = models.DailyDetail(runner_id=rid, date=d)
             db.add(row)
         row.sleep, row.day = sl, dy
+        run = db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.started_at >= d,
+                                               models.Activity.started_at < d + "T99").first()
+        t0 = (int(run.started_at[11:13]) * 60 + int(run.started_at[14:16])) if run is not None and len(run.started_at) >= 16 else 7 * 60 + 30
+        row.raw = GL.compact_raw(*garmin_hr_payloads(d, seed=k, stress=(14 * 60, 14 * 60 + 30 + (k % 4) * 20),
+                                                     run_at=t0, run_min=int(run.duration_min or 60) if run is not None else 0))
         dm = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.date == d).first()
         if dm is None:
             dm = models.DailyMetric(runner_id=rid, date=d)
@@ -150,3 +155,45 @@ def seed_details(db, rid, days=14, today=None):
         dm.hrv_ms = dm.hrv_ms or 52 + (k % 5) - 2
         dm.resting_hr = dm.resting_hr or 48 + (k % 3)
     db.commit()
+    from app.metrics import dayload as DL
+    for k in range(days - 1, -1, -1):
+        DL.update_day(db, rid, (today - dt.timedelta(days=k)).isoformat())
+    db.commit()
+
+
+def day_profile(seed=0, run_at=7 * 60 + 30, run_min=60, stress=(14 * 60, 15 * 60 + 30), wake=6 * 60 + 30, bed=23 * 60):
+    """A realistic day as (minute → (bpm, steps per minute)): sleep, a morning run,
+    walks, desk work, a stressful stretch at rest, a calm evening."""
+    rng = random.Random(seed)
+    walks = [(8 * 60 + 45, 9 * 60 + 5), (12 * 60 + 30, 13 * 60), (18 * 60, 18 * 60 + 40)]
+    out = {}
+    for m in range(0, 1440, 2):
+        if m < wake or m >= bed:
+            bpm, spm = 48 + rng.randint(-3, 3), 0
+        elif run_at <= m < run_at + run_min:
+            bpm, spm = 150 + rng.randint(-6, 8), 170
+        elif any(a <= m < b for a, b in walks):
+            bpm, spm = 102 + rng.randint(-6, 6), 105
+        elif stress[0] <= m < stress[1]:
+            bpm, spm = 88 + rng.randint(-4, 4), 0
+        else:
+            bpm, spm = 64 + rng.randint(-4, 5), (rng.choice([0, 0, 0, 1, 3]))
+        out[m] = (bpm, spm)
+    return out
+
+
+def garmin_hr_payloads(day, **kw):
+    """get_heart_rates(day) + get_steps_data(day) payloads built from day_profile()."""
+    import datetime as dt
+    prof = day_profile(**kw)
+    d0 = dt.datetime.combine(dt.date.fromisoformat(day), dt.time())
+    g0 = d0 - dt.timedelta(hours=2)
+    ms = lambda x: int(x.replace(tzinfo=dt.timezone.utc).timestamp() * 1000)  # noqa: E731
+    hr = {"calendarDate": day, "startTimestampGMT": g0.isoformat() + ".0", "startTimestampLocal": d0.isoformat() + ".0",
+          "heartRateValues": [[ms(g0 + dt.timedelta(minutes=m)), v[0]] for m, v in sorted(prof.items())]}
+    steps = []
+    for q in range(0, 1440, 15):
+        n = sum(prof[m][1] * 2 for m in range(q, q + 15) if m in prof)
+        a = g0 + dt.timedelta(minutes=q)
+        steps.append({"startGMT": a.isoformat() + ".0", "endGMT": (a + dt.timedelta(minutes=15)).isoformat() + ".0", "steps": n})
+    return hr, steps

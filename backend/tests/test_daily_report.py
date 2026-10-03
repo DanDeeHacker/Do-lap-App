@@ -1,4 +1,5 @@
 """Morning / evening report (owner request 2026-10-03)."""
+import json
 from datetime import date
 
 import garmin_live as GL
@@ -85,3 +86,35 @@ def test_rest_of_week_split():
     done = DR._rest_of_week(a, date(2026, 9, 28), {"left": 0.0})
     assert "splněný" in done["note"]
     assert DR._rest_of_week(a, date(2026, 10, 4), wk)["days"] == []    # Sunday: the week ends
+
+
+def test_report_cards_get_validated_ai_notes_or_keep_the_rules(client, db_session, monkeypatch):
+    from app import llm
+    from app.metrics import report_ai as RA
+    rid = register(client, "rep2@test.cz", "Eva Běžkyně", "runner").json()["runner_id"]
+    r = db_session.query(models.Runner).filter(models.Runner.id == rid).first()
+    r.engine_mode = "v3"
+    db_session.commit()
+    seed_runs(db_session, rid, days=60)
+    seed_details(db_session, rid)
+    E.recompute_assessment(db_session, rid)
+    m = client.get(f"/api/runners/{rid}/report?kind=morning").json()
+    assert m["aiPending"] and set(m["notes"]) >= {"intro", "sleep", "readiness", "recent", "plan"}
+    assert m["sleep"]["scores"][-1]["score"] is not None and m["recent"]["yesterday"]["view"]["timeline"]
+    f = RA.facts(m)
+    good = "Spánek byl v pořádku a hluboký spánek odpovídal normě. Držte pravidelný čas usínání i dnes večer."
+    bad = "Spali jste 11 hodin, to je skvělé. Vezměte si ibuprofen na nohy."          # number not in facts + medication
+    monkeypatch.setattr(llm, "assistant_available", lambda: True)
+    monkeypatch.setattr(llm, "chat_messages", lambda *a, **k: json.dumps({"sleep": good, "plan": bad, "nonsense": "x"}))
+    out = client.post(f"/api/runners/{rid}/report/ai?kind=morning").json()
+    assert out["source"] == "ai" and out["notes"]["sleep"] == good and out["notes"]["plan"] == m["notes"]["plan"]
+    row = db_session.query(models.ReportNote).filter(models.ReportNote.runner_id == rid).one()
+    assert "plan" in row.rejected and set(f) >= set(row.notes)
+    # cached for the same facts: the next report carries the model's sentence, no new call
+    monkeypatch.setattr(llm, "chat_messages", lambda *a, **k: (_ for _ in ()).throw(AssertionError("called again")))
+    m2 = client.get(f"/api/runners/{rid}/report?kind=morning").json()
+    assert not m2["aiPending"] and m2["notes"]["sleep"] == good
+    e = client.get(f"/api/runners/{rid}/report?kind=evening").json()
+    v = e["dayView"]
+    assert v["timeline"] and v["energy"] and e["load"]["total"] is not None and e["tomorrow"]["effects"]
+    assert set(e["notes"]) >= {"intro", "day", "load", "tomorrow", "week", "tonight"}

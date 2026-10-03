@@ -1816,6 +1816,12 @@
   ]
  },
  {
+  "t": "Aktivita mimo trénink nad obvyklý den",
+  "files": [
+   "metrics/capacity.py"
+  ]
+ },
+ {
   "t": "Celková zátěž",
   "files": [
    "metrics/capacity.py"
@@ -2488,7 +2494,25 @@
   ]
  },
  {
+  "t": ", z toho mimo trénink {}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": ", zbývá {} km.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Aktivního pohybu mimo trénink {} min, zvýšeného tepu v klidu {} min.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Bolest {}/10: při běhu nanejvýš 5/10 a do rána musí odeznít, jinak uberte.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2500,13 +2524,73 @@
   ]
  },
  {
+  "t": "Celková zátěž dne {} j.z., z toho mimo trénink {}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Celodenní tep z hodinek zatím nedorazil. Po synchronizaci se průběh dne doplní.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": "Co dělat, abych zítra byl odpočatý?",
   "files": [
    "metrics/daily_report.py"
   ]
  },
  {
-  "t": "Dnes {} kroků",
+  "t": "Co nejvíc ovlivnilo můj dnešní den?",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Cíl {} spánku: do postele kolem {}, poslední káva do {}. Chladná a tmavá ložnice pomůže.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Den byl vyrovnaný, večer už jen lehce.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Den začal v {}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Dnes raději lehce, regenerace má přednost.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Dnes večer jděte spát o půl hodiny dřív a hodinu před spaním vynechte obrazovky.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Dnes {} min výrazně zvýšeného tepu v klidu: zkuste večer zpomalit, projít se, dýchat zhluboka.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Dnešní limity jsou vyčerpané, zbytek dne odpočívejte.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Do dnešních limitů zbývá prostor, ale není nutné ho využít.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2524,7 +2608,43 @@
   ]
  },
  {
-  "t": "Hlubokého a REM spánku bylo",
+  "t": "Držte se dnešního doporučení a nepřidávejte navíc.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Držte čas usínání co nejpravidelněji, pomáhá to hlubokému spánku.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Energie teď {} ze 100.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Hlubokého a REM spánku bylo jako obvykle.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Hlubokého a REM spánku bylo méně než obvykle.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Hlubokého a REM spánku bylo víc než obvykle.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Horko až {} °C: pít, zpomalit, běžet ráno nebo večer.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2542,7 +2662,25 @@
   ]
  },
  {
-  "t": "Můžu dnes přidat posilování?",
+  "t": "Klidnější den bez tréninku: dobrá příležitost k regeneraci.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Mechanika {} je nad prahem {}: raději rovina, méně klesání.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Mimo trénink jste se nachodili víc než obvykle ({} min aktivního pohybu).",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Na co si dnes dát pozor?",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2560,6 +2698,18 @@
   ]
  },
  {
+  "t": "Nic dnes zítřek výrazně nezhorší.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Nic zvláštního k hlídání, běžte podle plánu a v klidném tempu.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": "Noc je zapsaná.",
   "files": [
    "metrics/daily_report.py"
@@ -2572,7 +2722,31 @@
   ]
  },
  {
-  "t": "Posilování: {}.",
+  "t": "Náročný den: tělo bude v noci zpracovávat víc zátěže, zítřejší připravenost může být nižší.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Po včerejším posilování nohou může být intenzivní běh těžší než obvykle.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Proti včerejšku beze změny.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Proti včerejšku o {} bodů méně.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Proti včerejšku o {} bodů víc.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2584,7 +2758,13 @@
   ]
  },
  {
-  "t": "Proč mám dnes vysoký stres?",
+  "t": "Připravenost pod 45 %: dnes jen regenerace, žádný náročný trénink.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Připravenost pod 65 %: dnes bez tvrdých úseků a dlouhého běhu.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2594,6 +2774,54 @@
   "files": [
    "metrics/daily_report.py",
    "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Připravenost {} %.{} {}",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "S {} spánku by zítřejší připravenost měla držet.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Skóre spánku {} ze 100. {} {}",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Spánkový dluh {} za 3 noci: večer dřív do postele.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Spánkový dluh {}: dnešní noc rozhodne, jak zítra vstanete.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Tento týden zatím {} km.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Tento týden {} z {} km.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Trénink: {}.",
+  "files": [
+   "metrics/daily_report.py"
   ]
  },
  {
@@ -2621,6 +2849,54 @@
   ]
  },
  {
+  "t": "Tělo dnes regeneruje: procházka, protažení a dost jídla i pití pomohou víc než trénink navíc.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Tělo je zregenerované, dnešní trénink zvládne podle plánu.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Tělo má prostor na dnešní trénink.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Večer si dopřejte klid, ať se tep před spaním zklidní.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Včera bez tréninku.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Včera {} min zvýšeného tepu v klidu (obvykle {}): tělo bylo pod tlakem i mimo trénink.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Včera: {}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Z týdenního cíle zbývá {} km z {}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": "Za poslední 3 noci vám chybí asi {} spánku.",
   "files": [
    "metrics/daily_report.py"
@@ -2628,6 +2904,42 @@
  },
  {
   "t": "Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu. Cíl je horní hranice, ne povinnost.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Zbytek týdne rozložte podle návrhu, každé ráno ho upřesní připravenost.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Zátěž dne {} j.z.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Zátěž z posledních dní se ještě vstřebává, dnešní limity to zohledňují.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Zátěž {} je nad prahem {}: tento týden odlehčit.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Zítra podle plánu týdne: {}",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Zítra: {}.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2660,12 +2972,6 @@
   ]
  },
  {
-  "t": "méně než obvykle.",
-  "files": [
-   "metrics/daily_report.py"
-  ]
- },
- {
   "t": "neděle",
   "files": [
    "metrics/daily_report.py",
@@ -2674,6 +2980,12 @@
  },
  {
   "t": "o {} {} než obvykle",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "podle doporučení",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2712,12 +3024,6 @@
   ]
  },
  {
-  "t": "víc než obvykle.",
-  "files": [
-   "metrics/daily_report.py"
-  ]
- },
- {
   "t": "út",
   "files": [
    "metrics/daily_report.py"
@@ -2741,6 +3047,36 @@
   "files": [
    "metrics/daily_report.py",
    "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Délka",
+  "files": [
+   "metrics/dayload.py"
+  ]
+ },
+ {
+  "t": "Efektivita",
+  "files": [
+   "metrics/dayload.py"
+  ]
+ },
+ {
+  "t": "Hluboký a REM",
+  "files": [
+   "metrics/dayload.py"
+  ]
+ },
+ {
+  "t": "Klidnost",
+  "files": [
+   "metrics/dayload.py"
+  ]
+ },
+ {
+  "t": "Pravidelnost",
+  "files": [
+   "metrics/dayload.py"
   ]
  },
  {
@@ -5478,6 +5814,12 @@
   "t": "závod naplno bez ladění (B)",
   "files": [
    "metrics/race_plan.py"
+  ]
+ },
+ {
+  "t": "Jsi zkušený běžecký trenér v aplikaci Došlap. Dostaneš fakta z ranního nebo večerního reportu běžce, rozdělená po listech. Ke KAŽDÉMU listu napiš 2–3 krátké věty česky, tykání ne, vykej: nejdřív stručně zhodnoť, co fakta říkají (dobře / pozor), pak dej jeden konkrétní, proveditelný tip, jak se zlepšit nebo na co si dát pozor. Používej jen čísla, která jsou ve faktech (nic nepočítej, nezaokrouhluj jinak). Žádné diagnózy, žádné léky, nikdy nedoporučuj běhat přes bolest a nenavrhuj náročnější trénink, než je dnešní doporučení. Bez nadpisů a odkazů. Odpověz POUZE platným JSON objektem {\"klíč listu\": \"text\"} se stejnými klíči, jaké dostaneš.",
+  "files": [
+   "metrics/report_ai.py"
   ]
  },
  {

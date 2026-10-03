@@ -276,6 +276,13 @@ class DailyMetric(Base):
     body_battery = Column(Float)
     stress_avg = Column(Float)
     steps = Column(Integer)
+    # all-day heart rate, own logic for every device (metrics/dayload.py): load outside
+    # training (weighted), its minutes, minutes of raised resting HR, the day's still HR
+    nt_load = Column(Float)
+    nt_active_min = Column(Float)
+    rest_mild_min = Column(Float)
+    rest_high_min = Column(Float)
+    rest_hr_med = Column(Float)
     source = Column(String, default="garmin")
     original_sleep_h = Column(Float)
     edited_at = Column(String)
@@ -293,8 +300,24 @@ class DailyDetail(Base):
     date = Column(String, index=True, nullable=False)
     sleep = Column(JSON)
     day = Column(JSON)
+    raw = Column(JSON)               # all-day HR (watch resolution) and steps — input of metrics/dayload.py
     fetched_at = Column(String)
     __table_args__ = (UniqueConstraint("runner_id", "date", name="uq_detail_runner_date"),)
+
+
+class ReportNote(Base):
+    """The model-written sentences of one morning / evening report (metrics/report_ai.py),
+    per card, cached for the day; `facts_hash` = the facts they were written from — new
+    facts (a sync during the day) mean new sentences."""
+    __tablename__ = "report_notes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    date = Column(String, index=True, nullable=False)
+    kind = Column(String, nullable=False)
+    facts_hash = Column(String)
+    notes = Column(JSON)             # {card: text} that passed the validator
+    rejected = Column(JSON)          # {card: issues} — the rule-based text was shown instead
+    created_at = Column(String)
 
 
 class Checkin(Base):

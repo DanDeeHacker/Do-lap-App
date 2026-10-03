@@ -13,7 +13,7 @@ What must hold:
 """
 import re
 
-LIMITS = {"daily_summary": (12, 130), "daily_commentary": (15, 170), "weekly_summary": (30, 280)}
+LIMITS = {"daily_summary": (12, 130), "daily_commentary": (15, 170), "weekly_summary": (30, 280), "report_card": (8, 80)}
 
 _DATE = re.compile(r"(?<!\d)(\d{1,2})\.\s?(\d{1,2})\.(?:\s?(\d{4}))?")
 _CLOCK = re.compile(r"(?<![\d:])(\d{1,2}):(\d{2})(?![\d:])")

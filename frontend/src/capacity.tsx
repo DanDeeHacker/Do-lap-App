@@ -48,7 +48,7 @@ export function Readiness({ r }: { r: any }) {
 // change since yesterday morning. Points follow the engine: 100 − 80 × combined
 // deficit, the strongest signal fully, the 2nd half, the 3rd a quarter.
 const SLEEP_Q = ["velmi špatně", "špatně", "průměrně", "dobře", "výborně"]
-const FACTOR_LABEL: Record<string, string> = { hrv: "HRV", rhr: "Klidový tep", sleep: "Spánek", soreness: "Svalová bolest", fatigue: "Únava", stress: "Stres mimo trénink", session: "Dnešní trénink" }
+const FACTOR_LABEL: Record<string, string> = { hrv: "HRV", rhr: "Klidový tep", sleep: "Spánek", soreness: "Svalová bolest", fatigue: "Únava", stress: "Stres mimo trénink", dayStress: "Zvýšený tep v klidu včera", session: "Dnešní trénink" }
 const pctS = (v: number | null | undefined) => (v == null ? null : `${Math.round(v * 100)} %`)
 const vs = (parts: (string | null | false)[]) => parts.filter(Boolean).join(" · ")
 const pts1 = (v: number) => (Math.round(v * 10) / 10).toLocaleString("cs-CZ")
@@ -67,6 +67,7 @@ function factorReading(k: string, r: any): string | null {
   if (k === "soreness") return c?.soreness == null ? null : `v check-inu ${c.soreness}/10 · snižuje od 6/10`
   if (k === "fatigue") return c?.fatigue == null ? null : `v check-inu ${c.fatigue}/10 · snižuje od 6/10`
   if (k === "stress") return c?.stress == null ? null : `v check-inu ${c.stress}/10 · snižuje od 6/10, počítá se 0,6×`
+  if (k === "dayStress") { const ds = r?.inputs?.dayStress; return ds ? `včera ${ds.yesterday} min${ds.usual != null ? ` · obvykle ${ds.usual} min` : ""} · z celodenního tepu, počítá se 0,6×` : null }
   if (k === "session") {
     const a = r?.afterSession
     if (!a) return null
@@ -79,7 +80,7 @@ function factorReading(k: string, r: any): string | null {
 export function ReadinessFactors({ r }: { r: any }) {
   if (!r?.inputs) return null
   const eff: Record<string, number> = r.effects || {}
-  const keys = ["hrv", "rhr", "sleep", "soreness", "fatigue", "stress", "session"]
+  const keys = ["hrv", "rhr", "sleep", "dayStress", "soreness", "fatigue", "stress", "session"]
   const part: Record<string, number> = r.parts || {}
   // every signal off its norm is listed, also one that adds nothing because stronger
   // signals already cover it (only the three strongest count)
@@ -87,7 +88,7 @@ export function ReadinessFactors({ r }: { r: any }) {
   // a signal counts only with today's reading: without last night's data the engine
   // doesn't judge HRV / resting HR / sleep, so they are listed apart, not as "in norm"
   const n = r.inputs.night || {}, ci = r.inputs.checkin
-  const today = (k: string) => (k === "hrv" ? n.hrv != null : k === "rhr" ? n.rhr != null : k === "sleep" ? n.sleep != null || ci?.sleepQuality != null : ci?.[k] != null)
+  const today = (k: string) => (k === "hrv" ? n.hrv != null : k === "rhr" ? n.rhr != null : k === "sleep" ? n.sleep != null || ci?.sleepQuality != null : k === "dayStress" ? r.inputs?.dayStress != null : ci?.[k] != null)
   const fine = keys.filter((k) => k !== "session" && !lower.includes(k) && today(k) && factorReading(k, r))
   const stale = ["hrv", "rhr", "sleep"].filter((k) => !lower.includes(k) && !today(k) && factorReading(k, r))
   const noCheckin = !ci

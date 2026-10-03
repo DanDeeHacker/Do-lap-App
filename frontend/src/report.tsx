@@ -9,7 +9,7 @@ import { useApp } from "@/store"
 import { useAssistant } from "@/assistant"
 import { C, goodCol } from "@/tokens"
 import { ReadinessFactors } from "@/capacity"
-import { Bed, ChevronRight, Coffee, Footprints, MessageCircle, Moon, Sun, X } from "lucide-react"
+import { Bed, ChevronRight, Coffee, Eye, Info, MessageCircle, Moon, Sparkles, Sun, TriangleAlert, X } from "lucide-react"
 
 const STAGE_COL: Record<string, string> = { deep: "#4c6ef5", light: "#74c0fc", rem: "#c084fc", awake: C.watch }
 const STAGE_LABEL: Record<string, string> = { deep: "Hluboký", light: "Lehký", rem: "REM", awake: "Bdění" }
@@ -58,26 +58,6 @@ function Hypnogram({ hyp, start }: { hyp: [number, number, string][]; start?: st
           <text x={x(t)} y={H - 2} textAnchor="middle" fontSize="9.5" fill={C.fg3}>{hmShort(((s0 ?? 0) + t) % 1440).replace(":00", "")}</text>
         </g>
       ))}
-    </svg>
-  )
-}
-
-function DayCurve({ stress, bb }: { stress?: [number, number][]; bb?: [number, number][] }) {
-  const W = 320, H = 120, x = (m: number) => (m / 1440) * W, y = (v: number) => H - 16 - (v / 100) * (H - 26)
-  const col = (v: number) => (v <= 25 ? "#5c9df5" : v <= 50 ? "#f5c26b" : v <= 75 ? "#f0954a" : C.alert)
-  const line = (bb || []).map(([m, v], i) => `${i ? "L" : "M"}${x(m).toFixed(1)} ${y(v).toFixed(1)}`).join(" ")
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Stres a Body Battery během dne" data-testid="day-curve">
-      {[0, 6, 12, 18, 24].map((h) => (
-        <g key={h}>
-          <line x1={x(h * 60)} x2={x(h * 60)} y1={6} y2={H - 14} stroke="rgb(255 255 255 / .05)" />
-          <text x={x(h * 60)} y={H - 2} textAnchor={h === 0 ? "start" : h === 24 ? "end" : "middle"} fontSize="9.5" fill={C.fg3}>{h}:00</text>
-        </g>
-      ))}
-      {(stress || []).map(([m, v]) => (
-        <rect key={m} x={x(m) + 0.3} width={Math.max(0.6, x(15) - 0.6)} y={y(v)} height={H - 16 - y(v)} fill={col(v)} opacity={0.85} />
-      ))}
-      {line && <path d={line} fill="none" stroke={C.accent} strokeWidth="2.2" strokeLinejoin="round" />}
     </svg>
   )
 }
@@ -199,32 +179,189 @@ function Questions({ qs, onAsk }: { qs: string[]; onAsk: (q: string) => void }) 
   )
 }
 
+// ---- the day from morning to night ---------------------------------------------------------
+// Owner request 2026-10-03 (v2): one shared time axis, two panels (never two y-scales): the
+// energy reserve on top, below it the day's states as lanes — position carries the state, the
+// colour only repeats it (palette checked for colour-blind separation of neighbouring lanes).
+// Tap / drag reads the moment: time, state, heart rate, energy.
+const LANES: { st: number[]; label: string; col: string }[] = [
+  { st: [6], label: "Trénink", col: "#b08a22" },
+  { st: [5], label: "Pohyb", col: "#2c8cc6" },
+  { st: [2, 3], label: "Zvýšený tep", col: "#d4643c" },
+  { st: [1, 4], label: "Klid", col: "#2f9a6e" },
+  { st: [0], label: "Spánek", col: "#6476e6" },
+]
+const STATE_NAME = ["spánek", "klid", "mírně zvýšený tep v klidu", "výrazně zvýšený tep v klidu", "lehký pohyb", "pohyb", "trénink"]
+
+function DayTimeline({ v, until, compact = false }: { v: any; until?: number | null; compact?: boolean }) {
+  const tl: [number, number, number, number, number][] = v?.timeline || []
+  const en: [number, number][] = v?.energy || []
+  const [pick, setPick] = useState<number | null>(null)
+  const ref = useRef<SVGSVGElement>(null)
+  if (!tl.length) return null
+  const W = 340, L = 64, R = 8, ew = compact ? 0 : 74, laneH = compact ? 9 : 12, gap = 3
+  const top = compact ? 4 : 10, eTop = top, eBot = top + ew, lTop = eBot + (compact ? 0 : 12)
+  const H = lTop + LANES.length * (laneH + gap) + 18
+  const x = (m: number) => L + (m / 1440) * (W - L - R)
+  const ey = (e: number) => eBot - (e / 100) * (ew - 6)
+  const area = en.length > 1 ? `M${x(en[0][0])} ${eBot} ` + en.map(([m, e]) => `L${x(m).toFixed(1)} ${ey(e).toFixed(1)}`).join(" ") + ` L${x(en[en.length - 1][0])} ${eBot} Z` : ""
+  const line = en.map(([m, e], i) => `${i ? "L" : "M"}${x(m).toFixed(1)} ${ey(e).toFixed(1)}`).join(" ")
+  const at = pick == null ? null : tl.reduce((b, t) => (Math.abs(t[0] + 7.5 - pick) < Math.abs(b[0] + 7.5 - pick) ? t : b), tl[0])
+  const eAt = pick == null || !en.length ? null : en.reduce((b, t) => (Math.abs(t[0] - pick) < Math.abs(b[0] - pick) ? t : b), en[0])
+  const move = (e: React.PointerEvent) => {
+    const box = ref.current?.getBoundingClientRect()
+    if (!box) return
+    const px = ((e.clientX - box.left) / box.width) * W
+    if (px < L) return setPick(null)
+    setPick(Math.max(0, Math.min(1439, ((px - L) / (W - L - R)) * 1440)))
+  }
+  return (
+    <div className="relative" data-no-tap>
+      <svg ref={ref} viewBox={`0 0 ${W} ${H}`} className="w-full touch-none select-none" role="img" aria-label="Průběh dne" data-testid="day-timeline"
+        onPointerDown={move} onPointerMove={(e) => (e.buttons || e.pointerType === "mouse") && move(e)} onPointerLeave={() => setPick(null)}>
+        {/* hours */}
+        {[0, 6, 12, 18, 24].map((h) => (
+          <g key={h}>
+            <line x1={x(h * 60)} x2={x(h * 60)} y1={top} y2={H - 16} stroke="rgb(255 255 255 / .06)" />
+            <text x={x(h * 60)} y={H - 3} fontSize="9.5" fill={C.fg3} textAnchor={h === 0 ? "start" : h === 24 ? "end" : "middle"}>{h}:00</text>
+          </g>
+        ))}
+        {!compact && (
+          <g>
+            <text x={L - 8} y={eTop + 10} fontSize="10" fill={C.fg2} textAnchor="end" fontWeight="700">Energie</text>
+            <text x={L - 8} y={eTop + 22} fontSize="9" fill={C.fg3} textAnchor="end">0–100</text>
+            <line x1={L} x2={W - R} y1={eBot} y2={eBot} stroke="rgb(255 255 255 / .12)" />
+            {area && <path d={area} fill={C.accent} opacity={0.12} />}
+            {line && <path d={line} fill="none" stroke={C.accent} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
+            {en.length > 0 && (() => { const [m, e] = en[en.length - 1]; return <g><circle cx={x(m)} cy={ey(e)} r={4} fill={C.accent} stroke="#0c201d" strokeWidth={2} /><text x={Math.min(W - R - 2, x(m) + 6)} y={ey(e) - 6} fontSize="10.5" fontWeight="800" fill={C.fg} textAnchor={x(m) > W - 40 ? "end" : "start"}>{e}</text></g> })()}
+          </g>
+        )}
+        {/* lanes */}
+        {LANES.map((ln, i) => {
+          const y = lTop + i * (laneH + gap)
+          return (
+            <g key={ln.label}>
+              <text x={L - 8} y={y + laneH - 2} fontSize={compact ? 8.5 : 9.5} fill={C.fg2} textAnchor="end">{ln.label}</text>
+              <rect x={L} y={y} width={W - L - R} height={laneH} rx={3} fill="rgb(255 255 255 / .035)" />
+              {tl.filter((t) => ln.st.includes(t[2])).map((t) => (
+                <rect key={t[0]} x={x(t[0]) + 0.3} y={y} width={Math.max(1, x(t[0] + 15) - x(t[0]) - 0.6)} height={laneH} rx={2}
+                  fill={ln.col} opacity={t[2] === 2 || t[2] === 4 ? 0.5 : 1} />
+              ))}
+            </g>
+          )
+        })}
+        {/* the recorded activities, named */}
+        {!compact && (v.activities || []).filter((a: any) => a.from != null).map((a: any) => (
+          <text key={a.id} x={x((a.from + a.to) / 2)} y={lTop - 3} fontSize="9" fontWeight="700" fill={C.fg} textAnchor="middle">{a.title.length > 14 ? a.title.slice(0, 13) + "…" : a.title}</text>
+        ))}
+        {until != null && <line x1={x(until)} x2={x(until)} y1={top} y2={H - 16} stroke={C.fg} strokeDasharray="2 3" opacity={0.5} />}
+        {pick != null && <line x1={x(pick)} x2={x(pick)} y1={top} y2={H - 16} stroke={C.fg} strokeWidth={1} />}
+      </svg>
+      {at && (
+        <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[110%] whitespace-nowrap rounded-[10px] border border-white/10 bg-[#0c201d] px-2.5 py-1.5 text-[11.5px] text-fg shadow-lg" data-testid="timeline-tip">
+          <b>{hmShort(at[0])}–{hmShort(at[0] + 15)}</b> · {STATE_NAME[at[2]]} · {at[1]} tepů/min{eAt ? ` · energie ${eAt[1]}` : ""}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Tile({ label, value, sub, col }: { label: string; value: ReactNode; sub?: ReactNode; col?: string }) {
+  return (
+    <div className="rounded-[14px] bg-white/[.05] px-2.5 py-2.5 text-center">
+      <p className="text-[10.5px] text-fg-3">{label}</p>
+      <p className="t-num mt-0.5 text-[20px] leading-tight" style={col ? { color: col } : undefined}>{value}</p>
+      {sub && <p className="mt-0.5 text-[10.5px] leading-[13px] text-fg-3">{sub}</p>}
+    </div>
+  )
+}
+
+// a model-written (validated) or rule-based rating + tip on every card
+function AiNote({ text, ai, pending }: { text?: string; ai: boolean; pending: boolean }) {
+  if (!text) return null
+  return (
+    <div className="mt-4 rounded-[16px] border border-accent/25 bg-accent/[.06] p-3" data-testid="ai-note">
+      <p className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-[.12em] text-accent">
+        <Sparkles className="size-3.5" aria-hidden />{ai ? "Hodnocení AI" : "Hodnocení"}
+        {pending && <span className="ml-1 font-semibold normal-case tracking-normal text-fg-3">· AI ho ještě upřesňuje…</span>}
+      </p>
+      <p key={text} className="mt-1 text-[13.5px] leading-[21px] text-fg animate-[careReveal_.3s_ease-out]">{text}</p>
+    </div>
+  )
+}
+
+function StackBars({ days }: { days: any[] }) {
+  // all-sport load per day: training (solid) + outside training above the usual day (light),
+  // one scale; the run kilometres written under each day
+  const max = Math.max(1, ...days.map((d) => (d.train || 0) + (d.nt || 0)))
+  const H = 92
+  return (
+    <div>
+      <div className="flex items-end gap-1.5" style={{ height: H }}>
+        {days.map((d) => {
+          const t = d.train || 0, n = d.nt || 0
+          return (
+            <div key={d.date} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-[2px]" style={{ height: H }} title={`${d.wd}: trénink ${t}, mimo trénink ${n} j.z.`}>
+              <span className="mb-0.5 text-[10px] tabular-nums text-fg-3">{t + n ? Math.round(t + n) : ""}</span>
+              {n > 0 && <i className="block w-full rounded-t-[4px]" style={{ height: (n / max) * (H - 16), background: "#2c8cc6", opacity: 0.55 }} />}
+              <i className={`block w-full ${n > 0 ? "" : "rounded-t-[4px]"}`} style={{ height: Math.max(t ? 3 : 0, (t / max) * (H - 16)), background: d.today ? C.accent : "#b08a22", outline: d.today ? `2px solid ${C.fg}` : undefined, outlineOffset: 1 }} />
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-1 flex gap-1.5">{days.map((d) => (
+        <span key={d.date} className={`flex-1 text-center text-[10.5px] leading-tight ${d.today ? "font-bold text-fg" : "text-fg-3"}`}>{d.wd}{d.km ? <span className="block text-[9.5px] text-fg-3">{num(d.km)} km</span> : <span className="block text-[9.5px]">&nbsp;</span>}</span>
+      ))}</div>
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-fg-3">
+        <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: "#b08a22" }} />trénink</span>
+        <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: "#2c8cc6", opacity: 0.55 }} />mimo trénink nad obvyklý den</span>
+        <span>j.z. = tep × čas</span>
+      </div>
+    </div>
+  )
+}
+
+const LEVEL_COL: Record<string, string> = { alert: C.alert, watch: C.watch, info: C.info }
+const LEVEL_ICON: Record<string, any> = { alert: TriangleAlert, watch: Eye, info: Info }
+
 // ---- morning ------------------------------------------------------------------------------
-function morningCards(r: any, onAsk: (q: string) => void, hasAssistant: boolean): Card[] {
-  const n = r.night, rec = r.recovery || {}, p = r.plan || {}
+type Ctx = { onAsk: (q: string) => void; hasAssistant: boolean; notes: Record<string, string>; ai: boolean; pending: boolean }
+const note = (c: Ctx, k: string) => <AiNote text={c.notes[k]} ai={c.ai} pending={c.pending} />
+
+function morningCards(r: any, c: Ctx): Card[] {
+  const n = r.night, rec = r.recovery || {}, p = r.plan || {}, sl = r.sleep || {}
+  const scores: any[] = sl.scores || []
+  const last = scores[scores.length - 1] || {}
+  const km = p.km && typeof p.km === "object" ? p.km : null
   const cards: Card[] = [{
     key: "intro", title: "Úvod", body: (
       <div className="flex h-full flex-col justify-center">
         <Sunrise />
-        <p className="mt-6 text-[13px] font-semibold text-fg-2">{fmtDay(r.date)}</p>
+        <p className="mt-5 text-[13px] font-semibold text-fg-2">{fmtDay(r.date)}</p>
         <Big>{r.greeting}</Big>
-        <Sub>{r.summary}</Sub>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <Tile label="Připravenost" value={rec.score != null ? `${rec.score} %` : "—"} col={goodCol(rec.score)} sub={rec.yesterday != null && rec.score != null ? `včera ${rec.yesterday} %` : undefined} />
+          <Tile label="Spánek" value={n?.hours != null ? `${num(n.hours)} h` : "—"} sub={last.score != null ? `skóre ${last.score}` : undefined} />
+          <Tile label="Dnes" value={<span className="text-[15px]">{p.label || "—"}</span>} sub={km && km.hi > 0 ? `${num(km.lo)}–${num(km.hi)} km` : undefined} />
+        </div>
+        {note(c, "intro")}
       </div>
     ),
   }]
   cards.push({
-    key: "night", title: "Noc", body: !n ? <><Big>Noc zatím chybí</Big><Sub>{r.nightText}</Sub></> : (
+    key: "sleep", title: "Spánek", body: !n ? <><Big>Noc zatím chybí</Big>{note(c, "sleep")}</> : (
       <>
         <div className="flex items-center gap-4">
-          <Ring value={n.hours} max={Math.max(9, n.need || 8)} col={n.hours >= (n.need || 7) ? C.ok : n.hours >= (n.need || 7) - 1 ? C.watch : C.alert}>
-            <b className="t-num block text-[22px] leading-none">{num(n.hours)}</b><span className="text-[10px] text-fg-3">hodin</span>
+          <Ring value={last.score} col={goodCol(last.score)}>
+            <b className="t-num block text-[26px] leading-none">{last.score ?? "—"}</b><span className="text-[10px] text-fg-3">skóre spánku</span>
           </Ring>
           <div className="min-w-0">
-            <Big>{n.start && n.end ? `${n.start} – ${n.end}` : `${num(n.hours)} h spánku`}</Big>
-            <p className="mt-1 text-[12px] text-fg-3">{[n.score != null && `skóre spánku ${n.score}`, n.awakeCount != null && `${n.awakeCount}× probuzení`, n.respiration && `dech ${num(n.respiration)}/min`].filter(Boolean).join(" · ")}</p>
+            <Big>{`${num(n.hours)} h`}</Big>
+            <p className="mt-1 text-[12.5px] text-fg-2">{n.start && n.end ? `${n.start} – ${n.end}` : ""}{n.awakeCount != null ? ` · ${n.awakeCount}× probuzení` : ""}</p>
+            <p className="text-[12px] text-fg-3">{`potřeba ${num(n.need)} h · obvykle ${num(n.norm?.h)} h`}</p>
           </div>
         </div>
-        <Sub>{r.nightText}</Sub>
+        {note(c, "sleep")}
         {n.hypnogram?.length ? (
           <Panel>
             <Lbl>Průběh noci</Lbl>
@@ -234,101 +371,115 @@ function morningCards(r: any, onAsk: (q: string) => void, hasAssistant: boolean)
             </div>
           </Panel>
         ) : null}
-        <Panel className="space-y-2.5">
-          <Lbl>Fáze proti vaší normě (4 týdny)</Lbl>
-          {["deep", "rem", "light", "awake"].map((s) => (
-            <VsNorm key={s} label={STAGE_LABEL[s]} v={n.stages?.[s]} norm={n.norm?.[s]} unit="min" col={STAGE_COL[s]}
-              max={Math.max(n.stages?.[s] || 0, n.norm?.[s] || 0, 1) * 1.25} />
-          ))}
-        </Panel>
+        {last.parts?.length ? (
+          <Panel className="space-y-2">
+            <Lbl>Z čeho se skóre skládá</Lbl>
+            {last.parts.map((pt: any) => (
+              <div key={pt.label}>
+                <div className="flex justify-between text-[12px]"><span className="text-fg-2">{pt.label}</span><span className="tabular-nums text-fg-3"><b className="text-fg">{num(pt.pts, 0)}</b> / {pt.max}</span></div>
+                <div className="mt-1 h-1.5 rounded-full bg-white/[.07]"><i className="block h-full rounded-full" style={{ width: `${(pt.pts / pt.max) * 100}%`, background: pt.pts / pt.max >= 0.8 ? C.ok : pt.pts / pt.max >= 0.5 ? C.watch : C.alert }} /></div>
+              </div>
+            ))}
+          </Panel>
+        ) : null}
         <Panel>
-          <Lbl>Posledních 7 nocí</Lbl>
+          <Lbl>Posledních 7 nocí · hodiny a skóre</Lbl>
           <div className="mt-2">
-            <Bars items={(n.nights || []).map((x: any, k: number) => ({ label: new Date(x.d + "T12:00:00").toLocaleDateString("cs-CZ", { weekday: "short" }), v: x.h,
-              col: x.h == null ? C.fg4 : x.h >= (n.need || 7) ? "#5c7cfa" : x.h >= (n.need || 7) - 1 ? C.watch : C.alert, on: k === (n.nights || []).length - 1 }))}
-              max={Math.max(10, ...(n.nights || []).map((x: any) => x.h || 0))} ref={n.need} refLabel={`potřeba ${num(n.need)} h`} />
+            <Bars items={scores.map((x: any, k: number) => ({ label: new Date(x.d + "T12:00:00").toLocaleDateString("cs-CZ", { weekday: "short" }), v: x.h,
+              col: x.score == null ? C.fg4 : x.score >= 80 ? "#6476e6" : x.score >= 60 ? C.watch : C.alert, on: k === scores.length - 1 }))}
+              max={Math.max(10, ...scores.map((x: any) => x.h || 0))} ref={n.need} refLabel={`potřeba ${num(n.need)} h`} />
           </div>
-          {n.debt ? <p className="mt-2 text-[12px] text-fg-2">{`Spánkový dluh za 3 noci: ${hm(n.debt * 60)}.`}</p> : null}
+          <div className="mt-1 flex gap-1.5">{scores.map((x: any) => <span key={x.d} className="flex-1 text-center text-[9.5px] tabular-nums text-fg-3">{x.score ?? ""}</span>)}</div>
         </Panel>
       </>
     ),
   })
   const night = rec.night || {}, base = rec.base || {}
   cards.push({
-    key: "recovery", title: "Regenerace", body: (
+    key: "readiness", title: "Noc → připravenost", body: (
       <>
         <div className="flex items-center gap-4">
           <Ring value={rec.score} col={goodCol(rec.score)}>
-            <b className="t-num block text-[24px] leading-none">{rec.score ?? "—"}</b><span className="text-[10px] text-fg-3">%</span>
+            <b className="t-num block text-[26px] leading-none">{rec.score ?? "—"}</b><span className="text-[10px] text-fg-3">% připravenost</span>
           </Ring>
           <div>
             <Big>{rec.label ? rec.label.charAt(0).toUpperCase() + rec.label.slice(1) : "Připravenost"}</Big>
-            {rec.yesterday != null && rec.score != null && <p className="mt-1 text-[12px] text-fg-3">{`ráno · včera ${rec.yesterday} % (${rec.score - rec.yesterday >= 0 ? "+" : "−"}${Math.abs(rec.score - rec.yesterday)})`}</p>}
-            {rec.now != null && rec.now !== rec.score && <p className="text-[12px] text-fg-3">{`po dnešním tréninku ${rec.now} %`}</p>}
+            {rec.yesterday != null && rec.score != null && <p className="mt-1 text-[12px] text-fg-3">{`včera ráno ${rec.yesterday} % (${rec.score - rec.yesterday >= 0 ? "+" : "−"}${Math.abs(rec.score - rec.yesterday)})`}</p>}
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-          {[["HRV", night.hrv, base.hrv, "ms", true], ["Klidový tep", night.rhr, base.rhr, "tepů/min", false], ["Body Battery", rec.bbWake, null, "ráno", true]].map(([l, v, b, u, up]: any) => {
-            const d = v != null && b != null ? v - b : null
+        {note(c, "readiness")}
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {([["HRV", night.hrv, base.hrv, "ms", true], ["Klidový tep", night.rhr, base.rhr, "tepů/min", false], ["Spánek", n?.hours, n?.norm?.h, "h", true]] as const).map(([l, v, b, u, up]) => {
+            const d = v != null && b != null ? Math.round(((v as number) - (b as number)) * 10) / 10 : null
             const good = d == null ? null : up ? d >= 0 : d <= 0
-            return (
-              <div key={l} className="rounded-[14px] bg-white/[.05] px-2 py-2.5">
-                <p className="text-[10.5px] text-fg-3">{l}</p>
-                <p className="t-num mt-0.5 text-[22px] leading-none">{v ?? "—"}</p>
-                <p className="mt-1 text-[10.5px]" style={{ color: good == null ? C.fg3 : good ? C.ok : C.watch }}>{d != null ? `${d > 0 ? "+" : d < 0 ? "−" : "±"}${Math.abs(d)} proti normě` : u}</p>
-              </div>
-            )
+            return <Tile key={l} label={l} value={v != null ? num(v as number) : "—"} col={good == null ? undefined : good ? C.ok : C.watch}
+              sub={d != null ? `${d > 0 ? "+" : d < 0 ? "−" : "±"}${num(Math.abs(d))} proti normě` : u} />
           })}
         </div>
         {rec.readiness && <div data-no-tap><ReadinessFactors r={rec.readiness} /></div>}
       </>
     ),
   })
-  const y = r.yesterday || {}
+  const rn = r.recent || {}
+  const yv = rn.yesterday?.view
   cards.push({
-    key: "yesterday", title: "Včerejšek", body: (
+    key: "recent", title: "Včera a tento týden", body: (
       <>
-        <Big>{y.activities?.length ? "Včera jste trénovali" : "Včera bez tréninku"}</Big>
-        <Sub>{y.activities?.length ? "Co z toho tělo ještě zpracovává:" : "Tělo mělo den na regeneraci."}</Sub>
-        {y.activities?.length ? (
-          <Panel className="divide-y divide-white/[.06] !py-1">
-            {y.activities.map((x: any) => (
-              <div key={x.id} className="flex items-center justify-between gap-3 py-2.5">
-                <span className="min-w-0"><b className="block truncate text-[14px]">{x.title}</b><span className="text-[11.5px] text-fg-3">{[x.time, x.min && `${x.min} min`, x.hr && `⌀ ${x.hr} tepů`, x.rpe && `náročnost ${x.rpe}/10`].filter(Boolean).join(" · ")}</span></span>
-                <span className="t-num shrink-0 text-[18px]">{x.km ? `${num(x.km)} km` : ""}</span>
-              </div>
-            ))}
+        <Lbl>Včera</Lbl>
+        <Big>{rn.yesterday?.activities?.length ? rn.yesterday.activities.map((x: any) => x.title).join(", ") : "Bez tréninku"}</Big>
+        {note(c, "recent")}
+        {yv && (
+          <Panel>
+            <div className="flex items-baseline justify-between"><Lbl>Průběh včerejška</Lbl><span className="text-[10.5px] text-fg-3">klepnutím zobrazíte detail</span></div>
+            <div className="mt-2"><DayTimeline v={yv} compact={false} /></div>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <Tile label="Pohyb mimo trénink" value={`${yv.activeMin} min`} />
+              <Tile label="Zvýšený tep v klidu" value={`${yv.highMin + yv.mildMin} min`} col={yv.highMin >= 30 ? C.watch : undefined} />
+              <Tile label="Kroky" value={yv.steps ? num(yv.steps, 0) : "—"} />
+            </div>
           </Panel>
-        ) : null}
-        {y.carry?.length ? (
+        )}
+        <Panel>
+          <div className="flex items-baseline justify-between"><Lbl>Celková zátěž po dnech</Lbl><span className="text-[11px] text-fg-3">{rn.budget ? `${num(rn.weekKm || 0)} z ${num(rn.budget, 0)} km` : ""}</span></div>
+          <div className="mt-2"><StackBars days={rn.week || []} /></div>
+        </Panel>
+        {rn.carry?.length ? (
           <Panel className="space-y-2.5">
-            <Lbl>Ještě nevstřebáno z posledních dní</Lbl>
-            {y.carry.map((c: any) => (
-              <VsNorm key={c.ch} label={c.label} v={c.residual} unit={c.unit} col={c.share > 0.6 ? C.watch : C.info} max={c.cap} norm={null} />
-            ))}
-            <p className="text-[11px] leading-4 text-fg-3">Pruh je zbytek zátěže proti vaší týdenní kapacitě. Vstřebává se noc po noci, rychleji po dobrém spánku.</p>
+            <Lbl>Co se ještě vstřebává</Lbl>
+            {rn.carry.map((x: any) => <VsNorm key={x.ch} label={x.label} v={x.residual} unit={x.unit} col={x.share > 0.6 ? C.watch : C.info} max={x.cap} norm={null} />)}
+            <p className="text-[11px] leading-4 text-fg-3">Zbytek zátěže proti týdenní kapacitě. Vstřebává se noc po noci, rychleji po dobrém spánku.</p>
           </Panel>
         ) : null}
-        {y.axes && <p className="mt-3 text-[12px] text-fg-2">{`Zátěž ${num(y.axes.load, 0)} · mechanika ${num(y.axes.mech, 0)} (práh ${y.axes.threshold})`}</p>}
       </>
     ),
   })
-  const km = p.km && typeof p.km === "object" ? p.km : null
+  const w: any[] = r.watch || []
   cards.push({
-    key: "plan", title: "Plán dne", body: (
+    key: "plan", title: "Dnešní trénink", body: (
       <>
         <Lbl>Doporučení na dnešek</Lbl>
         <Big>{p.override || p.label || "—"}</Big>
-        {km && km.hi > 0 && <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-[14px] bg-white/[.05] px-2 py-2.5"><p className="text-[10.5px] text-fg-3">Kilometry</p><p className="t-num mt-0.5 text-[20px]">{km && km.hi > 0 ? `${num(km.lo)}–${num(km.hi)}` : "—"}</p></div>
-          <div className="rounded-[14px] bg-white/[.05] px-2 py-2.5"><p className="text-[10.5px] text-fg-3">Tep</p><p className="t-num mt-0.5 text-[20px]">{p.hr ? `${p.hr[0]}–${p.hr[1]}` : "—"}</p></div>
-          <div className="rounded-[14px] bg-white/[.05] px-2 py-2.5"><p className="text-[10.5px] text-fg-3">Tempo</p><p className="t-num mt-0.5 text-[20px]">{p.pace ? `${paceS(p.pace[0])}–${paceS(p.pace[1])}` : "—"}</p></div>
+        {km && km.hi > 0 && <div className="mt-4 grid grid-cols-3 gap-2">
+          <Tile label="Kilometry" value={`${num(km.lo)}–${num(km.hi)}`} />
+          <Tile label="Tep" value={p.hr ? `${p.hr[0]}–${p.hr[1]}` : "—"} />
+          <Tile label="Tempo" value={p.pace ? `${paceS(p.pace[0])}–${paceS(p.pace[1])}` : "—"} />
         </div>}
-        {p.terrain && <p className="mt-3 text-[13px] text-fg-2">{`Terén: ${p.terrain}`}</p>}
+        {note(c, "plan")}
+        <Panel>
+          <Lbl>Na co si dát pozor</Lbl>
+          {w.length ? (
+            <ul className="mt-2 space-y-2" data-testid="watchouts">
+              {w.map((x: any, i: number) => { const I = LEVEL_ICON[x.level] || Info; return (
+                <li key={i} className="flex gap-2.5 text-[13px] leading-5 text-fg-soft"><I className="mt-0.5 size-4 shrink-0" style={{ color: LEVEL_COL[x.level] }} aria-hidden /><span>{x.text}</span></li>
+              ) })}
+            </ul>
+          ) : <p className="mt-1.5 text-[13px] text-fg-2">Nic zvláštního k hlídání.</p>}
+        </Panel>
         {(p.notes?.length || p.reasons?.length) ? (
           <Panel>
-            <ul className="space-y-1.5 text-[13px] leading-5 text-fg-soft">
-              {[...(p.notes || []), ...(p.reasons || [])].slice(0, 5).map((t: string, k: number) => <li key={k} className="flex gap-2"><span className="text-accent">›</span><span>{t}</span></li>)}
+            <Lbl>Proč právě takhle</Lbl>
+            <ul className="mt-2 space-y-1.5 text-[13px] leading-5 text-fg-soft">
+              {[...(p.reasons || []), ...(p.notes || [])].slice(0, 4).map((t: string, k: number) => <li key={k} className="flex gap-2"><span className="text-accent">›</span><span>{t}</span></li>)}
             </ul>
           </Panel>
         ) : null}
@@ -342,92 +493,115 @@ function morningCards(r: any, onAsk: (q: string) => void, hasAssistant: boolean)
       </>
     ),
   })
-  if (hasAssistant) cards.push({ key: "ask", title: "Otázky", body: <><Big>Chcete vědět víc?</Big><Sub>Asistent odpoví z vašich dat a citované literatury.</Sub><Questions qs={r.questions || []} onAsk={onAsk} /></> })
+  if (c.hasAssistant) cards.push({ key: "ask", title: "Otázky", body: <><Big>Chcete vědět víc?</Big><Sub>Asistent odpoví z vašich dat a citované literatury.</Sub><Questions qs={r.questions || []} onAsk={c.onAsk} /></> })
   return cards
 }
 
 // ---- evening ------------------------------------------------------------------------------
 const TYPE_COL: Record<string, string> = { "dlouhý": C.load, "kvalitní": C.alert, "lehký": C.info, volno: C.fg4, "lehce / volno": C.fg4 }
 
-function eveningCards(r: any, onAsk: (q: string) => void, hasAssistant: boolean): Card[] {
-  const d = r.day || {}, w = r.week || {}, rw = r.restOfWeek || {}, t = r.tonight || {}, vs = r.vsPlan || {}
+function eveningCards(r: any, c: Ctx): Card[] {
+  const v = r.dayView, ld = r.load || {}, w = r.week || {}, rw = r.restOfWeek || {}, t = r.tonight || {}, tm = r.tomorrow || {}
+  const nowMin = (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes() })()
   const cards: Card[] = [{
     key: "intro", title: "Úvod", body: (
       <div className="flex h-full flex-col justify-center">
         <NightSky />
-        <p className="mt-6 text-[13px] font-semibold text-fg-2">{fmtDay(r.date)}</p>
+        <p className="mt-5 text-[13px] font-semibold text-fg-2">{fmtDay(r.date)}</p>
         <Big>{r.greeting}</Big>
-        <Sub>{r.summary}</Sub>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <Tile label="Energie teď" value={r.energyNow ?? "—"} col={goodCol(r.energyNow)} sub="ze 100" />
+          <Tile label="Zátěž dne" value={ld.total != null ? num(ld.total, 0) : "—"} sub="j.z." />
+          <Tile label="Na noc" value={`${num(t.target)} h`} sub={`do postele ${t.bed}`} />
+        </div>
+        {note(c, "intro")}
       </div>
     ),
   }]
-  const sm = d.stressMin || null
-  const smTot = sm ? sm.rest + sm.low + sm.medium + sm.high : 0
   cards.push({
-    key: "day", title: "Den", body: (
+    key: "day", title: "Váš den", body: (
       <>
-        <div className="flex items-center gap-4">
-          <Ring value={d.steps} max={d.stepGoal || d.stepsNorm || 10000} col={C.accent}>
-            <Footprints className="mx-auto size-4 text-fg-3" aria-hidden />
-            <b className="t-num block text-[18px] leading-tight">{num(d.steps, 0)}</b>
-          </Ring>
-          <div>
-            <Big>{d.steps ? `${num(d.steps, 0)} kroků` : "Den"}</Big>
-            <p className="mt-1 text-[12px] text-fg-3">{[d.stepsNorm && `obvykle ${num(d.stepsNorm, 0)}`, d.stepGoal && `cíl ${num(d.stepGoal, 0)}`].filter(Boolean).join(" · ")}</p>
-          </div>
-        </div>
-        {(d.stress?.length || d.bb?.length) ? (
-          <Panel>
-            <div className="flex items-baseline justify-between"><Lbl>Stres a Body Battery</Lbl><span className="text-[11px] text-fg-3">{`⌀ stres ${d.stressAvg ?? "—"}${d.stressNorm ? ` (obvykle ${d.stressNorm})` : ""}`}</span></div>
-            <div className="mt-2"><DayCurve stress={d.stress} bb={d.bb} /></div>
-            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-fg-3">
-              <span className="flex items-center gap-1"><i className="h-0.5 w-3 rounded" style={{ background: C.accent }} />Body Battery</span>
-              {[["#5c9df5", "klid"], ["#f5c26b", "nízký"], ["#f0954a", "střední"], [C.alert, "vysoký"]].map(([c, l]) => <span key={l} className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: c }} />{l}</span>)}
+        <Lbl>Od rána do teď</Lbl>
+        <Big>{v ? `Energie ${v.energy?.[0]?.[1] ?? "—"} → ${r.energyNow ?? "—"}` : "Průběh dne"}</Big>
+        {note(c, "day")}
+        {v ? (
+          <>
+            <Panel>
+              <div className="flex items-baseline justify-between"><Lbl>Průběh dne</Lbl><span className="text-[10.5px] text-fg-3">táhněte prstem pro detail</span></div>
+              <div className="mt-3"><DayTimeline v={v} until={nowMin} /></div>
+            </Panel>
+            <div className="mt-3 grid grid-cols-4 gap-2">
+              <Tile label="Trénink" value={`${v.trainingMin}′`} />
+              <Tile label="Pohyb" value={`${v.activeMin}′`} />
+              <Tile label="Zvýšený tep" value={`${v.highMin + v.mildMin}′`} col={v.highMin >= 30 ? C.watch : undefined} />
+              <Tile label="Klid" value={`${v.calmMin}′`} />
             </div>
-          </Panel>
-        ) : null}
-        {sm && smTot > 0 && (
-          <Panel>
-            <Lbl>Čas ve stresu</Lbl>
-            <div className="mt-2 flex h-3 overflow-hidden rounded-full">
-              {[["rest", "#5c9df5"], ["low", "#f5c26b"], ["medium", "#f0954a"], ["high", C.alert]].map(([k, c]) => <i key={k} style={{ width: `${(sm[k] / smTot) * 100}%`, background: c }} />)}
-            </div>
-            <p className="mt-1.5 text-[12px] text-fg-2">{`Klid ${hm(sm.rest)} · vysoký stres ${hm(sm.high)}`}</p>
-          </Panel>
-        )}
-        {(d.bbHigh != null || d.bbNow != null) && (
-          <p className="mt-3 text-[13px] text-fg-2">{`Body Battery: ráno ${d.bbHigh ?? "—"}, teď ${d.bbNow ?? "—"}${d.bbDrained != null ? ` · vybito ${d.bbDrained}, nabito ${d.bbCharged ?? 0}` : ""}.`}</p>
-        )}
+            {v.stepsHourly?.length ? (
+              <Panel>
+                <Lbl>Kroky po hodinách{v.steps ? ` · ${num(v.steps, 0)}` : ""}</Lbl>
+                <div className="mt-2 flex h-12 items-end gap-[2px]">
+                  {Array.from({ length: 24 }, (_, h) => { const n = (v.stepsHourly.find((x: any) => x[0] === h) || [0, 0])[1]; const mx = Math.max(1, ...v.stepsHourly.map((x: any) => x[1])); return (
+                    <i key={h} className="block flex-1 rounded-t-[2px]" title={`${h}:00 · ${n} kroků`} style={{ height: `${Math.max(n ? 6 : 2, (n / mx) * 100)}%`, background: n ? "#2c8cc6" : "rgb(255 255 255 / .06)" }} />
+                  ) })}
+                </div>
+                <div className="mt-1 flex justify-between text-[9.5px] text-fg-3"><span>0:00</span><span>12:00</span><span>23:00</span></div>
+              </Panel>
+            ) : null}
+          </>
+        ) : <Sub>Celodenní tep z hodinek zatím nedorazil. Po synchronizaci se průběh doplní.</Sub>}
       </>
     ),
   })
+  const tot = Math.max(1, (ld.train || 0) + (ld.nt || 0), ld.usualNt || 0)
   cards.push({
-    key: "vsplan", title: "Dnes vs. plán", body: (
+    key: "load", title: "Zátěž dne", body: (
       <>
-        <Lbl>Doporučení na dnešek bylo</Lbl>
-        <Big>{vs.label || "—"}</Big>
-        {d.activities?.length ? (
-          <Panel className="divide-y divide-white/[.06] !py-1">
-            {d.activities.map((x: any) => (
-              <div key={x.id} className="flex items-center justify-between gap-3 py-2.5">
-                <span className="min-w-0"><b className="block truncate text-[14px]">{x.title}</b><span className="text-[11.5px] text-fg-3">{[x.time, x.min && `${x.min} min`, x.hr && `⌀ ${x.hr} tepů`].filter(Boolean).join(" · ")}</span></span>
-                <span className="t-num shrink-0 text-[18px]">{x.km ? `${num(x.km)} km` : ""}</span>
-              </div>
-            ))}
-          </Panel>
-        ) : <Sub>Dnes bez tréninku.</Sub>}
-        {vs.afterDone?.text && <Sub>{vs.afterDone.text}</Sub>}
-        {vs.channels?.length ? (
-          <Panel className="space-y-2.5">
-            <Lbl>Dnes odvedeno · zbývá</Lbl>
-            {vs.channels.filter((c: any) => c.doneToday != null).map((c: any) => (
-              <div key={c.ch} className="flex items-baseline justify-between text-[13px]">
-                <span className="text-fg-2">{c.label}</span>
-                <span className="tabular-nums text-fg-3"><b className="text-fg">{num(c.doneToday, c.ch === "volume" ? 1 : 0)}</b>{` ${c.unit}${c.left != null ? ` · zbývá ${num(c.left, c.ch === "volume" ? 1 : 0)}` : ""}`}</span>
+        <Lbl>Celková zátěž dne</Lbl>
+        <Big>{ld.total != null ? `${num(ld.total, 0)} j.z.` : "—"}</Big>
+        {note(c, "load")}
+        <Panel>
+          <div className="flex h-5 overflow-hidden rounded-full bg-white/[.06]" data-testid="load-split">
+            {ld.train ? <i style={{ width: `${(ld.train / tot) * 100}%`, background: "#b08a22" }} title={`trénink ${ld.train}`} /> : null}
+            {ld.nt ? <i style={{ width: `${(ld.nt / tot) * 100}%`, background: "#2c8cc6", marginLeft: 2 }} title={`mimo trénink ${ld.nt}`} /> : null}
+          </div>
+          <div className="mt-2 flex flex-wrap justify-between gap-2 text-[12px]">
+            <span className="flex items-center gap-1.5 text-fg-2"><i className="size-2.5 rounded-sm" style={{ background: "#b08a22" }} />trénink <b className="text-fg">{num(ld.train || 0, 0)}</b></span>
+            <span className="flex items-center gap-1.5 text-fg-2"><i className="size-2.5 rounded-sm" style={{ background: "#2c8cc6" }} />mimo trénink <b className="text-fg">{num(ld.nt || 0, 0)}</b>{ld.usualNt != null ? <span className="text-fg-3">{` (obvykle ${num(ld.usualNt, 0)})`}</span> : null}</span>
+          </div>
+          <p className="mt-2 text-[11px] leading-4 text-fg-3">Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou. Do Celkové zátěže jde jen to, co je nad vaším obvyklým dnem.</p>
+        </Panel>
+        {ld.channels?.length ? (
+          <Panel className="space-y-2">
+            <Lbl>Dnes odvedeno · dnes ještě smíte</Lbl>
+            {ld.channels.filter((x: any) => x.doneToday != null).map((x: any) => (
+              <div key={x.ch} className="flex items-baseline justify-between text-[13px]">
+                <span className="text-fg-2">{x.label}</span>
+                <span className="tabular-nums text-fg-3"><b className="text-fg">{num(x.doneToday, x.ch === "volume" ? 1 : 0)}</b>{` ${x.unit}${x.left != null ? ` · ještě ${num(x.left, x.ch === "volume" ? 1 : 0)}` : ""}`}</span>
               </div>
             ))}
           </Panel>
         ) : null}
+      </>
+    ),
+  })
+  const eff: any[] = tm.effects || []
+  cards.push({
+    key: "tomorrow", title: "Co ovlivní zítřek", body: (
+      <>
+        <Lbl>Zítřek</Lbl>
+        <Big>{tm.plan ? `${tm.plan.wd}: ${tm.plan.type}${tm.plan.km ? ` ≈ ${num(tm.plan.km)} km` : ""}` : "Co ovlivní zítřek"}</Big>
+        {note(c, "tomorrow")}
+        <Panel>
+          <ul className="space-y-2.5" data-testid="tomorrow-effects">
+            {eff.map((e, i) => (
+              <li key={i} className="flex gap-2.5 text-[13px] leading-5 text-fg-soft">
+                <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-[12px] font-extrabold" style={{ background: `${e.dir < 0 ? C.alert : e.dir > 0 ? C.ok : C.fg3}26`, color: e.dir < 0 ? C.alert : e.dir > 0 ? C.ok : C.fg2 }}>{e.dir < 0 ? "↓" : e.dir > 0 ? "↑" : "→"}</span>
+                <span>{e.text}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[11px] leading-4 text-fg-3">↓ zítřejší připravenost a kapacitu spíš sníží · ↑ spíš pomůže · → plán. Ráno to přesně ukáže noc.</p>
+        </Panel>
       </>
     ),
   })
@@ -439,14 +613,14 @@ function eveningCards(r: any, onAsk: (q: string) => void, hasAssistant: boolean)
       <>
         <Lbl>Tento týden</Lbl>
         <Big>{w.budget ? `${num(w.done || 0)} z ${num(w.budget, 0)} km` : `${num(w.done || 0)} km`}</Big>
-        <p className="mt-1 text-[12px] text-fg-3">{[w.left != null && w.left > 0.5 && `zbývá ${num(w.left)} km`, w.cycle && `${w.cycle}. týden cyklu`, w.mode === "recovery" && "odlehčovací týden"].filter(Boolean).join(" · ")}</p>
+        {note(c, "week")}
         <Panel>
           <Bars max={maxKm} items={days.map((x) => {
             const pl = planned[x.date]
             return x.past || x.today ? { label: x.wd, v: x.km || (x.other?.length ? 0.01 : null), col: x.today ? C.accent : C.info, on: x.today }
               : { label: x.wd, v: pl?.km ?? null, col: TYPE_COL[pl?.type] || C.fg4, hatch: true }
           })} />
-          <p className="mt-2 text-[11px] text-fg-3">Plné sloupce: odběhnuto. Šrafované: návrh na zbytek týdne.</p>
+          <p className="mt-2 text-[11px] text-fg-3">Plné: odběhnuto · šrafované: návrh na zbytek týdne.</p>
         </Panel>
         <Panel>
           <Lbl>Zbytek týdne</Lbl>
@@ -459,7 +633,6 @@ function eveningCards(r: any, onAsk: (q: string) => void, hasAssistant: boolean)
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[11px] leading-4 text-fg-3">Podle vašich obvyklých běžeckých dnů. Každý den ho upřesní ranní připravenost.</p>
         </Panel>
       </>
     ),
@@ -469,7 +642,7 @@ function eveningCards(r: any, onAsk: (q: string) => void, hasAssistant: boolean)
       <>
         <Lbl>Dnešní noc</Lbl>
         <Big>{`${hm((t.target || 8) * 60)} spánku`}</Big>
-        <Sub>{[t.hardTomorrow && "Zítra vás čeká náročnější trénink, proto o půl hodiny víc.", t.debt >= 1 && `Doháníte i spánkový dluh ${hm(t.debt * 60)}.`].filter(Boolean).join(" ") || "Podle vaší obvyklé délky spánku."}</Sub>
+        {note(c, "tonight")}
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Bed className="mx-auto size-5 text-load" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.bed}</p><p className="text-[10.5px] text-fg-3">do postele</p></div>
           <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Sun className="mx-auto size-5 text-watch" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.wake}</p><p className="text-[10.5px] text-fg-3">{t.wakeFromWatch ? "obvyklé vstávání" : "vstávání"}</p></div>
@@ -485,7 +658,7 @@ function eveningCards(r: any, onAsk: (q: string) => void, hasAssistant: boolean)
       </>
     ),
   })
-  if (hasAssistant) cards.push({ key: "ask", title: "Otázky", body: <><Big>Chcete se na něco zeptat?</Big><Sub>Asistent odpoví z vašich dat a citované literatury.</Sub><Questions qs={r.questions || []} onAsk={onAsk} /></> })
+  if (c.hasAssistant) cards.push({ key: "ask", title: "Otázky", body: <><Big>Chcete se na něco zeptat?</Big><Sub>Asistent odpoví z vašich dat a citované literatury.</Sub><Questions qs={r.questions || []} onAsk={c.onAsk} /></> })
   return cards
 }
 
@@ -536,7 +709,7 @@ const ReportCtx = createContext<ReportApi>({ kind: null, open: () => {} })
 export const useReport = () => useContext(ReportCtx)
 
 export function ReportProvider({ children }: { children: ReactNode }) {
-  const { me, boot, viewing, touring } = useApp()
+  const { me, boot, viewing, touring, refresh } = useApp()
   const rid = (viewing || touring) ? undefined : (me?.runner_id as string | undefined)
   const { available, open: ask } = useAssistant()
   const [now, setNow] = useState(() => new Date())
@@ -551,6 +724,19 @@ export function ReportProvider({ children }: { children: ReactNode }) {
     document.addEventListener("visibilitychange", vis)
     return () => { clearInterval(t); document.removeEventListener("visibilitychange", vis) }
   }, [])
+  // owner request 2026-10-03: the watch's data is pulled when the app is opened (at most every
+  // 30 minutes), so the reports and the day's load are current without the sync button
+  useEffect(() => {
+    if (!rid) return
+    let alive = true
+    api.garminStatus().then(async (st: any) => {
+      if (!alive || !st?.connected || st.last_error) return
+      const age = st.last_sync_at ? Date.now() - new Date(st.last_sync_at).getTime() : Infinity
+      if (age < 30 * 60_000) return
+      try { await api.garminSync(); if (alive) await refresh() } catch { /* the Dnes sync button reports errors */ }
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [rid]) // eslint-disable-line react-hooks/exhaustive-deps
   const kind = reportWindow(now)
   const day = now.toLocaleDateString("sv-SE")
   useEffect(() => {
@@ -565,9 +751,21 @@ export function ReportProvider({ children }: { children: ReactNode }) {
     }).catch(() => alive && setRep(null))
     return () => { alive = false }
   }, [rid, kind, day, stamp])
+  // the model-written sentences come after the report (validated on the server; the rule-based ones meanwhile)
+  const [ai, setAi] = useState<{ key: string; notes: Record<string, string>; source: string } | null>(null)
+  const repKey = rep ? `${rep.kind}:${rep.day}:${rep.data?.generatedAt}` : ""
+  useEffect(() => {
+    if (!rid || !rep || !rep.data?.aiPending) return
+    let alive = true
+    api.reportAi(rid, rep.kind).then((x: any) => alive && setAi({ key: repKey, notes: x.notes || {}, source: x.source })).catch(() => {})
+    return () => { alive = false }
+  }, [rid, repKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const value = useMemo<ReportApi>(() => ({ kind: rep ? rep.kind : null, open: () => setShow(true) }), [rep])
   const onAsk = (q: string) => { setShow(false); setTimeout(() => ask(q), 50) }
-  const cards = show && rep ? (rep.kind === "morning" ? morningCards(rep.data, onAsk, available) : eveningCards(rep.data, onAsk, available)) : null
+  const aiNow = ai && ai.key === repKey ? ai : null
+  const ctx = rep ? { onAsk, hasAssistant: available, notes: { ...(rep.data?.notes || {}), ...(aiNow?.notes || {}) },
+    ai: aiNow ? aiNow.source === "ai" : !rep.data?.aiPending, pending: !!rep.data?.aiPending && !aiNow } : null
+  const cards = show && rep && ctx ? (rep.kind === "morning" ? morningCards(rep.data, ctx) : eveningCards(rep.data, ctx)) : null
   return (
     <ReportCtx.Provider value={value}>
       {children}

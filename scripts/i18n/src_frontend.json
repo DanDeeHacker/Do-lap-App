@@ -1261,7 +1261,8 @@
    "assistant.tsx",
    "capacity.tsx",
    "landing.tsx",
-   "onboarding.tsx"
+   "onboarding.tsx",
+   "report.tsx"
   ],
   "kind": "str"
  },
@@ -2232,6 +2233,7 @@
    "assistant.tsx",
    "landing.tsx",
    "onboarding.tsx",
+   "report.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -2525,7 +2527,6 @@
   "files": [
    "App.tsx",
    "capacity.tsx",
-   "report.tsx",
    "tabs.tsx"
   ],
   "kind": "jsx"
@@ -2709,7 +2710,8 @@
  {
   "t": "spánek",
   "files": [
-   "App.tsx"
+   "App.tsx",
+   "report.tsx"
   ],
   "kind": "jsx"
  },
@@ -2916,6 +2918,7 @@
    "assistant.tsx",
    "landing.tsx",
    "onboarding.tsx",
+   "report.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -4136,6 +4139,13 @@
   "kind": "jsx"
  },
  {
+  "t": "· obvykle {} min",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· připravenost {} %",
   "files": [
    "capacity.tsx"
@@ -4166,8 +4176,7 @@
  {
   "t": "· zbývá {}",
   "files": [
-   "capacity.tsx",
-   "report.tsx"
+   "capacity.tsx"
   ],
   "kind": "tpl"
  },
@@ -4439,7 +4448,8 @@
   "t": "Dnešní trénink",
   "files": [
    "capacity.tsx",
-   "onboarding.tsx"
+   "onboarding.tsx",
+   "report.tsx"
   ],
   "kind": "str"
  },
@@ -4957,6 +4967,7 @@
   "files": [
    "capacity.tsx",
    "landing.tsx",
+   "report.tsx",
    "shell.tsx",
    "tabs.tsx"
   ],
@@ -5043,6 +5054,7 @@
   "t": "trénink",
   "files": [
    "capacity.tsx",
+   "report.tsx",
    "selfprograms.tsx"
   ],
   "kind": "str"
@@ -5092,6 +5104,13 @@
  },
  {
   "t": "vaše hodnocení: {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "včera {} min{} · z celodenního tepu, počítá se 0,6×",
   "files": [
    "capacity.tsx"
   ],
@@ -5229,6 +5248,13 @@
    "capacity.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Zvýšený tep v klidu včera",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": ", jen lehké běhy. Začít můžete kratšími úseky běhu střídanými s chůzí.",
@@ -8828,7 +8854,8 @@
  {
   "t": "rgb(255 255 255 / .06)",
   "files": [
-   "landing.tsx"
+   "landing.tsx",
+   "report.tsx"
   ],
   "kind": "str"
  },
@@ -11083,6 +11110,34 @@
   "kind": "str"
  },
  {
+  "t": "· {}× probuzení",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· AI ho ještě upřesňuje…",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "· energie {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· ještě {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· obvykle {}",
   "files": [
    "report.tsx",
@@ -11091,9 +11146,10 @@
   "kind": "tpl"
  },
  {
-  "t": "· vybito {}, nabito {}",
+  "t": "{} h",
   "files": [
-   "report.tsx"
+   "report.tsx",
+   "tabs.tsx"
   ],
   "kind": "tpl"
  },
@@ -11106,14 +11162,7 @@
   "kind": "tpl"
  },
  {
-  "t": "{} h spánku",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{} kroků",
+  "t": "{} j.z.",
   "files": [
    "report.tsx"
   ],
@@ -11134,7 +11183,21 @@
   "kind": "tpl"
  },
  {
-  "t": "{}. týden cyklu",
+  "t": "{}–{} km",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}: trénink {}, mimo trénink {} j.z.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}:00 · {} kroků",
   "files": [
    "report.tsx"
   ],
@@ -11148,28 +11211,21 @@
   "kind": "tpl"
  },
  {
-  "t": "{}× probuzení",
+  "t": "% připravenost",
   "files": [
    "report.tsx"
   ],
-  "kind": "tpl"
+  "kind": "jsx"
+ },
+ {
+  "t": "↓ zítřejší připravenost a kapacitu spíš sníží · ↑ spíš pomůže · → plán. Ráno to přesně ukáže noc.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "≈ {} km",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "⌀ {} tepů",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "⌀ stres {}{}",
   "files": [
    "report.tsx"
   ],
@@ -11197,21 +11253,35 @@
   "kind": "str"
  },
  {
-  "t": "Body Battery",
+  "t": "Bez tréninku",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Body Battery: ráno {}, teď {}{}.",
+  "t": "block w-full {}",
   "files": [
    "report.tsx"
   ],
   "kind": "tpl"
  },
  {
-  "t": "Čas ve stresu",
+  "t": "Celková zátěž dne",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Celková zátěž po dnech",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Celodenní tep z hodinek zatím nedorazil. Po synchronizaci se průběh doplní.",
   "files": [
    "report.tsx"
   ],
@@ -11232,54 +11302,25 @@
   "kind": "jsx"
  },
  {
-  "t": "cíl {}",
-  "files": [
-   "report.tsx",
-   "training.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Co z toho tělo ještě zpracovává:",
+  "t": "Co ovlivní zítřek",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "dech {}/min",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Den",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Dnes bez tréninku.",
+  "t": "Co se ještě vstřebává",
   "files": [
    "report.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Dnes odvedeno · zbývá",
+  "t": "Dnes odvedeno · dnes ještě smíte",
   "files": [
    "report.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Dnes vs. plán",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Dnešní noc",
@@ -11296,7 +11337,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Doháníte i spánkový dluh {}.",
+  "t": "do postele {}",
   "files": [
    "report.tsx"
   ],
@@ -11310,18 +11351,25 @@
   "kind": "jsx"
  },
  {
-  "t": "Doporučení na dnešek bylo",
+  "t": "Energie",
   "files": [
    "report.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Fáze proti vaší normě (4 týdny)",
+  "t": "Energie {} → {}",
   "files": [
    "report.tsx"
   ],
-  "kind": "jsx"
+  "kind": "tpl"
+ },
+ {
+  "t": "Energie teď",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Hluboký",
@@ -11338,6 +11386,20 @@
   "kind": "jsx"
  },
  {
+  "t": "Hodnocení",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Hodnocení AI",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "inset 0 0 0 1px rgb(138 149 255 / .45)",
   "files": [
    "report.tsx"
@@ -11352,7 +11414,7 @@
   "kind": "str"
  },
  {
-  "t": "Ještě nevstřebáno z posledních dní",
+  "t": "j.z. = tep × čas",
   "files": [
    "report.tsx"
   ],
@@ -11363,14 +11425,21 @@
   "files": [
    "report.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
-  "t": "Klid {} · vysoký stres {}",
+  "t": "klepnutím zobrazíte detail",
   "files": [
    "report.tsx"
   ],
-  "kind": "tpl"
+  "kind": "jsx"
+ },
+ {
+  "t": "Klid",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Kofein ještě 6 hodin před spaním zkracuje a zhoršuje spánek (Drake et al., 2013).",
@@ -11380,11 +11449,56 @@
   "kind": "jsx"
  },
  {
+  "t": "Kroky",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kroky po hodinách",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "L{} {}",
+  "files": [
+   "report.tsx",
+   "ui.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "L{} {} Z",
+  "files": [
+   "report.tsx",
+   "ui.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Lehký",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "lehký pohyb",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "M{} {}",
+  "files": [
+   "report.tsx",
+   "ui.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "M0 106 Q70 92 140 104 T240 100 V120 H0Z",
@@ -11415,11 +11529,54 @@
   "kind": "str"
  },
  {
+  "t": "mimo trénink",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "mimo trénink {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "mimo trénink nad obvyklý den",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou. Do Celkové zátěže jde jen to, co je nad vaším obvyklým dnem.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "mírně zvýšený tep v klidu",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "mt-4 rounded-[18px] border border-white/[.08] bg-white/[.04] p-3.5 {}",
   "files": [
    "report.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Na co si dát pozor",
+  "files": [
+   "report.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Na noc",
@@ -11429,21 +11586,14 @@
   "kind": "str"
  },
  {
-  "t": "náročnost {}/10",
+  "t": "Nic zvláštního k hlídání.",
   "files": [
    "report.tsx"
   ],
-  "kind": "tpl"
+  "kind": "jsx"
  },
  {
-  "t": "nízký",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Noc",
+  "t": "Noc → připravenost",
   "files": [
    "report.tsx"
   ],
@@ -11457,14 +11607,6 @@
   "kind": "jsx"
  },
  {
-  "t": "obvykle {}",
-  "files": [
-   "report.tsx",
-   "shell.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "obvyklé vstávání",
   "files": [
    "report.tsx"
@@ -11472,11 +11614,11 @@
   "kind": "str"
  },
  {
-  "t": "odlehčovací týden",
+  "t": "Od rána do teď",
   "files": [
    "report.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "Otázky",
@@ -11486,39 +11628,18 @@
   "kind": "str"
  },
  {
-  "t": "Plán dne",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Plné sloupce: odběhnuto. Šrafované: návrh na zbytek týdne.",
+  "t": "Plné: odběhnuto · šrafované: návrh na zbytek týdne.",
   "files": [
    "report.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "po dnešním tréninku {} %",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Podle vaší obvyklé délky spánku.",
+  "t": "Pohyb mimo trénink",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "Podle vašich obvyklých běžeckých dnů. Každý den ho upřesní ranní připravenost.",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "poslední káva",
@@ -11528,7 +11649,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Posledních 7 nocí",
+  "t": "Posledních 7 nocí · hodiny a skóre",
   "files": [
    "report.tsx"
   ],
@@ -11540,6 +11661,27 @@
    "report.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "potřeba {} h · obvykle {} h",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Proč právě takhle",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Průběh dne",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Průběh noci",
@@ -11556,7 +11698,7 @@
   "kind": "str"
  },
  {
-  "t": "Pruh je zbytek zátěže proti vaší týdenní kapacitě. Vstřebává se noc po noci, rychleji po dobrém spánku.",
+  "t": "Průběh včerejška",
   "files": [
    "report.tsx"
   ],
@@ -11578,20 +11720,6 @@
  },
  {
   "t": "Ranní report",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "ráno · včera {} % ({}{})",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Regenerace",
   "files": [
    "report.tsx"
   ],
@@ -11627,7 +11755,21 @@
   "kind": "str"
  },
  {
+  "t": "rgb(255 255 255 / .035)",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "rgb(255 255 255 / .05)",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "rgb(255 255 255 / .12)",
   "files": [
    "report.tsx"
   ],
@@ -11641,18 +11783,18 @@
   "kind": "str"
  },
  {
-  "t": "skóre spánku {}",
+  "t": "skóre {}",
   "files": [
    "report.tsx"
   ],
   "kind": "tpl"
  },
  {
-  "t": "Spánkový dluh za 3 noci: {}.",
+  "t": "skóre spánku",
   "files": [
    "report.tsx"
   ],
-  "kind": "tpl"
+  "kind": "jsx"
  },
  {
   "t": "Sportovcům se doporučuje 7–9 hodin spánku, při náročném tréninku spíš víc (Walsh et al., 2021).",
@@ -11660,27 +11802,6 @@
    "report.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "střední",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Stres a Body Battery",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Stres a Body Battery během dne",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "T12:00:00",
@@ -11691,11 +11812,11 @@
   "kind": "str"
  },
  {
-  "t": "Tělo mělo den na regeneraci.",
+  "t": "táhněte prstem pro detail",
   "files": [
    "report.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "Tempo",
@@ -11704,7 +11825,7 @@
    "rundetail.tsx",
    "training.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Tep",
@@ -11713,7 +11834,7 @@
    "rundetail.tsx",
    "training.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "tepů/min",
@@ -11721,10 +11842,10 @@
    "report.tsx",
    "tabs.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
-  "t": "Terén: {}",
+  "t": "trénink {}",
   "files": [
    "report.tsx"
   ],
@@ -11745,25 +11866,39 @@
   "kind": "str"
  },
  {
-  "t": "Včera bez tréninku",
+  "t": "Váš den",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Včera jste trénovali",
+  "t": "Včera",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "včera {} %",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Včera a tento týden",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Včerejšek",
+  "t": "včera ráno {} % ({}{})",
   "files": [
    "report.tsx"
   ],
-  "kind": "str"
+  "kind": "tpl"
  },
  {
   "t": "Večerní report",
@@ -11780,18 +11915,25 @@
   "kind": "str"
  },
  {
-  "t": "vysoký",
+  "t": "výrazně zvýšený tep v klidu",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Zátěž {} · mechanika {} (práh {})",
+  "t": "Z čeho se skóre skládá",
   "files": [
    "report.tsx"
   ],
-  "kind": "tpl"
+  "kind": "jsx"
+ },
+ {
+  "t": "Zátěž dne",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Zavřít report",
@@ -11808,14 +11950,35 @@
   "kind": "jsx"
  },
  {
-  "t": "zbývá {} km",
+  "t": "Zbytek zátěže proti týdenní kapacitě. Vstřebává se noc po noci, rychleji po dobrém spánku.",
   "files": [
    "report.tsx"
   ],
-  "kind": "tpl"
+  "kind": "jsx"
  },
  {
-  "t": "Zítra vás čeká náročnější trénink, proto o půl hodiny víc.",
+  "t": "ze 100",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zítřek",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zvýšený tep",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zvýšený tep v klidu",
   "files": [
    "report.tsx"
   ],
@@ -12474,13 +12637,6 @@
   "kind": "tpl"
  },
  {
-  "t": "Na co si dát pozor",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "na hraně, technika se rozpadala",
   "files": [
    "selfprograms.tsx"
@@ -12935,6 +13091,13 @@
   "kind": "jsx"
  },
  {
+  "t": "obvykle {}",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "pod prahem 25",
   "files": [
    "shell.tsx"
@@ -13260,13 +13423,6 @@
  },
  {
   "t": "{} cm",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{} h",
   "files": [
    "tabs.tsx"
   ],
@@ -15978,6 +16134,13 @@
   "kind": "str"
  },
  {
+  "t": "cíl {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Cíl = {} % referenčního týdne ({} km{}).",
   "files": [
    "training.tsx"
@@ -17341,27 +17504,6 @@
    "ui.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "L{} {}",
-  "files": [
-   "ui.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "L{} {} Z",
-  "files": [
-   "ui.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "M{} {}",
-  "files": [
-   "ui.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "M0 {} L{} L{} {} Z",

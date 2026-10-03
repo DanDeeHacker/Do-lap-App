@@ -38,6 +38,21 @@ from .. import schemas  # noqa: E402
 router = APIRouter(prefix="/api/integrations", tags=["integrations"])
 
 
+def _apply_day_raw(db: DBSession, rid: str, seed: dict) -> int:
+    """All-day heart rate and steps from any source (seed["day_raw"] = {date: {hr, steps}}),
+    stored per day and computed by the own day metrics (dayload.py), oldest first."""
+    raw = seed.get("day_raw") or {}
+    if not raw:
+        return 0
+    from ..metrics import dayload as DL
+    for d in sorted(raw):
+        DL.store_raw(db, rid, d, raw[d])
+    for d in sorted(raw):
+        DL.update_day(db, rid, d)
+    db.flush()
+    return len(raw)
+
+
 def _apply_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -> None:
     db.query(models.Activity).filter(models.Activity.runner_id == rid).delete()
     db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid).delete()
@@ -83,6 +98,7 @@ def _apply_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
     if r and r.device != synced_device:
         r.device = synced_device
         db.add(models.DeviceHistory(runner_id=rid, device=synced_device, source=f"{provider}_sync", recorded_at=E.now_iso()))
+    _apply_day_raw(db, rid, seed)
     db.commit()
     E.recompute_assessment(db, rid)
 
@@ -357,6 +373,7 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
     if r and synced_device and r.device != synced_device:
         r.device = synced_device
         db.add(models.DeviceHistory(runner_id=rid, device=synced_device, source=f"{provider}_sync", recorded_at=E.now_iso()))
+    _apply_day_raw(db, rid, seed)
     db.commit()
     E.recompute_assessment(db, rid)
     return {"added_activities": added_a, "added_daily": added_d}
@@ -405,6 +422,8 @@ def _download_and_merge(db: DBSession, rid: str, garmin) -> dict:
         raise HTTPException(status_code=502, detail=f"Nepodařilo se stáhnout data z Garminu: {e}")
     added = _merge_seed(db, rid, seed, provider="garmin")
     added["dayDetails"] = fetch_day_details(db, rid, garmin)
+    if added["dayDetails"]:
+        E.recompute_assessment(db, rid)        # the day's own load / resting HR feed the engine
     if backfill:
         meta["crossBackfill"] = E.iso_date(E.today_date())
         runner.onboarding_json = meta
@@ -430,7 +449,7 @@ def fetch_day_details(db: DBSession, rid: str, garmin, today=None) -> int:
             if k >= DAY_DETAIL_RECENT and d in have:
                 continue
             det = garmin_live.fetch_day_detail(garmin, d)
-            if not det.get("sleep") and not det.get("day"):
+            if not det.get("sleep") and not det.get("day") and not det.get("raw"):
                 continue
             row = db.query(models.DailyDetail).filter(models.DailyDetail.runner_id == rid, models.DailyDetail.date == d).first()
             if row is None:
@@ -438,6 +457,7 @@ def fetch_day_details(db: DBSession, rid: str, garmin, today=None) -> int:
                 db.add(row)
             row.sleep = det.get("sleep") or row.sleep
             row.day = det.get("day") or row.day
+            row.raw = det.get("raw") or row.raw
             row.fetched_at = E.now_iso()
             dm = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.date == d).first()
             day = det.get("day") or {}
@@ -447,6 +467,11 @@ def fetch_day_details(db: DBSession, rid: str, garmin, today=None) -> int:
                 if dm.stress_avg is None and day.get("stressAvg") is not None:
                     dm.stress_avg = day["stressAvg"]
             n += 1
+        db.flush()
+        # own day metrics (dayload.py), oldest first: each day's reference uses the days before it
+        from ..metrics import dayload as DL
+        for k in range(days - 1, -1, -1):
+            DL.update_day(db, rid, (today - _dt.timedelta(days=k)).isoformat())
         db.commit()
         return n
     except Exception:  # noqa: BLE001 — the report data must never break the sync

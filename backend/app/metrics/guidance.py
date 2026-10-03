@@ -551,6 +551,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         return out
     daily = {c: sums(runs, c) for c in CHS}
     daily["systemic"] = sums([s for s in sessions if s["date"] <= t_iso], "systemic")   # all sports
+    for d, v in C.nontraining_daily(db, rid).items():                                      # + the day outside training
+        if d <= t_iso:
+            daily["systemic"][d] = daily["systemic"].get(d, 0.0) + v
     vol_daily = daily["volume"]
 
     def week_sum(c, start):

@@ -575,7 +575,43 @@ def compact_day(stress: dict | None, summary: dict | None) -> dict | None:
     return out or None
 
 
+def compact_raw(hr: dict | None, steps: list | None) -> dict | None:
+    """All-day heart rate at the watch's own resolution (Garmin: every 2 min) and steps
+    per interval (Garmin: 15 min), as [minute of the local day, value] — the raw input of
+    the own, device-independent day metrics (app/metrics/dayload.py)."""
+    out = {}
+    off = _local_offset_ms(hr or {}) if hr else 0
+    day0 = _iso_ms((hr or {}).get("startTimestampLocal"))
+    if hr and day0 is not None:
+        pts = []
+        for p in hr.get("heartRateValues") or []:
+            if len(p) >= 2 and p[1] and p[1] > 25:
+                m = ((p[0] + off) - day0) / 60000
+                if 0 <= m < 1440:
+                    pts.append([round(m, 1), int(p[1])])
+        if pts:
+            out["hr"] = sorted(pts)
+    if steps and day0 is not None:
+        st = []
+        for p in steps:
+            a = _iso_ms(p.get("startGMT"))
+            if a is None or p.get("steps") is None:
+                continue
+            m = int(((a + off) - day0) // 60000)
+            if 0 <= m < 1440:
+                st.append([m, int(p["steps"])])
+        if st:
+            out["steps"] = sorted(st)
+    return out or None
+
+
 def fetch_day_detail(garmin, cdate: str) -> dict:
-    """One day's night (the night that ended that morning) and the day itself."""
-    return {"sleep": compact_sleep(_safe(garmin.get_sleep_data, cdate)),
-            "day": compact_day(_safe(garmin.get_stress_data, cdate), _safe(garmin.get_user_summary, cdate))}
+    """One day's night (the night that ended that morning), the day itself, and the raw
+    all-day heart rate and steps. Garmin's own stress / Body Battery / sleep score are
+    kept only for the owners' comparison; the app computes its own (dayload.py)."""
+    def call(name):
+        fn = getattr(garmin, name, None)
+        return _safe(fn, cdate) if fn else None
+    return {"sleep": compact_sleep(call("get_sleep_data")),
+            "day": compact_day(call("get_stress_data"), call("get_user_summary")),
+            "raw": compact_raw(call("get_heart_rates"), call("get_steps_data"))}

@@ -360,6 +360,30 @@ def _ecc_factor(profile, key=None):
     return val
 
 
+NT_USUAL_DAYS, NT_USUAL_MIN = 28, 7
+
+
+def nontraining_daily(db, rid) -> dict:
+    """{date: load outside training above the runner's usual day} (all-day heart rate,
+    already × NT_WEIGHT; dayload.py) — added to the all-sport channel (Celková zátěž).
+    Only the excess over the median of the previous 28 days counts: the usual daily life
+    is part of the baseline the capacity was built on (and the history before all-day
+    heart rate was imported has none), an unusually active day — moving house, a day on
+    the feet — adds. Needs 7 earlier days with all-day data."""
+    data = D.of(db, rid)
+    days = sorted((m.date[:10], m.nt_load) for m in data.daily if getattr(m, "nt_load", None) is not None)
+    out = {}
+    for i, (d, v) in enumerate(days):
+        lo = (_d(d) - timedelta(days=NT_USUAL_DAYS)).isoformat()
+        prev = sorted(x for dd, x in days[:i] if dd >= lo)
+        if len(prev) < NT_USUAL_MIN:
+            continue
+        usual = prev[len(prev) // 2]
+        if v > usual:
+            out[d] = round(v - usual, 1)
+    return out
+
+
 def run_exposures(db, rid, hrmax, rhr):
     """Every session → {id, date, run, title, km, exp{channel: value|None}}."""
     data = D.of(db, rid)
@@ -762,6 +786,35 @@ def readiness_parts(night: dict, week: dict, base: dict, zover: dict | None = No
     return parts
 
 
+# Own logic, every device (dayload.py): yesterday's minutes of raised resting heart rate
+# (awake, not moving, well above the runner's own still-awake level) against the usual
+# day. A minor signal — heart rate at rest also rises with caffeine, heat or digestion —
+# so it counts like the check-in's stress (× DAY_STRESS_W). Working assumption.
+DAY_STRESS_W = 0.6
+DAY_STRESS_MIN_DAYS = 7
+DAY_STRESS_SD_FLOOR = 15.0
+
+
+def raised_minutes(row) -> float | None:
+    if row is None or getattr(row, "rest_high_min", None) is None:
+        return None
+    return (row.rest_high_min or 0) + 0.5 * (row.rest_mild_min or 0)
+
+
+def day_stress_part(dm: dict, d0) -> float | None:
+    """Deficit 0–DAY_STRESS_W from yesterday's raised resting HR vs the 28 days before."""
+    y = raised_minutes(dm.get((d0 - timedelta(days=1)).isoformat()))
+    if y is None:
+        return None
+    base = [v for v in (raised_minutes(dm.get((d0 - timedelta(days=j)).isoformat())) for j in range(2, 30)) if v is not None]
+    if len(base) < DAY_STRESS_MIN_DAYS:
+        return None
+    m, sd = E.mean(base), max(E.sd(base) or 0.0, DAY_STRESS_SD_FLOOR)
+    z = (y - m) / sd
+    d = DAY_STRESS_W * E.clamp((z - READY_TOLERANCE) / (READY_FULL - READY_TOLERANCE), 0, 1)
+    return round(d, 2) if d > 0 else None
+
+
 def checkin_parts(c) -> dict:
     """v0.9.3 — a check-in's items as readiness-style deficits (the pre-v0.9.3 rules),
     for the training recommendation only: on the Skóre they count once, on Příznaky,
@@ -891,6 +944,12 @@ def readiness_inputs(db, rid, day: str) -> dict:
                    for k in sorted(x for x in ((d0 - timedelta(days=j)).isoformat() for j in range(7)) if x in dm)],
         "checkin": None,
     }
+    # own all-day heart rate (dayload.py): yesterday's raised resting minutes vs the usual day
+    dm_all = {m.date[:10]: m for m in data.daily}
+    yv = raised_minutes(dm_all.get((d0 - timedelta(days=1)).isoformat()))
+    bv = [v for v in (raised_minutes(dm_all.get((d0 - timedelta(days=j)).isoformat())) for j in range(2, 30)) if v is not None]
+    if yv is not None:
+        out["dayStress"] = {"yesterday": round(yv), "usual": round(E.mean(bv)) if bv else None, "n": len(bv)}
     cks = [c for c in data.checkins if day <= c.submitted_at < day + "T99"]
     if cks:
         c = max(cks, key=lambda x: x.submitted_at or "")
@@ -1021,6 +1080,9 @@ def readiness_by_day(db, rid, days) -> dict:
             wk.update(_sleep_window(dm, d0))
             parts = readiness_parts({**{f: _ln_hrv(f, getattr(night, f)) for f in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency")},
                                      "rest_share": rest_share(night)}, wk, base, zover)
+        ds = day_stress_part(dm, d0)
+        if ds:
+            parts["dayStress"] = ds
         # v0.9.3 — check-in items (soreness, fatigue, stress outside training, the night's
         # rating) no longer enter readiness: they are scored once, on Příznaky (owner
         # feedback 2026-09-30). Readiness = the watch's recovery markers and today's session.
@@ -1475,6 +1537,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
     hrmax, rhr = E.hr_bounds(runs_only, E.daily(db, rid, 180), runner.birth_year if runner else None,
                              runner.hr_max if runner else None)
     sessions = run_exposures(db, rid, hrmax, rhr)
+    nt_days = nontraining_daily(db, rid)
     pain = pain_dates(db, rid)
     reports = report_dates(db, rid)
     first_day = min((s["date"] for s in sessions), default=t_iso)
@@ -1560,6 +1623,9 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         p_s = worst_p if worst else 0.0
         # --- rolling 7 days
         daily = _daily_sums(pool, ch)
+        if ch == "systemic":                 # the day outside training counts in the all-sport load
+            for d, v in nt_days.items():
+                daily[d] = daily.get(d, 0.0) + v
         capw = weekly_capacity(daily, t_iso, first_day, pain, ch)
         rtr_cap = _rtr_week_cap(daily, b_today["rtr"], ch) if capw is not None else None
         cap_base = capw
@@ -1606,6 +1672,10 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
                   "value": _fmt(s["exp"][ch], ch)}
                  for s in sorted(pool, key=lambda x: (x["date"], str(x["id"])))
                  if s["exp"].get(ch) and d7 <= s["date"] <= t_iso]
+        if ch == "systemic":
+            week7 += [{"id": f"nt-{d}", "date": d, "title": "Aktivita mimo trénink nad obvyklý den", "sport": "daily", "run": False,
+                       "value": _fmt(v, ch)} for d, v in nt_days.items() if d7 <= d <= t_iso]
+            week7.sort(key=lambda x: (x["date"], str(x["id"])))
         if with_history:
             hist_ch[ch] = _history_rows(pool, ch, items, rates, ready, daily, first_day, pain, today, t_iso,
                                         absorb_days, m_s, m_w, body_before)
