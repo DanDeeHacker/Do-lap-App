@@ -11297,7 +11297,8 @@
  {
   "t": "těžké",
   "files": [
-   "rundetail.tsx"
+   "rundetail.tsx",
+   "selfprograms.tsx"
   ],
   "kind": "str"
  },
@@ -11410,6 +11411,13 @@
   "kind": "tpl"
  },
  {
+  "t": "{} · na konci {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} · začátek",
   "files": [
    "selfprograms.tsx"
@@ -11418,6 +11426,13 @@
  },
  {
   "t": "{} grid gap-2",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} z {} sérií",
   "files": [
    "selfprograms.tsx"
   ],
@@ -11466,6 +11481,13 @@
   "kind": "tpl"
  },
  {
+  "t": "← Zpět",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "× týdně",
   "files": [
    "selfprograms.tsx"
@@ -11481,6 +11503,13 @@
  },
  {
   "t": "3 a víc opakování v záloze",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "akorát",
   "files": [
    "selfprograms.tsx"
   ],
@@ -11550,13 +11579,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Dnešní cviky",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe.",
   "files": [
    "selfprograms.tsx"
@@ -11579,6 +11601,13 @@
  },
  {
   "t": "grid h-8 min-w-8 place-items-center rounded-full px-2 text-[12px] font-bold transition active:scale-95 {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "grid size-5 place-items-center rounded-full {}",
   "files": [
    "selfprograms.tsx"
   ],
@@ -11628,6 +11657,13 @@
  },
  {
   "t": "Která session to bude, se rozhodne v den tréninku podle ostatních aktivit. Dávky se mohou upravit podle vašeho hodnocení.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "lehké",
   "files": [
    "selfprograms.tsx"
   ],
@@ -11691,6 +11727,13 @@
   "kind": "jsx"
  },
  {
+  "t": "něco bolelo",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Něco bolelo",
   "files": [
    "selfprograms.tsx"
@@ -11742,6 +11785,13 @@
  },
  {
   "t": "Pokračovat na další trénink",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Poslední trénink",
   "files": [
    "selfprograms.tsx"
   ],
@@ -15019,6 +15069,20 @@
   "kind": "tpl"
  },
  {
+  "t": "{} · tep {}–{}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} · úsilí {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} /km",
   "files": [
    "training.tsx"
@@ -15069,6 +15133,13 @@
  },
  {
   "t": "% před zraněním",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "← Všechny tři možnosti",
   "files": [
    "training.tsx"
   ],
@@ -15362,6 +15433,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Doporučení přijde v týdnu závodu.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "doporučeno",
   "files": [
    "training.tsx"
@@ -15468,6 +15546,13 @@
  },
  {
   "t": "kolik si dnes můžete dovolit",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kterou možnost zvolit, aplikace doporučí v týdnu závodu podle kapacity a připravenosti v tu dobu. Klepnutím zobrazíte strategii.",
   "files": [
    "training.tsx"
   ],
@@ -15797,6 +15882,13 @@
  },
  {
   "t": "Před závodem řídí týden ladění formy.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Předpoklad podle vaší aktuální formy.",
   "files": [
    "training.tsx"
   ],
@@ -16151,6 +16243,13 @@
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Tři možnosti, jak závod běžet",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "tvrdá práce ≥ 80 % tepové rezervy",

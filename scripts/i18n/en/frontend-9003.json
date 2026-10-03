@@ -26,5 +26,21 @@
 "Odlehčovací týden": "Recovery week",
 "Další trénink{}{} · {}": "Next session{0}{1} · {2}",
 "{}. týden": "week {0}",
-"{} · {}.–{}. týden": "{0} · weeks {1}–{2}"
+"{} · {}.–{}. týden": "{0} · weeks {1}–{2}",
+"Tři možnosti, jak závod běžet": "Three ways to run the race",
+"Předpoklad podle vaší aktuální formy.": "A prediction from your current fitness.",
+"Na odhad tempa zatím chybí běhy s tepem.": "There aren't enough runs with heart rate to estimate the pace yet.",
+"Kterou možnost zvolit, aplikace doporučí v týdnu závodu podle kapacity a připravenosti v tu dobu. Klepnutím zobrazíte strategii.": "Which one to choose, the app recommends in the race week from your capacity and readiness at that time. Tap to see the strategy.",
+"← Všechny tři možnosti": "← All three options",
+"Doporučení přijde v týdnu závodu.": "The recommendation comes in the race week.",
+"{} · úsilí {}": "{0} · effort {1}",
+"{} /km": "{0} /km",
+"· tep {}–{}": "· HR {0}–{1}",
+"← Zpět": "← Back",
+"Poslední trénink": "Last session",
+"Poslední trénink{}": "Last session{0}",
+"{} · na konci {}": "{0} · felt {1} at the end",
+"{} z {} sérií": "{0} of {1} sets",
+"těžké": "hard",
+"{} · tep {}–{}": "{0} · HR {1}–{2}"
 }

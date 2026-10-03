@@ -125,6 +125,40 @@ function ExerciseModule({ e, progId, onToggle, onOpen }: { e: any; progId: any; 
 // Feedback #170 — once every exercise of the day is done, the session closes into a
 // summary: the week at a glance, where the programme stands, and the next session.
 const WD_SHORT = ["po", "út", "st", "čt", "pá", "so", "ne"]
+// feedback #172 — the last session as a read-only record of what was done: every set
+// ticked, the dose and (runner's must-have) how it felt; nothing can be changed here.
+function LastSession({ act, lib, onBack }: { act: any; lib: any; onBack: () => void }) {
+  const dur = act.durability
+  const last = dur?.history?.length ? dur.history[dur.history.length - 1] : null
+  const FEEL_LABEL: Record<string, string> = { easy: "lehké", ok: "akorát", hard: "těžké", pain: "něco bolelo" }
+  return (
+    <div className="mt-3 animate-[careReveal_.28s_ease-out]" data-testid="last-session">
+      <button type="button" onClick={onBack} className="text-[12px] font-bold text-accent" data-testid="last-session-back">← Zpět</button>
+      <b className="mt-2 block text-[15px] text-fg">Poslední trénink{last ? ` · ${fmtD(last.date)}` : ""}</b>
+      {last && <p className="text-[12px] text-fg-3">{`${dur.sessionLabel} · na konci ${FEEL_LABEL[last.feel] || last.feel}`}</p>}
+      <div className="mt-2 divide-y divide-white/[.06]">
+        {act.exercises.map((e: any) => {
+          const sets = setsOf(e.dose || "")
+          return (
+            <div key={e.id} className="flex items-center gap-3 py-2.5">
+              <Thumb id={e.id} />
+              <span className="min-w-0 flex-1">
+                <b className="block text-[13px] font-bold">{lib.exercises[e.id]?.name || e.name}</b>
+                <span className="text-[12px] text-fg-3">{e.dose}</span>
+              </span>
+              <span className="flex shrink-0 gap-1" aria-label={`${e.doneToday ? sets : 0} z ${sets} sérií`}>
+                {Array.from({ length: sets }, (_, k) => (
+                  <i key={k} className={`grid size-5 place-items-center rounded-full ${e.doneToday ? "bg-accent text-ink" : "border border-white/15"}`}>{e.doneToday && <Check className="size-3" strokeWidth={3} aria-hidden />}</i>
+                ))}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function SessionDone({ act, lib, onReopen, onRerate }: { act: any; lib: any; onReopen: () => void; onRerate?: () => void }) {
   const dur = act.durability
   const labels = (lib.programs as Prog[]).find((p) => p.key === act.template)?.sessionLabels || {}
@@ -169,7 +203,7 @@ function SessionDone({ act, lib, onReopen, onRerate }: { act: any; lib: any; onR
       {!next ? (
         <div className="mt-4 flex flex-wrap gap-2">
           <Button size="sm" onClick={() => setNext(true)} data-testid="next-session">Pokračovat na další trénink</Button>
-          <Button size="sm" variant="outline" onClick={onReopen}>Dnešní cviky</Button>
+          <Button size="sm" variant="outline" onClick={onReopen} data-testid="last-session-open">Poslední trénink</Button>
           {onRerate && <Button size="sm" variant="outline" onClick={onRerate} data-testid="rerate">Změnit hodnocení</Button>}
         </div>
       ) : (
@@ -317,6 +351,8 @@ function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: P
         <p className="t-label !text-fg-3">Program · {prog.weeks} týdnů{prog.perWeek ? ` · ${prog.perWeek}× týdně` : ""}</p>
         <h2 className="mt-1 font-serif text-[24px] leading-tight text-fg">{prog.name}</h2>
         <p className="mt-1 text-[13px] leading-5 text-fg-2">{prog.summary}</p>
+        {/* feedback #173 — start above the exercises, not at the very bottom */}
+        <Button className="mt-4 w-full" disabled={busy} onClick={onStart} data-testid="program-start">Začít program</Button>
         {prog.phases && (
           <div className="mt-4 grid gap-1.5" data-testid="program-phases">
             {prog.phases.map((ph) => (
@@ -362,7 +398,6 @@ function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: P
           </div>
           {refs && <ul className="mt-1 space-y-1 text-[11px] leading-4 text-fg-3">{prog.refs.map((r) => <li key={r}>{lib.references[r] || r}</li>)}</ul>}
         </div>
-        <Button className="mt-4 w-full" disabled={busy} onClick={onStart} data-testid="program-start">Začít program</Button>
         <p className="mt-2 text-[11px] leading-4 text-fg-3">{perf
           ? "Program doplňuje běžecký trénink. Když cvik bolí, vynechte ho."
           : "Program je pro mírné obtíže a nenahrazuje vyšetření. Bolest, která se zhoršuje, bolí v noci nebo omezuje chůzi, nechte posoudit fyzioterapeutem."}</p>
@@ -472,8 +507,9 @@ export function SelfPrograms() {
             <Button size="sm" variant="outline" onClick={async () => { await api.endSelfProgram(rid, act.id); load() }}>Ukončit</Button>
           </div>
           {act.durability && <DurabilityHead d={act.durability} />}
-          {(act.durability ? act.durability.doneToday && !rerate : act.exercises.length > 0 && act.exercises.every((e: any) => e.doneToday)) && !reopen ? (
-            <SessionDone act={act} lib={lib} onReopen={() => setReopen(true)} onRerate={act.durability ? () => setRerate(true) : undefined} />
+          {(act.durability ? act.durability.doneToday && !rerate : act.exercises.length > 0 && act.exercises.every((e: any) => e.doneToday)) ? (
+            reopen ? <LastSession act={act} lib={lib} onBack={() => setReopen(false)} />
+              : <SessionDone act={act} lib={lib} onReopen={() => setReopen(true)} onRerate={act.durability ? () => setRerate(true) : undefined} />
           ) : act.durability && (rerate || (act.exercises.every((e: any) => e.doneToday) && !act.durability.doneToday)) ? (
             <FeelPrompt busy={busy} onPick={finish} />
           ) : act.durability?.blocked && !act.durability.doneToday && !force ? (
