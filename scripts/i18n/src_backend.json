@@ -4708,6 +4708,12 @@
   ]
  },
  {
+  "t": "Den mimo trénink ({}) ubral připravenosti {} {}.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Den závodu",
   "files": [
    "metrics/guidance.py"
@@ -5351,6 +5357,12 @@
   ]
  },
  {
+  "t": "bodů",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "byl to tvrdý trénink",
   "files": [
    "metrics/guidance.py"
@@ -5450,6 +5462,12 @@
  },
  {
   "t": "omezuje běžný pohyb",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "pohyb mimo trénink nad obvyklý den (+{} j.z.)",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5572,6 +5590,12 @@
  },
  {
   "t": "{} dní bez bolesti",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "{} min zvýšeného tepu v klidu",
   "files": [
    "metrics/guidance.py"
   ]

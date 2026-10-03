@@ -24,7 +24,7 @@ import { Care, InjurySheet, WeeklyCheckButton } from "@/care"
 import { DataView } from "@/datapage"
 import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
-import { CapacityMini, ReadinessFactors, readinessCol, readinessPct } from "@/capacity"
+import { CapacityMini, ReadinessFactors, afterLine, readinessCol, readinessPct } from "@/capacity"
 import { Training } from "@/training"
 import { AssistantProvider, CoachFab, WhyButton } from "@/assistant"
 import { AdminPage, ViewAsBanner } from "@/admin"
@@ -527,7 +527,7 @@ function ReadinessDetail({ r, fallback }: { r: any; fallback: number | null }) {
         )}
         {drop >= 1 && (
           <p className="mt-1 text-[12px] text-fg-2" data-testid="readiness-after">
-            {r.afterSession.today ? `Po dnešním tréninku −${drop} (ráno ${r.morningScore} %) · ${r.afterSession.today.band}` : `Včerejší náročný trénink ještě doznívá −${drop}`} · zítra ji upřesní noční data
+            {afterLine(r)}
           </p>
         )}
         {(i.week?.hrv != null || i.night?.hrv != null) && (

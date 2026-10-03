@@ -1173,6 +1173,45 @@ def after_session(sessions, t_iso: str, night_today: bool, hrmax, rhr) -> dict |
     return {"deficit": round(deficit, 3), "today": today, "carry": carry}
 
 
+# v0.10.4 — the day outside training lowers today's readiness too, like a session does,
+# until the night's HRV, resting HR and sleep show the actual response (dayload.py,
+# every device). Load outside training above the usual day is judged on the same scale
+# as the session: what it adds to the day's total (training + outside) against the
+# runner's own days of the last 8 weeks, at most ~8 points (walking and daily life are
+# low-intensity, below the first threshold — Seiler et al., 2007). Today's raised resting
+# heart rate so far counts like yesterday's (× DAY_STRESS_W); it only grows during the
+# day, so the morning shows nothing and the evening the whole day. Working assumptions.
+NT_DAY_CAP = 0.10
+
+
+def day_now(db, rid, sessions, nt_days: dict, t_iso: str) -> dict | None:
+    """{nt: {deficit, excess, total}, stress: {deficit, min, usual}} for today, or None."""
+    out = {}
+    ex = nt_days.get(t_iso) or 0.0
+    if ex > 0:
+        d0 = _d(t_iso)
+        train = _daily_sums([s for s in sessions if s["exp"].get("systemic")], "systemic")
+        days = set(train) | set(nt_days)
+        past = [v for v in ((train.get(k, 0.0) + nt_days.get(k, 0.0)) for k in days
+                            if 0 < (d0 - _d(k)).days <= 56) if v > 0]
+        if len(past) >= EFFORT_MIN_DAYS:
+            t0 = train.get(t_iso, 0.0)
+            d = (_interp(min(1.0, _pct_rank(past, t0 + ex)), EFFORT_CURVE)
+                 - (_interp(min(1.0, _pct_rank(past, t0)), EFFORT_CURVE) if t0 > 0 else 0.0))
+            d = E.clamp(d, 0.0, NT_DAY_CAP)
+            if d >= 0.01:
+                out["nt"] = {"deficit": round(d, 3), "excess": round(ex), "total": round(t0 + ex)}
+    data = D.of(db, rid)
+    lo = (_d(t_iso) - timedelta(days=31)).isoformat()
+    dm = {m.date[:10]: m for m in data.daily if m.date >= lo}
+    ds = day_stress_part(dm, _d(t_iso) + timedelta(days=1))
+    if ds:
+        base = [v for v in (raised_minutes(dm.get((_d(t_iso) - timedelta(days=j)).isoformat())) for j in range(1, 29)) if v is not None]
+        out["stress"] = {"deficit": ds, "min": round(raised_minutes(dm.get(t_iso)) or 0),
+                         "usual": round(E.mean(base)) if base else None}
+    return out or None
+
+
 def hr_zones(hrmax, rhr, lthr=None):
     return [{"z": z, "lo": round(lo), "hi": round(hi)} for z, lo, hi in zone_bounds(hrmax, rhr, lthr)]
 
@@ -1558,11 +1597,27 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
     # sizes limits and drives absorption keeps the morning value, so nothing is cut twice)
     after = after_session(sessions, t_iso, t_iso in nights, hrmax, rhr)
     morning_score, parts_now = score_today, dict(parts_today)
-    if after and after["deficit"] > 0:
-        parts_now["session"] = after["deficit"]
+    if after and after["deficit"] <= 0:
+        after = None
+    # v0.10.4: and the day outside training so far (load above the usual day, raised resting HR)
+    dn = day_now(db, rid, sessions, nt_days, t_iso)
+    if after or dn:
+        after = after or {"deficit": 0.0, "today": None, "carry": None}
+        if after["deficit"] > 0:
+            parts_now["session"] = after["deficit"]
+        sess_score = readiness_from(parts_now)[1]
+        after["sessionDrop"] = morning_score - sess_score
+        for key, k in (("dayLoad", "nt"), ("dayStressNow", "stress")):
+            if dn and dn.get(k):
+                parts_now[key] = dn[k]["deficit"]
+        after["nt"] = (dn or {}).get("nt")
+        after["stress"] = (dn or {}).get("stress")
         _f, score_now = readiness_from(parts_now)
+        after["dayDrop"] = sess_score - score_now
         after["drop"] = morning_score - score_now
         score_today = score_now
+        if not after["drop"]:
+            after = None
     wk_ready = E.mean([ready.get(d, (1.0, {}))[0] for d in recent_days[:7]]) or 1.0
     # v0.10.0 — pain / injury per day (cached), judged the day before a session
     body_cache: dict = {}

@@ -1,0 +1,14 @@
+{
+"{} · zítra ji upřesní noční data": "{0} · the night's data will refine it tomorrow",
+"{} min zvýšeného tepu v klidu": "{0} min of raised resting heart rate",
+"{}{} · ráno {} % · zítra ji upřesní noční data": "{0}{1} · morning {2}% · the night's data will refine it tomorrow",
+"Den mimo trénink": "Day outside training",
+"den mimo trénink −{} ({})": "day outside training −{0} ({1})",
+"po dnešním tréninku −{} · {}": "after today's session −{0} · {1}",
+"pohyb mimo trénink +{} j.z. nad obvyklý den": "movement outside training +{0} l.u. above a usual day",
+"pohyb mimo trénink dnes": "movement outside training today",
+"včerejší náročný trénink ještě doznívá −{}": "yesterday's hard session still fading −{0}",
+"zvýšený tep v klidu dnes": "raised resting heart rate today",
+"zvýšený tep v klidu včera": "raised resting heart rate yesterday",
+"Připravenost (20–100 %) = odchylka HRV, klidového tepu (poslední noc i průměr 7 nocí) a spánku z hodinek od vaší normy za 8 týdnů. Check-in se do Skóre počítá jen v Příznacích, doporučení v Tréninku s ním ale dál počítá. HRV i klidový tep zhruba o jedno vaše běžné kolísání mimo normu → kolem 70 %, skoro o dvě → kolem 40 %. Pod 65 % dnes bez tvrdého tréninku a dlouhého běhu, pod 45 % jen regenerace; zmenšuje i dnešní strop na jeden běh. Po dnešním tréninku klesne podle jeho náročnosti proti vašim obvyklým dnům; stropy už znovu nezmenšuje (odběhnuté se odečte samo), jen rozhoduje, jestli dnes ještě dává smysl další náročný trénink. Během dne ji snižuje i den mimo trénink: pohyb nad váš obvyklý den (nejvýš o 8 bodů) a zvýšený tep v klidu. Týdenní cíl z cyklu nemění.": "Readiness (20–100%) = how far HRV, resting heart rate (last night and the 7-night average) and sleep from your watch sit from your 8-week norm. The check-in counts towards the Score only under Symptoms, but the Training recommendation still uses it. HRV and resting heart rate each about one of your usual day-to-day swings off the norm → around 70%, almost two → around 40%. Below 65% no hard training or long run today, below 45% recovery only; it also lowers today's single-run ceiling. After today's session it drops by how demanding the session was against your usual days; it doesn't lower the ceilings again (what you ran is deducted anyway), it only decides whether another hard session still makes sense today. During the day the day outside training lowers it too: movement above your usual day (by at most 8 points) and raised resting heart rate. It doesn't change the weekly target from the cycle."
+}

@@ -17,11 +17,25 @@ const num = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleStr
 const TONE = { ok: C.ok, watch: C.watch, alert: C.alert, muted: C.fg3 }
 const toneOf = (ratio: number | null | undefined, margin: number) =>
   ratio == null ? "muted" : ratio <= 1 + margin ? "ok" : ratio <= 1.3 ? "watch" : "alert"
-const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší nebo méně kvalitní spánek", soreness: "svalová bolest", fatigue: "únava", stress: "stres mimo trénink", session: "dnešní trénink" }
+const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší nebo méně kvalitní spánek", soreness: "svalová bolest", fatigue: "únava", stress: "stres mimo trénink", session: "dnešní trénink", dayStress: "zvýšený tep v klidu včera", dayLoad: "pohyb mimo trénink dnes", dayStressNow: "zvýšený tep v klidu dnes" }
 
 export const readinessPct = (r: any) => (r?.score ?? Math.round((r?.today ?? 1) * 100)) as number
 // railway#108 — green above 70 %, red below 40 %, as on the Dnes rings
 export const readinessCol = (pct: number) => goodCol(pct)
+
+// v0.10.4 — today's drop: the session(s) and the day outside training so far
+export function dayBits(a: any): string[] {
+  return [a?.nt && `pohyb mimo trénink +${a.nt.excess} j.z. nad obvyklý den`, a?.stress && `${a.stress.min} min zvýšeného tepu v klidu`].filter(Boolean) as string[]
+}
+export function afterLine(r: any): string {
+  const a = r?.afterSession
+  if (!a?.drop) return ""
+  const bits: string[] = []
+  if (a.sessionDrop) bits.push(a.today ? `po dnešním tréninku −${a.sessionDrop} · ${a.today.band}` : `včerejší náročný trénink ještě doznívá −${a.sessionDrop}`)
+  if (a.dayDrop) bits.push(`den mimo trénink −${a.dayDrop} (${dayBits(a).join(", ")})`)
+  const t = bits.join("; ")
+  return `${t.charAt(0).toUpperCase()}${t.slice(1)} · ráno ${r.morningScore} % · zítra ji upřesní noční data`
+}
 
 export function Readiness({ r }: { r: any }) {
   const pct = readinessPct(r)
@@ -32,7 +46,7 @@ export function Readiness({ r }: { r: any }) {
       <span className="rounded-full px-2.5 py-1 text-[12px] font-bold" style={{ background: `${col}1f`, color: col }}>Připravenost dnes {pct} %</span>
       {r?.afterSession?.drop ? (
         <span className="basis-full text-[11px] text-fg-2" data-testid="readiness-after">
-          {r.afterSession.today ? `Po dnešním tréninku −${r.afterSession.drop} (ráno ${r.morningScore} %) · ${r.afterSession.today.band}` : `Včerejší náročný trénink ještě doznívá −${r.afterSession.drop}`} · zítra ji upřesní noční data
+          {afterLine(r)}
         </span>
       ) : null}
       {parts.length ? parts.map(([k, v]) => (
@@ -48,7 +62,7 @@ export function Readiness({ r }: { r: any }) {
 // change since yesterday morning. Points follow the engine: 100 − 80 × combined
 // deficit, the strongest signal fully, the 2nd half, the 3rd a quarter.
 const SLEEP_Q = ["velmi špatně", "špatně", "průměrně", "dobře", "výborně"]
-const FACTOR_LABEL: Record<string, string> = { hrv: "HRV", rhr: "Klidový tep", sleep: "Spánek", soreness: "Svalová bolest", fatigue: "Únava", stress: "Stres mimo trénink", dayStress: "Zvýšený tep v klidu včera", session: "Dnešní trénink" }
+const FACTOR_LABEL: Record<string, string> = { hrv: "HRV", rhr: "Klidový tep", sleep: "Spánek", soreness: "Svalová bolest", fatigue: "Únava", stress: "Stres mimo trénink", dayStress: "Zvýšený tep v klidu včera", session: "Dnešní trénink", day: "Den mimo trénink" }
 const pctS = (v: number | null | undefined) => (v == null ? null : `${Math.round(v * 100)} %`)
 const vs = (parts: (string | null | false)[]) => parts.filter(Boolean).join(" · ")
 const pts1 = (v: number) => (Math.round(v * 10) / 10).toLocaleString("cs-CZ")
@@ -94,7 +108,8 @@ export function ReadinessFactors({ r }: { r: any }) {
   const noCheckin = !ci
   const y = r.yesterday
   const delta = y?.known ? (r.morningScore ?? r.score) - y.score : null
-  const sess = r.afterSession?.drop || 0
+  const sess = r.afterSession?.sessionDrop || 0
+  const dayD = r.afterSession?.dayDrop || 0
   // feedback #146 — a waterfall: from yesterday morning (or from full readiness when
   // yesterday is unknown) each signal's change raises (green) or lowers (red) the score
   const mEff: Record<string, number> = r.morningEffects || eff
@@ -126,12 +141,11 @@ export function ReadinessFactors({ r }: { r: any }) {
         })
     }
     if (Math.abs(morning - cum) >= 1) steps.push({ key: "round", label: "Souhrn signálů", sub: "překryv a zaokrouhlení", delta: morning - cum, color: C.fg3 })
-    if (sess >= 0.5) {
-      steps.push({ key: "m", label: "Dnes ráno", total: morning })
-      steps.push({ key: "session", label: FACTOR_LABEL.session, sub: factorReading("session", r) || undefined, delta: -sess })
-    }
+    if (sess >= 0.5 || dayD >= 0.5) steps.push({ key: "m", label: "Dnes ráno", total: morning })
+    if (sess >= 0.5) steps.push({ key: "session", label: FACTOR_LABEL.session, sub: factorReading("session", r) || undefined, delta: -sess })
+    if (dayD >= 0.5) steps.push({ key: "day", label: FACTOR_LABEL.day, sub: `${dayBits(r.afterSession).join(" · ")} · zítra ji upřesní noční data`, delta: -dayD })
     const now: number = r.score ?? morning
-    steps.push({ key: "now", label: sess >= 0.5 ? "Teď" : "Dnes", total: now, color: readinessCol(now) })
+    steps.push({ key: "now", label: sess >= 0.5 || dayD >= 0.5 ? "Teď" : "Dnes", total: now, color: readinessCol(now) })
     let run = 0, min = 100
     for (const st of steps) { run = st.total ?? run + (st.delta || 0); min = Math.min(min, run) }
     return { steps, lo: Math.max(0, Math.floor((min - 10) / 10) * 10) }

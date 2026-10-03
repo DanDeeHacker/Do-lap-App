@@ -1130,7 +1130,13 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
             reasons.append("Na dnešek už nezbývá objem — dnes volno, případně jiný sport bez nárazů.")
     parts = cap["readiness"].get("parts") or {}
     after = cap["readiness"].get("afterSession") or {}
-    if after.get("drop"):
+    day_bits = [b for b in (
+        after.get("nt") and f"pohyb mimo trénink nad obvyklý den (+{after['nt']['excess']} j.z.)",
+        after.get("stress") and f"{after['stress']['min']} min zvýšeného tepu v klidu") if b]
+    if after.get("dayDrop") and day_bits:
+        reasons.append(f"Den mimo trénink ({', '.join(day_bits)}) ubral připravenosti {after['dayDrop']} "
+                       f"{'bod' if after['dayDrop'] == 1 else 'body' if after['dayDrop'] < 5 else 'bodů'}.")
+    if after.get("sessionDrop") and (after.get("today") or after.get("carry")):
         src = after.get("today") or after.get("carry") or {}
         what = ", ".join(f"{x['title'] or x['sport']} {x['min']} min" for x in src.get("sessions", [])[:2] if x.get("min"))
         reasons.append((f"Po dnešním tréninku ({what}; {src.get('band')}) je připravenost {rscore} % (ráno "

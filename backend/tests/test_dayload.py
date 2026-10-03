@@ -83,3 +83,25 @@ def test_engine_uses_the_excess_load_and_raised_resting_hr(client, db_session):
     assert any(x["sport"] == "daily" and x["date"] == t for x in w7)
     rd = a["capacity"]["readiness"]
     assert rd["parts"].get("dayStress", 0) > 0 and rd["inputs"]["dayStress"]["yesterday"] >= 400
+
+
+def test_the_day_outside_training_lowers_todays_readiness(client, db_session):
+    rid = register(client, "dl2@test.cz", "Den", "runner").json()["runner_id"]
+    r = db_session.query(models.Runner).filter(models.Runner.id == rid).first()
+    r.engine_mode = "v3"
+    db_session.commit()
+    seed_runs(db_session, rid, days=60)
+    seed_details(db_session, rid, days=14)
+    before = E.recompute_assessment(db_session, rid)["capacity"]["readiness"]
+    t = E.today_date().isoformat()
+    rows = db_session.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.nt_load.isnot(None)).all()
+    dm = next(x for x in rows if x.date == t)
+    dm.nt_load = max(x.nt_load for x in rows) + 300          # moving house
+    dm.rest_high_min = 400
+    db_session.commit()
+    rd = E.recompute_assessment(db_session, rid)["capacity"]["readiness"]
+    a = rd["afterSession"]
+    assert a["nt"]["excess"] > 250 and a["stress"]["min"] >= 400
+    assert a["dayDrop"] > 0 and a["drop"] == a["sessionDrop"] + a["dayDrop"]
+    assert rd["score"] == rd["morningScore"] - a["drop"] and rd["morningScore"] == (before.get("morningScore") or before["score"])
+    assert 0 < rd["parts"]["dayLoad"] <= C.NT_DAY_CAP and rd["parts"]["dayStressNow"] > 0

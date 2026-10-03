@@ -598,14 +598,6 @@
   "kind": "tpl"
  },
  {
-  "t": "· zítra ji upřesní noční data",
-  "files": [
-   "App.tsx",
-   "capacity.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "\". Rozhraní pro fyzioterapeuty a partnery se teprve připravuje — přihlaste se prosím běžeckým účtem.",
   "files": [
    "App.tsx"
@@ -2181,14 +2173,6 @@
   "kind": "str"
  },
  {
-  "t": "Po dnešním tréninku −{} (ráno {} %) · {}",
-  "files": [
-   "App.tsx",
-   "capacity.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "Počítám historii…",
   "files": [
    "App.tsx"
@@ -3084,14 +3068,6 @@
    "App.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Včerejší náročný trénink ještě doznívá −{}",
-  "files": [
-   "App.tsx",
-   "capacity.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "Velký bod = průměr, malé tečky = jednotlivé noci, zelené pásmo = vaše obvyklé rozmezí (průměr ± 1 SD nocí 8–56 dní zpět).",
@@ -4203,6 +4179,13 @@
   "kind": "jsx"
  },
  {
+  "t": "{} · zítra ji upřesní noční data",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} (změřený)",
   "files": [
    "capacity.tsx"
@@ -4224,6 +4207,20 @@
    "rundetail.tsx",
    "tabs.tsx",
    "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} min zvýšeného tepu v klidu",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}{} · ráno {} % · zítra ji upřesní noční data",
+  "files": [
+   "capacity.tsx"
   ],
   "kind": "tpl"
  },
@@ -4408,6 +4405,20 @@
    "capacity.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Den mimo trénink",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "den mimo trénink −{} ({})",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "dnes až",
@@ -4806,7 +4817,28 @@
   "kind": "str"
  },
  {
+  "t": "po dnešním tréninku −{} · {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "pod obvyklým",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "pohyb mimo trénink +{} j.z. nad obvyklý den",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "pohyb mimo trénink dnes",
   "files": [
    "capacity.tsx"
   ],
@@ -5124,6 +5156,13 @@
   "kind": "str"
  },
  {
+  "t": "včerejší náročný trénink ještě doznívá −{}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Veslování",
   "files": [
    "capacity.tsx"
@@ -5248,6 +5287,20 @@
    "capacity.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "zvýšený tep v klidu dnes",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zvýšený tep v klidu včera",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Zvýšený tep v klidu včera",
@@ -9571,7 +9624,7 @@
   "kind": "str"
  },
  {
-  "t": "Připravenost (20–100 %) = odchylka HRV, klidového tepu (poslední noc i průměr 7 nocí) a spánku z hodinek od vaší normy za 8 týdnů. Check-in se do Skóre počítá jen v Příznacích, doporučení v Tréninku s ním ale dál počítá. HRV i klidový tep zhruba o jedno vaše běžné kolísání mimo normu → kolem 70 %, skoro o dvě → kolem 40 %. Pod 65 % dnes bez tvrdého tréninku a dlouhého běhu, pod 45 % jen regenerace; zmenšuje i dnešní strop na jeden běh. Po dnešním tréninku klesne podle jeho náročnosti proti vašim obvyklým dnům; stropy už znovu nezmenšuje (odběhnuté se odečte samo), jen rozhoduje, jestli dnes ještě dává smysl další náročný trénink. Týdenní cíl z cyklu nemění.",
+  "t": "Připravenost (20–100 %) = odchylka HRV, klidového tepu (poslední noc i průměr 7 nocí) a spánku z hodinek od vaší normy za 8 týdnů. Check-in se do Skóre počítá jen v Příznacích, doporučení v Tréninku s ním ale dál počítá. HRV i klidový tep zhruba o jedno vaše běžné kolísání mimo normu → kolem 70 %, skoro o dvě → kolem 40 %. Pod 65 % dnes bez tvrdého tréninku a dlouhého běhu, pod 45 % jen regenerace; zmenšuje i dnešní strop na jeden běh. Po dnešním tréninku klesne podle jeho náročnosti proti vašim obvyklým dnům; stropy už znovu nezmenšuje (odběhnuté se odečte samo), jen rozhoduje, jestli dnes ještě dává smysl další náročný trénink. Během dne ji snižuje i den mimo trénink: pohyb nad váš obvyklý den (nejvýš o 8 bodů) a zvýšený tep v klidu. Týdenní cíl z cyklu nemění.",
   "files": [
    "metricinfo.ts"
   ],
