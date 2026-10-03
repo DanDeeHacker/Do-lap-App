@@ -231,6 +231,13 @@ def test_celkova_zatez_bounds_todays_kilometres(client, db_session):
     sysc, vol = g["week"]["channels"]["systemic"], g["week"]["channels"]["volume"]
     assert sysc["left7"] is not None and sysc["left7"] < sysc["ceiling7"]
     assert vol["limitedBy"] == "systemic" or vol["todayMax"] == 0
+    # the km equivalent is shown, and the hills can't outgrow the kilometres that are left
+    if vol["limitedBy"] == "systemic":
+        assert vol["sysKm"] is not None and vol["todayMax"] <= vol["sysKm"] + 0.05
+        for c in ("descent", "ascent"):
+            ch = g["week"]["channels"][c]
+            if vol["todayMax"] == 0 and ch["todayMax"] is not None:
+                assert ch["todayMax"] == 0 and ch["limitedBy"] == "systemic"
 
 
 def test_rested_runner_with_the_week_done_gets_rest_but_may_jog(client, db_session):

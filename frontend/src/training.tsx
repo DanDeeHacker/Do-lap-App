@@ -38,7 +38,7 @@ const TYPE_ICON: Record<string, LucideIcon> = { volno: Sofa, regenerace: Leaf, "
 // Half-gauge. Fill = the last 7 days on a scale from 0 to the higher of the 7-day
 // ceiling and now. The only mark is the ceiling, a hollow white tick that stays
 // inside the arc band (feedback railway#87/#92, percentile marks removed).
-function HalfGauge({ value, scale, ceiling, col, size }: { value: number | null; scale: number; ceiling?: number | null; col: string; size: "lg" | "sm" }) {
+function HalfGauge({ value, scale, ceiling, col, size, allow }: { value: number | null; scale: number; ceiling?: number | null; col: string; size: "lg" | "sm"; allow?: number | null }) {
   const lg = size === "lg"
   const W = lg ? 220 : 80, R = lg ? 90 : 32, SW = lg ? 14 : 7, cy = lg ? 108 : 40, x0 = (W - 2 * R) / 2
   const arc = `M${x0} ${cy} A${R} ${R} 0 0 1 ${x0 + 2 * R} ${cy}`
@@ -61,6 +61,8 @@ function HalfGauge({ value, scale, ceiling, col, size }: { value: number | null;
   return (
     <svg viewBox={`-2 -2 ${W + 4} ${lg ? 116 : 46}`} className={lg ? "w-full max-w-[230px]" : "w-[84px]"} aria-hidden>
       <path d={arc} fill="none" stroke="rgb(255 255 255 / .08)" strokeWidth={SW} strokeLinecap="butt" />
+      {/* what today still allows on top of the last 7 days — ends where the binding limit is */}
+      {allow != null && allow > 0 && fr((value || 0) + allow) > f && <path d={arc} fill="none" stroke={C.ok} strokeOpacity={0.35} strokeWidth={SW} strokeLinecap="butt" strokeDasharray={`0 ${L * f} ${L * (fr((value || 0) + allow) - f)} ${L}`} data-testid="gauge-allow" />}
       {f > 0 && <path d={arc} fill="none" stroke={col} strokeWidth={SW} strokeLinecap="butt" strokeDasharray={`${L * f} ${L}`} />}
       {ceil}
     </svg>
@@ -148,6 +150,9 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     const limits: [number, string][] = [[base, capVol?.ceilingSession != null ? "kapacita jednoho běhu + 10 %" : "nejdelší běh 30 dní + 10 %"]]
     if (vol.left != null) limits.push([vol.left, "zbytek cíle tohoto týdne"])
     if (vol.left7 != null) limits.push([vol.left7, "zbytek stropu 7 dní"])
+    // railway: the binding limit of today may be Celková zátěž (its km equivalent) or the mechanics cut
+    if (vol.sysKm != null) limits.push([vol.sysKm, "zbytek celkové zátěže (≈ km lehkého běhu)"])
+    if (vol.limitedBy === "mechanics" && vol.todayMax != null) limits.push([vol.todayMax, "mechanika nad prahem (−20 %)"])
     const week = Math.min(...limits.map((x) => x[0]))
     const todayCaps = [capVol?.ceilingToday, vol.todayMax].filter((v) => v != null) as number[]
     return { limits, today: todayCaps.length ? Math.min(week, ...todayCaps) : null }
@@ -165,7 +170,9 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     const past6 = c.done7 != null ? c.done7 - (c.doneToday ?? 0) : null
     const ratio = c.done7 != null && c.ceiling7 ? c.done7 / c.ceiling7 : null
     const scale = Math.max(c.ceiling7 || 0, c.done7 || 0) * 1.08
-    const col = id === "systemic" ? C.load : ratio == null ? C.fg3 : ratio > 1 ? C.alert : ratio > 0.85 ? C.watch : C.ok
+    // nothing left for today (whichever limit binds) → the arc says so too, not only the 7-day ratio
+    const spent = c.todayMax != null && c.todayMax <= 0
+    const col = spent ? C.watch : id === "systemic" ? C.load : ratio == null ? C.fg3 : ratio > 1 ? C.alert : ratio > 0.85 ? C.watch : C.ok
     const big = id === "volume"
     const value = id === "systemic" ? (c.todayMax != null ? `${num(c.todayMax, 0)}` : "—") : c.todayMax != null ? `max ${num(c.todayMax, d)}` : "—"
     const isOpen = !!open[id]
@@ -186,7 +193,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     return (
       <div key={id} className={`nest ${big ? "p-4" : "px-3.5 py-3"}`}>
         <button type="button" onClick={() => setOpen((o) => ({ ...o, [id]: !o[id] }))} aria-expanded={isOpen}
-          title="Oblouk: posledních 7 dní · dutá bílá čárka: strop 7 dní · klepnutím zobrazíte výpočet" className="w-full text-left">
+          title="Oblouk: posledních 7 dní · světlé prodloužení: kolik dnes ještě smíte (končí u limitu, který omezuje) · dutá bílá čárka: strop 7 dní · klepnutím zobrazíte výpočet" className="w-full text-left">
           {big ? (
             <span className="grid justify-items-center text-center">
               <span className="flex w-full items-center justify-between">
@@ -194,7 +201,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
                 <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180" : ""}`} aria-hidden />
               </span>
               <span className="relative mt-1 grid w-full justify-items-center">
-                <HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} col={col} size="lg" />
+                <HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} col={col} size="lg" allow={c.todayMax} />
                 <span className="absolute inset-x-0 bottom-1 text-center">
                   <b className="t-num text-[28px] leading-none text-fg">{value}</b>
                   <span className="text-[13px] font-semibold text-fg-3"> {c.unit}</span>
@@ -204,7 +211,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
             </span>
           ) : (
             <span className="flex items-center gap-3.5">
-              <HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} col={col} size="sm" />
+              <HalfGauge value={c.done7} scale={scale} ceiling={c.ceiling7} col={col} size="sm" allow={c.todayMax} />
               <span className="min-w-0 flex-1">
                 <span className="block text-[12px] font-bold text-fg-2">{CH_ICON[id]}</span>
                 <span className="mt-0.5 block"><b className="t-num text-[18px] leading-none text-fg">{value}</b> <span className="text-[11px] font-semibold text-fg-3">{c.unit}</span></span>

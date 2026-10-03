@@ -635,15 +635,28 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     for c, cap_c in (() if novice else (("volume", km_by_sys), ("intensity", None if sys_left is None else sys_left / z4_trimp_per_min(tb)))):
         if cap_c is not None and (week[c]["todayMax"] is None or cap_c < week[c]["todayMax"]):
             week[c]["todayMax"], week[c]["limitedBy"] = cap_c, "systemic"
-    if drift:                                  # mechanics over its threshold: keep today well inside capacity
+    week["volume"]["sysKm"] = None if novice else km_by_sys
+    # the hills ride on the kilometres: with Celková zátěž cutting today's km, the
+    # descent / ascent follow at the runner's hilliest usual metres per km (p90)
+    vw0 = week["volume"]
+    if not novice and vw0["limitedBy"] == "systemic" and vw0["todayMax"] is not None:
+        for c in ("descent", "ascent"):
+            rates = sorted(s["exp"][c] / s["km"] for s in hist if s["km"] and s["exp"].get(c) is not None)
+            if not rates:
+                continue
+            cap_c = vw0["todayMax"] * rates[min(len(rates) - 1, int(0.9 * len(rates)))]
+            if week[c]["todayMax"] is None or cap_c < week[c]["todayMax"]:
+                week[c]["todayMax"], week[c]["limitedBy"] = cap_c, "systemic"
+    if drift:                                 # mechanics over its threshold: keep today well inside capacity
         for c, f in DRIFT_CUT.items():
             if week[c]["todayMax"] is not None:
                 week[c]["todayMax"] *= f
                 week[c]["limitedBy"] = "mechanics"
     for c, wc in week.items():
         dec = C.CHANNELS[c]["dec"]
-        for k in ("capacity", "ceiling7", "done7", "left7", "budget", "done", "doneToday", "left", "todayMax"):
-            wc[k] = _r(wc[k], dec)
+        for k in ("capacity", "ceiling7", "done7", "left7", "budget", "done", "doneToday", "left", "todayMax", "sysKm"):
+            if k in wc:
+                wc[k] = _r(wc[k], dec)
         if wc.get("dist"):
             wc["dist"] = {k: (_r(v, dec) if k != "n" else v) for k, v in wc["dist"].items()}
     nxt = None
