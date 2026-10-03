@@ -2313,7 +2313,7 @@ def race_outlook(db: DBSession, rid: str, r, efforts: list[dict], readiness_scor
             why.append(f"bolest {top['pain']}/10 za posledních {RACE_DAY_PAIN_DAYS} dní"
                        + (f" ({', '.join(top['sites'][:2])})" if top["sites"] else ""))
         if why:
-            warnings.append({"kind": "race_day", "race": nxt["date"], "gap": nxt["daysTo"],
+            warnings.append({"kind": "race_day", "race": nxt["date"], "gap": nxt["daysTo"], "why": why,
                              "text": f"{'Dnes' if nxt['daysTo'] == 0 else 'Zítra'} {_race_name(nxt)}, ale {' a '.join(why)}. "
                                      "Závod na hraně zotavení je častý začátek zranění — běžte jen v pohodlném tempu, "
                                      "nebo nestartujte; při bolesti během závodu zpomalte nebo odstupte."})

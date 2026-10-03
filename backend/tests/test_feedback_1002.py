@@ -61,3 +61,22 @@ def test_treadmill_runs_far_off_the_norm_leave_mechanics_until_put_back(client, 
     E.recompute_assessment(db_session, rid)
     db_session.refresh(tm)
     assert not tm.excluded and tm.mech_keep and tm.auto_excluded is None
+
+
+def test_an_early_sync_does_not_leave_today_without_the_night(client, db_session):
+    """Feedback #167 — a morning sync before the watch uploaded the night must not
+    freeze today's row: the next sync fills sleep and HRV in."""
+    from app.routers import integrations as I
+    rid, r = _runner(client, db_session, "fb1002sync@test.cz")
+    t = E.iso_date(E.today_date())
+    db_session.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid,
+                                                models.DailyMetric.date == t).delete()
+    db_session.add(models.DailyMetric(runner_id=rid, date=t, steps=900, resting_hr=50))
+    db_session.commit()
+    dates, _ = I._runner_history(db_session, rid)
+    assert t not in dates                                      # today is always requested again
+    I._merge_seed(db_session, rid, {"activities": [], "daily_metrics": [
+        {"date": t, "source": "garmin", "steps": 4000, "resting_hr": 49, "hrv_ms": 61.0, "sleep_h": 7.4}]}, provider="garmin")
+    db_session.commit()
+    row = db_session.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.date == t).first()
+    assert row.sleep_h == 7.4 and row.hrv_ms == 61.0 and row.steps == 4000 and row.resting_hr == 50

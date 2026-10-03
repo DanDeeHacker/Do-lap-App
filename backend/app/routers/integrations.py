@@ -240,11 +240,34 @@ def _runner_history(db: DBSession, rid: str):
     """Dates the runner already has daily metrics for, and the date of their
     most recent activity — the two anchors that make the live download
     incremental (only fetch days without history)."""
+    # feedback #167 — today and yesterday are always fetched again: a sync early in the
+    # morning stores the day before the watch has uploaded the night (sleep, HRV), and
+    # a skipped date would stay without them all day ("předběžné · čeká na ranní data")
+    fresh = {E.iso_date(E.today_date()), E.iso_date(E.today_date() - _dt.timedelta(days=1))}
     dates = frozenset(
         row[0] for row in db.query(models.DailyMetric.date).filter(models.DailyMetric.runner_id == rid).all()
+        if row[0] not in fresh
     )
     last_act = db.query(func.max(models.Activity.started_at)).filter(models.Activity.runner_id == rid).scalar()
     return dates, last_act
+
+
+def _refresh_recent_day(db: DBSession, rid: str, d: dict) -> None:
+    """Feedback #167 — a day already stored (today / yesterday) gets the values that
+    arrived since: empty fields are filled, the step count only grows, and a value the
+    runner corrected by hand (original_* kept) is never overwritten."""
+    row = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid,
+                                              models.DailyMetric.date == d["date"]).first()
+    if row is None:
+        return
+    for k, v in d.items():
+        if k in ("id", "date", "runner_id", "source") or v is None or not hasattr(row, k):
+            continue
+        if getattr(row, f"original_{k}", None) is not None:
+            continue                                  # hand-corrected
+        cur = getattr(row, k)
+        if cur is None or (k == "steps" and v > cur):
+            setattr(row, k, v)
 
 
 def _stored_twin(db: DBSession, rid: str, a: dict) -> bool:
@@ -301,8 +324,11 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
         added_a += 1
         if ext:
             existing_ext.add(ext)
+    recent = {E.iso_date(E.today_date()), E.iso_date(E.today_date() - _dt.timedelta(days=1))}
     for d in seed.get("daily_metrics", []):
         if d["date"] in existing_dates:
+            if d["date"] in recent:
+                _refresh_recent_day(db, rid, d)
             continue
         row = {k: v for k, v in d.items() if k != "id"}
         row["runner_id"] = rid

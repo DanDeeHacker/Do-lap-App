@@ -42,5 +42,11 @@
 "pás · automaticky bez mechaniky": "treadmill · automatically without mechanics",
 "Pokud je běh v pořádku, vraťte ho níže tlačítkem.": "If the run is fine, put it back with the button below.",
 "Zobrazit v historii běhů →": "Show in the run history →",
-"kadence {}": "cadence {0}"
+"kadence {}": "cadence {0}",
+"Den závodu — ale {} (viz níže). Běžte s rezervou.": "Race day — but {0} (see below). Run with something in reserve.",
+"tělo dnes nehlásí plnou připravenost": "your body isn't reporting full readiness today",
+"{} % před zraněním": "{0} % of pre-injury",
+"{}. týden ze 3 · ": "week {0} of 3 · ",
+"Týdny návratu po zranění": "Weeks of the return after injury",
+"{} a {}": "{0} and {1}"
 }

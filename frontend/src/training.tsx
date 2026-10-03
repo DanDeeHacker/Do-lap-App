@@ -316,9 +316,22 @@ function WeekPanel({ g, embedded = false }: { g: any; embedded?: boolean }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="flex items-center gap-1.5"><Label>Cyklus · tento týden</Label><InfoDot text={MI.weekBudget} label="Týdenní cíl a cyklus" /></span>
         <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${modeCol}1f`, color: modeCol }}>
-          {cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? `${cyc.pos}. týden ze 4 · ` : ""}{modeLabel}
+          {cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? `${cyc.pos}. týden ze 4 · ` : wk.mode === "return" && cyc.returnWeek ? `${cyc.returnWeek}. týden ze 3 · ` : ""}{modeLabel}
         </span>
       </div>
+      {wk.mode === "return" && cyc.returnSteps ? (
+        // feedback #169 — the return after an injury has its own three steps (50 → 75 → 90 %)
+        <div className="mt-3 grid grid-cols-3 gap-0.5 rounded-[14px] bg-white/[.06] p-[3px]" data-testid="return-steps" aria-label="Týdny návratu po zranění">
+          {cyc.returnSteps.map((p: number, i: number) => {
+            const on = cyc.returnWeek === i + 1
+            return (
+              <div key={i} className={`rounded-[11px] px-1.5 py-2 text-center text-[12px] font-bold leading-tight ${on ? "bg-watch text-ink" : (cyc.returnWeek || 0) > i + 1 ? "text-fg-3 line-through decoration-1" : "text-fg-soft"}`}>
+                {i + 1}. týden<span className="block text-[11px] font-medium opacity-80">{p} % před zraněním</span>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
       <div className="mt-3 grid grid-cols-4 gap-0.5 rounded-[14px] bg-white/[.06] p-[3px]" role="radiogroup" aria-label="Týden čtyřtýdenního cyklu">
         {CYCLE_PCT.map((p, i) => {
           const n = i + 1
@@ -335,6 +348,7 @@ function WeekPanel({ g, embedded = false }: { g: any; embedded?: boolean }) {
           )
         })}
       </div>
+      )}
       {/* railway#86 — how this week's target is set, outside the selector */}
       <p className="mt-1.5 flex items-center justify-end gap-1.5 text-[11px] text-fg-3">
         Jak se počítá cíl {cyc.pos ? `${cyc.pos}. týdne` : "tohoto týdne"}
@@ -612,6 +626,9 @@ function RacesCard({ outlook, g, cap }: { outlook: any; g?: any; cap?: any }) {
 // The session content for one activity type: the inline card shows today's
 // recommendation, the carousel opens the same for any other type (railway#119).
 function SessionDetail({ g, a, kind }: { g: any; a: any; kind: string }) {
+  // feedback #168 — name the actual reason (pain, readiness), not always "readiness"
+  const rdw = (a?.races?.warnings || []).find((w: any) => w.kind === "race_day")
+  const raceDayWhy: string | null = rdw ? ((rdw.why || []).join(" a ") || "tělo dnes nehlásí plnou připravenost") : null
   const t = g.types[kind] || g.types[g.type]
   const cross = !!t.cross
   const run = kind !== "volno" && kind !== "závod" && !cross
@@ -650,7 +667,7 @@ function SessionDetail({ g, a, kind }: { g: any; a: any; kind: string }) {
           <Stat label="Terén" text value={t.terrain ? t.terrain.split(" — ")[0] : "—"} sub={t.terrain?.split(" — ")[1]} />
         </div>
       ) : (
-        <p className="text-[14px] leading-6 text-fg-soft">{kind === "závod" ? ((a.races?.warnings || []).some((w: any) => w.kind === "race_day") ? "Den závodu — ale tělo dnes nehlásí plnou připravenost (viz níže). Běžte s rezervou." : "Den závodu — žádné limity. Po závodě nechte tělo pár dní regenerovat.") : "Odpočinek. Pokud chcete pohyb, zvolte lehkou chůzi, mobilitu nebo jiný sport bez nárazů a bez bolesti."}</p>
+        <p className="text-[14px] leading-6 text-fg-soft">{kind === "závod" ? (raceDayWhy ? `Den závodu — ale ${raceDayWhy} (viz níže). Běžte s rezervou.` : "Den závodu — žádné limity. Po závodě nechte tělo pár dní regenerovat.") : "Odpočinek. Pokud chcete pohyb, zvolte lehkou chůzi, mobilitu nebo jiný sport bez nárazů a bez bolesti."}</p>
       )}
       {(run || cross) && t.notes?.length > 0 && (
         <p className="mt-4 text-[13px] leading-6 text-fg-soft">{t.notes.join(" ")}</p>

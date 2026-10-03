@@ -658,6 +658,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                 km2 = min(km2, week["volume"]["ceiling7"])
             nxt = {"pos": p2, "pct": CYCLE_PCT_OF[p2], "km": _r(km2)}
     cycle = {
+        # feedback #169 — after an injury the weeks follow the return steps, not the cycle
+        "returnSteps": ([round(x * 100) for x in E.RTR_FACTORS] if mode == "return" else None),
+        "returnWeek": (rtr["week"] if mode == "return" else None),
         "next": nxt,
         "pos": pos_now, "autoPos": cyc["pos"] if cyc else None, "manual": manual is not None and mode in ("build", "recovery"),
         "how": cyc["how"] if cyc else None, "factor": round(factor, 3),
