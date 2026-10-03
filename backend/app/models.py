@@ -576,6 +576,7 @@ class SelfProgram(Base):
     log = Column(JSON, default=dict)
     started_on = Column(String)
     active = Column(Boolean, default=True)
+    state = Column(JSON)             # durability programme: levels, load steps, session history
 
 
 class ProgramRevision(Base):

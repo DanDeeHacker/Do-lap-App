@@ -95,6 +95,7 @@ def _migrate(engine):
     # cross-training (strength sessions): what was trained and how
     add("activities", "strength_focus", "strength_focus VARCHAR")
     add("activities", "strength_type", "strength_type VARCHAR")
+    add("self_programs", "state", "state JSON")
     add("checkins", "limits_movement", "limits_movement BOOLEAN")
     add("checkins", "run_modified", "run_modified BOOLEAN")
     add("checkins", "limping", "limping BOOLEAN")

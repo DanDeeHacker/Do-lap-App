@@ -2856,6 +2856,7 @@
   "t": "Tento týden",
   "files": [
    "App.tsx",
+   "selfprograms.tsx",
    "shell.tsx",
    "training.tsx"
   ],
@@ -5005,7 +5006,8 @@
  {
   "t": "trénink",
   "files": [
-   "capacity.tsx"
+   "capacity.tsx",
+   "selfprograms.tsx"
   ],
   "kind": "str"
  },
@@ -11359,6 +11361,27 @@
   "kind": "tpl"
  },
  {
+  "t": "· {}× týdně",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· celkem {} {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· náročnost {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· tento týden",
   "files": [
    "selfprograms.tsx"
@@ -11366,7 +11389,70 @@
   "kind": "jsx"
  },
  {
+  "t": "· zbývá {} {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} · {}.–{}. týden",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} · {}× týdně",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} · začátek",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} grid gap-2",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{}. série{}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}. týden",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}. týden z {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}. týden z {}{}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}.–{}. týden",
   "files": [
    "selfprograms.tsx"
   ],
@@ -11387,6 +11473,41 @@
   "kind": "jsx"
  },
  {
+  "t": "1–2 opakování v záloze",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "3 a víc opakování v záloze",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Akorát",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "block text-[14px] {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "bolest při cviku nebo po něm",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Celý postup a chyby →",
   "files": [
    "selfprograms.tsx"
@@ -11394,11 +11515,46 @@
   "kind": "jsx"
  },
  {
+  "t": "Cílová náročnost {} z 10, zhruba {} min.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "čt",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "cviků",
   "files": [
    "selfprograms.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Další session",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Další trénink",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Dnešní cviky",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe.",
@@ -11436,6 +11592,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Hodnocení se nepodařilo uložit",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "hotová",
   "files": [
    "selfprograms.tsx"
@@ -11450,6 +11613,13 @@
   "kind": "str"
  },
  {
+  "t": "Jak jste se cítili na konci tréninku?",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "K tématu více na Physiopedii (anglicky):",
   "files": [
    "selfprograms.tsx"
@@ -11457,11 +11627,53 @@
   "kind": "jsx"
  },
  {
+  "t": "Která session to bude, se rozhodne v den tréninku podle ostatních aktivit. Dávky se mohou upravit podle vašeho hodnocení.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Lehké",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "mt-1 block text-[10.5px] {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "mt-1 block truncate text-[10px] {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "mx-auto grid size-8 place-items-center rounded-full text-[11px] font-bold {} {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Na co si dát pozor",
   "files": [
    "selfprograms.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "na hraně, technika se rozpadala",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Načítám programy…",
@@ -11479,6 +11691,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Něco bolelo",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Nepodařilo se zapsat",
   "files": [
    "selfprograms.tsx"
@@ -11493,11 +11712,54 @@
   "kind": "str"
  },
  {
+  "t": "Odlehčovací týden",
+  "files": [
+   "selfprograms.tsx",
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odškrtávat půjde v den tréninku — tělo potřebuje mezi tréninky čas.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "pá",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Podle toho se příště přidá, nebo ubere. Trénink se započítá do týdenní zátěže.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Pokračovat na další trénink",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Pozastavit výdrž",
   "files": [
    "selfprograms.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Přesto odcvičit dnes",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Při potížích",
@@ -11570,11 +11832,25 @@
   "kind": "tpl"
  },
  {
+  "t": "rounded-[12px] border px-3 py-2.5 text-left transition active:scale-[.98] disabled:opacity-50 {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Schematická ilustrace pohybu",
   "files": [
    "selfprograms.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Série jsou upravené podle týdenní kapacity posilování: dva tréninky by daly ≈ {} sRPE·min, strop je {}.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Série: {}",
@@ -11614,6 +11890,13 @@
   "kind": "str"
  },
  {
+  "t": "tento týden {}/{}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Text a ilustrace jsou vlastní. Cvik je pro mírné obtíže a nenahrazuje vyšetření.",
   "files": [
    "selfprograms.tsx"
@@ -11621,11 +11904,55 @@
   "kind": "jsx"
  },
  {
-  "t": "týdnů",
+  "t": "Těžké",
+  "files": [
+   "selfprograms.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Trénink hotový",
   "files": [
    "selfprograms.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Trénink zapsán do zátěže",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "tréninků",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "tréninky",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "týden",
+  "files": [
+   "selfprograms.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "týdnů",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "týdnů ·",
@@ -11633,6 +11960,20 @@
    "selfprograms.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "týdny",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "út",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Váš program",
@@ -11685,6 +12026,20 @@
  },
  {
   "t": "Začít vlastní trénink (",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "zítra",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Změnit hodnocení",
   "files": [
    "selfprograms.tsx"
   ],
@@ -13922,13 +14277,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Těžké",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Trénink smazán",
   "files": [
    "tabs.tsx"
@@ -14699,6 +15047,13 @@
   "kind": "tpl"
  },
  {
+  "t": "{}. týden ze 3 ·",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{}. týden ze 4 ·",
   "files": [
    "training.tsx"
@@ -14711,6 +15066,13 @@
    "training.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "% před zraněním",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "≈ {} min",
@@ -14930,11 +15292,11 @@
   "kind": "str"
  },
  {
-  "t": "Den závodu — ale tělo dnes nehlásí plnou připravenost (viz níže). Běžte s rezervou.",
+  "t": "Den závodu — ale {} (viz níže). Běžte s rezervou.",
   "files": [
    "training.tsx"
   ],
-  "kind": "str"
+  "kind": "tpl"
  },
  {
   "t": "Den závodu — žádné limity. Po závodě nechte tělo pár dní regenerovat.",
@@ -14977,6 +15339,13 @@
    "training.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "dnes zbývá {} {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "dní",
@@ -15175,6 +15544,13 @@
   "kind": "str"
  },
  {
+  "t": "mechanika nad prahem (−20 %)",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Minuty v Z4+",
   "files": [
    "training.tsx"
@@ -15280,7 +15656,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Oblouk: posledních 7 dní · dutá bílá čárka: strop 7 dní · klepnutím zobrazíte výpočet",
+  "t": "Oblouk: posledních 7 dní · světlé prodloužení: kolik dnes ještě smíte · oranžová čárka a šrafovaný úsek: limit, který omezuje, a za ním už prostor není · dutá bílá čárka: strop 7 dní · klepnutím zobrazíte výpočet",
   "files": [
    "training.tsx"
   ],
@@ -15323,13 +15699,6 @@
  },
  {
   "t": "Odlehčovací · zvýšená zátěž",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Odlehčovací týden",
   "files": [
    "training.tsx"
   ],
@@ -15693,6 +16062,13 @@
   "kind": "str"
  },
  {
+  "t": "tělo dnes nehlásí plnou připravenost",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Tempa z vašeho vlastního vztahu tepu a rychlosti.",
   "files": [
    "training.tsx"
@@ -15784,13 +16160,6 @@
   "kind": "str"
  },
  {
-  "t": "týden",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Týden čtyřtýdenního cyklu",
   "files": [
    "training.tsx"
@@ -15813,6 +16182,13 @@
  },
  {
   "t": "týdenní kapacita (posledních 7 dní)",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Týdny návratu po zranění",
   "files": [
    "training.tsx"
   ],
@@ -15981,6 +16357,13 @@
  },
  {
   "t": "závodní úsilí",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zbytek celkové zátěže (≈ km lehkého běhu)",
   "files": [
    "training.tsx"
   ],

@@ -153,7 +153,15 @@ const SPECS: Record<string, Spec> = {
     { t: 174, l: [10, 20, 15], r: [15, 100, 20], a: [-10, 60], b: [20, 60], ms: 250 }]) },
   strides: { ...DRILL, f: run([{ t: 170, l: [18, 18, 5], r: [-10, 95, 25], a: [-35, 85], b: [30, 85], ms: 170 },
     { t: 170, l: [-30, 35, 40], r: [50, 85, 5], a: [35, 85], b: [-40, 85], lift: 3.5, ms: 170 }]) },
+  // Runner's must-have: two-leg hip hinge with a weight in the hands
+  rdl: { f: [{ t: 180, a: [3, 5], b: [-3, 5], l: [3, 10, -7], r: [3, 10, -7], ms: 1100, hold: 300 },
+    { t: 104, a: [2, 0], b: [2, 0], l: [15, 20, -5], r: [15, 20, -5], ms: 1400, hold: 400 }] },
 }
+// the same movement as an existing figure (the dose / variant differs, not the motion)
+SPECS.pogo_hops = SPECS.hops
+SPECS.sl_calf_slow = SPECS.heel_raise_1
+SPECS.copenhagen_hold = SPECS.copenhagen
+SPECS.side_plank_abd = SPECS.side_plank
 
 export const hasFigure = (id: string) => id in SPECS
 

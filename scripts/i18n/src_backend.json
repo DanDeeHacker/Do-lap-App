@@ -91,7 +91,8 @@
  {
   "t": "Bulharský dřep",
   "files": [
-   "content.py"
+   "content.py",
+   "programs_library.py"
   ]
  },
  {
@@ -974,6 +975,367 @@
   ]
  },
  {
+  "t": "+2 kg v každé ruce",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "A · Síla (těžší)",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Dnešní trénink programu máte hotový.",
+  "files": [
+   "durability.py",
+   "routers/self_programs.py"
+  ]
+ },
+ {
+  "t": "Dvakrát po sobě těžké: příště méně opakování.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Menší objem, stejná zátěž. Zapište si, kolik zvládnete, a začněte nový cyklus na vyšší úrovni.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Mezi dvěma tréninky programu nechte aspoň 48 hodin.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Méně opakování s těžší zátěží, plná kontrola pohybu. Jedno až dvě opakování v záloze.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Místo A dnes lehčí B: {}. Silová A přijde příště.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Na řadě je B, po minulé A se střídají.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Na řadě je silová session A a den ji unese.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Naučit se pohyby, zvyknout šlachy na zátěž. Dvě až tři opakování vždy v záloze.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Odolnost",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Příště méně opakování. Bolest při cviku do 5 z 10 je v pořádku, do rána musí odeznít.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Příště o něco víc opakování.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Příště přidejte zátěž a začněte znovu na spodní hranici opakování.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Příště stejně, ať se tělo přizpůsobí.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Reaktivní síla",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Rychlý pohyb nahoru, krátký kontakt se zemí u poskoků. Síla se drží těžkou zátěží s menším objemem.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Síla",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Síla a objem",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Tento týden máte {} z {} tréninků hotové.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Těžká síla",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Udržení a kontrolní test",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Víc sérií a opakování, zátěž roste po malých krocích. Dvě opakování v záloze.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Základ a technika",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Zítra",
+  "files": [
+   "durability.py",
+   "metrics/engine.py"
+  ]
+ },
+ {
+  "t": "akorát",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "batoh nebo činka, dolů 3 s",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "blíží se závod",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "běžecký plán má odlehčovací týden",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "celková zátěž má na dnešek málo místa",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "delší páka: kotník na lavici místo kolena",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "dnes je doporučený odpočinek nebo regenerace",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "dnes už byl tvrdý nebo dlouhý běh",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "kroků/směr",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "lehké",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "natažené nohy a pomalejší tempo",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "něco bolelo",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "paty dál od zdi nebo závaží na špičkách",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "posilování",
+  "files": [
+   "durability.py",
+   "metrics/capacity.py",
+   "metrics/guidance.py",
+   "outcomes.py"
+  ]
+ },
+ {
+  "t": "poskoky dopředu a do stran",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "připravenost je nízká",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "silnější guma",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "silnější guma nebo dál od úchytu",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "směr",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "těžké",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "vracíte se po zranění",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "vyšší schod nebo činka v ruce",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "výš a s kratším kontaktem se zemí",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "včera byl tvrdý nebo dlouhý běh",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "zvednutá noha s gumou nad koleny",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "zátěž je nad prahem",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "zátěž je zvýšená, týden je odlehčovací",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "závod",
+  "files": [
+   "durability.py",
+   "metrics/engine.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "zítra vás čeká tvrdý běh",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "{} × {} každá noha",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "{} × {} každá strana",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "{} × {} kroků každým směrem",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "{} × {} s každá strana",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
   "t": "Došlap API",
   "files": [
    "main.py"
@@ -1668,14 +2030,6 @@
    "metrics/capacity.py",
    "metrics/engine.py",
    "metrics/signal_sources.py"
-  ]
- },
- {
-  "t": "posilování",
-  "files": [
-   "metrics/capacity.py",
-   "metrics/guidance.py",
-   "outcomes.py"
   ]
  },
  {
@@ -2887,12 +3241,6 @@
   ]
  },
  {
-  "t": "Zítra",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
   "t": "bederní",
   "files": [
    "metrics/engine.py",
@@ -3305,13 +3653,6 @@
    "metrics/engine.py",
    "metrics/guidance.py",
    "programs_library.py"
-  ]
- },
- {
-  "t": "závod",
-  "files": [
-   "metrics/engine.py",
-   "metrics/guidance.py"
   ]
  },
  {
@@ -7210,6 +7551,36 @@
   ]
  },
  {
+  "t": "2 × 10 každá strana",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "2 × 12 kroků každým směrem",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "2 × 15 každá noha",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "2 × 20 s každá strana",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "2 × 30 s každá strana",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "2–3 × 5 každá strana",
   "files": [
    "programs_library.py"
@@ -7223,6 +7594,12 @@
  },
  {
   "t": "3 × 12 (max. zátěž na 12 opakování)",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "3 × 12 každá noha",
   "files": [
    "programs_library.py"
   ]
@@ -7282,6 +7659,12 @@
   ]
  },
  {
+  "t": "Bokem ke gumě nebo kladce ji držte u hrudníku a vytlačte ruce před sebe. Trup se nesmí otočit.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Bolest při cvičení do 5 z 10 je v pořádku, do druhého rána musí odeznít a nesmí týden od týdne růst. Když roste nebo je ráno horší, uberte počet opakování.",
   "files": [
    "programs_library.py"
@@ -7294,7 +7677,25 @@
   ]
  },
  {
+  "t": "Boční plank s horní nohou na lavici a výdrž v přímce. Začněte s kolenem na lavici, později kotník.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Boční plank s horní nohou na lavici: spodní nohu přitáhněte k lavici a pomalu ji spusťte. Začněte s kolenem na lavici.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Boční plank s oporou o loket a horní nohu zvedněte a držte nad spodní. Tělo v přímce.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Boční plank s unožením",
   "files": [
    "programs_library.py"
   ]
@@ -7360,6 +7761,12 @@
   ]
  },
  {
+  "t": "Dopadejte na přední část chodidla a hned se odrazte znovu, jako míček.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Doskočte na přední část chodidla a hned se odrazte znovu.",
   "files": [
    "programs_library.py"
@@ -7396,6 +7803,12 @@
   ]
  },
  {
+  "t": "Držte rytmus a výšku po celou dobu série.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Dávkování je pracovní předpoklad produktového týmu.",
   "files": [
    "programs_library.py"
@@ -7426,6 +7839,12 @@
   ]
  },
  {
+  "t": "Dřep místo předklonu v kyčlích.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Dřep na jedné noze",
   "files": [
    "programs_library.py"
@@ -7438,7 +7857,25 @@
   ]
  },
  {
+  "t": "Gumu držte oběma rukama u hrudníku, kolena lehce pokrčená, břicho zpevněné.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Hluboké pokrčení kolen místo práce kotníků.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Hlučné dopady s propadnutím do kolen.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Hlučný tvrdý dopad.",
   "files": [
    "programs_library.py"
   ]
@@ -7456,6 +7893,12 @@
   ]
  },
  {
+  "t": "Horní noha jde dopředu místo nahoru.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Horní nohu pokrčte a chodidlo položte na zem před spodní koleno.",
   "files": [
    "programs_library.py"
@@ -7468,6 +7911,12 @@
   ]
  },
  {
+  "t": "Horní nohu propnutou zvedněte asi o 20–30 cm a držte ji tam.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Horní nohu zvedněte mírně za osu těla, špička míří dopředu, ne ke stropu.",
   "files": [
    "programs_library.py"
@@ -7475,6 +7924,12 @@
  },
  {
   "t": "IT pás a vnější strana kolena",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Jakmile ucítíte natažení zadní strany stehen, vraťte se silou hýždí nahoru.",
   "files": [
    "programs_library.py"
   ]
@@ -7546,6 +8001,12 @@
   ]
  },
  {
+  "t": "Klesněte svisle dolů, trup lehce nakloněný dopředu, s činkami v rukou.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Klus s přitahováním pat k hýždím, kolena míří dolů a kroky jsou krátké.",
   "files": [
    "programs_library.py"
@@ -7558,7 +8019,19 @@
   ]
  },
  {
+  "t": "Kodaňský plank, výdrž",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Kolena jsou jen mírně pokrčená a odraz jde hlavně z kotníků.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Kolena lehce pokrčte a v této poloze je držte celou dobu.",
   "files": [
    "programs_library.py"
   ]
@@ -7606,6 +8079,12 @@
   ]
  },
  {
+  "t": "Koleno míří nad chodidlo, pánev zůstává vodorovně.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Koleno míří nad druhý prst a pánev zůstává rovně.",
   "files": [
    "programs_library.py"
@@ -7619,6 +8098,12 @@
  },
  {
   "t": "Koleno padá dovnitř.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Koleno stojné nohy míří nad druhý a třetí prst, pánev zůstává rovně.",
   "files": [
    "programs_library.py"
   ]
@@ -7642,13 +8127,31 @@
   ]
  },
  {
+  "t": "Kotník na lavici dřív, než výdrž s kolenem jde bez bolesti.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Kroky jsou krátké a rychlé s došlapem na přední část chodidla.",
   "files": [
    "programs_library.py"
   ]
  },
  {
+  "t": "Kráčejte šikmo dopředu, střídavě vlevo a vpravo, guma je stále napnutá.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Kulatá záda.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Kývání trupem ze strany na stranu.",
   "files": [
    "programs_library.py"
   ]
@@ -7685,6 +8188,12 @@
  },
  {
   "t": "Lehněte si na bok, loket dejte pod rameno a nohy natáhněte na sebe.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na bok, loket pod rameno, nohy natažené na sobě.",
   "files": [
    "programs_library.py"
   ]
@@ -7744,6 +8253,18 @@
   ]
  },
  {
+  "t": "Malý rozsah pohybu.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Monster walk s gumou",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Most",
   "files": [
    "programs_library.py"
@@ -7774,6 +8295,12 @@
   ]
  },
  {
+  "t": "Na hraně schodu se na jedné noze vytáhněte na špičku a 3 sekundy pomalu spouštějte patu pod úroveň schodu.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Na hraně schodu se zvedněte na obou nohách, pak se pomalu spouštějte jen na bolavé noze pod úroveň schodu. Nahoru zase oběma.",
   "files": [
    "programs_library.py"
@@ -7787,6 +8314,12 @@
  },
  {
   "t": "Na jedné noze s mírně pokrčeným kolenem se předkloňte s rovnými zády, druhá noha jde dozadu. Zpět silou hýždě.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Na schodu na jedné noze pomalu spusťte druhou patu k zemi a zpět nahoru. Koleno stojné nohy míří nad chodidlo.",
   "files": [
    "programs_library.py"
   ]
@@ -7846,6 +8379,12 @@
   ]
  },
  {
+  "t": "Natáhněte si minibandu nad kolena, pokročilí nad kotníky.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Neúplný rozsah, kdy pata nejde naplno nahoru ani dolů.",
   "files": [
    "programs_library.py"
@@ -7876,6 +8415,12 @@
   ]
  },
  {
+  "t": "Nízké rytmické poskoky na jedné noze na místě, tiché a měkké dopady, koleno nad chodidlem.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Odlepování zad od zdi.",
   "files": [
    "programs_library.py"
@@ -7889,6 +8434,30 @@
  },
  {
   "t": "Odraz spodní nohou, který práci ubere.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Odraz z volné nohy.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Odraz ze zadní nohy.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Odrážejte se jen z kotníků, kolena zůstávají skoro propnutá.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Odtlačte se celým chodidlem přední nohy zpět nahoru.",
   "files": [
    "programs_library.py"
   ]
@@ -7936,6 +8505,18 @@
   ]
  },
  {
+  "t": "Pallof press",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Patu spouštějte pomalu, aspoň 3 sekundy, až mírně pod úroveň schodu.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Paže pracují jako při běhu, opačná ruka jde ke zvednutému koleni.",
   "files": [
    "programs_library.py"
@@ -7972,6 +8553,18 @@
   ]
  },
  {
+  "t": "Po sérii vyměňte nohu. Když je to snadné, přidejte batoh nebo činku.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Po sérii vyměňte nohu. Pokročilí poskakují dopředu a do stran.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Podsazení pánve a zvednutí pánve vleže",
   "files": [
    "programs_library.py"
@@ -7984,7 +8577,19 @@
   ]
  },
  {
+  "t": "Pogo poskoky",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Pokračování přes ostrou bolest v podbřišku.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Pokračování, když se kontakt prodlužuje.",
   "files": [
    "programs_library.py"
   ]
@@ -8062,6 +8667,12 @@
   ]
  },
  {
+  "t": "Pomalu, asi 3 sekundy, pokrčujte stojnou nohu, až se pata volné nohy dotkne země.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Pomalý mělký dřep na jedné noze před zrcadlem, koleno nad špičkou, pánev rovně.",
   "files": [
    "programs_library.py"
@@ -8069,6 +8680,18 @@
  },
  {
   "t": "Poskakujte lehce a rytmicky z přední části chodidel, paty se země skoro nedotýkají.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Poskakujte nízko na místě z kotníku, dopad na přední část chodidla.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Poskoky na jedné noze",
   "files": [
    "programs_library.py"
   ]
@@ -8087,6 +8710,12 @@
  },
  {
   "t": "Posledních 20 metrů povolte, běh má být uvolněný, ne sprint.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Postavte se do mírného podřepu, chodidla na šířku boků.",
   "files": [
    "programs_library.py"
   ]
@@ -8122,6 +8751,12 @@
   ]
  },
  {
+  "t": "Postavte se zády k lavici a nárt zadní nohy na ni položte.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Postupně rostoucí zátěž adduktorů: výdrž, pohyb a nakonec kodaňský plank.",
   "files": [
    "programs_library.py"
@@ -8141,6 +8776,12 @@
  },
  {
   "t": "Posílení kyčle a kolena dohromady.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Povolená guma mezi kroky.",
   "files": [
    "programs_library.py"
   ]
@@ -8200,6 +8841,12 @@
   ]
  },
  {
+  "t": "Pád dolů místo pomalého spouštění.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Pánev držte rovně a dívejte se před sebe.",
   "files": [
    "programs_library.py"
@@ -8213,6 +8860,12 @@
  },
  {
   "t": "Pánev klesá na straně volné nohy.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Pánev klesá.",
   "files": [
    "programs_library.py"
   ]
@@ -8272,6 +8925,18 @@
   ]
  },
  {
+  "t": "Přední koleno padá dovnitř.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Přední nohu dejte tak daleko, aby koleno v dřepu bylo nad chodidlem.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Přeneste váhu na bolavou nohu a za 3 sekundy spusťte patu pod úroveň schodu, koleno zůstává propnuté.",
   "files": [
    "programs_library.py"
@@ -8290,6 +8955,12 @@
   ]
  },
  {
+  "t": "Přenášení váhy na ruce.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Přetáčení pánve do strany.",
   "files": [
    "programs_library.py"
@@ -8303,6 +8974,12 @@
  },
  {
   "t": "Přetáčení pánve dozadu.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Při bolesti v třísle nad 3 z 10 zůstaňte u verze s kolenem.",
   "files": [
    "programs_library.py"
   ]
@@ -8332,6 +9009,12 @@
   ]
  },
  {
+  "t": "Příliš krátký krok, pata se zvedá.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Příliš lehká zátěž, poslední opakování mají být náročná.",
   "files": [
    "programs_library.py"
@@ -8350,6 +9033,12 @@
   ]
  },
  {
+  "t": "Rumunský mrtvý tah",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Rumunský mrtvý tah na jedné noze",
   "files": [
    "programs_library.py"
@@ -8362,7 +9051,19 @@
   ]
  },
  {
+  "t": "Rychlé houpání nahoru a dolů.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Rychlé nízké kroky s aktivním došlapem přes přední část chodidla pod tělo.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Rychlé nízké poskoky snožmo z kotníků, kolena skoro propnutá, co nejkratší kontakt se zemí.",
   "files": [
    "programs_library.py"
   ]
@@ -8398,7 +9099,19 @@
   ]
  },
  {
+  "t": "S minibandem nad koleny nebo kotníky v podřepu kráčejte šikmo dopředu a pak dozadu, kolena tlačte ven.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "S pokrčeným kolenem se na bolavé noze za 3 sekundy spusťte pod úroveň schodu.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "S činkou v rukou a mírně pokrčenými koleny se předkloňte v kyčlích s rovnými zády, činka jede po stehnech. Zpět silou hýždí.",
   "files": [
    "programs_library.py"
   ]
@@ -8429,6 +9142,18 @@
  },
  {
   "t": "Silou stojné kyčle ji zvedněte zpět nad vodorovnou úroveň.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Silou stojné nohy se vraťte nahoru.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Silový trénink snížil výskyt sportovních zranění na méně než třetinu a přetěžovacích zhruba na polovinu (Lauersen et al., 2014), s větším účinkem při větším objemu a intenzitě (Lauersen et al., 2018). U vytrvalců zlepšuje ekonomiku běhu, nejlépe těžká zátěž dvakrát až třikrát týdně (Blagrove et al., 2018; Rønnestad & Mujika, 2014). Šlachy se přizpůsobují vysoké zátěži s pomalým a delším zatížením (Bohm et al., 2015). Progrese podle pocitu na konci tréninku vychází ze škály náročnosti a opakování v záloze (Foster et al., 2001; Helms et al., 2016). Těžká silová práce na nohy zhoršuje tvrdý běh v následujících 24–48 hodinách, proto session A nepřijde den před ním (Doma et al., 2017).",
   "files": [
    "programs_library.py"
   ]
@@ -8476,6 +9201,12 @@
   ]
  },
  {
+  "t": "Spouštění ze schodu (step-down)",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Spusťte pánev na straně volné nohy o pár centimetrů dolů.",
   "files": [
    "programs_library.py"
@@ -8495,6 +9226,12 @@
  },
  {
   "t": "Stehna jdou dopředu jako u liftinku.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Stejným počtem kroků se vraťte šikmo dozadu.",
   "files": [
    "programs_library.py"
   ]
@@ -8548,7 +9285,19 @@
   ]
  },
  {
+  "t": "Stoupněte si jednou nohou na schod, druhá visí volně vedle.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Stoupněte si na jednu nohu s mírně pokrčeným kolenem.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Stoupněte si na jednu nohu, druhou lehce pokrčte.",
   "files": [
    "programs_library.py"
   ]
@@ -8578,7 +9327,25 @@
   ]
  },
  {
+  "t": "Stoupněte si na šířku boků, ruce volně podél těla.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Stoupněte si na šířku boků, činku nebo jednoručky držte před stehny.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Stoupněte si přední částí chodidel na hranu schodu tak, aby paty přesahovaly.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Stoupněte si přední částí chodidla na hranu schodu, držte se zábradlí.",
   "files": [
    "programs_library.py"
   ]
@@ -8644,7 +9411,19 @@
   ]
  },
  {
+  "t": "Tlačte pánev dozadu a předklánějte se s rovnými zády, činka jede těsně po nohou.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Trup je vzpřímený a paže pracují.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Trup nebo pánev se natáčí ke gumě.",
   "files": [
    "programs_library.py"
   ]
@@ -8668,6 +9447,12 @@
   ]
  },
  {
+  "t": "Tělo se přetáčí.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Tříslo (adduktory)",
   "files": [
    "programs_library.py"
@@ -8681,6 +9466,12 @@
  },
  {
   "t": "U dlouhodobé bolesti třísla z adduktorů vedl aktivní posilovací program v randomizované studii k návratu ke sportu bez bolesti mnohem častěji než pasivní fyzioterapie (Hölmich et al., 1999). Program s kodaňským plankem snížil výskyt potíží s tříslem zhruba o 40 % (Harøy et al., 2019).",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Uchyťte gumu ve výšce hrudníku a postavte se k ní bokem, krok od úchytu.",
   "files": [
    "programs_library.py"
   ]
@@ -8758,6 +9549,12 @@
   ]
  },
  {
+  "t": "Vraťte ruce k hrudníku. Po sérii se otočte druhým bokem.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Vraťte se nahoru. Hloubku přidávejte, jen když udržíte kontrolu.",
   "files": [
    "programs_library.py"
@@ -8812,7 +9609,25 @@
   ]
  },
  {
+  "t": "Vydržte, pak pomalu dolů a vyměňte stranu.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Vydržte, pak vyměňte stranu. Lehčí verze je se spodním kolenem na zemi.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Vynechte je při potížích s lýtkem nebo Achillovou šlachou, zatěžují je víc než běh.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Vynechte při bolesti Achillovy šlachy nad 3 z 10 nebo při bolesti kosti v holeni či chodidle.",
   "files": [
    "programs_library.py"
   ]
@@ -8824,7 +9639,19 @@
   ]
  },
  {
+  "t": "Vytlačte ruce rovně před sebe a 2 sekundy vydržte, trup se nestáčí ke gumě.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Vytrvalost svalů trupu a stabilita pánve, třikrát týdně po tréninku.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Vytáhněte se na jedné noze co nejvýš na špičku, koleno propnuté.",
   "files": [
    "programs_library.py"
   ]
@@ -8837,6 +9664,12 @@
  },
  {
   "t": "Výběr cviků a dávkování je pracovní předpoklad, citované studie používaly jiné sestavy.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Výběr cviků je od trenéra Došlapu, rozdělení do fází, rozsahy opakování a pravidla progrese jsou pracovní předpoklad postavený na citovaných principech. Při bolesti platí pravidlo bolesti: do 5 z 10 při cviku, do rána odeznít.",
   "files": [
    "programs_library.py"
   ]
@@ -8879,6 +9712,12 @@
  },
  {
   "t": "Výpony na jedné noze",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Výpony na jedné noze s pomalým spouštěním",
   "files": [
    "programs_library.py"
   ]
@@ -8950,6 +9789,12 @@
   ]
  },
  {
+  "t": "Zadní noha na lavici, přední daleko vpředu. Klesněte svisle dolů, až je přední stehno vodorovně, a silou přední nohy nahoru.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Zadní strana stehna",
   "files": [
    "programs_library.py"
@@ -9016,6 +9861,12 @@
   ]
  },
  {
+  "t": "Zařaďte až ve chvíli, kdy pogo poskoky snožmo nic nebolí. Při bolesti kosti vynechte.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Zařaďte ho až ve chvíli, kdy stlačování míče a přitahování nohy nebolí.",
   "files": [
    "programs_library.py"
@@ -9076,7 +9927,19 @@
   ]
  },
  {
+  "t": "Zvedněte pánev do přímky od hlavy po chodidla.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "Zvedněte pánev, až je tělo v přímce od hlavy po chodidla.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Zvedněte pánev, až je tělo v přímce, spodní noha může viset nebo se přitáhnout k lavici.",
   "files": [
    "programs_library.py"
   ]
@@ -9119,6 +9982,12 @@
  },
  {
   "t": "Zvedání pánve zařaďte až ve chvíli, kdy podsazení pánve nebolí.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Zvedání ramen.",
   "files": [
    "programs_library.py"
   ]
@@ -9245,7 +10114,19 @@
   ]
  },
  {
+  "t": "lýtko a Achillova šlacha, pružnost",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "lýtko a šlacha, pružnost",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "lýtko, kotník a koleno, pružnost",
   "files": [
    "programs_library.py"
   ]
@@ -9275,6 +10156,18 @@
   ]
  },
  {
+  "t": "střed těla (antirotace)",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "střed těla a hýždě",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
   "t": "střední hýžďový sval",
   "files": [
    "programs_library.py"
@@ -9294,6 +10187,18 @@
  },
  {
   "t": "Úsek 80 až 100 m s plynulým zrychlením do svižného, ale uvolněného tempa.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Činka daleko od těla.",
+  "files": [
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Šest měsíců, dvakrát týdně. Silová session A a session Odolnost B se střídají podle toho, co den unese. Opakování a zátěž rostou podle toho, jak se cítíte na konci tréninku.",
   "files": [
    "programs_library.py"
   ]
@@ -10094,7 +10999,25 @@
   ]
  },
  {
+  "t": "Hodnocení tréninku má jen program Runner's must-have",
+  "files": [
+   "routers/self_programs.py"
+  ]
+ },
+ {
   "t": "Nejvýš 12 cviků",
+  "files": [
+   "routers/self_programs.py"
+  ]
+ },
+ {
+  "t": "Neznámé hodnocení",
+  "files": [
+   "routers/self_programs.py"
+  ]
+ },
+ {
+  "t": "Posilování · {}",
   "files": [
    "routers/self_programs.py"
   ]

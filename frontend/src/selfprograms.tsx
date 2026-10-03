@@ -13,7 +13,9 @@ import { fmtD, plural } from "@/lib"
 import { ExerciseFigure, ExerciseThumb, hasFigure } from "@/exfigure"
 
 type Ex = { name: string; area: string; how: string; dose: string; perWeek: number; steps?: string[]; mistakes?: string[]; caution?: string; links?: { url: string; topic: string }[] }
-type Prog = { key: string; group?: string; physio?: string; name: string; weeks: number; summary: string; exercises: string[]; evidence: string; refs: string[]; assumption: string | null }
+type Phase = { key: string; name: string; goal?: string; from: number; to: number; rpe: string }
+type Prog = { key: string; group?: string; physio?: string; name: string; weeks: number; summary: string; exercises: string[]; evidence: string; refs: string[]; assumption: string | null
+  perWeek?: number; sessions?: Record<string, string[]>; sessionLabels?: Record<string, string>; sessionDoses?: Record<string, Record<string, string>>; phases?: Phase[] }
 
 /** railway#133 — the most recent marked region, shortened for the chip. */
 export function shortRegion(r: string) {
@@ -123,7 +125,9 @@ function ExerciseModule({ e, progId, onToggle, onOpen }: { e: any; progId: any; 
 // Feedback #170 — once every exercise of the day is done, the session closes into a
 // summary: the week at a glance, where the programme stands, and the next session.
 const WD_SHORT = ["po", "út", "st", "čt", "pá", "so", "ne"]
-function SessionDone({ act, lib, onReopen }: { act: any; lib: any; onReopen: () => void }) {
+function SessionDone({ act, lib, onReopen, onRerate }: { act: any; lib: any; onReopen: () => void; onRerate?: () => void }) {
+  const dur = act.durability
+  const labels = (lib.programs as Prog[]).find((p) => p.key === act.template)?.sessionLabels || {}
   const [next, setNext] = useState(false)
   const today = new Date().toLocaleDateString("sv-SE")
   const days = (act.weekDays || []) as { date: string; done: number; full: boolean }[]
@@ -141,6 +145,11 @@ function SessionDone({ act, lib, onReopen }: { act: any; lib: any; onReopen: () 
           </span>
         </div>
       </div>
+      {dur?.note && (
+        <p className="mt-3 flex items-start gap-2 rounded-[12px] bg-white/[.04] px-3 py-2 text-[13px] leading-5 text-fg" data-testid="progress-note">
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />{dur.note}
+        </p>
+      )}
       {act.weeks ? (
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/[.08]" aria-hidden>
           <i className="block h-full rounded-full bg-accent" style={{ width: `${Math.min(100, Math.round((Math.min(act.weekNo, act.weeks) / act.weeks) * 100))}%` }} />
@@ -161,20 +170,85 @@ function SessionDone({ act, lib, onReopen }: { act: any; lib: any; onReopen: () 
         <div className="mt-4 flex flex-wrap gap-2">
           <Button size="sm" onClick={() => setNext(true)} data-testid="next-session">Pokračovat na další trénink</Button>
           <Button size="sm" variant="outline" onClick={onReopen}>Dnešní cviky</Button>
+          {onRerate && <Button size="sm" variant="outline" onClick={onRerate} data-testid="rerate">Změnit hodnocení</Button>}
         </div>
       ) : (
         <div className="mt-4 rounded-[14px] border border-white/[.08] bg-white/[.03] p-3" data-testid="next-session-card">
-          <b className="text-sm text-fg">Další trénink · {nx.date === tomorrow ? "zítra" : fmtD(nx.date)}</b>
+          <b className="text-sm text-fg">Další trénink{nx.session && labels[nx.session] ? ` ${labels[nx.session]}` : ""} · {nx.date === tomorrow ? "zítra" : fmtD(nx.date)}</b>
           <div className="mt-2 divide-y divide-white/[.06]">
             {(nx.exercises || []).map((id: string) => (
               <div key={id} className="flex items-center gap-3 py-2">
                 <Thumb id={id} />
-                <span className="min-w-0"><b className="block text-[13px] font-bold">{lib.exercises[id]?.name}</b><span className="text-[12px] text-fg-3">{lib.exercises[id]?.dose}</span></span>
+                <span className="min-w-0"><b className="block text-[13px] font-bold">{lib.exercises[id]?.name}</b><span className="text-[12px] text-fg-3">{nx.doses?.[id] || lib.exercises[id]?.dose}</span></span>
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-fg-3">Odškrtávat půjde v den tréninku — tělo potřebuje mezi tréninky čas.</p>
+          <p className="mt-2 text-[11px] text-fg-3">{dur ? "Která session to bude, se rozhodne v den tréninku podle ostatních aktivit. Dávky se mohou upravit podle vašeho hodnocení." : "Odškrtávat půjde v den tréninku — tělo potřebuje mezi tréninky čas."}</p>
         </div>
+      )}
+    </div>
+  )
+}
+
+// Runner's must-have — how the end of the session felt sets the next dose
+const FEELS = [
+  { k: "easy", label: "Lehké", sub: "3 a víc opakování v záloze" },
+  { k: "ok", label: "Akorát", sub: "1–2 opakování v záloze" },
+  { k: "hard", label: "Těžké", sub: "na hraně, technika se rozpadala" },
+  { k: "pain", label: "Něco bolelo", sub: "bolest při cviku nebo po něm" },
+]
+function FeelPrompt({ onPick, busy }: { onPick: (k: string) => void; busy: boolean }) {
+  return (
+    <div className="mt-3 rounded-[16px] border border-accent/30 bg-accent/[.06] p-3.5 animate-[careReveal_.28s_ease-out]" data-testid="feel-prompt">
+      <b className="block text-[15px] text-fg">Jak jste se cítili na konci tréninku?</b>
+      <p className="mt-0.5 text-[12px] leading-5 text-fg-2">Podle toho se příště přidá, nebo ubere. Trénink se započítá do týdenní zátěže.</p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {FEELS.map((f) => (
+          <button key={f.k} type="button" disabled={busy} onClick={() => onPick(f.k)} data-testid={`feel-${f.k}`}
+            className={`rounded-[12px] border px-3 py-2.5 text-left transition active:scale-[.98] disabled:opacity-50 ${f.k === "pain" ? "border-watch/40 hover:bg-watch/10" : "border-white/12 hover:border-accent/60 hover:bg-accent/10"}`}>
+            <b className={`block text-[14px] ${f.k === "pain" ? "text-watch" : "text-fg"}`}>{f.label}</b>
+            <span className="block text-[11px] leading-4 text-fg-3">{f.sub}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PhaseBar({ phases, week, weeks }: { phases: Phase[]; week: number; weeks: number }) {
+  return (
+    <div className="mt-3" data-testid="phase-bar">
+      <div className="flex gap-1">
+        {phases.map((ph) => {
+          const on = week >= ph.from && week <= ph.to
+          const fill = week > ph.to ? 1 : on ? (week - ph.from + 1) / (ph.to - ph.from + 1) : 0
+          return (
+            <div key={ph.key} className="min-w-0" style={{ flex: ph.to - ph.from + 1 }} title={`${ph.name} · ${ph.from}.–${ph.to}. týden`}>
+              <div className="h-1.5 overflow-hidden rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-accent" style={{ width: `${fill * 100}%` }} /></div>
+              <span className={`mt-1 block truncate text-[10px] ${on ? "font-bold text-fg" : "text-fg-3"}`}>{ph.name}</span>
+            </div>
+          )
+        })}
+      </div>
+      <p className="sr-only">{`${week}. týden z ${weeks}`}</p>
+    </div>
+  )
+}
+
+function DurabilityHead({ d }: { d: any }) {
+  return (
+    <div className="mt-3" data-testid="durability-head">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Chip>{d.sessionLabel}</Chip>
+        <Chip>{`${d.week}. týden z ${d.weeks}`}</Chip>
+        <Chip>{`tento týden ${d.weekDone}/${d.perWeek}`}</Chip>
+        {d.deload && <span className="rounded-full bg-info/15 px-2.5 py-1 text-[11px] font-bold text-info" data-testid="deload-chip">Odlehčovací týden</span>}
+      </div>
+      <PhaseBar phases={d.phases} week={d.week} weeks={d.weeks} />
+      <p className="mt-2 text-[13px] leading-5 text-fg-soft"><b className="text-fg">{d.phase.name}</b> · <span>{d.phase.goal}</span> <span>{`Cílová náročnost ${d.phase.rpe} z 10, zhruba ${d.estMin} min.`}</span></p>
+      {!d.doneToday && <p className="mt-1 text-[12px] leading-5 text-fg-2" data-testid="session-why">{d.why}</p>}
+      {d.scaled && d.capacity && (
+        <p className="mt-1 text-[11px] leading-4 text-watch">{`Série jsou upravené podle týdenní kapacity posilování: dva tréninky by daly ≈ ${d.capacity.weekly} sRPE·min, strop je ${d.capacity.ceiling}.`}</p>
       )}
     </div>
   )
@@ -240,11 +314,24 @@ function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: P
   return (
     <Sheet open onClose={onClose}>
       <div data-testid="program-sheet">
-        <p className="t-label !text-fg-3">Program · {prog.weeks} týdnů</p>
+        <p className="t-label !text-fg-3">Program · {prog.weeks} týdnů{prog.perWeek ? ` · ${prog.perWeek}× týdně` : ""}</p>
         <h2 className="mt-1 font-serif text-[24px] leading-tight text-fg">{prog.name}</h2>
         <p className="mt-1 text-[13px] leading-5 text-fg-2">{prog.summary}</p>
-        <ul className="mt-4 grid gap-2">
-          {prog.exercises.map((id) => {
+        {prog.phases && (
+          <div className="mt-4 grid gap-1.5" data-testid="program-phases">
+            {prog.phases.map((ph) => (
+              <div key={ph.key} className="grid grid-cols-[78px_1fr] gap-2 text-[12px] leading-5">
+                <span className="tabular-nums text-fg-3">{`${ph.from}.–${ph.to}. týden`}</span>
+                <span><b className="text-fg">{ph.name}</b> <span className="text-fg-3">{`· náročnost ${ph.rpe}`}</span><br /><span className="text-fg-2">{ph.goal}</span></span>
+              </div>
+            ))}
+          </div>
+        )}
+        {(prog.sessions ? Object.entries(prog.sessions) : [["", prog.exercises] as [string, string[]]]).map(([sk, ids]) => (
+        <div key={sk || "all"}>
+        {sk && <p className="t-label mt-4 !text-fg-3">{`${prog.sessionLabels?.[sk] || sk} · začátek`}</p>}
+        <ul className={`${sk ? "mt-2" : "mt-4"} grid gap-2`}>
+          {ids.map((id) => {
             const e: Ex = lib.exercises[id]
             return (
               <li key={id}>
@@ -253,7 +340,7 @@ function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: P
                   <Thumb id={id} />
                   <span className="min-w-0 flex-1">
                     <b className="block text-[14px] font-bold text-fg">{e.name}</b>
-                    <span className="block tabular-nums text-[12px] text-fg-2">{e.dose} · {e.perWeek}× týdně</span>
+                    <span className="block tabular-nums text-[12px] text-fg-2">{sk ? prog.sessionDoses?.[sk]?.[id] || e.dose : `${e.dose} · ${e.perWeek}× týdně`}</span>
                     <span className="mt-0.5 block text-[12px] leading-5 text-fg-3">{e.how}</span>
                   </span>
                   <ChevronRight className="size-4 shrink-0 text-fg-3" aria-hidden />
@@ -262,6 +349,8 @@ function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: P
             )
           })}
         </ul>
+        </div>
+        ))}
         {!perf && <p className="mt-3 rounded-[12px] bg-watch/10 px-3 py-2 text-[12px] leading-5 text-watch">{lib.painRule}</p>}
         <div className="mt-3 text-[12px] leading-5 text-fg-2">
           <p className="flex items-start gap-1.5"><BookOpen className="mt-0.5 size-3.5 shrink-0 text-info" aria-hidden />{prog.evidence}</p>
@@ -336,6 +425,8 @@ export function SelfPrograms() {
   const [exId, setExId] = useState<string | null>(null)
   const [reopen, setReopen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [force, setForce] = useState(false)
+  const [rerate, setRerate] = useState(false)
   const load = () => api.selfPrograms(rid).then(setD).catch(() => setD(false))
   useEffect(() => { load() }, [rid]) // eslint-disable-line react-hooks/exhaustive-deps
   if (d === null) return <p className="mt-4 text-sm text-fg-3">Načítám programy…</p>
@@ -345,6 +436,11 @@ export function SelfPrograms() {
   const rec = (d.recommended || []) as string[]
   const regions = (d.regions || []) as string[]
   const act = d.active
+  const finish = async (feel: string) => {
+    setBusy(true)
+    try { setD({ ...d, active: await api.finishSelfProgram(rid, act.id, feel) }); setRerate(false); setReopen(false); toast({ title: "Trénink zapsán do zátěže" }) }
+    catch (e: any) { toast({ title: e?.message || "Hodnocení se nepodařilo uložit" }) } finally { setBusy(false) }
+  }
   const start = async (body: any) => {
     setBusy(true)
     try { await api.startSelfProgram(rid, body); setOpen(null); setBuild(false); toast({ title: "Program spuštěn" }); await load() }
@@ -375,8 +471,22 @@ export function SelfPrograms() {
             </div>
             <Button size="sm" variant="outline" onClick={async () => { await api.endSelfProgram(rid, act.id); load() }}>Ukončit</Button>
           </div>
-          {act.exercises.length > 0 && act.exercises.every((e: any) => e.doneToday) && !reopen ? (
-            <SessionDone act={act} lib={lib} onReopen={() => setReopen(true)} />
+          {act.durability && <DurabilityHead d={act.durability} />}
+          {(act.durability ? act.durability.doneToday && !rerate : act.exercises.length > 0 && act.exercises.every((e: any) => e.doneToday)) && !reopen ? (
+            <SessionDone act={act} lib={lib} onReopen={() => setReopen(true)} onRerate={act.durability ? () => setRerate(true) : undefined} />
+          ) : act.durability && (rerate || (act.exercises.every((e: any) => e.doneToday) && !act.durability.doneToday)) ? (
+            <FeelPrompt busy={busy} onPick={finish} />
+          ) : act.durability?.blocked && !act.durability.doneToday && !force ? (
+            <div className="mt-3 rounded-[14px] border border-white/[.08] bg-white/[.03] p-3" data-testid="durability-blocked">
+              <p className="text-[13px] leading-5 text-fg">{act.durability.blocked}</p>
+              <p className="t-label mt-3 !text-fg-3">Další session</p>
+              <div className="mt-1 divide-y divide-white/[.06]">
+                {act.exercises.map((e: any) => (
+                  <div key={e.id} className="flex items-center gap-3 py-2"><Thumb id={e.id} /><span className="min-w-0"><b className="block text-[13px] font-bold">{e.name}</b><span className="text-[12px] text-fg-3">{e.dose}</span></span></div>
+                ))}
+              </div>
+              <Button size="sm" variant="outline" className="mt-2" onClick={() => setForce(true)} data-testid="durability-force">Přesto odcvičit dnes</Button>
+            </div>
           ) : (
           <div className="mt-2 divide-y divide-white/[.07]">
             {act.exercises.map((e: any) => (
