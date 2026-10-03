@@ -149,7 +149,7 @@ def _today(a: dict):
     if not g:
         return None
     t = (g.get("types") or {}).get(g.get("type")) or {}
-    km = t.get("km") or {}
+    km = t.get("km") if isinstance(t.get("km"), dict) else ({"lo": t["km"], "hi": t["km"]} if isinstance(t.get("km"), (int, float)) else {})  # race day: one number
     dur = t.get("durationMin") or []
     out = {
         "type": g.get("type"), "label": g.get("typeLabel"), "provisional": bool(g.get("provisional")),

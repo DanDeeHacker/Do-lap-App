@@ -47,7 +47,7 @@ def _types(a) -> dict | None:
         row = {"label": t.get("label"), "allowed": bool(t.get("allowed"))}
         if not t.get("allowed") and t.get("why"):
             row["whyNot"] = F.cz_text(t["why"])
-        km = t.get("km") or {}
+        km = t.get("km") if isinstance(t.get("km"), dict) else ({"lo": t["km"], "hi": t["km"]} if isinstance(t.get("km"), (int, float)) else {})  # race day: one number
         if t.get("allowed") and (km.get("hi") or 0) > 0:
             row["km"] = f"{G._cz(km.get('lo'), 1)}–{G._cz(km.get('hi'), 1)} km"
         if t.get("allowed") and t.get("hr"):

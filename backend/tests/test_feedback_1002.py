@@ -92,3 +92,37 @@ def test_programme_payload_has_week_overview_and_next_session(client, db_session
     assert p["weekNo"] == 1 and p["weeks"] == 6 and p["weeksLeft"] == 5 and p["sessionsTotal"] == 1
     assert len(p["weekDays"]) == 7 and sum(d["full"] for d in p["weekDays"]) == 1
     assert p["next"]["exercises"] and p["next"]["date"] > E.iso_date(E.today_date())
+
+
+def test_race_day_facts_with_a_single_distance_do_not_crash():
+    """Bug 2026-10-03 — on race day the 'závod' type carries km as one number; the
+    assistant and its summaries crashed with a 500."""
+    from app.metrics import coach_facts as CF
+    from app.assistant import facts as AF
+    g = {"type": "závod", "typeLabel": "Den závodu", "types": {"závod": {"label": "Den závodu", "km": 21.1, "allowed": True}},
+         "week": {"channels": {}}, "reasons": []}
+    out = CF._today({"guidance": g})
+    assert out["km"].startswith("21,1")
+    assert AF._types({"guidance": g}) if hasattr(AF, "_types") else True
+
+
+def test_assistant_answers_and_summarises_on_race_day(client, db_session, monkeypatch):
+    """End to end: a race today, the assistant (rule-based answer) and the tab summary work."""
+    from app import llm
+    from app.assistant import knowledge as K
+    from app.assistant import service as S
+    monkeypatch.setenv("DOSSLAP_ASSISTANT", "on")
+    monkeypatch.setattr(llm, "assistant_available", lambda: False)
+    K.sync_builtin(db_session)
+    K.INDEX.invalidate()
+    rid, r = _runner(client, db_session, "fb1002raceday@test.cz")
+    r.coach_consent = True
+    db_session.commit()
+    body = {"name": "Dnešní půlka", "date": E.iso_date(E.today_date()), "distance_km": 21.1, "priority": "A"}
+    assert client.post(f"/api/runners/{rid}/races", json=body).status_code == 200
+    E.recompute_assessment(db_session, rid)
+    db_session.commit()
+    a = client.post(f"/api/runners/{rid}/assistant/ask", json={"question": "Jak vypadá můj tréninkový týden?"})
+    assert a.status_code == 200, a.text
+    s = client.get(f"/api/runners/{rid}/assistant/summary?tab=today")
+    assert s.status_code == 200, s.text
