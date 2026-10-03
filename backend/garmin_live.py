@@ -452,3 +452,130 @@ def resume_session(blob: str, encrypted: bool):
     except Exception as e:
         raise AuthError(str(e))
     return garmin
+
+
+# --- Morning / evening report (owner request 2026-10-03): one night and one day in detail ---
+# The range endpoints above give one number per day. The report also needs the night's
+# hypnogram, when the runner fell asleep and woke, Garmin's sleep score and breathing,
+# and the day's stress and Body Battery curves. Those come from the per-day endpoints,
+# compacted here into small JSON blobs (minutes and 15-minute buckets, no raw samples).
+STAGE_OF_LEVEL = {0: "deep", 1: "light", 2: "rem", 3: "awake"}   # Garmin sleepLevels.activityLevel
+BUCKET_MIN = 15
+
+
+def _iso_ms(s) -> int | None:
+    """'2026-10-02T21:45:00.0' (GMT, no zone) or epoch ms → epoch ms."""
+    from datetime import datetime, timezone
+    if s is None:
+        return None
+    if isinstance(s, (int, float)):
+        return int(s)
+    try:
+        t = datetime.fromisoformat(str(s).replace("Z", "")[:19])
+        return int(t.replace(tzinfo=timezone.utc).timestamp() * 1000)
+    except ValueError:
+        return None
+
+
+def _hhmm(ms_local: int | None) -> str | None:
+    from datetime import datetime, timezone
+    if ms_local is None:
+        return None
+    return datetime.fromtimestamp(ms_local / 1000, tz=timezone.utc).strftime("%H:%M")
+
+
+def compact_sleep(payload: dict | None) -> dict | None:
+    """get_sleep_data(date) → {start, end, minutes, stages, score, hypnogram [[from, to, stage]]…}.
+    Minutes in the hypnogram count from falling asleep."""
+    dto = (payload or {}).get("dailySleepDTO") or {}
+    secs = dto.get("sleepTimeSeconds")
+    if not secs:
+        return None
+    s_gmt, e_gmt = dto.get("sleepStartTimestampGMT"), dto.get("sleepEndTimestampGMT")
+    s_loc, e_loc = dto.get("sleepStartTimestampLocal"), dto.get("sleepEndTimestampLocal")
+    out = {"start": _hhmm(s_loc), "end": _hhmm(e_loc), "sleepMin": round(secs / 60),
+           "inBedMin": round((e_gmt - s_gmt) / 60000) if (s_gmt and e_gmt) else None,
+           "stages": {k: round((dto.get(f) or 0) / 60) for k, f in
+                      (("deep", "deepSleepSeconds"), ("light", "lightSleepSeconds"), ("rem", "remSleepSeconds"), ("awake", "awakeSleepSeconds"))},
+           "awakeCount": dto.get("awakeCount"), "respiration": _r(dto.get("averageRespirationValue"), 1),
+           "sleepStress": _r(dto.get("avgSleepStress"), 1)}
+    sc = (dto.get("sleepScores") or {}).get("overall") or {}
+    if sc.get("value") is not None:
+        out["score"] = int(sc["value"])
+        out["scoreWord"] = sc.get("qualifierKey")
+    hyp = []
+    for lv in (payload or {}).get("sleepLevels") or []:
+        a, b = _iso_ms(lv.get("startGMT")), _iso_ms(lv.get("endGMT"))
+        st = STAGE_OF_LEVEL.get(int(round(lv.get("activityLevel", -1)))) if lv.get("activityLevel") is not None else None
+        if a is None or b is None or st is None or not s_gmt:
+            continue
+        f, t = round((a - s_gmt) / 60000), round((b - s_gmt) / 60000)
+        if t > f:
+            if hyp and hyp[-1][2] == st and hyp[-1][1] == f:
+                hyp[-1][1] = t
+            else:
+                hyp.append([f, t, st])
+    if hyp:
+        out["hypnogram"] = hyp
+    hrv = [(p.get("startGMT"), p.get("value")) for p in (payload or {}).get("hrvData") or [] if p.get("value")]
+    if hrv and s_gmt:
+        out["hrv"] = [[round((_iso_ms(t) - s_gmt) / 60000), round(v)] for t, v in hrv if _iso_ms(t) is not None][::2]
+    if (payload or {}).get("avgOvernightHrv") is not None:
+        out["hrvAvg"] = _r(payload["avgOvernightHrv"], 1)
+    if (payload or {}).get("bodyBatteryChange") is not None:
+        out["bbChange"] = int(payload["bodyBatteryChange"])
+    return out
+
+
+def _local_offset_ms(payload: dict) -> int:
+    a, b = _iso_ms(payload.get("startTimestampLocal")), _iso_ms(payload.get("startTimestampGMT"))
+    return (a - b) if (a is not None and b is not None) else 0
+
+
+def compact_day(stress: dict | None, summary: dict | None) -> dict | None:
+    """get_stress_data(date) + get_user_summary(date) → the day's stress and Body Battery
+    in 15-minute buckets ([minute of the local day, value]) and the day's totals."""
+    out = {}
+    if stress:
+        off = _local_offset_ms(stress)
+        day0 = _iso_ms(stress.get("startTimestampLocal"))
+
+        def minute(ts):
+            return int(((ts + off) - day0) // 60000) if day0 is not None else None
+        buckets: dict[int, list] = {}
+        for p in stress.get("stressValuesArray") or []:
+            if len(p) >= 2 and p[1] is not None and p[1] >= 0 and (m := minute(p[0])) is not None and 0 <= m < 1440:
+                buckets.setdefault(m // BUCKET_MIN * BUCKET_MIN, []).append(p[1])
+        if buckets:
+            out["stress"] = [[m, round(sum(v) / len(v))] for m, v in sorted(buckets.items())]
+        bb: dict[int, int] = {}
+        for p in stress.get("bodyBatteryValuesArray") or []:
+            lvl = p[2] if len(p) >= 3 else None
+            if lvl is not None and (m := minute(p[0])) is not None and 0 <= m < 1440:
+                bb[m // BUCKET_MIN * BUCKET_MIN] = int(lvl)
+        if bb:
+            out["bb"] = [[m, v] for m, v in sorted(bb.items())]
+        if stress.get("avgStressLevel") is not None and stress["avgStressLevel"] >= 0:
+            out["stressAvg"] = int(stress["avgStressLevel"])
+        if stress.get("maxStressLevel") is not None:
+            out["stressMax"] = int(stress["maxStressLevel"])
+    if summary:
+        for k, f in (("bbHigh", "bodyBatteryHighestValue"), ("bbLow", "bodyBatteryLowestValue"),
+                     ("bbCharged", "bodyBatteryChargedValue"), ("bbDrained", "bodyBatteryDrainedValue"),
+                     ("bbNow", "bodyBatteryMostRecentValue"), ("bbWake", "bodyBatteryAtWakeTime"),
+                     ("steps", "totalSteps"), ("stepGoal", "dailyStepGoal")):
+            if summary.get(f) is not None:
+                out[k] = int(summary[f])
+        if "stressAvg" not in out and (summary.get("averageStressLevel") or -1) >= 0:
+            out["stressAvg"] = int(summary["averageStressLevel"])
+        mins = {k: round((summary.get(f) or 0) / 60) for k, f in
+                (("rest", "restStressDuration"), ("low", "lowStressDuration"), ("medium", "mediumStressDuration"), ("high", "highStressDuration"))}
+        if any(mins.values()):
+            out["stressMin"] = mins
+    return out or None
+
+
+def fetch_day_detail(garmin, cdate: str) -> dict:
+    """One day's night (the night that ended that morning) and the day itself."""
+    return {"sleep": compact_sleep(_safe(garmin.get_sleep_data, cdate)),
+            "day": compact_day(_safe(garmin.get_stress_data, cdate), _safe(garmin.get_user_summary, cdate))}

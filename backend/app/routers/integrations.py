@@ -404,11 +404,54 @@ def _download_and_merge(db: DBSession, rid: str, garmin) -> dict:
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Nepodařilo se stáhnout data z Garminu: {e}")
     added = _merge_seed(db, rid, seed, provider="garmin")
+    added["dayDetails"] = fetch_day_details(db, rid, garmin)
     if backfill:
         meta["crossBackfill"] = E.iso_date(E.today_date())
         runner.onboarding_json = meta
         db.commit()
     return {"ok": True, "runner_id": rid, **added, "meta": seed.get("_meta")}
+
+
+DAY_DETAIL_RECENT, DAY_DETAIL_BACKFILL = 3, 14
+
+
+def fetch_day_details(db: DBSession, rid: str, garmin, today=None) -> int:
+    """Morning / evening report: the last nights and days in detail (hypnogram, stress and
+    Body Battery curves). Today and the two days before are fetched again on every sync
+    (the night and the day keep filling in); the first time 14 days back. Fills the daily
+    Body Battery and stress average when the day row has none. Never raises."""
+    try:
+        today = today or E.today_date()
+        have = {r.date for r in db.query(models.DailyDetail.date).filter(models.DailyDetail.runner_id == rid).all()}
+        days = DAY_DETAIL_RECENT if have else DAY_DETAIL_BACKFILL
+        n = 0
+        for k in range(days):
+            d = (today - _dt.timedelta(days=k)).isoformat()
+            if k >= DAY_DETAIL_RECENT and d in have:
+                continue
+            det = garmin_live.fetch_day_detail(garmin, d)
+            if not det.get("sleep") and not det.get("day"):
+                continue
+            row = db.query(models.DailyDetail).filter(models.DailyDetail.runner_id == rid, models.DailyDetail.date == d).first()
+            if row is None:
+                row = models.DailyDetail(runner_id=rid, date=d)
+                db.add(row)
+            row.sleep = det.get("sleep") or row.sleep
+            row.day = det.get("day") or row.day
+            row.fetched_at = E.now_iso()
+            dm = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.date == d).first()
+            day = det.get("day") or {}
+            if dm is not None:
+                if dm.body_battery is None and (day.get("bbWake") or day.get("bbHigh")) is not None:
+                    dm.body_battery = day.get("bbWake") or day.get("bbHigh")
+                if dm.stress_avg is None and day.get("stressAvg") is not None:
+                    dm.stress_avg = day["stressAvg"]
+            n += 1
+        db.commit()
+        return n
+    except Exception:  # noqa: BLE001 — the report data must never break the sync
+        db.rollback()
+        return 0
 
 
 def _store_session(db: DBSession, rid: str, garmin, auto_sync: bool = True) -> None:

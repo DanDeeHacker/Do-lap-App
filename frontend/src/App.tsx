@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ReportEntry } from "@/report"
 import { createPortal } from "react-dom"
 import {
   createBrowserRouter,
@@ -1240,6 +1241,7 @@ function TodayV2() {
           </h1>
         </div>
       </div>
+      {a && !viewing && <ReportEntry />}
       {error && !a && (
         <AlertBanner tone="alert" className="mt-5" title="Data se nepodařilo načíst"
           action={<Button size="sm" onClick={() => refresh()}>Zkusit znovu</Button>}>

@@ -283,6 +283,20 @@ class DailyMetric(Base):
     __table_args__ = (UniqueConstraint("runner_id", "date", name="uq_daily_runner_date"),)
 
 
+class DailyDetail(Base):
+    """Morning / evening report (owner request 2026-10-03): one night and one day in
+    detail from the watch — the hypnogram, falling asleep / waking, sleep score, and the
+    day's stress and Body Battery in 15-minute buckets (garmin_live.compact_sleep/_day)."""
+    __tablename__ = "daily_details"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    date = Column(String, index=True, nullable=False)
+    sleep = Column(JSON)
+    day = Column(JSON)
+    fetched_at = Column(String)
+    __table_args__ = (UniqueConstraint("runner_id", "date", name="uq_detail_runner_date"),)
+
+
 class Checkin(Base):
     __tablename__ = "checkins"
     id = Column(Integer, primary_key=True, autoincrement=True)

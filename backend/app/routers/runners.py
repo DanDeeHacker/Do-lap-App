@@ -976,3 +976,14 @@ def create_checkin(rid: str, body: schemas.CheckinRequest, background: Backgroun
     out = E.recompute_assessment(db, rid)
     background.add_task(coach_texts.refresh_bg, rid)   # pain / feeling changed → the day's AI texts follow
     return out
+
+
+@router.get("/{rid}/report")
+def get_daily_report(rid: str, kind: str = "morning", user: models.User = Depends(get_current_user),
+                     db: DBSession = Depends(get_db)):
+    """Morning / evening report (owner request 2026-10-03), metrics/daily_report.py."""
+    ensure_runner_read_access(db, user, rid)
+    if kind not in ("morning", "evening"):
+        raise HTTPException(status_code=422, detail="Report je ranní, nebo večerní")
+    from ..metrics import daily_report as DR
+    return DR.build(db, rid, kind)

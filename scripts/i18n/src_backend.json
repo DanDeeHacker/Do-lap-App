@@ -2482,6 +2482,268 @@
   ]
  },
  {
+  "t": ", cíl splněný.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": ", zbývá {} km.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Běh",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Co dělat, abych zítra byl odpočatý?",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Dnes {} kroků",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Dobré ráno",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Dobrý večer",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Hlubokého a REM spánku bylo",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Jak rozložit zbytek týdne?",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Jak se vyspat lépe, když mi chybí hluboký spánek?",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Můžu dnes přidat posilování?",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Na dnešek: {}{}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Na noc {} spánku, do postele kolem {}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Noc je zapsaná.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Noc z hodinek zatím nedorazila. Po synchronizaci se report doplní.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Posilování: {}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Proč mám dnes takové doporučení?",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Proč mám dnes vysoký stres?",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Připravenost {} %",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Týden končí, zítra začíná nový.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Týden: {} z {} km",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Týdenní cíl máte splněný. Zbytek týdne lehce, nebo volno.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Týdenní cíl se zatím neurčil.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Za poslední 3 noci vám chybí asi {} spánku.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu. Cíl je horní hranice, ne povinnost.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "dlouhý",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "kvalitní",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "lehký",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "méně",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "méně než obvykle.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "neděle",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "o {} {} než obvykle",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "pondělí",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "pá",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "pátek",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "středa",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "víc",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "víc než obvykle.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "út",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "úterý",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "čt",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "čtvrtek",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "+{} % / 2 týdny",
   "files": [
    "metrics/engine.py"
@@ -4555,12 +4817,6 @@
   ]
  },
  {
-  "t": "Připravenost {} %",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
   "t": "Připravenost {} % — tělo je zregenerované, volno je kvůli týdennímu plánu, ne kvůli únavě.",
   "files": [
    "metrics/guidance.py"
@@ -4771,12 +5027,6 @@
   ]
  },
  {
-  "t": "dlouhý",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
   "t": "dnes byl naplánovaný den volna",
   "files": [
    "metrics/guidance.py"
@@ -4827,18 +5077,6 @@
   ]
  },
  {
-  "t": "kvalitní",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "lehký",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
   "t": "lehký běh.",
   "files": [
    "metrics/guidance.py"
@@ -4852,12 +5090,6 @@
  },
  {
   "t": "na další běh už dnes nezbývá objem",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "neděle",
   "files": [
    "metrics/guidance.py"
   ]
@@ -4888,18 +5120,6 @@
  },
  {
   "t": "pokryl dnešní doporučení",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "pondělí",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "pátek",
   "files": [
    "metrics/guidance.py"
   ]
@@ -4938,12 +5158,6 @@
  },
  {
   "t": "stres mimo trénink",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "středa",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5093,19 +5307,7 @@
   ]
  },
  {
-  "t": "úterý",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
   "t": "Čtyřtýdenní cyklus nastavíme po 4 týdnech dat — zatím je cílem vaše týdenní kapacita.",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "čtvrtek",
   "files": [
    "metrics/guidance.py"
   ]
@@ -10934,6 +11136,12 @@
  },
  {
   "t": "Převýšení závodu musí být 0–20 000 m",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Report je ranní, nebo večerní",
   "files": [
    "routers/runners.py"
   ]
