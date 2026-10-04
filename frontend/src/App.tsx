@@ -281,7 +281,7 @@ function useAutoGarminSync(active: boolean) {
   }, [active]) // eslint-disable-line react-hooks/exhaustive-deps
 }
 function Layout() {
-  const { me, realMe, loading, viewing } = useApp()
+  const { me, realMe, loading, viewing, offline, reloadMe } = useApp()
   useAutoGarminSync(!!me && me.role === "runner" && !me.guest)
   // New deployments: reload when the app returns to the foreground, or offer a
   // reload if one lands while it's in use (home-screen apps never reload alone).
@@ -296,6 +296,18 @@ function Layout() {
     return (
       <div className="motion-shell grid min-h-screen place-items-center bg-bg text-fg-2" role="status">
         <span className="flex flex-col items-center gap-3"><Mark size={44} /><span className="t-label">načítám…</span></span>
+      </div>
+    )
+  // a server outage is not a sign-out: wait for the server instead of the login screen
+  if (!me && offline)
+    return (
+      <div className="motion-shell grid min-h-screen place-items-center bg-bg px-6 text-center text-fg-2" role="status" data-testid="offline">
+        <span className="flex max-w-[320px] flex-col items-center gap-3">
+          <Mark size={44} />
+          <b className="text-[15px] text-fg">Server je chvíli nedostupný</b>
+          <span className="text-[13px] leading-5">Přihlášení zůstává. Aplikace se sama znovu připojí, jakmile server naběhne.</span>
+          <button type="button" onClick={() => reloadMe()} className="btn btn-secondary btn-sm mt-2">Zkusit znovu</button>
+        </span>
       </div>
     )
   if (!me) return <Navigate to="/auth" replace />

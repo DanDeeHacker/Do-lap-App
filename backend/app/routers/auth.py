@@ -64,14 +64,14 @@ def _next_id(db: DBSession, model, prefix: str) -> str:
     return f"{prefix}-{n + 1:04d}"
 
 
-def _set_cookie(response: Response, token: str) -> None:
-    # No max_age/expires → a *session* cookie: the browser keeps it while it's
-    # open (sign-in is remembered across tabs/navigations) and drops it when the
-    # browser is fully closed, returning the user to the sign-up screen. The
-    # server-side UserSession still has SESSION_TTL_DAYS as a hard safety cap.
+def _set_cookie(response: Response, token: str, persistent: bool = True) -> None:
+    # Owner request 2026-10-04: sign-in stays until "Odhlásit se" — a persistent cookie
+    # (closing the browser or the phone app keeps it), renewed on every app start
+    # (GET /me) like the sliding server-side session. The guest demo keeps a session
+    # cookie that ends with the browser.
     response.set_cookie(
         SESSION_COOKIE, token, httponly=True, samesite="lax", secure=COOKIE_SECURE,
-        path="/",
+        path="/", **({"max_age": COOKIE_MAX_AGE} if persistent else {}),
     )
 
 
@@ -190,7 +190,7 @@ def guest_session(request: Request, response: Response, db: DBSession = Depends(
     if old:
         revoke_session(db, old)
     token, _ = create_session(db, user.id, ttl=GUEST_TTL)
-    _set_cookie(response, token)
+    _set_cookie(response, token, persistent=False)
     return _user_dict(db, user)
 
 
@@ -203,7 +203,10 @@ def logout(request: Request, response: Response, db: DBSession = Depends(get_db)
 
 
 @router.get("/me")
-def me(user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+def me(request: Request, response: Response, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    token = request.cookies.get(SESSION_COOKIE)
+    if token and user.provider != GUEST_PROVIDER:
+        _set_cookie(response, token)             # the cookie slides with the session
     return _user_dict(db, user)
 
 

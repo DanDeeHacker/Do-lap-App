@@ -18,7 +18,13 @@ from sqlalchemy.orm import Session as DBSession
 from . import models
 
 SESSION_COOKIE = "dosslap_session"
-SESSION_TTL_DAYS = 30
+# Owner request 2026-10-04: a runner is signed out only by "Odhlásit se" (or when the
+# server loses the session). The session slides: every day it is used pushes its end
+# out again, so only 400 days without opening the app end it (400 days is also the
+# longest a browser keeps a cookie).
+SESSION_TTL_DAYS = 400
+SESSION_SLIDE_EVERY = timedelta(days=1)    # the new end is written at most once a day
+NO_SLIDE_PROVIDERS = ("guest",)            # the public demo keeps its short session
 # Local/testing runs are plain HTTP, where a Secure cookie would never be
 # stored by the browser. Set DOSSLAP_HTTPS=1 once this is actually served
 # over HTTPS to turn Secure back on.
@@ -60,7 +66,17 @@ def get_user_for_token(db: DBSession, token: Optional[str]) -> Optional[models.U
         db.delete(sess)
         db.commit()
         return None
-    return db.query(models.User).filter(models.User.id == sess.user_id).first()
+    user = db.query(models.User).filter(models.User.id == sess.user_id).first()
+    if user is not None and user.provider not in NO_SLIDE_PROVIDERS:
+        end = datetime.now(timezone.utc) + timedelta(days=SESSION_TTL_DAYS)
+        try:
+            stale = end - datetime.fromisoformat(sess.expires_at) > SESSION_SLIDE_EVERY
+        except (TypeError, ValueError):
+            stale = True
+        if stale:
+            sess.expires_at = end.isoformat()
+            db.commit()
+    return user
 
 
 def revoke_session(db: DBSession, token: Optional[str]) -> None:

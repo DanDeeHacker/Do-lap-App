@@ -2366,6 +2366,13 @@
   "kind": "str"
  },
  {
+  "t": "Přihlášení zůstává. Aplikace se sama znovu připojí, jakmile server naběhne.",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Přihlásit se",
   "files": [
    "App.tsx"
@@ -2617,6 +2624,13 @@
  },
  {
   "t": "Sedí",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Server je chvíli nedostupný",
   "files": [
    "App.tsx"
   ],

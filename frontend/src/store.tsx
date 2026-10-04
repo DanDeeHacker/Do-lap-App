@@ -30,6 +30,7 @@ type AppState = {
   realMe: Me | null
   boot: any | null
   loading: boolean
+  offline: boolean
   error: string | null
   touring: boolean
   viewing: { rid: string; name: string } | null
@@ -48,18 +49,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null)
   const [boot, setBoot] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+  const [offline, setOffline] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tour, setTour] = useState<Tour | null>(null)
   const [view, setView] = useState<View | null>(null)
 
+  // Owner request 2026-10-04: only the server saying "not signed in" (401) signs out.
+  // A server or network outage keeps the sign-in: the app waits and tries again.
   const reloadMe = useCallback(async () => {
     try {
       const u = await api.authMe()
       if (!u?.guest) adoptAccountLang(u?.lang)      // the account's language (British English or Czech)
+      setOffline(false)
       setMe(u)
       return u
-    } catch {
-      setMe(null)
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        setOffline(false)
+        setMe(null)
+      } else {
+        setOffline(true)
+      }
       return null
     }
   }, [])
@@ -159,6 +169,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })()
   }, [reloadMe])
 
+  // the server is unreachable: try again (2, 4, 8, then every 15 s) and when the app comes back to the front
+  useEffect(() => {
+    if (!offline) return
+    let n = 0, t = 0, alive = true
+    const again = () => { if (alive) reloadMe().then((u) => { if (alive && !u) t = window.setTimeout(again, Math.min(15000, 2000 * 2 ** n++)) }) }
+    t = window.setTimeout(again, 2000)
+    const vis = () => { if (document.visibilityState === "visible") { window.clearTimeout(t); again() } }
+    document.addEventListener("visibilitychange", vis)
+    return () => { alive = false; window.clearTimeout(t); document.removeEventListener("visibilitychange", vis) }
+  }, [offline, reloadMe])
+
   useEffect(() => {
     if (me?.runner_id) refresh()
   }, [me?.runner_id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -179,7 +200,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [histRid, histVer])
 
   return (
-    <Ctx.Provider value={{ me: shownMe, realMe: me, boot: shownBoot, loading, error, touring: !!tour || !!me?.guest || !!view, viewing, startViewAs, endViewAs, reloadMe, refresh, logout, startTour, endTour }}>
+    <Ctx.Provider value={{ me: shownMe, realMe: me, boot: shownBoot, loading, offline, error, touring: !!tour || !!me?.guest || !!view, viewing, startViewAs, endViewAs, reloadMe, refresh, logout, startTour, endTour }}>
       {children}
     </Ctx.Provider>
   )
