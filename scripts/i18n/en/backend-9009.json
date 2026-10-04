@@ -1,0 +1,12 @@
+{
+"víc bdění v noci": "more time awake at night",
+"hodnocení noci": "night rating",
+"únava z check-inu": "fatigue from the check-in",
+"simulace (150 dní, 3 bloky únavy po 5 dnech)": "simulation (150 days, 3 fatigue blocks of 5 days)",
+"{}: bez nocí s vlastní normou (≥ 14 nocí 8–56 dní zpět)": "{0}: no nights with an own norm (≥ 14 nights 8–56 days back)",
+"{}: dny únavy průměr {} %, pod 85 % {} · klidné dny průměr {} %, pod 85 % {}": "{0}: fatigue days mean {1} %, under 85 % {2} · calm days mean {3} %, under 85 % {4}",
+"{}: {} dní · průměr v0.10 {} % → v0.11 {} % · spánek ubral ≥ 10 bodů: {} → {} dní · pod 70 %: {} → {} dní": "{0}: {1} days · mean v0.10 {2} % → v0.11 {3} % · sleep cost ≥ 10 points: {4} → {5} days · under 70 %: {6} → {7} days",
+"{}: {} → {} % (spánek −{} → −{} b.)": "{0}: {1} → {2} % (sleep −{3} → −{4} pts)",
+"ρ připravenost × {} (n = {}): v0.10 {} · v0.11 {}": "ρ readiness × {0} (n = {1}): v0.10 {2} · v0.11 {3}",
+"kratší spánek": "shorter sleep"
+}

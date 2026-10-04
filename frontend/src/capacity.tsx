@@ -17,7 +17,7 @@ const num = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleStr
 const TONE = { ok: C.ok, watch: C.watch, alert: C.alert, muted: C.fg3 }
 const toneOf = (ratio: number | null | undefined, margin: number) =>
   ratio == null ? "muted" : ratio <= 1 + margin ? "ok" : ratio <= 1.3 ? "watch" : "alert"
-const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší nebo méně kvalitní spánek", soreness: "svalová bolest", fatigue: "únava", stress: "stres mimo trénink", session: "dnešní trénink", dayStress: "zvýšený tep v klidu včera", dayLoad: "pohyb mimo trénink dnes", dayStressNow: "zvýšený tep v klidu dnes" }
+const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší spánek než obvykle", sleepQuality: "víc bdění v noci", soreness: "svalová bolest", fatigue: "únava", stress: "stres mimo trénink", session: "dnešní trénink", dayStress: "zvýšený tep v klidu včera", dayLoad: "pohyb mimo trénink dnes", dayStressNow: "zvýšený tep v klidu dnes" }
 
 export const readinessPct = (r: any) => (r?.score ?? Math.round((r?.today ?? 1) * 100)) as number
 // railway#108 — green above 70 %, red below 40 %, as on the Dnes rings
@@ -62,7 +62,7 @@ export function Readiness({ r }: { r: any }) {
 // change since yesterday morning. Points follow the engine: 100 − 80 × combined
 // deficit, the strongest signal fully, the 2nd half, the 3rd a quarter.
 const SLEEP_Q = ["velmi špatně", "špatně", "průměrně", "dobře", "výborně"]
-const FACTOR_LABEL: Record<string, string> = { hrv: "HRV", rhr: "Klidový tep", sleep: "Spánek", soreness: "Svalová bolest", fatigue: "Únava", stress: "Stres mimo trénink", dayStress: "Zvýšený tep v klidu včera", session: "Dnešní trénink", day: "Den mimo trénink" }
+const FACTOR_LABEL: Record<string, string> = { hrv: "HRV", rhr: "Klidový tep", sleep: "Délka spánku", sleepQuality: "Kvalita spánku", soreness: "Svalová bolest", fatigue: "Únava", stress: "Stres mimo trénink", dayStress: "Zvýšený tep v klidu včera", session: "Dnešní trénink", day: "Den mimo trénink" }
 const pctS = (v: number | null | undefined) => (v == null ? null : `${Math.round(v * 100)} %`)
 const vs = (parts: (string | null | false)[]) => parts.filter(Boolean).join(" · ")
 const pts1 = (v: number) => (Math.round(v * 10) / 10).toLocaleString("cs-CZ")
@@ -72,11 +72,14 @@ function factorReading(k: string, r: any): string | null {
   const n = i.night || {}, w = i.week || {}, b = i.base || {}, c = i.checkin
   if (k === "hrv") return n.hrv == null && w.hrv == null ? null : vs([n.hrv != null && `noc ${n.hrv} ms`, w.hrv != null && `7 nocí ${w.hrv} ms`, b.hrv != null && `obvykle ${b.hrv} ms`])
   if (k === "rhr") return n.rhr == null && w.rhr == null ? null : vs([n.rhr != null && `noc ${n.rhr}`, w.rhr != null && `7 nocí ${w.rhr}`, b.rhr != null && `obvykle ${b.rhr} tepů/min`])
-  if (k === "sleep") {
+  if (k === "sleep") return vs([n.sleep != null && `poslední noc ${num(n.sleep)} h`, w.sleep != null && `3 noci ${num(w.sleep)} h`, b.sleep != null && `obvykle ${num(b.sleep)} h`]) || null
+  // v0.11.0 — quality = efficiency over 3 nights; the deep + REM share is shown, not scored
+  if (k === "sleepQuality") {
+    if (b.eff == null) return null                       // no norm yet: nothing to judge against
     const q = c?.sleepQuality
-    const line = vs([n.sleep != null && `poslední noc ${num(n.sleep)} h`, w.sleep != null && `3 noci ${num(w.sleep)} h`, b.sleep != null && `obvykle ${num(b.sleep)} h`,
-      n.rest != null && `hluboký + REM ${pctS(n.rest)}${b.rest != null ? ` (obvykle ${pctS(b.rest)})` : ""}`, q != null && SLEEP_Q[q] && `vaše hodnocení: ${SLEEP_Q[q]}`])
-    return line || null
+    return vs([w.eff != null ? `efektivita 3 noci ${pctS(w.eff)}` : n.eff != null && `efektivita ${pctS(n.eff)}`, b.eff != null && `obvykle ${pctS(b.eff)}`,
+      n.rest != null && `hluboký + REM ${pctS(n.rest)}${b.rest != null ? ` (obvykle ${pctS(b.rest)})` : ""}, jen pro informaci`,
+      q != null && SLEEP_Q[q] && `vaše hodnocení: ${SLEEP_Q[q]}`]) || null
   }
   if (k === "soreness") return c?.soreness == null ? null : `v check-inu ${c.soreness}/10 · snižuje od 6/10`
   if (k === "fatigue") return c?.fatigue == null ? null : `v check-inu ${c.fatigue}/10 · snižuje od 6/10`
@@ -94,7 +97,7 @@ function factorReading(k: string, r: any): string | null {
 export function ReadinessFactors({ r }: { r: any }) {
   if (!r?.inputs) return null
   const eff: Record<string, number> = r.effects || {}
-  const keys = ["hrv", "rhr", "sleep", "dayStress", "soreness", "fatigue", "stress", "session"]
+  const keys = ["hrv", "rhr", "sleep", "sleepQuality", "dayStress", "soreness", "fatigue", "stress", "session"]
   const part: Record<string, number> = r.parts || {}
   // every signal off its norm is listed, also one that adds nothing because stronger
   // signals already cover it (only the three strongest count)
@@ -102,9 +105,10 @@ export function ReadinessFactors({ r }: { r: any }) {
   // a signal counts only with today's reading: without last night's data the engine
   // doesn't judge HRV / resting HR / sleep, so they are listed apart, not as "in norm"
   const n = r.inputs.night || {}, ci = r.inputs.checkin
-  const today = (k: string) => (k === "hrv" ? n.hrv != null : k === "rhr" ? n.rhr != null : k === "sleep" ? n.sleep != null || ci?.sleepQuality != null : k === "dayStress" ? r.inputs?.dayStress != null : ci?.[k] != null)
+  const today = (k: string) => (k === "hrv" ? n.hrv != null : k === "rhr" ? n.rhr != null : k === "sleep" ? n.sleep != null : k === "sleepQuality" ? n.eff != null : k === "dayStress" ? r.inputs?.dayStress != null : ci?.[k] != null)
   const fine = keys.filter((k) => k !== "session" && !lower.includes(k) && today(k) && factorReading(k, r))
-  const stale = ["hrv", "rhr", "sleep"].filter((k) => !lower.includes(k) && !today(k) && factorReading(k, r))
+  const stale = ["hrv", "rhr", "sleep", "sleepQuality"].filter((k) => !lower.includes(k) && !today(k) && factorReading(k, r))
+  const habit = r.inputs.sleepHabit
   const noCheckin = !ci
   const y = r.yesterday
   const delta = y?.known ? (r.morningScore ?? r.score) - y.score : null
@@ -163,7 +167,7 @@ export function ReadinessFactors({ r }: { r: any }) {
       {!r.known && !lower.length && (
         <p className="mt-2 text-[12px] leading-5 text-fg-2">Dnes zatím chybí noční data z hodinek{noCheckin ? " i check-in" : ""}, proto připravenost nic nesnižuje. Po synchronizaci se přepočítá.</p>
       )}
-      {(r.known || lower.length > 0) && <Waterfall steps={wf.steps} lo={wf.lo} hi={100} unit=" %" testid="readiness-waterfall" />}
+      {(r.known || lower.length > 0) && <Waterfall steps={wf.steps} lo={wf.lo} hi={100} unit=" %" testid="readiness-waterfall" wrapSub />}
       {(fine.length > 0 || covered.length > 0) && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {fine.map((k) => (
@@ -182,8 +186,16 @@ export function ReadinessFactors({ r }: { r: any }) {
         <p className="mt-2 text-[11px] leading-4 text-fg-3">Bez dnešní noci, nezapočítává se: {stale.map((k) => FACTOR_LABEL[k]).join(", ")}.</p>
       )}
       {noCheckin && <p className="mt-1 text-[11px] leading-4 text-fg-3">Dnešní check-in zatím chybí, svalová bolest, únava a stres se proto nezapočítávají.</p>}
+      {/* v0.11.0 — a habitually short sleep is a note beside readiness, not a daily deduction */}
+      {habit && (
+        <p className="mt-2 rounded-[10px] bg-white/[.05] px-2.5 py-2 text-[11.5px] leading-[17px] text-fg-2" data-testid="sleep-habit">
+          {habit.severe
+            ? `Dlouhodobě spíte v průměru ${num(habit.avg)} h (${habit.under} z ${habit.n} nocí pod 7 h). Noci pod 6 h snižují připravenost, i když jsou pro vás běžné. Pro zdraví a regeneraci se dospělým doporučuje aspoň 7 hodin.`
+            : `Dlouhodobě spíte v průměru ${num(habit.avg)} h (${habit.under} z ${habit.n} nocí pod 7 h). Do připravenosti se to nepočítá, ta sleduje odchylky od vaší normy. Pro zdraví a regeneraci se dospělým doporučuje aspoň 7 hodin.`}
+        </p>
+      )}
       <p className="mt-3 border-t border-white/[.07] pt-2.5 text-[11px] leading-4 text-fg-3">
-        Zelená zvyšuje, červená snižuje. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí.
+        Zelená zvyšuje, červená snižuje. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí. Kvalita spánku (efektivita za 3 noci) stojí nejvýš 20 bodů a bez potvrzení od HRV nebo tepu 10; fáze spánku z hodinek se nepočítají.
       </p>
     </div>
   )

@@ -1774,7 +1774,7 @@ function RecoveryDetail({ rcv, sleepEff }: { rcv: any; sleepEff: any }) {
 
 // Feedback railway#33 — sleep quality, not only length: efficiency (asleep / in bed)
 // and the deep + REM share of the staged night against the runner's 8-week normal.
-// Both feed readiness (at most half a signal — watch staging is approximate).
+// v0.11.0: only the efficiency (3 nights) feeds readiness; the stages are shown.
 function SleepQuality({ s }: { s: any }) {
   const pct = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)} %`)
   const restLow = s.restNow != null && s.restBase != null && s.restNow < s.restBase - 0.03
@@ -1787,7 +1787,7 @@ function SleepQuality({ s }: { s: any }) {
       <span className="flex items-center gap-1.5"><Label>Kvalita spánku</Label><InfoDot text={MI.sleepQuality} label="Kvalita spánku" /></span>
       <div className="mt-2 flex items-end gap-4">
         <div>
-          <p className="t-num text-[30px]" style={{ color: restLow ? C.alert : undefined }}>{pct(s.restNow)}</p>
+          <p className="t-num text-[30px]" style={{ color: restLow ? C.watch : undefined }}>{pct(s.restNow)}</p>
           <p className="text-[11px] text-fg-3">hluboký + REM{s.restBase != null ? ` · obvykle ${pct(s.restBase)}` : ""}</p>
         </div>
         <div>
@@ -1805,7 +1805,8 @@ function SleepQuality({ s }: { s: any }) {
       )}
       <p className="mt-2 text-[11px] leading-4 text-fg-3">
         {s.restNow == null ? "Fáze spánku se načtou při další synchronizaci s Garminem. " : ""}
-        {restLow || effLow ? "Méně kvalitní spánek než obvykle snižuje dnešní připravenost." : "Průměr 7 nocí proti vaší normě za 8 týdnů."}
+        {effLow ? "Víc bdění než obvykle — připravenost to sníží mírně, víc jen když to potvrdí HRV nebo klidový tep. " : ""}
+        Fáze spánku jsou jen pro informaci, do připravenosti se nepočítají.
       </p>
       {(s.history || []).length >= 7 && <SleepHistory h={s.history} />}
     </div>

@@ -1004,6 +1004,17 @@ def get_daily_report(rid: str, request: Request, kind: str = "morning", user: mo
     return _report_lang(db, r, request)
 
 
+@router.get("/{rid}/readiness-compare")
+def get_readiness_compare(rid: str, days: int = 56, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Readiness under the v0.10 and v0.11 sleep rules, day by day (engine v0.11.0 check;
+    `me` = the signed-in runner). Read-only."""
+    if rid == "me":
+        rid = user.runner_id or ""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import readiness_compare as RC
+    return RC.report(db, rid, max(7, min(days, 180)))
+
+
 @router.get("/{rid}/day-today")
 def get_day_today(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     """The day so far on Trénink: timeline, load outside training, readiness through the day."""

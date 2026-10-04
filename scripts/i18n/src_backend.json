@@ -5407,7 +5407,7 @@
   ]
  },
  {
-  "t": "kratší nebo méně kvalitní spánek",
+  "t": "kratší spánek",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5560,6 +5560,12 @@
  },
  {
   "t": "vyšší klidový tep",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "víc bdění v noci",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5838,6 +5844,54 @@
   "t": "závod naplno bez ladění (B)",
   "files": [
    "metrics/race_plan.py"
+  ]
+ },
+ {
+  "t": "hodnocení noci",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "simulace (150 dní, 3 bloky únavy po 5 dnech)",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "{}: bez nocí s vlastní normou (≥ 14 nocí 8–56 dní zpět)",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "{}: dny únavy průměr {} %, pod 85 % {} · klidné dny průměr {} %, pod 85 % {}",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "{}: {} dní · průměr v0.10 {} % → v0.11 {} % · spánek ubral ≥ 10 bodů: {} → {} dní · pod 70 %: {} → {} dní",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "{}: {} → {} % (spánek −{} → −{} b.)",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "únava z check-inu",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "ρ připravenost × {} (n = {}): v0.10 {} · v0.11 {}",
+  "files": [
+   "metrics/readiness_compare.py"
   ]
  },
  {

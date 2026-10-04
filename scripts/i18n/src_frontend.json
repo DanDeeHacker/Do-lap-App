@@ -4418,6 +4418,13 @@
   "kind": "str"
  },
  {
+  "t": "Délka spánku",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Den mimo trénink",
   "files": [
    "capacity.tsx"
@@ -4426,6 +4433,20 @@
  },
  {
   "t": "den mimo trénink −{} ({})",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Dlouhodobě spíte v průměru {} h ({} z {} nocí pod 7 h). Do připravenosti se to nepočítá, ta sleduje odchylky od vaší normy. Pro zdraví a regeneraci se dospělým doporučuje aspoň 7 hodin.",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Dlouhodobě spíte v průměru {} h ({} z {} nocí pod 7 h). Noci pod 6 h snižují připravenost, i když jsou pro vás běžné. Pro zdraví a regeneraci se dospělým doporučuje aspoň 7 hodin.",
   "files": [
    "capacity.tsx"
   ],
@@ -4513,6 +4534,20 @@
   "kind": "str"
  },
  {
+  "t": "efektivita {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "efektivita 3 noci {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "flex flex-col rounded-[12px] border px-1 py-2 {}",
   "files": [
    "capacity.tsx"
@@ -4520,7 +4555,7 @@
   "kind": "tpl"
  },
  {
-  "t": "hluboký + REM {}{}",
+  "t": "hluboký + REM {}{}, jen pro informaci",
   "files": [
    "capacity.tsx"
   ],
@@ -4663,9 +4698,17 @@
   "kind": "str"
  },
  {
-  "t": "kratší nebo méně kvalitní spánek",
+  "t": "kratší spánek než obvykle",
   "files": [
    "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kvalita spánku",
+  "files": [
+   "capacity.tsx",
+   "tabs.tsx"
   ],
   "kind": "str"
  },
@@ -4753,6 +4796,14 @@
    "capacity.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "obvykle {}",
+  "files": [
+   "capacity.tsx",
+   "shell.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "obvykle {} h",
@@ -5007,17 +5058,6 @@
   "kind": "str"
  },
  {
-  "t": "Spánek",
-  "files": [
-   "capacity.tsx",
-   "landing.tsx",
-   "report.tsx",
-   "shell.tsx",
-   "tabs.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "stres mimo trénink",
   "files": [
    "capacity.tsx"
@@ -5183,6 +5223,13 @@
   "kind": "str"
  },
  {
+  "t": "víc bdění v noci",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "výrazně nad",
   "files": [
    "capacity.tsx"
@@ -5281,7 +5328,7 @@
   "kind": "tpl"
  },
  {
-  "t": "Zelená zvyšuje, červená snižuje. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí.",
+  "t": "Zelená zvyšuje, červená snižuje. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí. Kvalita spánku (efektivita za 3 noci) stojí nejvýš 20 bodů a bez potvrzení od HRV nebo tepu 10; fáze spánku z hodinek se nepočítají.",
   "files": [
    "capacity.tsx"
   ],
@@ -9230,6 +9277,16 @@
   "kind": "str"
  },
  {
+  "t": "Spánek",
+  "files": [
+   "landing.tsx",
+   "report.tsx",
+   "shell.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Spánek, HRV a klidový tep jako ranní regenerace",
   "files": [
    "landing.tsx"
@@ -9771,7 +9828,7 @@
   "kind": "str"
  },
  {
-  "t": "Kvalita spánku = podíl hlubokého a REM spánku z celého spánku a efektivita (čas spánku / čas v posteli), průměr 7 nocí proti vaší normě za 8 týdnů. Hluboký spánek slouží hlavně regeneraci těla, REM zotavení nervové soustavy. Když je podíl nebo efektivita zřetelně pod vaší normou, sníží se dnešní připravenost — i když jste spali dost dlouho. Fáze spánku hodinky jen odhadují, proto má kvalita nejvýš poloviční váhu signálu.",
+  "t": "Kvalita spánku = efektivita (čas spánku / čas v posteli) a podíl hlubokého a REM spánku, proti vaší normě za 8 týdnů. Do připravenosti se počítá jen efektivita, a to průměr posledních 3 nocí (samotná noc 0,6×), nejvýš za čtvrtinu signálu — a bez potvrzení od HRV nebo klidového tepu jen za polovinu z toho. Podíl hlubokého a REM spánku je jen pro informaci: hodinky se ve fázích spánku shodují se spánkovou laboratoří asi z poloviny a Garmin je odvozuje i z HRV, která už v připravenosti je.",
   "files": [
    "metricinfo.ts"
   ],
@@ -9820,7 +9877,7 @@
   "kind": "str"
  },
  {
-  "t": "Připravenost (20–100 %) = jak daleko jsou dnes vaše ukazatele regenerace od VAŠÍ normy (posledních 8 týdnů): HRV pod normou a klidový tep nad normou — z poslední noci i z průměru 7 nocí, který je spolehlivější a počítá se o čtvrtinu silněji (to, co hodinky ukazují jako stav HRV) — kratší nebo méně kvalitní spánek (méně hlubokého a REM spánku nebo nižší efektivita než obvykle — počítá se nejvýš napůl, protože hodinky fáze spánku jen odhadují). Check-in (svalová bolest, únava, stres, hodnocení noci) se do Skóre počítá jen v Příznacích, ne tady. Doporučení v Tréninku s ním ale dál počítá stejně jako dřív. Malá odchylka v mezích vašeho běžného kolísání mezi dny je šum a nic nestojí; čím větší odchylka, tím nižší připravenost. Shodné signály se sčítají: když jsou HRV i klidový tep zhruba o jedno vaše běžné kolísání mimo normu, vychází kolem 70 %, když skoro o dvě, kolem 40 %, nejníž 20 %. Kapacitu (Zátěž) připravenost zmenšuje nejvýš o 30 %. Po tréninku v ten den připravenost klesne podle toho, jak byl náročný proti vašim obvyklým dnům (lehký trénink pod prvním prahem nejvýš o 4 procentní body, obvyklý den asi o 8, váš nejtěžší den za 8 týdnů o 28, minuty v Z4+ přidají 8–12, celkem nejvýš 36) — intenzita zatěžuje zotavení víc než délka (Stanley et al., 2013; Seiler et al., 2007). Druhý den ji nahradí noční HRV, klidový tep a spánek; bez nočních dat dozní polovina tvrdého tréninku.",
+  "t": "Připravenost (20–100 %) = jak daleko jsou dnes vaše ukazatele regenerace od VAŠÍ normy (posledních 8 týdnů): HRV pod normou a klidový tep nad normou — z poslední noci i z průměru 7 nocí, který je spolehlivější a počítá se o čtvrtinu silněji (to, co hodinky ukazují jako stav HRV) — kratší spánek než obvykle (průměr 3 nocí) a víc bdění v noci (efektivita spánku za 3 noci — nejvýš čtvrtina signálu, a bez potvrzení od HRV nebo klidového tepu jen polovina z toho). Podíl hlubokého a REM spánku se jen zobrazuje: hodinky fáze spánku odhadují málo přesně a Garmin je odvozuje i z HRV, takže by se počítala dvakrát. Hranice 7 hodin platí jen do doby, než poznáme vaši normu, potom je dlouhodobě krátký spánek samostatná poznámka. Noci pod 6 hodin se počítají vždy, i když jsou pro vás běžné. Check-in (svalová bolest, únava, stres, hodnocení noci) se do Skóre počítá jen v Příznacích, ne tady. Doporučení v Tréninku s ním ale dál počítá stejně jako dřív. Malá odchylka v mezích vašeho běžného kolísání mezi dny je šum a nic nestojí; čím větší odchylka, tím nižší připravenost. Shodné signály se sčítají: když jsou HRV i klidový tep zhruba o jedno vaše běžné kolísání mimo normu, vychází kolem 70 %, když skoro o dvě, kolem 40 %, nejníž 20 %. Kapacitu (Zátěž) připravenost zmenšuje nejvýš o 30 %. Po tréninku v ten den připravenost klesne podle toho, jak byl náročný proti vašim obvyklým dnům (lehký trénink pod prvním prahem nejvýš o 4 procentní body, obvyklý den asi o 8, váš nejtěžší den za 8 týdnů o 28, minuty v Z4+ přidají 8–12, celkem nejvýš 36) — intenzita zatěžuje zotavení víc než délka (Stanley et al., 2013; Seiler et al., 2007). Druhý den ji nahradí noční HRV, klidový tep a spánek; bez nočních dat dozní polovina tvrdého tréninku.",
   "files": [
    "metricinfo.ts"
   ],
@@ -13310,13 +13367,6 @@
   "kind": "jsx"
  },
  {
-  "t": "obvykle {}",
-  "files": [
-   "shell.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "pod prahem 25",
   "files": [
    "shell.tsx"
@@ -14266,6 +14316,13 @@
   "kind": "str"
  },
  {
+  "t": "Fáze spánku jsou jen pro informaci, do připravenosti se nepočítají.",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Fáze spánku se načtou při další synchronizaci s Garminem.",
   "files": [
    "tabs.tsx"
@@ -14511,13 +14568,6 @@
   "kind": "str"
  },
  {
-  "t": "Kvalita spánku",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "málo dat",
   "files": [
    "tabs.tsx"
@@ -14547,13 +14597,6 @@
  },
  {
   "t": "Mechanika se mění",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Méně kvalitní spánek než obvykle snižuje dnešní připravenost.",
   "files": [
    "tabs.tsx"
   ],
@@ -15058,13 +15101,6 @@
  },
  {
   "t": "prudký výjezd",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Průměr 7 nocí proti vaší normě za 8 týdnů.",
   "files": [
    "tabs.tsx"
   ],
@@ -15660,6 +15696,13 @@
  },
  {
   "t": "Vertikální oscilace",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Víc bdění než obvykle — připravenost to sníží mírně, víc jen když to potvrdí HRV nebo klidový tep.",
   "files": [
    "tabs.tsx"
   ],

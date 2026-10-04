@@ -681,9 +681,20 @@ READY_BASE = (8, 56)    # baseline nights: 8–56 days back (a strained stretch 
 READY_TOLERANCE = 0.5   # SD — ordinary night-to-night noise costs nothing
 READY_FULL = 3.0        # SD off the baseline = the whole deficit for that signal
 READY_WEEK_BOOST = 1.25 # a 7-night mean is less noisy than one night: its deviation counts 1.25×
-SLEEP_QUALITY_W = 0.5   # sleep quality (deep + REM share, efficiency) counts at most half a signal —
-                        # watch sleep staging is only moderately accurate against PSG (de Zambotti 2019)
-SLEEP_SD_FLOOR = {"rest_share": 0.03, "sleep_efficiency": 0.02}   # a near-constant baseline mustn't turn a 2 % dip into 4 SD
+# v0.11.0 — sleep quality (owner request 2026-10-04, evidence review). Watch sleep stages
+# agree with polysomnography only moderately: Garmin ~50 % of epochs, κ 0.25 (Miller et
+# al. 2022); devices miss 30–50 % of deep and REM sleep and Garmin hardly detects wake
+# (specificity 0.18–0.19, Chinoy et al. 2021); and Garmin derives the stages partly from
+# the night's HRV (Kuula & Pesonen 2021), so a low-HRV night would count twice. Hence:
+#   • the deep + REM share is shown, not scored; quality = sleep efficiency only;
+#   • it is judged on the last 3 nights' mean like the duration, the night alone at
+#     READY_NIGHT_W (single nights are noisy, as with HRV, Plews et al. 2012);
+#   • at most a quarter of a signal, and half of that unless HRV or resting HR are off
+#     their norm too (overreaching shows in sleep as a weeks-long trend, efficiency
+#     −1.6 %, Hausswirth et al. 2014 — not in one night). Weights: working assumptions.
+SLEEP_QUALITY_W = 0.25
+SLEEP_QUALITY_ALONE = 0.5
+SLEEP_SD_FLOOR = {"sleep_efficiency": 0.02}   # a near-constant baseline mustn't turn a 2 % dip into 4 SD
 # v0.8.4 — single nights are unreliable (Plews et al. 2012: 64 % of a well-training
 # athlete's single-day HRV values fell outside the SWC; 2013: 10 km performance
 # tracked the weekly mean, r = −0.76, not single days, r = −0.17). A night's own
@@ -695,13 +706,19 @@ READY_NIGHT_W = 0.6
 READY_WEEK_MIN = {"rec": 5, "trained": 3}
 TRAINED_KM_WEEK = 40.0
 # Sleep over several nights (Halson 2014b: effects build up over consecutive
-# nights) and an absolute floor (Watson et al. 2015: ≥ 7 h for adults), so a
-# chronically short sleeper isn't normalised by their own baseline. Weights are
+# nights; sleep loss to ≤ 6 h cost 7.6 % of performance on average, Craven et al.
+# 2022). The absolute floor (Watson et al. 2015: ≥ 7 h for adults) stands in for the
+# runner's own norm only until that norm is known (10 baseline nights); from then on
+# readiness follows deviations from the own norm and a habitually short sleep of 6–7 h
+# is a separate note (sleepHabit), not a permanent deduction (v0.11.0). Nights under
+# 6 h — the sleep loss Craven et al. measured — keep counting even when they are the
+# norm: one of the last 4 is free, all 4 cost 0.6 of a signal. Floor weights are
 # working assumptions: a night < 7 h counts 0.5, < 6 h counts 1; over the last 4
 # nights up to 1.5 is free and 4 points cost 0.6 of a signal.
 SLEEP_NIGHTS = 3
 SLEEP_ABS_H, SLEEP_ABS_LOW_H = 7.0, 6.0
 SLEEP_ABS_MAX = 0.6
+SLEEP_HABIT_NIGHTS, SLEEP_HABIT_MIN, SLEEP_HABIT_UNDER = 14, 10, 8   # the note: ≥ 8 of the known last 14 nights under 7 h
 # Check-in items kept separate (Saw et al. 2016). Stress outside training counts
 # 0.6 of a signal from 6/10, a poor / very poor subjective night 0.2 / 0.35
 # (working assumptions, the review gives no weights).
@@ -743,12 +760,23 @@ def _sleep_abs(nights) -> float | None:
     return SLEEP_ABS_MAX * E.clamp((pts - 1.5) / 2.5, 0, 1)
 
 
+def _sleep_severe(nights) -> float | None:
+    """v0.11.0 — nights under 6 h count even when they are the runner's norm: of the last
+    4 (≥ 3 known) one is free, all 4 cost SLEEP_ABS_MAX."""
+    known = [h for h in nights if h is not None]
+    if len(known) < 3:
+        return None
+    pts = sum(1 for h in known[:4] if h < SLEEP_ABS_LOW_H)
+    return SLEEP_ABS_MAX * E.clamp((pts - 1) / 3, 0, 1)
+
+
 def readiness_parts(night: dict, week: dict, base: dict, zover: dict | None = None,
                     night_w: float | None = None) -> dict:
     """Per-signal deficits 0–1. `night` = that day's values, `week` = the last 7
     nights' means (HRV / resting HR, only with enough valid nights) plus
-    `sleep_recent` (mean of the last 3 nights) and `sleep_nights` (last 4 nights'
-    hours, newest first), `base` = {field: (mean, sd)} of the runner's baseline
+    `sleep_recent` (mean of the last 3 nights), `sleep_nights` (last 4 nights'
+    hours, newest first) and `eff_recent` (the last 3 nights' mean sleep
+    efficiency), `base` = {field: (mean, sd)} of the runner's baseline
     nights. `zover` = {field: (night z, week z)} from the individualised reference
     range (plan phase 1), which replaces the mean/SD deviation for that field.
     `night_w` fixes the single-night weight (default: 1 when the 7-night mean
@@ -777,22 +805,30 @@ def readiness_parts(night: dict, week: dict, base: dict, zover: dict | None = No
         if views:
             d = E.clamp((max(views) - READY_TOLERANCE) / (READY_FULL - READY_TOLERANCE), 0, 1)
             parts["hrv" if key == "hrv_ms" else "rhr"] = round(d, 2)
-    dur = qual = None
-    if "sleep_h" in base and night.get("sleep_h") is not None:
-        recent = week.get("sleep_recent", night["sleep_h"])    # the last 3 nights, not one
-        short = base["sleep_h"][0] - recent                     # hours below the usual
-        dur = E.clamp((short - 0.5) / 2.0, 0, 1)
-    ab = _sleep_abs(week.get("sleep_nights") or [])
-    if ab:
-        dur = max(dur or 0.0, ab)
-    for key in ("rest_share", "sleep_efficiency"):             # quality: less deep + REM / more awake than usual
-        if key in base and night.get(key) is not None:
-            m, sdv = base[key]
-            z = (m - night[key]) / max(sdv, SLEEP_SD_FLOOR[key])
-            q = SLEEP_QUALITY_W * E.clamp((z - READY_TOLERANCE) / (READY_FULL - READY_TOLERANCE), 0, 1)
-            qual = max(qual or 0.0, q)
-    if dur is not None or qual is not None:                    # a long night of poor sleep still costs
-        parts["sleep"] = round(1 - (1 - (dur or 0.0)) * (1 - (qual or 0.0)), 2)
+    # sleep length ("sleep"): the last 3 nights against the own norm, nights under 6 h
+    # whatever the norm; before the norm is known, the 7-hour floor stands in for it (v0.11.0)
+    if "sleep_h" in base:
+        if night.get("sleep_h") is not None:
+            recent = week.get("sleep_recent", night["sleep_h"])    # the last 3 nights, not one
+            short = base["sleep_h"][0] - recent                     # hours below the usual
+            rel = E.clamp((short - 0.5) / 2.0, 0, 1)
+            parts["sleep"] = round(max(rel, _sleep_severe(week.get("sleep_nights") or []) or 0.0), 2)
+    else:
+        ab = _sleep_abs(week.get("sleep_nights") or [])
+        if ab is not None:
+            parts["sleep"] = round(ab, 2)
+    # sleep quality ("sleepQuality"): efficiency only, 3-night mean, a quarter of a
+    # signal at most and half of that unless HRV or resting HR confirm (v0.11.0)
+    if "sleep_efficiency" in base and night.get("sleep_efficiency") is not None:
+        m, sdv = base["sleep_efficiency"]
+        sd = max(sdv, SLEEP_SD_FLOOR["sleep_efficiency"])
+        zr = (m - week["eff_recent"]) / sd if week.get("eff_recent") is not None else None
+        zn = (m - night["sleep_efficiency"]) / sd
+        # the 3-night mean already holds last night, so the night alone always counts 0.6×
+        views = ([zr] if zr is not None else []) + [zn * READY_NIGHT_W]
+        q = E.clamp((max(views) - READY_TOLERANCE) / (READY_FULL - READY_TOLERANCE), 0, 1)
+        confirmed = (parts.get("hrv") or 0) > 0 or (parts.get("rhr") or 0) > 0
+        parts["sleepQuality"] = round(SLEEP_QUALITY_W * q * (1.0 if confirmed else SLEEP_QUALITY_ALONE), 2)
     return parts
 
 
@@ -846,11 +882,11 @@ def checkin_parts(c) -> dict:
 
 
 def with_checkin(parts: dict, ci: dict) -> dict:
-    """Watch readiness parts + check-in parts; the runner's own night compounds with
-    the watch's sleep, as it did inside readiness before v0.9.3."""
+    """Watch readiness parts + check-in parts; the runner's own rating of the night
+    compounds with the watch's sleep quality (v0.11.0: quality is its own part)."""
     out = {**parts, **{k: v for k, v in ci.items() if k != "sleepSelf"}}
     if "sleepSelf" in ci:
-        out["sleep"] = round(1 - (1 - parts.get("sleep", 0.0)) * (1 - ci["sleepSelf"]), 2)
+        out["sleepQuality"] = round(1 - (1 - parts.get("sleepQuality", 0.0)) * (1 - ci["sleepSelf"]), 2)
     return out
 
 
@@ -943,7 +979,8 @@ def readiness_inputs(db, rid, day: str) -> dict:
         "night": {"hrv": r0(night.hrv_ms) if night else None, "rhr": r0(night.resting_hr) if night else None,
                   "sleep": r1(night.sleep_h) if night else None,
                   "eff": r2(night.sleep_efficiency) if night else None, "rest": r2(rest_share(night)) if night else None},
-        "week": {"hrv": r0(avg(week, "hrv_ms", 3)), "rhr": r0(avg(week, "resting_hr", 3)), "sleep": r1(avg(recent, "sleep_h", 2))},
+        "week": {"hrv": r0(avg(week, "hrv_ms", 3)), "rhr": r0(avg(week, "resting_hr", 3)), "sleep": r1(avg(recent, "sleep_h", 2)),
+                 "eff": r2(avg(recent, "sleep_efficiency", 2))},
         "base": {"hrv": r0(avg(base, "hrv_ms", 10)), "rhr": r0(avg(base, "resting_hr", 10)), "sleep": r1(avg(base, "sleep_h", 10)),
                  "eff": r2(avg(base, "sleep_efficiency", 10)), "rest": r2(avg(base, "rest_share", 10))},
         # v0.9.0 — the usual range (mean ± 1 SD of the baseline nights; HRV on the log
@@ -960,6 +997,9 @@ def readiness_inputs(db, rid, day: str) -> dict:
     bv = [v for v in (raised_minutes(dm_all.get((d0 - timedelta(days=j)).isoformat())) for j in range(2, 30)) if v is not None]
     if yv is not None:
         out["dayStress"] = {"yesterday": round(yv), "usual": round(E.mean(bv)) if bv else None, "n": len(bv)}
+    hab = sleep_habit(dm_all, d0)
+    if hab:
+        out["sleepHabit"] = hab
     cks = [c for c in data.checkins if day <= c.submitted_at < day + "T99"]
     if cks:
         c = max(cks, key=lambda x: x.submitted_at or "")
@@ -1005,14 +1045,34 @@ def trained_runner(db, rid, ref_day: str) -> bool:
 
 
 def _sleep_window(dm: dict, d0) -> dict:
-    """Sleep of the last nights up to `d0`: mean of the last 3 known (≥ 2 needed) and
-    the last 4 nights' hours, newest first."""
-    nights = [getattr(dm.get((d0 - timedelta(days=j)).isoformat()), "sleep_h", None) for j in range(4)]
+    """Sleep of the last nights up to `d0`: mean hours and mean efficiency of the last 3
+    known (≥ 2 needed, last night among them) and the last 4 nights' hours, newest first."""
+    rows = [dm.get((d0 - timedelta(days=j)).isoformat()) for j in range(4)]
+    nights = [getattr(r, "sleep_h", None) for r in rows]
     out = {"sleep_nights": nights}
     rec = [h for h in nights[:SLEEP_NIGHTS] if h is not None]
     if len(rec) >= 2 and nights[0] is not None:
         out["sleep_recent"] = E.mean(rec)
+    effs = [getattr(r, "sleep_efficiency", None) for r in rows[:SLEEP_NIGHTS]]
+    known = [e for e in effs if e is not None]
+    if len(known) >= 2 and effs[0] is not None:
+        out["eff_recent"] = E.mean(known)
     return out
+
+
+def sleep_habit(dm: dict, d0) -> dict | None:
+    """v0.11.0 — a habitually short sleep, as a note beside readiness (not in it): the
+    known nights of the last 14, their mean and how many fell under 7 h. None unless
+    the mean is under 7 h with ≥ 8 nights under it (Watson et al. 2015)."""
+    hs = [getattr(dm.get((d0 - timedelta(days=j)).isoformat()), "sleep_h", None) for j in range(SLEEP_HABIT_NIGHTS)]
+    known = [h for h in hs if h is not None]
+    if len(known) < SLEEP_HABIT_MIN:
+        return None
+    under = sum(1 for h in known if h < SLEEP_ABS_H)
+    avg = E.mean(known)
+    if avg >= SLEEP_ABS_H or under < SLEEP_HABIT_UNDER:
+        return None
+    return {"avg": round(avg, 1), "under": under, "n": len(known), "severe": avg < SLEEP_ABS_LOW_H}
 
 
 def readiness_by_day(db, rid, days) -> dict:
@@ -1077,9 +1137,8 @@ def readiness_by_day(db, rid, days) -> dict:
         elif night is not None and len(base_rows) >= 14:
             base = {}
             # v0.9.0 — HRV on the log scale (Ln rMSSD) here too, like the reference-range path
-            for fld in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency", "rest_share"):
-                vals = [v for v in (_ln_hrv(fld, rest_share(b) if fld == "rest_share" else getattr(b, fld)) for b in base_rows)
-                        if v is not None]
+            for fld in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency"):
+                vals = [v for v in (_ln_hrv(fld, getattr(b, fld)) for b in base_rows) if v is not None]
                 if len(vals) >= 10 and (E.sd(vals) or fld in SLEEP_SD_FLOOR):
                     base[fld] = (E.mean(vals), E.sd(vals) or 0.0)
             wk = {}
@@ -1088,8 +1147,8 @@ def readiness_by_day(db, rid, days) -> dict:
                 if len(vals) >= wk_min:
                     wk[fld] = E.mean(vals)
             wk.update(_sleep_window(dm, d0))
-            parts = readiness_parts({**{f: _ln_hrv(f, getattr(night, f)) for f in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency")},
-                                     "rest_share": rest_share(night)}, wk, base, zover)
+            parts = readiness_parts({f: _ln_hrv(f, getattr(night, f)) for f in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency")},
+                                    wk, base, zover)
         ds = day_stress_part(dm, d0)
         if ds:
             parts["dayStress"] = ds

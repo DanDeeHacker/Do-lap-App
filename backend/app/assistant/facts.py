@@ -10,8 +10,10 @@ from ..metrics import coach_facts as F
 from ..metrics import engine as E
 from ..metrics import guidance as G
 
-PART_LABEL = {"hrv": "HRV pod normou", "rhr": "klidový tep nad normou", "sleep": "kratší nebo horší spánek",
-              "soreness": "svalová bolest z check-inu", "fatigue": "únava z check-inu", "stress": "stres mimo trénink"}
+PART_LABEL = {"hrv": "HRV pod normou", "rhr": "klidový tep nad normou", "sleep": "kratší spánek než obvykle (3 noci)",
+              "sleepQuality": "víc bdění v noci než obvykle (efektivita spánku, 3 noci)",
+              "soreness": "svalová bolest z check-inu", "fatigue": "únava z check-inu", "stress": "stres mimo trénink",
+              "dayStress": "zvýšený tep v klidu včera"}
 MECH_IDS = {"tavr", "gct", "cad", "vosc", "bal", "dec", "gaitcv", "stiffness"}
 CH_LABEL = {"volume": "objem", "intensity": "intenzita", "descent": "klesání", "ascent": "stoupání",
             "systemic": "celková zátěž", "strength": "silová zátěž"}
@@ -113,6 +115,10 @@ def _readiness(a) -> dict:
     parts = {PART_LABEL.get(k, k): f"{round(v * 100)} %" for k, v in (cr.get("parts") or {}).items() if v and v > 0.05}
     if parts:
         out["whatLowersReadiness"] = parts
+    hab = (cr.get("inputs") or {}).get("sleepHabit")
+    if hab:                                      # v0.11.0 — a habit beside readiness, not inside it
+        out["sleepHabit"] = (f"dlouhodobě spí v průměru {G._cz(hab['avg'], 1)} h, {hab['under']} z {hab['n']} nocí pod 7 h "
+                             "(do připravenosti se nepočítá, ta sleduje odchylky od vlastní normy)")
     return out
 
 

@@ -35,7 +35,7 @@ QUAD_HISTORY_DAYS = 183
 # Bump when the history *shape/window* logic changes. The code fingerprint below
 # also turns the key over whenever the engine sources change, so a deploy that
 # alters scoring without an ENGINE_VERSION bump can't serve an outdated history.
-HISTORY_VERSION = "h8"
+HISTORY_VERSION = "h9"
 
 
 # v0.9.0 — modules that never change a replayed day (texts, coach, the sandbox, the

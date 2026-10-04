@@ -1152,7 +1152,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                         f"Včerejší náročný trénink ({what}) ještě doznívá — bez nočních dat počítáme s polovinou "
                         f"jeho vlivu, připravenost {rscore} %.")
                        + " Zítra ji upřesní noční HRV, klidový tep a spánek.")
-    part_lbl = {"hrv": "nižší HRV", "rhr": "vyšší klidový tep", "sleep": "kratší nebo méně kvalitní spánek",
+    part_lbl = {"hrv": "nižší HRV", "rhr": "vyšší klidový tep", "sleep": "kratší spánek", "sleepQuality": "víc bdění v noci",
                 "soreness": "svalová bolest", "fatigue": "únava", "stress": "stres mimo trénink"}
     low = [part_lbl[k] for k, v in sorted(parts.items(), key=lambda kv: -kv[1]) if v > 0.1 and k in part_lbl]
     mscore = cap["readiness"].get("morningScore", rscore) if after.get("drop") else rscore   # the night's part
