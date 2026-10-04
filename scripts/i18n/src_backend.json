@@ -1211,6 +1211,12 @@
   ]
  },
  {
+  "t": "pomalé spouštění 3 s, pak činka v ruce na straně volné nohy",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
   "t": "posilování",
   "files": [
    "durability.py",
@@ -9896,7 +9902,7 @@
   ]
  },
  {
-  "t": "Silový trénink snížil výskyt sportovních zranění na méně než třetinu a přetěžovacích zhruba na polovinu (Lauersen et al., 2014), s větším účinkem při větším objemu a intenzitě (Lauersen et al., 2018). U vytrvalců zlepšuje ekonomiku běhu, nejlépe těžká zátěž dvakrát až třikrát týdně (Blagrove et al., 2018; Rønnestad & Mujika, 2014). Šlachy se přizpůsobují vysoké zátěži s pomalým a delším zatížením (Bohm et al., 2015). Progrese podle pocitu na konci tréninku vychází ze škály náročnosti a opakování v záloze (Foster et al., 2001; Helms et al., 2016). Těžká silová práce na nohy zhoršuje tvrdý běh v následujících 24–48 hodinách, proto session A nepřijde den před ním (Doma et al., 2017).",
+  "t": "Silový trénink snížil výskyt sportovních zranění na méně než třetinu a přetěžovacích zhruba na polovinu (Lauersen et al., 2014), s větším účinkem při větším objemu a intenzitě (Lauersen et al., 2018). U vytrvalců zlepšuje ekonomiku běhu, nejlépe těžká zátěž dvakrát až třikrát týdně (Blagrove et al., 2018; Rønnestad & Mujika, 2014). Šlachy se přizpůsobují vysoké zátěži s pomalým a delším zatížením (Bohm et al., 2015). Progrese podle pocitu na konci tréninku vychází ze škály náročnosti a opakování v záloze (Foster et al., 2001; Helms et al., 2016). Těžká silová práce na nohy zhoršuje tvrdý běh v následujících 24–48 hodinách, proto session A nepřijde den před ním (Doma et al., 2017). Pokles pánve na straně volné nohy byl ze všech pohybových znaků nejvíc spojený s běžeckými zraněními (Bramah et al., 2018) a osm týdnů funkčního posilování odtahovačů kyčle ho u běžců s bolestí holeně zmenšilo víc než samotná fyzioterapie (Lashien et al., 2024), proto program obsahuje monster walk (session A) a spouštění pánve na schodu a boční plank s unožením (session B).",
   "files": [
    "programs_library.py"
   ]
