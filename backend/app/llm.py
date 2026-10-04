@@ -175,7 +175,7 @@ def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: i
 # v0.12.0 — image input (shoe recognition): the default chat model first, then the
 # catalog's vision models. VISION_MODELS (comma-separated) overrides the order.
 VISION_MODELS = [m.strip() for m in (os.environ.get("VISION_MODELS") or "").split(",") if m.strip()] or [
-    NVIDIA_MODEL, "meta/llama-4-maverick-17b-128e-instruct", "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"]
+    NVIDIA_MODEL, "meta/llama-4-maverick-17b-128e-instruct"]
 VISION_BASE_URL = (os.environ.get("VISION_BASE_URL") or NVIDIA_BASE_URL).rstrip("/")
 VISION_API_KEY = os.environ.get("VISION_API_KEY") or NVIDIA_API_KEY
 
@@ -188,13 +188,30 @@ def vision(prompt: str, image_data_url: str, system: str | None = None, max_toke
         return None, None
     msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": [
         {"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": image_data_url}}]}]
+    errors = {}
     for m in VISION_MODELS:
+        LAST_ERROR.pop("chat", None)
         out = chat_messages(msgs, temperature=0.1, max_tokens=max_tokens, timeout=timeout, model=m,
                             base_url=VISION_BASE_URL, api_key=VISION_API_KEY)
         if out:
             return out, m
-    LAST_ERROR["vision"] = LAST_ERROR.get("chat")
+        errors[m] = LAST_ERROR.get("chat")
+    LAST_ERROR["vision"] = errors
     return None, None
+
+
+def list_models(q: str = "") -> list[str]:
+    """The provider's model ids containing `q` (ops only)."""
+    if not NVIDIA_API_KEY:
+        return []
+    try:
+        resp = httpx.get(f"{NVIDIA_BASE_URL}/models", headers={"Authorization": f"Bearer {NVIDIA_API_KEY}"}, timeout=20)
+        resp.raise_for_status()
+        ids = [m.get("id", "") for m in resp.json().get("data", [])]
+    except Exception as e:
+        _note_error("models", e)
+        return []
+    return sorted(i for i in ids if q.lower() in i.lower())
 
 
 def chat(system: str, user: str, temperature: float = 0.25, max_tokens: int = 700, timeout: float = 60.0):

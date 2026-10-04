@@ -173,14 +173,28 @@ def ops_llm_check(model: str | None = None, embed_model: str | None = None):
     return _llm_check(model, embed_model)
 
 
+@router.get("/api/assistant/ops/models", dependencies=[Depends(require_feedback_token)])
+def ops_models(q: str = ""):
+    """The provider's model ids (to pick a vision model); operator token."""
+    return {"models": llm.list_models(q[:40]), "vision": llm.VISION_MODELS, "error": llm.LAST_ERROR.get("models")}
+
+
 @router.post("/api/assistant/ops/shoe-check", dependencies=[Depends(require_feedback_token)])
 def ops_shoe_check(body: dict):
-    """v0.12.0 — the shoe recogniser on a test photo (operator token; nothing stored)."""
+    """v0.12.0 — the shoe recogniser on a test photo (operator token; nothing stored).
+    `models` (optional list) tries those vision models instead of the configured ones."""
     from .. import shoes as S
     img = S.check_image((body or {}).get("image"))
     if not img:
         raise HTTPException(422, "Neplatný obrázek")
-    out = S.recognise(img)
+    models = [m for m in (body or {}).get("models") or [] if isinstance(m, str) and re.fullmatch(r"[\w./:-]{1,100}", m)]
+    saved = list(llm.VISION_MODELS)
+    if models:
+        llm.VISION_MODELS[:] = models[:4]
+    try:
+        out = S.recognise(img)
+    finally:
+        llm.VISION_MODELS[:] = saved
     out["lastError"] = llm.LAST_ERROR.get("vision") if not out.get("ok") else None
     return out
 
