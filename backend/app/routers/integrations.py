@@ -38,6 +38,37 @@ from .. import schemas  # noqa: E402
 router = APIRouter(prefix="/api/integrations", tags=["integrations"])
 
 
+def _apply_hr_hist(db: DBSession, rid: str, seed: dict) -> int:
+    """Time at each heart rate per workout (seed["hr_hist"] = {external_id: {bin: s}}, the
+    Apple Health export) → an HR-only stream row, so Intenzita counts real hard minutes
+    for runs, rides and swims alike (railway#199). Never overwrites a Garmin stream."""
+    hh = seed.get("hr_hist") or {}
+    if not hh:
+        return 0
+    from ..metrics import segmentation
+    acts = {a.external_id: a for a in db.query(models.Activity).filter(
+        models.Activity.runner_id == rid, models.Activity.external_id.in_(list(hh))).all()}
+    rows = {st.activity_id: st for st in db.query(models.ActivityStream).filter(
+        models.ActivityStream.runner_id == rid,
+        models.ActivityStream.activity_id.in_([a.id for a in acts.values()] or [-1])).all()}
+    n = 0
+    for ext, hist in hh.items():
+        a = acts.get(ext)
+        if a is None or not hist:
+            continue
+        st = rows.get(a.id)
+        if st is None:
+            db.add(models.ActivityStream(activity_id=a.id, runner_id=rid, external_id=ext, segments_json=None, gps=False,
+                                         quality_json={"hrHist": hist, "source": "apple",
+                                                       "segVersion": segmentation.SEG_VERSION},
+                                         created_at=E.now_iso()))
+            n += 1
+        elif not (st.quality_json or {}).get("hrHist"):
+            st.quality_json = {**(st.quality_json or {}), "hrHist": hist}
+            n += 1
+    return n
+
+
 def _apply_day_raw(db: DBSession, rid: str, seed: dict) -> int:
     """All-day heart rate and steps from any source (seed["day_raw"] = {date: {hr, steps}})
     and the night in detail where the source has it (seed["day_sleep"], the Apple Health
@@ -103,6 +134,7 @@ def _apply_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
         r.device = synced_device
         db.add(models.DeviceHistory(runner_id=rid, device=synced_device, source=f"{provider}_sync", recorded_at=E.now_iso()))
     _apply_day_raw(db, rid, seed)
+    _apply_hr_hist(db, rid, seed)
     db.commit()
     E.recompute_assessment(db, rid)
 
@@ -378,6 +410,7 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
         r.device = synced_device
         db.add(models.DeviceHistory(runner_id=rid, device=synced_device, source=f"{provider}_sync", recorded_at=E.now_iso()))
     _apply_day_raw(db, rid, seed)
+    _apply_hr_hist(db, rid, seed)
     db.commit()
     E.recompute_assessment(db, rid)
     return {"added_activities": added_a, "added_daily": added_d}
@@ -535,6 +568,7 @@ def _store_session(db: DBSession, rid: str, garmin, auto_sync: bool = True) -> N
 
 
 DETAIL_DAYS, DETAIL_CAP = 60, 12   # every sync also fetches detailed data for recent runs missing it
+HR_ONLY_SPORTS = ("cycling", "swimming")   # railway#199: their heart-rate trace for Intenzita
 
 
 def fetch_new_details(db: DBSession, rid: str, garmin=None) -> dict | None:
@@ -759,7 +793,7 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
     activities = (
         db.query(models.Activity)
         .filter(models.Activity.runner_id == rid, models.Activity.external_id.isnot(None),
-                models.Activity.started_at > cut, models.Activity.sport == "running")
+                models.Activity.started_at > cut, models.Activity.sport.in_(("running",) + HR_ONLY_SPORTS))
         .order_by(models.Activity.started_at.asc()).all()  # oldest first → baseline fills first
     )
     rows = {st.activity_id: st for st in db.query(models.ActivityStream)
@@ -775,6 +809,29 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
     stalled = False
     for a in todo[:cap]:
         old = rows.get(a.id)
+        if a.sport in HR_ONLY_SPORTS:
+            # railway#199 — cycling / swimming: only the time at each heart rate, for the
+            # hard minutes in Intenzita (no mechanics, no segments)
+            try:
+                hist = stream_qc.hr_histogram(garmin_live.fetch_details(garmin, a.external_id))
+                fetched += 1
+            except Exception as e:  # noqa: BLE001
+                if any(x in str(e).lower() for x in ("429", "too many", "rate")):
+                    stalled = True
+                    break
+                failed += 1
+                hist = None
+            st = old or models.ActivityStream(activity_id=a.id, runner_id=rid)
+            st.external_id = a.external_id
+            st.quality_json = {"hrHist": hist, "sport": a.sport, "segVersion": segmentation.SEG_VERSION,
+                               **({} if hist else {"failed": True})}
+            st.segments_json = None
+            st.gps = False
+            st.created_at = E.now_iso()
+            if old is None:
+                db.add(st)
+            stored += 1 if hist else 0
+            continue
         try:
             res = stream_qc.process(garmin_live.fetch_details(garmin, a.external_id))
             segs = segmentation.segment(res.get("records") or [], surface=a.surface) if res.get("accepted") else []

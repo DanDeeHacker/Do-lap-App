@@ -4053,13 +4053,6 @@
   "kind": "tpl"
  },
  {
-  "t": "· ×",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "· ×{}",
   "files": [
    "capacity.tsx"
@@ -4081,6 +4074,13 @@
   "kind": "str"
  },
  {
+  "t": "· kapacita {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· klid ≈",
   "files": [
    "capacity.tsx"
@@ -4093,6 +4093,13 @@
    "capacity.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "· obvyklá týdenní špička {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "· obvykle {} min",
@@ -4114,13 +4121,6 @@
    "capacity.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "· z nejnáročnějšího běhu zbývá asi {} %",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "· zbývá {}",
@@ -4150,13 +4150,6 @@
    "capacity.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "(týdenní ekvivalent, klesá každou noc)",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "{} · zítra ji upřesní noční data",
@@ -4264,13 +4257,6 @@
   "kind": "jsx"
  },
  {
-  "t": "7 dní (",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "7 dní celkem",
   "files": [
    "capacity.tsx"
@@ -4311,7 +4297,7 @@
    "capacity.tsx",
    "tabs.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "Běh",
@@ -4395,11 +4381,18 @@
   "kind": "tpl"
  },
  {
+  "t": "Co přidal každý běh (7 dní)",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Co přidala každá aktivita (7 dní)",
   "files": [
    "capacity.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Co připravenost ovlivňuje",
@@ -4639,6 +4632,13 @@
   "kind": "str"
  },
  {
+  "t": "Intenzita: minuty v Z4 a výš z běhu, kola i plavání (kolo a plavání podle jejich vlastního maximálního tepu), z tepové křivky z hodinek. Kde křivka chybí, je to odhad z průměrného tepu a intervaly se v něm ztrácejí.",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "IT pás",
   "files": [
    "capacity.tsx",
@@ -4659,20 +4659,6 @@
    "capacity.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "jednoho běhu",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "jednoho posilování",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "jiný sport",
@@ -4705,7 +4691,21 @@
   "kind": "jsx"
  },
  {
-  "t": "Kapacitu teprve poznáváme — stačí pár běhů",
+  "t": "kapacita na jeden běh",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "kapacita na jeden trénink",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kapacitu teprve poznáváme —",
   "files": [
    "capacity.tsx"
   ],
@@ -4713,6 +4713,13 @@
  },
  {
   "t": "Kde běh zatěžuje tělo · 7 dní",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "klesá každou noc",
   "files": [
    "capacity.tsx"
   ],
@@ -4802,6 +4809,13 @@
   "kind": "str"
  },
  {
+  "t": "max(4px, {}%)",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Maximální tep je odhad — změřený zadejte v profilu",
   "files": [
    "capacity.tsx"
@@ -4851,11 +4865,25 @@
   "kind": "str"
  },
  {
-  "t": "Nejnáročnější",
+  "t": "Nejnáročnější běh · 7 dní",
   "files": [
    "capacity.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
+ },
+ {
+  "t": "Nejnáročnější posilování · 7 dní",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nejnáročnější trénink · 7 dní",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "nest p-3.5 transition {}",
@@ -4865,7 +4893,7 @@
   "kind": "tpl"
  },
  {
-  "t": "Nevstřebáno",
+  "t": "Nevstřebáno · týdenní ekvivalent",
   "files": [
    "capacity.tsx"
   ],
@@ -5031,7 +5059,7 @@
    "capacity.tsx",
    "training.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "Posilování",
@@ -5099,20 +5127,6 @@
   "kind": "str"
  },
  {
-  "t": "proti kapacitě",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "proti vaší obvyklé týdenní špičce",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Relativní úsilí",
   "files": [
    "capacity.tsx"
@@ -5155,13 +5169,6 @@
   "kind": "str"
  },
  {
-  "t": "s tepem",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "se do kapacity nepočítá do {}",
   "files": [
    "capacity.tsx"
@@ -5191,6 +5198,20 @@
  },
  {
   "t": "Souhrn signálů",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "stačí pár běhů nebo jízd s tepem.",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "stačí pár běhů.",
   "files": [
    "capacity.tsx"
   ],
@@ -5382,6 +5403,13 @@
    "tabs.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "z nejnáročnějšího zbývá",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "z toho posilování",

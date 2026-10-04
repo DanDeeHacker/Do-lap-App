@@ -227,6 +227,7 @@ function HeadroomBar({ now, ceiling, tone, target }: { now: number | null; ceili
 }
 
 const CH_NOTE: Record<string, string> = {
+  intensity: "Intenzita: minuty v Z4 a výš z běhu, kola i plavání (kolo a plavání podle jejich vlastního maximálního tepu), z tepové křivky z hodinek. Kde křivka chybí, je to odhad z průměrného tepu a intervaly se v něm ztrácejí.",
   speed: "Rychlost: minuty běhu rychleji než 1,1 × vaše kritická rychlost (zhruba tempo na 3 km a rychleji), ze segmentů běhu. Prudký nárůst rychlého běhu předcházel zraněním zadních stehenních svalů, pravidelný kontakt s rychlostí chránil (Duhig et al., 2016; Malone et al., 2017). Krátké rovinky pod 20 s hodinky v segmentech nezachytí.",
   strength: "Posilování: náročnost po tréninku (0–10) × minuty, cvičení nohou a celého těla plně, horní polovina těla z menší části. Hlídá prudké skoky, třeba první plyometrii po pauze. Těžké posilování nohou navíc na 24–48 hodin sníží v Tréninku strop minut v Z4+.",
 }
@@ -255,7 +256,7 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
         </span>
       </div>
       {!c.known ? (
-        <p className="mt-2 text-[11px] text-fg-3">Kapacitu teprve poznáváme — stačí pár běhů{id === "intensity" ? " s tepem" : ""}.</p>
+        <p className="mt-2 text-[11px] text-fg-3">Kapacitu teprve poznáváme — {id === "intensity" ? "stačí pár běhů nebo jízd s tepem." : "stačí pár běhů."}</p>
       ) : wk && (
         <>
           <p className="mt-1.5 text-[12px] text-fg-2">
@@ -297,20 +298,17 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
       )}
       {open && hasDetail && (
         <div className="origin-top animate-[careReveal_.28s_ease-out] pt-2">
-          {c.known && ses && id !== "systemic" && (
-            <p className="text-[11px] text-fg-3">
-              Nejnáročnější {id === "strength" ? "posilování" : "běh"} 7 dní ({fmtD(ses.date)}): <b style={{ color: (TONE as any)[sTone] }}>{num(ses.value)} {c.unit} · ×{num(ses.ratio)}</b> proti kapacitě {id === "strength" ? "jednoho posilování" : "jednoho běhu"} {num(ses.cap)}
-              {(ses.readinessScore ?? 100) < 97 ? ` · připravenost ${ses.readinessScore} %` : ""}
-            </p>
-          )}
-          {c.known && wk?.residual != null && id !== "systemic" && (
-            <p className="mt-1 text-[11px] text-fg-3">
-              Nevstřebáno <b className="text-fg">{num(wk.residual)} {c.unit}</b> (týdenní ekvivalent, klesá každou noc) {wk.capPeak != null ? <>proti vaší obvyklé týdenní špičce {num(wk.capPeak)} · ×{num(wk.ratio)}</> : <>proti kapacitě {num(wk.cap)}</>}
-              {ses?.left != null && ses.left < 0.99 ? ` · z nejnáročnějšího běhu zbývá asi ${Math.round(ses.left * 100)} %` : ""}
-            </p>
+          {c.known && id !== "systemic" && (ses || wk?.residual != null) && (
+            <div className="grid gap-2.5 sm:grid-cols-2" data-testid="channel-gauges">
+              {ses && <SessionTile id={id} ses={ses} unit={c.unit} margin={margins.session} tone={sTone} />}
+              {wk?.residual != null && <WeekTile wk={wk} ses={ses} unit={c.unit} margin={margins.week} tone={wTone} />}
+            </div>
           )}
           {c.known && c.latent && <p className="mt-1 text-[11px] text-watch">Doznívá skok ×{num(c.latent.ratio)} z {fmtD(c.latent.date)}</p>}
           {c.known && c.pendingJump && <PendingJump j={c.pendingJump} unit={c.unit} />}
+          {c.known && id !== "systemic" && c.week7?.length > 0 && (
+            <div className="mt-4"><ActivityWaterfall c={c} target={target && target.budget < (wk?.ceiling ?? Infinity) - 0.05 ? target.budget : null} id={id} /></div>
+          )}
           {c.known && CH_NOTE[id] && <p className="mt-2 text-[11px] leading-4 text-fg-3">{CH_NOTE[id]}</p>}
           {extra && <div className="mt-4">{extra}</div>}
         </div>
@@ -325,6 +323,12 @@ const SPORT_CS: Record<string, string> = { running: "Běh", cycling: "Kolo", swi
 const sportCol = (x: any) => (x.run ? C.accent : x.sport === "strength" ? C.self : C.info)
 
 export function SystemicWaterfall({ c, target }: { c: any; target?: number | null }) {
+  return <ActivityWaterfall c={c} target={target} id="systemic" />
+}
+
+// railway#198 — the same waterfall for every channel: what each session of the last 7
+// days added, up to the 7-day total, against the weekly ceiling
+function ActivityWaterfall({ c, target, id }: { c: any; target?: number | null; id: string }) {
   const list: any[] = c?.week7 || []
   const wk = c?.week
   if (!list.length) return <p className="text-[12px] text-fg-3">Za posledních 7 dní žádná aktivita se zátěží.</p>
@@ -333,22 +337,93 @@ export function SystemicWaterfall({ c, target }: { c: any; target?: number | nul
     key: String(x.id), label: x.title || SPORT_CS[x.sport] || "Aktivita", sub: `${fmtD(x.date)} · ${SPORT_CS[x.run ? "running" : x.sport] || "jiný sport"}`,
     delta: x.value || 0, color: sportCol(x), value: `+${num(x.value)}`,
   }))
-  steps.push({ key: "sum", label: "7 dní celkem", total: tot, color: wk?.ceiling && tot > wk.ceiling ? C.alert : C.ok, value: num(Math.round(tot)) })
+  steps.push({ key: "sum", label: "7 dní celkem", total: tot, color: wk?.ceiling && tot > wk.ceiling ? C.alert : C.ok, value: num(Math.round(tot * 10) / 10) })
   if (wk?.ceiling) steps.push({ key: "ceil", label: "Týdenní strop", total: wk.ceiling, color: C.fg4, value: num(wk.ceiling) })
   // feedback #181 — the week's target in the training cycle, when Trénink sets a lower one
-  if (target != null && (!wk?.ceiling || target < wk.ceiling - 0.5)) steps.push({ key: "target", label: "Cíl týdne v cyklu", sub: "z Tréninku, počítá se od pondělí", total: target, color: C.watch, value: num(Math.round(target)) })
+  if (target != null && (!wk?.ceiling || target < wk.ceiling - 0.05)) steps.push({ key: "target", label: "Cíl týdne v cyklu", sub: "z Tréninku, počítá se od pondělí", total: target, color: C.watch, value: num(Math.round(target * 10) / 10) })
+  const kinds = new Set(list.map((x) => (x.run ? "run" : x.sport === "strength" ? "strength" : "other")))
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Label>Co přidala každá aktivita (7 dní)</Label>
-        <span className="flex gap-2.5 text-[10.5px] text-fg-3">
-          <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.accent }} />běh</span>
-          <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.info }} />jiný sport</span>
-          <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.self }} />posilování</span>
-        </span>
+        <Label>{id === "systemic" || kinds.size > 1 ? "Co přidala každá aktivita (7 dní)" : "Co přidal každý běh (7 dní)"}</Label>
+        {kinds.size > 1 && (
+          <span className="flex gap-2.5 text-[10.5px] text-fg-3">
+            {kinds.has("run") && <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.accent }} />běh</span>}
+            {kinds.has("other") && <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.info }} />jiný sport</span>}
+            {kinds.has("strength") && <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.self }} />posilování</span>}
+          </span>
+        )}
       </div>
-      <Waterfall steps={steps} hi={Math.max(tot, wk?.ceiling || 0, target || 0) * 1.04} testid="systemic-waterfall" />
-      <p className="mt-2 text-[11px] text-fg-3">j.z. = tep × čas, u posilování a plavání náročnost × minuty</p>
+      <Waterfall steps={steps} hi={Math.max(tot, wk?.ceiling || 0, target || 0) * 1.04} testid={id === "systemic" ? "systemic-waterfall" : `waterfall-${id}`} />
+      {id === "systemic" && <p className="mt-2 text-[11px] text-fg-3">j.z. = tep × čas, u posilování a plavání náročnost × minuty</p>}
+    </div>
+  )
+}
+
+// railway#198 — a load as a multiple of its capacity: the band up to capacity, the margin
+// above it (the ceiling) and beyond, with the bar where this load sits
+function RatioGauge({ ratio, margin, tone, testid }: { ratio: number; margin: number; tone: string; testid?: string }) {
+  const top = Math.max(1 + margin, ratio) * 1.12
+  const p = (v: number) => (Math.min(v, top) / top) * 100
+  const col = (TONE as any)[tone] || TONE.ok
+  return (
+    <div className="mt-2" data-testid={testid}>
+      <div className="relative h-2.5 overflow-hidden rounded-full bg-white/[.06]">
+        <i className="absolute inset-y-0" style={{ left: `${p(1)}%`, width: `${p(1 + margin) - p(1)}%`, background: C.watch, opacity: 0.2 }} />
+        <i className="absolute inset-y-0 right-0" style={{ left: `${p(1 + margin)}%`, background: C.alert, opacity: 0.16 }} />
+        <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `max(4px, ${p(ratio)}%)`, background: col }} />
+        <i className="absolute inset-y-0 w-px bg-fg/70" style={{ left: `${p(1)}%` }} />
+        <i className="absolute inset-y-0 w-px bg-fg" style={{ left: `${p(1 + margin)}%` }} />
+      </div>
+      <div className="relative mt-1 h-3.5 text-[10px] leading-3 text-fg-3">
+        <span className="absolute -translate-x-full pr-1" style={{ left: `${p(1)}%` }}>kapacita</span>
+        <span className="absolute pl-1" style={{ left: `${p(1 + margin)}%` }}>strop</span>
+      </div>
+    </div>
+  )
+}
+
+function SessionTile({ id, ses, unit, margin, tone }: { id: string; ses: any; unit: string; margin: number; tone: string }) {
+  const head = id === "strength" ? "Nejnáročnější posilování · 7 dní" : id === "intensity" ? "Nejnáročnější trénink · 7 dní" : "Nejnáročnější běh · 7 dní"
+  const per = id === "strength" || id === "intensity" ? "kapacita na jeden trénink" : "kapacita na jeden běh"
+  return (
+    <div className="rounded-[12px] bg-white/[.04] p-3" data-testid="channel-session">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[11px] font-bold text-fg-2">{head}</span>
+        <b className="text-[15px] tabular-nums" style={{ color: (TONE as any)[tone] }}>×{num(ses.ratio)}</b>
+      </div>
+      <p className="mt-0.5 truncate text-[11px] text-fg-3">{ses.title ? `${ses.title} · ` : ""}{fmtD(ses.date)}</p>
+      <RatioGauge ratio={ses.ratio} margin={margin} tone={tone} />
+      <p className="mt-0.5 text-[11px] tabular-nums text-fg-3">
+        <b className="text-fg">{num(ses.value)} {unit}</b>{` · ${per} ${num(ses.cap)}`}
+        {(ses.readinessScore ?? 100) < 97 ? ` · připravenost ${ses.readinessScore} %` : ""}
+      </p>
+    </div>
+  )
+}
+
+function WeekTile({ wk, ses, unit, margin, tone }: { wk: any; ses: any; unit: string; margin: number; tone: string }) {
+  return (
+    <div className="rounded-[12px] bg-white/[.04] p-3" data-testid="channel-residual">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[11px] font-bold text-fg-2">Nevstřebáno · týdenní ekvivalent</span>
+        <b className="text-[15px] tabular-nums" style={{ color: (TONE as any)[tone] }}>×{num(wk.ratio)}</b>
+      </div>
+      <p className="mt-0.5 text-[11px] text-fg-3">klesá každou noc</p>
+      <RatioGauge ratio={wk.ratio} margin={margin} tone={tone} />
+      <p className="mt-0.5 text-[11px] tabular-nums text-fg-3">
+        <b className="text-fg">{num(wk.residual)} {unit}</b>
+        {wk.capPeak != null ? ` · obvyklá týdenní špička ${num(wk.capPeak)}` : ` · kapacita ${num(wk.cap)}`}
+      </p>
+      {ses?.left != null && ses.left < 0.99 && (
+        <div className="mt-2 flex items-center gap-2 text-[11px] text-fg-3">
+          <span className="shrink-0">z nejnáročnějšího zbývá</span>
+          <span className="relative h-1.5 flex-1 rounded-full bg-white/[.06]">
+            <i className="absolute inset-y-0 left-0 rounded-full bg-fg-3" style={{ width: `${Math.round(ses.left * 100)}%` }} />
+          </span>
+          <b className="tabular-nums text-fg-2">{Math.round(ses.left * 100)} %</b>
+        </div>
+      )}
     </div>
   )
 }

@@ -353,9 +353,11 @@ def _hypnogram(n: dict) -> dict:
 
 
 def _workout_hr_pass(path: str, windows: list) -> dict:
-    """Second pass, only for workouts without a heart-rate statistic (another workout app,
-    an older iOS): their average from the heart-rate samples inside the workout.
-    `windows` = [(start_local, end_local, key)], local 'YYYY-MM-DD HH:MM:SS' strings."""
+    """Second pass over the heart-rate samples inside each workout: {key: {"avg", "hist"}},
+    the average (for workouts without a heart-rate statistic: another workout app, an
+    older iOS) and the seconds at each heart rate in 2-bpm bins (railway#199: hard
+    minutes from the real trace, not the average). Each sample counts until the next,
+    at most 10 s. `windows` = [(start_local, end_local, key)], 'YYYY-MM-DD HH:MM:SS'."""
     import bisect
     windows = sorted(windows)
     starts = [w[0] for w in windows]
@@ -370,16 +372,29 @@ def _workout_hr_pass(path: str, windows: list) -> dict:
                     i = bisect.bisect_right(starts, ts) - 1
                     if i >= 0 and ts <= windows[i][1]:
                         try:
-                            a = acc.setdefault(windows[i][2], [0.0, 0])
-                            a[0] += float(el.get("value"))
-                            a[1] += 1
+                            acc.setdefault(windows[i][2], []).append((ts, float(el.get("value"))))
                         except (TypeError, ValueError):
                             pass
             if el.tag in ("Record", "Workout"):
                 el.clear()
     finally:
         src.close()
-    return {k: round(v[0] / v[1]) for k, v in acc.items() if v[1] >= 5}
+    out = {}
+    for k, xs in acc.items():
+        if len(xs) < 5:
+            continue
+        xs.sort()
+        hist: dict = {}
+        for (t, v), (t2, _v2) in zip(xs, xs[1:] + [xs[-1]]):
+            try:
+                dt = (datetime.strptime(t2, "%Y-%m-%d %H:%M:%S") - datetime.strptime(t, "%Y-%m-%d %H:%M:%S")).total_seconds()
+            except ValueError:
+                dt = 5.0
+            dt = min(max(dt, 0.0), 10.0) or 5.0
+            b = str(int(v // 2 * 2))
+            hist[b] = round(hist.get(b, 0.0) + dt, 1)
+        out[k] = {"avg": round(sum(v for _t, v in xs) / len(xs)), "hist": hist}
+    return out
 
 
 def _elevation(el, key: str) -> float | None:
@@ -411,7 +426,7 @@ def build_seed(path: str, runner_id: str, device: str = "Apple Watch") -> dict:
     resp: list = []                           # (local datetime, breaths/min) — measured during sleep
     sleep: list = []                          # (source, stage, start, end)
     activities: list[dict] = []
-    no_hr: list = []                          # workouts to fill from heart-rate samples
+    no_hr: list = []                          # every workout: its heart-rate samples are read in a 2nd pass
 
     def day(dt: str) -> dict:
         return daily.setdefault(dt, {})
@@ -487,18 +502,25 @@ def build_seed(path: str, runner_id: str, device: str = "Apple Watch") -> dict:
                                "descent_m": _elevation(el, "HKElevationDescended")}
                     if act:
                         activities.append(act)
-                        if avg_hr is None and el.get("endDate"):
+                        if el.get("endDate"):
                             no_hr.append((_local(sd), _local(el.get("endDate")), sd))
                 el.clear()
     finally:
         src.close()
 
-    # workouts without a heart-rate statistic: the samples inside them
+    # the heart-rate samples inside each workout: its time at each heart rate, and the
+    # average for workouts without a heart-rate statistic
+    hr_hist: dict = {}
     if no_hr:
         filled = _workout_hr_pass(path, no_hr)
         for a in activities:
-            if a.get("avg_hr") is None and a["external_id"] in filled:
-                a["avg_hr"] = filled[a["external_id"]]
+            f = filled.get(a["external_id"])
+            if not f:
+                continue
+            if a.get("avg_hr") is None:
+                a["avg_hr"] = f["avg"]
+            if f["hist"]:
+                hr_hist[a["external_id"]] = f["hist"]
 
     # steps: per 15 minutes the source that counted the most, summed over the day
     day_steps: dict[str, dict] = {}
@@ -563,7 +585,7 @@ def build_seed(path: str, runner_id: str, device: str = "Apple Watch") -> dict:
     sleep_out = {d: _hypnogram(n) for d, n in nights.items() if d >= raw_from}
     return {
         "activities": activities, "daily_metrics": daily_metrics, "activity_feedback": [],
-        "day_raw": raw_out, "day_sleep": sleep_out,
+        "day_raw": raw_out, "day_sleep": sleep_out, "hr_hist": hr_hist,
         "runners": [{"device": device}],
         "_meta": {
             "source": "apple_health",
