@@ -832,8 +832,11 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                         notes=["Plynulé plavání ve stálém tempu, klidně s přestávkami na okraji bazénu.",
                                "Tep ve vodě bývá nižší, řiďte se pocitem námahy. Jen pokud při tom nic nebolí."])
     types["posilování"] = xmk("posilování", 30, 45, rpe="6–7 z 10", zones=None, sport="strength",
-                              notes=["2–3 série dřepů, výpadů, výstupů na bednu a výponů lýtek, 2 opakování nechte v záloze.",
-                                     "Po tvrdém běhu až s odstupem aspoň 3 hodin, před tvrdým během aspoň 24 hodin."])
+                              notes=["Po tvrdém běhu až s odstupem aspoň 3 hodin, před tvrdým během aspoň 24 hodin."])
+    # railway#196 — the exercises come from the Runner's must-have programme (Péče → Program),
+    # not a generic list; Trénink links there, the assistant gets the pointer
+    types["posilování"]["program"] = {"key": "durability",
+                                      "note": "Cviky podle programu Runner's must-have v Péči (2× týdně, session A síla a B odolnost)."}
     if sys_left is not None and kolo_hi < CROSS_MIN:
         types["kolo"]["allowed"], types["kolo"]["why"] = False, "Celková zátěž (tep × čas) je dnes na stropu."
     if sys_left is not None and voda_hi < CROSS_MIN:

@@ -1256,7 +1256,8 @@
    "daytoday.tsx",
    "landing.tsx",
    "onboarding.tsx",
-   "report.tsx"
+   "report.tsx",
+   "training.tsx"
   ],
   "kind": "str"
  },
@@ -11436,6 +11437,13 @@
   "kind": "tpl"
  },
  {
+  "t": "{}–{} od usnutí",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{}: trénink {}, mimo trénink {} j.z.",
   "files": [
    "report.tsx"
@@ -12724,7 +12732,8 @@
  {
   "t": "Další trénink",
   "files": [
-   "selfprograms.tsx"
+   "selfprograms.tsx",
+   "training.tsx"
   ],
   "kind": "jsx"
  },
@@ -16126,6 +16135,13 @@
   "kind": "tpl"
  },
  {
+  "t": "{} · tento týden {} z {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} · tep {}–{}",
   "files": [
    "training.tsx"
@@ -16148,6 +16164,13 @@
  },
  {
   "t": "{} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž ({} km za 7 dní).",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}: {} · {} cviků · ≈ {} min",
   "files": [
    "training.tsx"
   ],
@@ -16481,6 +16504,13 @@
    "training.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Dnešní trénink programu máte hotový.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "dní",
@@ -16862,6 +16892,13 @@
  },
  {
   "t": "Ohlásit uzdravení",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Otevřít program v Péči",
   "files": [
    "training.tsx"
   ],
@@ -17337,6 +17374,13 @@
   "kind": "str"
  },
  {
+  "t": "týden {} z {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Týden čtyřtýdenního cyklu",
   "files": [
    "training.tsx"
@@ -17580,6 +17624,13 @@
    "training.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Zobrazit program v Péči",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Zpět v režimu návratu po zranění",

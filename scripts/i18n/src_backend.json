@@ -4546,12 +4546,6 @@
   ]
  },
  {
-  "t": "2–3 série dřepů, výpadů, výstupů na bednu a výponů lýtek, 2 opakování nechte v záloze.",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
   "t": "4. týden cyklu — odlehčovací týden (55 % vrcholového týdne), ať se trénink vstřebá.",
   "files": [
    "metrics/guidance.py"
@@ -4697,6 +4691,12 @@
  },
  {
   "t": "Celková zátěž ze všech sportů za posledních 7 dní nenechává místo na tvrdý trénink.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Cviky podle programu Runner's must-have v Péči (2× týdně, session A síla a B odolnost).",
   "files": [
    "metrics/guidance.py"
   ]

@@ -36,29 +36,59 @@ function Ring({ value, max = 100, size = 108, col, children }: { value: number |
   )
 }
 
-function Hypnogram({ hyp, start }: { hyp: [number, number, string][]; start?: string | null }) {
+// railway#197 — every stage with its time over the night; a finger on the chart picks
+// one phase and shows when it ran and how long
+function Hypnogram({ hyp, start, stages }: { hyp: [number, number, string][]; start?: string | null; stages?: Record<string, number | null> | null }) {
+  const [pick, setPick] = useState<number | null>(null)
+  const ref = useRef<SVGSVGElement>(null)
   const total = hyp[hyp.length - 1][1]
-  const W = 320, H = 132, top = 8, rowH = 26, x = (m: number) => (m / total) * W
+  const W = 340, L = 70, H = 132, top = 8, rowH = 26, x = (m: number) => L + (m / total) * (W - L)
   const s0 = toMin(start)
+  const clock = (m: number) => hmShort(((s0 ?? 0) + m) % 1440)
   const ticks: number[] = []
   if (s0 != null) { for (let t = Math.ceil(s0 / 60) * 60; t < s0 + total; t += 60) ticks.push(t - s0) }
+  // the watch's own totals; the hypnogram's sum where the watch sent none
+  const sum = (st: string) => hyp.reduce((s, [a, b, k]) => s + (k === st ? b - a : 0), 0)
+  const dur = (st: string) => stages?.[st] ?? sum(st)
+  const seg = pick == null ? null : hyp.find(([a, b]) => pick >= a && pick < b) ?? null
+  const move = (e: React.PointerEvent) => {
+    const box = ref.current?.getBoundingClientRect()
+    if (!box) return
+    const px = ((e.clientX - box.left) / box.width) * W
+    setPick(px < L ? null : Math.max(0, Math.min(total - 0.01, ((px - L) / (W - L)) * total)))
+  }
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Průběh spánku přes noc" data-testid="hypnogram">
-      {Object.entries(STAGE_ROW).map(([st, row]) => (
-        <g key={st}>
-          <line x1={0} x2={W} y1={top + row * rowH + rowH / 2} y2={top + row * rowH + rowH / 2} stroke="rgb(255 255 255 / .05)" />
-        </g>
-      ))}
-      {hyp.map(([a, b, st], i) => (
-        <rect key={i} x={x(a)} width={Math.max(0.8, x(b) - x(a))} y={top + STAGE_ROW[st] * rowH + 3} height={rowH - 6} rx={2.5} fill={STAGE_COL[st]} />
-      ))}
-      {ticks.map((t) => (
-        <g key={t}>
-          <line x1={x(t)} x2={x(t)} y1={top + 4 * rowH} y2={top + 4 * rowH + 4} stroke="rgb(255 255 255 / .3)" />
-          <text x={x(t)} y={H - 2} textAnchor="middle" fontSize="9.5" fill={C.fg3}>{hmShort(((s0 ?? 0) + t) % 1440).replace(":00", "")}</text>
-        </g>
-      ))}
-    </svg>
+    <div data-no-tap>
+      <div className="flex items-baseline justify-between gap-2">
+        <Lbl>Průběh noci</Lbl>
+        {seg ? (
+          <span className="text-right text-[11.5px] text-fg" data-testid="hypnogram-tip">
+            <b style={{ color: STAGE_COL[seg[2]] }}>{STAGE_LABEL[seg[2]]}</b>{` · ${s0 != null ? `${clock(seg[0])}–${clock(seg[1])}` : `${hmShort(seg[0])}–${hmShort(seg[1])} od usnutí`} · `}<b>{hm(seg[1] - seg[0])}</b>
+          </span>
+        ) : <span className="text-[10.5px] text-fg-3">táhněte prstem pro detail</span>}
+      </div>
+      <svg ref={ref} viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full touch-none select-none" role="img" aria-label="Průběh spánku přes noc" data-testid="hypnogram"
+        onPointerDown={move} onPointerMove={(e) => (e.buttons || e.pointerType === "mouse") && move(e)} onPointerLeave={() => setPick(null)}>
+        {Object.entries(STAGE_ROW).map(([st, row]) => (
+          <g key={st}>
+            <line x1={L} x2={W} y1={top + row * rowH + rowH / 2} y2={top + row * rowH + rowH / 2} stroke="rgb(255 255 255 / .05)" />
+            <text x={0} y={top + row * rowH + 11} fontSize="10" fill={C.fg2}>{STAGE_LABEL[st]}</text>
+            <text x={0} y={top + row * rowH + 23} fontSize="9.5" fontWeight="700" fill={C.fg}>{hm(dur(st))}</text>
+          </g>
+        ))}
+        {hyp.map(([a, b, st], i) => (
+          <rect key={i} x={x(a)} width={Math.max(0.8, x(b) - x(a))} y={top + STAGE_ROW[st] * rowH + 3} height={rowH - 6} rx={2.5} fill={STAGE_COL[st]}
+            opacity={seg && seg !== hyp[i] ? 0.35 : 1} stroke={seg === hyp[i] ? C.fg : undefined} strokeWidth={seg === hyp[i] ? 1.2 : undefined} />
+        ))}
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={x(t)} x2={x(t)} y1={top + 4 * rowH} y2={top + 4 * rowH + 4} stroke="rgb(255 255 255 / .3)" />
+            <text x={x(t)} y={H - 2} textAnchor="middle" fontSize="9.5" fill={C.fg3}>{hmShort(((s0 ?? 0) + t) % 1440).replace(":00", "")}</text>
+          </g>
+        ))}
+        {pick != null && <line x1={x(pick)} x2={x(pick)} y1={top} y2={top + 4 * rowH} stroke={C.fg} strokeWidth={1} />}
+      </svg>
+    </div>
   )
 }
 
@@ -130,7 +160,10 @@ function Stories({ kind, cards, onClose }: { kind: "morning" | "evening"; cards:
     <div className="fixed inset-0 z-[200] flex justify-center bg-black/70" role="dialog" aria-modal="true" aria-label={kind === "morning" ? "Ranní report" : "Večerní report"} data-testid="report-stories">
       <div className="relative flex h-full w-full max-w-[480px] flex-col overflow-hidden text-fg" style={{ background: bg }}
         onClick={tap}
-        onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
+        onTouchStart={(e) => {
+          // a finger on a chart reads it (hypnogram, day timeline) — not a swipe to the next card
+          touch.current = (e.target as HTMLElement).closest("[data-no-tap]") ? null : { x: e.touches[0].clientX, y: e.touches[0].clientY }
+        }}
         onTouchEnd={(e) => {
           const t = touch.current; touch.current = null
           if (!t) return
@@ -364,11 +397,7 @@ function morningCards(r: any, c: Ctx): Card[] {
         {note(c, "sleep")}
         {n.hypnogram?.length ? (
           <Panel>
-            <Lbl>Průběh noci</Lbl>
-            <div className="mt-2 grid grid-cols-[46px_1fr] gap-1">
-              <div className="grid grid-rows-4 pt-[3px] text-[10.5px] text-fg-3" style={{ height: 112 }}>{["awake", "rem", "light", "deep"].map((s) => <span key={s} className="flex items-center">{STAGE_LABEL[s]}</span>)}</div>
-              <Hypnogram hyp={n.hypnogram} start={n.start} />
-            </div>
+            <Hypnogram hyp={n.hypnogram} start={n.start} stages={n.stages} />
           </Panel>
         ) : null}
         {last.parts?.length ? (

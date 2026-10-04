@@ -747,10 +747,60 @@ function SessionDetail({ g, a, kind }: { g: any; a: any; kind: string }) {
       {(run || cross) && t.notes?.length > 0 && (
         <p className="mt-4 text-[13px] leading-6 text-fg-soft">{t.notes.join(" ")}</p>
       )}
+      {t.program?.key && <ProgramPointer progKey={t.program.key} allowed={t.allowed} />}
       {cross && (
         <Link to="/app/post#jiny-sport" className="btn btn-secondary btn-sm mt-4">Zapsat do deníku</Link>
       )}
     </>
+  )
+}
+
+// railway#196 — strength comes from the Runner's must-have programme: today's session
+// when it runs, otherwise the programme to start; either way one tap into Péče.
+function ProgramPointer({ progKey, allowed }: { progKey: string; allowed: boolean }) {
+  const { me } = useApp()
+  const rid = me?.runner_id
+  const [d, setD] = useState<any | null>(null)
+  useEffect(() => { if (rid) api.selfPrograms(rid).then(setD).catch(() => setD(false)) }, [rid])
+  const tpl = d ? (d.library?.programs || []).find((p: any) => p.key === progKey) : null
+  if (!d || !tpl) return null
+  const act = (d.actives || []).find((x: any) => x.template === progKey)
+  const dur = act?.durability
+  const exName = (id: string) => d.library?.exercises?.[id]?.name || id
+  const to = `/app/messages?sub=program&prog=${progKey}`
+  return (
+    <div className="nest mt-4 p-3.5" data-testid="program-pointer">
+      <div className="flex items-start gap-3">
+        <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-accent/15 text-accent"><Dumbbell className="size-4" aria-hidden /></span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <b className="text-sm font-bold text-fg">{dur ? "Runner's must-have" : tpl.name}</b>
+            {dur && <Chip>{`týden ${dur.week} z ${dur.weeks}`}</Chip>}
+          </div>
+          {dur ? (
+            <>
+              <p className="mt-1 text-[13px] leading-5 text-fg-soft">
+                {dur.doneToday ? "Dnešní trénink programu máte hotový."
+                  : dur.blocked ? dur.blocked
+                  : `${allowed ? "Dnes" : "Další trénink"}: ${dur.sessionLabel} · ${dur.plan.length} cviků · ≈ ${dur.estMin} min`}
+              </p>
+              {!dur.doneToday && !dur.blocked && allowed && dur.why && <p className="mt-1 text-[12px] leading-[18px] text-fg-3">{dur.why}</p>}
+              {!dur.doneToday && !dur.blocked && (
+                <ul className="mt-1.5 grid gap-0.5 text-[12px] leading-[17px] text-fg-2" data-testid="program-pointer-plan">
+                  {dur.plan.map((x: any) => <li key={x.id}>{exName(x.id)} <span className="text-fg-3">{x.dose}</span></li>)}
+                </ul>
+              )}
+              <p className="mt-1 text-[11.5px] text-fg-3">{`${dur.phase.name} · tento týden ${dur.weekDone} z ${dur.perWeek}`}</p>
+            </>
+          ) : (
+            <p className="mt-1 text-[13px] leading-5 text-fg-soft">{tpl.summary}</p>
+          )}
+        </div>
+      </div>
+      <Link to={to} className="btn btn-primary btn-sm mt-3 w-full" data-testid="program-pointer-open">
+        {dur ? "Otevřít program v Péči" : "Zobrazit program v Péči"}<ChevronRight className="size-4" aria-hidden />
+      </Link>
+    </div>
   )
 }
 

@@ -5,6 +5,7 @@
 // detail with an own illustration, numbered steps and the common faults; Physiopedia is
 // only linked for further reading (its licence is non-commercial).
 import { useEffect, useRef, useState } from "react"
+import { useSearchParams } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Button, Card, Chip, Label, Sheet, useToast } from "@/ui"
@@ -521,6 +522,25 @@ export function SelfPrograms() {
   const goSlide = (i: number) => { const el = rail.current; if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" }) }
   const load = () => api.selfPrograms(rid).then(setD).catch(() => setD(false))
   useEffect(() => { load() }, [rid]) // eslint-disable-line react-hooks/exhaustive-deps
+  // railway#196 — Trénink links here (?prog=durability): the running programme comes
+  // into view, one not started yet opens its sheet
+  const [params, setParams] = useSearchParams()
+  const want = params.get("prog")
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!want || !d) return
+    const acts: any[] = d.actives || (d.active ? [d.active] : [])
+    const i = acts.findIndex((x: any) => x.template === want)
+    if (i >= 0) {
+      requestAnimationFrame(() => { goSlide(i); box.current?.scrollIntoView({ behavior: "smooth", block: "start" }) })
+    } else {
+      const p = (d.library?.programs || []).find((x: Prog) => x.key === want)
+      if (p) setOpen(p)
+    }
+    const next = new URLSearchParams(params)
+    next.delete("prog")
+    setParams(next, { replace: true })
+  }, [want, d]) // eslint-disable-line react-hooks/exhaustive-deps
   if (d === null) return <p className="mt-4 text-sm text-fg-3">Načítám programy…</p>
   if (d === false) return null
   const lib = d.library
@@ -549,7 +569,7 @@ export function SelfPrograms() {
   return (
     <div className="mt-4 grid gap-4" data-testid="self-programs">
       {actives.length > 0 && (
-        <div data-testid="active-programs">
+        <div ref={box} className="scroll-mt-24" data-testid="active-programs">
           {actives.length > 1 && (
             <div className="mb-2 flex items-center justify-between gap-2 px-1">
               <span className="t-label !text-fg-3">{`Běžící programy · ${slide + 1} / ${actives.length}`}</span>

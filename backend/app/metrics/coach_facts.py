@@ -156,7 +156,7 @@ def _today(a: dict):
         "override": {"kind": g["override"].get("kind"), "title": cz_text(g["override"].get("title")),
                      "text": cz_text(g["override"].get("text"))} if g.get("override") else None,
         "reasons": [cz_text(r) for r in g.get("reasons") or []],
-        "notes": [cz_text(n) for n in t.get("notes") or []],
+        "notes": [cz_text(n) for n in (t.get("notes") or []) + ([t["program"]["note"]] if (t.get("program") or {}).get("note") else [])],
         "weekMode": WEEK_MODE.get((g.get("week") or {}).get("mode"), (g.get("week") or {}).get("mode")),
         "cycleWeek": ((g.get("week") or {}).get("cycle") or {}).get("pos"),
     }
