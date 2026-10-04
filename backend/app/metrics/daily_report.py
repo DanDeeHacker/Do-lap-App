@@ -28,6 +28,7 @@ from datetime import date, timedelta
 from .. import models
 from . import dayload as DL
 from . import engine as E
+from . import week_plan as WP
 
 WD = ["po", "út", "st", "čt", "pá", "so", "ne"]
 WD_LONG = ["pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota", "neděle"]
@@ -208,6 +209,19 @@ def _plan(a, db, rid):
     elif prog is not None:
         out["strength"] = {"session": None, "blocked": None, "why": None, "name": prog.name}
     return out
+
+
+def _week_plan(a, db, rid, today):
+    """The calendar week laid out by week_plan.py, with the Runner's must-have session due next."""
+    progs = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.active.is_(True)).all()
+    prog = next((x for x in progs if x.template == "durability"), None)
+    program = None
+    if prog is not None:
+        hist = (prog.state or {}).get("history") or []
+        last = hist[-1] if hist else None
+        program = {"name": prog.name, "due": "B" if (last and last.get("session") == "A") else "A",
+                   "last": last.get("date") if last else None}
+    return WP.build(a, today, program)
 
 
 def _week(a, db, rid, today):
@@ -465,6 +479,8 @@ def _notes_morning(r) -> dict:
     notes["plan"] = (f"Dnes {p['label'].lower() if p.get('label') else 'podle doporučení'}. "
                      + (w[0]["text"] if w else ("Tělo dnes regeneruje: procházka, protažení a dost jídla i pití pomohou víc než trénink navíc."
                                                 if rest else "Nic zvláštního k hlídání, běžte podle plánu a v klidném tempu.")))
+    if r.get("weekPlan"):
+        notes["weekPlan"] = WP.note(r["weekPlan"])
     notes["intro"] = r["summary"]
     return notes
 
@@ -527,6 +543,8 @@ def build(db, rid: str, kind: str) -> dict:
                         "week": _week_loads(a, db, rid, today), "weekKm": week.get("done"), "budget": week.get("budget"),
                         "carry": _carry(a), "axes": ((a or {}).get("guidance") or {}).get("axes")},
              "plan": plan, "watch": [], "questions": MORNING_Q}
+        if today.weekday() == 0:                 # owner request 2026-10-04: the week's plan every Monday
+            r["weekPlan"] = _week_plan(a, db, rid, today)
         r["watch"] = _watchouts(a, rec, night, plan)
         r["summary"] = _summary_morning(night, rec, plan)
         r["notes"] = _notes_morning(r)

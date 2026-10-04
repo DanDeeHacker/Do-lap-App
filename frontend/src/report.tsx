@@ -9,7 +9,7 @@ import { useApp } from "@/store"
 import { useAssistant } from "@/assistant"
 import { C, goodCol } from "@/tokens"
 import { ReadinessFactors } from "@/capacity"
-import { Bed, ChevronRight, Coffee, Eye, Info, MessageCircle, Moon, Sparkles, Sun, TriangleAlert, X } from "lucide-react"
+import { Bed, Bike, ChevronRight, Coffee, Dumbbell, Eye, Flag, Info, MessageCircle, Moon, Sparkles, Sun, TriangleAlert, X } from "lucide-react"
 
 const STAGE_COL: Record<string, string> = { deep: "#4c6ef5", light: "#74c0fc", rem: "#c084fc", awake: C.watch }
 const STAGE_LABEL: Record<string, string> = { deep: "Hluboký", light: "Lehký", rem: "REM", awake: "Bdění" }
@@ -522,8 +522,197 @@ function morningCards(r: any, c: Ctx): Card[] {
       </>
     ),
   })
+  if (r.weekPlan) cards.push({ key: "weekPlan", title: "Plán týdne", body: <WeekPlan p={r.weekPlan} text={c.notes.weekPlan} /> })
   if (c.hasAssistant) cards.push({ key: "ask", title: "Otázky", body: <><Big>Chcete vědět víc?</Big><Sub>Asistent odpoví z vašich dat a citované literatury.</Sub><Questions qs={r.questions || []} onAsk={c.onAsk} /></> })
   return cards
+}
+
+// ---- the week's plan (Monday morning, backend metrics/week_plan.py) ---------------------------
+const PLAN_COL: Record<string, string> = { "dlouhý": C.load, "kvalitní": C.alert, "lehký": C.info, regenerace: C.ok }
+const itemCol = (it: any) => (it.kind === "run" ? PLAN_COL[it.type] || C.info : it.kind === "strength" ? C.self
+  : it.kind === "ride" || it.kind === "swim" ? C.watch : it.kind === "race" ? C.accent : it.kind === "done" ? C.fg2 : C.fg4)
+const dayKm = (d: any) => d.items.reduce((a: number, it: any) => a + (it.kind === "run" ? it.km?.hi || 0 : it.kind === "done" ? it.km || 0 : 0), 0)
+const dm = (iso: string) => { const [, m, dd] = iso.split("-"); return `${+dd}. ${+m}.` }
+
+function itemSummary(it: any): string {
+  if (it.kind === "run") return `${num(it.km?.lo)}–${num(it.km?.hi)} km${it.z4 ? ` · Z4+ ${num(it.z4.lo, 0)}–${num(it.z4.hi, 0)} min` : ""}`
+  if (it.kind === "strength") return it.session || ""
+  if (it.kind === "ride" || it.kind === "swim") return it.min ? `${it.min[0]}–${it.min[1]} min` : ""
+  if (it.kind === "done" || it.kind === "race") return it.km ? `${num(it.km)} km` : ""
+  return ""
+}
+
+function ItemDetail({ it }: { it: any }) {
+  const rows: [string, ReactNode][] = []
+  if (it.kind === "run") {
+    if (it.session) rows.push(["Trénink", it.session])
+    if (it.hr) rows.push(["Tep", `${it.hr[0]}–${it.hr[1]} tep/min${it.zones ? ` · ${it.zones}` : ""}`])
+    if (it.pace) rows.push(["Tempo", `${paceS(it.pace[0])}–${paceS(it.pace[1])} /km`])
+    if (it.durationMin) rows.push(["Čas", `${it.durationMin[0]}–${it.durationMin[1]} min`])
+    if (it.descentMax != null) rows.push(["Klesání", `do ${num(it.descentMax, 0)} m`])
+    if (it.ascentMax != null) rows.push(["Stoupání", `do ${num(it.ascentMax, 0)} m`])
+  } else if (it.kind === "strength") {
+    rows.push(["Program", `${it.program}${it.session ? ` · ${it.session}` : ""}`])
+    rows.push(["Čas", `${it.min[0]}–${it.min[1]} min · náročnost ${it.rpe}`])
+    if (it.when) rows.push(["Kdy", it.when])
+  } else if (it.kind === "ride" || it.kind === "swim") {
+    if (it.hr) rows.push(["Tep", `${it.hr[0]}–${it.hr[1]} tep/min${it.zones ? ` · ${it.zones}` : ""}`])
+  }
+  if (it.note) rows.push(["Pozn.", it.note])
+  if (!rows.length) return null
+  return (
+    <dl className="mt-1 grid grid-cols-[64px_1fr] gap-x-2 gap-y-1 text-[12px] leading-[17px]">
+      {rows.flatMap(([k, v], i) => [<dt key={`k${i}`} className="text-fg-3">{k}</dt>, <dd key={`v${i}`} className="text-fg-soft">{v}</dd>])}
+    </dl>
+  )
+}
+
+function PlanDay({ d }: { d: any }) {
+  const [open, setOpen] = useState(!!d.today)
+  const rich = d.items.some((it: any) => it.kind !== "rest" && it.kind !== "done")
+  return (
+    <li className={`py-2 ${d.today ? "rounded-[12px] bg-white/[.05] px-2 -mx-2" : ""}`} data-testid={`plan-day-${d.date}`}>
+      <button type="button" onClick={() => rich && setOpen(!open)} aria-expanded={rich ? open : undefined} className="flex w-full items-start gap-3 text-left">
+        <span className="w-9 shrink-0 pt-px">
+          <b className={`block text-[13px] leading-4 ${d.today ? "text-accent" : d.past ? "text-fg-3" : "text-fg"}`}>{d.wd}</b>
+          <span className="text-[10.5px] text-fg-3">{dm(d.date)}</span>
+        </span>
+        <span className="min-w-0 flex-1 space-y-0.5">
+          {d.items.map((it: any, k: number) => (
+            <span key={k} className="flex items-baseline gap-2 text-[13px] leading-[18px]">
+              <i className="size-2 shrink-0 translate-y-[-1px] rounded-full" style={{ background: itemCol(it), opacity: it.optional ? 0.55 : 1 }} />
+              <span className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                <b className={it.kind === "rest" ? "font-semibold text-fg-3" : "text-fg"}>{it.label}</b>
+                <span className="tabular-nums text-fg-2">{itemSummary(it)}</span>
+              </span>
+            </span>
+          ))}
+        </span>
+        {rich && <ChevronRight className={`mt-0.5 size-4 shrink-0 text-fg-3 transition ${open ? "rotate-90" : ""}`} aria-hidden />}
+      </button>
+      {open && rich && (
+        <div className="ml-12 mt-1 space-y-2 animate-[careReveal_.25s_ease-out]">
+          {d.items.map((it: any, k: number) => <ItemDetail key={k} it={it} />)}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function WeekStrip({ days }: { days: any[] }) {
+  // the week at a glance: run kilometres per day (hatched = optional), strength and rides under them
+  const H = 84
+  const max = Math.max(1, ...days.map(dayKm))
+  return (
+    <div data-testid="plan-strip">
+      <div className="flex items-end gap-1.5" style={{ height: H }}>
+        {days.map((d) => {
+          const run = d.items.find((it: any) => it.kind === "run" || it.kind === "done")
+          const km = dayKm(d)
+          return (
+            <div key={d.date} className="flex min-w-0 flex-1 flex-col items-center justify-end" style={{ height: H }}>
+              <span className="mb-1 text-[10px] tabular-nums text-fg-3">{km ? num(km, km >= 10 ? 0 : 1) : ""}</span>
+              <i className="block w-full rounded-t-[5px]" style={{
+                height: `${Math.max(km ? 4 : 0, (km / max) * (H - 18))}px`, background: run ? itemCol(run) : C.fg4,
+                opacity: d.past ? 0.5 : 1,
+                backgroundImage: run?.optional ? "repeating-linear-gradient(135deg, rgb(0 0 0 / .3) 0 3px, transparent 3px 6px)" : undefined,
+                outline: d.today && km ? `2px solid ${C.fg}` : undefined, outlineOffset: 1,
+              }} />
+            </div>
+          )
+        })}
+      </div>
+      <div className="mt-1 flex gap-1.5">
+        {days.map((d) => (
+          <span key={d.date} className="flex min-w-0 flex-1 flex-col items-center gap-0.5">
+            <span className={`text-[10.5px] ${d.today ? "font-bold text-fg" : "text-fg-3"}`}>{d.wd}</span>
+            <span className="flex h-3.5 items-center gap-0.5">
+              {d.items.some((it: any) => it.kind === "strength") && <Dumbbell className="size-3" style={{ color: C.self }} aria-label="posilování" />}
+              {d.items.some((it: any) => it.kind === "ride" || it.kind === "swim") && <Bike className="size-3" style={{ color: C.watch }} aria-label="kolo" />}
+              {d.items.some((it: any) => it.kind === "race") && <Flag className="size-3" style={{ color: C.accent }} aria-label="závod" />}
+            </span>
+          </span>
+        ))}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-fg-3">
+        {[["lehký", "lehký"], ["dlouhý", "dlouhý"], ["kvalitní", "tvrdý"]].map(([k, l]) => (
+          <span key={k} className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: PLAN_COL[k] }} />{l}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// planned vs the week's target, with the 7-day capacity ceiling as the edge
+function PlanMeter({ label, value, target, ceil, unit, col, testid }: { label: string; value: number; target?: number | null; ceil?: number | null; unit: string; col: string; testid?: string }) {
+  const top = Math.max(value, target || 0, ceil || 0) * 1.08 || 1
+  const p = (v: number) => `${Math.min(100, (v / top) * 100)}%`
+  return (
+    <div data-testid={testid}>
+      <div className="flex items-baseline justify-between text-[12px]">
+        <span className="text-fg-2">{label}</span>
+        <span className="tabular-nums text-fg-3"><b className="text-fg">{num(value)}</b>{target != null ? ` z cíle ${num(target)}` : ""} {unit}</span>
+      </div>
+      <div className="relative mt-1.5 h-2.5 rounded-full bg-white/[.07]">
+        <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: p(value), background: col }} />
+        {target != null && <i className="absolute -inset-y-1 w-0.5 rounded-full" style={{ left: `calc(${p(target)} - 1px)`, background: C.watch }} />}
+        {ceil != null && <i className="absolute -inset-y-1 w-0.5 rounded-full bg-fg" style={{ left: `calc(${p(ceil)} - 1px)` }} />}
+      </div>
+      <div className="mt-1 flex gap-3 text-[10.5px] text-fg-3">
+        {target != null && <span className="flex items-center gap-1"><i className="h-2.5 w-0.5 rounded-full" style={{ background: C.watch }} />cíl týdne</span>}
+        {ceil != null && <span className="flex items-center gap-1"><i className="h-2.5 w-0.5 rounded-full bg-fg" />strop kapacity za 7 dní</span>}
+      </div>
+    </div>
+  )
+}
+
+function WeekPlan({ p, text }: { p: any; text?: string }) {
+  const t = p.totals
+  const days: any[] = p.days || []
+  return (
+    <div data-testid="week-plan">
+      <Lbl>{`Plán týdne · ${dm(days[0]?.date || p.weekStart)}–${dm(days[6]?.date || p.weekStart)}`}</Lbl>
+      <Big>{t ? `${num(t.km)} km · ${t.runs} ${t.runs === 1 ? "běh" : t.runs < 5 ? "běhy" : "běhů"}` : p.override || "Plán týdne"}</Big>
+      <Sub>{p.headline}{t?.kmLastWeek != null ? ` · minulý týden ${num(t.kmLastWeek)} km` : ""}</Sub>
+      {t && (
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <Tile label="Tvrdé tréninky" value={`${t.hard}`} sub={`nejvýš ${t.hardCap}`} col={t.hard ? C.alert : undefined} />
+          <Tile label="Posilování" value={`${t.strength}×`} sub={t.strengthTarget ? `cíl ${t.strengthTarget}×` : undefined} col={C.self} />
+          <Tile label="Kolo" value={t.rides ? `${t.rides}×` : "—"} sub={t.rides ? `do ${t.rideMin} min` : "nezbývá zátěž"} col={t.rides ? C.watch : undefined} />
+        </div>
+      )}
+      <Panel><WeekStrip days={days} /></Panel>
+      <AiNote text={text} ai={false} pending={false} />
+      <Panel>
+        <Lbl>Den po dni</Lbl>
+        <p className="mt-1 text-[11px] text-fg-3">Klepnutím na den zobrazíte tep, tempo, čas a převýšení.</p>
+        <ul className="mt-1 divide-y divide-white/[.06]" data-no-tap>{days.map((d) => <PlanDay key={d.date} d={d} />)}</ul>
+      </Panel>
+      {t && (
+        <Panel className="space-y-4">
+          <PlanMeter label="Běh" value={t.km} target={t.kmBudget} ceil={t.kmCeiling7} unit="km" col={C.info} testid="plan-km" />
+          {t.z4Budget != null && <PlanMeter label="Minuty v Z4+" value={t.z4} target={t.z4Budget} unit="min" col={C.alert} testid="plan-z4" />}
+          {t.kmOptional ? <p className="text-[11px] text-fg-3">{`+ ${num(t.kmOptional)} km volitelný běh`}</p> : null}
+        </Panel>
+      )}
+      {p.notes?.length > 0 && (
+        <Panel>
+          <Lbl>Co plán zohledňuje</Lbl>
+          <ul className="mt-2 space-y-1.5 text-[13px] leading-5 text-fg-soft">
+            {p.notes.map((x: string, k: number) => <li key={k} className="flex gap-2"><span className="text-accent">›</span><span>{x}</span></li>)}
+          </ul>
+        </Panel>
+      )}
+      {p.rules?.length > 0 && (
+        <Panel>
+          <Lbl>Pravidla plánu</Lbl>
+          <ul className="mt-2 space-y-1 text-[12px] leading-[18px] text-fg-2">
+            {p.rules.map((x: string, k: number) => <li key={k}>{x}</li>)}
+          </ul>
+        </Panel>
+      )}
+    </div>
+  )
 }
 
 // ---- evening ------------------------------------------------------------------------------

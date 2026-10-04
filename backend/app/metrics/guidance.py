@@ -1298,6 +1298,33 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         done = {c: week[c]["doneToday"] for c in CHS}
         done["runs"] = len(today_runs)
 
+    # ---- what the week's plan (Monday morning report, week_plan.py) needs from today's context
+    longest30 = max((s["km"] or 0 for s in runs if 0 < (today - _d(s["date"])).days <= 30), default=0)
+    plan_ctx = {
+        "past": {c: {(today - timedelta(days=k)).isoformat(): _r(daily[c].get((today - timedelta(days=k)).isoformat(), 0.0),
+                                                                C.CHANNELS[c]["dec"]) for k in range(1, 7)}
+                 for c in ("volume", "intensity", "descent", "ascent", "systemic")},
+        "lastHard": max(hard_dates) if hard_dates else None,
+        "hardThisWeek": sorted({d for d in hard_dates if d >= ws.isoformat()}),
+        "todayHard": any(is_hard(s) for s in cardio if s["date"] == t_iso),
+        "hardCap": hard_cap, "readiness": gscore, "novice": novice,
+        "painMod": bool(pain_mod), "painWhy": pain_why or None, "pain": pain or 0,
+        "ill": bool(ill) and not ill_light, "illLight": ill_light, "illWatch": ill_watch,
+        "drift": drift, "deload": load >= 25, "overreaching": a.get("quadrant") in ("overreaching", "critical"),
+        "raceRecoveryUntil": ((_d(race["date"]) + timedelta(days=race["days"])).isoformat() if race else None),
+        "noQualityUntil": rtr_all["noQualityUntil"] if (rtr_all and rtr_all["noQuality"]) else None,
+        "races": [{"date": x["date"], "name": x.get("name"), "km": x.get("km"), "priority": x.get("priority")}
+                  for x in ro.get("upcoming") or [] if 0 <= (x.get("daysTo") or -1) <= 13],
+        "perKm": _r(per_km, 2), "perMinRide": _r(per_min_c, 3), "z4PerMin": _r(z4_trimp_per_min(tb), 3),
+        "kSrpe": _r(k_srpe, 3), "rideHr": list(hr_c),
+        "rides8w": sum(1 for s in sessions if s.get("sport") == "cycling" and 0 <= (today - _d(s["date"])).days <= 56),
+        "longest30": _r(longest30), "easyKm": _r(easy_km), "easyPace": _r(easy_pace, 0),
+        "ceilRun": {c: (ch.get(c) or {}).get("ceilingSession") for c in CHS},
+        "noSpeedWeeks": bool(nsw) and not novice,
+        "kolo": not ((xt or {}).get("kolo") == "avoid" or (override or {}).get("kind") == "red_flag"),
+        "koloNote": ((xt or {}).get("koloNotes") or [None])[0],
+    }
+
     return {
         "date": t_iso, "engine": "v3", "type": typ, "typeLabel": TYPE_LABEL[typ],
         "provisional": provisional, "override": override, "referral": decision if referral else None,
@@ -1315,4 +1342,5 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                      "suggestToday": strength_due,
                      "carry": carry},
         "zones": cap.get("zones"), "hrSource": "fit" if fit else "fallback",
+        "planCtx": plan_ctx,
     }

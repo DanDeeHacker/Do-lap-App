@@ -3327,6 +3327,7 @@
   "t": "závod",
   "files": [
    "App.tsx",
+   "report.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -4295,6 +4296,7 @@
   "t": "běh",
   "files": [
    "capacity.tsx",
+   "report.tsx",
    "tabs.tsx"
   ],
   "kind": "jsx"
@@ -4304,6 +4306,7 @@
   "files": [
    "capacity.tsx",
    "profile.tsx",
+   "report.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -4319,6 +4322,7 @@
   "t": "běhů",
   "files": [
    "capacity.tsx",
+   "report.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -4327,6 +4331,7 @@
   "t": "běhy",
   "files": [
    "capacity.tsx",
+   "report.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -4754,6 +4759,7 @@
   "t": "Kolo",
   "files": [
    "capacity.tsx",
+   "report.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -5057,6 +5063,7 @@
   "t": "posilování",
   "files": [
    "capacity.tsx",
+   "report.tsx",
    "training.tsx"
   ],
   "kind": "jsx"
@@ -6055,6 +6062,7 @@
   "t": "Program",
   "files": [
    "care.tsx",
+   "report.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -8872,6 +8880,7 @@
   "t": "Klesání",
   "files": [
    "landing.tsx",
+   "report.tsx",
    "rundetail.tsx",
    "tabs.tsx",
    "training.tsx"
@@ -11807,7 +11816,8 @@
  {
   "t": "Kdy",
   "files": [
-   "profile.tsx"
+   "profile.tsx",
+   "report.tsx"
   ],
   "kind": "str"
  },
@@ -12458,6 +12468,20 @@
   "kind": "tpl"
  },
  {
+  "t": "· minulý týden {} km",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· Z4+ {}–{} min",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} h",
   "files": [
    "report.tsx",
@@ -12481,6 +12505,13 @@
   "kind": "tpl"
  },
  {
+  "t": "{} km · {} {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} spánku",
   "files": [
    "report.tsx"
@@ -12495,6 +12526,13 @@
   "kind": "tpl"
  },
  {
+  "t": "{}–{} /km",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{}–{} km",
   "files": [
    "report.tsx"
@@ -12502,7 +12540,35 @@
   "kind": "tpl"
  },
  {
+  "t": "{}–{} km{}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}–{} min",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}–{} min · náročnost {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{}–{} od usnutí",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}–{} tep/min{}",
   "files": [
    "report.tsx"
   ],
@@ -12544,6 +12610,13 @@
   "kind": "jsx"
  },
  {
+  "t": "+ {} km volitelný běh",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "≈ {} km",
   "files": [
    "report.tsx"
@@ -12579,11 +12652,34 @@
   "kind": "str"
  },
  {
+  "t": "block text-[13px] leading-4 {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "block w-full {}",
   "files": [
    "report.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "calc({} - 1px)",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Čas",
+  "files": [
+   "report.tsx",
+   "rundetail.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Celková zátěž dne",
@@ -12621,6 +12717,20 @@
   "kind": "jsx"
  },
  {
+  "t": "cíl {}×",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "cíl týdne",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Co ovlivní zítřek",
   "files": [
    "report.tsx"
@@ -12628,11 +12738,33 @@
   "kind": "str"
  },
  {
+  "t": "Co plán zohledňuje",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Co se ještě vstřebává",
   "files": [
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Den po dni",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "dlouhý",
+  "files": [
+   "report.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Dnes odvedeno · dnes ještě smíte",
@@ -12647,6 +12779,20 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "do {} m",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "do {} min",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "do postele",
@@ -12747,6 +12893,13 @@
   "kind": "str"
  },
  {
+  "t": "Klepnutím na den zobrazíte tep, tempo, čas a převýšení.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "klepnutím zobrazíte detail",
   "files": [
    "report.tsx"
@@ -12775,6 +12928,14 @@
   "kind": "jsx"
  },
  {
+  "t": "kvalitní",
+  "files": [
+   "report.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "L{} {}",
   "files": [
    "report.tsx",
@@ -12789,6 +12950,14 @@
    "ui.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "lehký",
+  "files": [
+   "report.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Lehký",
@@ -12869,11 +13038,26 @@
   "kind": "jsx"
  },
  {
+  "t": "Minuty v Z4+",
+  "files": [
+   "report.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "mírně zvýšený tep v klidu",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "mt-0.5 size-4 shrink-0 text-fg-3 transition {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "mt-4 rounded-[18px] border border-white/[.08] bg-white/[.04] p-3.5 {}",
@@ -12892,6 +13076,20 @@
  },
  {
   "t": "Na noc",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nejvýš {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "nezbývá zátěž",
   "files": [
    "report.tsx"
   ],
@@ -12940,6 +13138,20 @@
   "kind": "str"
  },
  {
+  "t": "Plán týdne",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán týdne · {}–{}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Plné: odběhnuto · šrafované: návrh na zbytek týdne.",
   "files": [
    "report.tsx"
@@ -12980,6 +13192,20 @@
    "report.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Pozn.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pravidla plánu",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Proč právě takhle",
@@ -13040,6 +13266,13 @@
  },
  {
   "t": "repeating-linear-gradient(135deg, rgb(0 0 0 / .25) 0 3px, transparent 3px 6px)",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "repeating-linear-gradient(135deg, rgb(0 0 0 / .3) 0 3px, transparent 3px 6px)",
   "files": [
    "report.tsx"
   ],
@@ -13109,6 +13342,23 @@
   "kind": "jsx"
  },
  {
+  "t": "Stoupání",
+  "files": [
+   "report.tsx",
+   "rundetail.tsx",
+   "tabs.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "strop kapacity za 7 dní",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "T12:00:00",
   "files": [
    "report.tsx",
@@ -13143,11 +13393,32 @@
   "kind": "jsx"
  },
  {
+  "t": "text-[10.5px] {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "trénink {}",
   "files": [
    "report.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Tvrdé tréninky",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "tvrdý",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Týden",
@@ -13225,6 +13496,13 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "z cíle {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Zavřít report",
@@ -13310,14 +13588,6 @@
    "rundetail.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Čas",
-  "files": [
-   "rundetail.tsx",
-   "training.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Detail běhu · {}{}",
@@ -13460,15 +13730,6 @@
   "t": "Spočítáno z výškového profilu běhu. Tempo po kilometrech v datech není.",
   "files": [
    "rundetail.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Stoupání",
-  "files": [
-   "rundetail.tsx",
-   "tabs.tsx",
-   "training.tsx"
   ],
   "kind": "jsx"
  },
@@ -17507,13 +17768,6 @@
   "kind": "str"
  },
  {
-  "t": "dlouhý",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Dnes nedoporučujeme:",
   "files": [
    "training.tsx"
@@ -17675,13 +17929,6 @@
   "kind": "jsx"
  },
  {
-  "t": "kvalitní",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Ladění před závodem",
   "files": [
    "training.tsx"
@@ -17694,13 +17941,6 @@
    "training.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "lehký",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Limity níže ukazují, co ještě dnes zbývá.",
@@ -17746,13 +17986,6 @@
  },
  {
   "t": "mechanika nad prahem (−20 %)",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Minuty v Z4+",
   "files": [
    "training.tsx"
   ],

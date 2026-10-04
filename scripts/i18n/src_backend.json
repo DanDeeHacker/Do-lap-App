@@ -983,7 +983,8 @@
  {
   "t": "A · Síla (těžší)",
   "files": [
-   "durability.py"
+   "durability.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -1222,6 +1223,7 @@
    "durability.py",
    "metrics/capacity.py",
    "metrics/guidance.py",
+   "metrics/week_plan.py",
    "outcomes.py"
   ]
  },
@@ -1308,7 +1310,8 @@
   "files": [
    "durability.py",
    "metrics/engine.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -2967,21 +2970,24 @@
   "t": "dlouhý",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "kvalitní",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "lehký",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -2994,7 +3000,8 @@
   "t": "neděle",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -3013,27 +3020,31 @@
   "t": "pondělí",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "pá",
   "files": [
-   "metrics/daily_report.py"
+   "metrics/daily_report.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "pátek",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "středa",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -3045,27 +3056,31 @@
  {
   "t": "út",
   "files": [
-   "metrics/daily_report.py"
+   "metrics/daily_report.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "úterý",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "čt",
   "files": [
-   "metrics/daily_report.py"
+   "metrics/daily_report.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "čtvrtek",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -3166,7 +3181,8 @@
   "t": "Bolest",
   "files": [
    "metrics/engine.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -4881,7 +4897,8 @@
  {
   "t": "Jen pokud při tom nic nebolí.",
   "files": [
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -4900,6 +4917,7 @@
   "t": "Kolo",
   "files": [
    "metrics/guidance.py",
+   "metrics/week_plan.py",
    "routers/runners.py",
    "tutorial_demo.py"
   ]
@@ -5095,6 +5113,7 @@
   "t": "Posilování",
   "files": [
    "metrics/guidance.py",
+   "metrics/week_plan.py",
    "routers/runners.py",
    "tutorial_demo.py"
   ]
@@ -5318,7 +5337,8 @@
  {
   "t": "Volno",
   "files": [
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -8297,6 +8317,276 @@
   "t": "zataženo",
   "files": [
    "metrics/weather.py"
+  ]
+ },
+ {
+  "t": "(volitelně)",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "4. týden cyklu · odlehčovací týden",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "4–6 stupňovaných rovinek po 15–20 s na konci (ne naplno) — pravidelný kontakt s rychlostí chrání zadní stehenní svaly.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Cyklus nastavíme po 4 týdnech dat · cílem je vaše kapacita",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Držte lehké běhy v Z2 — objem roste bezpečně a tělo zůstává pod stropem kapacity.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Hlásíte nemoc — tento týden nejdřív odpočinek",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Hodinky nebo check-in ukazují možný začátek nemoci — první dva dny bez náročného tréninku.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Jiný trénink",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Každé ráno Trénink den upraví podle připravenosti — plán počítá s běžným zotavením.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Kolo nebo plavání (volitelně)",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Ladění formy před závodem",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Mechanika se odchyluje od vaší normy — bez intenzity a prudkých seběhů.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Na plán týdne zatím chybí data o vaší týdenní kapacitě — stačí pár týdnů běhů.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Navíc volitelný krátký lehký běh {}, když se budete cítit dobře — zbytek týdenního cíle se jinak do stropů nevejde.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Nejdůležitější jsou lehké dny opravdu lehké — tvrdé tréninky pak dají víc a tělo zůstane pod stropem kapacity.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Návrat po zranění · {}. týden ze 3",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Návrat po zranění — bez intenzity do {}. {}.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Odběhnuto",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Odlehčovací týden · zátěž je zvýšená",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Plán běhu je pozastavený. Každé ráno ho Trénink znovu posoudí a jakmile to půjde, vrátí běh postupně.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Podle ranního doporučení",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Posilování ne den před tvrdým nebo dlouhým během, těžší A ani v ten den a den po něm.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Posilování se tento týden vejde jen {}× — kolem tvrdých a dlouhých běhů a závodů na něj nezbývá den, který by ho unesl.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Prvních 6 týdnů · opatrné navyšování",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Připravenost dnes {} % — první dva dny lehce, tvrdý trénink až {}.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Připravenost dnes {} % — první dva dny lehce.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Tvrdé tréninky aspoň 48 hodin od sebe a ne vedle dlouhého běhu, nejvýš {} za týden.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Týden na {} km",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Týdenní objem roste nejvýš o 10 % proti minulému týdnu.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Těžší silová A se tento týden nevejde mezi tvrdé dny — místo ní lehčí B, A přijde příště.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu nebo 7 dní. Cíl je horní hranice, ne povinnost.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Zátěž je zvýšená — týden bez tvrdých úseků, ať klesne pod práh.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Závod",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Závod {}: {} — dva dny před ním a po něm bez tvrdého tréninku, tři dny před ním bez posilování, týden bez dlouhého běhu.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "dlouhý běh {}",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "s odstupem aspoň 3 hodin od běhu",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "tvrdý trénink {}",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "z cíle {} km",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{} × {} min v Z4 (tempo, ještě se dá říct pár slov), mezi úseky 2 min volně",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{} × {} min v Z4–Z5, mezi úseky {} min volným klusem",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{} — tento týden bez intenzity a dlouhého běhu, běhy kratší a po rovině, dokud se to neuklidní.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{}. týden cyklu · {} % referenčního týdne",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{}; rozklus 15 min a výklus 10 min v Z1–Z2",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{}× posilování",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Žádných 7 dní po sobě nepřesáhne strop kapacity {} km.",
+  "files": [
+   "metrics/week_plan.py"
   ]
  },
  {
