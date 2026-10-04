@@ -216,6 +216,8 @@ def test_shoe_suggestion_is_standardised():
     v = SH.standardise({"brand": "vivobarefoot", "model": "Primus Lite", "drop_mm": 6})
     assert v["drop_mm"] == 0 and v["category"] == "minimal"
     assert SH.standardise({"brand": "Nike", "model": "Vaporfly 3", "carbon": True})["category"] == "racing"
+    line = SH.standardise({"brand": "Nike", "model": "Pegasus", "drop_mm": 8, "confidence": 1.0})
+    assert line["drop_mm"] is None and line["confidence"] == 0.5            # no version: no guessed drop
     assert SH._json('Here: {"is_shoe": true, "brand": "Nike"} done')["brand"] == "Nike"
     png = "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 50).decode()
     assert SH.check_image(png) and not SH.check_image("data:text/html;base64,PGI+")

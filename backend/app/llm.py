@@ -172,10 +172,11 @@ def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: i
         return None
 
 
-# v0.12.0 — image input (shoe recognition): the default chat model first, then the
-# catalog's vision models. VISION_MODELS (comma-separated) overrides the order.
+# v0.12.0 — image input (shoe recognition). Tested on NVIDIA's catalog 2026-10-04 with a
+# shoe photo: Llama 3.2 Vision 11B answered in ~3 s, 90B in 20–70 s, Gemma 4 timed out on
+# images. VISION_MODELS (comma-separated) overrides the order.
 VISION_MODELS = [m.strip() for m in (os.environ.get("VISION_MODELS") or "").split(",") if m.strip()] or [
-    NVIDIA_MODEL, "meta/llama-4-maverick-17b-128e-instruct"]
+    "meta/llama-3.2-11b-vision-instruct", "meta/llama-3.2-90b-vision-instruct"]
 VISION_BASE_URL = (os.environ.get("VISION_BASE_URL") or NVIDIA_BASE_URL).rstrip("/")
 VISION_API_KEY = os.environ.get("VISION_API_KEY") or NVIDIA_API_KEY
 VISION_TIMEOUT = float(os.environ.get("VISION_TIMEOUT") or 45)

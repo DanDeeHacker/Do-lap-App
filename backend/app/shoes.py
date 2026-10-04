@@ -130,7 +130,13 @@ def standardise(raw: dict) -> dict:
         conf = max(0.0, min(1.0, float(raw.get("confidence"))))
     except (TypeError, ValueError):
         conf = None
-    return {"brand": brand, "model": model_name(raw.get("model"), brand), "category": cat, "drop_mm": drop,
+    model = model_name(raw.get("model"), brand)
+    if model and not re.search(r"\d", model) and brand not in ZERO_DROP:
+        # the model line without its version: drop and stack change between versions, so
+        # they are left for the runner, and the suggestion can't be sure
+        drop, stack = None, None
+        conf = min(conf, 0.5) if conf is not None else 0.5
+    return {"brand": brand, "model": model, "category": cat, "drop_mm": drop,
             "stack_mm": stack, "carbon": bool(carbon) if carbon is not None else False,
             "confidence": round(conf, 2) if conf is not None else None}
 

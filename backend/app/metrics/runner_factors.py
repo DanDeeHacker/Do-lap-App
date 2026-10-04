@@ -6,9 +6,12 @@ first year of regular running the margins above the demonstrated capacity are na
 × 0.8 in the first 6 months, × 0.9 from 6 to 12 months (the factors are working
 assumptions, the split the meta-analysis's). The start date comes from the profile gate.
 
-Shoes. In a randomised trial, runners switched to minimalist shoes had more pain and
-injuries, and those over 85 kg about three times as many (Fuller et al., 2017); the
-calf, Achilles tendon and foot take the extra load of a lower drop. So for 6 weeks after
+Shoes. In a randomised trial of a 26-week switch to minimalist shoes, the injury risk
+rose with body mass above ~71 kg and was about doubled at 85.7 kg (HR 2.00), and pain
+rose above 35 km a week (Fuller et al., 2017); a partial / full minimalist shoe brought
+more injuries and shin and calf pain within 12 weeks (Ryan et al., 2014). Across
+transition studies the difference is small (Warne & Gruber, 2017), so this is a
+precaution: the calf, Achilles tendon and foot take the extra load of a lower drop. So for 6 weeks after
 the first use of a shoe that is minimal or ≥ 4 mm lower in drop than the shoes before it,
 the running channels keep a narrower margin (× 0.75, × 0.65 over 85 kg), and after a
 carbon-plated racing shoe × 0.9 (case reports only: Tenforde et al., 2023 — working
