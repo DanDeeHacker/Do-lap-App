@@ -32,6 +32,11 @@ def _state(db, rid, a) -> dict:
                              "repeated": scr["bonePain"]["repeated"]}
     if scr.get("ill"):
         flags["illToday"] = True
+        if scr["ill"].get("systemic") is not None:
+            flags["illBelowNeck"] = bool(scr["ill"]["systemic"])
+    if scr.get("illSignal"):
+        flags["watchIllnessSignal"] = {"signs": scr["illSignal"]["kinds"], "since": scr["illSignal"]["since"],
+                                       "answer": scr["illSignal"].get("answer")}
     if a.get("cluster"):
         flags["fatigueIllnessCluster"] = a["cluster"]["parts"]
     if flags:

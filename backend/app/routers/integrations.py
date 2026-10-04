@@ -419,17 +419,23 @@ def _download_and_merge(db: DBSession, rid: str, garmin) -> dict:
     # no sleep stages stored yet → pull 180 days of them once (feedback railway#33)
     has_stages = db.query(models.DailyMetric.id).filter(models.DailyMetric.runner_id == rid,
                                                          models.DailyMetric.deep_min.isnot(None)).first() is not None
+    # v0.12.0 — the breathing rate while asleep: pulled once for the stored nights too
+    resp_backfill = runner is not None and not meta.get("respBackfill")
     try:
         seed = garmin_live.download_seed(garmin, activity_days=CROSS_BACKFILL_DAYS, skip_dates=skip_dates,
-                                         since_date=since, sleep_backfill_days=0 if has_stages else 180)
+                                         since_date=since,
+                                         sleep_backfill_days=0 if (has_stages and not resp_backfill) else 180)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Nepodařilo se stáhnout data z Garminu: {e}")
     added = _merge_seed(db, rid, seed, provider="garmin")
     added["dayDetails"] = fetch_day_details(db, rid, garmin)
     if added["dayDetails"]:
         E.recompute_assessment(db, rid)        # the day's own load / resting HR feed the engine
-    if backfill:
-        meta["crossBackfill"] = E.iso_date(E.today_date())
+    if backfill or resp_backfill:
+        if backfill:
+            meta["crossBackfill"] = E.iso_date(E.today_date())
+        if resp_backfill:
+            meta["respBackfill"] = E.iso_date(E.today_date())
         runner.onboarding_json = meta
         db.commit()
     return {"ok": True, "runner_id": rid, **added, "meta": seed.get("_meta")}

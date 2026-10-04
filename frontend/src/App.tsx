@@ -15,6 +15,7 @@ import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/component
 import { api, ApiError } from "@/api"
 import { AppProvider, useApp } from "@/store"
 import { EDIT_PROFILE_EVENT, OnboardingProvider, useObSummary, useOnboarding } from "@/onboarding"
+import { ProfileSheet } from "@/profile"
 import { useQuadHistory } from "@/history"
 import { clamp, cz, fmtD, fmtImpact, initials, QUAD, roleHome } from "@/lib"
 import { AlertBanner, AxisLineChart, Bars, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, toneCol, useAsync, useToast } from "@/ui"
@@ -191,62 +192,6 @@ function Topbar() {
   )
 }
 
-function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { me, boot, refresh } = useApp()
-  const r = boot?.runner
-  const [f, setF] = useState<Record<string, any>>({})
-  const { busy, err, run } = useAsync()
-  useEffect(() => {
-    if (open && r)
-      setF({
-        birth_year: r.birth_year ?? "", sex: r.sex ?? "", city: r.city ?? "", device: r.device ?? "",
-        goal_race: r.goal_race ?? "", goal_date: (r.goal_date ?? "").slice(0, 10),
-        prior_injury: r.prior_injury ?? "", prior_injury_date: (r.prior_injury_date ?? "").slice(0, 10),
-        prior_injury_side: r.prior_injury_side ?? "", hr_max: r.hr_max ?? "", threshold_hr: r.threshold_hr ?? "",
-      })
-  }, [open, r])
-  const set = (k: string, v: any) => setF((p) => ({ ...p, [k]: v }))
-  const save = () =>
-    run(async () => {
-      await api.updateProfile(me!.runner_id!, {
-        ...f,
-        birth_year: f.birth_year ? Number(f.birth_year) : null,
-        goal_date: f.goal_date || null,
-        prior_injury: f.prior_injury || null,
-        prior_injury_date: f.prior_injury_date || null,
-        prior_injury_side: f.prior_injury_side || null,
-        hr_max: f.hr_max ? Number(f.hr_max) : null,
-        threshold_hr: f.threshold_hr ? Number(f.threshold_hr) : null,
-      })
-      await refresh()
-      onClose()
-    })
-  const inp = "w-full rounded-xl border px-3 py-2.5 text-sm"
-  return (
-    <Sheet open={open} onClose={onClose}>
-      <h2 className="font-serif text-2xl">Upravit profil</h2>
-      <p className="mt-1 text-xs text-fg-2">Údaje, které používá engine (dřívější zranění, cílový závod) a fyzioterapeut (věk, pohlaví, město).</p>
-      <div className="grid gap-1 md:grid-cols-2">
-        <Field label="Rok narození"><input className={inp} inputMode="numeric" value={f.birth_year ?? ""} onChange={(e) => set("birth_year", e.target.value)} /></Field>
-        <Field label="Pohlaví"><select className={inp} value={f.sex ?? ""} onChange={(e) => set("sex", e.target.value)}><option value="">—</option><option value="f">žena</option><option value="m">muž</option></select></Field>
-        <Field label="Město"><input className={inp} value={f.city ?? ""} onChange={(e) => set("city", e.target.value)} /></Field>
-        <Field label="Hodinky / zařízení"><input className={inp} value={f.device ?? ""} onChange={(e) => set("device", e.target.value)} /></Field>
-        <Field label="Cílový závod"><input className={inp} value={f.goal_race ?? ""} onChange={(e) => set("goal_race", e.target.value)} placeholder="např. Pražský půlmaraton" /></Field>
-        <Field label="Datum závodu" hint="další závody přidáte v Tréninku → Závody"><input type="date" className={inp} value={f.goal_date ?? ""} onChange={(e) => set("goal_date", e.target.value)} /></Field>
-        <Field label="Dřívější zranění"><input className={inp} value={f.prior_injury ?? ""} onChange={(e) => set("prior_injury", e.target.value)} placeholder="např. Achillova šlacha" /></Field>
-        <Field label="Kdy se zranění stalo" hint={f.prior_injury && !f.prior_injury_date ? "bez data ho engine počítá jako nedávné" : undefined}><input type="date" className={inp} value={f.prior_injury_date ?? ""} max={new Date().toISOString().slice(0, 10)} onChange={(e) => set("prior_injury_date", e.target.value)} /></Field>
-        <Field label="Maximální tep (změřený)" hint={f.hr_max ? "tepové zóny se počítají z něj" : "z testu nebo závodu do vrchu; bez něj zóny odhadujeme"}><input className={inp} inputMode="numeric" value={f.hr_max ?? ""} placeholder="např. 192" onChange={(e) => set("hr_max", e.target.value.replace(/\D/g, ""))} /></Field>
-        <Field label="Tep na prahu (LTHR)" hint={f.threshold_hr ? "zóny a tvrdé minuty se počítají z prahu" : "z laktátového nebo terénního testu (průměr posledních 20 min 30min testu); nepovinné"}><input className={inp} inputMode="numeric" value={f.threshold_hr ?? ""} placeholder="např. 172" onChange={(e) => set("threshold_hr", e.target.value.replace(/\D/g, ""))} /></Field>
-        <Field label="Strana"><select className={inp} value={f.prior_injury_side ?? ""} onChange={(e) => set("prior_injury_side", e.target.value)}><option value="">—</option><option value="left">levá</option><option value="right">pravá</option><option value="both">obě</option></select></Field>
-      </div>
-      {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
-      <div className="mt-5 flex gap-2">
-        <button onClick={save} disabled={busy} className="btn btn-primary flex-1 py-3 text-sm">{busy ? "Ukládám…" : "Uložit profil"}</button>
-        <button onClick={onClose} className="btn btn-outline px-5 py-3 text-sm">Zavřít</button>
-      </div>
-    </Sheet>
-  )
-}
 const runnerNav: [string, string][] = [
   ["today", "Dnes"],
   ["post", "Deník"],
@@ -1687,6 +1632,9 @@ function AtlasBubble() {
   const [sleepQ, setSleepQ] = useState<number | null>(null)
   const [flags, setFlags] = useState<Flags>(NO_FLAGS)
   const toggleFlag = (k: keyof Flags) => setFlags((p) => ({ ...p, [k]: !p[k] }))
+  // v0.12.0 — the watch flagged a possible illness: at most two questions instead of the switch
+  const [illQ, setIllQ] = useState<{ sym: boolean | null; below: boolean | null }>({ sym: null, below: null })
+  const [period, setPeriod] = useState(false)
   const [step, setStep] = useState(1)
   useEffect(() => { if (open) setStep(1) }, [open])
   // Step 2 (where it hurts) is only asked when there is pain; otherwise it's skipped.
@@ -1712,6 +1660,8 @@ function AtlasBubble() {
   const ready = boot?.assessment?.readiness ?? boot?.assessment?.capacity?.readiness
   const readyDelta: number | null = ready?.yesterday?.known ? (ready.morningScore ?? ready.score) - ready.yesterday.score : null
   const L = boot?.assessment?.loadDetail
+  const illSig = boot?.assessment?.screening?.illSignal || null
+  const cycleOn = boot?.runner?.sex === "f" && !!boot?.runner?.menstrual_json?.track
   const { busy, run } = useAsync()
   const toast = useToast()
   const bodySignals: [string, number, (value: number) => void, string][] = [
@@ -1729,17 +1679,25 @@ function AtlasBubble() {
       const pts = (pain > 0 ? points : []).map((p) => ({ region: p.region, side: p.side || null, type: p.kind }))
       const hurts = pain > 0 || pts.length > 0
       // screening answers only for the sites they were asked for
-      const fl: Partial<Flags> = { ill: flags.ill }
+      const fl: Record<string, boolean> = { ill: flags.ill }
+      if (illSig) {
+        fl.ill = illQ.sym === true
+        if (illQ.sym === true && illQ.below !== null) fl.ill_systemic = illQ.below
+        if (illQ.sym === false) fl.ill_none = true
+      }
       if (boneHit) Object.assign(fl, { bone_walk: flags.bone_walk, bone_rest: flags.bone_rest, bone_earlier: flags.bone_earlier })
       if (backHit) Object.assign(fl, { red_cauda: flags.red_cauda, red_systemic: flags.red_systemic })
       await api.checkin(rid, {
         pain_score: pain, soreness, stress: fatigue, mood: score, notes: note || null,
         pain_points: pts, pain_site: pts.length ? pts.map((p) => p.region).join(", ") : null,
         life_stress: lifeStress, sleep_quality: sleepQ, flags: fl,
+        ...(period ? { period_start: true } : {}),
         ...(hurts ? fn : {}),
       })
       setFn({ limits_movement: false, run_modified: false, limping: false })
       setFlags(NO_FLAGS)
+      setIllQ({ sym: null, below: null })
+      setPeriod(false)
       setSleepQ(null)
       toast({ title: "Check-in uložen" })
       refresh()
@@ -1870,11 +1828,33 @@ function AtlasBubble() {
                   ))}
                 </div>
               </div>
-              <button type="button" role="switch" aria-checked={flags.ill} onClick={() => toggleFlag("ill")} data-testid="ill-toggle"
-                className={`mt-4 flex w-full items-center justify-between gap-3 rounded-[12px] border px-3 py-2.5 text-left text-[13px] transition ${flags.ill ? "border-watch/60 bg-watch/12 text-fg" : "border-white/10 text-fg-soft hover:border-white/20"}`}>
-                <span>Jsem nemocný/á (nachlazení, horečka, střevní potíže)</span>
-                <span className={`relative h-6 w-10 shrink-0 rounded-full transition ${flags.ill ? "bg-watch" : "bg-white/15"}`}><i className={`absolute top-[3px] size-[18px] rounded-full transition-all ${flags.ill ? "left-[19px] bg-ink" : "left-[3px] bg-fg-2"}`} /></span>
-              </button>
+              {illSig ? (
+                <div className="mt-4 rounded-[16px] border border-watch/50 bg-watch/[.08] p-4" data-testid="ill-signal">
+                  <p className="t-label !text-watch">Hodinky: možná začínající nemoc</p>
+                  <p className="mt-1 text-[12px] leading-[17px] text-fg-2">{illText(illSig)}</p>
+                  <p className="mt-3 text-[13px] font-semibold text-fg">Máte nějaké příznaky nemoci? <span className="font-normal text-fg-3">(rýma, bolest v krku, kašel, horečka, nezvyklá únava)</span></p>
+                  <YesNo value={illQ.sym} onChange={(v) => setIllQ({ sym: v, below: v ? illQ.below : null })} testid="ill-q1" />
+                  {illQ.sym && (
+                    <>
+                      <p className="mt-3 text-[13px] font-semibold text-fg">Jsou příznaky i pod krkem? <span className="font-normal text-fg-3">(horečka, bolest svalů, kašel z hrudníku, průjem)</span></p>
+                      <YesNo value={illQ.below} onChange={(v) => setIllQ({ ...illQ, below: v })} testid="ill-q2" />
+                    </>
+                  )}
+                </div>
+              ) : (
+                <button type="button" role="switch" aria-checked={flags.ill} onClick={() => toggleFlag("ill")} data-testid="ill-toggle"
+                  className={`mt-4 flex w-full items-center justify-between gap-3 rounded-[12px] border px-3 py-2.5 text-left text-[13px] transition ${flags.ill ? "border-watch/60 bg-watch/12 text-fg" : "border-white/10 text-fg-soft hover:border-white/20"}`}>
+                  <span>Jsem nemocný/á (nachlazení, horečka, střevní potíže)</span>
+                  <span className={`relative h-6 w-10 shrink-0 rounded-full transition ${flags.ill ? "bg-watch" : "bg-white/15"}`}><i className={`absolute top-[3px] size-[18px] rounded-full transition-all ${flags.ill ? "left-[19px] bg-ink" : "left-[3px] bg-fg-2"}`} /></span>
+                </button>
+              )}
+              {cycleOn && (
+                <button type="button" role="switch" aria-checked={period} onClick={() => setPeriod(!period)} data-testid="period-toggle"
+                  className={`mt-2 flex w-full items-center justify-between gap-3 rounded-[12px] border px-3 py-2.5 text-left text-[13px] transition ${period ? "border-accent/60 bg-accent/10 text-fg" : "border-white/10 text-fg-soft hover:border-white/20"}`}>
+                  <span>Dnes mi začala menstruace</span>
+                  <span className={`relative h-6 w-10 shrink-0 rounded-full transition ${period ? "bg-accent" : "bg-white/15"}`}><i className={`absolute top-[3px] size-[18px] rounded-full transition-all ${period ? "left-[19px] bg-ink" : "left-[3px] bg-fg-2"}`} /></span>
+                </button>
+              )}
             </div>
             {/* step 2 — where it hurts (only asked when pain > 0) */}
             <div className={step === 2 ? "" : "hidden"}>
@@ -1980,6 +1960,25 @@ function AtlasBubble() {
         </div>
       )}
     </>
+  )
+}
+// v0.12.0 — the watch's illness signal in words (screening.illSignal)
+function illText(sig: any): string {
+  const last = sig?.nights?.[sig.nights.length - 1] || {}
+  const k: string[] = sig?.kinds || []
+  const bits = [k.includes("rhr") && last.rhr != null ? `klidový tep ${Math.round(last.rhr)} (obvykle ${Math.round(last.rhrNorm)})` : null,
+    k.includes("resp") && last.resp != null ? `dech ve spánku ${String(last.resp).replace(".", ",")}/min (obvykle ${String(last.respNorm).replace(".", ",")})` : null].filter(Boolean)
+  const two = sig?.since !== last.d
+  return `${two ? "Dvě noci po sobě" : "Dnes v noci"} ${bits.length ? bits.join(" a ") : "vyšší hodnoty než obvykle"}. Bývá to první známka nemoci, ale i únavy, alkoholu nebo horka.`
+}
+function YesNo({ value, onChange, testid }: { value: boolean | null; onChange: (v: boolean) => void; testid?: string }) {
+  return (
+    <div className="mt-2 grid grid-cols-2 gap-2" data-testid={testid}>
+      {([[true, "Ano"], [false, "Ne"]] as const).map(([v, l]) => (
+        <button key={l} type="button" onClick={() => onChange(v)} aria-pressed={value === v}
+          className={`rounded-[12px] border px-3 py-2 text-[13px] font-bold transition ${value === v ? "border-accent bg-accent/15 text-fg" : "border-white/[.1] bg-white/[.03] text-fg-2 hover:border-white/25"}`}>{l}</button>
+      ))}
+    </div>
   )
 }
 function SwitchRow({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) {

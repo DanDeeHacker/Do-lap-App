@@ -55,8 +55,11 @@ from bisect import bisect_left
 from datetime import date, timedelta
 from functools import lru_cache
 
+from . import cycle as CY
 from . import data as D
 from . import engine as E
+from . import runner_factors as RF
+from . import speed as SP
 from . import terrain
 
 CHANNELS = {
@@ -76,8 +79,14 @@ CHANNELS = {
     # 30-min session at RPE 4 / two a week (working assumptions).
     "strength": {"label": "Silová zátěž", "unit": "sRPE·min", "dec": 0, "w": 0.5, "grade": "C",
                  "floor_s": 120.0, "floor_w": 240.0},
+    # v0.12.0 — high-speed running (≥ 1.10 × critical speed, speed.py): spikes in it
+    # preceded hamstring injuries (Duhig et al., 2016), regular exposure protected (Malone
+    # et al., 2017). Floors = a short session of fast reps (2 min) / two a week (working
+    # assumptions); low weight, the evidence comes from team sports (grade C).
+    "speed": {"label": "Rychlost", "unit": "min rychle", "dec": 1, "w": 0.5, "grade": "C",
+              "floor_s": 2.0, "floor_w": 4.0},
 }
-RUN_CHANNELS = ("volume", "intensity", "descent", "ascent")
+RUN_CHANNELS = ("volume", "intensity", "speed", "descent", "ascent")
 # v0.10.5 (feedback railway#192) — hard minutes are cardiovascular work in any sport: a
 # cycling or swimming session's minutes in Z4+, against that sport's own heart-rate max
 # (engine.sport_hr_max), go into Intenzita too — the weekly load, the per-session
@@ -96,7 +105,7 @@ JUMP_UNCONFIRMED = 0.5  # …and afterwards counts fully only when a pain-free r
 READINESS_FLOOR = 0.7
 Z4_HRR = 0.80           # Z4 starts at 80 % heart-rate reserve (Karvonen)
 ECC_DEFAULT = 1.16      # descent weighting without a profile ≈ a typical −5 % descent
-COMBO = (1.0, 0.5, 0.25, 0.25, 0.25, 0.25)
+COMBO = (1.0, 0.5, 0.25, 0.25, 0.25, 0.25, 0.25)
 # Feedback railway#100 — load is absorbed night by night instead of vanishing when a
 # run leaves the 7-day window. Half-lives (in nights) are the product team's working
 # assumptions, not measured values: muscles / tendons / bone (volume, descent,
@@ -112,7 +121,7 @@ ABSORB_DAYS = 42
 def _k(half):
     """Share absorbed per night for a half-life in nights."""
     return 1 - 0.5 ** (1 / half)
-TOP_N = {"intensity": 3}   # per-run capacity = mean of the N largest tolerated sessions (else the max)
+TOP_N = {"intensity": 3, "speed": 3}   # per-run capacity = mean of the N largest tolerated sessions (else the max)
 ZONES = (("Z1", 0.50, 0.60), ("Z2", 0.60, 0.70), ("Z3", 0.70, 0.80), ("Z4", 0.80, 0.90), ("Z5", 0.90, 1.00))
 # v0.9.0 — with a measured lactate-threshold heart rate (profile) the zones follow it
 # instead of a percentage of heart-rate reserve from an estimated maximum: running
@@ -433,9 +442,10 @@ def run_exposures(db, rid, hrmax, rhr):
                     # v0.8.4: heat flag and the grade-adjusted (flat-equivalent) speed
                     "hot": E.hot_run(a), "gSpeed": (E._speed_ms(a) or 0) * E.grade_factor(a) if run else None})
     segs = {st.activity_id: st.segments_json for st in data.streams if st.segments_json}
+    since = (E.today_date() - timedelta(days=ITEMS_LOOKBACK)).isoformat()
     if segs:
-        since = (E.today_date() - timedelta(days=ITEMS_LOOKBACK)).isoformat()
         add_pace_intensity(out, segs, hrmax, rhr, lthr, since)
+    SP.add_speed(out, segs, since)         # v0.12.0: critical speed, threshold work, Rychlost
     return out
 
 
@@ -1000,6 +1010,16 @@ def readiness_inputs(db, rid, day: str) -> dict:
     hab = sleep_habit(dm_all, d0)
     if hab:
         out["sleepHabit"] = hab
+    mj = getattr(data.runner, "menstrual_json", None) if data.runner is not None else None
+    if getattr(data.runner, "sex", None) == "f" and CY.tracking(mj):
+        ph = CY.phase_on(mj, d0)
+        if ph:
+            base_all = rows(*READY_BASE)
+            sh = {k: CY.shift(mj, d0, base_all, f, lambda v, f=f: _ln_hrv(f, v)) for k, f in (("hrv", "hrv_ms"), ("rhr", "resting_hr"))}
+            out["cycle"] = {**ph, "next": CY.next_start(mj, d0),
+                            "rhrShift": round(sh["rhr"][0], 1) if sh["rhr"] else None,
+                            "hrvShiftPct": round((math.exp(sh["hrv"][0]) - 1) * 100) if sh["hrv"] else None,
+                            "source": (sh["rhr"] or sh["hrv"] or (None, None))[1]}
     cks = [c for c in data.checkins if day <= c.submitted_at < day + "T99"]
     if cks:
         c = max(cks, key=lambda x: x.submitted_at or "")
@@ -1107,6 +1127,8 @@ def readiness_by_day(db, rid, days) -> dict:
     from . import reference as REF
     pri = {f: E.recovery_priors(f, data) for f in REF.RECOVERY_FIELDS}
     wk_min = READY_WEEK_MIN["trained" if trained_runner(data, rid, days[-1]) else "rec"]
+    mj = getattr(data.runner, "menstrual_json", None) if data.runner is not None else None
+    mj_track = getattr(data.runner, "sex", None) == "f" and CY.tracking(mj)
     out = {}
     for day in days:
         d0 = _d(day)
@@ -1114,6 +1136,19 @@ def readiness_by_day(db, rid, days) -> dict:
         week_rows = [dm[k] for k in ((d0 - timedelta(days=j)).isoformat() for j in range(0, 7)) if k in dm]
         parts = {}
         night = dm.get(day)
+        # v0.12.0 — the menstrual cycle (opt-in, cycle.py): HRV and resting HR against the
+        # norm of the same phase — the night's values are moved by the phase's offset
+        csh = {}
+        if mj_track:
+            for fld in ("hrv_ms", "resting_hr"):
+                sh = CY.shift(mj, d0, base_rows, fld, lambda v, f=fld: _ln_hrv(f, v))
+                if sh:
+                    csh[fld] = sh[0]
+
+        def adj(fld, v):
+            if v is None or fld not in csh:
+                return v
+            return v * math.exp(-csh[fld]) if fld == "hrv_ms" else v - csh[fld]
         # Plan phase 1: with population priors, HRV and resting HR are judged against
         # the runner's individualised reference range, from the 3rd baseline night on
         # (the plain mean/SD needs 14). HRV on the log scale.
@@ -1124,13 +1159,13 @@ def readiness_by_day(db, rid, days) -> dict:
                 bvals = [getattr(b, fld) for b in base_rows if getattr(b, fld) is not None]
                 if not pr or len(bvals) < 3:
                     continue
-                x = getattr(night, fld)
+                x = adj(fld, getattr(night, fld))
                 zn = REF.recovery_deviation(fld, bvals, x, pr) if x is not None else None
                 wv = [getattr(b, fld) for b in week_rows if getattr(b, fld) is not None]
                 zw = None
                 if len(wv) >= wk_min:
                     wm = E.mean([REF._t(fld, v) for v in wv if REF._t(fld, v) is not None])
-                    back = math.exp(wm) if pr["log"] else wm
+                    back = adj(fld, math.exp(wm) if pr["log"] else wm)
                     zw = REF.recovery_deviation(fld, bvals, back, pr)
                 zover[fld] = (zn[0] if zn else None, zw[0] if zw else None)
         if night is not None and zover and len(base_rows) < 14:
@@ -1144,11 +1179,11 @@ def readiness_by_day(db, rid, days) -> dict:
                     base[fld] = (E.mean(vals), E.sd(vals) or 0.0)
             wk = {}
             for fld in ("hrv_ms", "resting_hr"):
-                vals = [v for v in (_ln_hrv(fld, getattr(b, fld)) for b in week_rows) if v is not None]
+                vals = [v for v in (_ln_hrv(fld, adj(fld, getattr(b, fld))) for b in week_rows) if v is not None]
                 if len(vals) >= wk_min:
                     wk[fld] = E.mean(vals)
             wk.update(_sleep_window(dm, d0))
-            parts = readiness_parts({f: _ln_hrv(f, getattr(night, f)) for f in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency")},
+            parts = readiness_parts({f: _ln_hrv(f, adj(f, getattr(night, f))) for f in ("hrv_ms", "resting_hr", "sleep_h", "sleep_efficiency")},
                                     wk, base, zover)
         ds = day_stress_part(dm, d0)
         if ds:
@@ -1568,7 +1603,7 @@ def underconditioning(sessions, today, first_day: str) -> dict | None:
 #     of the pre-injury week, no hard minutes for 14 days), the same numbers the plan uses.
 # The systemic channel (all-sport HR load) and strength are not touched: cross-training
 # stays available. Sessions are judged by the state the day before (before the run).
-RUN_CH = ("volume", "intensity", "descent", "ascent")
+RUN_CH = ("volume", "intensity", "speed", "descent", "ascent")
 BODY_PAIN_OVER = 5
 BODY_STEP = 0.75
 BODY_INTENSITY_SHARE = 0.5
@@ -1607,7 +1642,7 @@ def body_state(data, rid, day: str) -> dict:
         if pmon.get("trend") is not None or (ep["ref"] or 0) > BODY_PAIN_OVER:
             kind = "painOver"
             for ch in RUN_CH:
-                share = BODY_INTENSITY_SHARE if ch == "intensity" else 1.0
+                share = BODY_INTENSITY_SHARE if ch in ("intensity", "speed") else 1.0
                 factor[ch] = 1 - (1 - BODY_STEP) * lvl * share
             why = "roste týden od týdne" if pmon.get("trend") is not None else f"{ep['ref']}/10"
             reasons.append(f"bolest {site} ({why}) nad hranicí sledování bolesti, kapacita ×{E.cz_text(str(round(factor['volume'], 2)))}")
@@ -1619,7 +1654,7 @@ def body_state(data, rid, day: str) -> dict:
     if rtr:
         kind = kind or "return"
         if rtr.get("noQuality"):
-            factor["intensity"] = 0.0
+            factor["intensity"] = factor["speed"] = 0.0
         reasons.append(f"návrat po zranění, {rtr['week']}. týden ({round(rtr['factor'] * 100)} % týdne před zraněním)")
     return {"factor": factor, "hold": hold, "score": {ch: max(f, BODY_SCORE_FLOOR) for ch, f in factor.items()},
             "kind": kind, "reasons": reasons, "site": site, "rtr": rtr}
@@ -1656,8 +1691,16 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
     if under:
         shrink *= under["factor"] * (UNDER_WITH_INJURY if frailty > 1.0 else 1.0)
         under["withInjury"] = frailty > 1.0
+    # v0.12.0 — the first year of regular running (profile) and a new kind of shoe
+    prof = runner if runner is not None else db.runner
+    exper = RF.experience(prof, today)
+    if exper:
+        shrink *= exper["factor"]
+    shoes = RF.shoe_state(db.shoes, prof, today)
     shrink = max(shrink, SHRINK_MIN)
     m_s, m_w = MARGIN_SESSION * shrink, MARGIN_WEEK * shrink
+    # the shoe transition narrows only the running channels' margins
+    ch_m = {ch: (max(shrink * shoes["factor"], SHRINK_MIN) / shrink if ch in RUN_CH else 1.0) for ch in CHANNELS}
     recent_days = [(today - timedelta(days=k)).isoformat() for k in range(0, 28)]
     absorb_days = [(today - timedelta(days=k)).isoformat() for k in range(ABSORB_DAYS - 1, -1, -1)]   # oldest → today
     ready = readiness_by_day(db, rid, absorb_days)
@@ -1711,6 +1754,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
     active_days = {s["date"] for s in sessions}
     since = (today - timedelta(days=ITEMS_LOOKBACK)).isoformat()
     for ch, spec in CHANNELS.items():
+        ms_c, mw_c = m_s * ch_m[ch], m_w * ch_m[ch]
         pool = (sessions if ch == "systemic" else strength_pool if ch == "strength"
                 else cardio_pool if ch == "intensity" else runs_pool)
         items = channel_items(pool, ch, pain, tol, reports, active_days, since)
@@ -1737,7 +1781,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             r = v / (cap * rd * b["score"][ch])
             if age <= 6:
                 left = absorbed_left(rates, s["date"], t_iso, absorb_days)
-                p = band_points(r, m_s * b["hold"][ch]) * left
+                p = band_points(r, ms_c * b["hold"][ch]) * left
                 if worst is None or p > worst_p or (p == worst_p and (worst_r is None or r > worst_r)):
                     worst_p, worst_r = p, r
                     worst = {"id": s["id"], "ratio": round(r, 2), "value": _fmt(v, ch), "cap": _fmt(cap, ch), "date": s["date"],
@@ -1776,12 +1820,12 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             cap_peak *= capw / cap_base          # a return-to-run cap scales the peak the same way
         if capw is not None:
             rw = resid_w / ((cap_peak or capw) * wk_ready_c * wk_bscore)
-            p_w = band_points(rw, m_w * wk_hold)
+            p_w = band_points(rw, mw_c * wk_hold)
             # the ceiling is exactly where the weekly score starts: capacity × the
             # week's average readiness × (1 + margin) — not today's readiness, so
             # the weekly picture doesn't jump with one night's sleep; pain / injury
             # (v0.10.0) likewise by the week's average
-            ceil_w = capw * (1 + m_w * wk_hold) * wk_ready_c * wk_bfac
+            ceil_w = capw * (1 + mw_c * wk_hold) * wk_ready_c * wk_bfac
             week = {"now": _fmt(now_w, ch), "residual": _fmt(resid_w, ch), "cap": _fmt(capw, ch), "ratio": round(rw, 2),
                     "capPeak": _fmt(cap_peak, ch) if cap_peak is not None else None,
                     "ceiling": _fmt(ceil_w, ch), "left": _fmt(max(0.0, ceil_w - now_w), ch)}
@@ -1806,7 +1850,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             week7.sort(key=lambda x: (x["date"], str(x["id"])))
         if with_history:
             hist_ch[ch] = _history_rows(pool, ch, items, rates, ready, daily, first_day, pain, today, t_iso,
-                                        absorb_days, m_s, m_w, body_before)
+                                        absorb_days, ms_c, mw_c, body_before)
         # --- today's per-run ceiling (capacity from everything before today)
         cap_today = session_capacity(items, (today + timedelta(days=1)).isoformat(), ch)
         # --- the latest jump (plan B1) that doesn't count fully yet: held for
@@ -1828,16 +1872,17 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         channels[ch] = {
             "label": spec["label"], "unit": spec["unit"], "grade": spec["grade"], "weight": spec["w"],
             "session": worst, "week": week,
-            "ceilingToday": (_fmt(cap_today * (1 + m_s * b_today["hold"][ch]) * r_today_c * b_today["factor"][ch], ch)
+            "ceilingToday": (_fmt(cap_today * (1 + ms_c * b_today["hold"][ch]) * r_today_c * b_today["factor"][ch], ch)
                              if cap_today is not None else None),
             "readinessFactor": round(r_today_c, 3),
             "body": ({"factor": round(b_today["factor"][ch], 3), "hold": round(b_today["hold"][ch], 3),
                       "kind": b_today["kind"], "reasons": b_today["reasons"]} if b_touch else None),
             "capSession": _fmt(cap_today, ch) if cap_today is not None else None,
             # the per-run ceiling on a normally recovered day — "this week", not scaled by today's readiness
-            "ceilingSession": _fmt(cap_today * (1 + m_s), ch) if cap_today is not None else None,
+            "ceilingSession": _fmt(cap_today * (1 + ms_c), ch) if cap_today is not None else None,
             "latent": {"pts": round(latent[0], 1), "date": latent[1], "ratio": latent[2], "id": latent[3]} if latent[0] else None,
             "pendingJump": pending, "weekSources": week_src, "week7": week7,
+            "margins": {"session": round(ms_c, 3), "week": round(mw_c, 3)},
             "raw": round(raw, 1), "driver": driver, "known": worst is not None or week is not None or cap_today is not None,
             "exact": {"rs": worst_r, "rw": rw, "lat": latent[0], "left": worst["left"] if worst else 1.0,
                       "hs": worst.pop("_hold", 1.0) if worst else 1.0, "hw": wk_hold},
@@ -1876,7 +1921,8 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             detail = (f"Doznívá skok ×{lt['ratio']} z {_cz(lt['date'])} — riziko vrcholí 1–4 týdny po prudkém nárůstu.")
         name = {"volume": "Objem nad kapacitou", "intensity": "Intenzita nad kapacitou",
                 "descent": "Klesání nad kapacitou", "ascent": "Stoupání nad kapacitou",
-                "systemic": "Celková zátěž nad kapacitou", "strength": "Silová zátěž nad kapacitou"}[ch]
+                "systemic": "Celková zátěž nad kapacitou", "strength": "Silová zátěž nad kapacitou",
+                "speed": "Rychlost nad kapacitou"}[ch]
         signals.append({"id": f"cap_{ch}", "name": name, "grade": spec["grade"], "pts": pts, "val": E.cz_text(val),
                         "detail": E.cz_text(detail)})
     week7 = [s for s in cardio_pool if 0 <= (today - _d(s["date"])).days < 7 and s.get("zoneMin")]
@@ -1899,7 +1945,10 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         "score": total, "signals": signals, "channels": channels, "zones7d": zone7,
         "readiness": readiness,
         "margins": {"session": round(m_s, 3), "week": round(m_w, 3), "frailty": round(frailty, 2),
-                    "underconditioned": under},
+                    "underconditioned": under, "experience": exper,
+                    "runSession": round(m_s * ch_m["volume"], 3), "runWeek": round(m_w * ch_m["volume"], 3)},
+        "shoes": shoes,
+        "criticalSpeed": SP.cs_summary(sessions, {st.activity_id: st.segments_json for st in db.streams if st.segments_json}, t_iso),
         "zones": hr_zones(hrmax, rhr, getattr(runner, "threshold_hr", None) if runner else None),
         "zoneBasis": "lthr" if (runner is not None and getattr(runner, "threshold_hr", None)
                                 and rhr < runner.threshold_hr < hrmax) else "hrr", "hrMax": E.rnd(hrmax), "hrRest": E.rnd(rhr),

@@ -96,6 +96,14 @@ class Runner(Base):
     # Trénink: the runner's own pick of this week's place in the 4-week cycle —
     # {"week": Monday ISO, "pos": 1–4}; only applies to that calendar week.
     cycle_override = Column(JSON)
+    # v0.12.0 — asked before the getting-started checklist (profile gate). Running
+    # experience: the ISO date the runner started running regularly (novices < 12 months
+    # get narrower load margins, Videbæk et al. 2015); body mass (shoe transition rule,
+    # Fuller et al. 2017); the menstrual cycle, opt-in for women: {"track", "hormonal",
+    # "length", "starts": [ISO …]} (cycle-aware readiness, Schmalenberger et al. 2019).
+    running_since = Column(String)
+    weight_kg = Column(Float)
+    menstrual_json = Column(JSON)
 
 
 class Integration(Base):
@@ -283,6 +291,7 @@ class DailyMetric(Base):
     rest_mild_min = Column(Float)
     rest_high_min = Column(Float)
     rest_hr_med = Column(Float)
+    resp_rate = Column(Float)         # v0.12.0 — breaths/min while asleep (illness signal with resting HR)
     source = Column(String, default="garmin")
     original_sleep_h = Column(Float)
     edited_at = Column(String)
@@ -318,6 +327,29 @@ class ReportNote(Base):
     notes = Column(JSON)             # {card: text} that passed the validator
     rejected = Column(JSON)          # {card: issues} — the rule-based text was shown instead
     created_at = Column(String)
+
+
+class Shoe(Base):
+    """v0.12.0 — the runner's running shoes (profile → Obuv). Brand / model / category
+    are standardised (recognised from a photo by the AI or typed in); `first_used` is
+    typed or taken from a picked run. A new shoe of a different kind (minimal, carbon
+    racing, a much lower drop) opens a transition window that narrows the margins of the
+    tissues it loads more (Fuller et al. 2017); two or more shoes in use = rotation,
+    shown as protective (Malisoux et al. 2015)."""
+    __tablename__ = "shoes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    brand = Column(String, nullable=False)
+    model = Column(String, nullable=False)
+    category = Column(String)          # daily | cushioned | stability | racing | minimal | trail | track
+    drop_mm = Column(Float)
+    stack_mm = Column(Float)
+    carbon = Column(Boolean, default=False)
+    first_used = Column(String)        # ISO date
+    first_activity_id = Column(Integer)   # the run the first use was taken from (if picked)
+    retired_at = Column(String)
+    source = Column(String)            # photo | manual
+    created_at = Column(String, nullable=False)
 
 
 class Checkin(Base):

@@ -46,6 +46,7 @@ from datetime import date, timedelta
 from . import capacity as C
 from . import data as D
 from . import engine as E
+from . import speed as SP
 from . import weather as W
 
 TYPES = ("volno", "regenerace", "lehký", "dlouhý", "kvalitní")
@@ -73,6 +74,10 @@ HARD_Z4_MIN = 10        # a run with ≥ 10 min in Z4+ counts as a hard session
 # them (Seiler 2010, "session goal approach"): a run rated RPE ≥ 7 that is no
 # longer than 75 min counts as hard as well (a long run rated 7 doesn't).
 HARD_RPE, HARD_RPE_MAX_MIN = 7, 75
+# v0.12.0 — ≥ 20 min of threshold work (0.90–1.00 × critical speed) delays cardiac
+# autonomic recovery by 24–48 h like a hard session (Stanley et al., 2013), so it counts
+# as one for the spacing of hard days (speed.py)
+HARD_THR_MIN = 20
 # At most 2–3 hard sessions a week within a hard-day / easy-day pattern (Seiler
 # 2010, Casado et al. 2022); 2 for runners with ≤ 4 runs a week (working assumption).
 HARD_CAP_FEW, HARD_CAP = 2, 3
@@ -144,9 +149,21 @@ def _cz(v, dec=1):
     return "—" if v is None else f"{round(v, dec):.{dec}f}".replace(".", ",") if dec else str(round(v))
 
 
+def _ill_what(sig) -> str:
+    """"<what> <when>" — two parts, each its own dictionary entry for the English UI."""
+    k = sig.get("kinds") or []
+    two = sig["since"] != sig["nights"][-1]["d"]
+    what = ("zvýšený klidový tep i dech" if len(k) == 2 else "zvýšený klidový tep" if k == ["rhr"]
+            else "zvýšenou dechovou frekvenci ve spánku")
+    return what, ("dvě noci po sobě" if two else "v noci")
+
+
 def is_hard(s) -> bool:
-    """A hard session: ≥ HARD_Z4_MIN min in Z4+, or rated RPE ≥ 7 when not a long run."""
+    """A hard session: ≥ HARD_Z4_MIN min in Z4+, ≥ HARD_THR_MIN min of threshold work
+    just below critical speed (v0.12.0), or rated RPE ≥ 7 when not a long run."""
     if (s["exp"].get("intensity") or 0) >= HARD_Z4_MIN:
+        return True
+    if (s.get("thrMin") or 0) >= HARD_THR_MIN:
         return True
     return (s.get("rpe") or 0) >= HARD_RPE and 0 < (s.get("durationMin") or 999) <= HARD_RPE_MAX_MIN
 
@@ -737,6 +754,11 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     morning, ptrend = pmon.get("morningWorse"), pmon.get("trend")
     scr = a.get("screening") or {}               # v0.8.4 — red flags, bone stress, bone pain, illness
     red, bstress, bpain, ill = scr.get("redFlag"), scr.get("boneStress"), scr.get("bonePain"), scr.get("ill")
+    # v0.12.0 — the "neck check": reported symptoms only above the neck (asked when the watch
+    # flagged an illness) allow a short easy run; below the neck or not asked → rest
+    ill_light = bool(ill) and ill.get("systemic") is False
+    ill_sig = scr.get("illSignal")
+    ill_watch = bool(ill_sig) and not ill                     # flagged, no symptoms reported (or no answer)
     cluster = a.get("cluster")
     acute_mod = bool(acute) and 2 <= acute["daysSince"] <= 3
     pain_mod = (3 <= pain <= 5 or (rec_active and pain <= 5) or (bool(func) and not func["severe"])
@@ -948,6 +970,13 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if ill and not override:
         for k in ("dlouhý", "kvalitní", "posilování"):
             block(k, "Hlásíte nemoc — dnes bez náročného tréninku.")
+        if ill_light:
+            types["regenerace"]["notes"].insert(0, "Příznaky jen nad krkem: nanejvýš krátce a velmi volně, a jen když "
+                                                   "se při tom cítíte dobře.")
+    if ill_watch and not override:
+        what, when = _ill_what(ill_sig)
+        for k in ("kvalitní", "dlouhý"):
+            block(k, f"Hodinky ukazují {what} {when} — dnes bez náročného tréninku, než se ukáže, jestli nejde o nemoc.")
     if pain > 5 and not override:
         for k in ("lehký", "dlouhý", "kvalitní"):
             block(k, f"Bolest {pain}/10 — dnes jen velmi volně nebo jiný sport bez bolesti.")
@@ -977,6 +1006,12 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         types["kvalitní"]["notes"].append(msg)
         for k in ("lehký", "dlouhý", "regenerace"):
             types[k]["notes"].append("V horku je tep při stejném tempu vyšší — držte se tepového rozmezí, ne tempa.")
+    nsw = SP.no_speed_weeks(sessions, today)
+    if nsw and not novice and "lehký" in types:
+        types["lehký"]["notes"].append("Poslední 4 týdny žádný rychlý úsek. Pokud jste neběželi ani rovinky, přidejte po "
+                                      "lehkém běhu 4–6 stupňovaných rovinek po 15–20 s (ne naplno): pravidelný kontakt "
+                                      "s rychlostí chrání zadní stehenní svaly, prudký návrat k ní je riziko (Malone et al., "
+                                      "2017; Duhig et al., 2016).")
     if new_block:
         types["posilování"]["notes"].append(f"Nový silový blok (den {new_block['day']}): první 2–3 týdny bývají nohy "
                                             "těžké a bolavé, běh je proto o něco kratší.")
@@ -1039,8 +1074,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     runs_last6 = sum(1 for k in range(1, 7) if vol_daily.get((today - timedelta(days=k)).isoformat()))
     if race_today and not override:
         typ = "závod"
-    elif override or race_rest or bone_block or ill:
+    elif override or race_rest or bone_block or (ill and not ill_light):
         typ = "volno"
+    elif ill_light:
+        typ = "regenerace" if types["regenerace"]["allowed"] else "volno"
     elif pain > 5:
         typ = "regenerace"
     elif gscore < READY_EASY_ONLY:
@@ -1101,9 +1138,18 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         reasons.append(f"Bolest {bpain['pain']}/10 · {bpain['site']}: u kosti se návrat k běhu řídí úplnou absencí bolesti, "
                        "proto dnes bez běhu. Kolo nebo plavání jen bez bolesti."
                        + (" Bolest se v posledních dvou týdnech vrací, nechte ji posoudit fyzioterapeutem." if bpain["repeated"] else ""))
+    elif ill and ill_light:
+        reasons.append("Hlásíte příznaky jen nad krkem (rýma, škrábání v krku) — nanejvýš krátký volný běh bez "
+                       "intenzity, a jen když se při tom cítíte dobře. Kdyby přišla horečka nebo bolest svalů, odpočinek.")
     elif ill:
-        reasons.append("Hlásíte nemoc — dnes odpočinek. Lehký pohyb jen tehdy, když se cítíte dobře, a k tréninku se "
-                       "vraťte postupně.")
+        reasons.append("Hlásíte nemoc — dnes odpočinek. Při horečce, bolesti svalů nebo kašli z hrudníku netrénujte, "
+                       "k tréninku se vraťte postupně až den po odeznění horečky.")
+    elif ill_watch:
+        what, when = _ill_what(ill_sig)
+        reasons.append(f"Hodinky ukazují {what} {when} — bývá to první známka nemoci, ale i únavy, alkoholu "
+                       "nebo horka. Dnes jen lehce a bez intenzity; "
+                       + ("v check-inu jste žádné příznaky nehlásili, zítra se to ukáže." if ill_sig.get("answer") == "none"
+                          else "check-in se zeptá na příznaky."))
     elif pain > 5:
         reasons.append(f"Bolest {pain}/10{f' · {pain_site}' if pain_site else ''} — dnes jen velmi volně nebo jiný sport, "
                        "který nebolí. Pokud potrvá, proberte ji s fyzioterapeutem.")
@@ -1175,6 +1221,17 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         reasons.append(f"Dnes pocitově až {heat['feelsMax']} °C a za posledních 14 dní jste v horku běželi {heat['hot14']}× — "
                        "tep bude vyšší než obvykle, to není ztráta kondice. Řiďte se tepem, ne tempem"
                        + (", kvalitu raději v chladnější části dne." if heat["stage"] == "new" else "."))
+    shoe_tr = ((cap or {}).get("shoes") or {}).get("transition")
+    if shoe_tr and not override and typ not in ("volno", "kolo", "voda"):
+        why_s = {"minimal": "minimalistická bota",
+                 "drop": (f"nižší drop ({_cz(shoe_tr['dropFrom'], 0)} → {_cz(shoe_tr['dropTo'], 0)} mm)"
+                          if shoe_tr.get("dropFrom") is not None else f"nízký drop ({_cz(shoe_tr['dropTo'], 0)} mm)"),
+                 "carbon": "závodní bota s karbonovou deskou"}[shoe_tr["kind"]]
+        reasons.append(f"Nová obuv {shoe_tr['name']} ({why_s}) od {_dm(shoe_tr['since'])}: lýtka, Achillovy šlachy a chodidla "
+                       f"si na ni zvykají, proto jsou do {_dm(shoe_tr['until'])} rezervy na běh užší. Střídejte ji s dosavadní "
+                       "obuví a začněte kratšími běhy"
+                       + (" — při vyšší hmotnosti je přechod rizikovější (Fuller et al., 2017)." if shoe_tr.get("heavy") else
+                          " (Fuller et al., 2017)." if shoe_tr["kind"] != "carbon" else "."))
     if new_block and not override:
         reasons.append(f"Nový silový blok od {_dm(new_block['since'])}: první 2–3 týdny bývají nohy těžké, běh je proto "
                        "o desetinu kratší (Rønnestad & Mujika, 2014).")

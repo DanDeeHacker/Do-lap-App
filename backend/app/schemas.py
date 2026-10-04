@@ -43,6 +43,7 @@ class CheckinRequest(Lenient):
     life_stress: Optional[int] = None
     sleep_quality: Optional[int] = None
     flags: Optional[dict[str, Any]] = None
+    period_start: Optional[bool] = None      # v0.12.0 — "my period started today" (cycle tracking)
 
 
 class ExcludeActivityRequest(Lenient):

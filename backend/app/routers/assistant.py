@@ -173,6 +173,18 @@ def ops_llm_check(model: str | None = None, embed_model: str | None = None):
     return _llm_check(model, embed_model)
 
 
+@router.post("/api/assistant/ops/shoe-check", dependencies=[Depends(require_feedback_token)])
+def ops_shoe_check(body: dict):
+    """v0.12.0 — the shoe recogniser on a test photo (operator token; nothing stored)."""
+    from .. import shoes as S
+    img = S.check_image((body or {}).get("image"))
+    if not img:
+        raise HTTPException(422, "Neplatný obrázek")
+    out = S.recognise(img)
+    out["lastError"] = llm.LAST_ERROR.get("vision") if not out.get("ok") else None
+    return out
+
+
 @router.get("/api/assistant/admin/retrieval-eval")
 def admin_retrieval_eval(embed_model: str | None = None, user: models.User = Depends(get_current_user),
                          db: DBSession = Depends(get_db)):

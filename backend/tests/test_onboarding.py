@@ -7,14 +7,26 @@ def test_new_runner_checklist_ticks_off_and_can_be_dismissed(client, db_session)
     rid = register(client, "onb1@test.cz", "Nová Běžkyně", "runner").json()["runner_id"]
     ob = client.get(f"/api/runners/{rid}/onboarding").json()
     assert ob["active"] and not ob["dismissed"] and not ob["completed"]
-    assert [s["id"] for s in ob["steps"]] == ["data", "profile", "tutorial"] and not any(s["done"] for s in ob["steps"])
+    assert [s["id"] for s in ob["steps"]] == ["data", "tutorial"] and not any(s["done"] for s in ob["steps"])
+    # v0.12.0: the profile is asked before the checklist, not a step of it
+    assert ob["profileMissing"] == ["birth_year", "sex", "running_since"]
 
-    # profile = birth year + sex; data = a connected source or any imported data
+    # data = a connected source or any imported data
     assert client.patch(f"/api/runners/{rid}", json={"patch": {"birth_year": 1990, "sex": "f"}}).status_code == 200
     db_session.add(models.DailyMetric(runner_id=rid, date="2026-09-01", sleep_h=7.0))
     db_session.commit()
     ob = client.get(f"/api/runners/{rid}/onboarding").json()
-    assert [s["done"] for s in ob["steps"]] == [True, True, False]
+    assert [s["done"] for s in ob["steps"]] == [True, False] and ob["profileMissing"] == ["running_since"]
+    r = client.patch(f"/api/runners/{rid}", json={"patch": {"running_since": "2026-03", "weight_kg": "61,5",
+                                                            "menstrual_json": {"track": True, "length": 30, "starts": ["2026-09-01"]}}})
+    assert r.status_code == 200 and r.json()["running_since"] == "2026-03-01" and r.json()["weight_kg"] == 61.5
+    assert r.json()["menstrual_json"]["length"] == 30
+    assert client.get(f"/api/runners/{rid}/onboarding").json()["profileMissing"] == []
+    assert client.patch(f"/api/runners/{rid}", json={"patch": {"sex": "x"}}).status_code == 422
+    assert client.patch(f"/api/runners/{rid}", json={"patch": {"weight_kg": 500}}).status_code == 422
+    # a man's profile keeps no cycle data
+    r = client.patch(f"/api/runners/{rid}", json={"patch": {"sex": "m"}})
+    assert r.json()["menstrual_json"] is None
 
     assert client.post(f"/api/runners/{rid}/onboarding", json={"dismissed": True}).json()["dismissed"] is True
     ob = client.post(f"/api/runners/{rid}/onboarding", json={"tutorialDone": True}).json()

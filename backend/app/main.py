@@ -23,7 +23,7 @@ from .deps import is_owner, tutorial_demo_runner_id
 from .metrics import engine as E
 from .routers import (
     admin, ai, annotations, auth, booking, coach, conclusions, employers, integrations, partners, physios, programs, rtr,
-    runners, self_programs, simulate, triage, assistant,
+    runners, self_programs, shoes, simulate, triage, assistant,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -115,6 +115,11 @@ def _migrate(engine):
     add("annotations", "approved_at", "approved_at VARCHAR")
     # British English: the account's language (UI and AI assistant)
     add("users", "lang", "lang VARCHAR", "UPDATE users SET lang = 'cs' WHERE lang IS NULL")
+    # v0.12.0 — profile gate (experience, body mass, menstrual cycle), breathing rate
+    add("runners", "running_since", "running_since VARCHAR")
+    add("runners", "weight_kg", "weight_kg FLOAT")
+    add("runners", "menstrual_json", "menstrual_json JSON")
+    add("daily_metrics", "resp_rate", "resp_rate FLOAT")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.
@@ -409,6 +414,7 @@ async def audit_access(request, call_next):
 
 app.include_router(auth.router)
 app.include_router(runners.router)
+app.include_router(shoes.router)
 app.include_router(physios.router)
 app.include_router(triage.router)
 app.include_router(programs.router)

@@ -11,6 +11,7 @@ What a wrist Apple Watch export reliably carries, and what we map:
                               samples when the workout has no statistic)
   - HeartRateVariabilitySDNN→ daily_metrics.hrv_ms (the readings taken during the night first)
   - RestingHeartRate        → daily_metrics.resting_hr
+  - RespiratoryRate         → daily_metrics.resp_rate (the readings taken during the night)
   - SleepAnalysis           → daily_metrics.sleep_h, stages and efficiency, the night's detail
   - StepCount               → daily_metrics.steps
 
@@ -155,6 +156,10 @@ def build_seed_from_json(payload: dict, runner_id: str, device: str = "Apple Wat
                     val, _ = _num(pt.get("qty", pt))
                     if val is not None:
                         day(dt).setdefault("rhr", []).append(float(val))
+                elif key == "respiratory_rate":
+                    val, _ = _num(pt.get("qty", pt))
+                    if val is not None and 5 <= float(val) <= 40:
+                        day(dt).setdefault("resp", []).append(float(val))
                 elif key == "step_count":
                     val, _ = _num(pt.get("qty", pt))
                     if val is not None:
@@ -219,6 +224,8 @@ def build_seed_from_json(payload: dict, runner_id: str, device: str = "Apple Wat
             row["hrv_ms"] = round(sum(vals["hrv"]) / len(vals["hrv"]), 1)
         if vals.get("rhr"):
             row["resting_hr"] = round(sum(vals["rhr"]) / len(vals["rhr"]), 1)
+        if vals.get("resp"):
+            row["resp_rate"] = round(sorted(vals["resp"])[len(vals["resp"]) // 2], 1)
         if vals.get("steps"):
             row["steps"] = vals["steps"]
         if vals.get("sleep_h") is not None:
@@ -401,6 +408,7 @@ def build_seed(path: str, runner_id: str, device: str = "Apple Watch") -> dict:
     hr_raw: dict[str, list] = {}
     steps_b: dict[str, dict] = {}             # day → {(bucket, source): steps}
     hrv: list = []                            # (local datetime, value)
+    resp: list = []                           # (local datetime, breaths/min) — measured during sleep
     sleep: list = []                          # (source, stage, start, end)
     activities: list[dict] = []
     no_hr: list = []                          # workouts to fill from heart-rate samples
@@ -430,6 +438,8 @@ def build_seed(path: str, runner_id: str, device: str = "Apple Watch") -> dict:
                         hrv.append((datetime.strptime(_local(sd), "%Y-%m-%d %H:%M:%S"), float(el.get("value"))))
                     elif rtype == "HKQuantityTypeIdentifierRestingHeartRate":
                         day(_date(sd)).setdefault("rhr", []).append(float(el.get("value")))
+                    elif rtype == "HKQuantityTypeIdentifierRespiratoryRate":
+                        resp.append((datetime.strptime(_local(sd), "%Y-%m-%d %H:%M:%S"), float(el.get("value"))))
                     elif rtype == "HKCategoryTypeIdentifierSleepAnalysis":
                         stage = SLEEP_STAGE.get(el.get("value") or "")
                         if stage is None and "Asleep" in (el.get("value") or ""):
@@ -520,6 +530,10 @@ def build_seed(path: str, runner_id: str, device: str = "Apple Watch") -> dict:
         inside = [v for t, v in hrv if n["start"] <= t <= n["end"]]
         if inside:
             day(d)["hrv"] = inside
+        # v0.12.0 — breathing rate while asleep (the watch measures it only during sleep)
+        br = [v for t, v in resp if n["start"] <= t <= n["end"] and 5 <= v <= 40]
+        if len(br) >= 3:
+            day(d)["resp_rate"] = round(sorted(br)[len(br) // 2], 1)
 
     daily_metrics = []
     for dt, vals in sorted(daily.items()):
@@ -528,7 +542,7 @@ def build_seed(path: str, runner_id: str, device: str = "Apple Watch") -> dict:
             row["hrv_ms"] = round(sum(vals["hrv"]) / len(vals["hrv"]), 1)
         if vals.get("rhr"):
             row["resting_hr"] = round(sum(vals["rhr"]) / len(vals["rhr"]), 1)
-        for k in ("steps", "sleep_h", "deep_min", "rem_min", "light_min", "awake_min", "sleep_efficiency"):
+        for k in ("steps", "sleep_h", "deep_min", "rem_min", "light_min", "awake_min", "sleep_efficiency", "resp_rate"):
             if vals.get(k) is not None:
                 row[k] = vals[k]
         if len(row) > 2:

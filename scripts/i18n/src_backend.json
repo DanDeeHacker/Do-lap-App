@@ -1914,6 +1914,19 @@
   ]
  },
  {
+  "t": "Rychlost",
+  "files": [
+   "metrics/capacity.py"
+  ]
+ },
+ {
+  "t": "Rychlost nad kapacitou",
+  "files": [
+   "metrics/capacity.py",
+   "metrics/sensitivity.py"
+  ]
+ },
+ {
   "t": "Silová zátěž",
   "files": [
    "metrics/capacity.py"
@@ -4818,7 +4831,25 @@
   ]
  },
  {
-  "t": "Hlásíte nemoc — dnes odpočinek. Lehký pohyb jen tehdy, když se cítíte dobře, a k tréninku se vraťte postupně.",
+  "t": "Hlásíte nemoc — dnes odpočinek. Při horečce, bolesti svalů nebo kašli z hrudníku netrénujte, k tréninku se vraťte postupně až den po odeznění horečky.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Hlásíte příznaky jen nad krkem (rýma, škrábání v krku) — nanejvýš krátký volný běh bez intenzity, a jen když se při tom cítíte dobře. Kdyby přišla horečka nebo bolest svalů, odpočinek.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Hodinky ukazují {} {} — bývá to první známka nemoci, ale i únavy, alkoholu nebo horka. Dnes jen lehce a bez intenzity;",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Hodinky ukazují {} {} — dnes bez náročného tréninku, než se ukáže, jestli nejde o nemoc.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -4947,6 +4978,12 @@
  },
  {
   "t": "Nejvýš {} % týdenního rozpočtu objemu; stejnoměrně, v Z2.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Nová obuv {} ({}) od {}: lýtka, Achillovy šlachy a chodidla si na ni zvykají, proto jsou do {} rezervy na běh užší. Střídejte ji s dosavadní obuví a začněte kratšími běhy",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5087,6 +5124,12 @@
   ]
  },
  {
+  "t": "Poslední 4 týdny žádný rychlý úsek. Pokud jste neběželi ani rovinky, přidejte po lehkém běhu 4–6 stupňovaných rovinek po 15–20 s (ne naplno): pravidelný kontakt s rychlostí chrání zadní stehenní svaly, prudký návrat k ní je riziko (Malone et al., 2017; Duhig et al., 2016).",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Poslední posilování před {} dny",
   "files": [
    "metrics/guidance.py"
@@ -5166,6 +5209,12 @@
  },
  {
   "t": "Připravenost {}{} % ({} proti vaší normě) — dnešní stropy jsou úměrně nižší",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Příznaky jen nad krkem: nanejvýš krátce a velmi volně, a jen když se při tom cítíte dobře.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5375,6 +5424,12 @@
   ]
  },
  {
+  "t": "check-in se zeptá na příznaky.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "dnes byl naplánovaný den volna",
   "files": [
    "metrics/guidance.py"
@@ -5395,6 +5450,12 @@
  },
  {
   "t": "do 7 dnů",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "dvě noci po sobě",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5437,6 +5498,12 @@
   ]
  },
  {
+  "t": "minimalistická bota",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "na další běh už dnes nezbývá objem",
   "files": [
    "metrics/guidance.py"
@@ -5444,6 +5511,18 @@
  },
  {
   "t": "nižší HRV",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "nižší drop ({} → {} mm)",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "nízký drop ({} mm)",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5523,6 +5602,12 @@
   ]
  },
  {
+  "t": "v check-inu jste žádné příznaky nehlásili, zítra se to ukáže.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "v neděli",
   "files": [
    "metrics/guidance.py"
@@ -5572,6 +5657,30 @@
  },
  {
   "t": "včera",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "zvýšenou dechovou frekvenci ve spánku",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "zvýšený klidový tep",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "zvýšený klidový tep i dech",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "závodní bota s karbonovou deskou",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5697,9 +5806,21 @@
   ]
  },
  {
+  "t": "— při vyšší hmotnosti je přechod rizikovější (Fuller et al., 2017).",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "— {} při něm není zatížené",
   "files": [
    "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Norm",
+  "files": [
+   "metrics/illness.py"
   ]
  },
  {
@@ -10921,7 +11042,8 @@
    "routers/assistant.py",
    "routers/booking.py",
    "routers/coach.py",
-   "routers/runners.py"
+   "routers/runners.py",
+   "routers/shoes.py"
   ]
  },
  {
@@ -10950,6 +11072,12 @@
  },
  {
   "t": "Neplatný název modelu",
+  "files": [
+   "routers/assistant.py"
+  ]
+ },
+ {
+  "t": "Neplatný obrázek",
   "files": [
    "routers/assistant.py"
   ]
@@ -11483,7 +11611,25 @@
   ]
  },
  {
+  "t": "Délka cyklu musí být 20–45 dní",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
   "t": "Délka závodu musí být 0–300 km",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Hmotnost musí být 30–200 kg",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Hmotnost musí být číslo",
   "files": [
    "routers/runners.py"
   ]
@@ -11543,7 +11689,25 @@
   ]
  },
  {
+  "t": "Od kdy běháte: datum nesmí být v budoucnosti",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Od kdy běháte: neplatné datum",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
   "t": "Plánované tempo musí být 2:00–20:00 min/km",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Pohlaví: žena, nebo muž",
   "files": [
    "routers/runners.py"
   ]
@@ -11562,6 +11726,12 @@
  },
  {
   "t": "Report je ranní, nebo večerní",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Rok narození musí být číslo",
   "files": [
    "routers/runners.py"
   ]
@@ -11615,6 +11785,12 @@
   ]
  },
  {
+  "t": "Zkontrolujte rok narození",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
   "t": "Závod nenalezen",
   "files": [
    "routers/runners.py"
@@ -11660,6 +11836,54 @@
   "t": "Vyberte aspoň jeden cvik",
   "files": [
    "routers/self_programs.py"
+  ]
+ },
+ {
+  "t": "Bota nenalezena",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Běh nenalezen",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Datum prvního použití nesmí být v budoucnosti",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Fotku se nepodařilo načíst (JPEG, PNG nebo WebP do 4 MB)",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Neplatné datum prvního použití",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Příliš mnoho fotek za hodinu, zkuste to později",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Vyplňte značku a model boty",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Zadejte datum prvního použití, nebo vyberte běh",
+  "files": [
+   "routers/shoes.py"
   ]
  },
  {
@@ -12247,6 +12471,234 @@
   "t": "v průběhu",
   "files": [
    "seed.py"
+  ]
+ },
+ {
+  "t": "ASICS",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Allbirds",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Altra",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Brooks",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Craft",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Diadora",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Dynafit",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "HOKA",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Hylo",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Joma",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Kalenji",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Karhu",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Kiprun",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Merrell",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Mizuno",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "New Balance",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Newton",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Nike",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Norda",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "PUMA",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Reebok",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Salomon",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Saucony",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Scott",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Skechers",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "The North Face",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Topo Athletic",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Under Armour",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Veja",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Vivobarefoot",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Xero Shoes",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "každodenní",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "minimalistická",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "s vysokým tlumením",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "stabilní",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "trailová",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "tretry / dráha",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "závodní",
+  "files": [
+   "shoes.py"
   ]
  },
  {

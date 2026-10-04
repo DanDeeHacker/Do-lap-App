@@ -172,6 +172,31 @@ def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: i
         return None
 
 
+# v0.12.0 — image input (shoe recognition): the default chat model first, then the
+# catalog's vision models. VISION_MODELS (comma-separated) overrides the order.
+VISION_MODELS = [m.strip() for m in (os.environ.get("VISION_MODELS") or "").split(",") if m.strip()] or [
+    NVIDIA_MODEL, "meta/llama-4-maverick-17b-128e-instruct", "nvidia/llama-3.1-nemotron-nano-vl-8b-v1"]
+VISION_BASE_URL = (os.environ.get("VISION_BASE_URL") or NVIDIA_BASE_URL).rstrip("/")
+VISION_API_KEY = os.environ.get("VISION_API_KEY") or NVIDIA_API_KEY
+
+
+def vision(prompt: str, image_data_url: str, system: str | None = None, max_tokens: int = 300,
+           timeout: float = 45.0) -> tuple[str | None, str | None]:
+    """(reply, model) for one image + a question, trying VISION_MODELS in turn;
+    (None, None) without a key or when every model fails."""
+    if not VISION_API_KEY:
+        return None, None
+    msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": [
+        {"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": image_data_url}}]}]
+    for m in VISION_MODELS:
+        out = chat_messages(msgs, temperature=0.1, max_tokens=max_tokens, timeout=timeout, model=m,
+                            base_url=VISION_BASE_URL, api_key=VISION_API_KEY)
+        if out:
+            return out, m
+    LAST_ERROR["vision"] = LAST_ERROR.get("chat")
+    return None, None
+
+
 def chat(system: str, user: str, temperature: float = 0.25, max_tokens: int = 700, timeout: float = 60.0):
     """Returns the model's reply text, or None if no key is configured or
     the call fails for any reason (network, quota, bad response shape) —

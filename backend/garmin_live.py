@@ -196,6 +196,8 @@ def map_daily(cdate: str, summary: dict | None, sleep: dict | None, hrv: dict | 
         if eff is not None:
             row["sleep_efficiency"] = eff
         row.update(_sleep_stages(dto))
+        if dto.get("averageRespirationValue"):
+            row["resp_rate"] = _r(dto["averageRespirationValue"], 1)
     if hrv:
         avg = (hrv.get("hrvSummary") or {}).get("lastNightAvg") or (hrv.get("hrvSummary") or {}).get("weeklyAvg")
         if avg is not None:
@@ -334,6 +336,7 @@ def download_seed(garmin, activity_days: int = 180,
     sleep = _index(sleep_raw, lambda r: (r.get("values") or {}).get("totalSleepTimeInSeconds"))
     sleep_eff = _index(sleep_raw, lambda r: _sleep_eff(r.get("values") or {}))
     stages = _index(sleep_raw, lambda r: _sleep_stages(r.get("values") or {}) or None)
+    resp = _index(sleep_raw, lambda r: (r.get("values") or {}).get("respiration"))
     sleep = {d: v for d, v in sleep.items() if d >= s_iso}        # new rows only inside the normal window
 
     daily_rows = []
@@ -350,11 +353,14 @@ def download_seed(garmin, activity_days: int = 180,
         if d in sleep_eff:
             row["sleep_efficiency"] = sleep_eff[d]
         row.update(stages.get(d) or {})
+        if resp.get(d):
+            row["resp_rate"] = _r(resp[d], 1)
         if len(row) > 2:
             daily_rows.append(row)
     # stages (and efficiency) for days we already have — filled into empty fields only
-    daily_fill = [{"date": d, **(stages.get(d) or {}), **({"sleep_efficiency": sleep_eff[d]} if d in sleep_eff else {})}
-                  for d in sorted(set(stages) & set(skip_dates))]
+    daily_fill = [{"date": d, **(stages.get(d) or {}), **({"sleep_efficiency": sleep_eff[d]} if d in sleep_eff else {}),
+                   **({"resp_rate": _r(resp[d], 1)} if resp.get(d) else {})}
+                  for d in sorted((set(stages) | set(resp)) & set(skip_dates))]
 
     device = "Garmin"
     dev = _safe(garmin.get_device_last_used)
