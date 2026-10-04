@@ -12482,187 +12482,2141 @@
  {
   "t": "ASICS",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adistar",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Adios",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Adios Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Adios Pro Evo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Ambition",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Avanti",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Boston",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Evo SL",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Prime SP",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Prime X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero SL",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Takumi Sen",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adrenaline GTS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Aero Blaze",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Aero Glide",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Aero Volt",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Agility Peak",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Akasha",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Allbirds",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Alphafly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Alpine",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Altra",
   "files": [
+   "shoe_catalog.py",
    "shoes.py"
+  ]
+ },
+ {
+  "t": "Anta",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Antora",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Arahi",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ariel GTS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Atmos",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Axon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Beast GTS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Blaze TR",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Bondi",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Brooks",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Bushido",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "CTM Ultra",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Caldera",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Carbon X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cascadia",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Catamount",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Centauri",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Challenger",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Charged Pursuit",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Charged Rogue",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Chitu",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cielo Road",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cielo X1",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Clifton",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudboom Echo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudboom Strike",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudeclipse",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudflow",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudflyer",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudgo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudmonster",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudmonster Hyper",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudrunner",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudspike",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudstratus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudsurfer",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudsurfer Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudswift",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudultra",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudventure",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudvista",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Condor",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Craft",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Crescendo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cyclone",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cyklon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "DRX Bliss",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Deviate Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Deviate Nitro Elite",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Diadora",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Distance",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Divide",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Downshifter",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Dragonfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Duramo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Duramo SL",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Dynablast",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Dynafit",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Echelon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Electrify Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Eliot Runner",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ellipse",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Cheetah",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Edge",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Elite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Shift",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Speed",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endurance Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Equipe Atomo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Escalante",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Excursion TR",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Experience Flow",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Experience Form",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Experience Wild",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fate",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Feidian",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Feline",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Flame",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Floatride Energy",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Floatride Run Fast",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "ForeverRun Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Free Run",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Freedom",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam Arishi",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X 1080",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X 860",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X 880",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X Hierro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X More",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X More Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X Vongo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell Propel",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell Rebel",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell Summit Unknown",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell SuperComp Elite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell SuperComp Pacer",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell SuperComp Trainer",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fuga",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fuji Lite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fujispeed",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fusion",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "GOrun Razor",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "GOrun Ride",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "GOrun Speed Beast",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "GOrun Speed Freek",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Galaxy",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Gara Carbon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Gaviota",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Genesis",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ghost",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ghost Max",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Glide Max TR",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Glycerin",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Glycerin GTS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Glycerin Max",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Golden Gate",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Gravity",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Guide",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "HFS",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "HOKA",
   "files": [
+   "shoe_catalog.py",
    "shoes.py"
+  ]
+ },
+ {
+  "t": "HOVR Machina",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "HOVR Sonic",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hurricane",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hydra ESC",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Hylo",
   "files": [
+   "shoe_catalog.py",
    "shoes.py"
+  ]
+ },
+ {
+  "t": "Hyper LD",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hyper MD",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hyper Speed",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hyperion",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hyperion Elite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hyperion Max",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Icebug",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ikoni",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Infinite Elite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Infinite Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Infinity Run",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Interact Run",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Invincible",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Irock",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Jackal",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Jogflow",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Joma",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Journey Run",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Juniper Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kailas",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kairos",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Kalenji",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kaptiva",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Karacal",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Karhu",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kawana",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kiger",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kilkenny",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kinabalu",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kinvara",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Kiprun",
   "files": [
+   "shoe_catalog.py",
    "shoes.py"
+  ]
+ },
+ {
+  "t": "Launch",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Launch GTS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Levitate",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Liberate Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Lone Peak",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Lycan",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "MTL Long Sky",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "MTN Racer",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mach",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mach X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mafate",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "MagMax Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Magic Speed",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Magnifly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Magnify Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Max Cushioning",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Maxfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Maxx",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Megablast",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Merrell",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mesa Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mestari",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Metaspeed Edge",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Metaspeed Ray",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Metaspeed Sky",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Metasprint",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Mizuno",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mont Blanc",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Motion",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Motus Strength",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mudtalon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mutant",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mythos Blushield",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Neo Vista",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Neo Zen",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "New Balance",
   "files": [
+   "shoe_catalog.py",
    "shoes.py"
   ]
  },
  {
   "t": "Newton",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Nike",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Norda",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Nordlite Ultra",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Norvan LD",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Nova",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Novablast",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Olympus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Outroad",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "PUMA",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Paradigm",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Parkclaw",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pegasus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pegasus Plus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pegasus Premium",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pegasus Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Peregrine",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Phantom",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Primus Lite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Primus Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Prodigio",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Provision",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pulsar Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pursuit",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pytho",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Race Light",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Red Rabbit",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Reebok",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Response",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Revel",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Revolution",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ribelle Run",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ride",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Rincon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Rival",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Rivera",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Roadfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Rocket X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Roclite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Run Support",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Runfalcon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Runventure",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Salomon",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Saucony",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Scarpa",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Scott",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Sense Ride",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Skechers",
   "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Sky DNA",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Skyflow",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Skyward X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Solarglide",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Spark",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Specter",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Speed Carbon RC",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Speed Force",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Speedcross",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Speedgoat",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Speedland",
+  "files": [
+   "shoe_catalog.py",
    "shoes.py"
+  ]
+ },
+ {
+  "t": "Spin",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Stinson",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Streakfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Structure",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Superblast",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Superior",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Supernova",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Supernova Prima",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Supernova Rise",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Supernova Solution",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Supertrac",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Sylan",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Synchron",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Tecton X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Tempus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terraultra",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terraventure",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terrex Agravic",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terrex Agravic Speed",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terrex Soulstride",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terrex Speed Ultra",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "The North Face",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Thundercross",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Timp",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Topo Athletic",
   "files": [
+   "shoe_catalog.py",
    "shoes.py"
+  ]
+ },
+ {
+  "t": "Torin",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Torrent",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Trabuco Max",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Trace",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Tracefinder",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Tracksmith",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Trail Glove",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Trailfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Trailtalon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Transport",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Tree Dasher",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Triumph",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultra",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultra Carbon RC",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultra Glide",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultraboost",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultrafly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultraventure",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Under Armour",
   "files": [
+   "shoe_catalog.py",
    "shoes.py"
+  ]
+ },
+ {
+  "t": "Vanish Carbon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vapor Glove",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vaporfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vectiv Enduris",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vectiv Infinite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vectiv Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vectiv Sky",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Veja",
   "files": [
-   "shoes.py"
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Velociti Elite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Velocity Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Via Olympus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Victory",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Vivobarefoot",
   "files": [
+   "shoe_catalog.py",
    "shoes.py"
+  ]
+ },
+ {
+  "t": "Vomero",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vomero Plus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vomero Premium",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Voyage Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Daichi",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Horizon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Ibuki",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Inspire",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Mujin",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Rebellion Flash",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Rebellion Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Rider",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Sky",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Skyrise",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wildhorse",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Winflo",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {
   "t": "Xero Shoes",
   "files": [
+   "shoe_catalog.py",
    "shoes.py"
+  ]
+ },
+ {
+  "t": "Xodus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Xtep",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Zegama",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Zinal",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Zoom Fly",
+  "files": [
+   "shoe_catalog.py"
   ]
  },
  {

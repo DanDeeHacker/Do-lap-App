@@ -266,6 +266,51 @@ async function photoData(file: File, max = 1280): Promise<string> {
   }
 }
 
+// ---------------------------------------------------------------- shoe catalog (brands and model lines)
+type CatModel = { name: string; category: string; carbon: boolean; drop: number | null }
+type CatBrand = { name: string; models: CatModel[] }
+let catalogCache: Promise<CatBrand[]> | null = null
+function useShoeCatalog(): CatBrand[] {
+  const [c, setC] = useState<CatBrand[]>([])
+  useEffect(() => {
+    if (!catalogCache) catalogCache = api.shoeCatalog().then((r: any) => r?.brands || []).catch(() => { catalogCache = null; return [] })
+    catalogCache.then(setC)
+  }, [])
+  return c
+}
+const norm = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim()
+/** the catalog line a typed model starts with (whole words, the longest wins) */
+function lineOf(brand: CatBrand | undefined, model: string): CatModel | undefined {
+  const m = norm(model)
+  return brand?.models.filter((x) => m === norm(x.name) || m.startsWith(norm(x.name) + " ")).sort((a, b) => b.name.length - a.name.length)[0]
+}
+
+type Opt = { key: string; label: string; sub?: string; pick: () => void }
+/** A text field with a list of suggestions under it; anything can still be typed. */
+function Suggest({ value, onChange, options, placeholder, testid }: { value: string; onChange: (v: string) => void; options: Opt[]; placeholder?: string; testid?: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative">
+      <input className={inp} value={value} placeholder={placeholder} data-testid={testid} autoComplete="off"
+        onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onChange={(e) => { onChange(e.target.value); setOpen(true) }} />
+      {open && options.length > 0 && (
+        <ul role="listbox" data-testid={testid ? `${testid}-list` : undefined}
+          className="absolute inset-x-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-xl border border-white/12 bg-raised py-1 shadow-[0_16px_40px_rgb(0_0_0_/_0.5)]">
+          {options.slice(0, 80).map((o) => (
+            <li key={o.key}>
+              <button type="button" role="option" aria-selected={false} onMouseDown={(e) => e.preventDefault()} onClick={() => { o.pick(); setOpen(false) }}
+                className="flex w-full items-baseline justify-between gap-2 px-3 py-2 text-left text-[13px] text-fg hover:bg-white/[.06]">
+                <span>{o.label}</span>{o.sub && <span className="shrink-0 text-[11px] text-fg-3">{o.sub}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 const RECOG_ERR: Record<string, string> = {
   unavailable: "Rozpoznávání fotek teď není dostupné. Zadejte botu ručně.",
   failed: "Fotku se nepodařilo rozpoznat. Zkuste jinou (bota z boku, čitelný nápis), nebo ji zadejte ručně.",
@@ -315,6 +360,24 @@ export function Shoes({ rid }: { rid: string }) {
   })
   const shoes: any[] = data?.shoes || []
   const set = (k: keyof ShoeForm, v: any) => setForm((p) => (p ? { ...p, [k]: v } : p))
+  // brands and model lines (shoe_catalog.py): pick one, the version number is typed after it
+  const catalog = useShoeCatalog()
+  const catBrand = form ? catalog.find((b) => norm(b.name) === norm(form.brand)) : undefined
+  const catLine = form ? lineOf(catBrand, form.model) : undefined
+  const pickLine = (b: CatBrand, m: CatModel) => setForm((p) => p && ({
+    ...p, brand: b.name, model: `${m.name} `, category: m.category, carbon: m.carbon,
+    drop_mm: m.drop != null ? String(m.drop) : (p.brand === b.name && lineOf(b, p.model)?.name === m.name ? p.drop_mm : ""),
+  }))
+  const brandOpts: Opt[] = form ? catalog.filter((b) => !form.brand || norm(b.name).includes(norm(form.brand)))
+    .filter((b) => norm(b.name) !== norm(form.brand))
+    .map((b) => ({ key: b.name, label: b.name, sub: b.models.length ? `${b.models.length} řad` : undefined, pick: () => set("brand", b.name) })) : []
+  const q = form ? norm(form.model) : ""
+  const modelOpts: Opt[] = !form ? [] : (catBrand ? [catBrand] : catalog)
+    .flatMap((b) => b.models.map((m) => ({ b, m })))
+    .filter(({ b, m }) => !q || norm(m.name).includes(q) || norm(`${b.name} ${m.name}`).includes(q))
+    .filter(({ m }) => !catLine || norm(m.name) !== norm(catLine.name))
+    .map(({ b, m }) => ({ key: `${b.name}|${m.name}`, label: catBrand ? m.name : `${b.name} ${m.name}`,
+      sub: CATEGORY.find(([k]) => k === m.category)?.[1], pick: () => pickLine(b, m) }))
   return (
     <section className="mt-7 border-t border-white/[.08] pt-5" data-testid="shoes">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -341,11 +404,14 @@ export function Shoes({ rid }: { rid: string }) {
             <p className="text-[12px] leading-[17px] text-fg-2">Rozpoznáno z fotky{form.confidence != null ? ` (jistota ${Math.round(form.confidence * 100)} %)` : ""}. Zkontrolujte údaje.</p>
           )}
           <div className="grid gap-x-3 sm:grid-cols-2">
-            <Field label="Značka"><input className={inp} value={form.brand} placeholder="např. HOKA" data-testid="shoe-brand" onChange={(e) => set("brand", e.target.value)} /></Field>
-            <Field label="Model"><input className={inp} value={form.model} placeholder="např. Clifton 9" data-testid="shoe-model" onChange={(e) => set("model", e.target.value)} /></Field>
+            <Field label="Značka"><Suggest value={form.brand} placeholder="vyberte nebo napište, např. HOKA" testid="shoe-brand" options={brandOpts} onChange={(v) => set("brand", v)} /></Field>
+            <Field label="Model" hint={catLine && !/\d/.test(form.model) ? "doplňte číslo verze" : undefined}><Suggest value={form.model} placeholder={catBrand?.models[0] ? `např. ${catBrand.models[0].name} …` : "např. Clifton 10"} testid="shoe-model" options={modelOpts} onChange={(v) => set("model", v)} /></Field>
             <Field label="Typ"><select className={inp} value={form.category} onChange={(e) => set("category", e.target.value)}><option value="">—</option>{CATEGORY.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
             <Field label="Drop (mm)" hint="rozdíl pata–špička"><input className={inp} inputMode="decimal" value={form.drop_mm} placeholder="např. 8" onChange={(e) => set("drop_mm", e.target.value.replace(/[^\d.,]/g, ""))} /></Field>
           </div>
+          {catLine && catLine.drop == null && form.drop_mm === "" && (
+            <p className="mt-2 text-[11.5px] leading-[17px] text-fg-3" data-testid="shoe-drop-hint">Drop se u řady {catLine.name} mezi verzemi mění. Najdete ho na krabici, na jazyku boty nebo na webu výrobce; bez něj engine pozná přechod jen podle typu boty.</p>
+          )}
           <div className="mt-3"><Toggle on={form.carbon} onClick={() => set("carbon", !form.carbon)} label="Karbonová deska" /></div>
           <p className="mt-4 text-[13px] font-bold text-fg-soft">První použití</p>
           <div className="mt-2 grid grid-cols-2 gap-2">

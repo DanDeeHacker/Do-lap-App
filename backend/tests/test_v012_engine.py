@@ -277,3 +277,20 @@ def test_period_start_from_the_checkin(client, db_session):
     r = db_session.query(models.Runner).get(rid)
     db_session.refresh(r)
     assert r.menstrual_json["starts"] == [E.iso_date(E.today_date())]
+
+
+def test_shoe_catalog_writes_the_line_like_the_maker(client):
+    from app import shoe_catalog as SC
+    assert len(SC.BRANDS) >= 40 and sum(len(v) for v in SC.CATALOG.values()) >= 300
+    assert SC.canonical_model("ASICS", "gel nimbus 26")[0] == "Gel-Nimbus 26"
+    assert SC.canonical_model("HOKA", "mach x 2")[1][0] == "Mach X"          # the longest line wins
+    assert SC.canonical_model("HOKA", "Machina")[1] is None                   # whole words only
+    f = SH.clean_fields({"brand": "asics", "model": "gel-kayano 31"})
+    assert f["model"] == "Gel-Kayano 31" and f["category"] == "stability" and f["drop_mm"] is None
+    alt = SH.clean_fields({"brand": "Altra", "model": "experience flow 2"})
+    assert alt["drop_mm"] == 4.0                                               # not the brand's usual 0
+    assert SH.standardise({"brand": "Nike", "model": "Alphafly 3", "carbon": None})["carbon"] is True
+    rid = register(client, "cat012@test.cz", "Katalog", "runner").json()["runner_id"]
+    cat = client.get("/api/shoes/catalog").json()
+    hoka = next(b for b in cat["brands"] if b["name"] == "HOKA")
+    assert any(m["name"] == "Clifton" and m["category"] == "daily" for m in hoka["models"])

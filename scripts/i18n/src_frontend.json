@@ -11584,6 +11584,13 @@
   "kind": "tpl"
  },
  {
+  "t": "{} řad",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "1–3 roky",
   "files": [
    "profile.tsx"
@@ -11665,6 +11672,13 @@
   "kind": "str"
  },
  {
+  "t": "doplňte číslo verze",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Doplňte prosím profil",
   "files": [
    "profile.tsx"
@@ -11691,6 +11705,13 @@
    "profile.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Drop se u řady",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Engine nově potřebuje {}. Zabere to půl minuty.",
@@ -11798,6 +11819,13 @@
   "kind": "str"
  },
  {
+  "t": "mezi verzemi mění. Najdete ho na krabici, na jazyku boty nebo na webu výrobce; bez něj engine pozná přechod jen podle typu boty.",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "minimalistická",
   "files": [
    "profile.tsx"
@@ -11838,6 +11866,13 @@
    "profile.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "např. {} …",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "např. 172",
@@ -11882,14 +11917,7 @@
   "kind": "str"
  },
  {
-  "t": "např. Clifton 9",
-  "files": [
-   "profile.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "např. HOKA",
+  "t": "např. Clifton 10",
   "files": [
    "profile.tsx"
   ],
@@ -11926,6 +11954,13 @@
  },
  {
   "t": "Než začneme",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "NFD",
   "files": [
    "profile.tsx"
   ],
@@ -12249,6 +12284,13 @@
  },
  {
   "t": "Vrátit do používání",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "vyberte nebo napište, např. HOKA",
   "files": [
    "profile.tsx"
   ],

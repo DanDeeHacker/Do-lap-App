@@ -11,6 +11,7 @@ import re
 import time
 
 from . import llm
+from . import shoe_catalog as SC
 from .metrics.runner_factors import CATEGORIES
 
 MAX_IMAGE_BYTES = 4_000_000
@@ -18,10 +19,7 @@ _IMG_RE = re.compile(r"^data:image/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=\s]+
 RATE_PER_HOUR = 20
 _CALLS: dict[str, list] = {}
 
-BRANDS = ("Nike", "adidas", "ASICS", "Brooks", "HOKA", "Saucony", "New Balance", "On", "PUMA", "Mizuno", "Altra",
-          "Salomon", "inov-8", "Merrell", "Under Armour", "Reebok", "Skechers", "La Sportiva", "Topo Athletic",
-          "Vivobarefoot", "Xero Shoes", "Kiprun", "Craft", "Scott", "Diadora", "361°", "Li-Ning", "Karhu", "Norda",
-          "VJ", "Dynafit", "The North Face", "Joma", "Kalenji", "Newton", "Hylo", "Veja", "Allbirds")
+BRANDS = tuple(dict.fromkeys(SC.BRANDS + ("Hylo", "Speedland")))
 _BRAND_KEY = {re.sub(r"[^a-z0-9]", "", b.lower()): b for b in BRANDS}
 _BRAND_KEY.update({"hokaoneone": "HOKA", "onrunning": "On", "oncloud": "On", "newbalance": "New Balance",
                    "nb": "New Balance", "decathlon": "Kiprun", "ua": "Under Armour", "xero": "Xero Shoes",
@@ -130,12 +128,13 @@ def standardise(raw: dict) -> dict:
         conf = max(0.0, min(1.0, float(raw.get("confidence"))))
     except (TypeError, ValueError):
         conf = None
-    model = model_name(raw.get("model"), brand)
+    model, line = SC.canonical_model(brand, model_name(raw.get("model"), brand))
     if model and not re.search(r"\d", model) and brand not in ZERO_DROP:
         # the model line without its version: drop and stack change between versions, so
         # they are left for the runner, and the suggestion can't be sure
         drop, stack = None, None
         conf = min(conf, 0.5) if conf is not None else 0.5
+    cat, carbon, drop = _from_line(line, cat, carbon, drop)
     return {"brand": brand, "model": model, "category": cat, "drop_mm": drop,
             "stack_mm": stack, "carbon": bool(carbon) if carbon is not None else False,
             "confidence": round(conf, 2) if conf is not None else None}
@@ -157,16 +156,30 @@ def recognise(data_url: str) -> dict:
     return {"ok": True, "suggestion": sug, "model": model, "error": None}
 
 
+def _from_line(line, cat, carbon, drop):
+    """Fill what the catalog line knows: its category and carbon plate when not given, its
+    drop when the whole line keeps one (zero-drop lines)."""
+    if not line:
+        return cat, carbon, drop
+    _name, l_cat, l_carbon, l_drop = line
+    return (cat or l_cat), (bool(carbon) or l_carbon), (l_drop if l_drop is not None else drop)
+
+
 def clean_fields(body: dict) -> dict:
-    """A shoe from the form (after the suggestion was confirmed / edited)."""
+    """A shoe from the form (after the suggestion was confirmed / edited); the model line
+    is written as in the catalog (shoe_catalog.py)."""
     brand = brand_name(body.get("brand"))
-    model = model_name(body.get("model"), brand)
+    model, line = SC.canonical_model(brand, model_name(body.get("model"), brand))
     cat = str(body.get("category") or "").lower() or None
     cat = cat if cat in CATEGORIES else None
     drop = _num(body.get("drop_mm"), 0, 16)
+    if line and line[3] is not None and drop is None:
+        drop = line[3]
     if brand in ZERO_DROP and drop is None:
         drop = 0.0
     if brand in BAREFOOT and cat is None:
         cat = "minimal"
+    if line and cat is None:
+        cat = line[1]
     return {"brand": brand, "model": model, "category": cat, "drop_mm": drop,
             "stack_mm": _num(body.get("stack_mm"), 5, 60), "carbon": bool(body.get("carbon"))}

@@ -415,6 +415,7 @@ async def audit_access(request, call_next):
 app.include_router(auth.router)
 app.include_router(runners.router)
 app.include_router(shoes.router)
+app.include_router(shoes.catalog_router)
 app.include_router(physios.router)
 app.include_router(triage.router)
 app.include_router(programs.router)

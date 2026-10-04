@@ -106,6 +106,7 @@ export const api = {
   updateShoe: (id: string, sid: number, body: any) => call("PATCH", `/api/runners/${id}/shoes/${sid}`, body),
   deleteShoe: (id: string, sid: number) => call("DELETE", `/api/runners/${id}/shoes/${sid}`),
   recognizeShoe: (id: string, image: string) => call("POST", `/api/runners/${id}/shoes/recognize`, { image }),
+  shoeCatalog: () => call("GET", `/api/shoes/catalog`),
   updateOnboarding: (id: string, patch: { dismissed?: boolean; tutorialDone?: boolean }) => call("POST", `/api/runners/${id}/onboarding`, patch),
   tutorialDemo: (id: string) => call("GET", `/api/runners/${id}/tutorial-demo`),
   pendingAlert: (id: string) => call("GET", `/api/runners/${id}/alerts/pending`),

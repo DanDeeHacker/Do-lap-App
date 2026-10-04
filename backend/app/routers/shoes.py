@@ -14,6 +14,14 @@ from ..metrics import runner_factors as RF
 from ..serializers import to_dict
 
 router = APIRouter(prefix="/api/runners", tags=["shoes"])
+catalog_router = APIRouter(prefix="/api/shoes", tags=["shoes"])
+
+
+@catalog_router.get("/catalog")
+def shoe_catalog(user: models.User = Depends(get_current_user)):
+    """Brands and model lines for the shoe form (shoe_catalog.py)."""
+    from .. import shoe_catalog as SC
+    return SC.catalog_json()
 
 
 def _runner(db, rid):
