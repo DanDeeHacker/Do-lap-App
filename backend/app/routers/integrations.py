@@ -39,18 +39,22 @@ router = APIRouter(prefix="/api/integrations", tags=["integrations"])
 
 
 def _apply_day_raw(db: DBSession, rid: str, seed: dict) -> int:
-    """All-day heart rate and steps from any source (seed["day_raw"] = {date: {hr, steps}}),
-    stored per day and computed by the own day metrics (dayload.py), oldest first."""
+    """All-day heart rate and steps from any source (seed["day_raw"] = {date: {hr, steps}})
+    and the night in detail where the source has it (seed["day_sleep"], the Apple Health
+    export: hypnogram, falling asleep / waking), stored per day and computed by the own
+    day metrics (dayload.py), oldest first."""
     raw = seed.get("day_raw") or {}
-    if not raw:
+    nights = seed.get("day_sleep") or {}
+    days = sorted(set(raw) | set(nights))
+    if not days:
         return 0
     from ..metrics import dayload as DL
-    for d in sorted(raw):
-        DL.store_raw(db, rid, d, raw[d])
-    for d in sorted(raw):
+    for d in days:
+        DL.store_raw(db, rid, d, raw.get(d), sleep=nights.get(d))
+    for d in days:
         DL.update_day(db, rid, d)
     db.flush()
-    return len(raw)
+    return len(days)
 
 
 def _apply_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -> None:

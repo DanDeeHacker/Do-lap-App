@@ -98,7 +98,7 @@ def _activities(db, rid, d0: date, d1: date):
     out = []
     for a in sorted(acts, key=lambda x: x.started_at):
         f = fb.get(a.id)
-        out.append({"id": a.id, "date": a.started_at[:10], "time": a.started_at[11:16] or None,
+        out.append({"id": a.id, "date": a.started_at[:10], "time": a.start_time or a.started_at[11:16] or None,
                     "title": a.title or ("Běh" if (a.sport or "running") == "running" else a.sport),
                     "sport": a.sport or "running", "run": (a.sport or "running") == "running",
                     "km": _r(a.distance_km), "min": _r(a.duration_min, 0), "ascent": _r(a.ascent_m, 0),

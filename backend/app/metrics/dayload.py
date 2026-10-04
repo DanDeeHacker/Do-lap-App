@@ -215,8 +215,11 @@ def activity_windows(db, rid: str, d: str, raw: dict | None) -> list:
                                               models.Activity.started_at < (date.fromisoformat(d) + timedelta(days=1)).isoformat()).all():
         if not E.counts_for(a, "all") or not a.duration_min:
             continue
-        t = _hm((a.started_at or "")[11:16])
-        if t is not None and len(a.started_at) > 11:
+        # the start: `start_time` (HH:MM, Garmin and Apple imports), or a full timestamp in started_at
+        t = _hm(getattr(a, "start_time", None) or "") if getattr(a, "start_time", None) else None
+        if t is None and len(a.started_at or "") > 11:
+            t = _hm(a.started_at[11:16])
+        if t is not None:
             out.append((t, t + a.duration_min))
         elif hr:
             dur = a.duration_min
@@ -285,7 +288,8 @@ def store_raw(db, rid: str, d: str, raw: dict, sleep: dict | None = None) -> Non
     if row is None:
         row = models.DailyDetail(runner_id=rid, date=d)
         db.add(row)
-    row.raw = raw
+    if raw is not None:                        # a night without all-day heart rate keeps what the row has
+        row.raw = raw
     if sleep:
         row.sleep = sleep
     db.flush()
