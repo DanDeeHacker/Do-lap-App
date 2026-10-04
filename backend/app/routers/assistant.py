@@ -188,13 +188,15 @@ def ops_shoe_check(body: dict):
     if not img:
         raise HTTPException(422, "Neplatný obrázek")
     models = [m for m in (body or {}).get("models") or [] if isinstance(m, str) and re.fullmatch(r"[\w./:-]{1,100}", m)]
-    saved = list(llm.VISION_MODELS)
+    saved, saved_t = list(llm.VISION_MODELS), llm.VISION_TIMEOUT
     if models:
         llm.VISION_MODELS[:] = models[:4]
     try:
+        llm.VISION_TIMEOUT = min(120.0, float((body or {}).get("timeout") or saved_t))
         out = S.recognise(img)
     finally:
         llm.VISION_MODELS[:] = saved
+        llm.VISION_TIMEOUT = saved_t
     out["lastError"] = llm.LAST_ERROR.get("vision") if not out.get("ok") else None
     return out
 

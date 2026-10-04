@@ -32,16 +32,18 @@ CATEGORY_CS = {"daily": "každodenní", "cushioned": "s vysokým tlumením", "st
                "racing": "závodní", "minimal": "minimalistická", "trail": "trailová", "track": "tretry / dráha"}
 
 PROMPT = (
-    "Identify the running shoe in this photo. Reply with one JSON object only, no other text:\n"
+    "Identify the running shoe in this photo. First read any text printed on the shoe (brand, model name, "
+    "version number). Reply with one JSON object only, no other text:\n"
     '{"is_shoe": true|false, "brand": string|null, "model": string|null, "category": '
     '"daily"|"cushioned"|"stability"|"racing"|"minimal"|"trail"|"track"|null, '
     '"drop_mm": number|null, "stack_mm": number|null, "carbon": true|false|null, "confidence": 0..1}\n'
-    "Use the manufacturer's official model name with its version number (e.g. \"Pegasus 41\", "
-    "\"Gel-Nimbus 26\", \"Clifton 9\", \"Endorphin Speed 4\"). drop_mm / stack_mm = the published heel-to-toe "
-    "drop and heel stack height of that model, null when you are not sure. carbon = the model has a carbon "
-    "plate. category: racing = race shoes (often carbon-plated), cushioned = max-cushion trainers, "
-    "minimal = barefoot / minimalist, track = spikes. If the photo shows no shoe, is_shoe = false and the "
-    "rest null. Never invent a model you cannot read or recognise; then model = null."
+    "model = the manufacturer's official model name with its version number when you can read or clearly "
+    "recognise it (e.g. \"Pegasus 41\", \"Gel-Nimbus 26\", \"Clifton 9\", \"Endorphin Speed 4\"). If you "
+    "recognise the model line but not the version, give the line without a number (e.g. \"Pegasus\") and "
+    "confidence at most 0.5. drop_mm / stack_mm = the published heel-to-toe drop and heel stack of that exact "
+    "model, null unless you are sure. carbon = the model has a carbon plate. category: racing = race shoes "
+    "(often carbon-plated), cushioned = max-cushion trainers, minimal = barefoot / minimalist, track = spikes. "
+    "If the photo shows no shoe, is_shoe = false and the rest null. Never invent a model."
 )
 
 

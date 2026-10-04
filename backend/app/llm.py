@@ -178,10 +178,11 @@ VISION_MODELS = [m.strip() for m in (os.environ.get("VISION_MODELS") or "").spli
     NVIDIA_MODEL, "meta/llama-4-maverick-17b-128e-instruct"]
 VISION_BASE_URL = (os.environ.get("VISION_BASE_URL") or NVIDIA_BASE_URL).rstrip("/")
 VISION_API_KEY = os.environ.get("VISION_API_KEY") or NVIDIA_API_KEY
+VISION_TIMEOUT = float(os.environ.get("VISION_TIMEOUT") or 45)
 
 
 def vision(prompt: str, image_data_url: str, system: str | None = None, max_tokens: int = 300,
-           timeout: float = 45.0) -> tuple[str | None, str | None]:
+           timeout: float | None = None) -> tuple[str | None, str | None]:
     """(reply, model) for one image + a question, trying VISION_MODELS in turn;
     (None, None) without a key or when every model fails."""
     if not VISION_API_KEY:
@@ -191,7 +192,7 @@ def vision(prompt: str, image_data_url: str, system: str | None = None, max_toke
     errors = {}
     for m in VISION_MODELS:
         LAST_ERROR.pop("chat", None)
-        out = chat_messages(msgs, temperature=0.1, max_tokens=max_tokens, timeout=timeout, model=m,
+        out = chat_messages(msgs, temperature=0.1, max_tokens=max_tokens, timeout=timeout or VISION_TIMEOUT, model=m,
                             base_url=VISION_BASE_URL, api_key=VISION_API_KEY)
         if out:
             return out, m
