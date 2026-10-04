@@ -1086,10 +1086,11 @@ def readiness_by_day(db, rid, days) -> dict:
         counts 1.25× (it's less noisy than one night), and it needs 5 valid nights
         (3 for trained runners, Plews 2014). v0.8.4: the night alone counts 0.6×
         unless the 7-night mean confirms it;
-      • sleep: hours below the usual over the last 3 nights, or repeated nights
-        under 7 h (whichever is worse), compounded with its quality — a lower
-        deep + REM share or efficiency than usual (at most half a signal) and the
-        runner's own rating of the night;
+      • sleep length ("sleep"): hours below the usual over the last 3 nights, nights
+        under 6 h whatever the norm, the 7-hour floor only until the norm is known;
+      • sleep quality ("sleepQuality", v0.11.0): the last 3 nights' efficiency below
+        the usual, at most a quarter of a signal, half of that unless HRV or resting HR
+        confirm; the deep + REM share is shown, not scored;
       • (v0.9.3: check-in items are scored on Příznaky only, not here).
     Each signal: nothing within ±0.5 SD (normal noise), the full deficit at 3 SD.
     The score (shown as "připravenost") = 100 − 80 × combined deficit: ~70 % when
