@@ -2565,6 +2565,12 @@
   ]
  },
  {
+  "t": "Chladná a tmavá ložnice pomůže.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": "Co dělat, abych zítra byl odpočatý?",
   "files": [
    "metrics/daily_report.py"
@@ -2577,7 +2583,7 @@
   ]
  },
  {
-  "t": "Cíl {} spánku: do postele kolem {}, poslední káva do {}. Chladná a tmavá ložnice pomůže.",
+  "t": "Cíl {} spánku: zítra vstáváte kolem {}, do postele kolem {}, poslední káva do {}.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2674,6 +2680,12 @@
  },
  {
   "t": "Horko až {} °C: pít, zpomalit, běžet ráno nebo večer.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Ideálně by to bylo {}, obvykle ale usínáte až v {}, proto dnes jen o půl hodiny dřív a další večery postupně.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2891,6 +2903,12 @@
  },
  {
   "t": "Tělo má prostor na dnešní trénink.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Usínání vám kolísá zhruba o {} min, stejný čas každý večer pomůže.",
   "files": [
    "metrics/daily_report.py"
   ]

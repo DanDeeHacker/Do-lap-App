@@ -802,6 +802,105 @@ function Mobility({ m, text, onProgram }: { m: any; text?: string; onProgram: (k
   )
 }
 
+// ---- tonight: the sleep onset and wake trend and the bedtime derived from it ----------------
+const clock = (m: number) => { const x = ((Math.round(m) % 1440) + 1440) % 1440; return `${Math.floor(x / 60)}:${String(x % 60).padStart(2, "0")}` }
+
+function SleepTimes({ t }: { t: any }) {
+  // each night a bar from falling asleep to waking (evening at the top), tonight's plan hatched;
+  // the dashed line is tonight's sleep onset (bedtime + the minutes to fall asleep)
+  const tm = t.timing
+  const nights: any[] = tm.nights || []
+  const planOn = tm.bedMin + (t.latency || 15), planWake = tm.wakeMin + 1440
+  const lo = Math.floor((Math.min(planOn, ...nights.map((n) => n.onset)) - 30) / 60) * 60
+  const hi = Math.ceil((Math.max(planWake, ...nights.map((n) => n.wake + 1440)) + 30) / 60) * 60
+  const W = 300, H = 160, L = 30, T = 6, B = 16
+  const cols = nights.length + 1
+  const cw = (W - L) / cols
+  const y = (m: number) => T + ((m - lo) / (hi - lo)) * (H - T - B)
+  const hours = []
+  for (let m = lo; m <= hi; m += (hi - lo) > 9 * 60 ? 120 : 60) hours.push(m)
+  const trend = tm.trend
+  return (
+    <div data-testid="sleep-times">
+      <Lbl>{`Usínání a vstávání · ${nights.length} nocí`}</Lbl>
+      <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full" role="img" aria-label="Časy usínání a vstávání">
+        {hours.map((m) => (
+          <g key={m}>
+            <line x1={L} x2={W} y1={y(m)} y2={y(m)} stroke="rgb(255 255 255 / .07)" />
+            <text x={L - 4} y={y(m) + 3} textAnchor="end" fontSize="8.5" fill={C.fg3}>{clock(m)}</text>
+          </g>
+        ))}
+        {nights.map((n, i) => (
+          <g key={n.d}>
+            <rect x={L + i * cw + cw * 0.22} width={cw * 0.56} y={y(n.onset)} height={Math.max(2, y(n.wake + 1440) - y(n.onset))} rx={2}
+              fill={n.weekend ? C.info : C.load} opacity={0.85} />
+            {i % 2 === nights.length % 2 && <text x={L + i * cw + cw / 2} y={H - 4} textAnchor="middle" fontSize="8" fill={C.fg3}>{n.wd}</text>}
+          </g>
+        ))}
+        <rect x={L + nights.length * cw + cw * 0.22} width={cw * 0.56} y={y(planOn)} height={y(planWake) - y(planOn)} rx={2}
+          fill={C.accent} fillOpacity={0.25} stroke={C.accent} strokeWidth={1} strokeDasharray="2 1.5" />
+        <text x={L + nights.length * cw + cw / 2} y={H - 4} textAnchor="middle" fontSize="8" fontWeight="700" fill={C.accent}>dnes</text>
+        <line x1={L} x2={W} y1={y(planOn)} y2={y(planOn)} stroke={C.accent} strokeWidth={1} strokeDasharray="3 2" opacity={0.8} />
+        <line x1={L} x2={W} y1={y(tm.onset)} y2={y(tm.onset)} stroke={C.fg3} strokeWidth={1} strokeDasharray="1.5 2" />
+      </svg>
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-fg-3">
+        <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: C.load }} />všední den</span>
+        <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: C.info }} />víkend</span>
+        <span className="flex items-center gap-1"><i className="h-0 w-3 border-t border-dashed" style={{ borderColor: C.accent }} />dnešní usnutí</span>
+        <span className="flex items-center gap-1"><i className="h-0 w-3 border-t border-dotted" style={{ borderColor: C.fg3 }} />obvyklé usnutí</span>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <Tile label="Usínáte" value={tm.usualOnset} sub={tm.basis === "same" ? (tm.tomorrowWeekend ? "před víkendem" : "před všedním dnem") : "obvykle"} />
+        <Tile label="Vstáváte" value={tm.usualWake} sub={tm.basis === "same" ? (tm.tomorrowWeekend ? "o víkendu" : "ve všední den") : "obvykle"} />
+        <Tile label="Kolísání" value={`±${tm.sd} min`} sub="čas usínání" col={tm.sd >= 45 ? C.watch : C.ok} />
+      </div>
+      {(trend != null && Math.abs(trend) >= 10) || (tm.jetlag != null && Math.abs(tm.jetlag) >= 60) ? (
+        <ul className="mt-2 space-y-1 text-[12px] leading-[18px] text-fg-2">
+          {trend != null && Math.abs(trend) >= 10 && <li>{trend > 0 ? `Usínáte čím dál později, zhruba o ${trend} min za týden.` : `Usínáte čím dál dřív, zhruba o ${-trend} min za týden.`}</li>}
+          {tm.jetlag != null && Math.abs(tm.jetlag) >= 60 && <li>{`O víkendu spíte posunutě o ${Math.round(Math.abs(tm.jetlag) / 6) / 10} h ${tm.jetlag > 0 ? "později" : "dříve"} než ve všední dny.`}</li>}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
+function BedtimeMath({ t }: { t: any }) {
+  // how the bedtime was derived: tomorrow's wake − the sleep target − falling asleep
+  const tm = t.timing
+  const rows: [string, string][] = [
+    [tm ? (tm.tomorrowWeekend ? "Zítra vstáváte (obvykle o víkendu)" : "Zítra vstáváte (obvykle ve všední den)") : "Zítra vstáváte", t.wake],
+    ["− cíl spánku", hm((t.target || 8) * 60)],
+    ["− usínání", `${t.latency || 15} min`],
+    ["= ideálně do postele", t.ideal || t.bed],
+  ]
+  return (
+    <div data-testid="bedtime-math">
+      <Lbl>Jak jsme k času došli</Lbl>
+      <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-[13px] leading-5">
+        {rows.flatMap(([k, v], i) => [
+          <dt key={`k${i}`} className={i === rows.length - 1 ? "font-bold text-fg" : "text-fg-2"}>{k}</dt>,
+          <dd key={`v${i}`} className={`text-right tabular-nums ${i === rows.length - 1 ? "font-bold text-fg" : "text-fg-soft"}`}>{v}</dd>,
+        ])}
+      </dl>
+      {t.mode === "step" && tm && (
+        <p className="mt-2 rounded-[12px] bg-watch/10 px-3 py-2 text-[12.5px] leading-[18px] text-watch-soft" data-testid="bedtime-step">
+          {`Obvykle usínáte až v ${tm.usualOnset}. Hodinu před obvyklým usnutím se usíná nejhůř, proto dnes do postele v ${t.bed} (o půl hodiny dřív než obvykle) a další večery vždy o 15–30 min dřív, než dojdete k ${t.ideal}.`}
+        </p>
+      )}
+      {t.mode === "keep" && tm && (
+        <p className="mt-2 text-[12.5px] leading-[18px] text-fg-2">{`Obvykle chodíte spát už kolem ${tm.usualBed}, to na cíl stačí. Držte stejný čas.`}</p>
+      )}
+      {(t.debt || t.hardTomorrow) ? (
+        <p className="mt-2 text-[11.5px] leading-4 text-fg-3">
+          <span>{`Cíl: vaše norma ${hm((t.base || 7.5) * 60)}`}</span>
+          {t.debt ? <span>{` + část spánkového dluhu (${num(t.debt)} h za 3 noci)`}</span> : null}
+          {t.hardTomorrow ? <span>{" + půl hodiny před náročným dnem"}</span> : null}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 // ---- evening ------------------------------------------------------------------------------
 const TYPE_COL: Record<string, string> = { "dlouhý": C.load, "kvalitní": C.alert, "lehký": C.info, volno: C.fg4, "lehce / volno": C.fg4 }
 
@@ -951,12 +1050,15 @@ function eveningCards(r: any, c: Ctx): Card[] {
         {note(c, "tonight")}
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
           <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Bed className="mx-auto size-5 text-load" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.bed}</p><p className="text-[10.5px] text-fg-3">do postele</p></div>
-          <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Sun className="mx-auto size-5 text-watch" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.wake}</p><p className="text-[10.5px] text-fg-3">{t.wakeFromWatch ? "obvyklé vstávání" : "vstávání"}</p></div>
+          <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Sun className="mx-auto size-5 text-watch" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.wake}</p><p className="text-[10.5px] text-fg-3">{t.wakeFromWatch ? (t.timing?.tomorrowWeekend ? "obvyklé víkendové vstávání" : "obvyklé vstávání") : "vstávání"}</p></div>
           <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Coffee className="mx-auto size-5 text-fg-2" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.caffeine}</p><p className="text-[10.5px] text-fg-3">poslední káva</p></div>
         </div>
+        {t.timing && <Panel><SleepTimes t={t} /></Panel>}
+        <Panel><BedtimeMath t={t} /></Panel>
         <Panel>
           <ul className="space-y-1.5 text-[13px] leading-5 text-fg-soft">
             <li className="flex gap-2"><span className="text-load">›</span><span>Sportovcům se doporučuje 7–9 hodin spánku, při náročném tréninku spíš víc (Walsh et al., 2021).</span></li>
+            <li className="flex gap-2"><span className="text-load">›</span><span>Pravidelný čas usínání a vstávání souvisel se zdravím víc než samotná délka spánku (Windred et al., 2024).</span></li>
             <li className="flex gap-2"><span className="text-load">›</span><span>Kofein ještě 6 hodin před spaním zkracuje a zhoršuje spánek (Drake et al., 2013).</span></li>
             <li className="flex gap-2"><span className="text-load">›</span><span>Hodinu před spaním ztlumit světlo a obrazovky, v ložnici chladno a tma.</span></li>
           </ul>

@@ -296,19 +296,92 @@ def _day(dm, det, today, acts_today):
             "bbCharged": day.get("bbCharged"), "bbDrained": day.get("bbDrained"), "activities": acts_today}
 
 
+TIMING_NIGHTS, TREND_NIGHTS = 28, 14
+STEP_MAX_MIN = 30          # a bedtime at most this much earlier than the usual one at a time (working assumption)
+TREND_MIN_WEEK = 10        # a drift of the sleep onset worth mentioning, min a week
+
+
+def _onset_scale(m: int | None) -> int | None:
+    """Sleep onset on one evening scale: 23:10 → 1390, 00:30 → 1470 (minutes from the evening's midnight)."""
+    if m is None:
+        return None
+    return m + 1440 if m < 12 * 60 else m
+
+
+def _sleep_timing(det, today):
+    """The last nights' sleep onset and wake times from the watch (the night belongs to the
+    morning it ends): series, the usual times for the kind of day tomorrow is (a workday
+    or the weekend), how regular the onset is and where it drifts."""
+    nights = []
+    for k in range(TIMING_NIGHTS - 1, -1, -1):
+        d = today - timedelta(days=k)
+        sl = (det[d.isoformat()].sleep or {}) if d.isoformat() in det else {}
+        on, wk = _onset_scale(_min_of(sl.get("start"))), _min_of(sl.get("end"))
+        if on is None or wk is None or not (18 * 60 <= on <= 30 * 60) or not (3 * 60 <= wk <= 13 * 60):
+            continue
+        nights.append({"d": d.isoformat(), "wd": WD[d.weekday()], "weekend": d.weekday() >= 5, "onset": on, "wake": wk})
+    if len(nights) < 3:
+        return None
+    tomorrow_weekend = (today + timedelta(days=1)).weekday() >= 5
+    same = [n for n in nights if n["weekend"] == tomorrow_weekend]
+    pool = same if len(same) >= 3 else nights
+
+    def med(xs):
+        xs = sorted(xs)
+        return xs[len(xs) // 2] if len(xs) % 2 else (xs[len(xs) // 2 - 1] + xs[len(xs) // 2]) / 2
+    recent = nights[-TREND_NIGHTS:]
+    ons = [n["onset"] for n in recent]
+    mean = sum(ons) / len(ons)
+    sd = (sum((x - mean) ** 2 for x in ons) / len(ons)) ** 0.5
+    trend = None
+    if len(recent) >= 7:
+        xs = [(date.fromisoformat(n["d"]) - today).days for n in recent]
+        mx = sum(xs) / len(xs)
+        den = sum((x - mx) ** 2 for x in xs)
+        if den:
+            trend = round(sum((x - mx) * (y - mean) for x, y in zip(xs, ons)) / den * 7)
+    wd_n = [n for n in nights if not n["weekend"]]
+    we_n = [n for n in nights if n["weekend"]]
+    jetlag = None
+    if len(wd_n) >= 3 and len(we_n) >= 2:
+        mid = lambda ns: med([(n["onset"] + n["wake"] + 1440) / 2 for n in ns])
+        jetlag = round(mid(we_n) - mid(wd_n))
+    return {"nights": nights[-TREND_NIGHTS:], "onset": round(med([n["onset"] for n in pool])),
+            "wake": round(med([n["wake"] for n in pool])), "sd": round(sd), "trend": trend, "jetlag": jetlag,
+            "tomorrowWeekend": tomorrow_weekend, "basis": "same" if pool is same else "all", "n": len(nights)}
+
+
 def _tonight(a, det, dm, today, norm, week_next_hard: bool, debt):
     """Tonight's sleep target and when to go to bed for it: the runner's norm (7–9.5 h),
-    +30 min before a hard or long day, + up to 1 h back of a sleep debt (Walsh et al., 2021)."""
+    +30 min before a hard or long day, + up to 1 h back of a sleep debt (Walsh et al., 2021).
+    The bedtime comes from tomorrow's usual wake time (workday / weekend) minus the target and
+    15 min to fall asleep; when that is over half an hour earlier than the runner's usual
+    sleep onset, tonight moves only half an hour earlier — the evening before the habitual
+    sleep time is the hardest time to fall asleep (the "forbidden zone", Lavie, 1986) — and
+    the same time every night counts too: regular sleep timing predicted mortality better than
+    sleep length (Windred et al., 2024)."""
     base = max(SLEEP_MIN_H, norm.get("h") or 7.5)
     target = base + (0.5 if week_next_hard else 0) + min(1.0, (debt or 0) / 2)
     target = min(SLEEP_MAX_H, round(target * 4) / 4)
-    wakes = [_min_of(((det[x].sleep or {}).get("end"))) for x in det if x <= today.isoformat() and det[x].sleep]
-    wakes = sorted(w for w in wakes if w is not None)
-    wake = wakes[len(wakes) // 2] if wakes else 6 * 60 + 30
-    bed = wake - target * 60 - FALL_ASLEEP_MIN
-    return {"target": target, "wake": _hm(wake), "bed": _hm(bed), "caffeine": _hm(bed - CAFFEINE_H * 60),
-            "base": _r(base), "hardTomorrow": week_next_hard, "debt": debt, "wakeFromWatch": bool(wakes)}
-
+    tm = _sleep_timing(det, today)
+    wake = tm["wake"] if tm else 6 * 60 + 30
+    ideal = wake - target * 60 - FALL_ASLEEP_MIN + 1440          # on the evening scale
+    bed, mode, usual_bed = ideal, "ideal", None
+    if tm:
+        usual_bed = tm["onset"] - FALL_ASLEEP_MIN
+        gap = usual_bed - ideal
+        if gap > STEP_MAX_MIN:
+            bed, mode = usual_bed - STEP_MAX_MIN, "step"
+        elif gap < -STEP_MAX_MIN:
+            bed, mode = usual_bed, "keep"
+    bed, ideal = 5 * (bed // 5), 5 * round(ideal / 5)          # a bedtime on a 5-minute mark, not later than computed
+    out = {"target": target, "wake": _hm(wake), "bed": _hm(bed), "caffeine": _hm(bed - CAFFEINE_H * 60),
+           "base": _r(base), "hardTomorrow": week_next_hard, "debt": debt, "wakeFromWatch": bool(tm),
+           "ideal": _hm(ideal), "mode": mode, "latency": FALL_ASLEEP_MIN}
+    if tm:
+        out["timing"] = {**tm, "usualOnset": _hm(tm["onset"]), "usualWake": _hm(tm["wake"]), "usualBed": _hm(usual_bed),
+                         "bedMin": round(bed), "idealMin": round(ideal), "wakeMin": wake}
+    return out
 
 
 # ------------------------------------------------------------------ v2 pieces
@@ -513,7 +586,15 @@ def _notes_evening(r) -> dict:
     if r.get("mobility"):
         notes["mobility"] = MOB.note(r["mobility"])
     tn = r["tonight"]
-    notes["tonight"] = f"Cíl {_dur(tn['target'])} spánku: do postele kolem {tn['bed']}, poslední káva do {tn['caffeine']}. Chladná a tmavá ložnice pomůže."
+    tmg = tn.get("timing") or {}
+    notes["tonight"] = f"Cíl {_dur(tn['target'])} spánku: zítra vstáváte kolem {tn['wake']}, do postele kolem {tn['bed']}, poslední káva do {tn['caffeine']}."
+    if tn.get("mode") == "step":
+        notes["tonight"] += (f" Ideálně by to bylo {tn['ideal']}, obvykle ale usínáte až v {tmg.get('usualOnset')}, "
+                             "proto dnes jen o půl hodiny dřív a další večery postupně.")
+    elif (tmg.get("sd") or 0) >= 45:
+        notes["tonight"] += f" Usínání vám kolísá zhruba o {tmg['sd']} min, stejný čas každý večer pomůže."
+    else:
+        notes["tonight"] += " Chladná a tmavá ložnice pomůže."
     return notes
 
 

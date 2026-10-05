@@ -2522,6 +2522,7 @@
   "t": "rgb(255 255 255 / .07)",
   "files": [
    "App.tsx",
+   "report.tsx",
    "rundetail.tsx"
   ],
   "kind": "str"
@@ -12612,6 +12613,48 @@
   "kind": "tpl"
  },
  {
+  "t": "+ část spánkového dluhu ({} h za 3 noci)",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "+ půl hodiny před náročným dnem",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "±{} min",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "= ideálně do postele",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "− cíl spánku",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "− usínání",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "≈ {} km",
   "files": [
    "report.tsx"
@@ -12691,6 +12734,20 @@
   "kind": "str"
  },
  {
+  "t": "čas usínání",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Časy usínání a vstávání",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Celková zátěž dne",
   "files": [
    "report.tsx"
@@ -12738,6 +12795,13 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Cíl: vaše norma {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Co ovlivní zítřek",
@@ -12811,6 +12875,13 @@
   "kind": "jsx"
  },
  {
+  "t": "dnešní usnutí",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "do {} m",
   "files": [
    "report.tsx"
@@ -12844,6 +12915,13 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "dříve",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Energie",
@@ -12916,6 +12994,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Jak jsme k času došli",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Kilometry",
   "files": [
    "report.tsx"
@@ -12949,6 +13034,13 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Kolísání",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Kroky",
@@ -13183,6 +13275,48 @@
   "kind": "jsx"
  },
  {
+  "t": "o víkendu",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "O víkendu spíte posunutě o {} h {} než ve všední dny.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Obvykle chodíte spát už kolem {}, to na cíl stačí. Držte stejný čas.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Obvykle usínáte až v {}. Hodinu před obvyklým usnutím se usíná nejhůř, proto dnes do postele v {} (o půl hodiny dřív než obvykle) a další večery vždy o 15–30 min dřív, než dojdete k {}.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "obvyklé usnutí",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "obvyklé víkendové vstávání",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "obvyklé vstávání",
   "files": [
    "report.tsx"
@@ -13267,6 +13401,13 @@
   "kind": "tpl"
  },
  {
+  "t": "později",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Pozn.",
   "files": [
    "report.tsx"
@@ -13274,11 +13415,32 @@
   "kind": "str"
  },
  {
+  "t": "Pravidelný čas usínání a vstávání souvisel se zdravím víc než samotná délka spánku (Windred et al., 2024).",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Pravidla plánu",
   "files": [
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "před víkendem",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "před všedním dnem",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Proč právě takhle",
@@ -13529,6 +13691,34 @@
   "kind": "jsx"
  },
  {
+  "t": "Usínání a vstávání · {} nocí",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Usínáte",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Usínáte čím dál dřív, zhruba o {} min za týden.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Usínáte čím dál později, zhruba o {} min za týden.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Úvod",
   "files": [
    "report.tsx"
@@ -13571,6 +13761,13 @@
   "kind": "tpl"
  },
  {
+  "t": "ve všední den",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Večerní report",
   "files": [
    "report.tsx"
@@ -13578,7 +13775,28 @@
   "kind": "str"
  },
  {
+  "t": "víkend",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "všední den",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "vstávání",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vstáváte",
   "files": [
    "report.tsx"
   ],
@@ -13628,6 +13846,27 @@
  },
  {
   "t": "ze 100",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zítra vstáváte",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zítra vstáváte (obvykle o víkendu)",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zítra vstáváte (obvykle ve všední den)",
   "files": [
    "report.tsx"
   ],
