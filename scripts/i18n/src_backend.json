@@ -9555,6 +9555,12 @@
   ]
  },
  {
+  "t": "Protahování",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
   "t": "Protahování lýtka mírně zvětšuje rozsah pohybu v kotníku (Radford et al., 2006).",
   "files": [
    "mobility_library.py"

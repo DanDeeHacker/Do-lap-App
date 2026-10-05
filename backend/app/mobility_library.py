@@ -233,7 +233,7 @@ _ASSUMPTION = "Výběr cviků pro tento typ dne a dávkování jsou pracovní p�
 
 
 def _prog(key, name, sub, summary, exercises, extra_ev="", extra_refs=(), assumption=_ASSUMPTION, day=None):
-    return {"key": key, "group": "mobility", "sub": sub, "day": day, "physio": PHYSIO_STRETCH, "name": name,
+    return {"key": key, "group": "mobility", "sub": sub, "day": day, "physio": PHYSIO_STRETCH, "physioTopic": "Protahování", "name": name,
             "weeks": None, "perWeek": 7, "when": "před spaním", "match": [], "summary": summary,
             "exercises": exercises, "minutes": sum(MOBILITY_EXERCISES[x]["min"] for x in exercises),
             "evidence": (extra_ev + " " if extra_ev else "") + _BASE_EVIDENCE,

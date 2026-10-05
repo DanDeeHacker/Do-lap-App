@@ -12,10 +12,11 @@ type Leg = [number, number, number]  // thigh (absolute), knee flexion, ankle pl
 // Absolute angles: 0 = down, 90 = forward (right, the figure faces right), 180 = up.
 type Pose = { t: number; h?: number; a: Arm; b: Arm; l: Leg; r: Leg; lift?: number; ms?: number; hold?: number }
 type PtsPose = { p: Record<string, V>; ms?: number; hold?: number }
-type Prop = { k: "wall" | "step" | "box" | "towel" | "weight" | "bar" | "rect" | "arrow"; j?: string; dx?: number; dy?: number; x0?: number; x1?: number; y?: number; live?: boolean }
+type Prop = { k: "wall" | "step" | "box" | "towel" | "weight" | "bar" | "rect" | "arrow" | "ball" | "line"; j?: string; j2?: string; dx?: number; dy?: number; x0?: number; x1?: number; y?: number; live?: boolean }
 type Spec = {
   f?: Pose[]; pts?: PtsPose[]; lines?: [string[], 0 | 1][]
   pin?: string; mode?: "ground" | "hold"; ground?: number; props?: Prop[]; ease?: "sine" | "lin"; thumb?: number
+  floor?: boolean     // false: a view from above (lying on the floor), no floor line
 }
 
 const W = 120, H = 92, FLOOR = 86
@@ -67,6 +68,25 @@ const run = (p: Pose[]): Pose[] => [...p, ...p.map(mirror)]
 // Side-lying and front-view figures: absolute points.
 const SIDE_LYING = { head: [17, 75], neck: [25, 78], hip: [51, 78], elbowF: [22, 84.5], handF: [15, 81], elbowN: [37, 74], handN: [49, 76] } as Record<string, V>
 const LYING_LINES: [string[], 0 | 1][] = [[["neck", "elbowF", "handF"], 1], [["hip", "kneeF", "ankleF", "toeF"], 1], [["neck", "hip"], 0], [["hip", "kneeN", "ankleN", "toeN"], 0], [["neck", "elbowN", "handN"], 0]]
+
+// railway#203 — front views (seated / standing) and views from above (lying on the floor)
+const SEATED_FRONT = { head: [60, 47], neck: [60, 54], mid: [60, 78], shN: [55, 56], shF: [65, 56], elbowN: [49, 66], handN: [46, 79],
+  elbowF: [71, 66], handF: [74, 79], hipN: [55.5, 80], hipF: [64.5, 80] } as Record<string, V>
+const SEATED_LINES: [string[], 0 | 1][] = [[["shF", "elbowF", "handF"], 1], [["hipF", "kneeF", "ankleF", "toeF"], 1], [["neck", "mid"], 0], [["shN", "shF"], 0],
+  [["hipN", "hipF"], 0], [["hipN", "kneeN", "ankleN", "toeN"], 0], [["shN", "elbowN", "handN"], 0]]
+const STAND_FRONT = { head: [60, 20], neck: [60, 27], mid: [60, 51], shN: [54, 29], shF: [66, 29], hipN: [55, 51], hipF: [65, 51], kneeN: [55, 68], kneeF: [65, 68],
+  ankleN: [55, 85], ankleF: [65, 85], toeN: [52, 86], toeF: [68, 86] } as Record<string, V>
+const FRONT_LINES: [string[], 0 | 1][] = [[["shF", "elbowF", "handF"], 1], [["hipF", "kneeF", "ankleF", "toeF"], 1], [["neck", "mid"], 0], [["shN", "shF"], 0],
+  [["hipN", "hipF"], 0], [["hipN", "kneeN", "ankleN", "toeN"], 0], [["shN", "elbowN", "handN"], 0]]
+const SUPINE_TOP = { head: [18, 64], neck: [26, 64], hip: [52, 64], elbowN: [33, 53], handN: [39, 44], elbowF: [33, 75], handF: [39, 84],
+  kneeF: [69, 66], ankleF: [86, 67], toeF: [89, 67] } as Record<string, V>
+const SUPINE_TOP_HOOK = { ...SUPINE_TOP, ankleN: [75, 62], toeN: [78.5, 62], ankleF: [75, 66], toeF: [78.5, 66] } as Record<string, V>
+const TOP_LINES: [string[], 0 | 1][] = [[["neck", "elbowF", "handF"], 1], [["hip", "kneeF", "ankleF", "toeF"], 1], [["neck", "hip"], 0],
+  [["hip", "kneeN", "ankleN", "toeN"], 0], [["neck", "elbowN", "handN"], 0]]
+const SIDE_TOP = { head: [20, 60], neck: [28, 62], hip: [54, 62], elbowF: [30, 72], handF: [30, 82], kneeF: [63, 77], ankleF: [78, 78], toeF: [82, 78],
+  kneeN: [61, 75], ankleN: [76, 76], toeN: [80, 76] } as Record<string, V>
+const QUAD_PTS = { neck: [38, 64], elbowN: [38, 75], handN: [38, 86], elbowF: [40, 75], handF: [40, 86], hip: [68, 69], kneeN: [68, 86], ankleN: [85, 86],
+  kneeF: [70, 86], ankleF: [87, 86] } as Record<string, V>
 
 const SPECS: Record<string, Spec> = {
   heel_raise_2: { f: [up([0, 0, 0], [0, 0, 0], { ms: 1400, hold: 300 }), up([0, 0, 40], [0, 0, 40], { ms: 900, hold: 500 })], props: [{ k: "wall", j: "handN", dx: 1.2 }] },
@@ -156,12 +176,130 @@ const SPECS: Record<string, Spec> = {
   // Runner's must-have: two-leg hip hinge with a weight in the hands
   rdl: { f: [{ t: 180, a: [3, 5], b: [-3, 5], l: [3, 10, -7], r: [3, 10, -7], ms: 1100, hold: 300 },
     { t: 104, a: [2, 0], b: [2, 0], l: [15, 20, -5], r: [15, 20, -5], ms: 1400, hold: 400 }] },
+  // feedback railway#203 — the rest of the Runner's must-have
+  monster_walk: { ...DRILL, ease: "sine", f: run([{ t: 166, a: [45, 45], b: [35, 45], l: [36, 48, 10], r: [-6, 36, 28], ms: 650 }]) },
+  bulgarian_ss: { mode: "hold", pin: "toeN", f: [
+    { t: 176, a: [4, 8], b: [-4, 8], l: [33, 24, 9], r: [-44, 27, 113], ms: 1300, hold: 300 },
+    { t: 168, a: [10, 8], b: [2, 8], l: [85, 75, 10], r: [-24, 105, 56], ms: 1400, hold: 300 }],
+    props: [{ k: "box", j: "toeF", x0: -8, x1: 3, dy: 0.6 }] },
+  pallof: { f: [{ t: 180, a: [-8, 128], b: [-8, 128], l: [10, 18, 8], r: [10, 18, 8], ms: 900, hold: 300 },
+    { t: 180, a: [88, 0], b: [88, 0], l: [10, 18, 8], r: [10, 18, 8], ms: 800, hold: 1200 }] },
+  sl_hops: { pin: "hip", f: [{ t: 178, a: [10, 20], b: [-10, 20], l: [12, 25, 5], r: [35, 85, 20], ms: 260 },
+    { t: 180, a: [5, 15], b: [-5, 15], l: [3, 6, 35], r: [35, 85, 20], lift: 6, ms: 260 }] },
+  step_down: { mode: "hold", ground: FLOOR - 10, pin: "toeN", f: [
+    { t: 180, a: [55, 25], b: [55, 25], l: [6, 7, -1], r: [28, 24, 20], ms: 1200, hold: 300 },
+    { t: 166, a: [72, 12], b: [72, 12], l: [48, 71, -23], r: [29, 0, 49], ms: 1600, hold: 300 }],
+    props: [{ k: "step", j: "toeN", x0: -17, x1: 1 }] },
+  // owner request 2026-10-05 — bedtime mobility
+  mob_calf_wall: { mode: "hold", pin: "toeN", f: [
+    { t: 165, a: [100, 25], b: [100, 25], l: [-18, 0, -18], r: [32, 30, 2], ms: 1500, hold: 300 },
+    { t: 150, a: [104, 30], b: [104, 30], l: [-28, 0, -28], r: [39, 48, -9], ms: 1500, hold: 2200 }],
+    props: [{ k: "wall", j: "handN", dx: 1.2 }] },
+  mob_soleus_wall: { mode: "hold", pin: "toeN", f: [
+    { t: 172, a: [98, 30], b: [98, 30], l: [15, 52, -37], r: [40, 43, -3], ms: 1500, hold: 300 },
+    { t: 166, a: [100, 35], b: [100, 35], l: [17, 72, -55], r: [53, 75, -22], ms: 1500, hold: 2200 }],
+    props: [{ k: "wall", j: "handN", dx: 1.2 }] },
+  mob_knee_wall: { mode: "hold", pin: "toeN", f: [
+    { t: 176, a: [92, 35], b: [92, 35], l: [24, 24, 0], r: [-24, 0, -9], ms: 1000, hold: 200 },
+    { t: 172, a: [96, 45], b: [96, 45], l: [42, 67, -26], r: [-8, 51, -31], ms: 1000, hold: 300 }],
+    props: [{ k: "wall", j: "toeN", dx: 9 }] },
+  mob_foot_ball: { mode: "hold", pin: "hip", f: [
+    { t: 180, a: [15, 45], b: [15, 45], l: [103, 88, 15], r: [90, 90, 0], ms: 1200 },
+    { t: 180, a: [15, 45], b: [15, 45], l: [103, 118, -15], r: [90, 90, 0], ms: 1200 }],
+    props: [{ k: "box", j: "hip", x0: -12, x1: 5, dy: 2 }, { k: "ball", j: "ankleN", dx: 2, dy: 2.2, live: true }] },
+  mob_toes: { mode: "hold", pin: "toeN", f: [
+    { t: 180, a: [30, 40], b: [30, 40], l: [0, 110, -20], r: [0, 110, -20], ms: 1500, hold: 300 },
+    { t: 188, a: [55, 40], b: [55, 40], l: [70, 180, -20], r: [70, 180, -20], ms: 1500, hold: 1500 }] },
+  mob_hamstring_strap: { mode: "hold", pin: "hip", f: [
+    { t: -90, a: [119, 0], b: [119, 0], l: [140, 8, -20], r: [90, 0, 0], ms: 1500, hold: 300 },
+    { t: -90, a: [135, 0], b: [135, 0], l: [166, 8, -20], r: [90, 0, 0], ms: 1500, hold: 2000 }],
+    props: [{ k: "line", j: "handN", j2: "toeN", live: true }] },
+  mob_hip_flexor: { mode: "hold", pin: "kneeN", f: [
+    { t: 180, a: [25, 70], b: [25, 70], l: [5, 95, 90], r: [82, 51, 31], ms: 1500, hold: 300 },
+    { t: 183, a: [25, 70], b: [25, 70], l: [-17.5, 72.5, 90], r: [93, 86, 7], ms: 1500, hold: 2000 }] },
+  mob_quad_side: { mode: "hold", pin: "hip", f: [
+    { t: -90, h: 0, a: [100, 0], b: [80, 0], l: [90, -110, 0], r: [90, 0, 0], ms: 1500, hold: 300 },
+    { t: -90, h: 0, a: [112, 0], b: [80, 0], l: [92, -155, 0], r: [90, 0, 0], ms: 1500, hold: 2000 }] },
+  mob_figure4: { pts: [
+    { p: { head: [16, 80], neck: [23, 82], hip: [47, 82], elbowN: [36, 72], handN: [51, 70], kneeF: [56, 67], ankleF: [71, 73], toeF: [74, 68],
+      kneeN: [63, 79], ankleN: [57, 68], toeN: [55, 63] }, ms: 1300, hold: 300 },
+    { p: { head: [16, 80], neck: [23, 82], hip: [47, 82], elbowN: [34, 70], handN: [47, 66], kneeF: [51, 63], ankleF: [66, 66], toeF: [69, 61],
+      kneeN: [59, 76], ankleN: [52, 64], toeN: [50, 59] }, ms: 1300, hold: 2000 }],
+    lines: [[["hip", "kneeF", "ankleF", "toeF"], 1], [["neck", "hip"], 0], [["hip", "kneeN", "ankleN", "toeN"], 0], [["neck", "elbowN", "handN"], 0]] },
+  mob_9090: { pts: [
+    { p: { ...SEATED_FRONT, kneeN: [48, 66], ankleN: [43, 84], toeN: [40, 85], kneeF: [72, 66], ankleF: [77, 84], toeF: [80, 85] }, ms: 900, hold: 200 },
+    { p: { ...SEATED_FRONT, kneeN: [38, 78], ankleN: [47, 84], toeN: [45, 85], kneeF: [56, 74], ankleF: [74, 84], toeF: [77, 85] }, ms: 1100, hold: 500 },
+    { p: { ...SEATED_FRONT, kneeN: [48, 66], ankleN: [43, 84], toeN: [40, 85], kneeF: [72, 66], ankleF: [77, 84], toeF: [80, 85] }, ms: 1100, hold: 200 },
+    { p: { ...SEATED_FRONT, kneeN: [64, 74], ankleN: [46, 84], toeN: [43, 85], kneeF: [82, 78], ankleF: [73, 84], toeF: [75, 85] }, ms: 1100, hold: 500 }],
+    lines: SEATED_LINES },
+  mob_butterfly: { pts: [
+    { p: { ...SEATED_FRONT, elbowN: [51, 71], handN: [56, 81], elbowF: [69, 71], handF: [64, 81], kneeN: [41, 77], ankleN: [57, 83], toeN: [59, 85], kneeF: [79, 77], ankleF: [63, 83], toeF: [61, 85] }, ms: 1300, hold: 300 },
+    { p: { ...SEATED_FRONT, head: [60, 54], neck: [60, 61], shN: [55, 63], shF: [65, 63], elbowN: [51, 73], handN: [56, 81], elbowF: [69, 73], handF: [64, 81],
+      kneeN: [39, 80], ankleN: [57, 83], toeN: [59, 85], kneeF: [81, 80], ankleF: [63, 83], toeF: [61, 85] }, ms: 1500, hold: 1800 }],
+    lines: SEATED_LINES },
+  mob_it_cross: { pts: [
+    { p: { ...SUPINE_TOP, kneeN: [69, 62], ankleN: [86, 61], toeN: [89, 61] }, ms: 1300, hold: 300 },
+    { p: { ...SUPINE_TOP, kneeN: [66, 72], ankleN: [78, 82], toeN: [81, 83.5], hip: [52, 65] }, ms: 1500, hold: 2000 }],
+    lines: TOP_LINES, floor: false },
+  mob_lumbar_rot: { pts: [
+    { p: { ...SUPINE_TOP_HOOK, kneeN: [63, 62.5], kneeF: [63, 65.5] }, ms: 900, hold: 100 },
+    { p: { ...SUPINE_TOP_HOOK, kneeN: [61, 51], kneeF: [64, 54] }, ms: 1100, hold: 400 },
+    { p: { ...SUPINE_TOP_HOOK, kneeN: [63, 62.5], kneeF: [63, 65.5] }, ms: 1100, hold: 100 },
+    { p: { ...SUPINE_TOP_HOOK, kneeN: [64, 75], kneeF: [61, 78] }, ms: 1100, hold: 400 }],
+    lines: TOP_LINES, floor: false },
+  mob_knees_chest: { mode: "hold", pin: "hip", f: [
+    { t: -90, a: [117, 0], b: [117, 0], l: [160, 125, 20], r: [160, 125, 20], ms: 1500, hold: 200 },
+    { t: -92, a: [123, 0], b: [123, 0], l: [175, 130, 20], r: [175, 130, 20], ms: 1500, hold: 900 }] },
+  mob_child: { mode: "hold", pin: "kneeN", f: [
+    { t: 100, a: [22, 0], b: [22, 0], l: [0, 90, 90], r: [0, 90, 90], ms: 1500, hold: 300 },
+    { t: 80, h: 20, a: [82, 0], b: [82, 0], l: [62, 152, 90], r: [62, 152, 90], ms: 1800, hold: 2400 }] },
+  mob_cat_cow: { pts: [
+    { p: { ...QUAD_PTS, mid: [53, 71], head: [32, 59] }, ms: 1500, hold: 300 },
+    { p: { ...QUAD_PTS, mid: [53, 57], head: [35, 70.5] }, ms: 1500, hold: 300 }],
+    lines: [[["neck", "elbowF", "handF"], 1], [["hip", "kneeF", "ankleF"], 1], [["neck", "mid", "hip"], 0], [["hip", "kneeN", "ankleN"], 0], [["neck", "elbowN", "handN"], 0]] },
+  mob_open_book: { pts: [
+    { p: { ...SIDE_TOP, elbowN: [32, 71], handN: [33, 81] }, ms: 1200, hold: 200 },
+    { p: { ...SIDE_TOP, elbowN: [31, 60], handN: [32, 57], head: [20.5, 59] }, ms: 1100, hold: 100 },
+    { p: { ...SIDE_TOP, elbowN: [30, 52], handN: [30, 42], head: [21, 57] }, ms: 1100, hold: 900 },
+    { p: { ...SIDE_TOP, elbowN: [31, 60], handN: [32, 57], head: [20.5, 59] }, ms: 1100, hold: 100 }],
+    lines: [[["neck", "elbowF", "handF"], 1], [["hip", "kneeF", "ankleF", "toeF"], 1], [["neck", "hip"], 0], [["hip", "kneeN", "ankleN", "toeN"], 0], [["neck", "elbowN", "handN"], 0]], floor: false },
+  mob_thread_needle: { mode: "hold", pin: "kneeN", f: [
+    { t: 100, a: [22, 0], b: [22, 0], l: [0, 90, 90], r: [0, 90, 90], ms: 1200, hold: 200 },
+    { t: 86, h: 15, a: [-62, 0], b: [32, 25], l: [0, 90, 90], r: [0, 90, 90], ms: 1400, hold: 1200 },
+    { t: 100, a: [22, 0], b: [22, 0], l: [0, 90, 90], r: [0, 90, 90], ms: 1200, hold: 200 },
+    { t: 102, h: -10, a: [180, 0], b: [22, 0], l: [0, 90, 90], r: [0, 90, 90], ms: 1300, hold: 900 }] },
+  mob_doorway_chest: { pin: "handN", f: [
+    { t: 180, a: [-70, -110], b: [5, 10], l: [0, 0, 0], r: [0, 0, 0], ms: 1400, hold: 300 },
+    { t: 173, a: [-100, -80], b: [5, 10], l: [20, 6, 14], r: [-12, 8, -4], ms: 1500, hold: 2000 }],
+    props: [{ k: "wall", j: "handN", dx: -1.6 }] },
+  mob_cross_body: { pts: [
+    { p: { ...STAND_FRONT, elbowN: [51, 40], handN: [50, 50], elbowF: [69, 40], handF: [70, 50] }, ms: 1200, hold: 300 },
+    { p: { ...STAND_FRONT, elbowN: [64, 31], handN: [75, 30], elbowF: [72, 39], handF: [65, 32] }, ms: 1300, hold: 2000 }],
+    lines: FRONT_LINES },
+  mob_neck_side: { pts: [
+    { p: { ...STAND_FRONT, elbowN: [51, 40], handN: [50, 50], elbowF: [69, 40], handF: [70, 50] }, ms: 1200, hold: 300 },
+    { p: { ...STAND_FRONT, head: [55.5, 21.6], shF: [66, 30.5], elbowN: [51, 40], handN: [50, 50], elbowF: [69, 41], handF: [70, 51] }, ms: 1300, hold: 1600 },
+    { p: { ...STAND_FRONT, elbowN: [51, 40], handN: [50, 50], elbowF: [69, 40], handF: [70, 50] }, ms: 1200, hold: 300 },
+    { p: { ...STAND_FRONT, head: [64.5, 21.6], shN: [54, 30.5], elbowN: [51, 41], handN: [50, 51], elbowF: [69, 40], handF: [70, 50] }, ms: 1300, hold: 1600 }],
+    lines: FRONT_LINES },
+  mob_chin_tuck: { mode: "hold", pin: "hip", f: [
+    { t: 180, h: -16, a: [15, 45], b: [15, 45], l: [90, 90, 0], r: [90, 90, 0], ms: 900, hold: 300 },
+    { t: 182, h: 8, a: [15, 45], b: [15, 45], l: [90, 90, 0], r: [90, 90, 0], ms: 900, hold: 1500 }],
+    props: [{ k: "box", j: "hip", x0: -12, x1: 5, dy: 2 }] },
+  mob_legs_wall: { mode: "hold", pin: "hip", f: [
+    { t: -90, a: [80, 0], b: [80, 0], l: [178, 0, 90], r: [178, 0, 90], ms: 4000 },
+    { t: -91, a: [80, 0], b: [80, 0], l: [176, 6, 90], r: [176, 6, 90], ms: 4000 }],
+    props: [{ k: "wall", j: "ankleN", dx: 3.2 }] },
+  mob_breathing: { mode: "hold", pin: "hip", f: [
+    { t: -90, a: [148, -96], b: [97, 0], l: [125, 95, 30], r: [125, 95, 30], ms: 6000 },
+    { t: -93, a: [152, -94], b: [97, 0], l: [125, 95, 30], r: [125, 95, 30], ms: 4000 }] },
 }
 // the same movement as an existing figure (the dose / variant differs, not the motion)
 SPECS.pogo_hops = SPECS.hops
 SPECS.sl_calf_slow = SPECS.heel_raise_1
 SPECS.copenhagen_hold = SPECS.copenhagen
 SPECS.side_plank_abd = SPECS.side_plank
+SPECS.mob_child_side = SPECS.mob_child
 
 export const hasFigure = (id: string) => id in SPECS
 
@@ -249,6 +387,9 @@ function Props({ props, ref0, j, live }: { props: Prop[]; ref0: Record<string, V
       case "towel": return <ellipse key={i} cx={x - 0.5} cy={FLOOR - 1.6} rx={2.6} ry={1.6} fill="currentColor" fillOpacity={0.35} />
       case "weight": return <rect key={i} x={x - 3} y={y - 2.2} width={6} height={4.4} rx={1.2} fill="currentColor" fillOpacity={0.55} />
       case "bar": return <line key={i} x1={x - 3.5} y1={y} x2={x + 3.5} y2={y} strokeWidth={2.4} stroke="currentColor" opacity={0.6} strokeLinecap="round" />
+      case "ball": return <circle key={i} cx={x} cy={y} r={1.9} fill="currentColor" fillOpacity={0.55} />
+      case "line": { const b = p.j2 ? (live ? j : ref0)[p.j2] : undefined
+        return b ? <line key={i} x1={x} y1={y} x2={b[0]} y2={b[1]} strokeWidth={1.2} stroke="currentColor" opacity={0.7} strokeDasharray="2 1.4" /> : null }
       case "arrow": return <g key={i} opacity={0.5} stroke="currentColor" strokeWidth={1.2} fill="none" strokeLinecap="round"><path d={`M${W - 32} ${FLOOR + 3.5}H${W - 12}`} /><path d={`M${W - 15.5} ${FLOOR + 1.2}L${W - 12} ${FLOOR + 3.5}L${W - 15.5} ${FLOOR + 5.8}`} /></g>
       default: return null
     }
@@ -262,7 +403,7 @@ function Figure({ spec, pose, layout, className, crop = "y" }: { spec: Spec; pos
   return (
     <svg viewBox={viewBoxOf(layout.box, crop)} className={className} role="img" aria-hidden="true">
       <g className="text-fg-3">
-        <line x1={4} y1={FLOOR} x2={W - 4} y2={FLOOR} stroke="currentColor" strokeWidth={1} opacity={0.5} />
+        {spec.floor !== false && <line x1={4} y1={FLOOR} x2={W - 4} y2={FLOOR} stroke="currentColor" strokeWidth={1} opacity={0.5} />}
         <Props props={props} ref0={layout.ref} j={j} live={false} />
       </g>
       <g className="text-accent" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
@@ -327,4 +468,12 @@ export function ExerciseFrame({ id, ms, className = "w-full" }: { id: string; ms
   return <Figure spec={spec} pose={poseAt(spec, ms)} layout={layout} className={className} />
 }
 export const figureIds = () => Object.keys(SPECS)
+/** When each key frame is fully reached in the loop (the figure check renders them). */
+export const figureKeyTimes = (id: string) => {
+  const fr = ((SPECS[id]?.f || SPECS[id]?.pts || []) as { ms?: number; hold?: number }[])
+  const out = [0]
+  let t = 0
+  for (let k = 1; k < fr.length; k++) { t += fr[k].ms || 600; out.push(t); t += fr[k].hold || 0 }
+  return out
+}
 export const figureLoopMs = (id: string) => ((SPECS[id]?.f || SPECS[id]?.pts || []) as { ms?: number; hold?: number }[]).reduce((s, x) => s + (x.ms || 600) + (x.hold || 0), 0)

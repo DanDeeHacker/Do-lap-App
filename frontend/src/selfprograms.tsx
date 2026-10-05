@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { Button, Card, Chip, Label, Sheet, useToast } from "@/ui"
+import { Button, Card, Chip, Label, Segmented, Sheet, useToast } from "@/ui"
 import { BookOpen, Check, ChevronDown, ChevronRight, Dumbbell, ExternalLink, Info, Moon, Pause, PersonStanding, Play, Plus, RotateCcw, Sparkles, Timer } from "lucide-react"
 import { fmtD, plural } from "@/lib"
 import { ExerciseFigure, ExerciseThumb, hasFigure } from "@/exfigure"
@@ -462,6 +462,19 @@ function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any;
   const [force, setForce] = useState(false)
   const [rerate, setRerate] = useState(false)
   const setExId = onOpenEx
+  // feedback railway#201 — the exercises stay folded until the runner starts the session
+  // (kept open for the day once started, or when anything is already ticked today)
+  const day = todayKey()
+  const openKey = `dl-session-open:${act.id}:${day}`
+  const startedToday = act.exercises.some((e: any) => e.doneToday) || (() => {
+    try { return !!localStorage.getItem(openKey) || act.exercises.some((e: any) => !!localStorage.getItem(`dl-sets:${act.id}:${e.id}:${day}`)) } catch { return false }
+  })()
+  const [sessionOpen, setSessionOpen] = useState<boolean>(startedToday)
+  const begin = () => { setSessionOpen(true); try { localStorage.setItem(openKey, "1") } catch { /* private mode */ } }
+  const fold = () => { setSessionOpen(false); try { localStorage.removeItem(openKey) } catch { /* private mode */ } }
+  const n = act.exercises.length
+  const mins = act.durability ? act.durability.estMin
+    : act.exercises.every((e: any) => lib.exercises[e.id]?.min) ? act.exercises.reduce((a: number, e: any) => a + lib.exercises[e.id].min, 0) : null
   const finish = async (feel: string) => {
     setBusy(true)
     try { onChange(await api.finishSelfProgram(rid, act.id, feel)); setRerate(false); setReopen(false); toast({ title: "Trénink zapsán do zátěže" }) }
@@ -492,10 +505,18 @@ function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any;
               <div key={e.id} className="flex items-center gap-3 py-2"><Thumb id={e.id} /><span className="min-w-0"><b className="block text-[13px] font-bold">{e.name}</b><span className="text-[12px] text-fg-3">{e.dose}</span></span></div>
             ))}
           </div>
-          <Button size="sm" variant="outline" className="mt-2" onClick={() => setForce(true)} data-testid="durability-force">Přesto odcvičit dnes</Button>
+          <Button size="sm" variant="outline" className="mt-2" onClick={() => { setForce(true); begin() }} data-testid="durability-force">Přesto odcvičit dnes</Button>
+        </div>
+      ) : !sessionOpen ? (
+        <div className="mt-3 rounded-[14px] border border-white/[.08] bg-white/[.03] p-3" data-testid="session-folded">
+          <p className="text-[13px] leading-5 text-fg-2">{n} {plural(n, "cvik", "cviky", "cviků")}{mins ? <span>{` · zhruba ${Math.round(mins)} min`}</span> : null}</p>
+          <Button className="mt-2 w-full" icon={Play} onClick={begin} data-testid="session-start">Zahájit trénink</Button>
         </div>
       ) : (
-      <div className="mt-2 divide-y divide-white/[.07]">
+      <div className="mt-2 divide-y divide-white/[.07]" data-testid="session-open">
+        <div className="flex justify-end pb-1">
+          <button type="button" onClick={fold} className="text-[11px] font-bold text-fg-3 underline-offset-2 hover:text-fg-2 hover:underline" data-testid="session-fold">Sbalit cviky</button>
+        </div>
         {act.exercises.map((e: any) => (
           <ExerciseModule key={e.id} e={{ ...lib.exercises[e.id], ...e }} progId={act.id} onOpen={() => setExId(e.id)}
             onToggle={async (done) => {
@@ -520,6 +541,8 @@ export function SelfPrograms() {
   const [exId, setExId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [slide, setSlide] = useState(0)
+  // feedback railway#202 — one box with tabs by the programmes' focus instead of three boxes
+  const [tab, setTab] = useState<"pain" | "performance" | "mobility">("pain")
   const rail = useRef<HTMLDivElement>(null)
   const onRail = () => { const el = rail.current; if (el) setSlide(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))) }
   const goSlide = (i: number) => { const el = rail.current; if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" }) }
@@ -543,7 +566,7 @@ export function SelfPrograms() {
         setTimeout(() => { goSlide(i); box.current?.scrollIntoView({ behavior: "smooth", block: "start" }) }, 60)
       } else {
         const p = (nd.library?.programs || []).find((x: Prog) => x.key === want)
-        if (p) setOpen(p)
+        if (p) { setOpen(p); setTab(((p.group || "pain") as "pain" | "performance" | "mobility")) }
       }
       const next = new URLSearchParams(params)
       next.delete("prog")
@@ -619,31 +642,34 @@ export function SelfPrograms() {
           <p className="mt-2 text-sm text-fg-2">Za poslední 4 týdny jste neoznačili bolest, ke které máme program. Níže jsou všechny programy.</p>
         )}
       </Card>
-      <Card>
-        <div className="flex items-center justify-between gap-2">
-          <Label>Při potížích</Label>
-          <Button size="sm" variant="outline" icon={Plus} onClick={() => setBuild(true)} data-testid="builder-open">Vlastní trénink</Button>
+      <div data-testid="program-tabs"><Card>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Segmented size="sm" ariaLabel="Zaměření programů" value={tab} onChange={setTab}
+            options={[["pain", "Při potížích"], ["performance", "Síla a technika"], ["mobility", "Mobilita"]] as const} />
+          {tab === "pain" && <Button size="sm" variant="outline" icon={Plus} onClick={() => setBuild(true)} data-testid="builder-open">Vlastní trénink</Button>}
         </div>
-        <div className="mt-1 divide-y divide-white/[.07]">{painProgs.map((p) => row(p, false))}</div>
-        <p className="mt-2 text-[11px] leading-4 text-fg-3">Programy vycházejí z publikovaných postupů, u každého je zdroj. Na odbornou revizi fyzioterapeutem Došlapu zatím čekají a nenahrazují vyšetření.</p>
-      </Card>
-      {perfProgs.length > 0 && (
-        <div data-testid="perf-programs"><Card>
-          <Label>Síla a technika</Label>
-          <div className="mt-1 divide-y divide-white/[.07]">{perfProgs.map((p) => row(p, false))}</div>
-          <p className="mt-2 text-[11px] leading-4 text-fg-3">Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe.</p>
-        </Card></div>
-      )}
-      {(mobDay.length > 0 || mobRegion.length > 0) && (
-        <div data-testid="mobility-programs"><Card>
-          <Label><span className="inline-flex items-center gap-1.5"><Moon className="size-3.5 text-load" aria-hidden />Mobilita před spaním</span></Label>
-          <p className="mt-1 text-[12px] leading-5 text-fg-3">Večerní report vybere program podle toho, co jste ten den dělali. Tady jsou všechny.</p>
-          <p className="t-label mt-3 !text-fg-3">Podle dne</p>
-          <div className="divide-y divide-white/[.07]">{mobDay.map((p) => row(p, false))}</div>
-          <p className="t-label mt-3 !text-fg-3">Podle partie</p>
-          <div className="divide-y divide-white/[.07]">{mobRegion.map((p) => row(p, false))}</div>
-        </Card></div>
-      )}
+        {tab === "pain" && (
+          <div data-testid="pain-programs">
+            <div className="mt-1 divide-y divide-white/[.07]">{painProgs.map((p) => row(p, false))}</div>
+            <p className="mt-2 text-[11px] leading-4 text-fg-3">Programy vycházejí z publikovaných postupů, u každého je zdroj. Na odbornou revizi fyzioterapeutem Došlapu zatím čekají a nenahrazují vyšetření.</p>
+          </div>
+        )}
+        {tab === "performance" && (
+          <div data-testid="perf-programs">
+            <div className="mt-1 divide-y divide-white/[.07]">{perfProgs.map((p) => row(p, false))}</div>
+            <p className="mt-2 text-[11px] leading-4 text-fg-3">Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe.</p>
+          </div>
+        )}
+        {tab === "mobility" && (
+          <div data-testid="mobility-programs">
+            <p className="mt-3 flex items-center gap-1.5 text-[12px] leading-5 text-fg-3"><Moon className="size-3.5 shrink-0 text-load" aria-hidden />Večerní report vybere program podle toho, co jste ten den dělali. Tady jsou všechny.</p>
+            <p className="t-label mt-3 !text-fg-3">Podle dne</p>
+            <div className="divide-y divide-white/[.07]">{mobDay.map((p) => row(p, false))}</div>
+            <p className="t-label mt-3 !text-fg-3">Podle partie</p>
+            <div className="divide-y divide-white/[.07]">{mobRegion.map((p) => row(p, false))}</div>
+          </div>
+        )}
+      </Card></div>
       {open && <ProgramSheet prog={open} lib={lib} busy={busy} onClose={() => setOpen(null)} onStart={() => start({ template: open.key })} onOpenEx={setExId} />}
       {build && <BuilderSheet lib={lib} busy={busy} onClose={() => setBuild(false)} onStart={(name, ids) => start({ name, exercises: ids })} onOpenEx={setExId} />}
       {exId && lib.exercises[exId] && <ExerciseSheet id={exId} ex={lib.exercises[exId]} onClose={() => setExId(null)} />}

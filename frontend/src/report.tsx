@@ -1073,8 +1073,11 @@ export function ReportProvider({ children }: { children: ReactNode }) {
   // programmes (the same one twice is the same), optionally opened in Péče right away
   const onProgram = async (key: string, go: boolean) => {
     if (!rid) return false
-    try { await api.startSelfProgram(rid, { template: key }) } catch { return false }
+    let prog: any = null
+    try { prog = await api.startSelfProgram(rid, { template: key }) } catch { return false }
     if (go) {
+      // railway#201 — the programme's exercises fold until the session starts; from the report it has started
+      try { if (prog?.id) localStorage.setItem(`dl-session-open:${prog.id}:${new Date().toLocaleDateString("sv-SE")}`, "1") } catch { /* private mode */ }
       setShow(false)
       navigate(`/app/messages?sub=program&prog=${key}`)
       setTimeout(() => window.dispatchEvent(new CustomEvent(CARE_SUB_EVENT, { detail: "program" })), 80)

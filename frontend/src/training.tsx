@@ -747,11 +747,83 @@ function SessionDetail({ g, a, kind }: { g: any; a: any; kind: string }) {
       {(run || cross) && t.notes?.length > 0 && (
         <p className="mt-4 text-[13px] leading-6 text-fg-soft">{t.notes.join(" ")}</p>
       )}
+      {(run || cross) && <CapacityFit g={g} kind={kind} />}
       {t.program?.key && <ProgramPointer progKey={t.program.key} allowed={t.allowed} />}
       {cross && (
         <Link to="/app/post#jiny-sport" className="btn btn-secondary btn-sm mt-4">Zapsat do deníku</Link>
       )}
     </>
+  )
+}
+
+// feedback railway#200 — how the activity sits in today's capacities: per channel what it
+// takes (planned, or its upper limit) against what today leaves, and what limits it
+const LIMIT_CS: Record<string, string> = { week: "týdenní cíl cyklu", "7d": "strop 7 dní", run: "strop jednoho běhu",
+  systemic: "celková zátěž", mechanics: "odchylka mechaniky" }
+function FitRow({ label, use, left, unit, d = 0, by, note, testid }: { label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; note?: string; testid?: string }) {
+  const top = Math.max(use || 0, left || 0, 1e-6)
+  const over = use != null && left != null && use > left + 0.05
+  return (
+    <div data-testid={testid}>
+      <div className="flex items-baseline justify-between gap-2 text-[12px]">
+        <span className="font-bold text-fg-soft">{label}</span>
+        <span className="tabular-nums text-fg-3">
+          <b className={over ? "text-alert" : "text-fg"}>{use == null ? "—" : `${num(use, d)} ${unit}`}</b>
+          {left != null ? ` z ${num(left, d)} ${unit} dnes` : ""}
+        </span>
+      </div>
+      <div className="relative mt-1 h-2 rounded-full bg-white/[.07]">
+        {left != null && <i className="absolute inset-y-0 left-0 rounded-full bg-white/[.10]" style={{ width: `${(left / top) * 100}%` }} />}
+        {use != null && <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(2, (Math.min(use, top) / top) * 100)}%`, background: over ? C.alert : C.ok }} />}
+      </div>
+      {(by || note) && <p className="mt-0.5 text-[11px] leading-4 text-fg-3">{[note, by ? `dnešní limit dává ${LIMIT_CS[by] || by}` : null].filter(Boolean).join(" · ")}</p>}
+    </div>
+  )
+}
+
+function CapacityFit({ g, kind }: { g: any; kind: string }) {
+  const t = g.types[kind]
+  const ch = g.week?.channels || {}
+  const x = g.planCtx || {}
+  if (!t || !ch.systemic) return null
+  const mid = (r?: number[] | null) => (r ? r[1] : null)
+  const rows: { key: string; label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; note?: string }[] = []
+  const sys = ch.systemic
+  if (!t.cross) {
+    const km = t.km?.hi ?? null
+    const z4 = kind === "kvalitní" ? t.z4Target?.hi ?? null : t.z4Max ?? null
+    rows.push({ key: "volume", label: "Objem běhu", use: km, left: ch.volume?.todayMax ?? null, unit: "km", d: 1, by: ch.volume?.limitedBy })
+    rows.push({ key: "intensity", label: "Minuty v Z4+", use: z4, left: ch.intensity?.todayMax ?? null, unit: "min", by: ch.intensity?.limitedBy,
+      note: kind === "kvalitní" ? "tvrdé úseky" : "nejvýš, cílem je je nemít" })
+    if (t.descentMax != null) rows.push({ key: "descent", label: "Klesání", use: t.descentMax, left: ch.descent?.todayMax ?? null, unit: "m", by: ch.descent?.limitedBy, note: "nejvýš" })
+    if (km != null && x.perKm) rows.push({ key: "systemic", label: "Celková zátěž", use: km * x.perKm + (z4 || 0) * (kind === "kvalitní" ? (x.z4PerMin || 0) * 0.5 : 0),
+      left: sys.todayMax ?? null, unit: "j.z.", by: sys.limitedBy, note: "tep × čas, odhad z vašich lehkých běhů" })
+  } else {
+    const min = mid(t.durationMin)
+    const perMin = kind === "kolo" ? x.perMinRide : kind === "voda" ? 4 * (x.kSrpe || 0) : 6.5 * (x.kSrpe || 0)
+    rows.push({ key: "systemic", label: "Celková zátěž", use: min != null && perMin ? min * perMin : null, left: sys.todayMax ?? null, unit: "j.z.",
+      by: sys.limitedBy, note: kind === "kolo" ? `${min} min v Z2 na kole` : kind === "voda" ? `${min} min plavání v klidném tempu` : `${min} min posilování` })
+    rows.push({ key: "volume", label: "Objem běhu", use: 0, left: ch.volume?.todayMax ?? null, unit: "km", d: 1, note: "běžecké kilometry se nepočítají" })
+    if (kind !== "posilování") rows.push({ key: "intensity", label: "Minuty v Z4+", use: 0, left: ch.intensity?.todayMax ?? null, unit: "min",
+      note: kind === "kolo" ? "v Z2 žádné, tvrdé úseky by se počítaly" : "v klidném tempu žádné" })
+  }
+  const over = rows.find((r) => r.use != null && r.left != null && r.use > r.left + 0.05)
+  const binding = rows.find((r) => r.use != null && r.left != null && r.use > 0 && r.use >= 0.9 * r.left)
+  const noRun = !t.cross && (ch.volume?.todayMax ?? 1) < 0.5
+  const summary = over ? `Dnes by přesáhla limit — ${over.label.toLowerCase()}: zbývá ${num(over.left, over.d ?? 0)} ${over.unit}`
+    : noRun ? "Na běh dnes kapacita nezbývá."
+    : binding ? `Velikost určuje ${binding.label.toLowerCase()}: tato aktivita využije, co dnes zbývá.`
+    : t.cross ? "Zatíží srdce a plíce, běžecké kapacity šetří a do dnešních limitů se vejde."
+    : "Vejde se do všech dnešních limitů s rezervou."
+  return (
+    <div className="nest mt-4 p-3.5" data-testid="capacity-fit">
+      <p className="t-label !text-fg-3">Podle dnešních kapacit</p>
+      <p className="mt-1 text-[12px] leading-5 text-fg-2">{summary}</p>
+      <div className="mt-2.5 grid gap-3">
+        {rows.map(({ key, ...r }) => <FitRow key={key} testid={`fit-${key}`} {...r} />)}
+      </div>
+      <p className="mt-2 text-[11px] leading-4 text-fg-3">Zelená = tato aktivita, šedá = co dnes zbývá do limitu (týdenní cíl, strop 7 dní a jednoho běhu, celková zátěž).</p>
+    </div>
   )
 }
 

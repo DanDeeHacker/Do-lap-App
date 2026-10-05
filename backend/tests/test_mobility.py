@@ -90,3 +90,13 @@ def test_saving_the_programme_and_the_evening_report(client, db_session, monkeyp
     with E.today_pinned(DAY):
         r2 = DR.build(db_session, rid, "evening")
     assert r2["mobility"]["saved"] and r2["mobility"]["savedId"] == p["id"]
+
+
+def test_every_programme_exercise_has_a_figure():
+    """Feedback railway#203 — a demonstration for every exercise of every programme."""
+    import pathlib
+    import re
+    src = (pathlib.Path(__file__).resolve().parents[2] / "frontend" / "src" / "exfigure.tsx").read_text(encoding="utf-8")
+    figs = set(re.findall(r"^  (\w+): \{", src, re.M)) | set(re.findall(r"^SPECS\.(\w+) =", src, re.M))
+    used = {x for p in PL.PROGRAMS for x in p["exercises"]}
+    assert not used - figs, sorted(used - figs)

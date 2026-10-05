@@ -587,7 +587,7 @@ def _exercise_links() -> dict:
     for p in PROGRAMS:
         for x in p["exercises"]:
             if not any(lk["url"] == p["physio"] for lk in out.setdefault(x, [])):
-                out[x].append({"url": p["physio"], "topic": p["name"]})
+                out[x].append({"url": p["physio"], "topic": p.get("physioTopic") or p["name"]})
     return out
 
 
