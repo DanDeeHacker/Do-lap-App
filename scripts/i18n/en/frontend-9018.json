@@ -1,0 +1,15 @@
+{
+"Do postele i káva jsou přepočtené.": "Bedtime and coffee are recalculated.",
+"Dřív než v {} do postele nedoporučujeme: obvykle usínáte až v {} a hodinu před tím se usíná nejhůř.": "We don't recommend going to bed before {0}: you usually fall asleep only at {1}, and the hour before that is the hardest time to fall asleep.",
+"Posuňte budík, čas do postele se přepočítá.": "Move the alarm and the bedtime is recalculated.",
+"Přepočteno pro zítřejší vstávání v {}.": "Recalculated for waking up at {0} tomorrow.",
+"Spánek tak vyjde asi na {}, o {} méně než cíl.": "That gives about {0} of sleep, {1} short of the target.",
+" Spánek tak vyjde asi na {}, o {} méně než cíl.": " That gives about {0} of sleep, {1} short of the target.",
+"váš čas vstávání": "your wake time",
+"Vstávat o 15 minut dřív": "Wake 15 minutes earlier",
+"Vstávat o 15 minut později": "Wake 15 minutes later",
+"Zítra vstávám jindy?": "Waking at a different time tomorrow?",
+"Zítra vstáváte (váš čas)": "Tomorrow you wake (your time)",
+"Zítřejší čas vstávání": "Tomorrow's wake time",
+"Zpět na obvyklé vstávání v {}": "Back to the usual wake time of {0}"
+}

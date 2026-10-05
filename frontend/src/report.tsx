@@ -864,11 +864,95 @@ function SleepTimes({ t }: { t: any }) {
   )
 }
 
+const WAKE_MIN_AT = 3 * 60, WAKE_MAX_AT = 12 * 60, WAKE_STEP = 15
+const hhmm = (m: number) => { const x = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}` }
+
+function withWake(t: any, wake: number) {
+  // the same sum as the server's (daily_report._tonight) for another wake time: wake − target − falling
+  // asleep; at most stepMax earlier than the usual bedtime, and no later than it when that's already enough
+  const lat = t.latency || 15, step = t.stepMax || 30
+  let ideal = wake - (t.target || 8) * 60 - lat + 1440, bed = ideal, mode = "ideal"
+  if (t.usualBedMin != null) {
+    const gap = t.usualBedMin - ideal
+    if (gap > step) { bed = t.usualBedMin - step; mode = "step" } else if (gap < -step) { bed = t.usualBedMin; mode = "keep" }
+  }
+  bed = 5 * Math.floor(bed / 5); ideal = 5 * Math.round(ideal / 5)
+  return {
+    ...t, custom: true, wakeMin: wake, wake: clock(wake), bed: clock(bed), ideal: clock(ideal), mode,
+    caffeine: clock(bed - (t.caffeineH || 6) * 60),
+    timing: t.timing && { ...t.timing, bedMin: bed, idealMin: ideal, wakeMin: wake },
+  }
+}
+
+function WakeEdit({ t, wake, usual, onChange }: { t: any; wake: number; usual: number; onChange: (m: number | null) => void }) {
+  const set = (m: number) => onChange(Math.min(WAKE_MAX_AT, Math.max(WAKE_MIN_AT, m)))
+  const btn = "grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-[18px] font-bold leading-none text-fg disabled:opacity-40"
+  return (
+    <div className="mt-3 rounded-[14px] bg-white/[.05] px-3 py-2.5" data-no-tap data-testid="wake-edit">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-fg">Zítra vstávám jindy?</p>
+          <p className="text-[11px] leading-[14px] text-fg-3">{t.custom ? "Do postele i káva jsou přepočtené." : "Posuňte budík, čas do postele se přepočítá."}</p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button type="button" className={btn} aria-label="Vstávat o 15 minut dřív" disabled={wake <= WAKE_MIN_AT}
+            onClick={() => set(wake - WAKE_STEP)} data-testid="wake-earlier">−</button>
+          {/* the time as the app writes it (24 h); the native picker under it opens on a tap */}
+          <label className="relative w-[60px] rounded-[10px] bg-white/[.06] py-1.5 text-center focus-within:ring-2 focus-within:ring-accent">
+            <span className="t-num text-[16px] text-fg">{clock(wake)}</span>
+            <input type="time" step={300} value={hhmm(wake)} aria-label="Zítřejší čas vstávání" data-testid="wake-input"
+              onClick={(e) => { try { (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.() } catch { /* not allowed here */ } }}
+              onChange={(e) => { const [h, m] = e.target.value.split(":").map(Number); if (!Number.isNaN(h) && !Number.isNaN(m)) set(h * 60 + m) }}
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:dark]" />
+          </label>
+          <button type="button" className={btn} aria-label="Vstávat o 15 minut později" disabled={wake >= WAKE_MAX_AT}
+            onClick={() => set(wake + WAKE_STEP)} data-testid="wake-later">+</button>
+        </div>
+      </div>
+      {t.custom && (
+        <button type="button" onClick={() => onChange(null)} className="mt-1.5 text-[12px] font-semibold text-accent" data-testid="wake-reset">
+          {`Zpět na obvyklé vstávání v ${clock(usual)}`}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function Tonight({ t, date, text }: { t: any; date?: string; text: ReactNode }) {
+  // the runner can try another wake time for tomorrow (an early alarm); kept for this evening only
+  const key = `dl-wake:${date || ""}`
+  const usual = t.wakeMin ?? 390
+  const [pick, setPick] = useState<number | null>(() => {
+    try { const v = localStorage.getItem(key); return v == null ? null : Number(v) } catch { return null }
+  })
+  const choose = (m: number | null) => {
+    const v = m == null || m === usual ? null : m
+    setPick(v)
+    try { if (v == null) localStorage.removeItem(key); else localStorage.setItem(key, String(v)) } catch { /* private mode */ }
+  }
+  const v = pick == null || Number.isNaN(pick) ? t : withWake(t, pick)
+  return (
+    <>
+      <Lbl>Dnešní noc</Lbl>
+      <Big>{`${hm((v.target || 8) * 60)} spánku`}</Big>
+      {v.custom ? <p className="mt-2 text-[14px] leading-[21px] text-fg-soft" data-testid="wake-custom-note">{`Přepočteno pro zítřejší vstávání v ${v.wake}.`}</p> : text}
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Bed className="mx-auto size-5 text-load" aria-hidden /><p className="t-num mt-1 text-[22px]" data-testid="tonight-bed">{v.bed}</p><p className="text-[10.5px] text-fg-3">do postele</p></div>
+        <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Sun className="mx-auto size-5 text-watch" aria-hidden /><p className="t-num mt-1 text-[22px]">{v.wake}</p><p className="text-[10.5px] text-fg-3">{v.custom ? "váš čas vstávání" : v.wakeFromWatch ? (v.timing?.tomorrowWeekend ? "obvyklé víkendové vstávání" : "obvyklé vstávání") : "vstávání"}</p></div>
+        <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Coffee className="mx-auto size-5 text-fg-2" aria-hidden /><p className="t-num mt-1 text-[22px]">{v.caffeine}</p><p className="text-[10.5px] text-fg-3">poslední káva</p></div>
+      </div>
+      <WakeEdit t={v} wake={v.wakeMin ?? usual} usual={usual} onChange={choose} />
+      {v.timing && <Panel><SleepTimes t={v} /></Panel>}
+      <Panel><BedtimeMath t={v} /></Panel>
+    </>
+  )
+}
+
 function BedtimeMath({ t }: { t: any }) {
   // how the bedtime was derived: tomorrow's wake − the sleep target − falling asleep
   const tm = t.timing
   const rows: [string, string][] = [
-    [tm ? (tm.tomorrowWeekend ? "Zítra vstáváte (obvykle o víkendu)" : "Zítra vstáváte (obvykle ve všední den)") : "Zítra vstáváte", t.wake],
+    [t.custom ? "Zítra vstáváte (váš čas)" : tm ? (tm.tomorrowWeekend ? "Zítra vstáváte (obvykle o víkendu)" : "Zítra vstáváte (obvykle ve všední den)") : "Zítra vstáváte", t.wake],
     ["− cíl spánku", hm((t.target || 8) * 60)],
     ["− usínání", `${t.latency || 15} min`],
     ["= ideálně do postele", t.ideal || t.bed],
@@ -882,7 +966,17 @@ function BedtimeMath({ t }: { t: any }) {
           <dd key={`v${i}`} className={`text-right tabular-nums ${i === rows.length - 1 ? "font-bold text-fg" : "text-fg-soft"}`}>{v}</dd>,
         ])}
       </dl>
-      {t.mode === "step" && tm && (
+      {t.mode === "step" && tm && t.custom && (() => {
+        // one early morning: no use lying in bed long before the usual sleep onset, so a shorter night
+        const sleep = t.wakeMin + 1440 - (tm.bedMin + (t.latency || 15)), short = (t.target || 8) * 60 - sleep
+        return (
+          <p className="mt-2 rounded-[12px] bg-watch/10 px-3 py-2 text-[12.5px] leading-[18px] text-watch-soft" data-testid="bedtime-step">
+            <span>{`Dřív než v ${t.bed} do postele nedoporučujeme: obvykle usínáte až v ${tm.usualOnset} a hodinu před tím se usíná nejhůř.`}</span>
+            {short >= 10 && <span>{` Spánek tak vyjde asi na ${hm(sleep)}, o ${hm(short)} méně než cíl.`}</span>}
+          </p>
+        )
+      })()}
+      {t.mode === "step" && tm && !t.custom && (
         <p className="mt-2 rounded-[12px] bg-watch/10 px-3 py-2 text-[12.5px] leading-[18px] text-watch-soft" data-testid="bedtime-step">
           {`Obvykle usínáte až v ${tm.usualOnset}. Hodinu před obvyklým usnutím se usíná nejhůř, proto dnes do postele v ${t.bed} (o půl hodiny dřív než obvykle) a další večery vždy o 15–30 min dřív, než dojdete k ${t.ideal}.`}
         </p>
@@ -1045,16 +1139,7 @@ function eveningCards(r: any, c: Ctx): Card[] {
   cards.push({
     key: "tonight", title: "Na noc", body: (
       <>
-        <Lbl>Dnešní noc</Lbl>
-        <Big>{`${hm((t.target || 8) * 60)} spánku`}</Big>
-        {note(c, "tonight")}
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Bed className="mx-auto size-5 text-load" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.bed}</p><p className="text-[10.5px] text-fg-3">do postele</p></div>
-          <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Sun className="mx-auto size-5 text-watch" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.wake}</p><p className="text-[10.5px] text-fg-3">{t.wakeFromWatch ? (t.timing?.tomorrowWeekend ? "obvyklé víkendové vstávání" : "obvyklé vstávání") : "vstávání"}</p></div>
-          <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Coffee className="mx-auto size-5 text-fg-2" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.caffeine}</p><p className="text-[10.5px] text-fg-3">poslední káva</p></div>
-        </div>
-        {t.timing && <Panel><SleepTimes t={t} /></Panel>}
-        <Panel><BedtimeMath t={t} /></Panel>
+        <Tonight t={t} date={r.date} text={note(c, "tonight")} />
         <Panel>
           <ul className="space-y-1.5 text-[13px] leading-5 text-fg-soft">
             <li className="flex gap-2"><span className="text-load">›</span><span>Sportovcům se doporučuje 7–9 hodin spánku, při náročném tréninku spíš víc (Walsh et al., 2021).</span></li>

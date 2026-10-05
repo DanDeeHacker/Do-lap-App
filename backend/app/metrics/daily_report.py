@@ -377,7 +377,10 @@ def _tonight(a, det, dm, today, norm, week_next_hard: bool, debt):
     bed, ideal = 5 * (bed // 5), 5 * round(ideal / 5)          # a bedtime on a 5-minute mark, not later than computed
     out = {"target": target, "wake": _hm(wake), "bed": _hm(bed), "caffeine": _hm(bed - CAFFEINE_H * 60),
            "base": _r(base), "hardTomorrow": week_next_hard, "debt": debt, "wakeFromWatch": bool(tm),
-           "ideal": _hm(ideal), "mode": mode, "latency": FALL_ASLEEP_MIN}
+           "ideal": _hm(ideal), "mode": mode, "latency": FALL_ASLEEP_MIN,
+           # what the report needs to redo the sum for another wake time the runner picks
+           "wakeMin": round(wake) % 1440, "stepMax": STEP_MAX_MIN, "caffeineH": CAFFEINE_H,
+           "usualBedMin": None if usual_bed is None else round(usual_bed)}
     if tm:
         out["timing"] = {**tm, "usualOnset": _hm(tm["onset"]), "usualWake": _hm(tm["wake"]), "usualBed": _hm(usual_bed),
                          "bedMin": round(bed), "idealMin": round(ideal), "wakeMin": wake}

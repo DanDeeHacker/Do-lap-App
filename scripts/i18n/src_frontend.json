@@ -12910,11 +12910,25 @@
   "kind": "tpl"
  },
  {
+  "t": "Do postele i káva jsou přepočtené.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Doporučení na dnešek",
   "files": [
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Dřív než v {} do postele nedoporučujeme: obvykle usínáte až v {} a hodinu před tím se usíná nejhůř.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "dříve",
@@ -13387,6 +13401,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Posuňte budík, čas do postele se přepočítá.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "potřeba {} h",
   "files": [
    "report.tsx"
@@ -13441,6 +13462,13 @@
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Přepočteno pro zítřejší vstávání v {}.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Proč právě takhle",
@@ -13575,6 +13603,13 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Spánek tak vyjde asi na {}, o {} méně než cíl.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Sportovcům se doporučuje 7–9 hodin spánku, při náročném tréninku spíš víc (Walsh et al., 2021).",
@@ -13726,6 +13761,13 @@
   "kind": "str"
  },
  {
+  "t": "váš čas vstávání",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Váš den",
   "files": [
    "report.tsx"
@@ -13796,6 +13838,20 @@
   "kind": "str"
  },
  {
+  "t": "Vstávat o 15 minut dřív",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vstávat o 15 minut později",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Vstáváte",
   "files": [
    "report.tsx"
@@ -13852,6 +13908,13 @@
   "kind": "str"
  },
  {
+  "t": "Zítra vstávám jindy?",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Zítra vstáváte",
   "files": [
    "report.tsx"
@@ -13873,6 +13936,20 @@
   "kind": "str"
  },
  {
+  "t": "Zítra vstáváte (váš čas)",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zítřejší čas vstávání",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Zítřek",
   "files": [
    "report.tsx"
@@ -13881,6 +13958,13 @@
  },
  {
   "t": "zkráceně z {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Zpět na obvyklé vstávání v {}",
   "files": [
    "report.tsx"
   ],

@@ -55,3 +55,25 @@ def test_after_midnight_onsets_and_the_trend():
 def test_without_watch_nights_the_old_rule_stays():
     t = DR._tonight(None, {}, {}, MON, {"h": 8.0}, False, 0)
     assert t["mode"] == "ideal" and t["wake"] == "6:30" and "timing" not in t and not t["wakeFromWatch"]
+
+
+def _redo(t, wake):
+    # the report's withWake() (report.tsx) in Python: the fields the server sends are enough to redo the sum
+    ideal = wake - t["target"] * 60 - t["latency"] + 1440
+    bed, mode = ideal, "ideal"
+    if t["usualBedMin"] is not None:
+        gap = t["usualBedMin"] - ideal
+        if gap > t["stepMax"]:
+            bed, mode = t["usualBedMin"] - t["stepMax"], "step"
+        elif gap < -t["stepMax"]:
+            bed, mode = t["usualBedMin"], "keep"
+    return DR._hm(5 * (bed // 5)), mode
+
+
+def test_another_wake_time_can_be_redone_from_the_report_fields():
+    for det in (_det("23:45", "6:15"), _det("21:30", "6:15"), _det("22:20", "6:15"), {}):
+        t = DR._tonight(None, det, {}, MON, {"h": 8.0}, False, 0)
+        assert _redo(t, t["wakeMin"]) == (t["bed"], t["mode"])
+    t = DR._tonight(None, _det("22:20", "6:15"), {}, MON, {"h": 8.0}, False, 0)
+    assert _redo(t, 6 * 60 + 45) == ("22:30", "ideal")          # half an hour later alarm → half an hour later bed
+    assert _redo(t, 5 * 60) == ("21:35", "step")                # an early alarm: at most 30 min before the usual 22:05
