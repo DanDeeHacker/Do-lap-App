@@ -767,7 +767,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     pain_why = (f"Bolest {pain}/10" if pain >= 3 else
                 "Bolest omezila běh" if (func and not func["severe"]) else
                 "Po akutním přetížení" if acute_mod else
-                f"Bolest roste týden od týdne ({_cz(ptrend['before'])} → {_cz(ptrend['now'])}/10)" if ptrend else
+                (f"Ranní test šlachy se týden od týdne zhoršuje ({_cz(ptrend['before'])} → {_cz(ptrend['now'])}/10)"
+                 if ptrend.get("source") == "tendonTest" else
+                 f"Bolest roste týden od týdne ({_cz(ptrend['before'])} → {_cz(ptrend['now'])}/10)") if ptrend else
                 f"Včerejší běh bolel {y_run_pain}/10, ráno je klid" if settled_after_run else
                 f"Opakovaná bolest ({recurring['site']}, {recurring['days']}× za 28 dní; uvolní se po: {need})"
                 if rec_active else "")
@@ -925,6 +927,14 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                     "text": f"Bolest {pain}/10{f' · {pain_site}' if pain_site else ''} a zároveň engine doporučuje "
                             f"fyzioterapeuta ({'do 48 hodin' if decision == 'physio_48h' else 'do 7 dnů'}). "
                             "Kombinace bolesti a rizikového stavu je důvod běh vynechat a nechat to posoudit."}
+    elif morning and morning.get("source") == "tendonTest":
+        base = (f", před během {morning['baseline']}/10" if morning.get("baseline") is not None and morning.get("runDate") else "")
+        override = {"kind": "pain_monitor",
+                    "title": ("Šlacha se do rána neuklidnila — dnes neběhat" if morning.get("runDate") and morning["morning"] <= 5
+                              else "Ranní test šlachy nad 5/10 — dnes neběhat"),
+                    "text": f"{morning['site']}: ranní test ({morning['test']}) {morning['morning']}/10{base}. Bolest šlachy má "
+                            "do rána odeznít a nepřekročit 5/10; když ne, byla zátěž moc. Dnes bez běhu, kolo nebo plavání "
+                            "jen bez bolesti, další běh kratší a volnější. Když se to zopakuje, k fyzioterapeutovi."}
     elif morning:
         override = {"kind": "pain_monitor", "title": "Bolest je ráno horší než při běhu — dnes neběhat",
                     "text": f"{morning['site'] or 'Bolest'}: ráno {morning['morning']}/10, při včerejším běhu "

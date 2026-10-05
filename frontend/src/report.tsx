@@ -9,6 +9,7 @@ import { useApp } from "@/store"
 import { useAssistant } from "@/assistant"
 import { C, goodCol } from "@/tokens"
 import { ReadinessFactors } from "@/capacity"
+import { ExerciseFigure } from "@/exfigure"
 import { Bed, Bike, Bookmark, BookmarkCheck, Check, ChevronRight, Coffee, Dumbbell, Eye, Flag, Info, MessageCircle, Moon, Play, Sparkles, Sun, TriangleAlert, X } from "lucide-react"
 import { useNavigate } from "react-router"
 import { CARE_SUB_EVENT } from "@/onboarding"
@@ -361,7 +362,7 @@ const LEVEL_ICON: Record<string, any> = { alert: TriangleAlert, watch: Eye, info
 
 // ---- morning ------------------------------------------------------------------------------
 type Ctx = { onAsk: (q: string) => void; hasAssistant: boolean; notes: Record<string, string>; ai: boolean; pending: boolean
-  onProgram: (key: string, go: boolean) => Promise<boolean> }
+  onProgram: (key: string, go: boolean) => Promise<boolean>; rid?: string; onRefresh: () => void }
 const note = (c: Ctx, k: string) => <AiNote text={c.notes[k]} ai={c.ai} pending={c.pending} />
 
 function morningCards(r: any, c: Ctx): Card[] {
@@ -384,6 +385,8 @@ function morningCards(r: any, c: Ctx): Card[] {
       </div>
     ),
   }]
+  // suggestion #7: the test first — its result changes today's recommendation
+  if (r.tendon) cards.push({ key: "tendon", title: "Šlacha", body: <TendonCard t={r.tendon} rid={c.rid} onSaved={c.onRefresh} /> })
   cards.push({
     key: "sleep", title: "Spánek", body: !n ? <><Big>Noc zatím chybí</Big>{note(c, "sleep")}</> : (
       <>
@@ -449,6 +452,7 @@ function morningCards(r: any, c: Ctx): Card[] {
           })}
         </div>
         {rec.readiness && <div data-no-tap><ReadinessFactors r={rec.readiness} /></div>}
+        {r.tagsLastNight && <LastNightTags x={r.tagsLastNight} />}
       </>
     ),
   })
@@ -995,6 +999,334 @@ function BedtimeMath({ t }: { t: any }) {
   )
 }
 
+// ---- suggestion #7: the morning tendon test (the 24-hour response of the pain-monitoring model) --
+const SIDE_WORD: Record<string, string> = { L: "levá", P: "pravá" }
+const TENDON_STATE: Record<string, { col: string; label: string }> = {
+  red: { col: C.alert, label: "Dnes bez běhu" }, amber: { col: C.watch, label: "Držet zátěž" },
+  green: { col: C.ok, label: "Šlacha zátěž snesla" }, base: { col: C.info, label: "Výchozí hodnota" },
+}
+
+function TendonLog({ log }: { log: any[] }) {
+  // 14 mornings: the test (bar) and the pain during that day's run (dot); the dashed line is 5/10
+  const [pick, setPick] = useState<number | null>(null)
+  const W = 300, H = 118, L = 24, T = 6, B = 16
+  const cw = (W - L) / log.length
+  const y = (v: number) => T + (1 - v / 10) * (H - T - B)
+  const at = (e: React.PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    const i = Math.floor(((e.clientX - r.left) / r.width * W - L) / cw)
+    setPick(i >= 0 && i < log.length ? i : null)
+  }
+  const p = pick != null ? log[pick] : null
+  return (
+    <div className="mt-3" data-no-tap data-testid="tendon-log">
+      <Lbl>{`Posledních ${log.length} dní`}</Lbl>
+      <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full touch-none" role="img" aria-label="Ranní test a bolest při běhu"
+        onPointerDown={at} onPointerMove={(e) => (e.buttons || e.pointerType === "mouse") && at(e)} onPointerLeave={() => setPick(null)}>
+        {[0, 5, 10].map((v) => (
+          <g key={v}>
+            <line x1={L} x2={W} y1={y(v)} y2={y(v)} stroke="rgb(255 255 255 / .07)" />
+            <text x={L - 5} y={y(v) + 3} textAnchor="end" fontSize="8.5" fill={C.fg3}>{v}</text>
+          </g>
+        ))}
+        <line x1={L} x2={W} y1={y(5)} y2={y(5)} stroke={C.alert} strokeWidth={1} strokeDasharray="3 2" opacity={0.75} />
+        {log.map((d, i) => (
+          <g key={d.d} opacity={pick == null || pick === i ? 1 : 0.45}>
+            {d.test != null && (d.test > 0
+              ? <rect x={L + i * cw + cw * 0.2} width={cw * 0.6} y={y(d.test)} height={y(0) - y(d.test)} rx={2} fill={C.load} />
+              : <rect x={L + i * cw + cw * 0.2} width={cw * 0.6} y={y(0) - 2} height={2} rx={1} fill={C.load} />)}
+            {d.during != null && <circle cx={L + i * cw + cw / 2} cy={y(d.during)} r={4} fill={C.info} stroke={C.panel} strokeWidth={2} />}
+            {d.ran && d.during == null && <circle cx={L + i * cw + cw / 2} cy={y(0) + 6} r={2} fill={C.info} />}
+            {(i % 3 === (log.length - 1) % 3) && <text x={L + i * cw + cw / 2} y={H - 2} textAnchor="middle" fontSize="8" fill={C.fg3}>{dm(d.d)}</text>}
+          </g>
+        ))}
+      </svg>
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-fg-3">
+        <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: C.load }} />ranní test</span>
+        <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.info }} />bolest při běhu</span>
+        <span className="flex items-center gap-1"><i className="h-0 w-3 border-t border-dashed" style={{ borderColor: C.alert }} />hranice 5/10</span>
+      </div>
+      <p className="mt-1.5 min-h-[16px] text-[11.5px] text-fg-2" data-testid="tendon-pick">
+        {p ? (
+          <>
+            <span>{dm(p.d)}</span>
+            <span>{p.test != null ? ` · test ${p.test}/10` : " · bez testu"}</span>
+            {p.ran && <span>{p.during != null ? ` · běh ${p.during}/10` : " · běh bez hodnocení"}</span>}
+          </>
+        ) : <span className="text-fg-3">Klepněte na den pro hodnoty.</span>}
+      </p>
+    </div>
+  )
+}
+
+function TendonItem({ it, rid, onCard }: { it: any; rid?: string; onCard: (c: any) => void }) {
+  const [edit, setEdit] = useState(!it.done)
+  const [pain, setPain] = useState<number | null>(it.pain ?? null)
+  const [stiff, setStiff] = useState<number | null>(it.stiffness ?? null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(false)
+  const save = async () => {
+    if (pain == null || !rid) return
+    setBusy(true); setErr(false)
+    try { onCard(await api.tendonCheck(rid, { site: it.site, side: it.side, pain, stiffness: stiff })); setEdit(false) }
+    catch { setErr(true) }
+    finally { setBusy(false) }
+  }
+  const st = TENDON_STATE[it.state] || TENDON_STATE.base
+  const painCol = (v: number) => (v > 5 ? C.alert : v >= 3 ? C.watch : C.ok)
+  return (
+    <Panel>
+      <div className="flex items-baseline justify-between gap-2" data-testid={`tendon-${it.site}-${it.side || "x"}`}>
+        <p className="text-[15px] font-bold text-fg">{it.name}</p>
+        {it.side && <span className="text-[12px] text-fg-3">{SIDE_WORD[it.side]}</span>}
+      </div>
+      {edit ? (
+        <div data-no-tap>
+          <div className="mt-2 flex gap-3">
+            <div className="w-[96px] shrink-0 self-start overflow-hidden rounded-[12px] bg-white/[.04]"><ExerciseFigure id={it.figure} /></div>
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-fg">{it.testName}</p>
+              <ol className="mt-1 list-decimal space-y-1 pl-4 text-[12.5px] leading-[18px] text-fg-2">
+                {(it.how || []).map((h: string, i: number) => <li key={i}>{h}</li>)}
+              </ol>
+            </div>
+          </div>
+          <p className="mt-3 text-[12px] font-semibold text-fg-2">Bolest během testu</p>
+          <div className="mt-1.5 grid grid-cols-11 gap-1" role="radiogroup" aria-label="Bolest během testu">
+            {Array.from({ length: 11 }, (_, v) => (
+              <button key={v} type="button" role="radio" aria-checked={pain === v} onClick={() => setPain(v)} data-testid={`tendon-pain-${v}`}
+                className="t-num grid h-9 place-items-center rounded-[9px] text-[13px] font-bold"
+                style={pain === v ? { background: painCol(v), color: C.ink } : { background: "rgb(255 255 255 / .06)", color: C.fg }}>{v}</button>
+            ))}
+          </div>
+          <div className="mt-1 flex justify-between text-[10.5px] text-fg-3"><span>žádná</span><span>nejhorší</span></div>
+          <p className="mt-3 text-[12px] font-semibold text-fg-2">Ranní ztuhlost šlachy</p>
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+            {["žádná", "do 15 min", "déle"].map((l, v) => (
+              <button key={l} type="button" onClick={() => setStiff(stiff === v ? null : v)} aria-pressed={stiff === v}
+                className={`rounded-[10px] px-2 py-2 text-[12.5px] font-semibold ${stiff === v ? "bg-accent text-ink" : "bg-white/[.06] text-fg"}`}>{l}</button>
+            ))}
+          </div>
+          <button type="button" onClick={save} disabled={pain == null || busy || !rid} data-testid="tendon-save"
+            className="mt-3 w-full rounded-full bg-accent px-3 py-2.5 text-[13px] font-bold text-ink disabled:opacity-50">
+            {busy ? "Ukládám…" : "Uložit test"}
+          </button>
+          {err && <p className="mt-2 text-[12px] text-alert">Uložení se nepovedlo, zkuste to znovu.</p>}
+        </div>
+      ) : (
+        <>
+          <div className="mt-2 rounded-[12px] px-3 py-2.5" style={{ background: `${st.col}1f` }} data-testid="tendon-verdict">
+            <p className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: st.col }}>
+              {it.state === "red" ? <TriangleAlert className="size-4" aria-hidden /> : it.state === "green" ? <Check className="size-4" aria-hidden /> : <Info className="size-4" aria-hidden />}
+              {st.label}
+            </p>
+            <p className="mt-1 text-[12.5px] leading-[18px] text-fg-soft">{it.text}</p>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <Tile label="Dnešní test" value={`${it.pain}/10`} col={painCol(it.pain)} />
+            <Tile label="Před během" value={it.baseline != null ? `${it.baseline}/10` : "—"} sub={it.baselineDate ? dm(it.baselineDate) : undefined} />
+            <Tile label="Při běhu" value={it.during != null ? `${it.during}/10` : "—"} sub={it.ran ? "včera" : "včera bez běhu"} />
+          </div>
+          <TendonLog log={it.log || []} />
+          <button type="button" onClick={() => setEdit(true)} className="mt-2 text-[12px] font-semibold text-accent" data-testid="tendon-edit">Opravit dnešní odpověď</button>
+        </>
+      )}
+    </Panel>
+  )
+}
+
+function TendonCard({ t, rid, onSaved }: { t: any; rid?: string; onSaved: () => void }) {
+  const [card, setCard] = useState(t)
+  const onCard = (c: any) => { setCard(c); onSaved() }
+  const items: any[] = card?.items || []
+  return (
+    <div data-testid="tendon-card">
+      <Lbl>Ranní test šlachy</Lbl>
+      <Big>{items.every((x) => x.done) ? "Jak šlacha snesla zátěž" : "Krátký test, než vyrazíte"}</Big>
+      <Sub>Šlacha byla v posledních dnech bolavá. Stejný test každé ráno ukáže, jestli se po zátěži uklidnila: bolest smí být nejvýš 5/10 a do rána má odeznít.</Sub>
+      {items.map((it) => <TendonItem key={`${it.site}-${it.side}-${it.done ? "d" : "n"}`} it={it} rid={rid} onCard={onCard} />)}
+      <p className="mt-3 text-[11px] leading-4 text-fg-3">Model sledování bolesti (Silbernagel et al., 2007), test zátěží šlachy (Malliaras et al., 2015). Výsledek rovnou upraví dnešní doporučení.</p>
+    </div>
+  )
+}
+
+// ---- suggestion #10: what the day held, and what it does to this runner's night ----------
+const OUT_LABEL: [string, string][] = [["hrv", "HRV"], ["rhr", "Klidový tep"], ["sleep", "Spánek"]]
+const effVal = (k: string, v: number) =>
+  k === "hrv" ? `${v > 0 ? "+" : v < 0 ? "−" : ""}${num(Math.abs(v), 0)} %` : k === "rhr" ? `${v > 0 ? "+" : v < 0 ? "−" : ""}${num(Math.abs(v), 1)} tepu/min` : `${v > 0 ? "+" : v < 0 ? "−" : ""}${num(Math.abs(v), 0)} min`
+const effBad = (k: string, v: number) => (k === "rhr" ? v > 0 : v < 0)
+
+function EffectChips({ eff }: { eff: any }) {
+  return (
+    <div className="mt-1 flex flex-wrap gap-1.5">
+      {OUT_LABEL.map(([k, l]) => {
+        const e = eff?.[k]
+        if (!e || e.status === "collecting") return null
+        const clear = e.status === "clear"
+        return (
+          <span key={k} className="rounded-full px-2 py-0.5 text-[11.5px] font-semibold"
+            style={clear ? { background: `${effBad(k, e.value) ? C.watch : C.ok}24`, color: effBad(k, e.value) ? C.watchSoft : C.ok } : { background: "rgb(255 255 255 / .06)", color: C.fg3 }}>
+            <span>{l}</span>{clear ? " " : ": "}<span className="t-num">{clear ? effVal(k, e.value) : e.status === "none" ? "beze změny" : "nejasné"}</span>
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+function HrvForest({ rows }: { rows: any[] }) {
+  // the HRV effect of each tag with its 95 % interval; the band around zero is the smallest
+  // worthwhile change (half of the night-to-night SD) — an interval inside it = no effect
+  const W = 300, rowH = 24, L = 112, R = 8, T = 14
+  const H = T + rows.length * rowH + 4
+  const ext = Math.max(10, ...rows.flatMap((x) => [Math.abs(x.effects.hrv.lo), Math.abs(x.effects.hrv.hi)]))
+  const dom = Math.ceil(ext / 5) * 5
+  const x = (v: number) => L + ((v + dom) / (2 * dom)) * (W - L - R)
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full" role="img" aria-label="Vliv štítků na HRV" data-testid="hrv-forest">
+      {[-dom, 0, dom].map((v) => (
+        <g key={v}>
+          <line x1={x(v)} x2={x(v)} y1={T - 4} y2={H} stroke={v === 0 ? "rgb(255 255 255 / .25)" : "rgb(255 255 255 / .07)"} />
+          <text x={x(v)} y={9} textAnchor={v > 0 ? "end" : v < 0 ? "start" : "middle"} fontSize="8.5" fill={C.fg3}>{v === 0 ? "0" : `${v > 0 ? "+" : "−"}${Math.abs(v)} %`}</text>
+        </g>
+      ))}
+      {rows.map((r, i) => {
+        const e = r.effects.hrv, cy = T + i * rowH + rowH / 2
+        const col = e.status === "clear" ? (e.value < 0 ? C.watch : C.ok) : C.fg3
+        return (
+          <g key={r.key}>
+            <text x={0} y={cy + 3.5} fontSize="10" fill={C.fg2}>{r.label}</text>
+            <line x1={x(e.lo)} x2={x(e.hi)} y1={cy} y2={cy} stroke={col} strokeWidth={2} strokeLinecap="round" />
+            <circle cx={x(e.value)} cy={cy} r={4.5} fill={col} stroke={C.panel} strokeWidth={2} />
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+function DayTags({ d, rid }: { d: any; rid?: string }) {
+  const [data, setData] = useState(d)
+  const [sel, setSel] = useState<string[]>(d.tags || [])
+  const [answered, setAnswered] = useState<boolean>(d.tags != null)
+  const [dirty, setDirty] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(false)
+  const toggle = (k: string) => {
+    setDirty(true)
+    setSel((cur) => {
+      if (cur.includes(k)) return cur.filter((x) => x !== k)
+      const other = k === "alcohol" ? "alcohol_more" : k === "alcohol_more" ? "alcohol" : null
+      return [...cur.filter((x) => x !== other), k]
+    })
+  }
+  const save = async (tags: string[]) => {
+    if (!rid) return
+    setBusy(true); setErr(false)
+    try { const x = await api.saveDayTags(rid, { tags }); setData(x); setSel(x.tags || []); setAnswered(true); setDirty(false) }
+    catch { setErr(true) }
+    finally { setBusy(false) }
+  }
+  const ins: any[] = data.insights || []
+  const ready = ins.filter((x) => x.status !== "collecting" && x.effects?.hrv && x.effects.hrv.status !== "collecting")
+  const collecting = ins.filter((x) => x.status === "collecting" && x.n > 0)
+  return (
+    <div data-testid="day-tags">
+      <Lbl>Co dnes bylo</Lbl>
+      <Big>Co vám hýbe nocí?</Big>
+      <Sub>Označte, co dnes bylo. Po pár týdnech uvidíte, co z toho u vás opravdu mění HRV, klidový tep a spánek.</Sub>
+      <div className="mt-4 flex flex-wrap gap-2" data-no-tap>
+        {(data.options || []).map((o: any) => {
+          const on = sel.includes(o.key)
+          return (
+            <button key={o.key} type="button" onClick={() => toggle(o.key)} aria-pressed={on} data-testid={`tag-${o.key}`}
+              className={`rounded-full px-3 py-2 text-[13px] font-semibold transition ${on ? "bg-accent text-ink" : "bg-white/[.07] text-fg"}`}>{o.label}</button>
+          )
+        })}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button type="button" disabled={busy} onClick={() => save([])} data-testid="tags-none"
+          className={`rounded-full border px-3 py-2.5 text-[13px] font-bold disabled:opacity-60 ${answered && !sel.length && !dirty ? "border-accent text-accent" : "border-white/20 text-fg"}`}>
+          Nic z toho
+        </button>
+        <button type="button" disabled={busy || !sel.length || (answered && !dirty)} onClick={() => save(sel)} data-testid="tags-save"
+          className="rounded-full bg-accent px-3 py-2.5 text-[13px] font-bold text-ink disabled:opacity-50">
+          {answered && !dirty && sel.length ? "Uloženo" : "Uložit"}
+        </button>
+      </div>
+      <p className="mt-2 text-[11.5px] leading-4 text-fg-3" data-testid="tags-status">
+        {err ? "Uložení se nepovedlo, zkuste to znovu." : answered && !dirty ? (sel.length ? "Dnešní večer je zapsaný." : "Zapsáno: dnes nic z toho. I takový večer je potřeba pro srovnání.") : "Večer bez odpovědi se do srovnání nepočítá."}
+      </p>
+      <Panel>
+        <Lbl>{`Vaše data · ${data.answered} zapsaných večerů`}</Lbl>
+        {ready.length ? (
+          <>
+            <p className="mt-2 text-[12px] leading-[17px] text-fg-2">Vliv na HRV další noci proti vašemu průměru, s 95% intervalem a po odečtení vlivu tréninku toho dne.</p>
+            <HrvForest rows={ready.slice(0, 6)} />
+            <ul className="mt-2 space-y-2.5">
+              {ready.map((x) => (
+                <li key={x.key}>
+                  <p className="text-[13px] font-semibold text-fg"><span>{x.label}</span><span className="font-normal text-fg-3">{` · ${x.n} nocí`}</span></p>
+                  <EffectChips eff={x.effects} />
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="mt-2 text-[12.5px] leading-[18px] text-fg-2">Ke každému štítku je potřeba aspoň 5 večerů s ním a 10 bez něj. Pak se tu objeví, jak u vás působí.</p>
+        )}
+        {collecting.length > 0 && (
+          <ul className="mt-3 space-y-1.5">
+            {collecting.map((x) => (
+              <li key={x.key} className="flex items-center gap-2 text-[12px] text-fg-2">
+                <span className="w-[112px] shrink-0 truncate">{x.label}</span>
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10"><b className="block h-full rounded-full bg-load" style={{ width: `${Math.min(100, (x.n / 5) * 100)}%` }} /></span>
+                <span className="t-num w-9 text-right text-fg-3">{`${Math.min(x.n, 5)}/5`}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+      <p className="mt-3 text-[11px] leading-4 text-fg-3">Alkohol snižuje noční HRV podle množství (Pietilä et al., 2018); tady jde o to, jak je to právě u vás.</p>
+    </div>
+  )
+}
+
+function LastNightTags({ x }: { x: any }) {
+  const now = x.now || {}
+  return (
+    <Panel>
+      <Lbl>Včerejší večer</Lbl>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {x.items.map((it: any) => <span key={it.key} className="rounded-full bg-white/[.08] px-2.5 py-1 text-[12px] font-semibold text-fg">{it.label}</span>)}
+      </div>
+      {(now.hrv != null || now.rhr != null || now.sleep != null) && (
+        <p className="mt-2 text-[12.5px] leading-[18px] text-fg-2">
+          <span>Dnešní noc proti průměru 14 nocí před ní:</span>
+          {now.hrv != null && <span className="t-num">{` HRV ${effVal("hrv", now.hrv)}`}</span>}
+          {now.rhr != null && <span className="t-num">{` · tep ${effVal("rhr", now.rhr)}`}</span>}
+          {now.sleep != null && <span className="t-num">{` · spánek ${effVal("sleep", now.sleep)}`}</span>}
+        </p>
+      )}
+      {x.items.map((it: any) => (
+        <div key={it.key} className="mt-2">
+          {it.status === "clear" ? (
+            <>
+              <p className="text-[12px] text-fg-3"><span>{it.label}</span><span>: u vás obvykle</span><span>{` (${it.n} nocí)`}</span></p>
+              <EffectChips eff={it.effects} />
+            </>
+          ) : (
+            <p className="text-[12px] text-fg-3">
+              <span>{it.label}</span><span>{": "}</span>
+              <span>{it.status === "collecting" ? `zatím ${Math.min(it.n, 5)} z 5 večerů potřebných pro srovnání` : it.status === "none" ? "u vás bez znatelného vlivu na noc" : "vliv zatím nejasný"}</span>
+            </p>
+          )}
+        </div>
+      ))}
+    </Panel>
+  )
+}
+
 // ---- evening ------------------------------------------------------------------------------
 const TYPE_COL: Record<string, string> = { "dlouhý": C.load, "kvalitní": C.alert, "lehký": C.info, volno: C.fg4, "lehce / volno": C.fg4 }
 
@@ -1136,6 +1468,7 @@ function eveningCards(r: any, c: Ctx): Card[] {
     ),
   })
   if (r.mobility) cards.push({ key: "mobility", title: "Mobilita", body: <Mobility m={r.mobility} text={c.notes.mobility} onProgram={c.onProgram} /> })
+  if (r.dayTags) cards.push({ key: "tags", title: "Co dnes bylo", body: <DayTags d={r.dayTags} rid={c.rid} /> })
   cards.push({
     key: "tonight", title: "Na noc", body: (
       <>
@@ -1209,6 +1542,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
   const [now, setNow] = useState(() => new Date())
   const [rep, setRep] = useState<{ kind: Kind; day: string; data: any } | null>(null)
   const [show, setShow] = useState(false)
+  const [bump, setBump] = useState(0)                 // an answer in the report (a tendon test) → the report again
   const stamp = boot?.assessment?.computed_at          // a sync recomputes it → the night may have arrived
   // re-check the window every minute and whenever the app comes back to the front
   useEffect(() => {
@@ -1244,7 +1578,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
       if (!wasSeen(seenKey(rid, day, kind))) { setShow(true); markSeen(seenKey(rid, day, kind)) }
     }).catch(() => alive && setRep(null))
     return () => { alive = false }
-  }, [rid, kind, day, stamp])
+  }, [rid, kind, day, stamp, bump])
   // the model-written sentences come after the report (validated on the server; the rule-based ones meanwhile)
   const [ai, setAi] = useState<{ key: string; notes: Record<string, string>; source: string } | null>(null)
   const repKey = rep ? `${rep.kind}:${rep.day}:${rep.data?.generatedAt}` : ""
@@ -1272,7 +1606,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
     return true
   }
   const aiNow = ai && ai.key === repKey ? ai : null
-  const ctx = rep ? { onAsk, onProgram, hasAssistant: available, notes: { ...(rep.data?.notes || {}), ...(aiNow?.notes || {}) },
+  const ctx = rep ? { onAsk, onProgram, rid, onRefresh: () => { setBump((x) => x + 1); refresh().catch(() => {}) }, hasAssistant: available, notes: { ...(rep.data?.notes || {}), ...(aiNow?.notes || {}) },
     ai: aiNow ? aiNow.source === "ai" : !rep.data?.aiPending, pending: !!rep.data?.aiPending && !aiNow } : null
   const cards = show && rep && ctx ? (rep.kind === "morning" ? morningCards(rep.data, ctx) : eveningCards(rep.data, ctx)) : null
   return (

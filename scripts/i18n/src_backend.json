@@ -40,6 +40,7 @@
   "files": [
    "content.py",
    "metrics/engine.py",
+   "metrics/tendon.py",
    "programs_library.py",
    "seed.py",
    "tutorial_demo.py"
@@ -2087,6 +2088,12 @@
   ]
  },
  {
+  "t": "ranní test šlachy {}/10 ({}), dnes bez běhu",
+  "files": [
+   "metrics/capacity.py"
+  ]
+ },
+ {
   "t": "roste týden od týdne",
   "files": [
    "metrics/capacity.py"
@@ -2934,7 +2941,8 @@
  {
   "t": "Včera: {}.",
   "files": [
-   "metrics/daily_report.py"
+   "metrics/daily_report.py",
+   "metrics/day_tags.py"
   ]
  },
  {
@@ -3115,6 +3123,181 @@
   ]
  },
  {
+  "t": "({} nocí).",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Alkohol 3 a víc",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Cestování",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "HRV",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Jak to u vás působí na noc, ukážou další večery.",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Káva odpoledne",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Obrazovka v posteli",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Pozdní jídlo",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Sauna",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Spánek přes den",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Stres",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "U vás bez znatelného vlivu na noc ({} nocí).",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Zatím nejasné, data se rozcházejí ({} nocí). Další večery to upřesní.",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Zatím {} {} s tímto štítkem, potřeba aspoň {}",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Zatím žádný večer s tímto štítkem.",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "a {} večerů bez něj.",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "delší",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "klidový tep",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "klidový tep o {} {} {}",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "kratší",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "níž",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "spánek",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "spánek o {} min {}",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "tepů",
+  "files": [
+   "metrics/day_tags.py",
+   "metrics/sensitivity.py"
+  ]
+ },
+ {
+  "t": "večer",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "večery",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "večerů",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "výš",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "{}: u vás obvykle {}",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
   "t": "Délka",
   "files": [
    "metrics/dayload.py"
@@ -3154,6 +3337,13 @@
   "t": ", do té doby se mechanika nehodnotí.",
   "files": [
    "metrics/engine.py"
+  ]
+ },
+ {
+  "t": ", před během {}/10",
+  "files": [
+   "metrics/engine.py",
+   "metrics/guidance.py"
   ]
  },
  {
@@ -4058,7 +4248,8 @@
  {
   "t": "levá",
   "files": [
-   "metrics/engine.py"
+   "metrics/engine.py",
+   "metrics/tendon.py"
   ]
  },
  {
@@ -4175,7 +4366,8 @@
  {
   "t": "pravá",
   "files": [
-   "metrics/engine.py"
+   "metrics/engine.py",
+   "metrics/tendon.py"
   ]
  },
  {
@@ -4437,6 +4629,18 @@
   ]
  },
  {
+  "t": "{}: průměr ranních testů za 7 dní {}/10 proti {}/10 týden předtím — bolest nemá z týdne na týden růst (Silbernagel 2007); odlehčit, bez intenzity a dlouhého běhu.",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
+  "t": "{}: ranní test ({}) {}/10{}. Podle modelu sledování bolesti (Silbernagel 2007) má bolest do rána odeznít a nepřekročit 5/10; dnes bez běhu.",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
   "t": "{}: ráno po běhu {}/10, při běhu {}/10. Podle modelu sledování bolesti (Silbernagel 2007) má bolest do rána odeznít — když je horší, byla zátěž moc; dnes bez běhu.",
   "files": [
    "metrics/engine.py"
@@ -4505,6 +4709,12 @@
  },
  {
   "t": "úseky (odchylka v SD):",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
+  "t": "Šlacha se do rána neuklidnila",
   "files": [
    "metrics/engine.py"
   ]
@@ -5294,6 +5504,18 @@
   ]
  },
  {
+  "t": "Ranní test šlachy nad 5/10 — dnes neběhat",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Ranní test šlachy se týden od týdne zhoršuje ({} → {}/10)",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Regenerační běh",
   "files": [
    "metrics/guidance.py"
@@ -5821,6 +6043,12 @@
   ]
  },
  {
+  "t": "{}: ranní test ({}) {}/10{}. Bolest šlachy má do rána odeznít a nepřekročit 5/10; když ne, byla zátěž moc. Dnes bez běhu, kolo nebo plavání jen bez bolesti, další běh kratší a volnější. Když se to zopakuje, k fyzioterapeutovi.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "{}: ráno {}/10, při včerejším běhu {}/10. Bolest má do rána odeznít; když je horší, byla zátěž moc. Dnes bez běhu, další běh kratší a volnější — a pokud se to zopakuje, k fyzioterapeutovi.",
   "files": [
    "metrics/guidance.py"
@@ -5864,6 +6092,12 @@
  },
  {
   "t": "čéšk",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Šlacha se do rána neuklidnila — dnes neběhat",
   "files": [
    "metrics/guidance.py"
   ]
@@ -6967,12 +7201,6 @@
  },
  {
   "t": "podíl",
-  "files": [
-   "metrics/sensitivity.py"
-  ]
- },
- {
-  "t": "tepů",
   "files": [
    "metrics/sensitivity.py"
   ]
@@ -8386,6 +8614,114 @@
   "t": "únava {}/10",
   "files": [
    "metrics/signal_sources.py"
+  ]
+ },
+ {
+  "t": "10 výponů na jedné noze",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "5 pomalých dřepů na jedné noze",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Desetkrát pomalu nahoru na špičku a zpět dolů na celou plosku.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Držte zátěž, nepřidávejte: bolest při včerejším běhu byla {}/10, nad hranicí 5/10. Další běh stejný nebo o kus lehčí.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Držte zátěž, nepřidávejte: ranní test se týden od týdne zhoršuje ({} → {}/10). Další běh stejný nebo o kus lehčí.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Držte zátěž, nepřidávejte: test {}/10, o bod horší než před během ({}/10). Další běh stejný nebo o kus lehčí.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Ohodnoťte nejhorší bolest pod čéškou během testu: 0 žádná, 10 nejhorší představitelná.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Ohodnoťte nejhorší bolest ve šlaše během testu: 0 žádná, 10 nejhorší představitelná.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Patelární šlacha",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Pětkrát pomalu do dřepu, koleno nad špičkou, jen tak hluboko, jak to jde, a zpět.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Stoupněte si na nohu s bolavou šlachou a rukou se lehce přidržte opěradla.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Stoupněte si na nohu s bolavou šlachou, druhou pokrčte a rukou se lehce přidržte zdi.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Test {}/10 je nad hranicí 5/10. Dnes bez běhu, kolo nebo plavání jen tehdy, když při nich šlacha nebolí. Pokud to tak zůstane i zítra, k fyzioterapeutovi.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Test {}/10, minule {}/10. Včera bez běhu, takže jen pro srovnání; rozhodne ranní test po příštím běhu.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Výchozí hodnota je uložená. Po dalším běhu ji ráno porovnáme, test dělejte vždy stejně a ve stejnou dobu.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "{}: ranní test ({}) ještě chybí. Ukáže, jestli se šlacha po zátěži uklidnila.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Šlacha se do rána neuklidnila: test {}/10, před během {}/10. Zátěž byla moc. Dnes bez běhu, další běh kratší a volnější.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Šlacha zátěž snesla: test {}/10, před během {}/10. Můžete pokračovat podle plánu.",
+  "files": [
+   "metrics/tendon.py"
   ]
  },
  {
@@ -13600,6 +13936,12 @@
   ]
  },
  {
+  "t": "Neznámá šlacha",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
   "t": "Neznámý sport",
   "files": [
    "routers/runners.py"
@@ -13709,6 +14051,12 @@
  },
  {
   "t": "Závod nenalezen",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Štítky jen pro dnešek nebo včerejšek",
   "files": [
    "routers/runners.py"
   ]

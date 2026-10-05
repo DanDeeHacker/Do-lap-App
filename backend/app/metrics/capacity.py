@@ -1635,7 +1635,8 @@ def body_state(data, rid, day: str) -> dict:
         kind, site = "painMorning", mw.get("site")
         for ch in RUN_CH:
             factor[ch] = 0.0
-        reasons.append(f"ráno po běhu víc bolesti ({mw.get('morning')}/10) než během něj, dnes bez běhu")
+        reasons.append(f"ranní test šlachy {mw.get('morning')}/10 ({site}), dnes bez běhu" if mw.get("source") == "tendonTest"
+                       else f"ráno po běhu víc bolesti ({mw.get('morning')}/10) než během něj, dnes bez běhu")
     elif live:
         ep = live[0]
         site, lvl = ep["label"], ep["level"]

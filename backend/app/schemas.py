@@ -29,6 +29,18 @@ class LoginRequest(Lenient):
     expected_role: Optional[str] = None
 
 
+class TendonCheckRequest(Lenient):
+    site: str
+    side: Optional[str] = ""
+    pain: int
+    stiffness: Optional[int] = None
+
+
+class DayTagsRequest(Lenient):
+    date: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+
+
 class CheckinRequest(Lenient):
     pain_score: Optional[int] = None
     pain_site: Optional[str] = None

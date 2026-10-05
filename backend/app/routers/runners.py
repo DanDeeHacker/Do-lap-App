@@ -1056,6 +1056,72 @@ def create_checkin(rid: str, body: schemas.CheckinRequest, background: Backgroun
     return out
 
 
+@router.get("/{rid}/tendon-checks")
+def get_tendon_checks(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Suggestion #7: the morning load test of each watched tendon, today's verdict and the log."""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import data as D
+    from ..metrics import tendon as TD
+    return TD.card(D.load_runner_data(db, rid, priors=False), E.today_date()) or {"items": [], "allDone": True}
+
+
+@router.post("/{rid}/tendon-checks", dependencies=[Depends(verify_csrf)])
+def save_tendon_check(rid: str, body: schemas.TendonCheckRequest, background: BackgroundTasks,
+                      user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Today's test of one tendon (a second answer this morning replaces the first); the
+    assessment follows, the result can stop today's running (engine.pain_monitor)."""
+    ensure_runner_self(user, rid)
+    from ..metrics import data as D
+    from ..metrics import tendon as TD
+    if body.site not in TD.TENDONS:
+        raise HTTPException(status_code=422, detail="Neznámá šlacha")
+    side = body.side if body.side in ("L", "P") else ""
+    if not 0 <= body.pain <= 10 or (body.stiffness is not None and body.stiffness not in (0, 1, 2)):
+        raise HTTPException(status_code=422, detail="Bolest 0–10, ztuhlost 0–2")
+    today = E.iso_date(E.today_date())
+    row = (db.query(models.TendonCheck).filter(models.TendonCheck.runner_id == rid, models.TendonCheck.date == today,
+                                               models.TendonCheck.site == body.site, models.TendonCheck.side == side).first())
+    if row is None:
+        row = models.TendonCheck(runner_id=rid, date=today, site=body.site, side=side)
+        db.add(row)
+    row.test, row.pain, row.stiffness, row.submitted_at = TD.TENDONS[body.site]["test"], body.pain, body.stiffness, E.now_iso()
+    db.commit()
+    E.recompute_assessment(db, rid)
+    background.add_task(coach_texts.refresh_bg, rid)
+    return TD.card(D.load_runner_data(db, rid, priors=False), E.today_date()) or {"items": [], "allDone": True}
+
+
+@router.get("/{rid}/day-tags")
+def get_day_tags(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Suggestion #10: today's evening tags and what each tag does to this runner's night."""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import day_tags as DT
+    return DT.evening(db, rid, E.today_date())
+
+
+@router.put("/{rid}/day-tags", dependencies=[Depends(verify_csrf)])
+def save_day_tags(rid: str, body: schemas.DayTagsRequest, user: models.User = Depends(get_current_user),
+                  db: DBSession = Depends(get_db)):
+    """What the day held (an empty list = nothing of it). Today or yesterday (a late answer
+    the next morning); the engine doesn't read it, so no recompute."""
+    ensure_runner_self(user, rid)
+    from ..metrics import day_tags as DT
+    today = E.today_date()
+    day = body.date or today.isoformat()
+    if day not in (today.isoformat(), (today - timedelta(days=1)).isoformat()):
+        raise HTTPException(status_code=422, detail="Štítky jen pro dnešek nebo včerejšek")
+    tags = [t for t in dict.fromkeys(body.tags) if t in DT.TAG_LABEL]
+    if "alcohol" in tags and "alcohol_more" in tags:
+        tags.remove("alcohol")
+    row = db.query(models.DayTag).filter(models.DayTag.runner_id == rid, models.DayTag.date == day).first()
+    if row is None:
+        row = models.DayTag(runner_id=rid, date=day)
+        db.add(row)
+    row.tags, row.updated_at = tags, E.now_iso()
+    db.commit()
+    return DT.evening(db, rid, today)
+
+
 @router.get("/{rid}/report")
 def get_daily_report(rid: str, request: Request, kind: str = "morning", user: models.User = Depends(get_current_user),
                      db: DBSession = Depends(get_db)):

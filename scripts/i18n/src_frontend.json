@@ -407,6 +407,7 @@
   "t": "Uložit",
   "files": [
    "annotate.tsx",
+   "report.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -879,6 +880,7 @@
   "files": [
    "App.tsx",
    "capacity.tsx",
+   "report.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -2918,6 +2920,7 @@
    "App.tsx",
    "annotate.tsx",
    "profile.tsx",
+   "report.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -3176,7 +3179,8 @@
  {
   "t": "žádná",
   "files": [
-   "App.tsx"
+   "App.tsx",
+   "report.tsx"
   ],
   "kind": "str"
  },
@@ -11826,7 +11830,8 @@
  {
   "t": "levá",
   "files": [
-   "profile.tsx"
+   "profile.tsx",
+   "report.tsx"
   ],
   "kind": "jsx"
  },
@@ -12080,7 +12085,8 @@
  {
   "t": "pravá",
   "files": [
-   "profile.tsx"
+   "profile.tsx",
+   "report.tsx"
   ],
   "kind": "jsx"
  },
@@ -12436,6 +12442,20 @@
   "kind": "str"
  },
  {
+  "t": ": u vás obvykle",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "· {} nocí",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· {}× probuzení",
   "files": [
    "report.tsx"
@@ -12448,6 +12468,27 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "· běh {}/10",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· běh bez hodnocení",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· bez testu",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "· energie {}",
@@ -12471,7 +12512,35 @@
   "kind": "tpl"
  },
  {
+  "t": "· spánek {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· tep {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· test {}/10",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· Z4+ {}–{} min",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "({} nocí)",
   "files": [
    "report.tsx"
   ],
@@ -12585,7 +12654,21 @@
   "kind": "tpl"
  },
  {
+  "t": "{}{} min",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{}{} proti normě",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}{} tepu/min",
   "files": [
    "report.tsx"
   ],
@@ -12669,6 +12752,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Alkohol snižuje noční HRV podle množství (Pietilä et al., 2018); tady jde o to, jak je to právě u vás.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Asistent odpoví z vašich dat a citované literatury.",
   "files": [
    "report.tsx"
@@ -12709,6 +12799,20 @@
    "report.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Bolest během testu",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "bolest při běhu",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Bolest: {}. Jen do velmi mírného tahu, nebo cvik vynechte.",
@@ -12804,6 +12908,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Co dnes bylo",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Co ovlivní zítřek",
   "files": [
    "report.tsx"
@@ -12819,6 +12930,13 @@
  },
  {
   "t": "Co se ještě vstřebává",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Co vám hýbe nocí?",
   "files": [
    "report.tsx"
   ],
@@ -12846,6 +12964,13 @@
   "kind": "str"
  },
  {
+  "t": "déle",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Den po dni",
   "files": [
    "report.tsx"
@@ -12857,6 +12982,13 @@
   "files": [
    "report.tsx",
    "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dnes bez běhu",
+  "files": [
+   "report.tsx"
   ],
   "kind": "str"
  },
@@ -12875,11 +13007,32 @@
   "kind": "jsx"
  },
  {
+  "t": "Dnešní noc proti průměru 14 nocí před ní:",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Dnešní test",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "dnešní usnutí",
   "files": [
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Dnešní večer je zapsaný.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "do {} m",
@@ -12894,6 +13047,13 @@
    "report.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "do 15 min",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "do postele",
@@ -12932,6 +13092,13 @@
  },
  {
   "t": "dříve",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Držet zátěž",
   "files": [
    "report.tsx"
   ],
@@ -12987,6 +13154,20 @@
   "kind": "str"
  },
  {
+  "t": "hranice 5/10",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "HRV {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "inset 0 0 0 1px rgb(138 149 255 / .45)",
   "files": [
    "report.tsx"
@@ -13015,11 +13196,32 @@
   "kind": "jsx"
  },
  {
+  "t": "Jak šlacha snesla zátěž",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Ke každému štítku je potřeba aspoň 5 večerů s ním a 10 bez něj. Pak se tu objeví, jak u vás působí.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Kilometry",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Klepněte na den pro hodnoty.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Klepnutím na cvik zobrazíte provedení, kroužkem ho odškrtnete.",
@@ -13051,6 +13253,13 @@
  },
  {
   "t": "Kolísání",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Krátký test, než vyrazíte",
   "files": [
    "report.tsx"
   ],
@@ -13211,6 +13420,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Model sledování bolesti (Silbernagel et al., 2007), test zátěží šlachy (Malliaras et al., 2015). Výsledek rovnou upraví dnešní doporučení.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border transition {}",
   "files": [
    "report.tsx"
@@ -13254,6 +13470,20 @@
   "kind": "tpl"
  },
  {
+  "t": "nejasné",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nejhorší",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "nejvýš {}",
   "files": [
    "report.tsx"
@@ -13266,6 +13496,13 @@
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Nic z toho",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Nic zvláštního k hlídání.",
@@ -13352,11 +13589,25 @@
   "kind": "str"
  },
  {
+  "t": "Opravit dnešní odpověď",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Otázky",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Označte, co dnes bylo. Po pár týdnech uvidíte, co z toho u vás opravdu mění HRV, klidový tep a spánek.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Plán týdne",
@@ -13392,6 +13643,13 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Posledních {} dní",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Posledních 7 nocí · hodiny a skóre",
@@ -13450,6 +13708,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Před během",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "před víkendem",
   "files": [
    "report.tsx"
@@ -13469,6 +13734,13 @@
    "report.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Při běhu",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Proč právě takhle",
@@ -13525,6 +13797,34 @@
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "ranní test",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ranní test a bolest při běhu",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Ranní test šlachy",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ranní ztuhlost šlachy",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "REM",
@@ -13584,11 +13884,32 @@
   "kind": "str"
  },
  {
+  "t": "rgb(255 255 255 / .25)",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "rgb(255 255 255 / .3)",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "rounded-full border px-3 py-2.5 text-[13px] font-bold disabled:opacity-60 {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "rounded-full px-3 py-2 text-[13px] font-semibold transition {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "skóre {}",
@@ -13603,6 +13924,27 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Šlacha",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Šlacha byla v posledních dnech bolavá. Stejný test každé ráno ukáže, jestli se po zátěži uklidnila: bolest smí být nejvýš 5/10 a do rána má odeznít.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Šlacha zátěž snesla",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Spánek tak vyjde asi na {}, o {} méně než cíl.",
@@ -13705,6 +14047,20 @@
   "kind": "str"
  },
  {
+  "t": "u vás bez znatelného vlivu na noc",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uložení se nepovedlo, zkuste to znovu.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Uloženo",
   "files": [
    "report.tsx"
@@ -13724,6 +14080,13 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Uložit test",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Usínání a vstávání · {} nocí",
@@ -13775,6 +14138,20 @@
   "kind": "str"
  },
  {
+  "t": "Vaše data · {} zapsaných večerů",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "včera",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Včera",
   "files": [
    "report.tsx"
@@ -13796,6 +14173,13 @@
   "kind": "str"
  },
  {
+  "t": "včera bez běhu",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "včera ráno {} % ({}{})",
   "files": [
    "report.tsx"
@@ -13803,7 +14187,21 @@
   "kind": "tpl"
  },
  {
+  "t": "Včerejší večer",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "ve všední den",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Večer bez odpovědi se do srovnání nepočítá.",
   "files": [
    "report.tsx"
   ],
@@ -13822,6 +14220,27 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Vliv na HRV další noci proti vašemu průměru, s 95% intervalem a po odečtení vlivu tréninku toho dne.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vliv štítků na HRV",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "vliv zatím nejasný",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "všední den",
@@ -13859,6 +14278,13 @@
   "kind": "str"
  },
  {
+  "t": "Výchozí hodnota",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "výrazně zvýšený tep v klidu",
   "files": [
    "report.tsx"
@@ -13874,6 +14300,20 @@
  },
  {
   "t": "z cíle {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Zapsáno: dnes nic z toho. I takový večer je potřeba pro srovnání.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zatím {} z 5 večerů potřebných pro srovnání",
   "files": [
    "report.tsx"
   ],

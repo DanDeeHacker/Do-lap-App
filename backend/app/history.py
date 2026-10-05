@@ -42,7 +42,8 @@ HISTORY_VERSION = "h10"
 # signal sources, today's guidance): editing them no longer throws away every cached
 # history. A denylist, so a new scoring module is fingerprinted by default.
 NON_SCORING = frozenset({"ai_brief.py", "coach_facts.py", "coach_texts.py", "coach_validate.py", "sig_doc.py",
-                         "signal_sources.py", "sensitivity.py", "validation.py", "geo_sample.py", "guidance.py"})
+                         "signal_sources.py", "sensitivity.py", "validation.py", "geo_sample.py", "guidance.py",
+                         "day_tags.py"})
 
 
 def _code_fingerprint() -> str:
@@ -94,6 +95,7 @@ def load_inputs(db: DBSession, rid: str):
         ("chk", sorted(rows(data.checkins), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), False),
         ("fb", sorted(rows(data.feedback), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), False),
         ("inj", sorted(rows(data.injuries), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), False),
+        ("tnd", sorted(rows(data.tendon_checks), key=lambda x: x.get("date") or ""), lambda x: _kd(x.get("date")), False),
     ]
     return {
         "rdata": dict(vars(data.runner)),

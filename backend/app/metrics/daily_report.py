@@ -28,7 +28,9 @@ from datetime import date, timedelta
 from .. import models
 from . import dayload as DL
 from . import engine as E
+from . import day_tags as DT
 from . import mobility as MOB
+from . import tendon as TD
 from . import week_plan as WP
 
 WD = ["po", "út", "st", "čt", "pá", "so", "ne"]
@@ -468,6 +470,9 @@ def _watchouts(a, rec, night, plan):
     """What to watch today, most important first: [{level: alert|watch|info, text}]."""
     g = (a or {}).get("guidance") or {}
     out = []
+    ov = g.get("override") or {}
+    if ov.get("title"):                          # a rule that changes today outright (pain, illness, a tendon test …) first
+        out.append({"level": "alert", "text": f"{ov['title']}."})
     if (g.get("pain") or 0) >= 3:
         out.append({"level": "alert", "text": f"Bolest {g['pain']}/10: při běhu nanejvýš 5/10 a do rána musí odeznít, jinak uberte."})
     sc = rec.get("score")
@@ -558,6 +563,10 @@ def _notes_morning(r) -> dict:
                                                 if rest else "Nic zvláštního k hlídání, běžte podle plánu a v klidném tempu.")))
     if r.get("weekPlan"):
         notes["weekPlan"] = WP.note(r["weekPlan"])
+    if r.get("tendon"):
+        notes["tendon"] = TD.note(r["tendon"])
+    if r.get("tagsLastNight"):
+        notes["tagsLastNight"] = DT.note_last_night(r["tagsLastNight"])
     notes["intro"] = r["summary"]
     return notes
 
@@ -632,6 +641,10 @@ def build(db, rid: str, kind: str) -> dict:
              "plan": plan, "watch": [], "questions": MORNING_Q}
         if today.weekday() == 0:                 # owner request 2026-10-04: the week's plan every Monday
             r["weekPlan"] = _week_plan(a, db, rid, today)
+        # suggestions #7 and #10: the morning test of a watched tendon, last evening's tags
+        from . import data as D
+        r["tendon"] = TD.card(D.load_runner_data(db, rid, priors=False), today)
+        r["tagsLastNight"] = DT.last_night(db, rid, today)
         r["watch"] = _watchouts(a, rec, night, plan)
         r["summary"] = _summary_morning(night, rec, plan)
         r["notes"] = _notes_morning(r)
@@ -669,6 +682,7 @@ def build(db, rid: str, kind: str) -> dict:
     # owner request 2026-10-05: bedtime mobility picked by the day's activities
     r["mobility"] = MOB.evening(db, rid, a, today, acts, tonight.get("bed"), now_min, (view or {}).get("steps"))
     r["tomorrow"] = _tomorrow(a, view, dm, today, night, rest, tonight, hard_tomorrow)
+    r["dayTags"] = DT.evening(db, rid, today)          # suggestion #10: what the day held
     if view and view.get("energy"):
         r["energyNow"] = view["energy"][-1][1]
     r["summary"] = _summary_evening(view, load, week, tonight)

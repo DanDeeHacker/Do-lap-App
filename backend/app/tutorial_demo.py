@@ -70,6 +70,7 @@ _BY_RUNNER = [
     models.CareAssignment, models.AccessLog, models.Booking, models.RtrSession, models.ReturnToRun,
     models.Message, models.Race, models.CoachText, models.EngineDailySnapshot, models.EngineAlert,
     models.DeviceHistory, models.Integration, models.IngestToken, models.GarminSession,
+    models.TendonCheck, models.DayTag,
 ]
 
 

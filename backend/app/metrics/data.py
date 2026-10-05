@@ -48,6 +48,7 @@ class RunnerData:
     races: tuple = ()
     rtr_plans: tuple = ()       # ReturnToRun
     shoes: tuple = ()           # Shoe (v0.12.0)
+    tendon_checks: tuple = ()   # TendonCheck (morning tendon load tests, suggestion #7)
     prev_quadrant: str | None = None
     priors: dict | None = None  # population priors (reference.py), fixed for the snapshot
 
@@ -84,6 +85,7 @@ class RunnerData:
             injuries=tuple(r for r in self.injuries if _day(r.submitted_at) <= cut),
             rtr_plans=tuple(p for p in self.rtr_plans if _day(p.created_at or p.started_on) <= cut),
             shoes=tuple(s for s in self.shoes if _day(s.first_used or s.created_at) <= cut),
+            tendon_checks=tuple(t for t in self.tendon_checks if _day(t.date) <= cut),
             prev_quadrant=prev_quadrant,
         )
 
@@ -127,6 +129,7 @@ def load_runner_data(db, rid: str, priors: bool = True) -> RunnerData:
         races=_load(db, models.Race, rid, models.Race.id.asc()),
         rtr_plans=_load(db, models.ReturnToRun, rid, models.ReturnToRun.id.asc()),
         shoes=_load(db, models.Shoe, rid, models.Shoe.id.asc()),
+        tendon_checks=_load(db, models.TendonCheck, rid, models.TendonCheck.date.asc(), models.TendonCheck.id.asc()),
         prev_quadrant=prev[0] if prev else None,
         priors=load_priors(runner) if priors else None,
     )
