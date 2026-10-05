@@ -487,17 +487,21 @@ PROGRAMS = [
      "summary": "Šest měsíců, dvakrát týdně. Silová session A a session Odolnost B se střídají podle toho, co den unese. "
                 "Opakování a zátěž rostou podle toho, jak se cítíte na konci tréninku.",
      "sessions": {"A": ["pogo_hops", "monster_walk", "bulgarian_ss", "rdl", "seated_calf", "copenhagen_hold", "pallof"],
-                  "B": ["sl_hops", "step_down", "sl_rdl", "sl_calf_slow", "toe_raise", "side_plank_abd", "dead_bug"]},
+                  "B": ["sl_hops", "step_down", "pelvic_drop", "sl_rdl", "sl_calf_slow", "toe_raise", "side_plank_abd", "dead_bug"]},
      "exercises": ["pogo_hops", "monster_walk", "bulgarian_ss", "rdl", "seated_calf", "copenhagen_hold", "pallof",
-                   "sl_hops", "step_down", "sl_rdl", "sl_calf_slow", "toe_raise", "side_plank_abd", "dead_bug"],
+                   "sl_hops", "step_down", "pelvic_drop", "sl_rdl", "sl_calf_slow", "toe_raise", "side_plank_abd", "dead_bug"],
      "evidence": "Silový trénink snížil výskyt sportovních zranění na méně než třetinu a přetěžovacích zhruba na polovinu "
                  "(Lauersen et al., 2014), s větším účinkem při větším objemu a intenzitě (Lauersen et al., 2018). U vytrvalců zlepšuje "
                  "ekonomiku běhu, nejlépe těžká zátěž dvakrát až třikrát týdně (Blagrove et al., 2018; Rønnestad & Mujika, 2014). "
                  "Šlachy se přizpůsobují vysoké zátěži s pomalým a delším zatížením (Bohm et al., 2015). Progrese podle pocitu na konci "
                  "tréninku vychází ze škály náročnosti a opakování v záloze (Foster et al., 2001; Helms et al., 2016). Těžká silová práce na nohy "
-                 "zhoršuje tvrdý běh v následujících 24–48 hodinách, proto session A nepřijde den před ním (Doma et al., 2017).",
+                 "zhoršuje tvrdý běh v následujících 24–48 hodinách, proto session A nepřijde den před ním (Doma et al., 2017). "
+                 "Pokles pánve na straně volné nohy byl ze všech pohybových znaků nejvíc spojený s běžeckými zraněními (Bramah et al., 2018) "
+                 "a osm týdnů funkčního posilování odtahovačů kyčle ho u běžců s bolestí holeně zmenšilo víc než samotná fyzioterapie "
+                 "(Lashien et al., 2024), proto program obsahuje monster walk (session A) a spouštění pánve na schodu a boční plank s unožením (session B).",
      "refs": ["Lauersen et al., 2014", "Lauersen et al., 2018", "Blagrove et al., 2018", "Rønnestad & Mujika, 2014",
-              "Bohm et al., 2015", "Foster et al., 2001", "Helms et al., 2016", "Doma et al., 2017"],
+              "Bohm et al., 2015", "Foster et al., 2001", "Helms et al., 2016", "Doma et al., 2017",
+              "Bramah et al., 2018", "Lashien et al., 2024"],
      "assumption": "Výběr cviků je od trenéra Došlapu, rozdělení do fází, rozsahy opakování a pravidla progrese jsou pracovní předpoklad "
                    "postavený na citovaných principech. Při bolesti platí pravidlo bolesti: do 5 z 10 při cviku, do rána odeznít."},
     {"key": "core", "group": "performance", "physio": PHYSIO + "Core_Stability", "name": "Core pro běžce", "weeks": 8,
@@ -531,6 +535,8 @@ REFERENCES = {
     "Foster et al., 2001": "Foster, C., Florhaug, J. A., Franklin, J., Gottschall, L., Hrovatin, L. A., Parker, S., Doleshal, P., & Dodge, C. (2001). A new approach to monitoring exercise training. Journal of Strength and Conditioning Research, 15(1), 109–115.",
     "Helms et al., 2016": "Helms, E. R., Cronin, J., Storey, A., & Zourdos, M. C. (2016). Application of the repetitions in reserve-based rating of perceived exertion scale for resistance training. Strength and Conditioning Journal, 38(4), 42–49.",
     "Doma et al., 2017": "Doma, K., Deakin, G. B., & Bentley, D. J. (2017). Implications of impaired endurance performance following single bouts of resistance training: An alternate concurrent training perspective. Sports Medicine, 47(11), 2187–2200.",
+    "Bramah et al., 2018": "Bramah, C., Preece, S. J., Gill, N., & Herrington, L. (2018). Is there a pathological gait associated with common soft tissue running injuries? The American Journal of Sports Medicine, 46(12), 3023–3031.",
+    "Lashien et al., 2024": "Lashien, S. A., et al. (2024). Effect of hip abductors training on pelvic drop and knee valgus in runners with medial tibial stress syndrome: A randomized controlled trial. Journal of Orthopaedic Surgery and Research, 19.",
     "Weir et al., 2015": "Weir, A., Brukner, P., Delahunt, E., Ekstrand, J., Griffin, D., Khan, K. M., Lovell, G., Meyers, W. C., Muschaweck, U., Orchard, J., Paajanen, H., Philippon, M., Reboul, G., Robinson, P., Schache, A. G., Schilders, E., Serner, A., Silvers, H., Thorborg, K., … Hölmich, P. (2015). Doha agreement meeting on terminology and definitions in groin pain in athletes. British Journal of Sports Medicine, 49(12), 768–774.",
     "Hölmich et al., 1999": "Hölmich, P., Uhrskou, P., Ulnits, L., Kanstrup, I.-L., Nielsen, M. B., Bjerg, A. M., & Krogsgaard, K. (1999). Effectiveness of active physical training as treatment for long-standing adductor-related groin pain in athletes: Randomised trial. The Lancet, 353(9151), 439–443.",
     "Harøy et al., 2019": "Harøy, J., Clarsen, B., Wiger, E. G., Øyen, M. G., Serner, A., Thorborg, K., Hölmich, P., Andersen, T. E., & Bahr, R. (2019). The Adductor Strengthening Programme prevents groin problems among male football players: A cluster-randomised controlled trial. British Journal of Sports Medicine, 53(3), 150–157.",

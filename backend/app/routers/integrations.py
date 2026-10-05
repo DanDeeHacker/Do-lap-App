@@ -38,19 +38,54 @@ from .. import schemas  # noqa: E402
 router = APIRouter(prefix="/api/integrations", tags=["integrations"])
 
 
+def _apply_hr_hist(db: DBSession, rid: str, seed: dict) -> int:
+    """Time at each heart rate per workout (seed["hr_hist"] = {external_id: {bin: s}}, the
+    Apple Health export) → an HR-only stream row, so Intenzita counts real hard minutes
+    for runs, rides and swims alike (railway#199). Never overwrites a Garmin stream."""
+    hh = seed.get("hr_hist") or {}
+    if not hh:
+        return 0
+    from ..metrics import segmentation
+    acts = {a.external_id: a for a in db.query(models.Activity).filter(
+        models.Activity.runner_id == rid, models.Activity.external_id.in_(list(hh))).all()}
+    rows = {st.activity_id: st for st in db.query(models.ActivityStream).filter(
+        models.ActivityStream.runner_id == rid,
+        models.ActivityStream.activity_id.in_([a.id for a in acts.values()] or [-1])).all()}
+    n = 0
+    for ext, hist in hh.items():
+        a = acts.get(ext)
+        if a is None or not hist:
+            continue
+        st = rows.get(a.id)
+        if st is None:
+            db.add(models.ActivityStream(activity_id=a.id, runner_id=rid, external_id=ext, segments_json=None, gps=False,
+                                         quality_json={"hrHist": hist, "source": "apple",
+                                                       "segVersion": segmentation.SEG_VERSION},
+                                         created_at=E.now_iso()))
+            n += 1
+        elif not (st.quality_json or {}).get("hrHist"):
+            st.quality_json = {**(st.quality_json or {}), "hrHist": hist}
+            n += 1
+    return n
+
+
 def _apply_day_raw(db: DBSession, rid: str, seed: dict) -> int:
-    """All-day heart rate and steps from any source (seed["day_raw"] = {date: {hr, steps}}),
-    stored per day and computed by the own day metrics (dayload.py), oldest first."""
+    """All-day heart rate and steps from any source (seed["day_raw"] = {date: {hr, steps}})
+    and the night in detail where the source has it (seed["day_sleep"], the Apple Health
+    export: hypnogram, falling asleep / waking), stored per day and computed by the own
+    day metrics (dayload.py), oldest first."""
     raw = seed.get("day_raw") or {}
-    if not raw:
+    nights = seed.get("day_sleep") or {}
+    days = sorted(set(raw) | set(nights))
+    if not days:
         return 0
     from ..metrics import dayload as DL
-    for d in sorted(raw):
-        DL.store_raw(db, rid, d, raw[d])
-    for d in sorted(raw):
+    for d in days:
+        DL.store_raw(db, rid, d, raw.get(d), sleep=nights.get(d))
+    for d in days:
         DL.update_day(db, rid, d)
     db.flush()
-    return len(raw)
+    return len(days)
 
 
 def _apply_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -> None:
@@ -99,6 +134,7 @@ def _apply_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
         r.device = synced_device
         db.add(models.DeviceHistory(runner_id=rid, device=synced_device, source=f"{provider}_sync", recorded_at=E.now_iso()))
     _apply_day_raw(db, rid, seed)
+    _apply_hr_hist(db, rid, seed)
     db.commit()
     E.recompute_assessment(db, rid)
 
@@ -374,6 +410,7 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
         r.device = synced_device
         db.add(models.DeviceHistory(runner_id=rid, device=synced_device, source=f"{provider}_sync", recorded_at=E.now_iso()))
     _apply_day_raw(db, rid, seed)
+    _apply_hr_hist(db, rid, seed)
     db.commit()
     E.recompute_assessment(db, rid)
     return {"added_activities": added_a, "added_daily": added_d}
@@ -415,56 +452,78 @@ def _download_and_merge(db: DBSession, rid: str, garmin) -> dict:
     # no sleep stages stored yet → pull 180 days of them once (feedback railway#33)
     has_stages = db.query(models.DailyMetric.id).filter(models.DailyMetric.runner_id == rid,
                                                          models.DailyMetric.deep_min.isnot(None)).first() is not None
+    # v0.12.0 — the breathing rate while asleep: pulled once for the stored nights too
+    resp_backfill = runner is not None and not meta.get("respBackfill")
     try:
         seed = garmin_live.download_seed(garmin, activity_days=CROSS_BACKFILL_DAYS, skip_dates=skip_dates,
-                                         since_date=since, sleep_backfill_days=0 if has_stages else 180)
+                                         since_date=since,
+                                         sleep_backfill_days=0 if (has_stages and not resp_backfill) else 180)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=502, detail=f"Nepodařilo se stáhnout data z Garminu: {e}")
     added = _merge_seed(db, rid, seed, provider="garmin")
     added["dayDetails"] = fetch_day_details(db, rid, garmin)
     if added["dayDetails"]:
         E.recompute_assessment(db, rid)        # the day's own load / resting HR feed the engine
-    if backfill:
-        meta["crossBackfill"] = E.iso_date(E.today_date())
+    if backfill or resp_backfill:
+        if backfill:
+            meta["crossBackfill"] = E.iso_date(E.today_date())
+        if resp_backfill:
+            meta["respBackfill"] = E.iso_date(E.today_date())
         runner.onboarding_json = meta
         db.commit()
     return {"ok": True, "runner_id": rid, **added, "meta": seed.get("_meta")}
 
 
-DAY_DETAIL_RECENT, DAY_DETAIL_BACKFILL, DAY_DETAIL_MAX_FETCH = 3, 28, 16   # fetches per sync (the rest next sync)
+DAY_DETAIL_RECENT, DAY_DETAIL_BACKFILL = 3, 14
+DAY_RAW_RETRY = _dt.timedelta(hours=20)
+
+
+def _raw_done(row, now) -> bool:
+    """An older day needs no new download: it has the all-day heart rate, or it was asked
+    for it in the last DAY_RAW_RETRY (raw = {} — the watch had nothing for that day)."""
+    if row is None or row.raw is None:
+        return False
+    if row.raw:
+        return True
+    try:
+        return now - _dt.datetime.fromisoformat(row.fetched_at) < DAY_RAW_RETRY
+    except (TypeError, ValueError):
+        return False
 
 
 def fetch_day_details(db: DBSession, rid: str, garmin, today=None) -> int:
-    """Morning / evening report: the last nights and days in detail (hypnogram, stress and
-    Body Battery curves). Today and the two days before are fetched again on every sync
-    (the night and the day keep filling in); the first time 14 days back. Fills the daily
-    Body Battery and stress average when the day row has none. Never raises."""
+    """Morning / evening report and the day outside training: the last nights and days in
+    detail (hypnogram, all-day heart rate and steps). Today and the two days before are
+    fetched again on every sync (the night and the day keep filling in); older days of the
+    last 14 until each has its all-day heart rate. (Rows saved by the first reports had the
+    night and the day but no heart rate, so "a row exists" is not "done": the day outside
+    training needs 7 earlier days with it, v0.10.4.) Fills the daily Body Battery and
+    stress average when the day row has none. Never raises."""
     try:
         today = today or E.today_date()
-        # days already stored with the raw all-day heart rate; a day without it (stored by the
-        # v1 reports, or before the watch uploaded it) is fetched again, up to 28 days back —
-        # the own day metrics need ≥ 7 earlier days for the usual day (dayload.py, capacity.py)
-        have = {r.date for r in db.query(models.DailyDetail.date, models.DailyDetail.raw).filter(
-            models.DailyDetail.runner_id == rid).all() if r.raw}
+        rows = {r.date: r for r in db.query(models.DailyDetail).filter(models.DailyDetail.runner_id == rid).all()}
+        now = _dt.datetime.fromisoformat(E.now_iso())
         days = DAY_DETAIL_BACKFILL
-        n = fetched = 0
+        n = 0
         for k in range(days):
             d = (today - _dt.timedelta(days=k)).isoformat()
-            if k >= DAY_DETAIL_RECENT and (d in have or fetched >= DAY_DETAIL_MAX_FETCH):
+            row = rows.get(d)
+            if k >= DAY_DETAIL_RECENT and _raw_done(row, now):
                 continue
-            fetched += 1
             det = garmin_live.fetch_day_detail(garmin, d)
-            settled = k >= DAY_DETAIL_RECENT        # an older day without data won't get any: mark it, don't ask again
-            if not det.get("sleep") and not det.get("day") and not det.get("raw") and not settled:
+            got = bool(det.get("sleep") or det.get("day") or det.get("raw"))
+            if not got and k < DAY_DETAIL_RECENT:
                 continue
-            row = db.query(models.DailyDetail).filter(models.DailyDetail.runner_id == rid, models.DailyDetail.date == d).first()
             if row is None:
                 row = models.DailyDetail(runner_id=rid, date=d)
                 db.add(row)
             row.sleep = det.get("sleep") or row.sleep
             row.day = det.get("day") or row.day
-            row.raw = det.get("raw") or row.raw or ({"none": True} if settled else None)
+            # an older day the watch has no heart rate for: {} remembers the attempt (DAY_RAW_RETRY)
+            row.raw = det.get("raw") or row.raw or ({} if k >= DAY_DETAIL_RECENT else None)
             row.fetched_at = E.now_iso()
+            if not got:
+                continue
             dm = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.date == d).first()
             day = det.get("day") or {}
             if dm is not None:
@@ -509,6 +568,7 @@ def _store_session(db: DBSession, rid: str, garmin, auto_sync: bool = True) -> N
 
 
 DETAIL_DAYS, DETAIL_CAP = 60, 12   # every sync also fetches detailed data for recent runs missing it
+HR_ONLY_SPORTS = ("cycling", "swimming")   # railway#199: their heart-rate trace for Intenzita
 
 
 def fetch_new_details(db: DBSession, rid: str, garmin=None) -> dict | None:
@@ -733,7 +793,7 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
     activities = (
         db.query(models.Activity)
         .filter(models.Activity.runner_id == rid, models.Activity.external_id.isnot(None),
-                models.Activity.started_at > cut, models.Activity.sport == "running")
+                models.Activity.started_at > cut, models.Activity.sport.in_(("running",) + HR_ONLY_SPORTS))
         .order_by(models.Activity.started_at.asc()).all()  # oldest first → baseline fills first
     )
     rows = {st.activity_id: st for st in db.query(models.ActivityStream)
@@ -749,6 +809,29 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
     stalled = False
     for a in todo[:cap]:
         old = rows.get(a.id)
+        if a.sport in HR_ONLY_SPORTS:
+            # railway#199 — cycling / swimming: only the time at each heart rate, for the
+            # hard minutes in Intenzita (no mechanics, no segments)
+            try:
+                hist = stream_qc.hr_histogram(garmin_live.fetch_details(garmin, a.external_id))
+                fetched += 1
+            except Exception as e:  # noqa: BLE001
+                if any(x in str(e).lower() for x in ("429", "too many", "rate")):
+                    stalled = True
+                    break
+                failed += 1
+                hist = None
+            st = old or models.ActivityStream(activity_id=a.id, runner_id=rid)
+            st.external_id = a.external_id
+            st.quality_json = {"hrHist": hist, "sport": a.sport, "segVersion": segmentation.SEG_VERSION,
+                               **({} if hist else {"failed": True})}
+            st.segments_json = None
+            st.gps = False
+            st.created_at = E.now_iso()
+            if old is None:
+                db.add(st)
+            stored += 1 if hist else 0
+            continue
         try:
             res = stream_qc.process(garmin_live.fetch_details(garmin, a.external_id))
             segs = segmentation.segment(res.get("records") or [], surface=a.surface) if res.get("accepted") else []

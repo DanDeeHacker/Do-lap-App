@@ -5,19 +5,19 @@ import { useState, type ReactNode } from "react"
 import { ChevronDown } from "lucide-react"
 import { InfoDot, Label } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
-import { fmtD, fmtImpact, toImpact } from "@/lib"
+import { fmtD, fmtImpact, paceStr, toImpact } from "@/lib"
 import { C, goodCol } from "@/tokens"
 import { Waterfall, type WStep } from "@/waterfall"
 import { BodyLoadMap } from "@/components/MuscleAnatomy"
 import { useApp } from "@/store"
 
-const CH_ORDER = ["volume", "intensity", "descent", "ascent", "systemic", "strength"] as const
+const CH_ORDER = ["volume", "intensity", "speed", "descent", "ascent", "systemic", "strength"] as const
 const RUN_CH = ["volume", "intensity", "descent", "ascent"] as const
 const num = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("cs-CZ"))
 const TONE = { ok: C.ok, watch: C.watch, alert: C.alert, muted: C.fg3 }
 const toneOf = (ratio: number | null | undefined, margin: number) =>
   ratio == null ? "muted" : ratio <= 1 + margin ? "ok" : ratio <= 1.3 ? "watch" : "alert"
-const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší nebo méně kvalitní spánek", soreness: "svalová bolest", fatigue: "únava", stress: "stres mimo trénink", session: "dnešní trénink", dayStress: "zvýšený tep v klidu včera", dayLoad: "pohyb mimo trénink dnes", dayStressNow: "zvýšený tep v klidu dnes" }
+const PART_LABEL: Record<string, string> = { hrv: "HRV pod normou", rhr: "klidový tep nad normou", sleep: "kratší spánek než obvykle", sleepQuality: "víc bdění v noci", soreness: "svalová bolest", fatigue: "únava", stress: "stres mimo trénink", session: "dnešní trénink", dayStress: "zvýšený tep v klidu včera", dayLoad: "pohyb mimo trénink dnes", dayStressNow: "zvýšený tep v klidu dnes" }
 
 export const readinessPct = (r: any) => (r?.score ?? Math.round((r?.today ?? 1) * 100)) as number
 // railway#108 — green above 70 %, red below 40 %, as on the Dnes rings
@@ -62,7 +62,7 @@ export function Readiness({ r }: { r: any }) {
 // change since yesterday morning. Points follow the engine: 100 − 80 × combined
 // deficit, the strongest signal fully, the 2nd half, the 3rd a quarter.
 const SLEEP_Q = ["velmi špatně", "špatně", "průměrně", "dobře", "výborně"]
-const FACTOR_LABEL: Record<string, string> = { hrv: "HRV", rhr: "Klidový tep", sleep: "Spánek", soreness: "Svalová bolest", fatigue: "Únava", stress: "Stres mimo trénink", dayStress: "Zvýšený tep v klidu včera", session: "Dnešní trénink", day: "Den mimo trénink" }
+const FACTOR_LABEL: Record<string, string> = { hrv: "HRV", rhr: "Klidový tep", sleep: "Délka spánku", sleepQuality: "Kvalita spánku", soreness: "Svalová bolest", fatigue: "Únava", stress: "Stres mimo trénink", dayStress: "Zvýšený tep v klidu včera", session: "Dnešní trénink", day: "Den mimo trénink" }
 const pctS = (v: number | null | undefined) => (v == null ? null : `${Math.round(v * 100)} %`)
 const vs = (parts: (string | null | false)[]) => parts.filter(Boolean).join(" · ")
 const pts1 = (v: number) => (Math.round(v * 10) / 10).toLocaleString("cs-CZ")
@@ -72,21 +72,19 @@ function factorReading(k: string, r: any): string | null {
   const n = i.night || {}, w = i.week || {}, b = i.base || {}, c = i.checkin
   if (k === "hrv") return n.hrv == null && w.hrv == null ? null : vs([n.hrv != null && `noc ${n.hrv} ms`, w.hrv != null && `7 nocí ${w.hrv} ms`, b.hrv != null && `obvykle ${b.hrv} ms`])
   if (k === "rhr") return n.rhr == null && w.rhr == null ? null : vs([n.rhr != null && `noc ${n.rhr}`, w.rhr != null && `7 nocí ${w.rhr}`, b.rhr != null && `obvykle ${b.rhr} tepů/min`])
-  if (k === "sleep") {
+  if (k === "sleep") return vs([n.sleep != null && `poslední noc ${num(n.sleep)} h`, w.sleep != null && `3 noci ${num(w.sleep)} h`, b.sleep != null && `obvykle ${num(b.sleep)} h`]) || null
+  // v0.11.0 — quality = efficiency over 3 nights; the deep + REM share is shown, not scored
+  if (k === "sleepQuality") {
+    if (b.eff == null) return null                       // no norm yet: nothing to judge against
     const q = c?.sleepQuality
-    const line = vs([n.sleep != null && `poslední noc ${num(n.sleep)} h`, w.sleep != null && `3 noci ${num(w.sleep)} h`, b.sleep != null && `obvykle ${num(b.sleep)} h`,
-      n.rest != null && `hluboký + REM ${pctS(n.rest)}${b.rest != null ? ` (obvykle ${pctS(b.rest)})` : ""}`, q != null && SLEEP_Q[q] && `vaše hodnocení: ${SLEEP_Q[q]}`])
-    return line || null
+    return vs([w.eff != null ? `efektivita 3 noci ${pctS(w.eff)}` : n.eff != null && `efektivita ${pctS(n.eff)}`, b.eff != null && `obvykle ${pctS(b.eff)}`,
+      n.rest != null && `hluboký + REM ${pctS(n.rest)}${b.rest != null ? ` (obvykle ${pctS(b.rest)})` : ""}, jen pro informaci`,
+      q != null && SLEEP_Q[q] && `vaše hodnocení: ${SLEEP_Q[q]}`]) || null
   }
   if (k === "soreness") return c?.soreness == null ? null : `v check-inu ${c.soreness}/10 · snižuje od 6/10`
   if (k === "fatigue") return c?.fatigue == null ? null : `v check-inu ${c.fatigue}/10 · snižuje od 6/10`
   if (k === "stress") return c?.stress == null ? null : `v check-inu ${c.stress}/10 · snižuje od 6/10, počítá se 0,6×`
-  if (k === "dayStress") {
-    const ds = r?.inputs?.dayStress
-    if (!ds) return null
-    if (ds.need && ds.n < ds.need) return `včera ${ds.yesterday} min · sbírám data o obvyklém dni (${ds.n} z ${ds.need} dní)`
-    return `včera ${ds.yesterday} min${ds.usual != null ? ` · obvykle ${ds.usual} min` : ""} · z celodenního tepu, počítá se 0,6×`
-  }
+  if (k === "dayStress") { const ds = r?.inputs?.dayStress; return ds ? `včera ${ds.yesterday} min${ds.usual != null ? ` · obvykle ${ds.usual} min` : ""} · z celodenního tepu, počítá se 0,6×` : null }
   if (k === "session") {
     const a = r?.afterSession
     if (!a) return null
@@ -99,7 +97,7 @@ function factorReading(k: string, r: any): string | null {
 export function ReadinessFactors({ r }: { r: any }) {
   if (!r?.inputs) return null
   const eff: Record<string, number> = r.effects || {}
-  const keys = ["hrv", "rhr", "sleep", "dayStress", "soreness", "fatigue", "stress", "session"]
+  const keys = ["hrv", "rhr", "sleep", "sleepQuality", "dayStress", "soreness", "fatigue", "stress", "session"]
   const part: Record<string, number> = r.parts || {}
   // every signal off its norm is listed, also one that adds nothing because stronger
   // signals already cover it (only the three strongest count)
@@ -107,11 +105,11 @@ export function ReadinessFactors({ r }: { r: any }) {
   // a signal counts only with today's reading: without last night's data the engine
   // doesn't judge HRV / resting HR / sleep, so they are listed apart, not as "in norm"
   const n = r.inputs.night || {}, ci = r.inputs.checkin
-  const today = (k: string) => (k === "hrv" ? n.hrv != null : k === "rhr" ? n.rhr != null : k === "sleep" ? n.sleep != null || ci?.sleepQuality != null : k === "dayStress" ? r.inputs?.dayStress != null : ci?.[k] != null)
-  const learning = (k: string) => k === "dayStress" && r.inputs?.dayStress?.need && r.inputs.dayStress.n < r.inputs.dayStress.need
-  const fine = keys.filter((k) => k !== "session" && !lower.includes(k) && today(k) && !learning(k) && factorReading(k, r))
-  const dd = r.inputs?.dayData
-  const stale = ["hrv", "rhr", "sleep"].filter((k) => !lower.includes(k) && !today(k) && factorReading(k, r))
+  const today = (k: string) => (k === "hrv" ? n.hrv != null : k === "rhr" ? n.rhr != null : k === "sleep" ? n.sleep != null : k === "sleepQuality" ? n.eff != null : k === "dayStress" ? r.inputs?.dayStress != null : ci?.[k] != null)
+  const fine = keys.filter((k) => k !== "session" && !lower.includes(k) && today(k) && factorReading(k, r))
+  const stale = ["hrv", "rhr", "sleep", "sleepQuality"].filter((k) => !lower.includes(k) && !today(k) && factorReading(k, r))
+  const habit = r.inputs.sleepHabit
+  const cyc = r.inputs.cycle
   const noCheckin = !ci
   const y = r.yesterday
   const delta = y?.known ? (r.morningScore ?? r.score) - y.score : null
@@ -170,7 +168,7 @@ export function ReadinessFactors({ r }: { r: any }) {
       {!r.known && !lower.length && (
         <p className="mt-2 text-[12px] leading-5 text-fg-2">Dnes zatím chybí noční data z hodinek{noCheckin ? " i check-in" : ""}, proto připravenost nic nesnižuje. Po synchronizaci se přepočítá.</p>
       )}
-      {(r.known || lower.length > 0) && <Waterfall steps={wf.steps} lo={wf.lo} hi={100} unit=" %" testid="readiness-waterfall" />}
+      {(r.known || lower.length > 0) && <Waterfall steps={wf.steps} lo={wf.lo} hi={100} unit=" %" testid="readiness-waterfall" wrapSub />}
       {(fine.length > 0 || covered.length > 0) && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {fine.map((k) => (
@@ -185,17 +183,30 @@ export function ReadinessFactors({ r }: { r: any }) {
           ))}
         </div>
       )}
-      {dd && dd.days < dd.need && (
-        <p className="mt-3 rounded-[12px] bg-white/[.04] px-3 py-2 text-[12px] leading-5 text-fg-2" data-testid="readiness-collecting">
-          Den mimo trénink (pohyb nad obvyklý den a zvýšený tep v klidu) se do připravenosti začne počítat po {dd.need} dnech celodenního tepu z hodinek. Zatím jich je {dd.days}.
-        </p>
-      )}
       {stale.length > 0 && (
         <p className="mt-2 text-[11px] leading-4 text-fg-3">Bez dnešní noci, nezapočítává se: {stale.map((k) => FACTOR_LABEL[k]).join(", ")}.</p>
       )}
       {noCheckin && <p className="mt-1 text-[11px] leading-4 text-fg-3">Dnešní check-in zatím chybí, svalová bolest, únava a stres se proto nezapočítávají.</p>}
+      {/* v0.11.0 — a habitually short sleep is a note beside readiness, not a daily deduction */}
+      {habit && (
+        <p className="mt-2 rounded-[10px] bg-white/[.05] px-2.5 py-2 text-[11.5px] leading-[17px] text-fg-2" data-testid="sleep-habit">
+          {habit.severe
+            ? `Dlouhodobě spíte v průměru ${num(habit.avg)} h (${habit.under} z ${habit.n} nocí pod 7 h). Noci pod 6 h snižují připravenost, i když jsou pro vás běžné. Pro zdraví a regeneraci se dospělým doporučuje aspoň 7 hodin.`
+            : `Dlouhodobě spíte v průměru ${num(habit.avg)} h (${habit.under} z ${habit.n} nocí pod 7 h). Do připravenosti se to nepočítá, ta sleduje odchylky od vaší normy. Pro zdraví a regeneraci se dospělým doporučuje aspoň 7 hodin.`}
+        </p>
+      )}
+      {/* v0.12.0 — the menstrual cycle (opt-in): HRV and resting HR against the same phase */}
+      {cyc && (
+        <p className="mt-2 rounded-[10px] bg-white/[.05] px-2.5 py-2 text-[11.5px] leading-[17px] text-fg-2" data-testid="readiness-cycle">
+          {`Den ${cyc.day} cyklu · ${cyc.phase === "luteal" ? "luteální fáze" : cyc.phase === "menstrual" ? "menstruace" : "folikulární fáze"}. `}
+          {cyc.phase === "luteal"
+            ? `HRV a klidový tep porovnávám s vaší normou z této fáze${cyc.rhrShift != null ? ` (tep v ní bývá o ${String(Math.abs(cyc.rhrShift)).replace(".", ",")} úderu ${cyc.rhrShift >= 0 ? "vyšší" : "nižší"}${cyc.source === "own" ? ", podle vašich dat" : ", podle výzkumu"})` : ""}, aby to nevypadalo jako horší zotavení.`
+            : "HRV a klidový tep porovnávám s vaší normou ze stejné fáze cyklu."}
+          {cyc.next ? ` Další menstruace kolem ${fmtD(cyc.next)}.` : ""}
+        </p>
+      )}
       <p className="mt-3 border-t border-white/[.07] pt-2.5 text-[11px] leading-4 text-fg-3">
-        Zelená zvyšuje, červená snižuje. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí.
+        Zelená zvyšuje, červená snižuje. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí. Kvalita spánku (efektivita za 3 noci) stojí nejvýš 20 bodů a bez potvrzení od HRV nebo tepu 10; fáze spánku z hodinek se nepočítají.
       </p>
     </div>
   )
@@ -216,6 +227,8 @@ function HeadroomBar({ now, ceiling, tone, target }: { now: number | null; ceili
 }
 
 const CH_NOTE: Record<string, string> = {
+  intensity: "Intenzita: minuty v Z4 a výš z běhu, kola i plavání (kolo a plavání podle jejich vlastního maximálního tepu), z tepové křivky z hodinek. Kde křivka chybí, je to odhad z průměrného tepu a intervaly se v něm ztrácejí.",
+  speed: "Rychlost: minuty běhu rychleji než 1,1 × vaše kritická rychlost (zhruba tempo na 3 km a rychleji), ze segmentů běhu. Prudký nárůst rychlého běhu předcházel zraněním zadních stehenních svalů, pravidelný kontakt s rychlostí chránil (Duhig et al., 2016; Malone et al., 2017). Krátké rovinky pod 20 s hodinky v segmentech nezachytí.",
   strength: "Posilování: náročnost po tréninku (0–10) × minuty, cvičení nohou a celého těla plně, horní polovina těla z menší části. Hlídá prudké skoky, třeba první plyometrii po pauze. Těžké posilování nohou navíc na 24–48 hodin sníží v Tréninku strop minut v Z4+.",
 }
 
@@ -223,9 +236,10 @@ const CH_NOTE: Record<string, string> = {
 // keeps the rest behind a detail arrow. railway#56–#61: the charts that feed a channel
 // (volume bars, HR zones and relative effort, cross-training, descent by slope) live in
 // that channel's detail rather than as separate cards further down the page.
-function ChannelRow({ id, c, margins, extra, open, onToggle, scale, sub, target }: { id: string; c: any; margins: any; extra?: ReactNode; open: boolean; onToggle: () => void; scale?: number; sub?: any; target?: { budget: number; done: number } | null }) {
+function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, sub, target }: { id: string; c: any; margins: any; extra?: ReactNode; open: boolean; onToggle: () => void; scale?: number; sub?: any; target?: { budget: number; done: number } | null }) {
   const wk = c.week
   const ses = c.session
+  const margins = c.margins || allMargins          // v0.12.0: a shoe transition narrows only the running channels
   const wTone = toneOf(wk?.ratio, margins.week)
   const sTone = toneOf(ses?.ratio, margins.session)
   const why = !c.pts ? null : c.driver === "session" ? (id === "strength" ? "za jedno posilování nad kapacitou" : "za jeden běh nad kapacitou") : c.driver === "week" ? "za 7 dní nad kapacitou" : c.driver === "latent" ? "doznívající skok" : null
@@ -242,7 +256,7 @@ function ChannelRow({ id, c, margins, extra, open, onToggle, scale, sub, target 
         </span>
       </div>
       {!c.known ? (
-        <p className="mt-2 text-[11px] text-fg-3">Kapacitu teprve poznáváme — stačí pár běhů{id === "intensity" ? " s tepem" : ""}.</p>
+        <p className="mt-2 text-[11px] text-fg-3">Kapacitu teprve poznáváme — {id === "intensity" ? "stačí pár běhů nebo jízd s tepem." : "stačí pár běhů."}</p>
       ) : wk && (
         <>
           <p className="mt-1.5 text-[12px] text-fg-2">
@@ -284,20 +298,17 @@ function ChannelRow({ id, c, margins, extra, open, onToggle, scale, sub, target 
       )}
       {open && hasDetail && (
         <div className="origin-top animate-[careReveal_.28s_ease-out] pt-2">
-          {c.known && ses && id !== "systemic" && (
-            <p className="text-[11px] text-fg-3">
-              Nejnáročnější {id === "strength" ? "posilování" : "běh"} 7 dní ({fmtD(ses.date)}): <b style={{ color: (TONE as any)[sTone] }}>{num(ses.value)} {c.unit} · ×{num(ses.ratio)}</b> proti kapacitě {id === "strength" ? "jednoho posilování" : "jednoho běhu"} {num(ses.cap)}
-              {(ses.readinessScore ?? 100) < 97 ? ` · připravenost ${ses.readinessScore} %` : ""}
-            </p>
-          )}
-          {c.known && wk?.residual != null && id !== "systemic" && (
-            <p className="mt-1 text-[11px] text-fg-3">
-              Nevstřebáno <b className="text-fg">{num(wk.residual)} {c.unit}</b> (týdenní ekvivalent, klesá každou noc) {wk.capPeak != null ? <>proti vaší obvyklé týdenní špičce {num(wk.capPeak)} · ×{num(wk.ratio)}</> : <>proti kapacitě {num(wk.cap)}</>}
-              {ses?.left != null && ses.left < 0.99 ? ` · z nejnáročnějšího běhu zbývá asi ${Math.round(ses.left * 100)} %` : ""}
-            </p>
+          {c.known && id !== "systemic" && (ses || wk?.residual != null) && (
+            <div className="grid gap-2.5 sm:grid-cols-2" data-testid="channel-gauges">
+              {ses && <SessionTile id={id} ses={ses} unit={c.unit} margin={margins.session} tone={sTone} />}
+              {wk?.residual != null && <WeekTile wk={wk} ses={ses} unit={c.unit} margin={margins.week} tone={wTone} />}
+            </div>
           )}
           {c.known && c.latent && <p className="mt-1 text-[11px] text-watch">Doznívá skok ×{num(c.latent.ratio)} z {fmtD(c.latent.date)}</p>}
           {c.known && c.pendingJump && <PendingJump j={c.pendingJump} unit={c.unit} />}
+          {c.known && id !== "systemic" && c.week7?.length > 0 && (
+            <div className="mt-4"><ActivityWaterfall c={c} target={target && target.budget < (wk?.ceiling ?? Infinity) - 0.05 ? target.budget : null} id={id} /></div>
+          )}
           {c.known && CH_NOTE[id] && <p className="mt-2 text-[11px] leading-4 text-fg-3">{CH_NOTE[id]}</p>}
           {extra && <div className="mt-4">{extra}</div>}
         </div>
@@ -312,6 +323,12 @@ const SPORT_CS: Record<string, string> = { running: "Běh", cycling: "Kolo", swi
 const sportCol = (x: any) => (x.run ? C.accent : x.sport === "strength" ? C.self : C.info)
 
 export function SystemicWaterfall({ c, target }: { c: any; target?: number | null }) {
+  return <ActivityWaterfall c={c} target={target} id="systemic" />
+}
+
+// railway#198 — the same waterfall for every channel: what each session of the last 7
+// days added, up to the 7-day total, against the weekly ceiling
+function ActivityWaterfall({ c, target, id }: { c: any; target?: number | null; id: string }) {
   const list: any[] = c?.week7 || []
   const wk = c?.week
   if (!list.length) return <p className="text-[12px] text-fg-3">Za posledních 7 dní žádná aktivita se zátěží.</p>
@@ -320,22 +337,93 @@ export function SystemicWaterfall({ c, target }: { c: any; target?: number | nul
     key: String(x.id), label: x.title || SPORT_CS[x.sport] || "Aktivita", sub: `${fmtD(x.date)} · ${SPORT_CS[x.run ? "running" : x.sport] || "jiný sport"}`,
     delta: x.value || 0, color: sportCol(x), value: `+${num(x.value)}`,
   }))
-  steps.push({ key: "sum", label: "7 dní celkem", total: tot, color: wk?.ceiling && tot > wk.ceiling ? C.alert : C.ok, value: num(Math.round(tot)) })
+  steps.push({ key: "sum", label: "7 dní celkem", total: tot, color: wk?.ceiling && tot > wk.ceiling ? C.alert : C.ok, value: num(Math.round(tot * 10) / 10) })
   if (wk?.ceiling) steps.push({ key: "ceil", label: "Týdenní strop", total: wk.ceiling, color: C.fg4, value: num(wk.ceiling) })
   // feedback #181 — the week's target in the training cycle, when Trénink sets a lower one
-  if (target != null && (!wk?.ceiling || target < wk.ceiling - 0.5)) steps.push({ key: "target", label: "Cíl týdne v cyklu", sub: "z Tréninku, počítá se od pondělí", total: target, color: C.watch, value: num(Math.round(target)) })
+  if (target != null && (!wk?.ceiling || target < wk.ceiling - 0.05)) steps.push({ key: "target", label: "Cíl týdne v cyklu", sub: "z Tréninku, počítá se od pondělí", total: target, color: C.watch, value: num(Math.round(target * 10) / 10) })
+  const kinds = new Set(list.map((x) => (x.run ? "run" : x.sport === "strength" ? "strength" : "other")))
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Label>Co přidala každá aktivita (7 dní)</Label>
-        <span className="flex gap-2.5 text-[10.5px] text-fg-3">
-          <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.accent }} />běh</span>
-          <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.info }} />jiný sport</span>
-          <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.self }} />posilování</span>
-        </span>
+        <Label>{id === "systemic" || kinds.size > 1 ? "Co přidala každá aktivita (7 dní)" : "Co přidal každý běh (7 dní)"}</Label>
+        {kinds.size > 1 && (
+          <span className="flex gap-2.5 text-[10.5px] text-fg-3">
+            {kinds.has("run") && <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.accent }} />běh</span>}
+            {kinds.has("other") && <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.info }} />jiný sport</span>}
+            {kinds.has("strength") && <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.self }} />posilování</span>}
+          </span>
+        )}
       </div>
-      <Waterfall steps={steps} hi={Math.max(tot, wk?.ceiling || 0, target || 0) * 1.04} testid="systemic-waterfall" />
-      <p className="mt-2 text-[11px] text-fg-3">j.z. = tep × čas, u posilování a plavání náročnost × minuty</p>
+      <Waterfall steps={steps} hi={Math.max(tot, wk?.ceiling || 0, target || 0) * 1.04} testid={id === "systemic" ? "systemic-waterfall" : `waterfall-${id}`} />
+      {id === "systemic" && <p className="mt-2 text-[11px] text-fg-3">j.z. = tep × čas, u posilování a plavání náročnost × minuty</p>}
+    </div>
+  )
+}
+
+// railway#198 — a load as a multiple of its capacity: the band up to capacity, the margin
+// above it (the ceiling) and beyond, with the bar where this load sits
+function RatioGauge({ ratio, margin, tone, testid }: { ratio: number; margin: number; tone: string; testid?: string }) {
+  const top = Math.max(1 + margin, ratio) * 1.12
+  const p = (v: number) => (Math.min(v, top) / top) * 100
+  const col = (TONE as any)[tone] || TONE.ok
+  return (
+    <div className="mt-2" data-testid={testid}>
+      <div className="relative h-2.5 overflow-hidden rounded-full bg-white/[.06]">
+        <i className="absolute inset-y-0" style={{ left: `${p(1)}%`, width: `${p(1 + margin) - p(1)}%`, background: C.watch, opacity: 0.2 }} />
+        <i className="absolute inset-y-0 right-0" style={{ left: `${p(1 + margin)}%`, background: C.alert, opacity: 0.16 }} />
+        <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `max(4px, ${p(ratio)}%)`, background: col }} />
+        <i className="absolute inset-y-0 w-px bg-fg/70" style={{ left: `${p(1)}%` }} />
+        <i className="absolute inset-y-0 w-px bg-fg" style={{ left: `${p(1 + margin)}%` }} />
+      </div>
+      <div className="relative mt-1 h-3.5 text-[10px] leading-3 text-fg-3">
+        <span className="absolute -translate-x-full pr-1" style={{ left: `${p(1)}%` }}>kapacita</span>
+        <span className="absolute pl-1" style={{ left: `${p(1 + margin)}%` }}>strop</span>
+      </div>
+    </div>
+  )
+}
+
+function SessionTile({ id, ses, unit, margin, tone }: { id: string; ses: any; unit: string; margin: number; tone: string }) {
+  const head = id === "strength" ? "Nejnáročnější posilování · 7 dní" : id === "intensity" ? "Nejnáročnější trénink · 7 dní" : "Nejnáročnější běh · 7 dní"
+  const per = id === "strength" || id === "intensity" ? "kapacita na jeden trénink" : "kapacita na jeden běh"
+  return (
+    <div className="rounded-[12px] bg-white/[.04] p-3" data-testid="channel-session">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[11px] font-bold text-fg-2">{head}</span>
+        <b className="text-[15px] tabular-nums" style={{ color: (TONE as any)[tone] }}>×{num(ses.ratio)}</b>
+      </div>
+      <p className="mt-0.5 truncate text-[11px] text-fg-3">{ses.title ? `${ses.title} · ` : ""}{fmtD(ses.date)}</p>
+      <RatioGauge ratio={ses.ratio} margin={margin} tone={tone} />
+      <p className="mt-0.5 text-[11px] tabular-nums text-fg-3">
+        <b className="text-fg">{num(ses.value)} {unit}</b>{` · ${per} ${num(ses.cap)}`}
+        {(ses.readinessScore ?? 100) < 97 ? ` · připravenost ${ses.readinessScore} %` : ""}
+      </p>
+    </div>
+  )
+}
+
+function WeekTile({ wk, ses, unit, margin, tone }: { wk: any; ses: any; unit: string; margin: number; tone: string }) {
+  return (
+    <div className="rounded-[12px] bg-white/[.04] p-3" data-testid="channel-residual">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[11px] font-bold text-fg-2">Nevstřebáno · týdenní ekvivalent</span>
+        <b className="text-[15px] tabular-nums" style={{ color: (TONE as any)[tone] }}>×{num(wk.ratio)}</b>
+      </div>
+      <p className="mt-0.5 text-[11px] text-fg-3">klesá každou noc</p>
+      <RatioGauge ratio={wk.ratio} margin={margin} tone={tone} />
+      <p className="mt-0.5 text-[11px] tabular-nums text-fg-3">
+        <b className="text-fg">{num(wk.residual)} {unit}</b>
+        {wk.capPeak != null ? ` · obvyklá týdenní špička ${num(wk.capPeak)}` : ` · kapacita ${num(wk.cap)}`}
+      </p>
+      {ses?.left != null && ses.left < 0.99 && (
+        <div className="mt-2 flex items-center gap-2 text-[11px] text-fg-3">
+          <span className="shrink-0">z nejnáročnějšího zbývá</span>
+          <span className="relative h-1.5 flex-1 rounded-full bg-white/[.06]">
+            <i className="absolute inset-y-0 left-0 rounded-full bg-fg-3" style={{ width: `${Math.round(ses.left * 100)}%` }} />
+          </span>
+          <b className="tabular-nums text-fg-2">{Math.round(ses.left * 100)} %</b>
+        </div>
+      )}
     </div>
   )
 }
@@ -379,7 +467,7 @@ function ZoneTime({ cap }: { cap: any }) {
         })}
       </div>
       <p className="mt-1.5 text-[11px] leading-4 text-fg-3">
-        {cap.zones7d ? `${cap.zones7d.runs} ${cap.zones7d.runs === 1 ? "běh" : cap.zones7d.runs < 5 ? "běhy" : "běhů"} · celkem ${total} min${cap.zones7d.exact ? "" : " · u běhů bez detailních dat odhad z průměrného tepu"}` : "Za posledních 7 dní žádný běh s tepem."}
+        {cap.zones7d ? `${cap.zones7d.runs} ${cap.zones7d.runs === 1 ? "běh" : cap.zones7d.runs < 5 ? "běhy" : "běhů"}${cap.zones7d.cross ? ` + ${cap.zones7d.cross} kolo / plavání (podle jejich tepových zón)` : ""} · celkem ${total} min${cap.zones7d.exact ? "" : " · bez detailních dat odhad z průměrného tepu"}` : "Za posledních 7 dní žádný běh s tepem."}
         {" "}· max {cap.hrMaxMeasured ? `${cap.hrMax} (změřený)` : `≈ ${cap.hrMax} (odhad — změřený zadejte v profilu)`} · klid ≈ {cap.hrRest} tep/min · kanál intenzity = minuty v Z4+
       </p>
     </div>
@@ -458,6 +546,29 @@ function RelativeEffort({ re }: { re: any }) {
   )
 }
 
+// v0.12.0 — critical speed from the runner's own training (speed.py)
+function CriticalSpeed({ cs, speed = false }: { cs: any; speed?: boolean }) {
+  if (!cs) return (
+    <p className="mt-4 text-[11.5px] leading-[17px] text-fg-3" data-testid="cs-none">
+      Kritickou rychlost zatím neznáme: potřebuje za 90 dní aspoň jeden opravdu rychlý úsek (3–6 min) a delší souvislý běh se segmenty z hodinek.
+      {speed ? " Do té doby se rychlé minuty počítají od 1,45 × vaší mediánové rychlosti." : ""}
+    </p>
+  )
+  return (
+    <div className="mt-4 border-t border-white/[.07] pt-3" data-testid="critical-speed">
+      <p className="t-label !text-fg-3">Kritická rychlost · z tréninku za 90 dní</p>
+      <div className="mt-2 flex flex-wrap gap-2 text-[12px]">
+        <span className="rounded-full bg-white/[.06] px-2.5 py-1 font-bold text-fg">{paceStr(cs.paceSKm)} /km</span>
+        <span className="rounded-full bg-white/[.04] px-2.5 py-1 text-fg-2">prahová práce {paceStr(cs.thrPaceSKm)}–{paceStr(cs.paceSKm)} /km</span>
+        <span className="rounded-full bg-white/[.04] px-2.5 py-1 text-fg-2">rychlost od {paceStr(cs.speedPaceSKm)} /km</span>
+      </div>
+      <p className="mt-2 text-[11.5px] leading-[17px] text-fg-3">
+        Hranice, nad kterou už se běh nedá udržet v rovnovážném stavu (Jones et al., 2019). Minuty nad ní se počítají do Intenzity, i když tep krátké úseky nestihne zachytit. Aspoň 20 minut prahové práce těsně pod ní je tvrdý trénink (48 h odstup).
+      </p>
+    </div>
+  )
+}
+
 // Feedback #159 — which body regions the last 7 days of running loaded and how full
 // their capacity is. A region's fill is a weighted mix of the run channels' fill
 // (last 7 days ÷ the 7-day ceiling). The weights are the app's working model from the
@@ -467,7 +578,7 @@ function RelativeEffort({ re }: { re: any }) {
 // braking at the knee and higher tibial shock, more hip work uphill (Vernillo et al.,
 // 2017); the calf carries most of the support at all recreational paces, the hamstrings
 // and hip flexors take over only near sprinting (Dorn et al., 2012).
-export const BODY_REGIONS: { title: string; label: string; w: Partial<Record<(typeof RUN_CH)[number], number>> }[] = [
+export const BODY_REGIONS: { title: string; label: string; w: Partial<Record<(typeof RUN_CH)[number] | "speed", number>> }[] = [
   { title: "Patelární šlacha", label: "Koleno", w: { volume: 0.5, descent: 0.5 } },
   { title: "Kvadriceps", label: "Přední strana stehna", w: { descent: 0.7, volume: 0.3 } },
   { title: "Tibialis anterior (holeň)", label: "Holeň", w: { volume: 0.5, intensity: 0.3, descent: 0.2 } },
@@ -475,8 +586,8 @@ export const BODY_REGIONS: { title: string; label: string; w: Partial<Record<(ty
   { title: "Lýtko (gastrocnemius)", label: "Lýtko", w: { intensity: 0.45, ascent: 0.3, volume: 0.25 } },
   { title: "Achillova šlacha", label: "Achillova šlacha", w: { intensity: 0.45, ascent: 0.3, volume: 0.25 } },
   { title: "Úpon plantární fascie (pata)", label: "Plantární fascie", w: { intensity: 0.5, volume: 0.3, ascent: 0.2 } },
-  { title: "Hamstring", label: "Zadní strana stehna", w: { intensity: 0.7, ascent: 0.3 } },
-  { title: "Ohýbač kyčle", label: "Ohýbač kyčle", w: { intensity: 0.7, volume: 0.3 } },
+  { title: "Hamstring", label: "Zadní strana stehna", w: { speed: 0.4, intensity: 0.4, ascent: 0.2 } },
+  { title: "Ohýbač kyčle", label: "Ohýbač kyčle", w: { speed: 0.3, intensity: 0.5, volume: 0.2 } },
   { title: "Hýždě (gluteus)", label: "Hýždě", w: { volume: 0.4, ascent: 0.4, intensity: 0.2 } },
 ]
 
@@ -547,11 +658,15 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
     ...extra,
     systemic: <><SystemicWaterfall c={cap.channels?.systemic} target={targets?.systemic} /><BodyLoad cap={cap} /></>,
     intensity: (
-      <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-        <RelativeEffort re={re} />
-        <ZoneTime cap={cap} />
-      </div>
+      <>
+        <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+          <RelativeEffort re={re} />
+          <ZoneTime cap={cap} />
+        </div>
+        <CriticalSpeed cs={cap.criticalSpeed} />
+      </>
     ),
+    speed: <CriticalSpeed cs={cap.criticalSpeed} speed />,
   }
   return (
     <section className="card mb-4 p-4 md:p-6">
@@ -565,7 +680,7 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
         <Readiness r={cap.readiness} />
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2 min-[1600px]:grid-cols-3">
-        {CH_ORDER.map((id) => cap.channels?.[id] && id !== "strength" && (
+        {CH_ORDER.map((id) => cap.channels?.[id] && id !== "strength" && (id !== "speed" || cap.channels[id].known) && (
           <ChannelRow key={id} id={id} c={cap.channels[id]} margins={cap.margins} extra={extras[id]} scale={scale}
             target={gch[id]?.budget != null ? { budget: gch[id].budget, done: gch[id].done ?? 0 } : null}
             sub={id === "systemic" ? cap.channels.strength : undefined}
@@ -574,6 +689,12 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
       </div>
       {cap.margins?.frailty > 1 && (
         <p className="mt-3 text-[11px] text-fg-3">Zranění v posledních 12 měsících zmenšuje rezervu nad kapacitou (na běh +{Math.round(cap.margins.session * 100)} %, na týden +{Math.round(cap.margins.week * 100)} %).</p>
+      )}
+      {cap.margins?.experience && (
+        <p className="mt-2 text-[11px] text-fg-3" data-testid="margin-experience">Běháte pravidelně {cap.margins.experience.months < 1 ? "méně než měsíc" : `asi ${cap.margins.experience.months} ${cap.margins.experience.months === 1 ? "měsíc" : cap.margins.experience.months < 5 ? "měsíce" : "měsíců"}`}: v prvním roce se běžci zraňují zhruba dvakrát častěji, proto je rezerva nad kapacitou užší (×{String(cap.margins.experience.factor).replace(".", ",")}; Videbæk et al., 2015).</p>
+      )}
+      {cap.shoes?.transition && (
+        <p className="mt-2 text-[11px] text-fg-3" data-testid="margin-shoes">Nová obuv {cap.shoes.transition.name} od {fmtD(cap.shoes.transition.since)}: do {fmtD(cap.shoes.transition.until)} je rezerva u běžeckých kanálů užší (na týden +{Math.round((cap.margins.runWeek ?? cap.margins.week) * 100)} %), než si lýtka, šlachy a chodidla zvyknou.</p>
       )}
     </section>
   )

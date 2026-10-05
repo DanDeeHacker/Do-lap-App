@@ -231,28 +231,35 @@ def test_how_far_off_hrv_and_resting_hr_must_be_to_drop_readiness():
     assert wk < 90                                      # a 7-night HRV mean 0.8 SD low already costs
 
 
-def test_a_long_night_of_poor_quality_sleep_lowers_readiness(client, db_session):
-    """Feedback railway#33: sleep quality (deep + REM share, efficiency) moderates
-    readiness, not only its length — at most half a signal."""
+def test_sleep_quality_is_efficiency_over_three_nights_and_needs_confirmation(client, db_session):
+    """v0.11.0 (owner request 2026-10-04): watch sleep stages are too inaccurate to score
+    (Miller et al. 2022, Chinoy et al. 2021) — a night with little deep / REM sleep is
+    shown, not scored. Quality = sleep efficiency over the last 3 nights, the night alone
+    at 0.6×, at most a quarter of a signal and half of that without HRV / resting HR."""
     db = db_session
     rid = register(client, "rdq@test.cz", "Sleep Q", "runner").json()["runner_id"]
     for k in range(0, 40):
         deep, rem = (95 if k % 2 else 85), (100 if k % 3 else 110)
-        eff = 0.99 if k % 2 else 0.985                       # near-constant efficiency
         if k == 0:
             deep, rem = 40, 50                               # a normal-length night with little deep / REM sleep
         db.add(models.DailyMetric(runner_id=rid, date=E.day_ago(k), hrv_ms=62 if k == 0 else 60 + (k % 5),
                                   resting_hr=51 if k == 0 else 50 + (k % 3),
-                                  sleep_h=7.6 + (k % 3) * 0.1, sleep_efficiency=eff,
+                                  sleep_h=7.6 + (k % 3) * 0.1, sleep_efficiency=0.99 if k % 2 else 0.985,
                                   deep_min=deep, rem_min=rem, light_min=260, awake_min=10))
     db.commit()
-    ready = C.readiness_by_day(db, rid, [E.day_ago(0), E.day_ago(1)])
-    f0, p0, s0 = ready[E.day_ago(0)]
-    assert p0["sleep"] > 0.3 and 55 <= s0 < 80           # quality alone: capped at half a signal
-    assert ready[E.day_ago(1)][1].get("sleep", 0) == 0    # an ordinary night's sleep costs nothing
+    f0, p0, s0 = C.readiness_by_day(db, rid, [E.day_ago(0)])[E.day_ago(0)]
+    assert not p0.get("sleep") and not p0.get("sleepQuality") and s0 == 100   # the stages alone cost nothing
+    base = {"sleep_efficiency": (0.94, 0.01)}
+    calm = {"hrv_ms": (0.0, 0.0), "resting_hr": (0.0, 0.0)}
+    one = C.readiness_parts({"sleep_efficiency": 0.88}, {"eff_recent": (0.94 + 0.94 + 0.88) / 3}, base, calm)
+    three = C.readiness_parts({"sleep_efficiency": 0.88}, {"eff_recent": 0.88}, base, calm)
+    confirmed = C.readiness_parts({"sleep_efficiency": 0.88}, {"eff_recent": 0.88}, base, {"hrv_ms": (-1.0, -1.0), "resting_hr": (0.0, 0.0)})
+    assert one["sleepQuality"] < three["sleepQuality"] <= C.SLEEP_QUALITY_W * C.SLEEP_QUALITY_ALONE
+    assert confirmed["sleepQuality"] == C.SLEEP_QUALITY_W            # three poor nights and a low HRV week
+    assert C.readiness_from(three)[1] >= 90                           # efficiency alone: ≤ 10 points
     # a 2-point efficiency dip on a near-constant baseline is noise, not 4 SD
     parts = C.readiness_parts({"sleep_efficiency": 0.97}, {}, {"sleep_efficiency": (0.99, 0.004)})
-    assert parts["sleep"] < 0.15
+    assert parts["sleepQuality"] < 0.05
 
 
 def test_single_night_is_damped_unless_the_week_confirms_it():
@@ -280,12 +287,20 @@ def test_week_view_needs_enough_valid_nights(client, db_session):
     assert parts.get("hrv", 0) < 0.25                      # judged as a single night, the week view isn't used
 
 
-def test_sleep_counts_several_nights_and_an_absolute_floor(client, db_session):
-    """Halson (2014b): sleep loss builds up over nights; Watson et al. (2015): ≥ 7 h."""
-    base = {"sleep_h": (6.3, 0.3)}                          # a chronically short sleeper
-    ok = C.readiness_parts({"sleep_h": 6.3}, {"sleep_nights": [7.2, 7.4, 7.1, 7.3]}, base)
-    short = C.readiness_parts({"sleep_h": 6.3}, {"sleep_nights": [5.8, 5.6, 5.9, 6.2]}, base)
-    assert ok.get("sleep", 0) == 0 and short["sleep"] >= 0.4     # own norm says "usual", the floor says "short"
+def test_sleep_counts_several_nights_and_the_floor_only_before_the_norm(client, db_session):
+    """Halson (2014b): sleep loss builds up over nights. Watson et al. (2015): ≥ 7 h — in
+    v0.11.0 only a stand-in until the own norm is known, then a note beside readiness."""
+    base = {"sleep_h": (6.3, 0.3)}                          # a chronically short sleeper, norm known
+    usual = C.readiness_parts({"sleep_h": 6.3}, {"sleep_recent": 6.3, "sleep_nights": [6.3, 6.2, 6.4, 6.3]}, base)
+    assert usual.get("sleep", 0) == 0                      # their usual sleep is not a daily deduction
+    severe = C.readiness_parts({"sleep_h": 4.6}, {"sleep_recent": 4.5, "sleep_nights": [4.6, 4.4, 4.5, 4.5]}, {"sleep_h": (4.5, 0.3)})
+    assert severe["sleep"] == C.SLEEP_ABS_MAX              # …but nights under 6 h count even as the norm
+    new_runner = C.readiness_parts({}, {"sleep_nights": [5.8, 5.6, 5.9, 6.2]}, {})
+    assert new_runner["sleep"] >= 0.4                       # no norm yet: the 7-hour floor stands in
+    dm = {E.day_ago(k): SimpleNamespace(sleep_h=6.3 if k % 4 else 7.2) for k in range(14)}
+    hab = C.sleep_habit(dm, E.today_date())
+    assert hab and hab["avg"] < 7 and hab["under"] >= 8     # …and the habit is a separate note
+    assert C.sleep_habit({E.day_ago(k): SimpleNamespace(sleep_h=7.4) for k in range(14)}, E.today_date()) is None
     one = C.readiness_parts({"sleep_h": 5.0}, {"sleep_recent": (5.0 + 7.5 + 7.5) / 3, "sleep_nights": [5.0, 7.5, 7.5, 7.5]},
                             {"sleep_h": (7.5, 0.3)})
     three = C.readiness_parts({"sleep_h": 5.0}, {"sleep_recent": 5.0, "sleep_nights": [5.0, 5.0, 5.0, 7.5]},
@@ -306,3 +321,21 @@ def test_checkin_life_stress_and_sleep_quality(client, db_session):
     ids = {s["id"]: s for s in a["signals"]}
     assert {"life_stress", "sleep_self", "sore", "fatigue"} <= set(ids)
     assert all(E.signal_axis(k) == "symp" for k in ("life_stress", "sleep_self", "sore", "fatigue"))
+
+
+def test_readiness_compare_shows_both_sleep_rules(client, db_session):
+    """v0.11.0 check: the same days under the v0.10 and v0.11 sleep rules (read-only)."""
+    db = db_session
+    rid = register(client, "rcmp@test.cz", "Compare", "runner").json()["runner_id"]
+    for k in range(0, 40):
+        db.add(models.DailyMetric(runner_id=rid, date=E.day_ago(k), hrv_ms=60 + (k % 5), resting_hr=50 + (k % 3),
+                                  sleep_h=7.5 + (k % 3) * 0.1, sleep_efficiency=0.80 if k == 0 else 0.94 + (k % 2) * 0.01,
+                                  deep_min=90, rem_min=100, light_min=260, awake_min=20))
+    db.commit()
+    r = client.get("/api/runners/me/readiness-compare?days=14")
+    assert r.status_code == 200
+    j = r.json()
+    last = j["rows"][-1]
+    assert j["days"] >= 7 and last["day"] == E.day_ago(0)
+    assert last["old"] < last["new"]                         # one wakeful night: v0.10 cut much deeper
+    assert client.get(f"/api/runners/{rid}/readiness-compare").status_code == 200

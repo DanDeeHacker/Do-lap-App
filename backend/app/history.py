@@ -35,7 +35,7 @@ QUAD_HISTORY_DAYS = 183
 # Bump when the history *shape/window* logic changes. The code fingerprint below
 # also turns the key over whenever the engine sources change, so a deploy that
 # alters scoring without an ENGINE_VERSION bump can't serve an outdated history.
-HISTORY_VERSION = "h7"
+HISTORY_VERSION = "h10"
 
 
 # v0.9.0 — modules that never change a replayed day (texts, coach, the sandbox, the
@@ -159,10 +159,12 @@ def _quad_row(av: dict) -> dict:
     """Everything the Dnes overview draws (feedback railway#88), so a past day
     renders the same rings, verdict and drivers as today."""
     pr = av.get("painRecurring")
-    rs = (av.get("readiness") or (av.get("capacity") or {}).get("readiness") or {}).get("score")
+    rd = av.get("readiness") or (av.get("capacity") or {}).get("readiness") or {}
+    rs = rd.get("score")
     return {"date": av["_cut"], "quadrant": av["quadrant"], "overall": av["overall"],
             "tier": av["tier"], "mech": av["mech"], "load": av["load"], "symp": av["symp"],
-            "readiness": rs,
+            # railway#194: the morning's readiness (after the night, before the day lowered it) for the trend
+            "readiness": rs, "readinessMorning": rd.get("morningScore") if rd.get("morningScore") is not None else rs,
             "painRecurring": {"site": pr.get("site"), "days": pr.get("days")} if pr else None,
             "signals": [{"id": s.get("id"), "name": s["name"], "pts": s["pts"], "grade": s["grade"], "val": s.get("val")}
                         for s in (av.get("signals") or [])[:5]]}

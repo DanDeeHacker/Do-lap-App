@@ -107,8 +107,13 @@ export function Post() {
   const [rate, setRate] = useState<{ act: any; initial?: any } | null>(null)
   const [crossOpen, setCrossOpen] = useState(false)
   const toastX = useToast()
+  // railway#193 — no "Jiný sport" block here any more (other sports sit in the lists with
+  // the runs); Trénink's "Zapsat do deníku" for a cross session still opens the form
   useEffect(() => {
-    if (window.location.hash === "#jiny-sport") setTimeout(() => document.getElementById("jiny-sport")?.scrollIntoView({ block: "center" }), 300)
+    if (window.location.hash === "#jiny-sport") {
+      setCrossOpen(true)
+      history.replaceState(null, "", window.location.pathname)
+    }
   }, [])
   // feedback #155: the "Zapsat běh" button opens the note for that activity straight away
   const wantRate = window.location.hash.startsWith("#zapsat-") ? window.location.hash.slice(8) : null
@@ -266,14 +271,6 @@ export function Post() {
             ) : (
               <div className="mt-3"><Empty>Nic nečeká. Další zápis se objeví po příštím běhu.</Empty></div>
             )}
-            {/* railway#141 — other sports right under the waiting list, the latest notes as the last detail */}
-            <div id="jiny-sport" className="mt-5 scroll-mt-24 border-t border-white/[.08] pt-4" data-tour="journal-cross">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Label>Jiný sport</Label>
-                <Button size="sm" variant="secondary" onClick={() => setCrossOpen(true)}>Přidat trénink</Button>
-              </div>
-              <p className="mt-1 text-[12px] leading-5 text-fg-3">Kolo, plavání a posilování se počítají do celkové zátěže, posilování i do silové zátěže. Posilování hodinky často nezaznamenají, zapište ho tady. Zapsané tréninky najdete v Posledních zápisech.</p>
-            </div>
             {sorted.length > 0 && (
               <>
                 <button type="button" onClick={() => setLatestOpen((v) => !v)} aria-expanded={latestOpen} data-testid="latest-toggle"
@@ -1691,24 +1688,27 @@ export function ReadinessTrend({ a, hist }: { a: any; hist: any[] | null }) {
   const [open, setOpen] = useState(false)
   const r = a?.readiness ?? a?.capacity?.readiness
   const rcv = a?.rcv
-  const pct = r ? readinessPct(r) : null
+  // railway#194 — the morning's readiness (after the night, before today's training and the
+  // day outside it lowered it), day by day; how the day lowers it is in Dnešní den below
+  const pct = r ? (r.morningScore ?? readinessPct(r)) : null
   const col = pct != null ? readinessCol(pct) : C.fg3
   const asOf = (a?.computed_at || "").slice(0, 10)
   // feedback #157: the last two months only
   const since = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)
-  const pts = (hist || []).filter((h) => h.readiness != null && h.date >= since).map((h) => ({ t: h.date as string, v: h.readiness as number }))
+  const mornings = (hist || []).map((h) => ({ t: h.date as string, v: (h.readinessMorning ?? h.readiness) as number | null }))
+  const pts = mornings.filter((h) => h.v != null && h.t >= since) as { t: string; v: number }[]
   if (pts.length && pct != null) pts[pts.length - 1] = { t: asOf || pts[pts.length - 1].t, v: pct }
   if (pct == null && !rcv) return <p className="nest px-3.5 py-3 text-[12px] text-fg-3">Chybí souvislá data z hodinek za posledních 35 dní (HRV, klidový tep, spánek).</p>
   return (
     <div className="nest p-3.5" data-testid="readiness-trend">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Připravenost — trend</span><InfoDot text={MI.readiness} label="Připravenost" /></span>
+        <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Ranní připravenost — trend</span><InfoDot text={MI.readiness} label="Připravenost" /></span>
         <span className="text-[11px] text-fg-3">60 dní · 0–100 %</span>
       </div>
       {pct != null && (
         <div className="mt-1.5 flex items-end gap-2">
           <b className="t-num text-[30px] leading-none" style={{ color: col }}>{pct}<small className="text-[14px] font-semibold"> %</small></b>
-          <small className="pb-0.5 text-[12px] text-fg-2">dnes · {readinessWord(pct)}</small>
+          <small className="pb-0.5 text-[12px] text-fg-2">dnes ráno · {readinessWord(pct)}</small>
         </div>
       )}
       {hist === null ? <p className="mt-2 text-[12px] text-fg-3">Počítám trend v čase…</p>
@@ -1774,7 +1774,7 @@ function RecoveryDetail({ rcv, sleepEff }: { rcv: any; sleepEff: any }) {
 
 // Feedback railway#33 — sleep quality, not only length: efficiency (asleep / in bed)
 // and the deep + REM share of the staged night against the runner's 8-week normal.
-// Both feed readiness (at most half a signal — watch staging is approximate).
+// v0.11.0: only the efficiency (3 nights) feeds readiness; the stages are shown.
 function SleepQuality({ s }: { s: any }) {
   const pct = (v: number | null | undefined) => (v == null ? "—" : `${Math.round(v * 100)} %`)
   const restLow = s.restNow != null && s.restBase != null && s.restNow < s.restBase - 0.03
@@ -1787,7 +1787,7 @@ function SleepQuality({ s }: { s: any }) {
       <span className="flex items-center gap-1.5"><Label>Kvalita spánku</Label><InfoDot text={MI.sleepQuality} label="Kvalita spánku" /></span>
       <div className="mt-2 flex items-end gap-4">
         <div>
-          <p className="t-num text-[30px]" style={{ color: restLow ? C.alert : undefined }}>{pct(s.restNow)}</p>
+          <p className="t-num text-[30px]" style={{ color: restLow ? C.watch : undefined }}>{pct(s.restNow)}</p>
           <p className="text-[11px] text-fg-3">hluboký + REM{s.restBase != null ? ` · obvykle ${pct(s.restBase)}` : ""}</p>
         </div>
         <div>
@@ -1805,7 +1805,8 @@ function SleepQuality({ s }: { s: any }) {
       )}
       <p className="mt-2 text-[11px] leading-4 text-fg-3">
         {s.restNow == null ? "Fáze spánku se načtou při další synchronizaci s Garminem. " : ""}
-        {restLow || effLow ? "Méně kvalitní spánek než obvykle snižuje dnešní připravenost." : "Průměr 7 nocí proti vaší normě za 8 týdnů."}
+        {effLow ? "Víc bdění než obvykle — připravenost to sníží mírně, víc jen když to potvrdí HRV nebo klidový tep. " : ""}
+        Fáze spánku jsou jen pro informaci, do připravenosti se nepočítají.
       </p>
       {(s.history || []).length >= 7 && <SleepHistory h={s.history} />}
     </div>

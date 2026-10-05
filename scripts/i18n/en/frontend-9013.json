@@ -1,0 +1,20 @@
+{
+"· kapacita {}": "· capacity {0}",
+"· obvyklá týdenní špička {}": "· usual weekly peak {0}",
+"Co přidal každý běh (7 dní)": "What each run added (7 days)",
+"kapacita na jeden běh": "capacity per run",
+"kapacita na jeden trénink": "capacity per session",
+"Kapacitu teprve poznáváme —": "We're still learning your capacity —",
+"klesá každou noc": "falls every night",
+"max(4px, {}%)": "",
+"Nejnáročnější běh · 7 dní": "Hardest run · 7 days",
+"Nejnáročnější posilování · 7 dní": "Hardest strength session · 7 days",
+"Nejnáročnější trénink · 7 dní": "Hardest session · 7 days",
+"Nevstřebáno · týdenní ekvivalent": "Unabsorbed · weekly equivalent",
+"stačí pár běhů nebo jízd s tepem.": "a few runs or rides with heart rate are enough.",
+"stačí pár běhů.": "a few runs are enough.",
+"z nejnáročnějšího zbývá": "left of the hardest",
+"kapacita": "capacity",
+"strop": "ceiling",
+"Intenzita: minuty v Z4 a výš z běhu, kola i plavání (kolo a plavání podle jejich vlastního maximálního tepu), z tepové křivky z hodinek. Kde křivka chybí, je to odhad z průměrného tepu a intervaly se v něm ztrácejí.": "Intensity: minutes in Z4 and above from running, cycling and swimming (cycling and swimming against their own maximum heart rate), from the heart-rate trace of the watch. Where the trace is missing it's an estimate from the average heart rate, and intervals get lost in it."
+}

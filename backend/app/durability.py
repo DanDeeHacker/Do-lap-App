@@ -74,6 +74,11 @@ SESSIONS = {
                                   "power": (3, 12, 15, "/noha"), "maintain": (2, 15, 15, "/noha")}),
               ("step_down", "main", {"base": (2, 8, 10, "/noha"), "volume": (3, 10, 10, "/noha"), "strength": (3, 10, 12, "/noha"),
                                      "power": (3, 8, 10, "/noha"), "maintain": (2, 10, 10, "/noha")}),
+              # owner request 2026-10-04 — pelvic control on one leg: contralateral pelvic drop goes
+              # with running injuries (Bramah et al., 2018) and functional hip abductor training
+              # reduced it in runners with shin pain (Lashien et al., 2024)
+              ("pelvic_drop", "acc", {"base": (2, 10, 12, "/noha"), "volume": (2, 12, 15, "/noha"), "strength": (3, 12, 15, "/noha"),
+                                      "power": (2, 15, 15, "/noha"), "maintain": (2, 12, 12, "/noha")}),
               ("sl_rdl", "main", {"base": (2, 8, 8, "/noha"), "volume": (3, 8, 10, "/noha"), "strength": (3, 8, 8, "/noha"),
                                   "power": (3, 6, 8, "/noha"), "maintain": (2, 8, 8, "/noha")}),
               ("sl_calf_slow", "main", {"base": (2, 10, 12, "/noha"), "volume": (3, 10, 15, "/noha"), "strength": (3, 12, 15, "/noha"),
@@ -98,6 +103,7 @@ LOAD_STEP = {
     "pallof": "silnější guma nebo dál od úchytu",
     "sl_hops": "poskoky dopředu a do stran",
     "step_down": "vyšší schod nebo činka v ruce",
+    "pelvic_drop": "pomalé spouštění 3 s, pak činka v ruce na straně volné nohy",
     "sl_rdl": "+2 kg",
     "sl_calf_slow": "batoh nebo činka, dolů 3 s",
     "toe_raise": "paty dál od zdi nebo závaží na špičkách",

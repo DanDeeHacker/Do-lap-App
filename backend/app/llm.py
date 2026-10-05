@@ -172,6 +172,50 @@ def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: i
         return None
 
 
+# v0.12.0 — image input (shoe recognition). Tested on NVIDIA's catalog 2026-10-04 with a
+# shoe photo: Llama 3.2 Vision 11B answered in ~3 s, 90B in 20–70 s, Gemma 4 timed out on
+# images. VISION_MODELS (comma-separated) overrides the order.
+VISION_MODELS = [m.strip() for m in (os.environ.get("VISION_MODELS") or "").split(",") if m.strip()] or [
+    "meta/llama-3.2-11b-vision-instruct", "meta/llama-3.2-90b-vision-instruct"]
+VISION_BASE_URL = (os.environ.get("VISION_BASE_URL") or NVIDIA_BASE_URL).rstrip("/")
+VISION_API_KEY = os.environ.get("VISION_API_KEY") or NVIDIA_API_KEY
+VISION_TIMEOUT = float(os.environ.get("VISION_TIMEOUT") or 45)
+
+
+def vision(prompt: str, image_data_url: str, system: str | None = None, max_tokens: int = 300,
+           timeout: float | None = None) -> tuple[str | None, str | None]:
+    """(reply, model) for one image + a question, trying VISION_MODELS in turn;
+    (None, None) without a key or when every model fails."""
+    if not VISION_API_KEY:
+        return None, None
+    msgs = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": [
+        {"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": image_data_url}}]}]
+    errors = {}
+    for m in VISION_MODELS:
+        LAST_ERROR.pop("chat", None)
+        out = chat_messages(msgs, temperature=0.1, max_tokens=max_tokens, timeout=timeout or VISION_TIMEOUT, model=m,
+                            base_url=VISION_BASE_URL, api_key=VISION_API_KEY)
+        if out:
+            return out, m
+        errors[m] = LAST_ERROR.get("chat")
+    LAST_ERROR["vision"] = errors
+    return None, None
+
+
+def list_models(q: str = "") -> list[str]:
+    """The provider's model ids containing `q` (ops only)."""
+    if not NVIDIA_API_KEY:
+        return []
+    try:
+        resp = httpx.get(f"{NVIDIA_BASE_URL}/models", headers={"Authorization": f"Bearer {NVIDIA_API_KEY}"}, timeout=20)
+        resp.raise_for_status()
+        ids = [m.get("id", "") for m in resp.json().get("data", [])]
+    except Exception as e:
+        _note_error("models", e)
+        return []
+    return sorted(i for i in ids if q.lower() in i.lower())
+
+
 def chat(system: str, user: str, temperature: float = 0.25, max_tokens: int = 700, timeout: float = 60.0):
     """Returns the model's reply text, or None if no key is configured or
     the call fails for any reason (network, quota, bad response shape) —

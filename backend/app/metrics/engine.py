@@ -34,7 +34,7 @@ from .. import models
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.10.4"  # v0.10.4: the day outside training lowers today's readiness like a session (load above the usual day, at most ~8 points; today's raised resting heart rate × 0.6) until the night's data arrive; v0.10.3: all-day heart rate, own logic for every device (dayload.py) — load outside training above the usual day at half weight in the all-sport channel, yesterday's raised resting heart rate as a minor readiness signal (dayStress); v0.10.2: display data only, no scoring change — every session of the last 7 days per capacity channel (week7, feedback #149) and how far a run went past the hardest of 8 weeks (relativeEffort overMax, #148); v0.10.1: the weekly score compares the unabsorbed load with the usual weekly peak of the same measure (a once-a-week hard session no longer reads as over capacity on its own day); v0.10.0: pain and injury act on the capacity itself by the pain-monitoring model (hold inside it, one step back over it, no running on worse morning pain or an active injury, graded return caps the week), readiness per tissue (muscle / tendon / bone channels take HRV and resting HR at half weight); Příznaky and the readiness score unchanged; v0.9.4: the check-in steers the training recommendation again (not the Skóre or readiness), guidance.checkinReadiness; v0.9.3: graduated pain episodes per site (median / P75 re-marks, clean days halve, 3rd ends), no count escalation; check-in items only on Příznaky, watch sleep only through readiness; v0.9.2: displayed scores by band (tier band, model and trigger severity place the day in it; ok days spread), no fixed Skóre 60 floor; v0.9.1: recovery nights history and baseline spread for the readiness detail on Zátěž (railway#138), approximate per-item shares of every signal source (railway#132); v0.9.0: engine evaluation 2026-09 — pure snapshot engine (RunnerData, history replays by as_of), jump confirmation by repeats and passive tolerance, pace spike vs own fast runs, monotony only over capacity, RUNSAFE-shaped band curve, weather/equipment/pace-tertile confounders in mechanics, log-HRV readiness (single-night Regenerace removed), injury history to 24 months, under-conditioning, sex-specific TRIMP / bone / Achilles rules, safety rules outside the calibrated score, independent primary outcomes with censoring and session-scale data, LTHR zones and pace-based hard minutes, no physio referral for movement-only drift; v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.12.0"  # v0.12.0: risk factors from the profile gate and new load measures — running experience (first year: margins × 0.8 / × 0.9, Videbæk 2015), shoes (6-week transition after a minimal / ≥ 4 mm lower drop / carbon shoe narrows the running channels' margins, more over 85 kg, Fuller 2017; rotation shown as protective, Malisoux 2015), critical speed from training (mean-max 3–20 min, Jones 2019, Smyth & Muniz-Pumares 2020): minutes above it into Intenzita, ≥ 20 min of threshold work = a hard day; the Rychlost channel (≥ 1.10 × CS, Duhig 2016, Malone 2017) with a strides note after 4 weeks without; an illness signal from resting HR and breathing rate in sleep (Quer 2021) with two check-in questions (neck check); menstrual-cycle-aware readiness (same-phase norm, Schmalenberger 2019); v0.11.0: sleep in readiness by the evidence on watch sleep data — length and quality are separate parts; quality = sleep efficiency only (deep + REM share shown, not scored), over the last 3 nights, at most a quarter of a signal and half of that unless HRV or resting HR confirm; the 7-hour floor only until the own norm is known, then a separate note (sleepHabit); v0.10.5: hard minutes of cycling and swimming (Z4+ against the sport's own HR max) count in Intenzita — weekly load, per-session capacity and the spacing of hard days (railway#192); v0.10.4: the day outside training lowers today's readiness like a session (load above the usual day, at most ~8 points; today's raised resting heart rate × 0.6) until the night's data arrive; v0.10.3: all-day heart rate, own logic for every device (dayload.py) — load outside training above the usual day at half weight in the all-sport channel, yesterday's raised resting heart rate as a minor readiness signal (dayStress); v0.10.2: display data only, no scoring change — every session of the last 7 days per capacity channel (week7, feedback #149) and how far a run went past the hardest of 8 weeks (relativeEffort overMax, #148); v0.10.1: the weekly score compares the unabsorbed load with the usual weekly peak of the same measure (a once-a-week hard session no longer reads as over capacity on its own day); v0.10.0: pain and injury act on the capacity itself by the pain-monitoring model (hold inside it, one step back over it, no running on worse morning pain or an active injury, graded return caps the week), readiness per tissue (muscle / tendon / bone channels take HRV and resting HR at half weight); Příznaky and the readiness score unchanged; v0.9.4: the check-in steers the training recommendation again (not the Skóre or readiness), guidance.checkinReadiness; v0.9.3: graduated pain episodes per site (median / P75 re-marks, clean days halve, 3rd ends), no count escalation; check-in items only on Příznaky, watch sleep only through readiness; v0.9.2: displayed scores by band (tier band, model and trigger severity place the day in it; ok days spread), no fixed Skóre 60 floor; v0.9.1: recovery nights history and baseline spread for the readiness detail on Zátěž (railway#138), approximate per-item shares of every signal source (railway#132); v0.9.0: engine evaluation 2026-09 — pure snapshot engine (RunnerData, history replays by as_of), jump confirmation by repeats and passive tolerance, pace spike vs own fast runs, monotony only over capacity, RUNSAFE-shaped band curve, weather/equipment/pace-tertile confounders in mechanics, log-HRV readiness (single-night Regenerace removed), injury history to 24 months, under-conditioning, sex-specific TRIMP / bone / Achilles rules, safety rules outside the calibrated score, independent primary outcomes with censoring and session-scale data, LTHR zones and pace-based hard minutes, no physio referral for movement-only drift; v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -2466,7 +2466,8 @@ def pain_fade(age_days, cleared: bool) -> float:
 
 # ---------------------------------------------------------------- v0.8.4 screening
 # Safety rules that sit above the load logic (literature review 2026-09, section H).
-CHECKIN_FLAGS = ("ill", "bone_walk", "bone_rest", "bone_earlier", "red_cauda", "red_systemic")
+CHECKIN_FLAGS = ("ill", "bone_walk", "bone_rest", "bone_earlier", "red_cauda", "red_systemic",
+                 "ill_systemic", "ill_none")   # v0.12.0: the two questions asked when the watch flags an illness
 HR_PACE_BPM = 6            # heart rate ≥ 6 bpm over the usual for the pace across ≥ 3 runs (working assumption)
 HRV_HIGH_Z = 1.5           # 7-night HRV this far above the norm counts as "high" (working assumption)
 HRV_CV_LOW = 0.6           # v0.9.0: day-to-day HRV variation this far below usual counts as "unusually stable"
@@ -2517,8 +2518,12 @@ def screening(db: DBSession, rid: str) -> dict:
     bonePain   — pain ≥ 3/10 (≥ 2/10 for women) at a bone-typical site: return from bone stress is
                  guided by no pain at all (Warden 2014), unlike tendon pain
                  (Silbernagel 2007) → no running today, cross-training only.
-    ill        — the runner reported being ill today / yesterday.
-    illDays28  — days with an illness report in the last 28 days."""
+    ill        — the runner reported being ill today / yesterday ({at, systemic}: symptoms
+                 below the neck; False only when asked and answered "no").
+    illDays28  — days with an illness report in the last 28 days.
+    illSignal  — v0.12.0: two nights of raised resting HR / breathing rate (illness.py),
+                 with today's answer to the check-in questions ("below" | "above" | "none"
+                 | None)."""
     today = today_date()
     cut_screen = iso_date(today - timedelta(days=SCREEN_WINDOW_DAYS - 1))
     lo = iso_date(today - timedelta(days=27))
@@ -2526,7 +2531,7 @@ def screening(db: DBSession, rid: str) -> dict:
     db = data
     bone_min = BONE_PAIN_MIN_SEX.get(getattr(data.runner, "sex", None) or "", BONE_PAIN_MIN)
     rows = D.stable_desc((c for c in data.checkins if c.submitted_at >= lo), lambda c: c.submitted_at)
-    out = {"redFlag": None, "boneStress": None, "bonePain": None, "ill": None, "illDays28": 0}
+    out = {"redFlag": None, "boneStress": None, "bonePain": None, "ill": None, "illDays28": 0, "illSignal": None}
     ill_days = set()
     for c in rows:
         f = _flags(c)
@@ -2536,7 +2541,8 @@ def screening(db: DBSession, rid: str) -> dict:
             continue
         sites = _sites(c.pain_points, c.pain_site)
         if out["ill"] is None and f.get("ill"):
-            out["ill"] = {"at": c.submitted_at[:10]}
+            out["ill"] = {"at": c.submitted_at[:10],
+                          "systemic": bool(f["ill_systemic"]) if "ill_systemic" in f else None}
         if out["redFlag"] is None and (f.get("red_cauda") or f.get("red_systemic")):
             back = [x for x in sites if back_site(x)]
             out["redFlag"] = {"at": c.submitted_at[:10], "kind": "cauda" if f.get("red_cauda") else "systemic",
@@ -2547,6 +2553,14 @@ def screening(db: DBSession, rid: str) -> dict:
                                         ("bone_earlier", "ozývá se při běhu čím dál dřív")) if f.get(k)]
             out["boneStress"] = {"at": c.submitted_at[:10], "site": ", ".join(bone) or "holeň / chodidlo", "what": what}
     out["illDays28"] = len(ill_days)
+    from . import illness as IL
+    sig = IL.illness_signal(data, iso_date(today))
+    if sig:
+        tci = [c for c in rows if c.submitted_at[:10] == iso_date(today)]
+        f = _flags(tci[0]) if tci else {}
+        sig["answer"] = ("below" if f.get("ill") and f.get("ill_systemic") else "above" if f.get("ill")
+                         else "none" if f.get("ill_none") else None)
+    out["illSignal"] = sig
     # bone-typical pain (check-ins and run ratings) in the last 14 days
     reps = _pain_reports(db, rid, iso_date(today - timedelta(days=13)))
     hits = [(r["day"], r["pain"], [x for x in r["sites"] if bone_site(x)]) for r in reps]
@@ -3562,8 +3576,8 @@ def _assess(db, rid: str) -> dict:
         # (acute/chronic are now training-load AU, not km).
         if L["valid"] and L["chronic"] and L["tsbBalance"] is not None:
             tsb_rel = L["tsbBalance"] / L["chronic"]
-            if tsb_rel <= -0.12:
-                p = rnd(clamp((-tsb_rel - 0.12) * 90, 0, 12))
+            p = rnd(clamp((-tsb_rel - 0.12) * 90, 0, 12)) if tsb_rel <= -0.12 else 0
+            if p:                                    # no 0-point signal at the threshold (as hrvcv, the sandbox)
                 load_score += p
                 push("tsb", "Nepříznivá bilance zátěže", "C", p, f"{sgn(L['tsbBalance'])} j.z./týd",
                      f"Fitness (42denní průměr) {L['fitness42']} proti aktuální zátěži {L['acute']} j.z./týden — akutní zátěž předbíhá vybudovanou")

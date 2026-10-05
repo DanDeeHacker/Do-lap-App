@@ -159,7 +159,7 @@ KNOBS = [
 # data" reproduces the live score) but get no slider.
 _V3_NAME = {"volume": "Objem nad kapacitou", "intensity": "Intenzita nad kapacitou", "descent": "Klesání nad kapacitou",
             "ascent": "Stoupání nad kapacitou", "systemic": "Celková zátěž nad kapacitou",
-            "strength": "Silová zátěž nad kapacitou"}
+            "strength": "Silová zátěž nad kapacitou", "speed": "Rychlost nad kapacitou"}
 
 
 def _v3_knobs():

@@ -182,6 +182,20 @@ def elevation_profile(records: list[dict], step_m: float = 100.0) -> list[dict]:
     return prof
 
 
+def hr_histogram(details: dict) -> dict | None:
+    """Seconds at each heart rate (2-bpm bins) over the whole recording — for cycling and
+    swimming (feedback railway#199), where the running mask doesn't apply: hard minutes
+    from the real time at each heart rate instead of the session's average."""
+    records = clean_signals(parse_garmin_details(details))
+    w, _step, _gap = sample_weights(_time_s(records))
+    hist: dict = {}
+    for r, wi in zip(records, w):
+        if r.get("hr") is not None and wi > 0:
+            b = str(int(r["hr"] // 2 * 2))
+            hist[b] = hist.get(b, 0.0) + wi
+    return {k: round(v, 1) for k, v in hist.items()} or None
+
+
 def process(details: dict) -> dict:
     """Run S1 end-to-end. Returns the elevation profile, an accept-for-mechanics
     flag and quality stats. `records` (cleaned, time-ordered) is returned for the

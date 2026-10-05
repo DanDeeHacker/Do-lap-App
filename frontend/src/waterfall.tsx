@@ -14,8 +14,9 @@ export type WStep = {
   value?: ReactNode       // overrides the printed value
 }
 
-export function Waterfall({ steps, lo = 0, hi, unit = "", dec = 0, testid }: {
+export function Waterfall({ steps, lo = 0, hi, unit = "", dec = 0, testid, wrapSub = false }: {
   steps: WStep[]; lo?: number; hi?: number; unit?: string; dec?: number; testid?: string
+  wrapSub?: boolean       // the step's note on more lines instead of cut off
 }) {
   let run = 0
   const rows = steps.map((s) => {
@@ -43,7 +44,7 @@ export function Waterfall({ steps, lo = 0, hi, unit = "", dec = 0, testid }: {
           <li key={s.key} className="flex items-center gap-2.5">
             <span className="w-[40%] min-w-0 shrink-0">
               <span className={`block truncate text-[12px] ${isTotal ? "font-extrabold text-fg" : "font-bold text-fg-soft"}`}>{s.label}</span>
-              {s.sub && <span className="block truncate text-[10.5px] leading-[14px] text-fg-3">{s.sub}</span>}
+              {s.sub && <span className={`block text-[10.5px] leading-[14px] text-fg-3 ${wrapSub ? "" : "truncate"}`}>{s.sub}</span>}
             </span>
             <span className="relative h-3.5 flex-1 rounded-[4px] bg-white/[.05]">
               {!isTotal && <i className="absolute inset-y-0 w-px bg-white/25" style={{ left: pos(a) }} />}

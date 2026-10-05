@@ -983,7 +983,8 @@
  {
   "t": "A · Síla (těžší)",
   "files": [
-   "durability.py"
+   "durability.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -1211,11 +1212,18 @@
   ]
  },
  {
+  "t": "pomalé spouštění 3 s, pak činka v ruce na straně volné nohy",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
   "t": "posilování",
   "files": [
    "durability.py",
    "metrics/capacity.py",
    "metrics/guidance.py",
+   "metrics/week_plan.py",
    "outcomes.py"
   ]
  },
@@ -1302,7 +1310,8 @@
   "files": [
    "durability.py",
    "metrics/engine.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -1911,6 +1920,19 @@
   "t": "Plná",
   "files": [
    "metrics/capacity.py"
+  ]
+ },
+ {
+  "t": "Rychlost",
+  "files": [
+   "metrics/capacity.py"
+  ]
+ },
+ {
+  "t": "Rychlost nad kapacitou",
+  "files": [
+   "metrics/capacity.py",
+   "metrics/sensitivity.py"
   ]
  },
  {
@@ -2948,21 +2970,24 @@
   "t": "dlouhý",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "kvalitní",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "lehký",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -2975,7 +3000,8 @@
   "t": "neděle",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -2994,27 +3020,31 @@
   "t": "pondělí",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "pá",
   "files": [
-   "metrics/daily_report.py"
+   "metrics/daily_report.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "pátek",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "středa",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -3026,27 +3056,31 @@
  {
   "t": "út",
   "files": [
-   "metrics/daily_report.py"
+   "metrics/daily_report.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "úterý",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "čt",
   "files": [
-   "metrics/daily_report.py"
+   "metrics/daily_report.py",
+   "metrics/week_plan.py"
   ]
  },
  {
   "t": "čtvrtek",
   "files": [
    "metrics/daily_report.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -3147,7 +3181,8 @@
   "t": "Bolest",
   "files": [
    "metrics/engine.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -4546,12 +4581,6 @@
   ]
  },
  {
-  "t": "2–3 série dřepů, výpadů, výstupů na bednu a výponů lýtek, 2 opakování nechte v záloze.",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
   "t": "4. týden cyklu — odlehčovací týden (55 % vrcholového týdne), ať se trénink vstřebá.",
   "files": [
    "metrics/guidance.py"
@@ -4702,6 +4731,12 @@
   ]
  },
  {
+  "t": "Cviky podle programu Runner's must-have v Péči (2× týdně, session A síla a B odolnost).",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Cílový závod",
   "files": [
    "metrics/guidance.py"
@@ -4818,7 +4853,25 @@
   ]
  },
  {
-  "t": "Hlásíte nemoc — dnes odpočinek. Lehký pohyb jen tehdy, když se cítíte dobře, a k tréninku se vraťte postupně.",
+  "t": "Hlásíte nemoc — dnes odpočinek. Při horečce, bolesti svalů nebo kašli z hrudníku netrénujte, k tréninku se vraťte postupně až den po odeznění horečky.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Hlásíte příznaky jen nad krkem (rýma, škrábání v krku) — nanejvýš krátký volný běh bez intenzity, a jen když se při tom cítíte dobře. Kdyby přišla horečka nebo bolest svalů, odpočinek.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Hodinky ukazují {} {} — bývá to první známka nemoci, ale i únavy, alkoholu nebo horka. Dnes jen lehce a bez intenzity;",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Hodinky ukazují {} {} — dnes bez náročného tréninku, než se ukáže, jestli nejde o nemoc.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -4844,7 +4897,8 @@
  {
   "t": "Jen pokud při tom nic nebolí.",
   "files": [
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -4863,6 +4917,7 @@
   "t": "Kolo",
   "files": [
    "metrics/guidance.py",
+   "metrics/week_plan.py",
    "routers/runners.py",
    "tutorial_demo.py"
   ]
@@ -4947,6 +5002,12 @@
  },
  {
   "t": "Nejvýš {} % týdenního rozpočtu objemu; stejnoměrně, v Z2.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Nová obuv {} ({}) od {}: lýtka, Achillovy šlachy a chodidla si na ni zvykají, proto jsou do {} rezervy na běh užší. Střídejte ji s dosavadní obuví a začněte kratšími běhy",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5052,6 +5113,7 @@
   "t": "Posilování",
   "files": [
    "metrics/guidance.py",
+   "metrics/week_plan.py",
    "routers/runners.py",
    "tutorial_demo.py"
   ]
@@ -5082,6 +5144,12 @@
  },
  {
   "t": "Posilování zatím nemáte zapsané",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Poslední 4 týdny žádný rychlý úsek. Pokud jste neběželi ani rovinky, přidejte po lehkém běhu 4–6 stupňovaných rovinek po 15–20 s (ne naplno): pravidelný kontakt s rychlostí chrání zadní stehenní svaly, prudký návrat k ní je riziko (Malone et al., 2017; Duhig et al., 2016).",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5166,6 +5234,12 @@
  },
  {
   "t": "Připravenost {}{} % ({} proti vaší normě) — dnešní stropy jsou úměrně nižší",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Příznaky jen nad krkem: nanejvýš krátce a velmi volně, a jen když se při tom cítíte dobře.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5263,7 +5337,8 @@
  {
   "t": "Volno",
   "files": [
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -5375,6 +5450,12 @@
   ]
  },
  {
+  "t": "check-in se zeptá na příznaky.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "dnes byl naplánovaný den volna",
   "files": [
    "metrics/guidance.py"
@@ -5400,6 +5481,12 @@
   ]
  },
  {
+  "t": "dvě noci po sobě",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "it pás",
   "files": [
    "metrics/guidance.py",
@@ -5407,7 +5494,7 @@
   ]
  },
  {
-  "t": "kratší nebo méně kvalitní spánek",
+  "t": "kratší spánek",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5437,6 +5524,12 @@
   ]
  },
  {
+  "t": "minimalistická bota",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "na další běh už dnes nezbývá objem",
   "files": [
    "metrics/guidance.py"
@@ -5444,6 +5537,18 @@
  },
  {
   "t": "nižší HRV",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "nižší drop ({} → {} mm)",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "nízký drop ({} mm)",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5523,6 +5628,12 @@
   ]
  },
  {
+  "t": "v check-inu jste žádné příznaky nehlásili, zítra se to ukáže.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "v neděli",
   "files": [
    "metrics/guidance.py"
@@ -5565,7 +5676,37 @@
   ]
  },
  {
+  "t": "víc bdění v noci",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "včera",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "zvýšenou dechovou frekvenci ve spánku",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "zvýšený klidový tep",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "zvýšený klidový tep i dech",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "závodní bota s karbonovou deskou",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5691,9 +5832,21 @@
   ]
  },
  {
+  "t": "— při vyšší hmotnosti je přechod rizikovější (Fuller et al., 2017).",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "— {} při něm není zatížené",
   "files": [
    "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Norm",
+  "files": [
+   "metrics/illness.py"
   ]
  },
  {
@@ -5838,6 +5991,54 @@
   "t": "závod naplno bez ladění (B)",
   "files": [
    "metrics/race_plan.py"
+  ]
+ },
+ {
+  "t": "hodnocení noci",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "simulace (150 dní, 3 bloky únavy po 5 dnech)",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "{}: bez nocí s vlastní normou (≥ 14 nocí 8–56 dní zpět)",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "{}: dny únavy průměr {} %, pod 85 % {} · klidné dny průměr {} %, pod 85 % {}",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "{}: {} dní · průměr v0.10 {} % → v0.11 {} % · spánek ubral ≥ 10 bodů: {} → {} dní · pod 70 %: {} → {} dní",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "{}: {} → {} % (spánek −{} → −{} b.)",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "únava z check-inu",
+  "files": [
+   "metrics/readiness_compare.py"
+  ]
+ },
+ {
+  "t": "ρ připravenost × {} (n = {}): v0.10 {} · v0.11 {}",
+  "files": [
+   "metrics/readiness_compare.py"
   ]
  },
  {
@@ -8119,6 +8320,276 @@
   ]
  },
  {
+  "t": "(volitelně)",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "4. týden cyklu · odlehčovací týden",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "4–6 stupňovaných rovinek po 15–20 s na konci (ne naplno) — pravidelný kontakt s rychlostí chrání zadní stehenní svaly.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Cyklus nastavíme po 4 týdnech dat · cílem je vaše kapacita",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Držte lehké běhy v Z2 — objem roste bezpečně a tělo zůstává pod stropem kapacity.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Hlásíte nemoc — tento týden nejdřív odpočinek",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Hodinky nebo check-in ukazují možný začátek nemoci — první dva dny bez náročného tréninku.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Jiný trénink",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Každé ráno Trénink den upraví podle připravenosti — plán počítá s běžným zotavením.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Kolo nebo plavání (volitelně)",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Ladění formy před závodem",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Mechanika se odchyluje od vaší normy — bez intenzity a prudkých seběhů.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Na plán týdne zatím chybí data o vaší týdenní kapacitě — stačí pár týdnů běhů.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Navíc volitelný krátký lehký běh {}, když se budete cítit dobře — zbytek týdenního cíle se jinak do stropů nevejde.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Nejdůležitější jsou lehké dny opravdu lehké — tvrdé tréninky pak dají víc a tělo zůstane pod stropem kapacity.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Návrat po zranění · {}. týden ze 3",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Návrat po zranění — bez intenzity do {}. {}.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Odběhnuto",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Odlehčovací týden · zátěž je zvýšená",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Plán běhu je pozastavený. Každé ráno ho Trénink znovu posoudí a jakmile to půjde, vrátí běh postupně.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Podle ranního doporučení",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Posilování ne den před tvrdým nebo dlouhým během, těžší A ani v ten den a den po něm.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Posilování se tento týden vejde jen {}× — kolem tvrdých a dlouhých běhů a závodů na něj nezbývá den, který by ho unesl.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Prvních 6 týdnů · opatrné navyšování",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Připravenost dnes {} % — první dva dny lehce, tvrdý trénink až {}.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Připravenost dnes {} % — první dva dny lehce.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Tvrdé tréninky aspoň 48 hodin od sebe a ne vedle dlouhého běhu, nejvýš {} za týden.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Týden na {} km",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Týdenní objem roste nejvýš o 10 % proti minulému týdnu.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Těžší silová A se tento týden nevejde mezi tvrdé dny — místo ní lehčí B, A přijde příště.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu nebo 7 dní. Cíl je horní hranice, ne povinnost.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Zátěž je zvýšená — týden bez tvrdých úseků, ať klesne pod práh.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Závod",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Závod {}: {} — dva dny před ním a po něm bez tvrdého tréninku, tři dny před ním bez posilování, týden bez dlouhého běhu.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "dlouhý běh {}",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "s odstupem aspoň 3 hodin od běhu",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "tvrdý trénink {}",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "z cíle {} km",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{} × {} min v Z4 (tempo, ještě se dá říct pár slov), mezi úseky 2 min volně",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{} × {} min v Z4–Z5, mezi úseky {} min volným klusem",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{} — tento týden bez intenzity a dlouhého běhu, běhy kratší a po rovině, dokud se to neuklidní.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{}. týden cyklu · {} % referenčního týdne",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{}; rozklus 15 min a výklus 10 min v Z1–Z2",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{}× posilování",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Žádných 7 dní po sobě nepřesáhne strop kapacity {} km.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "2 × 10 každá strana",
   "files": [
    "programs_library.py"
@@ -9721,7 +10192,7 @@
   ]
  },
  {
-  "t": "Silový trénink snížil výskyt sportovních zranění na méně než třetinu a přetěžovacích zhruba na polovinu (Lauersen et al., 2014), s větším účinkem při větším objemu a intenzitě (Lauersen et al., 2018). U vytrvalců zlepšuje ekonomiku běhu, nejlépe těžká zátěž dvakrát až třikrát týdně (Blagrove et al., 2018; Rønnestad & Mujika, 2014). Šlachy se přizpůsobují vysoké zátěži s pomalým a delším zatížením (Bohm et al., 2015). Progrese podle pocitu na konci tréninku vychází ze škály náročnosti a opakování v záloze (Foster et al., 2001; Helms et al., 2016). Těžká silová práce na nohy zhoršuje tvrdý běh v následujících 24–48 hodinách, proto session A nepřijde den před ním (Doma et al., 2017).",
+  "t": "Silový trénink snížil výskyt sportovních zranění na méně než třetinu a přetěžovacích zhruba na polovinu (Lauersen et al., 2014), s větším účinkem při větším objemu a intenzitě (Lauersen et al., 2018). U vytrvalců zlepšuje ekonomiku běhu, nejlépe těžká zátěž dvakrát až třikrát týdně (Blagrove et al., 2018; Rønnestad & Mujika, 2014). Šlachy se přizpůsobují vysoké zátěži s pomalým a delším zatížením (Bohm et al., 2015). Progrese podle pocitu na konci tréninku vychází ze škály náročnosti a opakování v záloze (Foster et al., 2001; Helms et al., 2016). Těžká silová práce na nohy zhoršuje tvrdý běh v následujících 24–48 hodinách, proto session A nepřijde den před ním (Doma et al., 2017). Pokles pánve na straně volné nohy byl ze všech pohybových znaků nejvíc spojený s běžeckými zraněními (Bramah et al., 2018) a osm týdnů funkčního posilování odtahovačů kyčle ho u běžců s bolestí holeně zmenšilo víc než samotná fyzioterapie (Lashien et al., 2024), proto program obsahuje monster walk (session A) a spouštění pánve na schodu a boční plank s unožením (session B).",
   "files": [
    "programs_library.py"
   ]
@@ -10867,7 +11338,8 @@
    "routers/assistant.py",
    "routers/booking.py",
    "routers/coach.py",
-   "routers/runners.py"
+   "routers/runners.py",
+   "routers/shoes.py"
   ]
  },
  {
@@ -10896,6 +11368,12 @@
  },
  {
   "t": "Neplatný název modelu",
+  "files": [
+   "routers/assistant.py"
+  ]
+ },
+ {
+  "t": "Neplatný obrázek",
   "files": [
    "routers/assistant.py"
   ]
@@ -11429,7 +11907,25 @@
   ]
  },
  {
+  "t": "Délka cyklu musí být 20–45 dní",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
   "t": "Délka závodu musí být 0–300 km",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Hmotnost musí být 30–200 kg",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Hmotnost musí být číslo",
   "files": [
    "routers/runners.py"
   ]
@@ -11489,7 +11985,25 @@
   ]
  },
  {
+  "t": "Od kdy běháte: datum nesmí být v budoucnosti",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Od kdy běháte: neplatné datum",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
   "t": "Plánované tempo musí být 2:00–20:00 min/km",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Pohlaví: žena, nebo muž",
   "files": [
    "routers/runners.py"
   ]
@@ -11508,6 +12022,12 @@
  },
  {
   "t": "Report je ranní, nebo večerní",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Rok narození musí být číslo",
   "files": [
    "routers/runners.py"
   ]
@@ -11561,6 +12081,12 @@
   ]
  },
  {
+  "t": "Zkontrolujte rok narození",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
   "t": "Závod nenalezen",
   "files": [
    "routers/runners.py"
@@ -11606,6 +12132,54 @@
   "t": "Vyberte aspoň jeden cvik",
   "files": [
    "routers/self_programs.py"
+  ]
+ },
+ {
+  "t": "Bota nenalezena",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Běh nenalezen",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Datum prvního použití nesmí být v budoucnosti",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Fotku se nepodařilo načíst (JPEG, PNG nebo WebP do 4 MB)",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Neplatné datum prvního použití",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Příliš mnoho fotek za hodinu, zkuste to později",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Vyplňte značku a model boty",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
+  "t": "Zadejte datum prvního použití, nebo vyberte běh",
+  "files": [
+   "routers/shoes.py"
   ]
  },
  {
@@ -12193,6 +12767,2188 @@
   "t": "v průběhu",
   "files": [
    "seed.py"
+  ]
+ },
+ {
+  "t": "ASICS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adistar",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Adios",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Adios Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Adios Pro Evo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Ambition",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Avanti",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Boston",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Evo SL",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Prime SP",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Prime X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero SL",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adizero Takumi Sen",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Adrenaline GTS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Aero Blaze",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Aero Glide",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Aero Volt",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Agility Peak",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Akasha",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Allbirds",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Alphafly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Alpine",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Altra",
+  "files": [
+   "shoe_catalog.py",
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Anta",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Antora",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Arahi",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ariel GTS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Atmos",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Axon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Beast GTS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Blaze TR",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Bondi",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Brooks",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Bushido",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "CTM Ultra",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Caldera",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Carbon X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cascadia",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Catamount",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Centauri",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Challenger",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Charged Pursuit",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Charged Rogue",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Chitu",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cielo Road",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cielo X1",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Clifton",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudboom Echo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudboom Strike",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudeclipse",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudflow",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudflyer",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudgo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudmonster",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudmonster Hyper",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudrunner",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudspike",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudstratus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudsurfer",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudsurfer Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudswift",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudultra",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudventure",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cloudvista",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Condor",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Craft",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Crescendo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cyclone",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Cyklon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "DRX Bliss",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Deviate Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Deviate Nitro Elite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Diadora",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Distance",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Divide",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Downshifter",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Dragonfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Duramo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Duramo SL",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Dynablast",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Dynafit",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Echelon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Electrify Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Eliot Runner",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ellipse",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Cheetah",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Edge",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Elite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Shift",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endorphin Speed",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Endurance Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Equipe Atomo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Escalante",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Excursion TR",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Experience Flow",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Experience Form",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Experience Wild",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fate",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Feidian",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Feline",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Flame",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Floatride Energy",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Floatride Run Fast",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "ForeverRun Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Free Run",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Freedom",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam Arishi",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X 1080",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X 860",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X 880",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X Hierro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X More",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X More Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fresh Foam X Vongo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell Propel",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell Rebel",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell Summit Unknown",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell SuperComp Elite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell SuperComp Pacer",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "FuelCell SuperComp Trainer",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fuga",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fuji Lite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fujispeed",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Fusion",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "GOrun Razor",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "GOrun Ride",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "GOrun Speed Beast",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "GOrun Speed Freek",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Galaxy",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Gara Carbon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Gaviota",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Genesis",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ghost",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ghost Max",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Glide Max TR",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Glycerin",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Glycerin GTS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Glycerin Max",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Golden Gate",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Gravity",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Guide",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "HFS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "HOKA",
+  "files": [
+   "shoe_catalog.py",
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "HOVR Machina",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "HOVR Sonic",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hurricane",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hydra ESC",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hylo",
+  "files": [
+   "shoe_catalog.py",
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Hyper LD",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hyper MD",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hyper Speed",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hyperion",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hyperion Elite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Hyperion Max",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Icebug",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ikoni",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Infinite Elite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Infinite Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Infinity Run",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Interact Run",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Invincible",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Irock",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Jackal",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Jogflow",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Joma",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Journey Run",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Juniper Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kailas",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kairos",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kalenji",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kaptiva",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Karacal",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Karhu",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kawana",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kiger",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kilkenny",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kinabalu",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kinvara",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Kiprun",
+  "files": [
+   "shoe_catalog.py",
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Launch",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Launch GTS",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Levitate",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Liberate Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Lone Peak",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Lycan",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "MTL Long Sky",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "MTN Racer",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mach",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mach X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mafate",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "MagMax Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Magic Speed",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Magnifly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Magnify Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Max Cushioning",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Maxfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Maxx",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Megablast",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Merrell",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mesa Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mestari",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Metaspeed Edge",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Metaspeed Ray",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Metaspeed Sky",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Metasprint",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mizuno",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mont Blanc",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Motion",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Motus Strength",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mudtalon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mutant",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Mythos Blushield",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Neo Vista",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Neo Zen",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "New Balance",
+  "files": [
+   "shoe_catalog.py",
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Newton",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Nike",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Norda",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Nordlite Ultra",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Norvan LD",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Nova",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Novablast",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Olympus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Outroad",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "PUMA",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Paradigm",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Parkclaw",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pegasus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pegasus Plus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pegasus Premium",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pegasus Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Peregrine",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Phantom",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Primus Lite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Primus Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Prodigio",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Provision",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pulsar Trail",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pursuit",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Pytho",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Race Light",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Red Rabbit",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Reebok",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Response",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Revel",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Revolution",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ribelle Run",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ride",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Rincon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Rival",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Rivera",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Roadfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Rocket X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Roclite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Run Support",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Runfalcon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Runventure",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Salomon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Saucony",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Scarpa",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Scott",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Sense Ride",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Skechers",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Sky DNA",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Skyflow",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Skyward X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Solarglide",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Spark",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Specter",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Speed Carbon RC",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Speed Force",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Speedcross",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Speedgoat",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Speedland",
+  "files": [
+   "shoe_catalog.py",
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Spin",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Stinson",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Streakfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Structure",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Superblast",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Superior",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Supernova",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Supernova Prima",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Supernova Rise",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Supernova Solution",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Supertrac",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Sylan",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Synchron",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Tecton X",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Tempus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terraultra",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terraventure",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terrex Agravic",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terrex Agravic Speed",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terrex Soulstride",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Terrex Speed Ultra",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "The North Face",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Thundercross",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Timp",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Topo Athletic",
+  "files": [
+   "shoe_catalog.py",
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Torin",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Torrent",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Trabuco Max",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Trace",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Tracefinder",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Tracksmith",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Trail Glove",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Trailfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Trailtalon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Transport",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Tree Dasher",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Triumph",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultra",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultra Carbon RC",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultra Glide",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultraboost",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultrafly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Ultraventure",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Under Armour",
+  "files": [
+   "shoe_catalog.py",
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Vanish Carbon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vapor Glove",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vaporfly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vectiv Enduris",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vectiv Infinite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vectiv Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vectiv Sky",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Veja",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Velociti Elite",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Velocity Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Via Olympus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Victory",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vivobarefoot",
+  "files": [
+   "shoe_catalog.py",
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Vomero",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vomero Plus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Vomero Premium",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Voyage Nitro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Daichi",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Horizon",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Ibuki",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Inspire",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Mujin",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Rebellion Flash",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Rebellion Pro",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Rider",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Sky",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wave Skyrise",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Wildhorse",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Winflo",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Xero Shoes",
+  "files": [
+   "shoe_catalog.py",
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "Xodus",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Xtep",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Zegama",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Zinal",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "Zoom Fly",
+  "files": [
+   "shoe_catalog.py"
+  ]
+ },
+ {
+  "t": "každodenní",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "minimalistická",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "s vysokým tlumením",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "stabilní",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "trailová",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "tretry / dráha",
+  "files": [
+   "shoes.py"
+  ]
+ },
+ {
+  "t": "závodní",
+  "files": [
+   "shoes.py"
   ]
  },
  {

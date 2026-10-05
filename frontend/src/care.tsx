@@ -36,7 +36,8 @@ export function Care() {
   useEffect(() => {
     const s = params.get("sub")
     if (s === "health" || s === "program" || s === "physio") setSub(s)
-    if (s || params.get("healed")) setParams({}, { replace: true })
+    // keep ?prog= for the programme list below (railway#196), drop the rest
+    if (s || params.get("healed")) setParams(params.get("prog") ? { prog: params.get("prog")! } : {}, { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   // the assessment may still be loading when the link lands here

@@ -36,8 +36,39 @@ def get_runner(rid: str, user: models.User = Depends(get_current_user), db: DBSe
 ALLOWED_PROFILE_PATCH = {
     "birth_year", "sex", "city", "goal_race", "goal_date", "prior_injury",
     "prior_injury_months_ago", "prior_injury_date", "prior_injury_side", "device", "hr_max",
-    "threshold_hr",
+    "threshold_hr", "running_since", "weight_kg", "menstrual_json",
 }
+# v0.12.0 — the profile gate: asked before the getting-started checklist (and of older
+# accounts that miss any of it), because the engine needs them from the first day
+PROFILE_REQUIRED = ("birth_year", "sex", "running_since")
+
+
+def profile_missing(r: models.Runner) -> list[str]:
+    return [k for k in PROFILE_REQUIRED if not getattr(r, k, None)]
+
+
+def _clean_menstrual(v, sex) -> dict | None:
+    """{"track", "hormonal", "length", "starts"} — women only; starts are past ISO dates,
+    newest 12 kept, sorted."""
+    if sex != "f" or not isinstance(v, dict):
+        return None
+    today = E.today_date()
+    starts = []
+    for x in v.get("starts") or []:
+        try:
+            d = date.fromisoformat(str(x)[:10])
+        except ValueError:
+            continue
+        if d <= today and (today - d).days <= 400:
+            starts.append(d.isoformat())
+    try:
+        length = int(v.get("length") or 28)
+    except (TypeError, ValueError):
+        length = 28
+    if not 20 <= length <= 45:
+        raise HTTPException(status_code=422, detail="Délka cyklu musí být 20–45 dní")
+    return {"track": bool(v.get("track")), "hormonal": bool(v.get("hormonal")), "length": length,
+            "starts": sorted(set(starts))[-12:]}
 
 
 @router.post("/{rid}/engine", dependencies=[Depends(verify_csrf)])
@@ -224,7 +255,37 @@ def update_runner(rid: str, body: schemas.RunnerProfilePatch,
             except ValueError:
                 raise HTTPException(status_code=422, detail="Datum zranění nesmí být v budoucnosti") from None
             v = str(v)[:10]
-        setattr(r, k, (v or None) if k in ("prior_injury_side", "prior_injury_date", "hr_max", "threshold_hr") else v)
+        if k == "sex" and v not in (None, "", "f", "m"):
+            raise HTTPException(status_code=422, detail="Pohlaví: žena, nebo muž")
+        if k == "birth_year" and v not in (None, ""):
+            try:
+                v = int(v)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=422, detail="Rok narození musí být číslo") from None
+            if not 1920 <= v <= E.today_date().year - 8:
+                raise HTTPException(status_code=422, detail="Zkontrolujte rok narození")
+        if k == "running_since" and v:
+            raw = str(v)[:10]
+            try:
+                d = date.fromisoformat(raw if len(raw) == 10 else raw[:7] + "-01")
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Od kdy běháte: neplatné datum") from None
+            if d > E.today_date() or d.year < 1940:
+                raise HTTPException(status_code=422, detail="Od kdy běháte: datum nesmí být v budoucnosti")
+            v = d.isoformat()
+        if k == "weight_kg" and v not in (None, ""):
+            try:
+                v = round(float(str(v).replace(",", ".")), 1)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=422, detail="Hmotnost musí být číslo") from None
+            if not 30 <= v <= 200:
+                raise HTTPException(status_code=422, detail="Hmotnost musí být 30–200 kg")
+        if k == "menstrual_json":
+            v = _clean_menstrual(v, body.patch.get("sex", r.sex))
+        setattr(r, k, (v or None) if k in ("prior_injury_side", "prior_injury_date", "hr_max", "threshold_hr",
+                                           "birth_year", "sex", "running_since", "weight_kg") else v)
+    if r.sex != "f" and r.menstrual_json:
+        r.menstrual_json = None
     db.commit()
     E.recompute_assessment(db, rid)
     db.refresh(r)
@@ -442,24 +503,25 @@ def quadrant_history(rid: str, days: int = QUAD_HISTORY_DAYS, user: models.User 
     return H.refresh_quadrant_history(db, rid)["rows"]
 
 
-ONBOARDING_STEPS = ("data", "profile", "tutorial")
+ONBOARDING_STEPS = ("data", "tutorial")
 
 
 def onboarding_state(db: DBSession, r: models.Runner) -> dict:
-    """Getting-started checklist: connect data, fill in the profile, take the tour.
-    The first two are read from the data itself, so they tick off on their own."""
+    """Getting-started checklist: connect data, take the tour (the first is read from the
+    data itself, so it ticks off on its own). v0.12.0: the profile is no longer a step —
+    the app asks for it before the checklist (`profileMissing`, every account)."""
     ob = r.onboarding_json or {}
     integ = db.query(models.Integration).filter(models.Integration.runner_id == r.id).first()
     has_data = bool((integ and integ.status == "connected")
                     or db.query(models.Activity.id).filter(models.Activity.runner_id == r.id).first()
                     or db.query(models.DailyMetric.id).filter(models.DailyMetric.runner_id == r.id).first())
-    profile = bool(r.birth_year and r.sex)
-    done = {"data": has_data, "profile": profile, "tutorial": bool(ob.get("tutorialDone"))}
+    done = {"data": has_data, "tutorial": bool(ob.get("tutorialDone"))}
     return {
         "active": bool(ob.get("active")),
         "dismissed": bool(ob.get("dismissed")),
         "steps": [{"id": k, "done": done[k]} for k in ONBOARDING_STEPS],
         "completed": all(done.values()),
+        "profileMissing": profile_missing(r),
     }
 
 
@@ -982,6 +1044,12 @@ def create_checkin(rid: str, body: schemas.CheckinRequest, background: Backgroun
         flags=E.clean_checkin_flags(body.flags),
     )
     db.add(c)
+    if body.period_start:
+        r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+        mj = dict(r.menstrual_json or {}) if r is not None else {}
+        if r is not None and r.sex == "f" and mj.get("track"):
+            mj["starts"] = sorted(set((mj.get("starts") or []) + [E.iso_date(E.today_date())]))[-12:]
+            r.menstrual_json = mj
     db.commit()
     out = E.recompute_assessment(db, rid)
     background.add_task(coach_texts.refresh_bg, rid)   # pain / feeling changed → the day's AI texts follow
@@ -1004,19 +1072,23 @@ def get_daily_report(rid: str, request: Request, kind: str = "morning", user: mo
     return _report_lang(db, r, request)
 
 
-@router.get("/{rid}/day")
-def get_day_course(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
-    """Today from waking: the states timeline, the load outside training against the usual
-    day and readiness over the day (training and the day outside it), for the Trénink tab."""
+@router.get("/{rid}/readiness-compare")
+def get_readiness_compare(rid: str, days: int = 56, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Readiness under the v0.10 and v0.11 sleep rules, day by day (engine v0.11.0 check;
+    `me` = the signed-in runner). Read-only."""
+    if rid == "me":
+        rid = user.runner_id or ""
     ensure_runner_read_access(db, user, rid)
-    from ..metrics import capacity as C
+    from ..metrics import readiness_compare as RC
+    return RC.report(db, rid, max(7, min(days, 180)))
+
+
+@router.get("/{rid}/day-today")
+def get_day_today(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """The day so far on Trénink: timeline, load outside training, readiness through the day."""
+    ensure_runner_read_access(db, user, rid)
     from ..metrics import daily_report as DR
-    runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
-    view = DR._day_view(db, rid, E.today_date(), None, 0.0)
-    course = C.readiness_through_day(db, rid, runner)
-    if view is None or course is None:
-        return {"available": False, "dataDays": (course or {}).get("dataDays")}
-    return {"available": True, "view": view, "readiness": course}
+    return DR.day_today(db, rid)
 
 
 def _report_lang(db, r: dict, request) -> dict:

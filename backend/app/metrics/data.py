@@ -47,6 +47,7 @@ class RunnerData:
     streams: tuple = ()         # ActivityStream
     races: tuple = ()
     rtr_plans: tuple = ()       # ReturnToRun
+    shoes: tuple = ()           # Shoe (v0.12.0)
     prev_quadrant: str | None = None
     priors: dict | None = None  # population priors (reference.py), fixed for the snapshot
 
@@ -82,6 +83,7 @@ class RunnerData:
             feedback=tuple(f for f in self.feedback if _day(f.submitted_at) <= cut and f.activity_id in ids),
             injuries=tuple(r for r in self.injuries if _day(r.submitted_at) <= cut),
             rtr_plans=tuple(p for p in self.rtr_plans if _day(p.created_at or p.started_on) <= cut),
+            shoes=tuple(s for s in self.shoes if _day(s.first_used or s.created_at) <= cut),
             prev_quadrant=prev_quadrant,
         )
 
@@ -124,6 +126,7 @@ def load_runner_data(db, rid: str, priors: bool = True) -> RunnerData:
         streams=_load(db, models.ActivityStream, rid, models.ActivityStream.activity_id.asc()),
         races=_load(db, models.Race, rid, models.Race.id.asc()),
         rtr_plans=_load(db, models.ReturnToRun, rid, models.ReturnToRun.id.asc()),
+        shoes=_load(db, models.Shoe, rid, models.Shoe.id.asc()),
         prev_quadrant=prev[0] if prev else None,
         priors=load_priors(runner) if priors else None,
     )

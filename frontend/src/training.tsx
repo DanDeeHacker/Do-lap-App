@@ -9,7 +9,7 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { useQuadHistory } from "@/history"
 import { ReadinessTrend } from "@/tabs"
-import { DayCourse } from "@/report"
+import { DayToday } from "@/daytoday"
 import { AlertBanner, Button, Card, Chip, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { readinessCol } from "@/capacity"
@@ -202,17 +202,12 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     // nothing left for today (whichever limit binds) → the arc says so too
     const spent = c.todayMax != null && c.todayMax <= 0
     const col = spent ? C.watch : id === "systemic" ? C.load : ratio == null ? C.fg3 : ratio > 1 ? C.alert : ratio > 0.85 ? C.watch : C.ok
-    const big = id === "volume"
     const value = id === "systemic" ? (c.todayMax != null ? `${num(c.todayMax, 0)}` : "—") : c.todayMax != null ? `max ${num(c.todayMax, d)}` : "—"
     const isOpen = !!open[id]
     const limit = c.limitedBy ? <span className="text-[11px] font-semibold leading-4 text-watch">omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</span> : null
     const weekNote = c.budget != null
       ? <span className="inline-flex items-center gap-1 tabular-nums text-[11px] text-fg-3"><CeilSw />{`týden v cyklu ${num(c.done ?? 0, d)} z ${num(c.budget, d)} ${c.unit}`}</span>
       : c.ceilingRun != null ? <span className="tabular-nums text-[11px] text-fg-3">{`jeden běh nejvýš ${num(c.ceilingRun, d)} ${c.unit}`}</span> : null
-    const labels = [
-      ...(c.todayMax != null && c.todayMax > 0 ? [{ v: done + c.todayMax, text: `dnes +${num(c.todayMax, d)}`, col: C.ok }] : []),
-      ...(ref ? [{ v: ref, text: `${c.budget != null ? "týden" : "běh"} ${num(ref, d)}`, col: C.fg2 }] : []),
-    ]
     const rows = (
       <div className="mt-3 w-full space-y-2.5 border-t border-white/[.07] pt-3 text-left">
         <UsageBar label={`Tento týden v cyklu${cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden, ${pct} %)` : ""}`} used={c.done} total={c.budget} unit={c.unit} d={d} />
@@ -224,25 +219,10 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
       </div>
     )
     return (
-      <div key={id} className={`nest ${big ? "p-4" : "px-3.5 py-3"}`}>
+      <div key={id} className="nest px-3.5 py-3">
         <button type="button" onClick={() => setOpen((o) => ({ ...o, [id]: !o[id] }))} aria-expanded={isOpen}
           title="Oblouk: odvedeno tento týden (od pondělí) · světlé prodloužení: kolik dnes ještě smíte · oranžová čárka a šrafovaný úsek: limit, který omezuje · dutá bílá čárka: cíl týdne v cyklu · klepnutím zobrazíte výpočet" className="w-full text-left">
-          {big ? (
-            <span className="grid justify-items-center text-center">
-              <span className="flex w-full items-center justify-between">
-                <span className="t-label">{CH_ICON[id]}</span>
-                <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180" : ""}`} aria-hidden />
-              </span>
-              <span className="relative mt-1 grid w-full justify-items-center">
-                <HalfGauge value={done} scale={scale} ceiling={ref} col={col} size="lg" allow={c.todayMax} labels={labels} />
-                <span className="absolute inset-x-0 bottom-1 text-center">
-                  <b className="t-num text-[28px] leading-none text-fg">{value}</b>
-                  <span className="text-[13px] font-semibold text-fg-3"> {c.unit}</span>
-                </span>
-              </span>
-              <span className="mt-2 flex flex-col items-center gap-1">{limit}{weekNote}</span>
-            </span>
-          ) : (
+          {/* railway#191 — Objem is a row like the other channels */}
             <span className="flex items-center gap-3.5">
               <HalfGauge value={done} scale={scale} ceiling={ref} col={col} size="sm" allow={c.todayMax} />
               <span className="min-w-0 flex-1">
@@ -252,7 +232,6 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
               </span>
               <ChevronDown className={`size-4 shrink-0 text-fg-3 transition ${isOpen ? "rotate-180" : ""}`} aria-hidden />
             </span>
-          )}
         </button>
         {isOpen && rows}
       </div>
@@ -768,10 +747,60 @@ function SessionDetail({ g, a, kind }: { g: any; a: any; kind: string }) {
       {(run || cross) && t.notes?.length > 0 && (
         <p className="mt-4 text-[13px] leading-6 text-fg-soft">{t.notes.join(" ")}</p>
       )}
+      {t.program?.key && <ProgramPointer progKey={t.program.key} allowed={t.allowed} />}
       {cross && (
         <Link to="/app/post#jiny-sport" className="btn btn-secondary btn-sm mt-4">Zapsat do deníku</Link>
       )}
     </>
+  )
+}
+
+// railway#196 — strength comes from the Runner's must-have programme: today's session
+// when it runs, otherwise the programme to start; either way one tap into Péče.
+function ProgramPointer({ progKey, allowed }: { progKey: string; allowed: boolean }) {
+  const { me } = useApp()
+  const rid = me?.runner_id
+  const [d, setD] = useState<any | null>(null)
+  useEffect(() => { if (rid) api.selfPrograms(rid).then(setD).catch(() => setD(false)) }, [rid])
+  const tpl = d ? (d.library?.programs || []).find((p: any) => p.key === progKey) : null
+  if (!d || !tpl) return null
+  const act = (d.actives || []).find((x: any) => x.template === progKey)
+  const dur = act?.durability
+  const exName = (id: string) => d.library?.exercises?.[id]?.name || id
+  const to = `/app/messages?sub=program&prog=${progKey}`
+  return (
+    <div className="nest mt-4 p-3.5" data-testid="program-pointer">
+      <div className="flex items-start gap-3">
+        <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-accent/15 text-accent"><Dumbbell className="size-4" aria-hidden /></span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <b className="text-sm font-bold text-fg">{dur ? "Runner's must-have" : tpl.name}</b>
+            {dur && <Chip>{`týden ${dur.week} z ${dur.weeks}`}</Chip>}
+          </div>
+          {dur ? (
+            <>
+              <p className="mt-1 text-[13px] leading-5 text-fg-soft">
+                {dur.doneToday ? "Dnešní trénink programu máte hotový."
+                  : dur.blocked ? dur.blocked
+                  : `${allowed ? "Dnes" : "Další trénink"}: ${dur.sessionLabel} · ${dur.plan.length} cviků · ≈ ${dur.estMin} min`}
+              </p>
+              {!dur.doneToday && !dur.blocked && allowed && dur.why && <p className="mt-1 text-[12px] leading-[18px] text-fg-3">{dur.why}</p>}
+              {!dur.doneToday && !dur.blocked && (
+                <ul className="mt-1.5 grid gap-0.5 text-[12px] leading-[17px] text-fg-2" data-testid="program-pointer-plan">
+                  {dur.plan.map((x: any) => <li key={x.id}>{exName(x.id)} <span className="text-fg-3">{x.dose}</span></li>)}
+                </ul>
+              )}
+              <p className="mt-1 text-[11.5px] text-fg-3">{`${dur.phase.name} · tento týden ${dur.weekDone} z ${dur.perWeek}`}</p>
+            </>
+          ) : (
+            <p className="mt-1 text-[13px] leading-5 text-fg-soft">{tpl.summary}</p>
+          )}
+        </div>
+      </div>
+      <Link to={to} className="btn btn-primary btn-sm mt-3 w-full" data-testid="program-pointer-open">
+        {dur ? "Otevřít program v Péči" : "Zobrazit program v Péči"}<ChevronRight className="size-4" aria-hidden />
+      </Link>
+    </div>
   )
 }
 
@@ -868,7 +897,8 @@ export function Training() {
             const col = readinessCol(rp)
             return (
               <span className="flex items-center gap-1.5 rounded-full py-1 pl-3 pr-1.5 text-[12px] font-bold" style={{ background: `${col}1f`, color: col }}>
-                připravenost {rp} %<InfoDot text={MI.readinessTraining} label="Připravenost" />
+                {/* railway#195 — the readiness right now (after today's training and the day so far) */}
+                připravenost teď {rp} %<InfoDot text={MI.readinessTraining} label="Připravenost" />
               </span>
             )
           })()}
@@ -957,7 +987,8 @@ export function Training() {
 
       {/* railway#142 — readiness (trend + the nights behind it) right above today's capacity */}
       <section className="card mt-4 p-4 md:p-6"><ReadinessTrend a={a} hist={quadHist} /></section>
-      <DayCourse />
+      {/* the day so far: readiness through the day, the day outside training (as in the evening report) */}
+      <DayToday rid={rid} stamp={a.computed_at} />
       <TodayCapacity g={g} cycle={<WeekPanel g={g} embedded />} />
       <RacesCard outlook={a.races} g={g} cap={a.capacity} />
 

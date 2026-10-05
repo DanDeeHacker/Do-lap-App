@@ -28,6 +28,7 @@ from datetime import date, timedelta
 from .. import models
 from . import dayload as DL
 from . import engine as E
+from . import week_plan as WP
 
 WD = ["po", "út", "st", "čt", "pá", "so", "ne"]
 WD_LONG = ["pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota", "neděle"]
@@ -98,7 +99,7 @@ def _activities(db, rid, d0: date, d1: date):
     out = []
     for a in sorted(acts, key=lambda x: x.started_at):
         f = fb.get(a.id)
-        out.append({"id": a.id, "date": a.started_at[:10], "time": a.started_at[11:16] or None,
+        out.append({"id": a.id, "date": a.started_at[:10], "time": a.start_time or a.started_at[11:16] or None,
                     "title": a.title or ("Běh" if (a.sport or "running") == "running" else a.sport),
                     "sport": a.sport or "running", "run": (a.sport or "running") == "running",
                     "km": _r(a.distance_km), "min": _r(a.duration_min, 0), "ascent": _r(a.ascent_m, 0),
@@ -208,6 +209,19 @@ def _plan(a, db, rid):
     elif prog is not None:
         out["strength"] = {"session": None, "blocked": None, "why": None, "name": prog.name}
     return out
+
+
+def _week_plan(a, db, rid, today):
+    """The calendar week laid out by week_plan.py, with the Runner's must-have session due next."""
+    progs = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.active.is_(True)).all()
+    prog = next((x for x in progs if x.template == "durability"), None)
+    program = None
+    if prog is not None:
+        hist = (prog.state or {}).get("history") or []
+        last = hist[-1] if hist else None
+        program = {"name": prog.name, "due": "B" if (last and last.get("session") == "A") else "A",
+                   "last": last.get("date") if last else None}
+    return WP.build(a, today, program)
 
 
 def _week(a, db, rid, today):
@@ -465,6 +479,8 @@ def _notes_morning(r) -> dict:
     notes["plan"] = (f"Dnes {p['label'].lower() if p.get('label') else 'podle doporučení'}. "
                      + (w[0]["text"] if w else ("Tělo dnes regeneruje: procházka, protažení a dost jídla i pití pomohou víc než trénink navíc."
                                                 if rest else "Nic zvláštního k hlídání, běžte podle plánu a v klidném tempu.")))
+    if r.get("weekPlan"):
+        notes["weekPlan"] = WP.note(r["weekPlan"])
     notes["intro"] = r["summary"]
     return notes
 
@@ -527,6 +543,8 @@ def build(db, rid: str, kind: str) -> dict:
                         "week": _week_loads(a, db, rid, today), "weekKm": week.get("done"), "budget": week.get("budget"),
                         "carry": _carry(a), "axes": ((a or {}).get("guidance") or {}).get("axes")},
              "plan": plan, "watch": [], "questions": MORNING_Q}
+        if today.weekday() == 0:                 # owner request 2026-10-04: the week's plan every Monday
+            r["weekPlan"] = _week_plan(a, db, rid, today)
         r["watch"] = _watchouts(a, rec, night, plan)
         r["summary"] = _summary_morning(night, rec, plan)
         r["notes"] = _notes_morning(r)
@@ -567,6 +585,38 @@ def build(db, rid: str, kind: str) -> dict:
     r["summary"] = _summary_evening(view, load, week, tonight)
     r["notes"] = _notes_evening(r)
     return r
+
+
+def day_today(db, rid: str) -> dict:
+    """The day so far for the Trénink tab (owner request 2026-10-03): the evening report's
+    day without the story — the timeline with the energy curve and the states, minutes per
+    state, the day's load (training and outside it against the usual day, and the part
+    above the usual day that Celková zátěž counts) and readiness from the morning to now
+    (today's sessions, the day outside training, v0.10.4)."""
+    today = E.today_date()
+    a = E.get_or_refresh_assessment(db, rid)
+    dm, det = _rows(db, rid, today)
+    rec = _recovery(a, det, today)
+    try:
+        hh = E.now_iso()[11:16]
+        now_min = int(hh[:2]) * 60 + int(hh[3:5])
+    except (ValueError, TypeError):
+        now_min = None
+    view = _day_view(db, rid, today, rec.get("score"), _energy_k(db, rid, today), now_min)
+    r = rec.get("readiness") or {}
+    after = r.get("afterSession") or {}
+    t = today.isoformat()
+    w7 = ((((a or {}).get("capacity") or {}).get("channels") or {}).get("systemic") or {}).get("week7") or []
+    excess = sum(x.get("value") or 0 for x in w7 if x.get("sport") == "daily" and x.get("date") == t)
+    load = {"train": _r(view["trainLoad"], 0) if view else None, "nt": _r(view["ntLoad"], 0) if view else None,
+            "usualNt": _r(_usual(dm, today, "nt_load"), 0), "excess": _r(excess, 0)}
+    ses = after.get("today") or {}
+    readiness = {"morning": rec.get("score"), "now": r.get("score"), "label": rec.get("label"),
+                 "sessionDrop": after.get("sessionDrop") or 0, "dayDrop": after.get("dayDrop") or 0,
+                 "carry": bool(after.get("carry") and not after.get("today")),
+                 "sessions": [x.get("title") or x.get("sport") for x in ses.get("sessions") or []], "band": ses.get("band"),
+                 "nt": after.get("nt"), "stress": after.get("stress")}
+    return {"date": t, "nowMin": now_min, "view": view, "load": load, "readiness": readiness}
 
 
 def _summary_morning(night, rec, plan) -> str:

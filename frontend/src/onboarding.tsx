@@ -1,17 +1,19 @@
 // Getting started — the checklist a new runner sees first after registering
-// (connect data → fill in the profile → take the tour), and the clickable tour
-// itself: every tab of a demo account, personalised with the runner's own name,
-// with at most five highlighted features per tab. Closing the checklist keeps it
-// under the profile icon until all three steps are done.
+// (connect data → take the tour), and the clickable tour itself: every tab of a demo
+// account, personalised with the runner's own name, with at most five highlighted
+// features per tab. Closing the checklist keeps it under the profile icon until both
+// steps are done. v0.12.0: the profile is asked before it (profile.tsx ProfileGate),
+// of every account that misses a required item, so it can't be skipped.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { useLocation, useNavigate } from "react-router"
-import { ArrowLeft, ArrowRight, Check, Compass, PlugZap, UserPen, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, Check, Compass, PlugZap, X } from "lucide-react"
 import { api } from "@/api"
 import { useApp } from "@/store"
+import { ProfileGate } from "@/profile"
 
-type Step = { id: "data" | "profile" | "tutorial"; done: boolean }
-type ObState = { active: boolean; dismissed: boolean; completed: boolean; steps: Step[] }
+type Step = { id: "data" | "tutorial"; done: boolean }
+type ObState = { active: boolean; dismissed: boolean; completed: boolean; steps: Step[]; profileMissing?: string[] }
 
 type ObCtx = {
   state: ObState | null
@@ -29,12 +31,11 @@ export const EDIT_PROFILE_EVENT = "doslap:edit-profile"
 
 const STEP_UI: Record<Step["id"], { title: string; sub: string; icon: typeof PlugZap }> = {
   data: { title: "Připojit data", sub: "Garmin nebo Apple Health v Data a připojení", icon: PlugZap },
-  profile: { title: "Vyplnit profil", sub: "rok narození, pohlaví, zranění, cílový závod", icon: UserPen },
   tutorial: { title: "Projít průvodce aplikací", sub: "ukázkový účet s vaším jménem, záložku po záložce", icon: Compass },
 }
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
-  const { realMe, touring, boot, startTour, endTour, logout } = useApp()
+  const { realMe, touring, boot, startTour, endTour, logout, viewing } = useApp()
   const rid = realMe?.runner_id
   const guest = !!realMe?.guest
   const [state, setState] = useState<ObState | null>(null)
@@ -49,14 +50,13 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     api.onboarding(rid).then((s) => setState(s)).catch(() => {})
   }, [rid])
   // re-check whenever the runner's own data changes (a sync ticks off "data", a saved profile "profile")
-  const ver = touring ? null : `${boot?.runner?.birth_year}|${boot?.runner?.sex}|${boot?.integration?.status}|${(boot?.activities || []).length}|${(boot?.daily_metrics || []).length}`
+  const ver = touring ? null : `${boot?.runner?.birth_year}|${boot?.runner?.sex}|${boot?.runner?.running_since}|${boot?.integration?.status}|${(boot?.activities || []).length}|${(boot?.daily_metrics || []).length}`
   useEffect(() => { if (ver !== null) load() }, [ver, load])
 
-  // "Vyplnit profil" opens the profile sheet: step aside until it's saved or the page changes
-  const [hold, setHold] = useState(false)
-  useEffect(() => { setHold(false) }, [ver, pathname])
+  // v0.12.0 — the profile first: nothing else opens until the required items are in
+  const gate = !!state?.profileMissing?.length && !guest && !viewing && !touring && !tourOn && pathname.startsWith("/app/")
   const auto = !!state && state.active && !state.completed && !state.dismissed
-  const show = !touring && !tourOn && !hold && pathname.startsWith("/app/") && (manual || auto)
+  const show = !touring && !tourOn && !gate && pathname.startsWith("/app/") && (manual || auto)
   const pending = state && state.active && !state.completed ? state.steps.filter((s) => !s.done).length : 0
 
   const close = () => {
@@ -65,7 +65,6 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   }
   const act = async (id: Step["id"]) => {
     if (id === "data") { setManual(false); nav("/data") }
-    if (id === "profile") { setHold(true); window.dispatchEvent(new Event(EDIT_PROFILE_EVENT)) }
     if (id === "tutorial") {
       setBusy(true)
       const ok = await startTour()
@@ -102,6 +101,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={{ state, openCard: () => setManual(true), pending, guest, exitDemo, restartTour: () => setTourOn(true) }}>
       {children}
+      {gate && state && <ProfileGate missing={state.profileMissing || []} onDone={load} />}
       {show && state && <GetStartedCard state={state} name={realMe?.name} busy={busy} onAct={act} onClose={close} />}
       {tourOn && touring && <Tour name={guest ? null : realMe?.name} guest={guest} onFinish={finishTour} onExitDemo={exitDemo} />}
     </Ctx.Provider>
@@ -450,5 +450,5 @@ function TourBanner({ onExitDemo }: { onExitDemo?: () => void }) {
 // small helper used by the profile menu
 export function useObSummary() {
   const { state, pending, openCard } = useOnboarding()
-  return useMemo(() => ({ show: !!state?.active && !state.completed, done: state ? state.steps.filter((s) => s.done).length : 0, total: state?.steps.length ?? 3, pending, openCard }), [state, pending, openCard])
+  return useMemo(() => ({ show: !!state?.active && !state.completed, done: state ? state.steps.filter((s) => s.done).length : 0, total: state?.steps.length ?? 2, pending, openCard }), [state, pending, openCard])
 }
