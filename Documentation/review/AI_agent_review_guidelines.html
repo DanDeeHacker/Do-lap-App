@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Došlap · AI agent review guidelines · version 2 · 5 Oct 2026</title>
+<!-- Source of "Documentation/AI agent review guidelines.pdf". Edit here, then:
+     node Documentation/review/build_pdf.cjs
+     Version 1 (25 Sep 2026) existed as a PDF only; this source rebuilds it with the
+     decisions and lessons of the first full review (5 Oct 2026). -->
+<style>
+@page { size: A4; margin: 46pt 42pt 48pt 42pt; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; color: #1d1d1b; background: #fff; font-family: "Liberation Sans", Arial, sans-serif; font-size: 9.6pt; line-height: 1.42; }
+h1 { font-size: 22pt; margin: 0 0 4pt; }
+h2 { font-size: 14pt; color: #237a62; margin: 18pt 0 6pt; page-break-after: avoid; break-after: avoid; }
+h3 { font-size: 10.5pt; margin: 11pt 0 4pt; page-break-after: avoid; break-after: avoid; }
+p { margin: 0 0 5pt; }
+p.lead { color: #6b6b66; font-size: 11pt; margin-bottom: 10pt; }
+ol, ul { margin: 0 0 6pt; padding-left: 18pt; }
+li { margin: 0 0 2.5pt; }
+table { border-collapse: collapse; width: 100%; margin: 4pt 0 9pt; font-size: 8.6pt; page-break-inside: auto; }
+tr { page-break-inside: avoid; break-inside: avoid; }
+th, td { border: .6pt solid #d6d6d0; padding: 3pt 5pt; vertical-align: top; text-align: left; }
+th { background: #eef1ee; }
+td.k { width: 22%; }
+code, pre { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 8pt; }
+pre { background: #eef1ee; padding: 6pt 8pt; white-space: pre-wrap; margin: 4pt 0 8pt; page-break-inside: avoid; }
+.new { background: #fff6d6; }
+.pb { page-break-before: always; break-before: page; }
+</style>
+</head>
+<body>
+
+<h1>AI agent review guidelines</h1>
+<p class="lead">Rules and a step-by-step procedure for AI agents that repeatedly screen the Došlap app for defects and propose improvements. Specific to this app, written to stay valid when files move or are renamed. Version 2 (5 Oct 2026) — <span class="new">highlighted</span> text is new since version 1 (25 Sep 2026).</p>
+
+<table>
+<tr><td class="k">Audience</td><td>An AI coding agent (e.g. Claude Code) with shell access to the repository, run on a schedule or on request. Humans can use it as a checklist too.</td></tr>
+<tr><td class="k">Output</td><td>A review report (section 9) with evidence-backed findings, improvement proposals and coverage gaps. Read-only by default.</td></tr>
+<tr><td class="k">Two depths</td><td><b>Quick screen</b> (section 10, ~15–30 min) for frequent runs; <b>full review</b> (section 5, phases A–J) weekly, after large changes, or when the quick screen finds something.</td></tr>
+<tr><td class="k">Companion docs</td><td>The newest <code>Documentation/Engine_Doslap_v*_dokumentace.pdf</code> (engine design, formulas, evidence; source <code>Documentation/engine/</code>) and the most recent report in <code>Documentation/reviews/</code> <span class="new">on branch <code>claude/reviews</code></span>.</td></tr>
+</table>
+
+<h2>0. The one principle: contracts, not paths</h2>
+<p>Everything in this playbook is written as <b>behavioural contracts</b> (invariants the app must keep) plus <b>discovery searches</b> that find the code responsible for each contract. File paths are given only as hints valid on <span class="new">5 Oct 2026</span>. When a hint no longer matches:</p>
+<ol>
+<li>find the code by its role with the discovery search in section 4 (search by function or concept, not by path);</li>
+<li>run the check against the new location;</li>
+<li>record the move under “Structural drift” in the report and propose the playbook update;</li>
+<li>if you cannot find a responsible component at all, report it as a <b>coverage gap</b> — never skip a check silently.</li>
+</ol>
+
+<h2>1. Rules of engagement (hard rules)</h2>
+<ol>
+<li><b>Read-only by default.</b> Do not edit code, data, configuration, tests or documentation unless the task explicitly asks for it. Describe fixes in the report (a diff sketch is fine).</li>
+<li><b>Never touch production or real people’s data.</b> No mutating calls to the deployed app, no real Garmin or Apple accounts, no real runner data. Run everything against a throwaway database that the app seeds itself (appendix A).</li>
+<li><b>No data to external AI services during review.</b> Leave <code>NVIDIA_API_KEY</code>, <code>LLM_API_KEY</code>, <code>ASSISTANT_API_KEY</code>, <code>EMBED_API_KEY</code>, <code>VISION_API_KEY</code> and ASR keys unset; the LLM features then fall back to rule-based output. Never paste runner data into web tools.</li>
+<li><b>Never commit, push, rebase, reset or discard</b> on the code branches. Uncommitted changes and untracked files belong to the owner: note them in the baseline, never clean them up. <span class="new">Reports are the one exception: they are committed only to branch <code>claude/reviews</code> (never merge main into it, never force-push).</span></li>
+<li><b>Evidence before assertion.</b> Every finding needs a location (file:line), a concrete failure scenario and evidence: a failing test, script output, a screenshot, or a precise code-path argument. Label it CONFIRMED (reproduced) or LIKELY / PLAUSIBLE (reasoned, not reproduced).</li>
+<li><b>Never weaken tests or thresholds to get green.</b> A failing test is a finding.</li>
+<li><b>Respect product decisions (section 2).</b> You may question them, but as a “Product question”, never as a bug.</li>
+<li><b>Verify every citation</b> (authors, title, journal, year, volume, pages, DOI and what the study actually found) against PubMed, the publisher or an institutional repository before proposing it; flag existing references that overstate their evidence.</li>
+<li><b>Both directions of health risk are defects.</b> False reassurance (missing a real overload, suppressing a needed physio referral) and false alarms (alarm fatigue, needless referrals) both count; say which one a finding causes.</li>
+<li><b>Czech is the product language.</b> Judge UI copy by Czech conventions (formal “vy”); <span class="new">the English UI is a translation layer (section 3) — check it for untranslated Czech, never propose dropping Czech.</span></li>
+<li><b>Engine time is pinned.</b> Reason about windows with the engine’s own “today” (the thread-local today override used by history replays), never with the wall clock.</li>
+<li><b>Keep the repository clean.</b> Scratch scripts, screenshots and databases go to a temporary directory — <span class="new">including one-off test files: never drop a scratch test into <code>backend/tests/</code>.</span></li>
+<li><b>Be honest about coverage.</b> List every check that could not run and why.</li>
+</ol>
+
+<h2>2. Product decisions — do not report as bugs</h2>
+<p>As of <span class="new">5 Oct 2026</span>. Check the latest engine documentation for newer decisions before relying on this list.</p>
+<table>
+<tr><th>Area</th><th>Decision</th></tr>
+<tr><td>Engines</td><td>Three engines coexist: v1 Standardní, v2 Citlivý (calibrated sensitive mechanics), v3 Kapacitní (v2 mechanics + capacity-based Zátěž axis + Trénink tab). <span class="new"><b>New runners start on v3</b> (<code>NEW_RUNNER_ENGINE</code>); existing accounts keep their mode. <b>The engine picker on the Data page is owner-only</b> — runners do not switch engines themselves; the switch API stays for the owner and tests.</span></td></tr>
+<tr><td>Dnes layout</td><td>The quadrant is the first element on Dnes. Capacity appears lower on Dnes and in full on Zátěž.</td></tr>
+<tr><td>Trénink</td><td>A guardrail, not a coach: safe ranges for the day, no periodised plans. <span class="new">The Monday weekly plan shows the week bounded by today’s capacity (“at the edge of capacity”) — still a guardrail: never above the ceilings, paused by any stop or physio referral.</span> An AI coach may come later.</td></tr>
+<tr><td>Quality sessions</td><td class="new">Allowed only ≥ 48 h after the last hard session, readiness ≥ 65 % (<code>READY_QUALITY</code>; below 45 % only regeneration), no pain ≥ 3, Zátěž &lt; 25, ≤ 45 min in Z4+.</td></tr>
+<tr><td>Pain rules</td><td>Physio override (“no run, book the physio”) only when pain &gt; 5/10 AND the engine’s own physio referral (critical quadrant, alert tier or silent drift). Pain 3–5 modifies the day (shorter, easier, flat/soft, no long run or quality). Pain &gt; 5 without a referral → regeneration or cross-training, no physio push.</td></tr>
+<tr><td>Intensity</td><td>HR zones from heart-rate reserve (Karvonen); pace together with HR as relative effort against the runner’s last 8 weeks.</td></tr>
+<tr><td>Calibration</td><td>v2/v3 mechanics: ≈ 5 % chance per metric of a shown signal with no real change; the “mechanika přetrvává” flag ≈ 5 %. ACWR is context only. In v3, HRV / resting HR / sleep act through readiness, not as separate load points.</td></tr>
+<tr><td>Pace</td><td>Per-run mechanics are adjusted to the runner’s own pace sensitivity in all engines (v1 changed deliberately).</td></tr>
+<tr class="new"><td>Profile gate</td><td>Since v0.12.0 accounts without birth year, sex and running start (<code>running_since</code>) are asked for them before using the app — older accounts included, on purpose. Seeded demo runners carry these fields.</td></tr>
+<tr class="new"><td>Roles &amp; accounts</td><td>Public registration creates runners only; physio, employer and partner accounts are created by the owner. A physio sees only runners who opted in (<code>physio_interest</code>) and whose case they claimed; a runner can revoke a physio. The owner’s “Zobrazit jako” view is read-only and logged.</td></tr>
+<tr class="new"><td>AI features</td><td>External LLM calls: the physio AI brief (claimed runners), and the runner’s own AI features (coach texts, per-tab assistant, report AI notes) only with the runner’s AI consent (<code>coach_consent</code>); shoe-photo recognition only when the runner starts it. Output is labelled as AI with a rule-based fallback.</td></tr>
+<tr><td>Regulatory</td><td>Došlap is not a medical device (MDR): monitoring and decision support, no diagnosis or treatment language; pain is routed to a physiotherapist. <span class="new">Every guidance and risk view shows the not-a-medical-device note. Self-management exercise programmes are general strengthening for a marked area, never treatment of a named diagnosis.</span></td></tr>
+</table>
+
+<h2>3. Orientation — what the app is</h2>
+<ul>
+<li><b>Architecture:</b> one container. FastAPI backend (SQLAlchemy; SQLite locally, Postgres when <code>DATABASE_URL</code> is set) serves a React + Vite single-page app from the same origin; CSRF protection is a same-origin check. <span class="new">Czech UI with a British English translation layer: Czech strings are the keys (<code>scripts/i18n/en/*.json</code> → <code>frontend/src/i18n/en.json</code> via <code>scripts/i18n/merge.py</code>).</span></li>
+<li><b>Roles:</b> runner, physio, employer, partner, <span class="new">plus the owner (admin view, engine tools)</span>. The UI offers runner sign-in only.</li>
+<li><b>Data in:</b> Garmin (export import, live sync with stored tokens and a pre-07:00 auto-sync, per-second detail streams, <span class="new">all-day heart rate, ride/swim HR traces</span>), Apple Health (import and push webhook, <span class="new">sleep stages, night HRV</span>), self-report (check-ins, run ratings with pain points, OSTRC injury reports, <span class="new">shoes, races, profile incl. menstrual cycle</span>).</li>
+<li><b>Engine out:</b> an assessment with three axes (mechanika / zátěž / příznaky), overall score, tier, quadrant (threshold 25 with hysteresis 18), a ranked signal list, triage decision, capacity picture and (v3) daily guidance <span class="new">plus readiness, critical speed (Rychlost), illness and cycle-aware signals</span>. History views replay the engine day by day <span class="new">on a pure in-memory snapshot of the runner’s data (<code>RunnerData.as_of</code>)</span>.</li>
+<li class="new"><b>Reports:</b> morning/evening report cards, the Monday weekly plan, optional AI notes.</li>
+<li><b>Tools around it:</b> Excel backtests (v1 vs v2), a sensitivity sandbox that mirrors the scoring, signal documentation, a physio AI brief, <span class="new">a per-tab AI assistant with evidence cards, self-management exercise programmes</span>.</li>
+</ul>
+
+<h2>4. Locate by role — discovery map</h2>
+<p>Search for the pattern (git grep / ripgrep) instead of trusting the hint. Record anything that moved.</p>
+<table>
+<tr><th>Role</th><th>Discovery search</th><th>Hint (5 Oct 2026)</th></tr>
+<tr><td>App entry, routers, SPA serving</td><td>FastAPI( · include_router( · StaticFiles</td><td>backend/app/main.py</td></tr>
+<tr><td>Additive DB migrations</td><td>def add( · ALTER TABLE (near startup)</td><td>backend/app/main.py (<code>_migrate</code>)</td></tr>
+<tr><td>Data model</td><td>class .*\(Base\)</td><td>backend/app/models.py (48 models)</td></tr>
+<tr><td>Auth, session, CSRF</td><td>verify_csrf · same_origin · SESSION_COOKIE</td><td>app/deps.py, app/security.py, routers/auth.py</td></tr>
+<tr><td>Access control</td><td>ensure_runner_read_access · ensure_runner_self · require_role · require_owner</td><td>app/deps.py, routers/admin.py</td></tr>
+<tr class="new"><td>Access log (GDPR)</td><td>AccessLog · _record_access</td><td>app/main.py, app/deps.py</td></tr>
+<tr><td>Engine core / axes</td><td>def assess( · def recompute_assessment(</td><td>app/metrics/engine.py</td></tr>
+<tr class="new"><td>Engine inputs (the one read)</td><td>def load_runner_data · def as_of · {{TBD-INPUTS}}</td><td>app/metrics/data.py</td></tr>
+<tr><td>Engine modes</td><td>_emode · _sensitive · engine_pinned · engine_version_for · _MODE_SUFFIX · NEW_RUNNER_ENGINE</td><td>app/metrics/engine.py, routers/auth.py</td></tr>
+<tr><td>Per-run mechanics drift</td><td>_drift_z_core · _pace_slope · _ewma_flag · _mech_flags</td><td>app/metrics/engine.py</td></tr>
+<tr><td>Segment scoring</td><td>segment_mechanics · _seg_scale · segment_significance · t_two_sided_p · _seg_fdr</td><td>engine.py, segmentation.py, regression.py</td></tr>
+<tr><td>Stream QC</td><td>sample_weights · parse_garmin_details · SEG_VERSION</td><td>stream_qc.py, segmentation.py</td></tr>
+<tr><td>Capacity / v3 load axis</td><td>def assess_capacity · CHANNELS · band_points</td><td>app/metrics/capacity.py</td></tr>
+<tr class="new"><td>Critical speed / Rychlost</td><td>def critical_speed · mean_max · _CS_CACHE</td><td>app/metrics/speed.py</td></tr>
+<tr class="new"><td>Runner factors (novice, shoes)</td><td>shoe_state · TRANSITION_DAYS · novice</td><td>app/metrics/runner_factors.py</td></tr>
+<tr class="new"><td>Illness / cycle / day load</td><td>illness · cycle · dayload</td><td>app/metrics/illness.py, cycle.py, dayload.py</td></tr>
+<tr><td>Training guidance</td><td>def build_guidance · TYPE_LABEL · READY_QUALITY</td><td>app/metrics/guidance.py</td></tr>
+<tr class="new"><td>Reports &amp; weekly plan</td><td>_rest_of_week · week_plan · report_ai</td><td>app/metrics/daily_report.py, week_plan.py, report_ai.py</td></tr>
+<tr><td>Terrain load</td><td>minetti_cr · load_km · descent_weighting</td><td>app/metrics/terrain.py</td></tr>
+<tr><td>Triage / referral</td><td>def triage_decision · DECISION_HEAD · def claim(</td><td>app/metrics/engine.py, routers/triage.py</td></tr>
+<tr><td>History replay</td><td>def engine_replay · def load_inputs · input_digests · today_pinned(</td><td><span class="new">app/history.py</span>; Excel backtest: app/reports.py (<code>_replay_both</code>, in-memory SQLite, v1/v2 only)</td></tr>
+<tr><td>History cache</td><td>EngineHistoryCache · HISTORY_VERSION · mark_dirty</td><td><span class="new">app/history.py</span></td></tr>
+<tr class="new"><td>Metric caches</td><td>lru_cache · _CACHE</td><td>app/metrics/*.py (capacity, speed, engine)</td></tr>
+<tr><td>Sensitivity sandbox</td><td>def simulate( · KNOBS · inputs_from_assessment</td><td>metrics/sensitivity.py, enginelab.tsx</td></tr>
+<tr><td>Signal documentation</td><td>SIG_DOC · METRIC_INFO</td><td>metrics/sig_doc.py, frontend/src/metricinfo.ts</td></tr>
+<tr><td>Garmin / streams</td><td>fetch_details · _fetch_streams · auto_sync_all · _apply_seed · _merge_seed</td><td><span class="new">backend/garmin_live.py</span>, routers/integrations.py</td></tr>
+<tr><td>External LLM</td><td>def chat( · def vision( · NVIDIA_ · transcribe · coach_consent</td><td><span class="new">app/llm.py</span> (callers: metrics/ai_brief.py, coach_texts.py, report_ai.py, app/assistant/service.py, app/shoes.py)</td></tr>
+<tr class="new"><td>Self-management programmes</td><td>PROGRAMS · programs_for_regions · "match"</td><td>app/programs_library.py, routers/self_programs.py, selfprograms.tsx</td></tr>
+<tr><td>Frontend routes / nav</td><td>createBrowserRouter · runnerNav · useRunnerNav</td><td>frontend/src/App.tsx, shell.tsx</td></tr>
+<tr><td>Frontend views</td><td>export function (Load|Mechanics|Training|Care|DataView|EngineLab|Report)</td><td>tabs.tsx, training.tsx, capacity.tsx, care.tsx, datapage.tsx, enginelab.tsx, report.tsx</td></tr>
+<tr><td>Tests &amp; fixtures</td><td>conftest · seed_runs · DEMO_PASSWORD</td><td>backend/tests (conftest.py, synth.py)</td></tr>
+</table>
+
+<h2 class="pb">5. Full review — step by step</h2>
+<p>Run the phases in order. Each item is a check with its pass condition. Record PASS / FAIL / NOT RUN for every item in the report. <span class="new">Phases are independent enough to run in parallel (e.g. sub-agents for E+G, F, H, I) on separate throwaway databases and ports; the lead re-verifies every S1/S2 before reporting it.</span></p>
+
+<h3>Phase A — Baseline</h3>
+<ol>
+<li><b>A1 What changed:</b> git status, git log since the last report in <code>Documentation/reviews/</code> (on <code>claude/reviews</code>), diff stat. Focus on changed areas first. <span class="new">If the last report’s commit is unreachable (history rewritten), say so and use <code>git log --since=&lt;report date&gt;</code>.</span></li>
+<li><b>A2 Environment:</b> Python virtualenv (<span class="new">Python ≥ 3.12; <code>.python-version</code> pins 3.13</span>) and Node dependencies present; note versions.</li>
+<li><b>A3 Backend tests:</b> run the full suite. Pass: all green. Record count, skips and duration (<span class="new">{{TBD-TESTS}}</span>). A duration jump &gt; 2× without new tests is a finding (or machine load — rerun once).</li>
+<li><b>A4 Frontend:</b> type-check and production build must succeed with no errors.</li>
+<li><b>A5 Python import sanity:</b> <code>python -m compileall</code> all backend modules (catches syntax errors in scripts tests don’t import).</li>
+</ol>
+
+<h3>Phase B — Map and structural drift</h3>
+<ol>
+<li><b>B1</b> Run every discovery search from section 4; record the current location of each role.</li>
+<li><b>B2</b> List routers and count endpoints; list models and columns; list frontend routes and tabs. Compare with the previous report — new endpoints, tables, columns, tabs and engine modes need the targeted checks in phases C–H.</li>
+<li><b>B3</b> Note any role that disappeared or split; propose the playbook update.</li>
+</ol>
+
+<h3>Phase C — Engine correctness (highest priority)</h3>
+<ol>
+<li><b>C1 Mode plumbing.</b> Every engine mode appears consistently in: the switch endpoint’s allowed list (<span class="new">unknown modes are rejected</span>), the version suffix map and its reverse lookup, the frontend mode union types, the Data-page options, the v3-only Trénink nav gate, the history cache key. Search for direct comparisons of the engine mode (e.g. <code>_emode() ==</code>) <span class="new">across all of <code>backend/app</code></span>; each must be intentional — “sensitive mechanics” must use the shared helper that includes v2 and v3 (<code>_sensitive()</code>).</li>
+<li><b>C2 Time.</b> Inside the engine and metrics code, no wall-clock calls (datetime.now, date.today, time.time) except the engine’s own today helpers <span class="new">and the documented weekly-frozen population priors (<code>reference._real_today</code>)</span>. Windows use the engine’s day helpers; date strings are compared on the date part ([:10]).</li>
+<li><b>C3 Replay parity.</b> <span class="new">Start from the one read, <code>load_runner_data</code> (section 4): every table it loads is an engine input and must reach both the replay (via <code>as_of</code>) and the history-cache digest, so a change to it invalidates the cached history.</span> Pass: for v1, v2 and v3 — including a runner with stored streams <span class="new">and a v3 runner with a shoe</span> — the history’s last point equals the live assessment on all axes and the quadrant. <span class="new">Also switch a runner’s engine with mechanics in the 18–25 hysteresis band and compare live vs history.</span></li>
+<li><b>C4 Caches.</b> History cache keyed by engine version + history version and invalidated on every recompute. <span class="new">Every module-level cache in the metrics code (<code>lru_cache</code>, <code>_…CACHE</code>) must key on everything that changes its result — a data fingerprint (segment count, stream fetch time, profile hash), never ids alone. Probe: compute, mutate the data behind the same ids, recompute in the same process.</span></li>
+<li><b>C5 Direction and units.</b> Every scored mechanics metric has a risk direction; scores and v2/v3 flags are one-sided (an improvement never raises a warning); coupled metrics (vertical ratio + oscillation; cadence + stride) count once for convergence. Per-run and segment drift are both in session typical-error units.</li>
+<li><b>C6 No rounded values in scoring.</b> Values rounded for display must never feed back into points (use exact fields).</li>
+<li><b>C7 Capacity invariants (v3).</b> Per-run ceiling = capacity × (1 + margin) × readiness; readiness factor within 0.70–1.00; injury history applied once (margins), not also as a multiplier; runs followed by pain ≥ 3/10 within 72 h excluded from capacity; ≥ 3 prior runs in 30 days before a per-run capacity exists; ≥ 4 weeks before a weekly one. <span class="new">Margin narrowing factors (novice year, new-shoe transition, under-conditioning) never push the margin below <code>SHRINK_MIN</code>.</span></li>
+<li><b>C8 Guidance invariants (v3).</b> Every type’s km ≤ min(per-run ceiling, weekly budget left); running exactly the ceiling adds no load points; overrides exactly as in section 2; quality only per section 2 (<span class="new">readiness ≥ 65 %</span>); taper and deload applied; “předběžné” until today’s sleep/HRV; paces inside the runner’s own observed speed range; ≤ 45 min in Z4+ per quality session. <span class="new">The evening report’s “Zítra” and “Zbytek týdne” and the weekly plan obey the same overrides.</span></li>
+<li><b>C9 Sandbox parity.</b> For every engine mode, seeding the sandbox from a live assessment reproduces the live load and mechanics axes exactly. Every new signal must exist in both places.</li>
+<li><b>C10 Statistics.</b> p-values from Student’s t with the right degrees of freedom; FDR on unrounded p; context model (speed, gradient, time, surface) used where available; out-of-domain segments not scored; minimum sample sizes respected.</li>
+<li><b>C11 Stream pipeline.</b> Durations from timestamps, never row counts; QC acceptance enforced; units normalised; any change to segmentation bumps the segmentation version so stored streams are re-fetched.</li>
+<li><b>C12 Numerical robustness.</b> Division by zero, None / empty inputs, zero or negative durations, profiles with &lt; 2 points, HR max ≤ resting HR, NaN. Probe with degenerate synthetic runners (one run; no HR; no daily data; identical values).</li>
+<li><b>C13 Performance.</b> Live assessment ≤ 0.3 s for a 6-month runner with streams; a 183-day history replay ≤ 20 s <span class="new">in every mode (v3 is the slowest)</span>. Look for quadratic work inside per-segment or per-session loops and for recomputation a cache should cover.</li>
+<li><b>C14 Docs match code.</b> Formulas and constants in docstrings, signal documentation, info texts and the engine documentation PDF equal the constants in code <span class="new">(check ~15 constants each review, incl. readiness bands, ACWR bands, pain thresholds, windows)</span>.</li>
+</ol>
+
+<h3>Phase D — Calibration and behaviour on data</h3>
+<p>Behavioural targets. Use synthetic runners driven through the real engine functions (recipe in appendix B) and the seeded demo runners replayed day by day. Compare with the previous report; any shift needs an explanation. <span class="new">Use N ≥ 1000 (or several seeds) for rates near a threshold — at N = 300 one standard error is ≈ 1.3 points.</span></p>
+<table>
+<tr><th>Check</th><th>Target (5 Oct 2026)</th><th>Fail if</th></tr>
+<tr><td>Per-metric shown signal (z ≥ 0.6), no real change</td><td>v1 ≈ 3.5 %, v2/v3 ≈ 5 %</td><td>v2 &gt; 8 %</td></tr>
+<tr><td>“mechanika přetrvává” flag, no real change</td><td>≈ 5 %</td><td>&gt; 8 %</td></tr>
+<tr><td>That flag when a metric improves by 1 SD</td><td>0 %</td><td>&gt; 1 %</td></tr>
+<tr><td>Easy runs 25 s/km slower, form unchanged</td><td>“mechanika přetrvává” flag ≤ 5 % (v1, v2, v3)</td><td>&gt; 10 %</td></tr>
+<tr><td>Detection: +1 SD over the last 14 days (v2)</td><td>≈ 67 %</td><td>&lt; 55 %</td></tr>
+<tr><td>Segment session drift SD, no real change</td><td>0.8–1.25</td><td>outside</td></tr>
+<tr><td>Segment significance false positives, 5-segment baseline</td><td>≈ 5 %</td><td>&gt; 7.5 %</td></tr>
+<tr><td>Demo accounts today (v3)</td><td>Tichý drift = silent; Kritické přetížení = critical</td><td>different</td></tr>
+<tr><td>Stable demo runners, 90-day replay (v3)</td><td>Zátěž ≥ 25 on ≤ ~30 % of days</td><td>big unexplained change</td></tr>
+<tr><td>Physio override in guidance</td><td>only pain &gt; 5 + referral</td><td>any other trigger</td></tr>
+</table>
+
+<h3>Phase E — Data ingestion and integrations</h3>
+<ol>
+<li><b>E1</b> Imports and syncs are idempotent: re-importing / re-syncing never duplicates activities or daily metrics. <span class="new">A file re-import never deletes runner-entered data (manual activities, run ratings and pain points, exclusions, hand-edited days) or another provider’s history. Run import tests with SQLite foreign keys enforced (or on Postgres).</span></li>
+<li><b>E2</b> Garmin rate limits (HTTP 429) stop the batch without marking runs as failed; genuine failures are marked so the backfill advances; stale streams are re-fetched; refresh failures keep the old data <span class="new">(running and HR-only streams); a failed HRV / resting-HR range call is filled in by a later sync</span>.</li>
+<li><b>E3</b> Stored tokens are encrypted when the secret is configured; a revoked token disables auto-sync with a visible error; <span class="new">a transient Garmin error (network, 5xx) never disables auto-sync; every auto-sync failure is written to the runner’s last error</span>.</li>
+<li><b>E4</b> The daily auto-sync runs in Europe/Prague time before 07:00 <span class="new">(time-zone-aware, independent of the container TZ, across DST)</span>, and failures for one runner never stop the others.</li>
+<li><b>E5</b> Apple push webhook requires its token; unknown payloads are rejected with 400, not partially stored <span class="new">and never 500; the token never appears in logs; sleep and steps are de-duplicated across sources like the file import</span>.</li>
+<li><b>E6</b> Cross-training reaches the load axis but never the running mechanics.</li>
+</ol>
+
+<h3>Phase F — API, security and privacy</h3>
+<ol>
+<li><b>F1</b> Every mutating route (POST / PATCH / PUT / DELETE) carries the CSRF dependency, or is a documented exemption. Known exemptions (5 Oct 2026): the sandbox’s simulate and sweep (stateless), the Apple push webhook (token), <span class="new">operator-token routes guarded by <code>require_feedback_token</code> (annotations export/resolve, assistant ops/*)</span>. Known accepted item: logout has no CSRF check (S3 — a cross-site request can only log the user out). <span class="new">Probe a foreign Origin, Origin “null”, a look-alike host, a foreign Referer without Origin, and no Origin/Referer at all. {{TBD-CSRF}}</span></li>
+<li><b>F2</b> Every runner-scoped route calls a runner access check (read access, self) or a role requirement, <span class="new">and every nested object id is checked to belong to that runner</span>. Probe IDOR with two runner accounts and a physio who has not claimed the runner: each must get 403/404 for foreign data. <span class="new">Probe the physio claim: claiming a closed case, a runner without consent, another physio’s case or after the runner revoked you → refused; public registration with a non-runner role → refused.</span></li>
+<li><b>F3</b> Session cookie: HttpOnly, Secure over HTTPS, SameSite; argon2 password hashing; login throttle active <span class="new">and not bypassable by rotating X-Forwarded-For; session tokens stored hashed; “log out all devices” revokes every session</span>.</li>
+<li><b>F4</b> The JSON export and logs contain no passwords, tokens or session secrets; secret files stay git-ignored <span class="new">and docker-ignored</span>.</li>
+<li><b>F5</b> External LLM calls happen only as in section 2 (AI features), send the minimum data, have timeouts and a fallback, and are labelled as AI output. <span class="new">For each call site, check the consent gate with a mocked LLM that must not be called without consent.</span></li>
+<li><b>F6</b> Uploads: size limits and zip handling (no path traversal, no zip bombs — check the uncompressed size before extracting), malformed files return a clear 400.</li>
+<li><b>F7</b> GDPR: physio <span class="new">and owner</span> access to a runner is written to the access log and visible to the runner — <span class="new">including routes outside <code>/api/runners/{rid}/</code> (AI brief/chat, RTR, conclusions, physio bootstrap, sandbox inputs)</span>.</li>
+</ol>
+
+<h3>Phase G — Persistence, migrations, deployment</h3>
+<ol>
+<li><b>G1</b> Every new or changed model column has an additive startup migration that works on SQLite and Postgres, with a backfill where old rows need a value.</li>
+<li><b>G2</b> Seeding is idempotent and never overwrites existing accounts; demo accounts exist on already-seeded databases.</li>
+<li><b>G3</b> The container builds (frontend then backend); the health endpoint reports database persistence <span class="new">honestly</span>; DEPLOY.md lists every environment variable the code reads (search os.environ / getenv).</li>
+</ol>
+
+<h3>Phase H — Frontend and UX</h3>
+<p>Drive the real app in a headless browser (appendix A) for at least: one v1 demo runner and one v3 demo runner, at 1360 px and 400 px width, <span class="new">browser locale cs-CZ, time zone Europe/Prague</span>. Before full-page screenshots, inject CSS that disables animations — the app uses scroll-driven reveal animations, so off-screen content otherwise renders transparent. That artefact is not a bug.</p>
+<ol>
+<li><b>H1</b> Every tab loads with no console errors and no horizontal overflow (scrollWidth − clientWidth = 0) on both widths.</li>
+<li><b>H2</b> The Trénink tab appears only for v3 runners, next to Dnes; switching engines on the Data page <span class="new">(owner only)</span> updates navigation.</li>
+<li><b>H3</b> Consistency: the quadrant on Dnes, the Zátěž and Pohyb headlines, the last point of each history chart <span class="new">and the morning/evening/weekly reports</span> agree with the live assessment and guidance.</li>
+<li><b>H4</b> Numbers: decimal comma, sensible rounding, paces as m:ss (never “5:60”), Czech dates, units always shown.</li>
+<li><b>H5</b> Czech copy: diacritics, prepositions (v / ve), formal “vy”, no English leftovers, consistent terms (Zátěž, Pohyb, Příznaky, Kapacita, Připravenost, norma); every new metric has an info text. <span class="new">One pass with English selected: no untranslated Czech.</span></li>
+<li><b>H6</b> Empty, loading and error states render (new runner with no data; network error). <span class="new">A failed load never shows a reassuring state (no default “Stabilní”, score or tier).</span></li>
+<li><b>H7</b> Tap targets ≥ 20 px on phones; text contrast readable on the dark theme.</li>
+</ol>
+<p class="new">Known environment noise in the cloud sandbox: fonts.googleapis.com fails with a certificate error; a native date input follows the browser’s UI locale (mm/dd/yyyy in an en-US Chromium) — neither is an app defect.</p>
+
+<h3>Phase I — Content, evidence and regulatory</h3>
+<ol>
+<li><b>I1</b> No diagnosis or treatment claims; every guidance and risk view carries the not-a-medical-device note; pain always routes to a physiotherapist, never to a diagnosis. <span class="new">Self-management programmes: matched to the marked area exactly (no substring matches across regions), no diagnosis links or cure wording, with a referral note for red flags. Check the English translations too.</span></li>
+<li><b>I2</b> Evidence grades (A/B/C) match the cited evidence; every reference is verifiable and correctly described <span class="new">(design, population, sample size, significance — a feasibility study or a non-significant result must not be described as establishing a fact; a working assumption is labelled as the app’s, not attributed to a study)</span>.</li>
+<li><b>I3</b> The engine documentation in Documentation/ reflects current behaviour and version; stale sections are findings.</li>
+</ol>
+
+<h3>Phase J — Improvement proposals</h3>
+<ul>
+<li>Propose an improvement only with: the observed problem and its evidence, the expected benefit (safety, validity, clarity, speed), cost and risk, and how to validate it (test, simulation or backtest).</li>
+<li>Prefer changes that improve safety and measurement validity over cosmetic ones; avoid churn.</li>
+<li>Separate <b>quick wins</b> (&lt; 1 hour, low risk) from <b>larger work</b>; flag anything that changes scores for existing runners (needs an engine version bump and a calibration run).</li>
+</ul>
+
+<h2 class="pb">6. Regression watchlist — defects found before</h2>
+<p>Re-check each on every full review; they are the most likely to come back when code is edited.</p>
+<table>
+<tr><th>Past defect</th><th>How to re-check</th></tr>
+<tr><td>History replay omitted a table (segment streams) → history ≠ live for v2/v3</td><td>Replay-parity check (C3) with streams, all modes</td></tr>
+<tr><td>Warning flags two-sided; σ taken from the recent sample → tiny consistent drifts flagged</td><td>Improvement probe (flag = 0 %); tiny-consistent probe (no flag)</td></tr>
+<tr><td>Garmin detail streams decimated; rows counted as seconds → long runs lost</td><td>Decimated synthetic stream (4–5 s/row) still yields ~60 s segments</td></tr>
+<tr><td>QC acceptance computed but not enforced</td><td>Short/low-coverage stream stores no segments</td></tr>
+<tr><td>Regression domain ignored surface</td><td>Unseen surface is not scored</td></tr>
+<tr><td>Significance test used raw buckets and normal p with tiny baselines</td><td>FPR ≈ 5 % at n = 5; a faster run isn’t flagged</td></tr>
+<tr><td>Pace confound: slower easy runs read as mechanical drift</td><td>Pace +25 s/km probe on the flag, all modes (phase D)</td></tr>
+<tr><td>Noise scale too small (MAD with floor), λ uncalibrated</td><td>Null false-signal rates (phase D)</td></tr>
+<tr><td>Segment drift in the wrong units</td><td>Null segment DI SD 0.8–1.25</td></tr>
+<tr><td>Quadratic median inside the regression fit</td><td>Replay timing; profile hot paths</td></tr>
+<tr><td>Rounded ratio used for points</td><td>Search scoring code for round() before band / points</td></tr>
+<tr><td>Sandbox diverged from the engine when a mode was added</td><td>Sandbox parity test for every mode</td></tr>
+<tr><td>Tests switched a shared demo runner’s engine, breaking other tests</td><td>Tests register their own runners; no test mutates seeded accounts</td></tr>
+<tr><td>Pace display “5:60”</td><td>Format 359.6 s/km → 6:00</td></tr>
+<tr><td>Czech number formatting / preposition errors in generated text</td><td>Grep generated strings for “.” decimals (incl. capacity ratios and the sandbox)</td></tr>
+<tr><td>A citation overstated its evidence (small feasibility study)</td><td>Reference audit (phase I)</td></tr>
+<tr class="new"><td>A mode gate compared <code>_emode() == "v2"</code> instead of <code>_sensitive()</code> → v3 lost terrain-weighted spikes (2026-10-05)</td><td>C1 search across backend/app; v3 terrain-spike test</td></tr>
+<tr class="new"><td>New engine input (shoes, RTR plans) loaded live but missing from the history digest → history ≠ live (2026-10-05)</td><td>C3 parity test that mutates every input table</td></tr>
+<tr class="new"><td>Live hysteresis seeded from the previous engine’s stored quadrant after a switch (2026-10-05)</td><td>Switch engines with mechanics in 18–25; live = history</td></tr>
+<tr class="new"><td>Metric cache keyed on ids only → critical speed frozen before streams arrived (2026-10-05)</td><td>C4 mutate-then-recompute probe for every module cache</td></tr>
+<tr class="new"><td>File re-import deleted runner-entered data; FK violations only on Postgres (2026-10-05)</td><td>E1 re-import test with FK enforcement</td></tr>
+<tr class="new"><td>Any self-registered physio could claim any runner (2026-10-05)</td><td>F2 claim probes; public register with role physio</td></tr>
+<tr class="new"><td>An AI feature sent health data without the AI consent (2026-10-05)</td><td>F5 mocked-LLM consent test per call site</td></tr>
+<tr class="new"><td>Load failure rendered “Stabilní · Skóre 100 · nízké riziko” (2026-10-05)</td><td>H6 route-abort check on Dnes</td></tr>
+<tr class="new"><td>Evening report planned “kvalitní” days during a physio stop (2026-10-05)</td><td>C8/H3 report test with pain 8/10 + referral</td></tr>
+<tr class="new"><td>Programme region matched by substring (upper abdomen → lower-abdomen programme) (2026-10-05)</td><td>I1 region → programme map test</td></tr>
+<tr class="new"><td>One Garmin outage disabled auto-sync for everyone (2026-10-05)</td><td>E3 resume with a ConnectionError keeps auto-sync on</td></tr>
+</table>
+
+<h2>7. Severity and confidence</h2>
+<table>
+<tr><th>Severity</th><th>Meaning in Došlap</th></tr>
+<tr><td>S1 Critical</td><td>Could lead a runner to unsafe training or suppress a needed physio referral; security or privacy breach; data loss or corruption; app down.</td></tr>
+<tr><td>S2 Major</td><td>Wrong scores or guidance in common situations; live and history disagree; calibration off target; a feature broken for a role or engine.</td></tr>
+<tr><td>S3 Minor</td><td>Edge cases, inconsistent copy or formatting, performance regression without user impact.</td></tr>
+<tr><td>S4 Improvement</td><td>No defect — a proposal (phase J).</td></tr>
+</table>
+<table>
+<tr><th>Confidence</th><th>Meaning</th></tr>
+<tr><td>CONFIRMED</td><td>Reproduced (failing test, script output, screenshot).</td></tr>
+<tr><td>LIKELY</td><td>Strong code-path evidence, not reproduced.</td></tr>
+<tr><td>PLAUSIBLE</td><td>Needs verification; say what would confirm or refute it.</td></tr>
+</table>
+
+<h2>8. Deciding what is a finding</h2>
+<ul>
+<li>Report behaviour that breaks a contract in this playbook, a test, the engine documentation or a product decision — or that a runner or physio would reasonably consider wrong.</li>
+<li>Don’t report style preferences, hypothetical attacks without a path, or “could be refactored” without a benefit.</li>
+<li>Merge duplicates: one root cause = one finding, listing all symptoms.</li>
+<li>Before reporting, try to disprove the finding (look for a guard elsewhere, a test that covers it, a documented decision). Keep only what survives.</li>
+</ul>
+
+<h2>9. Report template</h2>
+<p>Save as <code>Documentation/reviews/review-YYYY-MM-DD-quick.md</code> or <code>…-full.md</code> <span class="new">on branch <code>claude/reviews</code></span> when the task allows writing files (create the folder if missing); otherwise return it in the conversation. <span class="new">Commit message: <code>Review YYYY-MM-DD (quick|full): S1 a, S2 b, S3 c, S4 d</code>.</span></p>
+<pre># Došlap review — YYYY-MM-DD  (quick screen | full review)
+[Full review recommended / Fix before the next release — when applicable]
+Commit / working tree: &lt;hash&gt;, &lt;uncommitted files noted, untouched&gt;
+Baseline: tests &lt;passed/skipped/failed, duration&gt; · type-check &lt;ok&gt; · build &lt;ok&gt;
+
+## Summary
+&lt;3–5 lines: overall state, top risks, what changed since the last review&gt;
+
+## Findings (most severe first)
+### F1 &lt;short title&gt;
+Severity: S1–S3 · Confidence: CONFIRMED | LIKELY | PLAUSIBLE · Area: &lt;phase&gt;
+Location: &lt;file:line&gt;
+What happens: &lt;one sentence&gt;
+Failure scenario: &lt;concrete inputs → wrong output&gt;
+Evidence: &lt;test / script output / screenshot / code path&gt;
+Suggested fix: &lt;description or diff sketch&gt;   Test to add: &lt;name + assertion&gt;
+Health-risk direction: false reassurance | false alarm | none
+
+## Fixed since last review
+## Product questions
+## Improvement proposals (S4)   — problem · benefit · cost/risk · validation
+## Check results (PASS / FAIL / NOT RUN per check)
+## Calibration table vs previous review (phase D)
+## Coverage gaps   — check · why it could not run
+## Structural drift — role · old location → new location · playbook update proposed</pre>
+
+<h2>10. Quick screen (frequent runs)</h2>
+<ol>
+<li>Phase A baseline (tests, type-check, build) and the diff since the last report <span class="new">(if its commit is unreachable: say so, use <code>git log --since</code> the report date, and screen at least the last 20 commits)</span>.</li>
+<li>Discovery searches for any role touched by the diff; note drift.</li>
+<li>Mode plumbing and wall-clock searches (C1, C2); CSRF and access-check listing for new routes (F1, F2) <span class="new">including nested object ids</span>.</li>
+<li>New model columns vs startup migrations (G1); <span class="new">new engine inputs vs the history digest (C3)</span>.</li>
+<li>Replay parity and sandbox parity tests (C3, C9); guidance override tests.</li>
+<li>Quick null simulation (N ≈ 300 synthetic runners) for the per-metric false-signal rate (phase D row 1).</li>
+<li>One v3 demo runner in the browser at 400 px: Dnes, Trénink, Zátěž — no console errors, no overflow.</li>
+<li>Regression watchlist items touched by the diff.</li>
+</ol>
+<p class="new">Put “Full review recommended” at the top when the screen finds an S1 or two or more S2, or when the diff is too large to screen (e.g. &gt; 50 files).</p>
+
+<h2 class="pb">Appendix A — Command recipes (adapt paths via section 4)</h2>
+<h3>Baseline</h3>
+<pre>git status --short &amp;&amp; git log --oneline -20
+cd backend &amp;&amp; python3.13 -m venv .venv &amp;&amp; .venv/bin/pip install -q -r requirements.txt   # or the owner's .venv_posix
+.venv/bin/python -m pytest -q                       # full backend suite
+.venv/bin/python -m compileall -q app *.py          # import sanity incl. scripts
+cd ../frontend &amp;&amp; npm ci &amp;&amp; npx tsc --noEmit -p . &amp;&amp; npm run build   # type-check + production build</pre>
+<h3>Run the app on a throwaway database (the app creates tables and seeds demo data)</h3>
+<pre>cd backend
+DOSSLAP_DB_PATH=$TMPDIR/review.db DATABASE_URL= DOSSLAP_WEATHER=off DOSSLAP_EMBED=off DOSSLAP_PRECOMPUTE=0 \
+  NVIDIA_API_KEY= LLM_API_KEY= ASSISTANT_API_KEY= EMBED_API_KEY= VISION_API_KEY= \
+  .venv/bin/python -m uvicorn app.main:app --port 8765 &amp;
+until curl -sf -o /dev/null http://127.0.0.1:8765/; do sleep 1; done
+# owner tools (engine picker, account creation): add DOSSLAP_OWNER_EMAILS=adela@demo.cz
+# stop: lsof -ti:8765 -sTCP:LISTEN | xargs kill</pre>
+<h3>Log in and switch engines (CSRF = same-origin, so send an Origin header)</h3>
+<pre>H="Origin: http://127.0.0.1:8765"
+curl -s -c jar -H "$H" -H 'Content-Type: application/json' \
+  -d '{"email":"kritickepretizeni@demo.cz","password":"demo"}' http://127.0.0.1:8765/api/auth/session
+curl -s -b jar -H "$H" -H 'Content-Type: application/json' -d '{"mode":"v3"}' \
+  http://127.0.0.1:8765/api/runners/&lt;runner_id&gt;/engine</pre>
+<table>
+<tr><th>Seeded demo account</th><th>Password</th><th>Use it to test</th></tr>
+<tr><td>adela@demo.cz</td><td>demo1234</td><td>runner with pain and mechanics drift (v1 by default)</td></tr>
+<tr><td>tichydrift@demo.cz</td><td>demo</td><td>silent drift (mechanics only)</td></tr>
+<tr><td>kritickepretizeni@demo.cz</td><td>demo</td><td>critical overload, physio override in v3 guidance</td></tr>
+<tr><td>havlickova@fyzioholesovice.cz</td><td>demo1234</td><td>physio role (claims, AI brief, IDOR probes)</td></tr>
+<tr><td>hexanet@demo.cz / letna@demo.cz</td><td>demo1234</td><td>employer / partner roles</td></tr>
+</table>
+<p class="new">Extra physios for claim probes are created by the owner ({{TBD-ACCOUNTS}}); public registration creates runners only.</p>
+<h3>Search checks</h3>
+<pre>grep -n '@router\.\(post\|patch\|put\|delete\)' backend/app/routers/*.py   # each needs verify_csrf or a documented exemption
+grep -rnE 'datetime\.(now|utcnow)\(|date\.today\(|time\.time\(' backend/app/metrics backend/app/history.py   # only the today helpers
+grep -rnE '_emode\(\) *==|engine_mode *==' backend/app                      # each intentional; sensitive = _sensitive()
+grep -rnE 'lru_cache|_[A-Z_]*CACHE' backend/app/metrics                     # each key = data fingerprint
+grep -rn 'os.environ\|getenv' backend --include=*.py | grep -v venv         # vs DEPLOY.md</pre>
+<h3>Headless browser</h3>
+<p>Install playwright-core in a temporary directory (not the repo) and point it at a local Chrome or the cached Playwright Chromium (<span class="new">cloud sandbox: <code>/opt/pw-browsers/chromium-*/chrome-linux/chrome</code>, launch with <code>--no-sandbox</code>; never run <code>playwright install</code></span>). Per page: log in through the UI (<span class="new"><code>/auth</code> opens in sign-up mode — click “Už máte účet? Přihlásit se”</span>) or the API with the Origin header, open <code>/app/&lt;tab&gt;</code> (<span class="new">today, training, post, mechanics, load, messages; plus <code>/data</code></span>), wait for a known heading, add a style tag <code>*{animation:none!important;transition:none!important}</code>, then screenshot and read scrollWidth − clientWidth and the console errors.</p>
+
+<h2>Appendix B — Calibration recipes</h2>
+<p>Synthetic runner → real drift core. Create ~90 days of runs (≈ 4/week) as simple objects with started_at, distance_km, duration_min, surface, ascent/descent and the metric (e.g. vert_ratio_pct = 8.0 + 0.3·N(0,1)). Pin the engine’s today and mode, call the per-run drift function over many runners and count how often z ≥ 0.6 and how often the flag helper returns the flag. Variants: heavy-tailed noise; a shift of +1 SD in the last 14 or 5 days (detection); an improvement of −1 SD (the flag must stay 0); easy pace +25 s/km with metrics following speed (pace confound — <span class="new">measure the flag over all mechanics metrics, with a matched no-slowdown baseline; helper <code>tests/test_drift_validity.py::_history(slow=25)</code></span>).</p>
+<pre>with E.today_pinned(TODAY), E.engine_pinned('v2'):
+    r = E._drift_z_core(runs, 'vert_ratio_pct', 28)     # name may change: see section 4
+shown += r['z'] &gt;= 0.6
+flag, watch = E._mech_flags(r_vr, r_gct, r_cad, r_stride, r_vosc)</pre>
+<p>Demo replay: set each seeded runner to v1 then v3, replay the last 90 days with the history replay function, and tabulate the share of days with Zátěž ≥ 25, the mean, the maximum and the top load signals. Compare with the previous report and with the calibration table in the engine documentation.</p>
+<p>Segment checks: build baseline sessions with a between-session and a within-session noise component and score new null sessions with the segment session function; the standardised drift SD must be 0.8–1.25 for several variance splits.</p>
+<p class="new">Parity probes (C3/C4): register a runner, mutate one engine input (add a shoe, back-fill streams, edit a check-in, switch engine), call <code>recompute_assessment</code> and <code>refresh_quadrant_history</code>, and compare the last history row with the live assessment; repeat in a fresh process to catch stale module caches.</p>
+
+</body>
+</html>
