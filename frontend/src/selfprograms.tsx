@@ -9,13 +9,13 @@ import { useSearchParams } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Button, Card, Chip, Label, Sheet, useToast } from "@/ui"
-import { BookOpen, Check, ChevronDown, ChevronRight, Dumbbell, ExternalLink, Info, Pause, Play, Plus, RotateCcw, Sparkles, Timer } from "lucide-react"
+import { BookOpen, Check, ChevronDown, ChevronRight, Dumbbell, ExternalLink, Info, Moon, Pause, PersonStanding, Play, Plus, RotateCcw, Sparkles, Timer } from "lucide-react"
 import { fmtD, plural } from "@/lib"
 import { ExerciseFigure, ExerciseThumb, hasFigure } from "@/exfigure"
 
-type Ex = { name: string; area: string; how: string; dose: string; perWeek: number; steps?: string[]; mistakes?: string[]; caution?: string; links?: { url: string; topic: string }[] }
+type Ex = { name: string; area: string; how: string; dose: string; perWeek: number; kind?: string; min?: number; steps?: string[]; mistakes?: string[]; caution?: string; links?: { url: string; topic: string }[] }
 type Phase = { key: string; name: string; goal?: string; from: number; to: number; rpe: string }
-type Prog = { key: string; group?: string; physio?: string; name: string; weeks: number; summary: string; exercises: string[]; evidence: string; refs: string[]; assumption: string | null
+type Prog = { key: string; group?: string; sub?: string; minutes?: number; physio?: string; name: string; weeks: number | null; summary: string; exercises: string[]; evidence: string; refs: string[]; assumption: string | null
   perWeek?: number; sessions?: Record<string, string[]>; sessionLabels?: Record<string, string>; sessionDoses?: Record<string, Record<string, string>>; phases?: Phase[] }
 
 /** railway#133 — the most recent marked region, shortened for the chip. */
@@ -32,7 +32,8 @@ export function shortRegion(r: string) {
 // sets one by one (kept on this device for today), a hold timer where the dose has
 // seconds, the moving figure inline; the last set logs the exercise as done.
 const setsOf = (dose: string) => Math.min(10, Math.max(1, Number((dose.match(/(\d+)\s*×/) || [])[1]) || 1))
-const holdOf = (dose: string) => Number((dose.match(/(\d+)\s*s\b/) || [])[1]) || 0
+// a hold in seconds ("2 × 30 s"), or a whole timed item in minutes ("5 min", bedtime mobility)
+const holdOf = (dose: string) => Number((dose.match(/(\d+)\s*s\b/) || [])[1]) || 60 * (Number((dose.match(/^(\d+)\s*min\b/) || [])[1]) || 0)
 const todayKey = () => new Date().toLocaleDateString("sv-SE")
 function loadSets(key: string): number {
   try { return Number(localStorage.getItem(key)) || 0 } catch { return 0 }
@@ -61,7 +62,7 @@ function HoldTimer({ secs, onDone }: { secs: number; onDone: () => void }) {
         </svg>
         {run ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
       </button>
-      <span className="tabular-nums text-[13px] font-bold text-fg">{left} s</span>
+      <span className="tabular-nums text-[13px] font-bold text-fg">{left >= 60 ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : `${left} s`}</span>
       {!run && left !== secs && <button type="button" onClick={() => setLeft(secs)} aria-label="Vynulovat" className="text-fg-3"><RotateCcw className="size-3.5" aria-hidden /></button>}
     </div>
   )
@@ -290,18 +291,19 @@ function DurabilityHead({ d }: { d: any }) {
 }
 
 function Thumb({ id }: { id: string }) {
+  const Icon = id.startsWith("mob_") ? PersonStanding : Dumbbell      // bedtime mobility (no figure yet)
   return hasFigure(id)
     ? <span className="grid size-11 shrink-0 place-items-center rounded-[10px] bg-white/[.04]"><ExerciseThumb id={id} className="size-10" /></span>
-    : <span className="grid size-11 shrink-0 place-items-center rounded-[10px] bg-white/[.06] text-fg-2"><Dumbbell className="size-4" aria-hidden /></span>
+    : <span className="grid size-11 shrink-0 place-items-center rounded-[10px] bg-white/[.06] text-fg-2"><Icon className="size-4" aria-hidden /></span>
 }
 
 export function ExerciseSheet({ id, ex, onClose }: { id: string; ex: Ex; onClose: () => void }) {
   return (
     <Sheet open onClose={onClose} layer="z-[90]">
       <div data-testid="exercise-sheet">
-        <p className="t-label !text-fg-3">{ex.area}</p>
+        <p className="t-label flex items-center gap-2 !text-fg-3">{ex.area}{ex.kind === "mobility" && <Chip className="!py-0 text-[10.5px]" data-testid="mobility-tag">Mobilita</Chip>}</p>
         <h2 className="mt-1 font-serif text-[24px] leading-tight text-fg">{ex.name}</h2>
-        <p className="mt-1 inline-flex items-center gap-1.5 text-[13px] tabular-nums text-fg-2"><Timer className="size-3.5 text-fg-3" aria-hidden />{ex.dose} · {ex.perWeek}× týdně</p>
+        <p className="mt-1 inline-flex items-center gap-1.5 text-[13px] tabular-nums text-fg-2"><Timer className="size-3.5 text-fg-3" aria-hidden />{ex.dose} · {ex.kind === "mobility" ? "denně, klidně před spaním" : `${ex.perWeek}× týdně`}</p>
         {hasFigure(id) && (
           <figure className="nest mt-3 overflow-hidden px-2 pb-1 pt-2" data-testid="exercise-figure">
             <ExerciseFigure id={id} className="mx-auto block max-h-[300px] w-full max-w-[360px]" />
@@ -345,15 +347,15 @@ export function ExerciseSheet({ id, ex, onClose }: { id: string; ex: Ex; onClose
 
 function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: Prog; lib: any; onClose: () => void; onStart: () => void; busy: boolean; onOpenEx: (id: string) => void }) {
   const [refs, setRefs] = useState(false)
-  const perf = prog.group === "performance"
+  const perf = prog.group === "performance" || prog.group === "mobility"
   return (
     <Sheet open onClose={onClose}>
       <div data-testid="program-sheet">
-        <p className="t-label !text-fg-3">Program · {prog.weeks} týdnů{prog.perWeek ? ` · ${prog.perWeek}× týdně` : ""}</p>
+        <p className="t-label !text-fg-3">{prog.group === "mobility" ? `Mobilita před spaním · zhruba ${prog.minutes} min · denně` : `Program · ${prog.weeks} týdnů${prog.perWeek ? ` · ${prog.perWeek}× týdně` : ""}`}</p>
         <h2 className="mt-1 font-serif text-[24px] leading-tight text-fg">{prog.name}</h2>
         <p className="mt-1 text-[13px] leading-5 text-fg-2">{prog.summary}</p>
         {/* feedback #173 — start above the exercises, not at the very bottom */}
-        <Button className="mt-4 w-full" disabled={busy} onClick={onStart} data-testid="program-start">Začít program</Button>
+        <Button className="mt-4 w-full" disabled={busy} onClick={onStart} data-testid="program-start">{prog.group === "mobility" ? "Uložit do mých programů" : "Začít program"}</Button>
         {prog.phases && (
           <div className="mt-4 grid gap-1.5" data-testid="program-phases">
             {prog.phases.map((ph) => (
@@ -377,7 +379,7 @@ function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: P
                   <Thumb id={id} />
                   <span className="min-w-0 flex-1">
                     <b className="block text-[14px] font-bold text-fg">{e.name}</b>
-                    <span className="block tabular-nums text-[12px] text-fg-2">{sk ? prog.sessionDoses?.[sk]?.[id] || e.dose : `${e.dose} · ${e.perWeek}× týdně`}</span>
+                    <span className="block tabular-nums text-[12px] text-fg-2">{sk ? prog.sessionDoses?.[sk]?.[id] || e.dose : e.kind === "mobility" ? e.dose : `${e.dose} · ${e.perWeek}× týdně`}</span>
                     <span className="mt-0.5 block text-[12px] leading-5 text-fg-3">{e.how}</span>
                   </span>
                   <ChevronRight className="size-4 shrink-0 text-fg-3" aria-hidden />
@@ -400,7 +402,8 @@ function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: P
           {refs && <ul className="mt-1 space-y-1 text-[11px] leading-4 text-fg-3">{prog.refs.map((r) => <li key={r}>{lib.references[r] || r}</li>)}</ul>}
         </div>
         <p className="mt-2 text-[11px] leading-4 text-fg-3">{perf
-          ? "Program doplňuje běžecký trénink. Když cvik bolí, vynechte ho."
+          ? (prog.group === "mobility" ? "Mobilita je pro uvolnění a lepší usínání, zraněním sama nepředchází. Protahujte jen do mírného tahu, nikdy do bolesti."
+            : "Program doplňuje běžecký trénink. Když cvik bolí, vynechte ho.")
           : "Program je pro mírné obtíže a nenahrazuje vyšetření. Bolest, která se zhoršuje, bolí v noci nebo omezuje chůzi, nechte posoudit fyzioterapeutem."}</p>
       </div>
     </Sheet>
@@ -527,20 +530,27 @@ export function SelfPrograms() {
   const [params, setParams] = useSearchParams()
   const want = params.get("prog")
   const box = useRef<HTMLDivElement>(null)
+  // (the evening report saves a mobility programme first and links here: fetched fresh)
   useEffect(() => {
-    if (!want || !d) return
-    const acts: any[] = d.actives || (d.active ? [d.active] : [])
-    const i = acts.findIndex((x: any) => x.template === want)
-    if (i >= 0) {
-      requestAnimationFrame(() => { goSlide(i); box.current?.scrollIntoView({ behavior: "smooth", block: "start" }) })
-    } else {
-      const p = (d.library?.programs || []).find((x: Prog) => x.key === want)
-      if (p) setOpen(p)
-    }
-    const next = new URLSearchParams(params)
-    next.delete("prog")
-    setParams(next, { replace: true })
-  }, [want, d]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (!want) return
+    let alive = true
+    api.selfPrograms(rid).then((nd: any) => {
+      if (!alive) return
+      setD(nd)
+      const acts: any[] = nd.actives || (nd.active ? [nd.active] : [])
+      const i = acts.findIndex((x: any) => x.template === want)
+      if (i >= 0) {
+        setTimeout(() => { goSlide(i); box.current?.scrollIntoView({ behavior: "smooth", block: "start" }) }, 60)
+      } else {
+        const p = (nd.library?.programs || []).find((x: Prog) => x.key === want)
+        if (p) setOpen(p)
+      }
+      const next = new URLSearchParams(params)
+      next.delete("prog")
+      setParams(next, { replace: true })
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [want]) // eslint-disable-line react-hooks/exhaustive-deps
   if (d === null) return <p className="mt-4 text-sm text-fg-3">Načítám programy…</p>
   if (d === false) return null
   const lib = d.library
@@ -556,16 +566,18 @@ export function SelfPrograms() {
   const row = (p: Prog, recommended: boolean) => (
     <button key={p.key} type="button" onClick={() => setOpen(p)} data-testid="program-row"
       className="flex w-full items-center gap-3 py-3 text-left">
-      <span className={`grid size-[34px] shrink-0 place-items-center rounded-[10px] ${recommended ? "bg-accent/15 text-accent" : "bg-white/[.06] text-fg-2"}`}><Dumbbell className="size-4" aria-hidden /></span>
+      <span className={`grid size-[34px] shrink-0 place-items-center rounded-[10px] ${recommended ? "bg-accent/15 text-accent" : "bg-white/[.06] text-fg-2"}`}>{p.group === "mobility" ? <PersonStanding className="size-4" aria-hidden /> : <Dumbbell className="size-4" aria-hidden />}</span>
       <span className="min-w-0 flex-1">
         <b className="text-sm font-bold text-fg">{p.name}</b>
-        <span className="block truncate text-[12px] text-fg-3">{p.weeks} týdnů · {p.exercises.length} {plural(p.exercises.length, "cvik", "cviky", "cviků")} · {p.summary}</span>
+        <span className="block truncate text-[12px] text-fg-3">{p.group === "mobility" ? `zhruba ${p.minutes} min` : `${p.weeks} týdnů`} · {p.exercises.length} {plural(p.exercises.length, "cvik", "cviky", "cviků")} · {p.summary}</span>
       </span>
       <ChevronRight className="size-4 shrink-0 text-fg-3" aria-hidden />
     </button>
   )
   const painProgs = progs.filter((p) => (p.group || "pain") === "pain" && !rec.includes(p.key))
   const perfProgs = progs.filter((p) => p.group === "performance")
+  const mobDay = progs.filter((p) => p.group === "mobility" && p.sub === "day")
+  const mobRegion = progs.filter((p) => p.group === "mobility" && p.sub === "region")
   return (
     <div className="mt-4 grid gap-4" data-testid="self-programs">
       {actives.length > 0 && (
@@ -620,6 +632,16 @@ export function SelfPrograms() {
           <Label>Síla a technika</Label>
           <div className="mt-1 divide-y divide-white/[.07]">{perfProgs.map((p) => row(p, false))}</div>
           <p className="mt-2 text-[11px] leading-4 text-fg-3">Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe.</p>
+        </Card></div>
+      )}
+      {(mobDay.length > 0 || mobRegion.length > 0) && (
+        <div data-testid="mobility-programs"><Card>
+          <Label><span className="inline-flex items-center gap-1.5"><Moon className="size-3.5 text-load" aria-hidden />Mobilita před spaním</span></Label>
+          <p className="mt-1 text-[12px] leading-5 text-fg-3">Večerní report vybere program podle toho, co jste ten den dělali. Tady jsou všechny.</p>
+          <p className="t-label mt-3 !text-fg-3">Podle dne</p>
+          <div className="divide-y divide-white/[.07]">{mobDay.map((p) => row(p, false))}</div>
+          <p className="t-label mt-3 !text-fg-3">Podle partie</p>
+          <div className="divide-y divide-white/[.07]">{mobRegion.map((p) => row(p, false))}</div>
         </Card></div>
       )}
       {open && <ProgramSheet prog={open} lib={lib} busy={busy} onClose={() => setOpen(null)} onStart={() => start({ template: open.key })} onOpenEx={setExId} />}

@@ -10777,6 +10777,7 @@
   "t": "Cviky",
   "files": [
    "onboarding.tsx",
+   "report.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -12659,7 +12660,21 @@
   "kind": "tpl"
  },
  {
+  "t": "block text-[14px] leading-5 {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "block w-full {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Bolest: {}. Jen do velmi mírného tahu, nebo cvik vynechte.",
   "files": [
    "report.tsx"
   ],
@@ -12750,6 +12765,27 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Cvičit s časovačem",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Cvik hotový",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Cviků",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Den po dni",
@@ -12891,6 +12927,13 @@
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Klepnutím na cvik zobrazíte provedení, kroužkem ho odškrtnete.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Klepnutím na den zobrazíte tep, tempo, čas a převýšení.",
@@ -13053,6 +13096,29 @@
   "kind": "str"
  },
  {
+  "t": "Mobilita",
+  "files": [
+   "report.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Mobilita před spaním",
+  "files": [
+   "report.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border transition {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "mt-0.5 size-4 shrink-0 text-fg-3 transition {}",
   "files": [
    "report.tsx"
@@ -13080,6 +13146,13 @@
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "navíc z programu {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "nejvýš {}",
@@ -13129,6 +13202,13 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Odznačit cvik",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Otázky",
@@ -13213,6 +13293,13 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Program {} máte v Péči mezi svými programy, s časovačem výdrží.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Průběh noci",
@@ -13428,6 +13515,27 @@
   "kind": "str"
  },
  {
+  "t": "Uloženo",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Uložený program najdete v Péči mezi svými programy, s časovačem výdrží.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uložit na později",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Úvod",
   "files": [
    "report.tsx"
@@ -13538,6 +13646,13 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "zkráceně z {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Zvýšený tep v klidu",
@@ -13909,6 +14024,20 @@
   "kind": "tpl"
  },
  {
+  "t": "{} s",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} týdnů",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} z {} sérií",
   "files": [
    "selfprograms.tsx"
@@ -13952,6 +14081,13 @@
  },
  {
   "t": "{}/{} sérií",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}× týdně",
   "files": [
    "selfprograms.tsx"
   ],
@@ -14064,6 +14200,13 @@
   "kind": "jsx"
  },
  {
+  "t": "denně, klidně před spaním",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe.",
   "files": [
    "selfprograms.tsx"
@@ -14162,6 +14305,20 @@
   "kind": "str"
  },
  {
+  "t": "Mobilita je pro uvolnění a lepší usínání, zraněním sama nepředchází. Protahujte jen do mírného tahu, nikdy do bolesti.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Mobilita před spaním · zhruba {} min · denně",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "mt-1 block text-[10.5px] {}",
   "files": [
    "selfprograms.tsx"
@@ -14255,6 +14412,20 @@
   "kind": "str"
  },
  {
+  "t": "Podle dne",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Podle partie",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Podle toho se příště přidá, nebo ubere. Trénink se započítá do týdenní zátěže.",
   "files": [
    "selfprograms.tsx"
@@ -14297,11 +14468,11 @@
   "kind": "jsx"
  },
  {
-  "t": "Program ·",
+  "t": "Program · {} týdnů{}",
   "files": [
    "selfprograms.tsx"
   ],
-  "kind": "jsx"
+  "kind": "tpl"
  },
  {
   "t": "Program doplňuje běžecký trénink. Když cvik bolí, vynechte ho.",
@@ -14482,14 +14653,14 @@
   "kind": "str"
  },
  {
-  "t": "týdnů ·",
+  "t": "týdny",
   "files": [
    "selfprograms.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
-  "t": "týdny",
+  "t": "Uložit do mých programů",
   "files": [
    "selfprograms.tsx"
   ],
@@ -14504,6 +14675,13 @@
  },
  {
   "t": "Váš program",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Večerní report vybere program podle toho, co jste ten den dělali. Tady jsou všechny.",
   "files": [
    "selfprograms.tsx"
   ],
@@ -14549,7 +14727,7 @@
   "files": [
    "selfprograms.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Začít vlastní trénink (",
@@ -14557,6 +14735,13 @@
    "selfprograms.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "zhruba {} min",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "zítra",

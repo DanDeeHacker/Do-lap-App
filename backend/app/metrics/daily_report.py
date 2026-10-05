@@ -28,6 +28,7 @@ from datetime import date, timedelta
 from .. import models
 from . import dayload as DL
 from . import engine as E
+from . import mobility as MOB
 from . import week_plan as WP
 
 WD = ["po", "út", "st", "čt", "pá", "so", "ne"]
@@ -509,6 +510,8 @@ def _notes_evening(r) -> dict:
     wk = r["week"]
     notes["week"] = (f"Tento týden {_cz(wk.get('done') or 0)} z {_cz(wk['budget'], 0)} km. " if wk.get("budget") else "") + (
         r["restOfWeek"].get("note") or "Zbytek týdne rozložte podle návrhu, každé ráno ho upřesní připravenost.")
+    if r.get("mobility"):
+        notes["mobility"] = MOB.note(r["mobility"])
     tn = r["tonight"]
     notes["tonight"] = f"Cíl {_dur(tn['target'])} spánku: do postele kolem {tn['bed']}, poslední káva do {tn['caffeine']}. Chladná a tmavá ložnice pomůže."
     return notes
@@ -579,6 +582,8 @@ def build(db, rid: str, kind: str) -> dict:
             "plan": {"type": g.get("type"), "label": g.get("typeLabel"), "afterDone": g.get("afterDone")}}
     r = {**base, "day": day, "dayView": view, "load": load, "week": week, "weekLoads": _week_loads(a, db, rid, today),
          "restOfWeek": rest, "tonight": tonight, "recovery": rec, "questions": EVENING_Q}
+    # owner request 2026-10-05: bedtime mobility picked by the day's activities
+    r["mobility"] = MOB.evening(db, rid, a, today, acts, tonight.get("bed"), now_min, (view or {}).get("steps"))
     r["tomorrow"] = _tomorrow(a, view, dm, today, night, rest, tonight, hard_tomorrow)
     if view and view.get("energy"):
         r["energyNow"] = view["energy"][-1][1]

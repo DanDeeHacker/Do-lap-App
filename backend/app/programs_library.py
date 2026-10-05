@@ -524,6 +524,11 @@ PROGRAMS = [
      "refs": ["Abran et al., 2024", "Trowell et al., 2021"],
      "assumption": "Výběr cviků, pořadí a dávkování vychází z trenérské praxe, ne z výzkumu. Zařaďte ji po rozklusání, ne na úplný začátek."},
 ]
+# owner request 2026-10-05 — bedtime mobility: the exercises (kind "mobility") and the
+# programmes by kind of day and by body region live in mobility_library.py
+from .mobility_library import MOBILITY_EXERCISES, MOBILITY_PROGRAMS, MOBILITY_REFERENCES  # noqa: E402
+EXERCISES.update(MOBILITY_EXERCISES)
+PROGRAMS.extend(MOBILITY_PROGRAMS)
 PROGRAM_BY_KEY = {p["key"]: p for p in PROGRAMS}
 
 REFERENCES = {
@@ -560,6 +565,9 @@ REFERENCES = {
     "Abran et al., 2024": "Abran, G., et al. (2024). A comparison of foot and ankle biomechanics during running drills and distance running. Sports Biomechanics.",
     "Trowell et al., 2021": "Trowell, D., et al. (2021). A comparison of plantarflexor musculotendon unit output between plyometric exercises and running. Journal of Science and Medicine in Sport.",
 }
+
+
+REFERENCES.update(MOBILITY_REFERENCES)
 
 
 def programs_for_regions(regions: list[str]) -> list[str]:

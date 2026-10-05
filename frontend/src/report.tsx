@@ -9,7 +9,9 @@ import { useApp } from "@/store"
 import { useAssistant } from "@/assistant"
 import { C, goodCol } from "@/tokens"
 import { ReadinessFactors } from "@/capacity"
-import { Bed, Bike, ChevronRight, Coffee, Dumbbell, Eye, Flag, Info, MessageCircle, Moon, Sparkles, Sun, TriangleAlert, X } from "lucide-react"
+import { Bed, Bike, Bookmark, BookmarkCheck, Check, ChevronRight, Coffee, Dumbbell, Eye, Flag, Info, MessageCircle, Moon, Play, Sparkles, Sun, TriangleAlert, X } from "lucide-react"
+import { useNavigate } from "react-router"
+import { CARE_SUB_EVENT } from "@/onboarding"
 
 const STAGE_COL: Record<string, string> = { deep: "#4c6ef5", light: "#74c0fc", rem: "#c084fc", awake: C.watch }
 const STAGE_LABEL: Record<string, string> = { deep: "Hluboký", light: "Lehký", rem: "REM", awake: "Bdění" }
@@ -358,7 +360,8 @@ const LEVEL_COL: Record<string, string> = { alert: C.alert, watch: C.watch, info
 const LEVEL_ICON: Record<string, any> = { alert: TriangleAlert, watch: Eye, info: Info }
 
 // ---- morning ------------------------------------------------------------------------------
-type Ctx = { onAsk: (q: string) => void; hasAssistant: boolean; notes: Record<string, string>; ai: boolean; pending: boolean }
+type Ctx = { onAsk: (q: string) => void; hasAssistant: boolean; notes: Record<string, string>; ai: boolean; pending: boolean
+  onProgram: (key: string, go: boolean) => Promise<boolean> }
 const note = (c: Ctx, k: string) => <AiNote text={c.notes[k]} ai={c.ai} pending={c.pending} />
 
 function morningCards(r: any, c: Ctx): Card[] {
@@ -715,6 +718,90 @@ function WeekPlan({ p, text }: { p: any; text?: string }) {
   )
 }
 
+// ---- bedtime mobility (evening, backend metrics/mobility.py) -------------------------------
+function MobilityEx({ x, i, done, onDone }: { x: any; i: number; done: boolean; onDone: () => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <li className="py-2.5" data-testid="mobility-ex">
+      <div className="flex items-start gap-3">
+        <button type="button" onClick={onDone} aria-pressed={done} aria-label={done ? "Odznačit cvik" : "Cvik hotový"}
+          className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border transition ${done ? "border-accent bg-accent text-ink" : "border-white/25 text-fg-3"}`}>
+          {done ? <Check className="size-3.5" aria-hidden /> : <span className="text-[11px] font-bold tabular-nums">{i + 1}</span>}
+        </button>
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex min-w-0 flex-1 items-start gap-2 text-left">
+          <span className="min-w-0 flex-1">
+            <b className={`block text-[14px] leading-5 ${done ? "text-fg-3 line-through" : "text-fg"}`}>{x.name}</b>
+            <span className="block text-[12px] tabular-nums text-fg-2">{x.dose}</span>
+            {x.extraFrom && <span className="block text-[11px] text-fg-3">{`navíc z programu ${x.extraFrom}`}</span>}
+            {x.careful && <span className="mt-0.5 block text-[11.5px] leading-4 text-watch">{`Bolest: ${x.careful}. Jen do velmi mírného tahu, nebo cvik vynechte.`}</span>}
+          </span>
+          <ChevronRight className={`mt-0.5 size-4 shrink-0 text-fg-3 transition ${open ? "rotate-90" : ""}`} aria-hidden />
+        </button>
+      </div>
+      {open && (
+        <div className="ml-9 mt-1.5 animate-[careReveal_.25s_ease-out]">
+          <ol className="grid gap-1.5">
+            {(x.steps?.length ? x.steps : [x.how]).map((st: string, k: number) => (
+              <li key={k} className="flex gap-2 text-[12.5px] leading-[18px] text-fg-soft">
+                <span className="grid size-[18px] shrink-0 place-items-center rounded-full bg-accent/15 text-[10.5px] font-bold text-accent">{k + 1}</span>
+                <span>{st}</span>
+              </li>
+            ))}
+          </ol>
+          {x.caution && <p className="mt-1.5 rounded-[10px] bg-watch/10 px-2.5 py-1.5 text-[11.5px] leading-4 text-watch">{x.caution}</p>}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function Mobility({ m, text, onProgram }: { m: any; text?: string; onProgram: (key: string, go: boolean) => Promise<boolean> }) {
+  const [done, setDone] = useState<string[]>([])
+  const [saved, setSaved] = useState<boolean>(!!m.saved)
+  const [busy, setBusy] = useState(false)
+  const n = m.exercises.length
+  const run = async (go: boolean) => {
+    setBusy(true)
+    try { if (await onProgram(m.program.key, go)) setSaved(true) } finally { setBusy(false) }
+  }
+  return (
+    <div data-testid="mobility">
+      <Lbl>Mobilita před spaním</Lbl>
+      <Big>{m.program.name}</Big>
+      <Sub><span>{m.why}</span>{m.also && <span>{` ${m.also}`}</span>}</Sub>
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <Tile label="Cviků" value={n} sub={m.short ? `zkráceně z ${m.program.count}` : undefined} />
+        <Tile label="Čas" value={`${m.minutes} min`} sub="zhruba" />
+        <Tile label="Hotovo" value={`${done.length}/${n}`} col={done.length === n ? C.ok : undefined} />
+      </div>
+      <AiNote text={text} ai={false} pending={false} />
+      <Panel>
+        <Lbl>Cviky</Lbl>
+        <p className="mt-1 text-[11px] text-fg-3">Klepnutím na cvik zobrazíte provedení, kroužkem ho odškrtnete.</p>
+        <ul className="mt-1 divide-y divide-white/[.06]" data-no-tap>
+          {m.exercises.map((x: any, i: number) => (
+            <MobilityEx key={x.id} x={x} i={i} done={done.includes(x.id)}
+              onDone={() => setDone(done.includes(x.id) ? done.filter((y) => y !== x.id) : [...done, x.id])} />
+          ))}
+        </ul>
+      </Panel>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button type="button" disabled={busy} onClick={() => run(true)} data-testid="mobility-go"
+          className="flex items-center justify-center gap-1.5 rounded-full bg-accent px-3 py-2.5 text-[13px] font-bold text-ink disabled:opacity-60">
+          <Play className="size-4" aria-hidden />Cvičit s časovačem
+        </button>
+        <button type="button" disabled={busy || saved} onClick={() => run(false)} data-testid="mobility-save"
+          className="flex items-center justify-center gap-1.5 rounded-full border border-white/20 px-3 py-2.5 text-[13px] font-bold text-fg disabled:opacity-70">
+          {saved ? <><BookmarkCheck className="size-4 text-accent" aria-hidden />Uloženo</> : <><Bookmark className="size-4" aria-hidden />Uložit na později</>}
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] leading-4 text-fg-3">
+        {saved ? `Program ${m.program.name} máte v Péči mezi svými programy, s časovačem výdrží.` : "Uložený program najdete v Péči mezi svými programy, s časovačem výdrží."}
+      </p>
+    </div>
+  )
+}
+
 // ---- evening ------------------------------------------------------------------------------
 const TYPE_COL: Record<string, string> = { "dlouhý": C.load, "kvalitní": C.alert, "lehký": C.info, volno: C.fg4, "lehce / volno": C.fg4 }
 
@@ -855,6 +942,7 @@ function eveningCards(r: any, c: Ctx): Card[] {
       </>
     ),
   })
+  if (r.mobility) cards.push({ key: "mobility", title: "Mobilita", body: <Mobility m={r.mobility} text={c.notes.mobility} onProgram={c.onProgram} /> })
   cards.push({
     key: "tonight", title: "Na noc", body: (
       <>
@@ -930,6 +1018,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
   const { me, boot, viewing, touring, refresh } = useApp()
   const rid = (viewing || touring) ? undefined : (me?.runner_id as string | undefined)
   const { available, open: ask } = useAssistant()
+  const navigate = useNavigate()
   const [now, setNow] = useState(() => new Date())
   const [rep, setRep] = useState<{ kind: Kind; day: string; data: any } | null>(null)
   const [show, setShow] = useState(false)
@@ -980,8 +1069,20 @@ export function ReportProvider({ children }: { children: ReactNode }) {
   }, [rid, repKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const value = useMemo<ReportApi>(() => ({ kind: rep ? rep.kind : null, open: () => setShow(true) }), [rep])
   const onAsk = (q: string) => { setShow(false); setTimeout(() => ask(q), 50) }
+  // owner request 2026-10-05: a programme from the report — saved among the runner's
+  // programmes (the same one twice is the same), optionally opened in Péče right away
+  const onProgram = async (key: string, go: boolean) => {
+    if (!rid) return false
+    try { await api.startSelfProgram(rid, { template: key }) } catch { return false }
+    if (go) {
+      setShow(false)
+      navigate(`/app/messages?sub=program&prog=${key}`)
+      setTimeout(() => window.dispatchEvent(new CustomEvent(CARE_SUB_EVENT, { detail: "program" })), 80)
+    }
+    return true
+  }
   const aiNow = ai && ai.key === repKey ? ai : null
-  const ctx = rep ? { onAsk, hasAssistant: available, notes: { ...(rep.data?.notes || {}), ...(aiNow?.notes || {}) },
+  const ctx = rep ? { onAsk, onProgram, hasAssistant: available, notes: { ...(rep.data?.notes || {}), ...(aiNow?.notes || {}) },
     ai: aiNow ? aiNow.source === "ai" : !rep.data?.aiPending, pending: !!rep.data?.aiPending && !aiNow } : null
   const cards = show && rep && ctx ? (rep.kind === "morning" ? morningCards(rep.data, ctx) : eveningCards(rep.data, ctx)) : null
   return (
