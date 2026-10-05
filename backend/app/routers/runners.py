@@ -1004,6 +1004,21 @@ def get_daily_report(rid: str, request: Request, kind: str = "morning", user: mo
     return _report_lang(db, r, request)
 
 
+@router.get("/{rid}/day")
+def get_day_course(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Today from waking: the states timeline, the load outside training against the usual
+    day and readiness over the day (training and the day outside it), for the Trénink tab."""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import capacity as C
+    from ..metrics import daily_report as DR
+    runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    view = DR._day_view(db, rid, E.today_date(), None, 0.0)
+    course = C.readiness_through_day(db, rid, runner)
+    if view is None or course is None:
+        return {"available": False, "dataDays": (course or {}).get("dataDays")}
+    return {"available": True, "view": view, "readiness": course}
+
+
 def _report_lang(db, r: dict, request) -> dict:
     """British English card notes when the app asks for it (the rest is translated in the page)."""
     if (request.headers.get("X-Doslap-Lang") or "").lower() != "en":

@@ -105,3 +105,27 @@ def test_the_day_outside_training_lowers_todays_readiness(client, db_session):
     assert a["dayDrop"] > 0 and a["drop"] == a["sessionDrop"] + a["dayDrop"]
     assert rd["score"] == rd["morningScore"] - a["drop"] and rd["morningScore"] == (before.get("morningScore") or before["score"])
     assert 0 < rd["parts"]["dayLoad"] <= C.NT_DAY_CAP and rd["parts"]["dayStressNow"] > 0
+
+
+def test_readiness_over_the_day_ends_at_the_shown_readiness(client, db_session):
+    rid = register(client, "dl3@test.cz", "Den", "runner").json()["runner_id"]
+    r = db_session.query(models.Runner).filter(models.Runner.id == rid).first()
+    r.engine_mode = "v3"
+    db_session.commit()
+    seed_runs(db_session, rid, days=60)
+    seed_details(db_session, rid, days=14)
+    t = E.today_date().isoformat()
+    rows = db_session.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.nt_load.isnot(None)).all()
+    dm = next(x for x in rows if x.date == t)
+    dm.nt_load = max(x.nt_load for x in rows) + 300
+    db_session.commit()
+    rd = E.recompute_assessment(db_session, rid)["capacity"]["readiness"]
+    out = client.get(f"/api/runners/{rid}/day").json()
+    assert out["available"]
+    c = out["readiness"]
+    assert c["morning"] == rd["morningScore"] and c["now"] == rd["score"]
+    scores = [p[1] for p in c["series"]]
+    assert scores[0] == c["morning"] or scores[0] <= c["morning"]
+    assert min(scores) == scores[-1] and c["dayDrop"] > 0          # the day outside training only takes away
+    assert c["nt"]["excess"] > 250 and c["dataDays"] >= 7
+    assert {"timeline", "activities", "stepsHourly"} <= set(out["view"])

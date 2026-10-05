@@ -4414,11 +4414,25 @@
   "kind": "str"
  },
  {
+  "t": "Den mimo trénink (pohyb nad obvyklý den a zvýšený tep v klidu) se do připravenosti začne počítat po",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "den mimo trénink −{} ({})",
   "files": [
    "capacity.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "dnech celodenního tepu z hodinek. Zatím jich je",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "dnes až",
@@ -5043,7 +5057,8 @@
  {
   "t": "Teď",
   "files": [
-   "capacity.tsx"
+   "capacity.tsx",
+   "report.tsx"
   ],
   "kind": "str"
  },
@@ -5136,6 +5151,13 @@
  },
  {
   "t": "vaše hodnocení: {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "včera {} min · sbírám data o obvyklém dni ({} z {} dní)",
   "files": [
    "capacity.tsx"
   ],
@@ -5841,7 +5863,8 @@
  {
   "t": "Ráno",
   "files": [
-   "care.tsx"
+   "care.tsx",
+   "report.tsx"
   ],
   "kind": "str"
  },
@@ -9533,6 +9556,13 @@
   "kind": "str"
  },
  {
+  "t": "Jak se dnes měnila připravenost od probuzení do teď. Ráno ji určují noční HRV, klidový tep a spánek. Během dne ji snižuje trénink podle své náročnosti a den mimo trénink: pohyb nad váš obvyklý den (nejvýš o 8 bodů) a minuty zvýšeného tepu v klidu. Řádky pod křivkou ukazují, co jste dělali: trénink, pohyb, zvýšený tep v klidu, klid a spánek, po 15 minutách z celodenního tepu a kroků. Obvyklý den je medián vašich 28 předchozích dní; počítá se od 7 dní dat. Zítra ráno vše nahradí noční data.",
+  "files": [
+   "metricinfo.ts"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Kadence — počet kroků za minutu. Pokles kadence při stejném tempu často doprovází únavu. Neexistuje jedno správné číslo; klíčová je stabilita vůči vaší normě.",
   "files": [
    "metricinfo.ts"
@@ -11177,13 +11207,6 @@
   "kind": "jsx"
  },
  {
-  "t": "· energie {}",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "· ještě {}",
   "files": [
    "report.tsx"
@@ -11334,6 +11357,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Celodenní tep z hodinek za dnešek zatím nedorazil. Po synchronizaci se tu ukáže, jak se během dne měnila připravenost a kolik zátěže přinesl den mimo trénink.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Celodenní tep z hodinek zatím nedorazil. Po synchronizaci se průběh doplní.",
   "files": [
    "report.tsx"
@@ -11369,6 +11399,13 @@
   "kind": "jsx"
  },
  {
+  "t": "den mimo trénink",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Dnes odvedeno · dnes ještě smíte",
   "files": [
    "report.tsx"
@@ -11377,6 +11414,13 @@
  },
  {
   "t": "Dnešní noc",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "dní celodenního tepu. Do té doby se den mimo trénink do připravenosti ani do Celkové zátěže nepočítá.",
   "files": [
    "report.tsx"
   ],
@@ -11408,7 +11452,7 @@
   "files": [
    "report.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Energie {} → {}",
@@ -11639,6 +11683,13 @@
   "kind": "str"
  },
  {
+  "t": "Nad obvyklý den +{} j.z. — to se počítá do Celkové zátěže a snižuje připravenost.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Nic zvláštního k hlídání.",
   "files": [
    "report.tsx"
@@ -11665,6 +11716,20 @@
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Obvyklý den se teprve učím.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "od probuzení do teď",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Od rána do teď",
@@ -11836,6 +11901,13 @@
   "kind": "str"
  },
  {
+  "t": "Sbírám data o vašem obvyklém dni:",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "skóre {}",
   "files": [
    "report.tsx"
@@ -11919,11 +11991,25 @@
   "kind": "str"
  },
  {
+  "t": "V rámci obvyklého dne — připravenost ani Celkovou zátěž to nemění.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Váš den",
   "files": [
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Váš den · připravenost a zátěž",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Včera",
@@ -11987,6 +12073,13 @@
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Zátěž mimo trénink",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Zavřít report",

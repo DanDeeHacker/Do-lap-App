@@ -431,7 +431,7 @@ def _download_and_merge(db: DBSession, rid: str, garmin) -> dict:
     return {"ok": True, "runner_id": rid, **added, "meta": seed.get("_meta")}
 
 
-DAY_DETAIL_RECENT, DAY_DETAIL_BACKFILL = 3, 14
+DAY_DETAIL_RECENT, DAY_DETAIL_BACKFILL, DAY_DETAIL_MAX_FETCH = 3, 28, 16   # fetches per sync (the rest next sync)
 
 
 def fetch_day_details(db: DBSession, rid: str, garmin, today=None) -> int:
@@ -441,15 +441,21 @@ def fetch_day_details(db: DBSession, rid: str, garmin, today=None) -> int:
     Body Battery and stress average when the day row has none. Never raises."""
     try:
         today = today or E.today_date()
-        have = {r.date for r in db.query(models.DailyDetail.date).filter(models.DailyDetail.runner_id == rid).all()}
-        days = DAY_DETAIL_RECENT if have else DAY_DETAIL_BACKFILL
-        n = 0
+        # days already stored with the raw all-day heart rate; a day without it (stored by the
+        # v1 reports, or before the watch uploaded it) is fetched again, up to 28 days back —
+        # the own day metrics need ≥ 7 earlier days for the usual day (dayload.py, capacity.py)
+        have = {r.date for r in db.query(models.DailyDetail.date, models.DailyDetail.raw).filter(
+            models.DailyDetail.runner_id == rid).all() if r.raw}
+        days = DAY_DETAIL_BACKFILL
+        n = fetched = 0
         for k in range(days):
             d = (today - _dt.timedelta(days=k)).isoformat()
-            if k >= DAY_DETAIL_RECENT and d in have:
+            if k >= DAY_DETAIL_RECENT and (d in have or fetched >= DAY_DETAIL_MAX_FETCH):
                 continue
+            fetched += 1
             det = garmin_live.fetch_day_detail(garmin, d)
-            if not det.get("sleep") and not det.get("day") and not det.get("raw"):
+            settled = k >= DAY_DETAIL_RECENT        # an older day without data won't get any: mark it, don't ask again
+            if not det.get("sleep") and not det.get("day") and not det.get("raw") and not settled:
                 continue
             row = db.query(models.DailyDetail).filter(models.DailyDetail.runner_id == rid, models.DailyDetail.date == d).first()
             if row is None:
@@ -457,7 +463,7 @@ def fetch_day_details(db: DBSession, rid: str, garmin, today=None) -> int:
                 db.add(row)
             row.sleep = det.get("sleep") or row.sleep
             row.day = det.get("day") or row.day
-            row.raw = det.get("raw") or row.raw
+            row.raw = det.get("raw") or row.raw or ({"none": True} if settled else None)
             row.fetched_at = E.now_iso()
             dm = db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.date == d).first()
             day = det.get("day") or {}

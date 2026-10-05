@@ -1,0 +1,18 @@
+{
+"Den mimo trénink (pohyb nad obvyklý den a zvýšený tep v klidu) se do připravenosti začne počítat po": "The day outside training (movement above a usual day and raised resting heart rate) starts counting towards readiness after",
+"dnech celodenního tepu z hodinek. Zatím jich je": "days of all-day heart rate from the watch. So far there are",
+"včera {} min · sbírám data o obvyklém dni ({} z {} dní)": "yesterday {0} min · learning your usual day ({1} of {2} days)",
+"Jak se dnes měnila připravenost od probuzení do teď. Ráno ji určují noční HRV, klidový tep a spánek. Během dne ji snižuje trénink podle své náročnosti a den mimo trénink: pohyb nad váš obvyklý den (nejvýš o 8 bodů) a minuty zvýšeného tepu v klidu. Řádky pod křivkou ukazují, co jste dělali: trénink, pohyb, zvýšený tep v klidu, klid a spánek, po 15 minutách z celodenního tepu a kroků. Obvyklý den je medián vašich 28 předchozích dní; počítá se od 7 dní dat. Zítra ráno vše nahradí noční data.": "How your readiness changed today from waking until now. In the morning it is set by overnight HRV, resting heart rate and sleep. During the day it is lowered by training according to how demanding it was and by the day outside training: movement above your usual day (by at most 8 points) and minutes of raised resting heart rate. The rows under the curve show what you were doing: training, movement, raised resting heart rate, rest and sleep, in 15-minute steps from all-day heart rate and steps. Your usual day is the median of your previous 28 days; it counts from 7 days of data. Tomorrow morning the overnight data replace all of this.",
+"Celodenní tep z hodinek za dnešek zatím nedorazil. Po synchronizaci se tu ukáže, jak se během dne měnila připravenost a kolik zátěže přinesl den mimo trénink.": "Today's all-day heart rate from the watch hasn't arrived yet. After a sync you'll see here how your readiness changed during the day and how much load the day outside training brought.",
+"den mimo trénink": "day outside training",
+"dní celodenního tepu. Do té doby se den mimo trénink do připravenosti ani do Celkové zátěže nepočítá.": "days of all-day heart rate. Until then, the day outside training counts towards neither readiness nor Total load.",
+"Nad obvyklý den +{} j.z. — to se počítá do Celkové zátěže a snižuje připravenost.": "Above a usual day +{0} l.u. — this counts towards Total load and lowers readiness.",
+"Obvyklý den se teprve učím.": "Still learning your usual day.",
+"od probuzení do teď": "from waking until now",
+"Sbírám data o vašem obvyklém dni:": "Learning your usual day:",
+"V rámci obvyklého dne — připravenost ani Celkovou zátěž to nemění.": "Within a usual day — it changes neither readiness nor Total load.",
+"Váš den · připravenost a zátěž": "Your day · readiness and load",
+"Zátěž mimo trénink": "Load outside training",
+"Ráno": "Morning",
+"Teď": "Now"
+}

@@ -37,8 +37,12 @@ def test_fetch_day_details_fills_rows_and_never_raises(client, db_session):
         def get_user_summary(self, d): return garmin_day_payloads(d)[1]
     db_session.add(models.DailyMetric(runner_id=rid, date=date(2026, 10, 3).isoformat(), sleep_h=7.2))
     db_session.commit()
-    assert fetch_day_details(db_session, rid, G(), today=date(2026, 10, 3)) == 14        # first time: 14 days back
-    assert fetch_day_details(db_session, rid, G(), today=date(2026, 10, 3)) == 3         # then today + 2 days
+    # a day stored by the v1 reports, without the raw all-day heart rate, is fetched again
+    db_session.add(models.DailyDetail(runner_id=rid, date="2026-09-30", sleep={"start": "23:00"}))
+    db_session.commit()
+    assert fetch_day_details(db_session, rid, G(), today=date(2026, 10, 3)) == 16        # first sync: at most 16 days
+    assert fetch_day_details(db_session, rid, G(), today=date(2026, 10, 3)) == 15        # then today + 2 and the rest of 28
+    assert fetch_day_details(db_session, rid, G(), today=date(2026, 10, 3)) == 3         # older days without data are marked
     dm = db_session.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid, models.DailyMetric.date == "2026-10-03").one()
     assert dm.body_battery == 80 and dm.stress_avg == 29
 

@@ -81,7 +81,12 @@ function factorReading(k: string, r: any): string | null {
   if (k === "soreness") return c?.soreness == null ? null : `v check-inu ${c.soreness}/10 · snižuje od 6/10`
   if (k === "fatigue") return c?.fatigue == null ? null : `v check-inu ${c.fatigue}/10 · snižuje od 6/10`
   if (k === "stress") return c?.stress == null ? null : `v check-inu ${c.stress}/10 · snižuje od 6/10, počítá se 0,6×`
-  if (k === "dayStress") { const ds = r?.inputs?.dayStress; return ds ? `včera ${ds.yesterday} min${ds.usual != null ? ` · obvykle ${ds.usual} min` : ""} · z celodenního tepu, počítá se 0,6×` : null }
+  if (k === "dayStress") {
+    const ds = r?.inputs?.dayStress
+    if (!ds) return null
+    if (ds.need && ds.n < ds.need) return `včera ${ds.yesterday} min · sbírám data o obvyklém dni (${ds.n} z ${ds.need} dní)`
+    return `včera ${ds.yesterday} min${ds.usual != null ? ` · obvykle ${ds.usual} min` : ""} · z celodenního tepu, počítá se 0,6×`
+  }
   if (k === "session") {
     const a = r?.afterSession
     if (!a) return null
@@ -103,7 +108,9 @@ export function ReadinessFactors({ r }: { r: any }) {
   // doesn't judge HRV / resting HR / sleep, so they are listed apart, not as "in norm"
   const n = r.inputs.night || {}, ci = r.inputs.checkin
   const today = (k: string) => (k === "hrv" ? n.hrv != null : k === "rhr" ? n.rhr != null : k === "sleep" ? n.sleep != null || ci?.sleepQuality != null : k === "dayStress" ? r.inputs?.dayStress != null : ci?.[k] != null)
-  const fine = keys.filter((k) => k !== "session" && !lower.includes(k) && today(k) && factorReading(k, r))
+  const learning = (k: string) => k === "dayStress" && r.inputs?.dayStress?.need && r.inputs.dayStress.n < r.inputs.dayStress.need
+  const fine = keys.filter((k) => k !== "session" && !lower.includes(k) && today(k) && !learning(k) && factorReading(k, r))
+  const dd = r.inputs?.dayData
   const stale = ["hrv", "rhr", "sleep"].filter((k) => !lower.includes(k) && !today(k) && factorReading(k, r))
   const noCheckin = !ci
   const y = r.yesterday
@@ -177,6 +184,11 @@ export function ReadinessFactors({ r }: { r: any }) {
             </span>
           ))}
         </div>
+      )}
+      {dd && dd.days < dd.need && (
+        <p className="mt-3 rounded-[12px] bg-white/[.04] px-3 py-2 text-[12px] leading-5 text-fg-2" data-testid="readiness-collecting">
+          Den mimo trénink (pohyb nad obvyklý den a zvýšený tep v klidu) se do připravenosti začne počítat po {dd.need} dnech celodenního tepu z hodinek. Zatím jich je {dd.days}.
+        </p>
       )}
       {stale.length > 0 && (
         <p className="mt-2 text-[11px] leading-4 text-fg-3">Bez dnešní noci, nezapočítává se: {stale.map((k) => FACTOR_LABEL[k]).join(", ")}.</p>

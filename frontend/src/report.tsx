@@ -8,7 +8,9 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { useAssistant } from "@/assistant"
 import { C, goodCol } from "@/tokens"
-import { ReadinessFactors } from "@/capacity"
+import { ReadinessFactors, readinessCol } from "@/capacity"
+import { InfoDot, Label } from "@/ui"
+import { METRIC_INFO as MI } from "@/metricinfo"
 import { Bed, ChevronRight, Coffee, Eye, Info, MessageCircle, Moon, Sparkles, Sun, TriangleAlert, X } from "lucide-react"
 
 const STAGE_COL: Record<string, string> = { deep: "#4c6ef5", light: "#74c0fc", rem: "#c084fc", awake: C.watch }
@@ -193,17 +195,21 @@ const LANES: { st: number[]; label: string; col: string }[] = [
 ]
 const STATE_NAME = ["spánek", "klid", "mírně zvýšený tep v klidu", "výrazně zvýšený tep v klidu", "lehký pohyb", "pohyb", "trénink"]
 
-function DayTimeline({ v, until, compact = false }: { v: any; until?: number | null; compact?: boolean }) {
+type Curve = { label: string; sub: string; data: [number, number][]; col: string; unit?: string; lo?: number }
+
+export function DayTimeline({ v, until, compact = false, curve }: { v: any; until?: number | null; compact?: boolean; curve?: Curve }) {
   const tl: [number, number, number, number, number][] = v?.timeline || []
-  const en: [number, number][] = v?.energy || []
+  const cv: Curve = curve || { label: "Energie", sub: "0–100", data: v?.energy || [], col: C.accent, lo: 0 }
+  const en: [number, number][] = cv.data
+  const lo = cv.lo ?? 0
   const [pick, setPick] = useState<number | null>(null)
   const ref = useRef<SVGSVGElement>(null)
   if (!tl.length) return null
-  const W = 340, L = 64, R = 8, ew = compact ? 0 : 74, laneH = compact ? 9 : 12, gap = 3
+  const W = 340, L = curve ? 76 : 64, R = 8, ew = compact ? 0 : 74, laneH = compact ? 9 : 12, gap = 3
   const top = compact ? 4 : 10, eTop = top, eBot = top + ew, lTop = eBot + (compact ? 0 : 12)
   const H = lTop + LANES.length * (laneH + gap) + 18
   const x = (m: number) => L + (m / 1440) * (W - L - R)
-  const ey = (e: number) => eBot - (e / 100) * (ew - 6)
+  const ey = (e: number) => eBot - (Math.max(0, e - lo) / (100 - lo)) * (ew - 6)
   const area = en.length > 1 ? `M${x(en[0][0])} ${eBot} ` + en.map(([m, e]) => `L${x(m).toFixed(1)} ${ey(e).toFixed(1)}`).join(" ") + ` L${x(en[en.length - 1][0])} ${eBot} Z` : ""
   const line = en.map(([m, e], i) => `${i ? "L" : "M"}${x(m).toFixed(1)} ${ey(e).toFixed(1)}`).join(" ")
   const at = pick == null ? null : tl.reduce((b, t) => (Math.abs(t[0] + 7.5 - pick) < Math.abs(b[0] + 7.5 - pick) ? t : b), tl[0])
@@ -228,12 +234,12 @@ function DayTimeline({ v, until, compact = false }: { v: any; until?: number | n
         ))}
         {!compact && (
           <g>
-            <text x={L - 8} y={eTop + 10} fontSize="10" fill={C.fg2} textAnchor="end" fontWeight="700">Energie</text>
-            <text x={L - 8} y={eTop + 22} fontSize="9" fill={C.fg3} textAnchor="end">0–100</text>
+            <text x={L - 8} y={eTop + 10} fontSize="10" fill={C.fg2} textAnchor="end" fontWeight="700">{cv.label}</text>
+            <text x={L - 8} y={eTop + 22} fontSize="9" fill={C.fg3} textAnchor="end">{cv.sub}</text>
             <line x1={L} x2={W - R} y1={eBot} y2={eBot} stroke="rgb(255 255 255 / .12)" />
-            {area && <path d={area} fill={C.accent} opacity={0.12} />}
-            {line && <path d={line} fill="none" stroke={C.accent} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
-            {en.length > 0 && (() => { const [m, e] = en[en.length - 1]; return <g><circle cx={x(m)} cy={ey(e)} r={4} fill={C.accent} stroke="#0c201d" strokeWidth={2} /><text x={Math.min(W - R - 2, x(m) + 6)} y={ey(e) - 6} fontSize="10.5" fontWeight="800" fill={C.fg} textAnchor={x(m) > W - 40 ? "end" : "start"}>{e}</text></g> })()}
+            {area && <path d={area} fill={cv.col} opacity={0.12} />}
+            {line && <path d={line} fill="none" stroke={cv.col} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
+            {en.length > 0 && (() => { const [m, e] = en[en.length - 1]; return <g><circle cx={x(m)} cy={ey(e)} r={4} fill={cv.col} stroke="#0c201d" strokeWidth={2} /><text x={Math.min(W - R - 2, x(m) + 6)} y={ey(e) - 6} fontSize="10.5" fontWeight="800" fill={C.fg} textAnchor={x(m) > W - 40 ? "end" : "start"}>{e}{cv.unit || ""}</text></g> })()}
           </g>
         )}
         {/* lanes */}
@@ -259,9 +265,99 @@ function DayTimeline({ v, until, compact = false }: { v: any; until?: number | n
       </svg>
       {at && (
         <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[110%] whitespace-nowrap rounded-[10px] border border-white/10 bg-[#0c201d] px-2.5 py-1.5 text-[11.5px] text-fg shadow-lg" data-testid="timeline-tip">
-          <b>{hmShort(at[0])}–{hmShort(at[0] + 15)}</b> · {STATE_NAME[at[2]]} · {at[1]} tepů/min{eAt ? ` · energie ${eAt[1]}` : ""}
+          <b>{hmShort(at[0])}–{hmShort(at[0] + 15)}</b> · {STATE_NAME[at[2]]} · {at[1]} tepů/min{eAt ? ` · ${cv.label.toLowerCase()} ${eAt[1]}${cv.unit || ""}` : ""}
         </div>
       )}
+    </div>
+  )
+}
+
+// Trénink tab: today's course — readiness from waking to now (training and the day
+// outside it, as the engine counts them), the states lanes and the outside-training load
+// against the usual day
+export function DayCourse() {
+  const { boot } = useApp()
+  const rid = boot?.runner?.id
+  const [d, setD] = useState<any>(null)
+  const computed = boot?.assessment?.computed_at
+  useEffect(() => {
+    if (!rid) return
+    let live = true
+    api.dayCourse(rid).then((x: any) => live && setD(x)).catch(() => live && setD({ available: false }))
+    return () => { live = false }
+  }, [rid, computed])
+  const inp = boot?.assessment?.capacity?.readiness?.inputs || {}
+  const dd = inp.dayData
+  if (!d) return null
+  const r = d.readiness
+  const v = d.view
+  const collecting = dd && dd.days < dd.need
+  return (
+    <section className="card mt-4 p-4 md:p-6" data-testid="day-course">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="flex items-center gap-1.5"><Label>Váš den · připravenost a zátěž</Label><InfoDot text={MI.dayCourse} label="Váš den" /></span>
+        <span className="text-[12px] text-fg-3">od probuzení do teď</span>
+      </div>
+      {!d.available || !r ? (
+        <p className="mt-3 text-[13px] leading-5 text-fg-2">Celodenní tep z hodinek za dnešek zatím nedorazil. Po synchronizaci se tu ukáže, jak se během dne měnila připravenost a kolik zátěže přinesl den mimo trénink.</p>
+      ) : (
+        <>
+          <div className="mt-3 flex flex-wrap items-end gap-x-5 gap-y-2">
+            <div><p className="text-[11px] text-fg-3">Ráno</p><p className="t-num text-[26px] leading-none" style={{ color: readinessCol(r.morning) }}>{r.morning}<small className="text-[13px] text-fg-3"> %</small></p></div>
+            <span className="pb-1 text-fg-3">→</span>
+            <div><p className="text-[11px] text-fg-3">Teď</p><p className="t-num text-[26px] leading-none" style={{ color: readinessCol(r.now) }}>{r.now}<small className="text-[13px] text-fg-3"> %</small></p></div>
+            <div className="ml-auto flex flex-wrap gap-1.5 pb-0.5">
+              <DropChip label="trénink" v={r.sessionDrop} col={LANES[0].col} />
+              <DropChip label="den mimo trénink" v={r.dayDrop} col={LANES[2].col} />
+            </div>
+          </div>
+          <div className="mt-3">
+            <DayTimeline v={v} curve={{ label: "Připravenost", sub: "%", data: r.series.map((p: number[]) => [p[0], p[1]]), col: readinessCol(r.now), unit: " %", lo: Math.max(0, Math.min(60, Math.floor((Math.min(...r.series.map((p: number[]) => p[1])) - 10) / 10) * 10)) }} />
+          </div>
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            <Tile label="Trénink" value={`${Math.round(v.trainingMin || 0)}′`} />
+            <Tile label="Pohyb" value={`${Math.round(v.activeMin || 0)}′`} />
+            <Tile label="Zvýšený tep" value={`${Math.round((v.highMin || 0) + (v.mildMin || 0))}′`} />
+            <Tile label="Klid" value={`${Math.round(v.calmMin || 0)}′`} />
+          </div>
+          <NtVsUsual nt={r.nt} />
+        </>
+      )}
+      {collecting && (
+        <p className="mt-3 rounded-[12px] bg-white/[.04] px-3 py-2 text-[12px] leading-5 text-fg-2" data-testid="day-collecting">
+          Sbírám data o vašem obvyklém dni: {dd.days} ze {dd.need} dní celodenního tepu. Do té doby se den mimo trénink do připravenosti ani do Celkové zátěže nepočítá.
+        </p>
+      )}
+    </section>
+  )
+}
+
+function DropChip({ label, v, col }: { label: string; v: number; col: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[.06] px-2.5 py-1 text-[11.5px] font-bold text-fg-2">
+      <i className="size-2 rounded-full" style={{ background: col }} />{label} <b className={v > 0 ? "text-alert-soft" : "text-fg-3"}>{v > 0 ? `−${v}` : "0"}</b>
+    </span>
+  )
+}
+
+function NtVsUsual({ nt }: { nt: any }) {
+  if (!nt || nt.today == null) return null
+  const max = Math.max(1, nt.today, nt.usual || 0) * 1.15
+  const over = nt.usual != null && nt.today > nt.usual
+  return (
+    <div className="mt-4" data-testid="nt-vs-usual">
+      <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
+        <span className="font-semibold text-fg-soft">Zátěž mimo trénink</span>
+        <span className="tabular-nums text-fg-2"><b className="text-fg">{nt.today}</b> j.z.{nt.usual != null ? ` · obvykle ${nt.usual}` : ""}</span>
+      </div>
+      <div className="relative mt-1.5 h-2.5 rounded-full bg-white/[.06]">
+        <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${(Math.min(nt.today, nt.usual ?? nt.today) / max) * 100}%`, background: LANES[1].col }} />
+        {over && <i className="absolute inset-y-0 rounded-r-full" style={{ left: `${(nt.usual / max) * 100}%`, width: `${((nt.today - nt.usual) / max) * 100}%`, background: LANES[2].col }} />}
+        {nt.usual != null && <i className="absolute -top-1 h-[18px] w-0.5 bg-fg" style={{ left: `calc(${(nt.usual / max) * 100}% - 1px)` }} />}
+      </div>
+      <p className="mt-1.5 text-[11.5px] leading-[17px] text-fg-3">
+        {nt.usual == null ? "Obvyklý den se teprve učím." : over ? `Nad obvyklý den +${nt.excess} j.z. — to se počítá do Celkové zátěže a snižuje připravenost.` : "V rámci obvyklého dne — připravenost ani Celkovou zátěž to nemění."}
+      </p>
     </div>
   )
 }

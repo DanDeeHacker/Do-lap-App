@@ -414,7 +414,7 @@ def run_exposures(db, rid, hrmax, rhr):
             exp["descent"] = (desc or 0.0) * (fac.get(a.id) or default_fac)
             exp["ascent"] = a.ascent_m or 0.0
             zones = zone_minutes(a, hists.get(a.id), hrmax, rhr, lthr)
-        out.append({"id": a.id, "date": a.started_at[:10], "run": run, "title": a.title, "sport": a.sport or "running",
+        out.append({"id": a.id, "date": a.started_at[:10], "at": a.started_at, "run": run, "title": a.title, "sport": a.sport or "running",
                     "heavyLower": E.heavy_lower(a, ctx), "rpe": E.session_rpe(a, ctx),
                     "durationMin": a.duration_min, "strengthFocus": a.strength_focus,
                     "km": a.distance_km, "exp": exp, "avgHr": a.avg_hr,
@@ -801,9 +801,10 @@ def raised_minutes(row) -> float | None:
     return (row.rest_high_min or 0) + 0.5 * (row.rest_mild_min or 0)
 
 
-def day_stress_part(dm: dict, d0) -> float | None:
-    """Deficit 0–DAY_STRESS_W from yesterday's raised resting HR vs the 28 days before."""
-    y = raised_minutes(dm.get((d0 - timedelta(days=1)).isoformat()))
+def day_stress_part(dm: dict, d0, value: float | None = None) -> float | None:
+    """Deficit 0–DAY_STRESS_W from yesterday's raised resting HR vs the 28 days before
+    (`value` overrides yesterday's minutes: today's so far, for the day's course)."""
+    y = value if value is not None else raised_minutes(dm.get((d0 - timedelta(days=1)).isoformat()))
     if y is None:
         return None
     base = [v for v in (raised_minutes(dm.get((d0 - timedelta(days=j)).isoformat())) for j in range(2, 30)) if v is not None]
@@ -949,7 +950,12 @@ def readiness_inputs(db, rid, day: str) -> dict:
     yv = raised_minutes(dm_all.get((d0 - timedelta(days=1)).isoformat()))
     bv = [v for v in (raised_minutes(dm_all.get((d0 - timedelta(days=j)).isoformat())) for j in range(2, 30)) if v is not None]
     if yv is not None:
-        out["dayStress"] = {"yesterday": round(yv), "usual": round(E.mean(bv)) if bv else None, "n": len(bv)}
+        out["dayStress"] = {"yesterday": round(yv), "usual": round(E.mean(bv)) if bv else None, "n": len(bv),
+                            "need": DAY_STRESS_MIN_DAYS}
+    # how many earlier days of all-day heart rate the usual day rests on (the day outside
+    # training counts from NT_USUAL_MIN of them)
+    out["dayData"] = {"days": sum(1 for j in range(1, 29) if getattr(dm_all.get((d0 - timedelta(days=j)).isoformat()), "nt_load", None) is not None),
+                      "need": NT_USUAL_MIN}
     cks = [c for c in data.checkins if day <= c.submitted_at < day + "T99"]
     if cks:
         c = max(cks, key=lambda x: x.submitted_at or "")
@@ -1210,6 +1216,117 @@ def day_now(db, rid, sessions, nt_days: dict, t_iso: str) -> dict | None:
         out["stress"] = {"deficit": ds, "min": round(raised_minutes(dm.get(t_iso)) or 0),
                          "usual": round(E.mean(base)) if base else None}
     return out or None
+
+
+def readiness_through_day(db, rid, runner=None) -> dict | None:
+    """Readiness over today, from waking to the last all-day heart-rate sample: the morning
+    score, minus each session from the moment it started (after_session), minus the day
+    outside training as it accumulates (day_now: the load above the usual day and the
+    raised resting heart rate so far). The cumulative load and minutes follow the 15-minute
+    timeline, scaled so the last point equals today's totals — the last point is the
+    readiness shown now. None without today's all-day heart rate."""
+    from . import dayload as DL
+    today = E.today_date()
+    t_iso = today.isoformat()
+    res = DL.day_result(db, rid, t_iso)
+    if res is None or not res.get("timeline"):
+        return None
+    data = D.of(db, rid)
+    runs_only = E.acts(data, rid, "load")
+    hrmax, rhr = E.hr_bounds(runs_only, E.daily(data, rid, 180), runner.birth_year if runner else None,
+                             runner.hr_max if runner else None)
+    sessions = run_exposures(data, rid, hrmax, rhr)
+    nt_days = nontraining_daily(data, rid)
+    _f, parts_m, morning = readiness_by_day(data, rid, [t_iso]).get(t_iso, (1.0, {}, 100))
+    nights = {m.date[:10] for m in data.daily if m.date[:10] == t_iso
+              and (m.hrv_ms is not None or m.resting_hr is not None or m.sleep_h is not None)}
+    dm = {m.date[:10]: m for m in data.daily if m.date >= (today - timedelta(days=31)).isoformat()}
+    tl = res["timeline"]
+    # cumulative outside-training load and raised minutes per bucket, scaled to the day's totals
+    cum_nt, cum_r, a_nt, a_r = [], [], 0.0, 0.0
+    for m, _hr, st, nt, _tr in tl:
+        a_nt += nt or 0.0
+        a_r += DL.BUCKET * (1.0 if st == DL.STATE["high"] else 0.5 if st == DL.STATE["mild"] else 0.0)
+        cum_nt.append(a_nt)
+        cum_r.append(a_r)
+    # the totals the engine counts (the day's DailyMetric row, written by dayload.update_day)
+    row = dm.get(t_iso)
+    tot_nt = getattr(row, "nt_load", None)
+    if tot_nt is None:
+        tot_nt = res.get("ntLoad") or 0.0
+    tot_r = raised_minutes(row)
+    if tot_r is None:
+        tot_r = (res.get("highMin") or 0) + 0.5 * (res.get("mildMin") or 0)
+    k_nt = tot_nt / a_nt if a_nt > 0 else 0.0
+    k_r = tot_r / a_r if a_r > 0 else 0.0
+    # the usual day the excess is measured against (as nontraining_daily)
+    prev = sorted(m.nt_load for k2, m in dm.items() if k2 < t_iso and k2 >= (today - timedelta(days=NT_USUAL_DAYS)).isoformat()
+                  and getattr(m, "nt_load", None) is not None)
+    usual = prev[len(prev) // 2] if len(prev) >= NT_USUAL_MIN else None
+
+    # a session imported without a start time starts where the heart rate shows training
+    t_start = next((row[0] for row in tl if row[2] == DL.STATE["training"]), None)
+
+    def start_of(s):
+        mm = _minute(s.get("at")) if len(s.get("at") or "") > 11 else None
+        return mm if mm is not None else t_start
+
+    def at(minute: float):
+        started = [s for s in sessions if s["date"] != t_iso or start_of(s) is None or start_of(s) <= minute]
+        parts = dict(parts_m)
+        sess = after_session(started, t_iso, t_iso in nights, hrmax, rhr)
+        if sess and sess["deficit"] > 0:
+            parts["session"] = sess["deficit"]
+        s_score = readiness_from(parts)[1]
+        i = max((j for j, row in enumerate(tl) if row[0] <= minute), default=None)
+        nt_now = cum_nt[i] * k_nt if i is not None else 0.0
+        r_now = cum_r[i] * k_r if i is not None else 0.0
+        nd = dict(nt_days)
+        if usual is not None:
+            ex = nt_now - usual
+            if ex > 0:
+                nd[t_iso] = round(ex, 1)
+            else:
+                nd.pop(t_iso, None)
+        dn = day_now(data, rid, started, nd, t_iso) or {}
+        ds = day_stress_part(dm, today + timedelta(days=1), value=r_now) if r_now > 0 else None
+        if dn.get("nt"):
+            parts["dayLoad"] = dn["nt"]["deficit"]
+        if ds:
+            parts["dayStressNow"] = ds
+        return s_score, readiness_from(parts)[1], round(nt_now), round(r_now)
+
+    wake = res.get("wake") if res.get("wake") is not None else tl[0][0]
+    end = tl[-1][0] + DL.BUCKET
+    series, prev_pt = [], None
+    m = int(wake // DL.BUCKET * DL.BUCKET)
+    while m <= end:
+        s_score, score, ntv, rv = at(m)
+        series.append([m, score, morning - s_score, s_score - score, ntv, rv])
+        m += DL.BUCKET
+    # what moved it: each session at its start, the day outside training as it crossed points
+    events = []
+    for s in sessions:
+        mm = start_of(s) if s["date"] == t_iso else None
+        if mm is not None and mm >= wake:
+            events.append({"m": mm, "kind": "session", "title": s["title"] or s["sport"], "min": E.rnd(s.get("durationMin"))})
+    last = series[-1] if series else None
+    return {"date": t_iso, "wake": wake, "morning": morning, "now": last[1] if last else morning,
+            "sessionDrop": last[2] if last else 0, "dayDrop": last[3] if last else 0,
+            "series": series, "events": sorted(events, key=lambda e: e["m"]),
+            "nt": {"today": round(tot_nt), "usual": None if usual is None else round(usual),
+                   "excess": None if usual is None else max(0, round(tot_nt - usual))},
+            "raised": {"today": round(tot_r), "high": res.get("highMin"), "mild": res.get("mildMin")},
+            "dataDays": len(prev), "need": NT_USUAL_MIN}
+
+
+def _minute(iso: str | None) -> float | None:
+    """Minute of the local day of an ISO timestamp ('2026-10-03T07:30:00')."""
+    try:
+        hh, mm = iso[11:16].split(":")
+        return int(hh) * 60 + int(mm)
+    except (TypeError, ValueError, AttributeError):
+        return None
 
 
 def hr_zones(hrmax, rhr, lthr=None):
