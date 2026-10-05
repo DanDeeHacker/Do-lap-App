@@ -34,7 +34,7 @@ import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C, badCol, goodCol } from "@/tokens"
 import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, Users, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, NotebookPen, LogOut, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
-import { Mark, NAV_ICON, Sidebar, StatRail } from "@/shell"
+import { Mark, NAV_ICON, Sidebar, StatRail, Wordmark } from "@/shell"
 import { Landing, scrollToLanding } from "@/landing"
 import { LangSwitch } from "@/i18n/LangSwitch"
 import { getLang } from "@/i18n/lang"
@@ -100,7 +100,7 @@ function Topbar() {
       <div className="mx-auto flex h-[68px] max-w-[1180px] items-center justify-between gap-4 px-5 lg:max-w-none lg:px-9">
         <Link to="/app/today" className="flex shrink-0 items-center gap-2.5 text-lg font-extrabold tracking-[-.04em] lg:hidden">
           <Mark />
-          <span className="hidden sm:inline">došlap</span>
+          <Wordmark className="hidden sm:inline" />
         </Link>
         <nav className="hidden flex-1 items-center justify-center gap-1 md:flex lg:hidden" aria-label="Hlavní navigace">
           {navItems.map(([id, label]) => {
@@ -306,7 +306,7 @@ function RunnerOnlyNotice() {
   return (
     <div className="motion-shell grid min-h-screen place-items-center bg-bg p-6 text-fg">
       <div className="card max-w-md p-8 text-center">
-        <div className="mx-auto flex w-fit items-center gap-2 font-bold"><Mark /> došlap</div>
+        <div className="mx-auto flex w-fit items-center gap-2 text-lg"><Mark /> <Wordmark /></div>
         <h1 className="mt-6 font-serif text-3xl">Zatím jen pro běžce</h1>
         <p className="mt-3 text-sm leading-6 text-fg-2">
           Účet <b>{me?.email}</b> má roli „{me?.role}". Rozhraní pro fyzioterapeuty a partnery se teprve připravuje —
@@ -1509,7 +1509,7 @@ function Auth() {
       <aside className="card relative hidden overflow-hidden p-10 text-fg md:flex md:flex-col" style={{ backgroundImage: `radial-gradient(circle at 85% 12%, ${C.accent}1a, transparent 22rem), radial-gradient(circle at 10% 90%, ${C.info}14, transparent 20rem)` }}>
         <div className="flex items-center gap-2.5 text-lg font-extrabold tracking-[-.04em]">
           <Mark />
-          došlap
+          <Wordmark />
         </div>
         <div className="my-auto">
           <Label>Bezpečný přístup</Label>
@@ -1525,7 +1525,7 @@ function Auth() {
       <section className="mx-auto flex w-full max-w-md flex-col justify-center py-8">
         <span className="mb-10 flex items-center gap-2.5 text-lg font-extrabold tracking-[-.04em] md:hidden">
           <Mark />
-          došlap
+          <Wordmark />
         </span>
         <Label>Přístup pro běžce</Label>
         <h1 className="mt-1 font-serif text-[34px] tracking-[-.03em] md:text-4xl">

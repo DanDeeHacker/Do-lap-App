@@ -1,0 +1,419 @@
+<title>Došlap brand book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: one reading column (max 980px) of numbered chapters; specimens sit on the brand's own dark ground, light tiles only where light use is shown. Dark-first by choice: the brand lives on dark. */
+:root {
+  --bg: #061010;
+  --ink: #071313;
+  --panel: #0c201d;
+  --raised: #17302a;
+  --line: #1d3a33;
+  --fg: #eef6f2;
+  --fg2: #a9bfb7;
+  --fg3: #7f958e;
+  --accent: #c7ff54;
+  --ok: #4fd69c;
+  --watch: #f2c46d;
+  --alert: #f0795a;
+  --load: #8a95ff;
+  --info: #6ce6d3;
+  --paper: #f4f7f3;
+  --paper-ink: #0b1a17;
+  --serif: "Libre Baskerville", Georgia, "Times New Roman", serif;
+  --sans: "Manrope", "Segoe UI", Arial, sans-serif;
+  --mono: "DM Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 16px/1.6 var(--sans); }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 96px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h1 { font: 400 clamp(34px, 6vw, 56px)/1.08 var(--serif); letter-spacing: -.01em; }
+h2 { font: 400 clamp(24px, 3.4vw, 32px)/1.2 var(--serif); }
+h3 { font: 800 15px/1.3 var(--sans); }
+p { margin: 0; max-width: 66ch; }
+.eyebrow { font: 700 11px/1.2 var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--fg3); }
+.muted { color: var(--fg2); }
+.small { font-size: 13.5px; line-height: 1.55; }
+section { display: grid; gap: 18px; padding-block: 44px 8px; border-top: 1px solid var(--line); margin-top: 44px; }
+.chap { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.chap .n { font: 500 13px var(--mono); color: var(--accent); }
+.grid { display: grid; gap: 14px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
+.g4 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
+.box { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; min-width: 0; display: grid; gap: 12px; align-content: start; }
+.box.rec { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.tag { display: inline-block; font: 800 10.5px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; padding: 5px 8px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); justify-self: start; }
+.tag.dim { background: rgb(255 255 255 / .06); color: var(--fg2); }
+ul.clean { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+ul.clean li { padding-left: 18px; position: relative; font-size: 14px; line-height: 1.5; color: var(--fg2); }
+ul.clean li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 7px; height: 7px; border-radius: 50%; background: var(--fg3); }
+ul.clean.plus li::before { background: var(--ok); }
+ul.clean.minus li::before { background: var(--alert); }
+
+/* hero */
+.hero { display: grid; gap: 28px; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: center; }
+@media (max-width: 760px) { .hero { grid-template-columns: 1fr; } }
+.hero-mark { background: var(--ink); border-radius: 28px; border: 1px solid var(--line); aspect-ratio: 1; max-width: 100%; display: grid; place-items: center; }
+.hero-mark svg { width: 62%; height: auto; }
+
+/* stages for marks */
+.stage { border-radius: 14px; display: grid; place-items: center; padding: 22px; background: var(--ink); }
+.stage.light { background: var(--paper); }
+.stage svg { width: 112px; height: 112px; }
+.sizes { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; padding: 12px 14px; border-radius: 12px; background: var(--ink); }
+.sizes figure { margin: 0; display: grid; justify-items: center; gap: 4px; }
+.sizes figcaption { font: 400 10.5px var(--mono); color: var(--fg3); }
+.tile { border-radius: 22%; background: var(--ink); display: grid; place-items: center; box-shadow: inset 0 0 0 1px var(--line); }
+.tile.lime { background: var(--accent); box-shadow: none; }
+.tile svg { width: 78%; height: 78%; }
+
+/* wordmark */
+.wm { font: 800 1em/1 var(--sans); letter-spacing: -.035em; color: var(--fg); white-space: nowrap; }
+.wm .s { position: relative; display: inline-block; }
+.wm .s svg { position: absolute; left: 50%; top: -.06em; width: .36em; height: .22em; transform: translateX(-50%); overflow: visible; }
+.lockup { display: flex; align-items: center; gap: .42em; font-size: 44px; }
+.lockup .tile { width: 1.25em; height: 1.25em; }
+.stacked { display: grid; justify-items: center; gap: .3em; font-size: 34px; }
+.stacked .tile { width: 2em; height: 2em; }
+
+/* construction */
+.construct { background: var(--ink); border-radius: 18px; border: 1px solid var(--line); overflow-x: auto; }
+.construct svg { display: block; width: 100%; min-width: 520px; height: auto; }
+.construct text { font-family: var(--mono); }
+
+/* colour */
+.sw { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--panel); display: grid; }
+.sw .chip { height: 74px; }
+.sw .meta { padding: 10px 12px 12px; display: grid; gap: 2px; }
+.sw .meta b { font: 800 13.5px var(--sans); }
+.sw .meta code { font: 400 12px var(--mono); color: var(--fg3); }
+.sw .meta span { font-size: 12.5px; color: var(--fg2); line-height: 1.45; }
+.ratio { display: flex; height: 18px; border-radius: 999px; overflow: hidden; }
+
+/* type */
+.spec { display: grid; gap: 4px; padding: 16px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; min-width: 0; }
+.spec .big { overflow-wrap: anywhere; }
+
+/* voice */
+.say { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.say:last-child { border-bottom: 0; }
+.say .k { font: 800 10.5px var(--sans); letter-spacing: .1em; text-transform: uppercase; }
+.say .k.yes { color: var(--ok); }
+.say .k.no { color: var(--alert); }
+.say p { font-size: 14.5px; }
+
+/* don'ts */
+.dont { display: grid; gap: 8px; }
+.dont .stage { position: relative; min-height: 132px; }
+.dont .stage svg { width: 72px; height: 72px; }
+.dont .x { position: absolute; top: 8px; right: 10px; font: 800 11px var(--sans); color: var(--alert); letter-spacing: .08em; }
+.photo { background: repeating-linear-gradient(115deg, #3f6b5e 0 9px, #c9a466 9px 15px, #2c4e47 15px 26px, #e2e7d8 26px 30px); }
+
+.next { display: grid; gap: 10px; counter-reset: s; }
+.next li { list-style: none; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; font-size: 14.5px; color: var(--fg2); }
+.next li::before { counter-increment: s; content: counter(s); font: 500 13px var(--mono); color: var(--accent); }
+.next { padding: 0; margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- Recommended: Kontakt. Open ring = your own norm (the app's rings); the dot in the gap = the moment the foot lands (došlap); the line = the ground. -->
+    <symbol id="kontakt" viewBox="0 0 64 64">
+      <path d="M21.53 42.40 A17 17 0 1 1 42.47 42.40" fill="none" stroke="#c7ff54" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="32" cy="46" r="4" fill="#c7ff54"/>
+      <path d="M22 54 H42" stroke="#7f958e" stroke-width="3" stroke-linecap="round"/>
+    </symbol>
+    <!-- compact: below 24 px the ground line drops and the mark centres -->
+    <symbol id="kontakt-s" viewBox="0 0 64 64">
+      <g transform="translate(0 3)">
+        <path d="M21.53 42.40 A17 17 0 1 1 42.47 42.40" fill="none" stroke="#c7ff54" stroke-width="7" stroke-linecap="round"/>
+        <circle cx="32" cy="46.5" r="4.6" fill="#c7ff54"/>
+      </g>
+    </symbol>
+    <symbol id="kontakt-ink" viewBox="0 0 64 64">
+      <path d="M21.53 42.40 A17 17 0 1 1 42.47 42.40" fill="none" stroke="#071313" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="32" cy="46" r="4" fill="#071313"/>
+      <path d="M22 54 H42" stroke="#071313" stroke-width="3" stroke-linecap="round" opacity=".55"/>
+    </symbol>
+    <symbol id="kontakt-paper" viewBox="0 0 64 64">
+      <path d="M21.53 42.40 A17 17 0 1 1 42.47 42.40" fill="none" stroke="#0b1a17" stroke-width="6" stroke-linecap="round"/>
+      <circle cx="32" cy="46" r="4" fill="#3d7a12"/>
+      <path d="M22 54 H42" stroke="#0b1a17" stroke-width="3" stroke-linecap="round" opacity=".45"/>
+    </symbol>
+    <!-- Concept B: Háček — the háček of "š" as a landing V over the ground -->
+    <symbol id="hacek" viewBox="0 0 64 64">
+      <path d="M17 22 L32 39 L47 22" fill="none" stroke="#c7ff54" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M19 50 H45" stroke="#7f958e" stroke-width="3.5" stroke-linecap="round"/>
+    </symbol>
+    <!-- Concept C: the current mark, refined — one clean heel shape, concentric cut, no half-transparent ring -->
+    <symbol id="refined" viewBox="0 0 64 64">
+      <path d="M12 44 C12 34 19 13 37 13 C49 13 56 23 56 34 C56 46 45 54 34 54 C24 54 14 52 12 44 Z" fill="#c7ff54"/>
+      <path d="M12 44 C12 34 19 13 37 13 C49 13 56 23 56 34 C56 46 45 54 34 54 C24 54 14 52 12 44 Z" fill="#071313" transform="translate(34.5 34.5) scale(.46) translate(-34.5 -34.5)"/>
+    </symbol>
+    <!-- today -->
+    <symbol id="current" viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="27" fill="none" stroke="#c7ff54" stroke-width="2" stroke-opacity=".5"/>
+      <path d="M12 44 C12 34 19 13 37 13 C49 13 56 23 56 34 C56 46 45 54 34 54 C24 54 14 52 12 44 Z" fill="#c7ff54"/>
+      <path d="M27 42 C27 36 31 23 41 23 C48 23 52 29 52 35 C52 42 45 47 38 47 C31 47 28 46 27 42 Z" fill="#071313"/>
+    </symbol>
+    <symbol id="hacek-mini" viewBox="0 0 36 22">
+      <path d="M5 5 L18 17 L31 5" fill="none" stroke="#c7ff54" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+  </defs>
+</svg>
+
+<main class="wrap">
+
+  <header class="hero">
+    <div style="display:grid;gap:18px;min-width:0">
+      <p class="eyebrow">Brand book · verze 1 · říjen 2026</p>
+      <h1>Došlap</h1>
+      <p style="font-size:19px;line-height:1.5">Včas poznat, kdy ubrat. Došlap ukazuje běžci, jak trénink zatěžuje jeho tělo proti jeho vlastní normě, a propojuje ho s fyzioterapeutem dřív, než z drobnosti vznikne zranění.</p>
+      <p class="muted small">Krátký brand book: audit současného loga, tři návrhy, doporučená značka s konstrukcí a pravidla pro barvy, písmo a tón. Barvy a písma vycházejí z aplikace, aby šlo značku nasadit bez přestavby rozhraní.</p>
+    </div>
+    <div class="hero-mark" role="img" aria-label="Doporučená značka Kontakt"><svg><use href="#kontakt"/></svg></div>
+  </header>
+
+  <section>
+    <div class="chap"><span class="n">01</span><h2>Současné logo</h2></div>
+    <div class="grid g2">
+      <div class="box">
+        <div class="stage"><svg role="img" aria-label="Současné logo"><use href="#current"/></svg></div>
+        <div class="sizes" aria-label="Současné logo v malých velikostech">
+          <figure><div class="tile" style="width:16px;height:16px"><svg><use href="#current"/></svg></div><figcaption>16</figcaption></figure>
+          <figure><div class="tile" style="width:24px;height:24px"><svg><use href="#current"/></svg></div><figcaption>24</figcaption></figure>
+          <figure><div class="tile" style="width:32px;height:32px"><svg><use href="#current"/></svg></div><figcaption>32</figcaption></figure>
+          <figure><div class="tile" style="width:48px;height:48px"><svg><use href="#current"/></svg></div><figcaption>48</figcaption></figure>
+        </div>
+      </div>
+      <div class="box">
+        <h3>Co funguje</h3>
+        <ul class="clean plus">
+          <li>Limetková na tmavě zeleném podkladu je výrazná a v obchodě s aplikacemi ji poznáte.</li>
+          <li>Oblý tvar působí přívětivě, ne jako zdravotnický přístroj.</li>
+        </ul>
+        <h3>Co nefunguje</h3>
+        <ul class="clean minus">
+          <li>Tvar nemá jasný význam. Čte se jako vejce, list nebo písmeno „o“, ne jako došlap nohou.</li>
+          <li>Posunutý výřez vytváří úzký srpek, který se v 16 a 24 px slije do skvrny.</li>
+          <li>Kruh s 50% průhledností je v malých velikostech nečitelný a na světlém podkladu mizí.</li>
+          <li>Značka nemá vztah k aplikaci, která pracuje s kruhy (Skóre, Připravenost, kapacita), ani k názvu.</li>
+          <li>Chybí slovní značka, takže název se pokaždé sází jinak.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="chap"><span class="n">02</span><h2>Tři návrhy</h2></div>
+    <p class="muted">Všechny tři zůstávají v současné paletě. Liší se tím, co značka vypráví: jak měříme, jak se jmenujeme, nebo co už znáte.</p>
+    <div class="grid g3">
+      <article class="box rec">
+        <span class="tag">Doporučuji</span>
+        <div class="stage"><svg role="img" aria-label="Návrh A Kontakt"><use href="#kontakt"/></svg></div>
+        <h3>A · Kontakt</h3>
+        <p class="small muted">Otevřený kruh je vaše vlastní norma, stejný kruh, jaký běžec vidí každý den u Skóre a Připravenosti. Tečka v mezeře je okamžik, kdy noha dopadne na zem. Linka je zem.</p>
+        <div class="sizes">
+          <figure><div class="tile" style="width:16px;height:16px"><svg><use href="#kontakt-s"/></svg></div><figcaption>16</figcaption></figure>
+          <figure><div class="tile" style="width:24px;height:24px"><svg><use href="#kontakt-s"/></svg></div><figcaption>24</figcaption></figure>
+          <figure><div class="tile" style="width:32px;height:32px"><svg><use href="#kontakt"/></svg></div><figcaption>32</figcaption></figure>
+          <figure><div class="tile" style="width:48px;height:48px"><svg><use href="#kontakt"/></svg></div><figcaption>48</figcaption></figure>
+        </div>
+        <ul class="clean plus"><li>Spojuje název, produkt i rozhraní.</li><li>Čitelný od 16 px, funguje i jednobarevně.</li></ul>
+      </article>
+      <article class="box">
+        <span class="tag dim">Alternativa</span>
+        <div class="stage"><svg role="img" aria-label="Návrh B Háček"><use href="#hacek"/></svg></div>
+        <h3>B · Háček</h3>
+        <p class="small muted">Háček z „š“ jako tvar dopadu nad zemí. Je výrazně český a dá se přenést do slovní značky.</p>
+        <div class="sizes">
+          <figure><div class="tile" style="width:16px;height:16px"><svg><use href="#hacek"/></svg></div><figcaption>16</figcaption></figure>
+          <figure><div class="tile" style="width:24px;height:24px"><svg><use href="#hacek"/></svg></div><figcaption>24</figcaption></figure>
+          <figure><div class="tile" style="width:32px;height:32px"><svg><use href="#hacek"/></svg></div><figcaption>32</figcaption></figure>
+          <figure><div class="tile" style="width:48px;height:48px"><svg><use href="#hacek"/></svg></div><figcaption>48</figcaption></figure>
+        </div>
+        <ul class="clean minus"><li>Samostatně se plete s šipkou dolů nebo rozbalovacím menu.</li><li>Mimo Česko význam háčku nikdo nečte.</li></ul>
+      </article>
+      <article class="box">
+        <span class="tag dim">Nejmenší změna</span>
+        <div class="stage"><svg role="img" aria-label="Návrh C Zjemněný současný"><use href="#refined"/></svg></div>
+        <h3>C · Zjemněný současný</h3>
+        <p class="small muted">Stejný obrys jako dnes, ale soustředný výřez místo srpku a bez poloprůhledného kruhu. Čte se jako pata a zůstává známý.</p>
+        <div class="sizes">
+          <figure><div class="tile" style="width:16px;height:16px"><svg><use href="#refined"/></svg></div><figcaption>16</figcaption></figure>
+          <figure><div class="tile" style="width:24px;height:24px"><svg><use href="#refined"/></svg></div><figcaption>24</figcaption></figure>
+          <figure><div class="tile" style="width:32px;height:32px"><svg><use href="#refined"/></svg></div><figcaption>32</figcaption></figure>
+          <figure><div class="tile" style="width:48px;height:48px"><svg><use href="#refined"/></svg></div><figcaption>48</figcaption></figure>
+        </div>
+        <ul class="clean minus"><li>Opravuje čitelnost, ale význam zůstává nejasný.</li></ul>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <div class="chap"><span class="n">03</span><h2>Značka Kontakt</h2></div>
+    <p class="muted">Konstrukce na mřížce 64 × 64. Všechny míry jsou v jednotkách mřížky, takže značka se zvětšuje bez úprav. Pod 24 px se používá kompaktní verze bez linky země a se silnějším tahem.</p>
+    <div class="construct" role="img" aria-label="Konstrukce značky Kontakt">
+      <svg viewBox="0 0 640 360">
+        <rect width="640" height="360" fill="#071313"/>
+        <g stroke="#1d3a33" stroke-width="1">
+          <path d="M40 20 V340 M80 20 V340 M120 20 V340 M160 20 V340 M200 20 V340 M240 20 V340 M280 20 V340 M320 20 V340"/>
+          <path d="M20 40 H340 M20 80 H340 M20 120 H340 M20 160 H340 M20 200 H340 M20 240 H340 M20 280 H340 M20 320 H340"/>
+        </g>
+        <g transform="translate(20 20) scale(5)">
+          <circle cx="32" cy="29" r="17" fill="none" stroke="#7f958e" stroke-width=".25" stroke-dasharray="1 1"/>
+          <path d="M32 29 L21.53 42.40 M32 29 L42.47 42.40" stroke="#7f958e" stroke-width=".25" stroke-dasharray="1 1"/>
+          <use href="#kontakt" width="64" height="64"/>
+          <circle cx="32" cy="29" r=".8" fill="#eef6f2"/>
+        </g>
+        <g fill="#a9bfb7" font-size="13">
+          <text x="370" y="64" fill="#c7ff54" font-size="12">KRUH</text>
+          <text x="370" y="84">střed 32 / 29 · poloměr 17</text>
+          <text x="370" y="102">tah 6 · zaoblené konce</text>
+          <text x="370" y="144" fill="#c7ff54" font-size="12">MEZERA</text>
+          <text x="370" y="164">76° symetricky dole</text>
+          <text x="370" y="182">volný prostor kolem tečky ≥ 4</text>
+          <text x="370" y="224" fill="#c7ff54" font-size="12">TEČKA</text>
+          <text x="370" y="244">střed 32 / 46 · poloměr 4</text>
+          <text x="370" y="262">leží na kružnici, v bodě dopadu</text>
+          <text x="370" y="304" fill="#c7ff54" font-size="12">ZEMĚ</text>
+          <text x="370" y="324">22–42 na výšce 54 · tah 3</text>
+          <text x="370" y="342">barva šedozelená</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="grid g2">
+      <div class="box">
+        <h3>Ochranná zóna a minimum</h3>
+        <p class="small muted">Kolem značky nechte volno aspoň na průměr tečky (8 jednotek, v aplikační ikoně je to okraj dlaždice). Nejmenší velikost je 16 px v kompaktní verzi a 24 px v plné verzi.</p>
+      </div>
+      <div class="box">
+        <h3>Aplikační ikona</h3>
+        <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap">
+          <div class="tile" style="width:96px;height:96px" role="img" aria-label="Ikona na tmavém podkladu"><svg><use href="#kontakt"/></svg></div>
+          <div class="tile lime" style="width:96px;height:96px" role="img" aria-label="Ikona na limetkovém podkladu"><svg><use href="#kontakt-ink"/></svg></div>
+          <div class="tile" style="width:48px;height:48px"><svg><use href="#kontakt"/></svg></div>
+          <div class="tile" style="width:24px;height:24px"><svg><use href="#kontakt-s"/></svg></div>
+        </div>
+        <p class="small muted">Výchozí je tmavá dlaždice. Limetková slouží pro sociální sítě a místa, kde je okolí tmavé.</p>
+      </div>
+    </div>
+
+    <h3 style="margin-top:8px">Slovní značka a spojení</h3>
+    <p class="small muted">Slovní značka je sázená Manrope ExtraBold malými písmeny. Háček nad „š“ je jediný barevný prvek a má stejný tah jako kruh. Název se v textu píše vždy „Došlap“ s háčkem, nikdy „Doslap“ ani „DOŠLAP“.</p>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))">
+      <div class="stage" style="padding:30px">
+        <div class="lockup" role="img" aria-label="Logo vodorovně">
+          <div class="tile"><svg><use href="#kontakt"/></svg></div>
+          <span class="wm">do<span class="s">s<svg viewBox="0 0 36 22"><use href="#hacek-mini"/></svg></span>lap</span>
+        </div>
+      </div>
+      <div class="stage" style="padding:30px">
+        <div class="stacked" role="img" aria-label="Logo na výšku">
+          <div class="tile"><svg><use href="#kontakt"/></svg></div>
+          <span class="wm">do<span class="s">s<svg viewBox="0 0 36 22"><use href="#hacek-mini"/></svg></span>lap</span>
+        </div>
+      </div>
+      <div class="stage light" style="padding:30px">
+        <div class="lockup" role="img" aria-label="Logo na světlém podkladu" style="font-size:40px">
+          <svg style="width:1.25em;height:1.25em"><use href="#kontakt-paper"/></svg>
+          <span class="wm" style="color:var(--paper-ink)">do<span class="s">s<svg viewBox="0 0 36 22"><path d="M5 5 L18 17 L31 5" fill="none" stroke="#3d7a12" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>lap</span>
+        </div>
+      </div>
+      <div class="stage" style="padding:30px;background:var(--accent)">
+        <div class="lockup" role="img" aria-label="Logo na limetkovém podkladu" style="font-size:40px">
+          <svg style="width:1.25em;height:1.25em"><use href="#kontakt-ink"/></svg>
+          <span class="wm" style="color:#071313">do<span class="s">s<svg viewBox="0 0 36 22"><path d="M5 5 L18 17 L31 5" fill="none" stroke="#071313" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>lap</span>
+        </div>
+      </div>
+    </div>
+    <p class="small muted">Na světlém podkladu se limetková mění na tmavou olivovou (#3D7A12), protože limetková na bílé nemá dost kontrastu.</p>
+  </section>
+
+  <section>
+    <div class="chap"><span class="n">04</span><h2>Barvy</h2></div>
+    <p class="muted">Značka je tmavá. Limetková je jediný akcent a patří logu a hlavní akci na obrazovce. Barvy stavů nesou význam (v pořádku, sledovat, pozor) a nikdy se nepoužívají jako dekorace.</p>
+    <div class="ratio" aria-label="Poměr barev v rozhraní: přibližně 70 % podklad, 20 % panely a text, 7 % stavy, 3 % akcent">
+      <i style="flex:70;background:#061010;box-shadow:inset 0 0 0 1px var(--line)"></i><i style="flex:20;background:#17302a"></i><i style="flex:7;background:linear-gradient(90deg,#4fd69c,#f2c46d,#f0795a)"></i><i style="flex:3;background:#c7ff54"></i>
+    </div>
+    <p class="small muted">Orientační poměr na obrazovce: 70 % podklad, 20 % panely a text, 7 % stavy, 3 % akcent.</p>
+    <h3>Základ</h3>
+    <div class="grid g4">
+      <div class="sw"><div class="chip" style="background:#c7ff54"></div><div class="meta"><b>Došlap limetková</b><code>#C7FF54</code><span>Logo, hlavní tlačítko, aktivní záložka.</span></div></div>
+      <div class="sw"><div class="chip" style="background:#061010;box-shadow:inset 0 -1px 0 var(--line)"></div><div class="meta"><b>Noc</b><code>#061010</code><span>Podklad aplikace a webu.</span></div></div>
+      <div class="sw"><div class="chip" style="background:#0c201d"></div><div class="meta"><b>Panel</b><code>#0C201D</code><span>Karty a listy.</span></div></div>
+      <div class="sw"><div class="chip" style="background:#eef6f2"></div><div class="meta"><b>Text</b><code>#EEF6F2</code><span>Hlavní text, čísla.</span></div></div>
+      <div class="sw"><div class="chip" style="background:#7f958e"></div><div class="meta"><b>Šedozelená</b><code>#7F958E</code><span>Popisky, osy, linka země ve značce.</span></div></div>
+      <div class="sw"><div class="chip" style="background:#3d7a12"></div><div class="meta"><b>Oliva</b><code>#3D7A12</code><span>Akcent na světlém podkladu.</span></div></div>
+    </div>
+    <h3>Stavy</h3>
+    <div class="grid g4">
+      <div class="sw"><div class="chip" style="background:#4fd69c"></div><div class="meta"><b>V pořádku</b><code>#4FD69C</code><span>Stabilní, v normě.</span></div></div>
+      <div class="sw"><div class="chip" style="background:#f2c46d"></div><div class="meta"><b>Sledovat</b><code>#F2C46D</code><span>Blíží se limitu.</span></div></div>
+      <div class="sw"><div class="chip" style="background:#f0795a"></div><div class="meta"><b>Pozor</b><code>#F0795A</code><span>Nad limitem, ubrat.</span></div></div>
+      <div class="sw"><div class="chip" style="background:#8a95ff"></div><div class="meta"><b>Zátěž</b><code>#8A95FF</code><span>Osa zátěže a spánek.</span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="chap"><span class="n">05</span><h2>Písmo</h2></div>
+    <div class="grid g3">
+      <div class="spec">
+        <p class="eyebrow">Nadpisy a oslovení</p>
+        <p class="big" style="font:400 34px/1.15 var(--serif)">Dobrý večer, Daniel.</p>
+        <p class="small muted">Libre Baskerville Regular. Jen pro nadpisy, oslovení a velké slovní stavy. Nikdy pro čísla.</p>
+      </div>
+      <div class="spec">
+        <p class="eyebrow">Rozhraní a čísla</p>
+        <p class="big" style="font:800 40px/1 var(--sans);letter-spacing:-.03em;font-variant-numeric:tabular-nums">86 %</p>
+        <p class="small muted">Manrope. Text 400 až 600, popisky 700 s prostrkáním, čísla ExtraBold s tabulkovými číslicemi.</p>
+      </div>
+      <div class="spec">
+        <p class="eyebrow">Data a osy</p>
+        <p class="big" style="font:400 22px/1.3 var(--mono)">4:52 /km · 158 spm</p>
+        <p class="small muted">DM Mono. Osy grafů, tempa, technické údaje.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="chap"><span class="n">06</span><h2>Tón</h2></div>
+    <p class="muted">Mluvíme jako zkušený fyzioterapeut, který zná vaše data: klidně, konkrétně a s čísly. Vykáme. Vysvětlujeme, proč něco doporučujeme, a říkáme, co je doložené a co je odhad. Nikdy neslibujeme, že zranění předejdeme, a nediagnostikujeme.</p>
+    <div class="box">
+      <div class="say"><span class="k yes">Ano</span><p>Zátěž i mechanika sedí na vlastní normě.</p></div>
+      <div class="say"><span class="k no">Ne</span><p>Jste v perfektní formě! 💪</p></div>
+      <div class="say"><span class="k yes">Ano</span><p>Posledních 7 dní 52 km, na stropu vaší týdenní kapacity. Dnes volno.</p></div>
+      <div class="say"><span class="k no">Ne</span><p>Hrozí vám zranění, okamžitě přestaňte běhat.</p></div>
+      <div class="say"><span class="k yes">Ano</span><p>Bolest 4/10: při běhu nanejvýš 5/10 a do rána musí odeznít, jinak uberte.</p></div>
+      <div class="say"><span class="k no">Ne</span><p>Aplikace předpoví a zabrání vašemu zranění.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="chap"><span class="n">07</span><h2>Čemu se vyhnout</h2></div>
+    <div class="grid g4">
+      <div class="dont"><div class="stage"><span class="x">NE</span><svg style="transform:scaleX(1.45)"><use href="#kontakt"/></svg></div><p class="small muted">Deformovat poměr stran.</p></div>
+      <div class="dont"><div class="stage"><span class="x">NE</span><svg style="filter:hue-rotate(150deg)"><use href="#kontakt"/></svg></div><p class="small muted">Měnit barvy mimo paletu.</p></div>
+      <div class="dont"><div class="stage photo"><span class="x">NE</span><svg><use href="#kontakt"/></svg></div><p class="small muted">Dávat značku na neklidnou fotografii bez dlaždice.</p></div>
+      <div class="dont"><div class="stage"><span class="x">NE</span><svg style="filter:drop-shadow(0 0 10px #c7ff54)"><use href="#kontakt"/></svg></div><p class="small muted">Přidávat záři, stíny a přechody.</p></div>
+    </div>
+    <p class="small muted">Kruh značky také nepoužívejte jako ukazatel průběhu. V aplikaci kruhy nesou čísla, značka nese jen identitu.</p>
+  </section>
+
+  <section>
+    <div class="chap"><span class="n">08</span><h2>Další kroky</h2></div>
+    <ol class="next">
+      <li>Vybrat koncept A, B nebo C, případně upravit poměr mezery a tečky.</li>
+      <li>Nasadit značku do aplikace: favicon, ikony 192 a 512 px, ikona pro iOS a komponenta značky v hlavičce.</li>
+      <li>Vyexportovat finální SVG a PNG a uložit je do repozitáře vedle tohoto brand booku.</li>
+      <li>Ověřit čitelnost na reálném telefonu na ploše vedle ostatních sportovních aplikací.</li>
+    </ol>
+  </section>
+
+</main>

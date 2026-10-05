@@ -18,14 +18,43 @@ export const NAV_ICON: Record<string, LucideIcon> = {
   today: House, training: Target, post: NotebookPen, mechanics: Footprints, load: Activity, messages: HeartHandshake,
 }
 
+// Brand mark "Kontakt" (brand book 2026-10-05): the open ring is the runner's own norm
+// (the app's rings), the dot in its gap the moment the foot lands (došlap), the line
+// the ground. Below ~28 px the compact form drops the ground line and thickens the ring.
 export function Mark({ size = 36 }: { size?: number }) {
+  const inner = size * 0.78
+  const compact = inner < 28
   return (
     <span className="grid shrink-0 place-items-center rounded-xl bg-ink" style={{ width: size, height: size }}>
-      <svg viewBox="0 0 64 64" style={{ width: size * 0.78, height: size * 0.78 }} aria-hidden="true">
-        <circle cx="32" cy="32" r="28" fill="none" stroke={C.accent} strokeWidth="2" strokeOpacity=".5" />
-        <path d="M12 44 C12 34 19 13 37 13 C49 13 56 23 56 34 C56 46 45 54 34 54 C24 54 14 52 12 44 Z" fill={C.accent} />
-        <path d="M27 42 C27 36 31 23 41 23 C48 23 52 29 52 35 C52 42 45 47 38 47 C31 47 28 46 27 42 Z" fill={C.ink} />
+      <svg viewBox="0 0 64 64" style={{ width: inner, height: inner }} aria-hidden="true">
+        {compact ? (
+          <g transform="translate(0 3)">
+            <path d="M21.53 42.4 A17 17 0 1 1 42.47 42.4" fill="none" stroke={C.accent} strokeWidth="7" strokeLinecap="round" />
+            <circle cx="32" cy="46.5" r="4.6" fill={C.accent} />
+          </g>
+        ) : (
+          <>
+            <path d="M21.53 42.4 A17 17 0 1 1 42.47 42.4" fill="none" stroke={C.accent} strokeWidth="6" strokeLinecap="round" />
+            <circle cx="32" cy="46" r="4" fill={C.accent} />
+            <path d="M22 54 H42" stroke={C.fg3} strokeWidth="3" strokeLinecap="round" />
+          </>
+        )}
       </svg>
+    </span>
+  )
+}
+
+// The wordmark: "došlap" in lower case, the háček over "š" in the accent colour (the
+// only coloured part, drawn with the ring's stroke).
+export function Wordmark({ className = "" }: { className?: string }) {
+  return (
+    <span className={`whitespace-nowrap font-extrabold tracking-[-.04em] ${className}`}>
+      <span className="sr-only">Došlap</span>
+      <span aria-hidden="true">
+        do<span className="relative inline-block leading-none">s<svg viewBox="0 0 36 22" className="absolute bottom-[.68em] left-1/2 h-[.2em] w-[.34em] -translate-x-1/2 overflow-visible">
+          <path d="M5 5 L18 17 L31 5" fill="none" stroke={C.accent} strokeWidth="6.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg></span>lap
+      </span>
     </span>
   )
 }
@@ -48,7 +77,7 @@ export function Sidebar({ items }: { items: [string, string][] }) {
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-[220px] flex-col border-r border-white/[.07] bg-bg/95 px-3 pb-6 pt-5 backdrop-blur lg:flex" aria-label="Hlavní navigace">
       <Link to="/app/today" className="mb-6 flex items-center gap-2.5 px-2 text-lg font-extrabold tracking-[-.04em]">
         <Mark size={34} />
-        došlap
+        <Wordmark />
       </Link>
       <nav className="grid gap-1">{items.map(([id, label]) => link(`/app/${id}`, label, NAV_ICON[id] || House, id))}</nav>
       <div className="mt-6 border-t border-white/[.07] pt-4">
