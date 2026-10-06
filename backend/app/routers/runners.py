@@ -856,8 +856,7 @@ def delete_manual_activity(rid: str, aid: int, user: models.User = Depends(get_c
                "Aktivita nenalezena")
     if a.provider != "manual":
         raise HTTPException(400, "Importovanou aktivitu nelze smazat, můžete ji vyřadit z výpočtů.")
-    db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == aid).delete()
-    db.delete(a)
+    E.delete_activity(db, a)
     db.commit()
     return {"ok": True, "assessment": E.recompute_assessment(db, rid)}
 

@@ -399,9 +399,7 @@ def link_sessions(db, rid: str, today: date | None = None) -> bool:
                 h["rate"] = h.get("rate") or {"rpe": fb.rpe if fb else FEEL.get(h.get("feel"), 6), "note": fb.note if fb else None,
                                               "niggle": bool(fb and fb.niggle), "focus": act.strength_focus,
                                               "type": act.strength_type, "minutes": act.duration_min}
-                if fb is not None:
-                    db.delete(fb)
-                db.delete(act)
+                E.delete_activity(db, act)
                 taken.discard(aid)
                 h["activityId"], act, dirty = None, None, True
             if act is None and h.get("rate") and (h.get("date") or "") >= lo:

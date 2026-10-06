@@ -728,6 +728,16 @@ def find_twin(db: DBSession, rid: str, sport: str, day: str, dur: float, manual:
     return None
 
 
+def delete_activity(db: DBSession, a) -> None:
+    """Removes an activity with the rows that point at it: its ratings and its stream row
+    (a hand-logged session gets a tombstone stream from the detail backfill). Postgres
+    enforces those foreign keys, so the activity alone can't go."""
+    db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == a.id).delete(synchronize_session=False)
+    db.query(models.ActivityStream).filter(models.ActivityStream.activity_id == a.id).delete(synchronize_session=False)
+    db.flush()
+    db.delete(a)
+
+
 def absorb_manual(db: DBSession, rid: str) -> int:
     """A watch recording that arrives after a hand-logged session of the same sport,
     day and length replaces it: the rating and the strength details move over."""
@@ -744,7 +754,8 @@ def absorb_manual(db: DBSession, rid: str) -> int:
                 db.delete(f)
         twin.strength_focus = twin.strength_focus or m.strength_focus
         twin.strength_type = twin.strength_type or m.strength_type
-        db.delete(m)
+        db.flush()
+        delete_activity(db, m)
         moved += 1
     if moved:
         db.flush()

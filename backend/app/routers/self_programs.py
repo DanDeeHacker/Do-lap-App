@@ -1,5 +1,6 @@
 """railway#116 — programs the runner starts on their own (ready-made ones for common
 running problems, recommended by the pain they marked, or an own pick of exercises)."""
+import logging
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,6 +14,7 @@ from ..db import get_db
 from ..deps import ensure_runner_read_access, ensure_runner_self, get_current_user, or_404, verify_csrf
 from ..metrics import engine as E
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/runners", tags=["self-programs"])
 MARK_DAYS = 28
 
@@ -160,10 +162,15 @@ def _out(p: models.SelfProgram, db=None) -> dict:
 @router.get("/{rid}/self-programs")
 def get_self_programs(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_read_access(db, user, rid)
-    # feedback #204 — sessions saved as activities of their own before are tidied up here too
-    if DU.link_sessions(db, rid):
-        db.commit()
-        E.recompute_assessment(db, rid)
+    # feedback #204 — sessions saved as activities of their own before are tidied up here too;
+    # a failure there never keeps the programmes from loading
+    try:
+        if DU.link_sessions(db, rid):
+            db.commit()
+            E.recompute_assessment(db, rid)
+    except Exception:
+        db.rollback()
+        log.exception("linking programme sessions failed for %s", rid)
     # feedback #186 — several programmes can run at once; the newest first
     actives = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid,
                                                    models.SelfProgram.active.is_(True)).order_by(models.SelfProgram.id.desc()).all()
@@ -294,8 +301,7 @@ def finish_durability_session(rid: str, pid: int, body: FinishRequest, user: mod
         DU.rate_activity(db, rid, prev, rate)
         st["history"][-1]["activityId"] = prev.id
     elif prev is not None and (prev.title or "").startswith(DU.PROGRAM_TITLE):
-        db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == prev.id).delete()
-        db.delete(prev)
+        E.delete_activity(db, prev)
     p.state = st
     db.flush()
     DU.link_sessions(db, rid)

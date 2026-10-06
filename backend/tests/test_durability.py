@@ -235,6 +235,10 @@ def test_sessions_saved_as_activities_before_are_tidied_up(client, db_session, m
     db_session.flush()
     db_session.add(models.ActivityFeedback(activity_id=old.id, runner_id=rid, submitted_at="2026-10-03", rpe=8, pain_points=[],
                                            note="Runner's must-have A: těžké"))
+    # the detail backfill's tombstone for a hand-logged session (Postgres enforces this foreign key)
+    db_session.add(models.ActivityStream(activity_id=old.id, runner_id=rid, segments_json=None, gps=False, quality_json={"failed": True},
+                                         created_at="2026-10-04"))
+    old_id = old.id
     prog = db_session.get(models.SelfProgram, p["id"])
     prog.state = {**prog.state, "history": [{"date": "2026-10-03", "session": "A", "feel": "hard", "activityId": old.id}]}
     db_session.commit()
@@ -244,3 +248,4 @@ def test_sessions_saved_as_activities_before_are_tidied_up(client, db_session, m
     assert left == {"strength", "Kolo"}                              # the runner's own hand-logged ride stays
     fb = db_session.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == w.id).one()
     assert fb.rpe == 8 and "Runner's must-have" in fb.note
+    assert db_session.query(models.ActivityStream).filter(models.ActivityStream.activity_id == old_id).count() == 0
