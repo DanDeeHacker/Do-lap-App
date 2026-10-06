@@ -245,7 +245,7 @@ function FeelPrompt({ onPick, busy }: { onPick: (k: string) => void; busy: boole
   return (
     <div className="mt-3 rounded-[16px] border border-accent/30 bg-accent/[.06] p-3.5 animate-[careReveal_.28s_ease-out]" data-testid="feel-prompt">
       <b className="block text-[15px] text-fg">Jak jste se cítili na konci tréninku?</b>
-      <p className="mt-0.5 text-[12px] leading-5 text-fg-2">Podle toho se příště přidá, nebo ubere. Trénink se započítá do týdenní zátěže.</p>
+      <p className="mt-0.5 text-[12px] leading-5 text-fg-2">Podle toho se příště přidá, nebo ubere. Do zátěže se trénink započítá ze záznamu hodinek.</p>
       <div className="mt-3 grid grid-cols-2 gap-2">
         {FEELS.map((f) => (
           <button key={f.k} type="button" disabled={busy} onClick={() => onPick(f.k)} data-testid={`feel-${f.k}`}
@@ -567,8 +567,12 @@ function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any;
     setBusy(true)
     const sets = Object.fromEntries(rows.filter((x: any) => !x.done).map((x: any) => [x.id, x.n]))
     try {
-      onChange(await api.finishSelfProgram(rid, act.id, feel, { easier, sets }))
-      setRerate(false); setReopen(false); setEnding(false); toast({ title: "Trénink zapsán do zátěže" })
+      const out: any = await api.finishSelfProgram(rid, act.id, feel, { easier, sets })
+      onChange(out)
+      // feedback #204 — the session rates the watch's recording; it is no activity of its own
+      setRerate(false); setReopen(false); setEnding(false)
+      toast(out?.sessionLinked ? { title: "Hodnocení připojeno k záznamu z hodinek" }
+        : { title: "Trénink uložen", msg: "Do zátěže ho započítá záznam posilování z hodinek, až se synchronizuje." })
     }
     catch (e: any) { toast({ title: e?.message || "Hodnocení se nepodařilo uložit" }) } finally { setBusy(false) }
   }

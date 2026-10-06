@@ -25,6 +25,7 @@ from ..db import get_db
 from ..deps import require_role, verify_csrf
 from ..metrics import coach_texts
 from ..metrics import engine as E
+from .. import durability as DU
 
 _BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BACKEND_DIR not in sys.path:
@@ -135,6 +136,7 @@ def _apply_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
         db.add(models.DeviceHistory(runner_id=rid, device=synced_device, source=f"{provider}_sync", recorded_at=E.now_iso()))
     _apply_day_raw(db, rid, seed)
     _apply_hr_hist(db, rid, seed)
+    DU.link_sessions(db, rid)      # feedback #204: the programme sessions find their watch recordings
     db.commit()
     E.recompute_assessment(db, rid)
 
@@ -411,6 +413,7 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
         db.add(models.DeviceHistory(runner_id=rid, device=synced_device, source=f"{provider}_sync", recorded_at=E.now_iso()))
     _apply_day_raw(db, rid, seed)
     _apply_hr_hist(db, rid, seed)
+    DU.link_sessions(db, rid)      # feedback #204: the programme sessions find their watch recordings
     db.commit()
     E.recompute_assessment(db, rid)
     return {"added_activities": added_a, "added_daily": added_d}

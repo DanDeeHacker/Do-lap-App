@@ -9,7 +9,7 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { useQuadHistory } from "@/history"
 import { ReadinessTrend } from "@/tabs"
-import { DayToday } from "@/daytoday"
+import { DayReadiness, DayToday, useDayToday } from "@/daytoday"
 import { AlertBanner, Button, Card, Chip, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { readinessCol } from "@/capacity"
@@ -40,7 +40,7 @@ const TYPE_ICON: Record<string, LucideIcon> = { volno: Sofa, regenerace: Leaf, "
 // Half-gauge. Fill = the last 7 days on a scale from 0 to the higher of the 7-day
 // ceiling and now. The only mark is the ceiling, a hollow white tick that stays
 // inside the arc band (feedback railway#87/#92, percentile marks removed).
-function HalfGauge({ value, scale, ceiling, col, size, allow, labels }: { value: number | null; scale: number; ceiling?: number | null; col: string; size: "lg" | "sm"; allow?: number | null; labels?: { v: number; text: string; col: string }[] }) {
+function HalfGauge({ value, scale, ceiling, col, size, allow, labels, nums }: { value: number | null; scale: number; ceiling?: number | null; col: string; size: "lg" | "sm"; allow?: number | null; labels?: { v: number; text: string; col: string }[]; nums?: { done: string; end?: string } }) {
   const lg = size === "lg"
   const W = lg ? 220 : 80, R = lg ? 90 : 32, SW = lg ? 14 : 7, cy = lg ? 108 : 40, x0 = (W - 2 * R) / 2
   const arc = `M${x0} ${cy} A${R} ${R} 0 0 1 ${x0 + 2 * R} ${cy}`
@@ -74,8 +74,11 @@ function HalfGauge({ value, scale, ceiling, col, size, allow, labels }: { value:
     return <text key={i} x={x} y={y + 3} fontSize="10.5" fontWeight="700" fill={l.col} textAnchor={t < 0.35 ? "end" : t > 0.65 ? "start" : "middle"}>{l.text}</text>
   })
   const pad = lg && tags.length ? 44 : 2
+  // feedback #206 — the small gauge carries its numbers: done this week inside the arc,
+  // 0 and the week's target under its ends
+  const sm = !lg && nums
   return (
-    <svg viewBox={`${-pad} ${lg && tags.length ? -16 : -2} ${W + 2 * pad} ${(lg ? 116 : 46) + (lg && tags.length ? 14 : 0)}`} className={lg ? "w-full max-w-[300px]" : "w-[84px]"} aria-hidden>
+    <svg viewBox={`${-pad} ${lg && tags.length ? -16 : -2} ${W + 2 * pad} ${(lg ? 116 : 46) + (lg && tags.length ? 14 : 0) + (sm ? 11 : 0)}`} className={lg ? "w-full max-w-[300px]" : "w-[84px]"} aria-hidden>
       <path d={arc} fill="none" stroke="rgb(255 255 255 / .08)" strokeWidth={SW} strokeLinecap="butt" />
       {/* what today still allows on top of the last 7 days — ends where the binding limit is */}
       {fa > f && <path d={arc} fill="none" stroke={C.ok} strokeOpacity={0.35} strokeWidth={SW} strokeLinecap="butt" strokeDasharray={`0 ${L * f} ${L * (fa - f)} ${L}`} data-testid="gauge-allow" />}
@@ -86,6 +89,13 @@ function HalfGauge({ value, scale, ceiling, col, size, allow, labels }: { value:
       {ceil}
       {limTick}
       {lg && tags}
+      {sm && (
+        <g data-testid="gauge-nums">
+          <text x={W / 2} y={cy - 3} fontSize="12" fontWeight="800" fill={C.fg} textAnchor="middle">{nums.done}</text>
+          <text x={x0} y={cy + 10} fontSize="8.5" fontWeight="600" fill={C.fg3} textAnchor="middle">0</text>
+          {nums.end && <text x={x0 + 2 * R} y={cy + 10} fontSize="8.5" fontWeight="700" fill={C.fg2} textAnchor="middle">{nums.end}</text>}
+        </g>
+      )}
     </svg>
   )
 }
@@ -226,7 +236,8 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
           title="Oblouk: odvedeno tento týden (od pondělí) · světlé prodloužení: kolik dnes ještě smíte · oranžová čárka a šrafovaný úsek: limit, který omezuje · dutá bílá čárka: cíl týdne v cyklu · klepnutím zobrazíte výpočet" className="w-full text-left">
           {/* railway#191 — Objem is a row like the other channels */}
             <span className="flex items-center gap-3.5">
-              <HalfGauge value={done} scale={scale} ceiling={ref} col={col} size="sm" allow={c.todayMax} />
+              <HalfGauge value={done} scale={scale} ceiling={ref} col={col} size="sm" allow={c.todayMax}
+                nums={{ done: num(done, d), end: ref != null ? num(ref, d) : undefined }} />
               <span className="min-w-0 flex-1">
                 <span className="block text-[12px] font-bold text-fg-2">{CH_ICON[id]}</span>
                 <span className="mt-0.5 block"><b className="t-num text-[18px] leading-none text-fg">{value}</b> <span className="text-[11px] font-semibold text-fg-3">{c.unit}</span></span>
@@ -270,6 +281,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
       ) : (
         <div className="mt-4 grid gap-3">
           {order.map((id) => channel(id))}
+          {restDay && <button type="button" onClick={() => setShowAll(false)} className="w-fit text-[12px] font-bold text-accent hover:underline" data-testid="hide-channels">Skrýt kanály</button>}
         </div>
       )}
       {cyc.next && (
@@ -960,6 +972,7 @@ export function Training() {
   useEffect(() => { setSel(null) }, [g?.date, g?.type])
   useArcScroll(carousel, [g?.date, g?.type, a?.engineMode, (g?.rank || []).length])
   const stage = useDataStage()
+  const day = useDayToday(stage === "none" ? undefined : rid, a?.computed_at)
   if (!a) return <p className="text-sm text-fg-3">Načítám…</p>
   // UX audit F01 — no plan, limits or readiness before the first run or night
   if (stage === "none")
@@ -1097,11 +1110,12 @@ export function Training() {
         </Sheet>
       )}
 
-      {/* railway#142 — readiness (trend + the nights behind it) right above today's capacity */}
-      <section className="card mt-4 p-4 md:p-6"><ReadinessTrend a={a} hist={quadHist} /></section>
-      {/* the day so far: readiness through the day, the day outside training (as in the evening report) */}
-      <DayToday rid={rid} stamp={a.computed_at} />
+      {/* railway#142 — readiness (trend + the nights behind it) right above today's capacity;
+          feedback #207/#208 — readiness through the day under its chart, then today's capacity,
+          then the day outside training (#210) */}
+      <section className="card mt-4 p-4 md:p-6"><ReadinessTrend a={a} hist={quadHist} below={<DayReadiness d={day.d} />} /></section>
       <TodayCapacity g={g} cycle={<WeekPanel g={g} embedded />} />
+      <DayToday d={day.d} err={day.err} />
       <RacesCard outlook={a.races} g={g} cap={a.capacity} />
 
       <p className="mt-4 text-[11px] leading-5 text-fg-3">Došlap není zdravotnický prostředek. Doporučení jsou ochranné mantinely z vašich dat, ne léčba ani diagnóza. Při bolesti, která se vrací nebo zhoršuje, se poraďte s fyzioterapeutem.</p>

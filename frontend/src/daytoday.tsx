@@ -24,7 +24,9 @@ function Tile({ label, value, col }: { label: string; value: string; col?: strin
   )
 }
 
-export function DayToday({ rid, stamp }: { rid?: string; stamp?: string }) {
+// feedback #207/#208/#210 — one fetch, two places on Trénink: readiness through the day sits
+// under the readiness chart (outside its detail), the day outside training after today's capacity
+export function useDayToday(rid?: string, stamp?: string): { d: any; err: boolean } {
   const [d, setD] = useState<any>(null)
   const [err, setErr] = useState(false)
   useEffect(() => {
@@ -34,8 +36,12 @@ export function DayToday({ rid, stamp }: { rid?: string; stamp?: string }) {
     api.dayToday(rid).then((x: any) => alive && setD(x)).catch(() => alive && setErr(true))
     return () => { alive = false }
   }, [rid, stamp])
-  if (!rid || err) return null
-  if (!d) return <section className="card mt-4 p-4 md:p-6"><p className="animate-pulse text-[12px] text-fg-3">Načítám průběh dne…</p></section>
+  return { d, err }
+}
+
+/** Readiness from the morning to now, as a waterfall (under the readiness chart). */
+export function DayReadiness({ d }: { d: any }) {
+  if (!d) return null
   const r = d.readiness || {}, v = d.view, ld = d.load || {}
   const steps: WStep[] = []
   if (r.morning != null) {
@@ -58,22 +64,30 @@ export function DayToday({ rid, stamp }: { rid?: string; stamp?: string }) {
     : r.dayDrop >= 0.5 ? null
     : (ld.excess || 0) > 0 ? "Pohybu mimo trénink je dnes víc než obvykle, připravenost to zatím nesnižuje o celý bod."
     : "Mimo trénink zatím běžný den, připravenost nesnižuje."
+  if (!steps.length) return null
+  return (
+    <div className="nest mt-3 p-3.5" data-testid="day-readiness-box">
+      <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Připravenost během dne</span><InfoDot text={INFO} label="Připravenost během dne" /></span>
+      <Waterfall steps={steps} lo={lo} hi={100} unit=" %" testid="day-readiness" wrapSub />
+      {why && <p className="mt-2 text-[11.5px] leading-[17px] text-fg-3">{why}</p>}
+    </div>
+  )
+}
+
+/** The day outside training and the day's energy (after today's capacity on Trénink). */
+export function DayToday({ d, err }: { d: any; err?: boolean }) {
+  if (err) return null
+  if (!d) return <section className="card mt-4 p-4 md:p-6"><p className="animate-pulse text-[12px] text-fg-3">Načítám průběh dne…</p></section>
+  const v = d.view, ld = d.load || {}
+  if (!v) return null
   const tr = ld.train || 0, nt = ld.nt || 0
   const scale = Math.max(1, tr + nt, tr + (ld.usualNt || 0))
   return (
     <section className="card mt-4 p-4 md:p-6" data-testid="day-today">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Dnešní den · do teď</span><InfoDot text={INFO} label="Dnešní den" /></span>
+        <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Dnešní mimotréninková zátěž a energie</span><InfoDot text={INFO} label="Dnešní den" /></span>
         {v?.steps ? <span className="text-[11px] text-fg-3">{num(v.steps)} kroků</span> : null}
       </div>
-
-      {steps.length > 0 && (
-        <div className="nest mt-3 p-3.5">
-          <p className="t-label !text-fg-3">Připravenost během dne</p>
-          <Waterfall steps={steps} lo={lo} hi={100} unit=" %" testid="day-readiness" wrapSub />
-          {why && <p className="mt-2 text-[11.5px] leading-[17px] text-fg-3">{why}</p>}
-        </div>
-      )}
 
       {v ? (
         <>
@@ -111,7 +125,7 @@ export function DayToday({ rid, stamp }: { rid?: string; stamp?: string }) {
                 <b className="tabular-nums text-fg">{num(nt)} bodů</b>
               </li>
               <li className="flex items-baseline justify-between gap-2 border-t border-white/[.07] pt-1.5">
-                <span className="text-fg-2">Nad obvyklý den, do Celkové zátěže</span>
+                <span className="text-fg-2">Mimotréninková zátěž do celkové zátěže</span>
                 <b className="tabular-nums" style={{ color: (ld.excess || 0) > 0 ? NT_COL : C.fg3 }}>{(ld.excess || 0) > 0 ? `+${num(ld.excess)} bodů` : "0"}</b>
               </li>
             </ul>

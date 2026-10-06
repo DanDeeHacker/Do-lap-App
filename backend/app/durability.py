@@ -344,3 +344,76 @@ def is_deload(week: int, a: dict | None) -> bool:
     if mode in ("build",):
         return False
     return week % 4 == 0 and week < 25
+
+
+# ---------------------------------------------------------------- the session and the watch
+# Feedback #204 — a programme session is not an activity of its own: only the watch's
+# recording is (a hand-made "Posilování · B" next to the watch's strength workout was a
+# duplicate in the load). The rating (how it felt → session RPE) waits in the programme's
+# history and goes onto that day's strength recording from the watch once it syncs.
+PROGRAM_TITLE = "Posilování · "
+LINK_DAYS = 14
+
+
+def _watch_strength(db, rid: str, day: str, minutes: float | None, taken: set):
+    """That day's imported strength activity closest in length, not rated by another session."""
+    cands = [a for a in db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.sport == "strength",
+                                                         models.Activity.started_at == day)
+             if a.provider != "manual" and a.id not in taken]
+    if not cands:
+        return None
+    return min(cands, key=lambda a: abs((a.duration_min or 0) - (minutes or 0)))
+
+
+def rate_activity(db, rid: str, act, rate: dict) -> None:
+    """The session's rating (session RPE and a note) on a watch recording."""
+    act.strength_focus = act.strength_focus or rate.get("focus")
+    act.strength_type = act.strength_type or rate.get("type")
+    fb = db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == act.id).first()
+    if fb is None:
+        fb = models.ActivityFeedback(activity_id=act.id, runner_id=rid, submitted_at=act.started_at, pain_points=[])
+        db.add(fb)
+    fb.rpe = rate.get("rpe")
+    fb.note = rate.get("note")
+    if rate.get("niggle"):
+        fb.niggle = True
+
+
+def link_sessions(db, rid: str, today: date | None = None) -> bool:
+    """Ties the programme sessions to the watch: an app-made activity is removed (its rating
+    kept), and a session of the last two weeks without a recording rates that day's strength
+    workout from the watch once there is one. Returns whether anything changed."""
+    today = today or E.today_date()
+    lo = (today - timedelta(days=LINK_DAYS)).isoformat()
+    changed = False
+    for p in db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.template == "durability").all():
+        st = dict(p.state or {})
+        hist = [dict(h) for h in (st.get("history") or [])]
+        taken = {h.get("activityId") for h in hist if h.get("activityId")}
+        dirty = False
+        for h in hist:
+            aid = h.get("activityId")
+            act = db.query(models.Activity).filter(models.Activity.id == aid).first() if aid else None
+            if act is not None and act.provider == "manual" and (act.title or "").startswith(PROGRAM_TITLE):
+                fb = db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == act.id).first()
+                h["rate"] = h.get("rate") or {"rpe": fb.rpe if fb else FEEL.get(h.get("feel"), 6), "note": fb.note if fb else None,
+                                              "niggle": bool(fb and fb.niggle), "focus": act.strength_focus,
+                                              "type": act.strength_type, "minutes": act.duration_min}
+                if fb is not None:
+                    db.delete(fb)
+                db.delete(act)
+                taken.discard(aid)
+                h["activityId"], act, dirty = None, None, True
+            if act is None and h.get("rate") and (h.get("date") or "") >= lo:
+                w = _watch_strength(db, rid, h["date"], (h["rate"] or {}).get("minutes"), taken)
+                if w is not None:
+                    rate_activity(db, rid, w, h["rate"])
+                    h["activityId"] = w.id
+                    taken.add(w.id)
+                    dirty = True
+        if dirty:
+            p.state = {**st, "history": hist}
+            changed = True
+    if changed:
+        db.flush()
+    return changed

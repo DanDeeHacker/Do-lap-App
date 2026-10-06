@@ -1724,7 +1724,7 @@ export function Load() {
 const readinessWord = (p: number) => (p >= 70 ? "dobrá" : p >= 40 ? "snížená" : "nízká")
 // railway#137/#138 — readiness over time; HRV, resting HR and sleep open under it.
 // railway#142 — lives on Trénink, above today's capacity.
-export function ReadinessTrend({ a, hist }: { a: any; hist: any[] | null }) {
+export function ReadinessTrend({ a, hist, below }: { a: any; hist: any[] | null; below?: ReactNode }) {
   const [open, setOpen] = useState(false)
   const r = a?.readiness ?? a?.capacity?.readiness
   const rcv = a?.rcv
@@ -1757,6 +1757,8 @@ export function ReadinessTrend({ a, hist }: { a: any; hist: any[] | null }) {
       {hist === null ? <p className="mt-2 text-[12px] text-fg-3">Počítám trend v čase…</p>
         : pts.filter((p) => p.v != null).length > 1 ? <AxisLineChart points={pts} yMin={0} yMax={100} unit=" %" color={col === C.fg3 ? C.info : col} height={96} />
         : <p className="mt-2 text-[12px] text-fg-3">Na trend připravenosti je zatím málo historie.</p>}
+      {/* feedback #208 — today's readiness through the day, under the chart and outside its detail */}
+      {below}
       {rcv && (
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="readiness-detail-toggle"
           className="mt-2 flex w-full items-center justify-between gap-2 border-t border-white/[.07] pt-2.5 text-left text-[12px] font-semibold text-fg-2 transition hover:text-fg">

@@ -7962,7 +7962,7 @@
   "kind": "str"
  },
  {
-  "t": "Dnešní den · do teď",
+  "t": "Dnešní mimotréninková zátěž a energie",
   "files": [
    "daytoday.tsx"
   ],
@@ -8012,14 +8012,14 @@
   "kind": "str"
  },
  {
-  "t": "Načítám průběh dne…",
+  "t": "Mimotréninková zátěž do celkové zátěže",
   "files": [
    "daytoday.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Nad obvyklý den, do Celkové zátěže",
+  "t": "Načítám průběh dne…",
   "files": [
    "daytoday.tsx"
   ],
@@ -15406,6 +15406,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Do zátěže ho započítá záznam posilování z hodinek, až se synchronizuje.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe.",
   "files": [
    "selfprograms.tsx"
@@ -15446,6 +15453,13 @@
    "selfprograms.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Hodnocení připojeno k záznamu z hodinek",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Hodnocení se nepodařilo uložit",
@@ -15695,7 +15709,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Podle toho se příště přidá, nebo ubere. Trénink se započítá do týdenní zátěže.",
+  "t": "Podle toho se příště přidá, nebo ubere. Do zátěže se trénink započítá ze záznamu hodinek.",
   "files": [
    "selfprograms.tsx"
   ],
@@ -15908,7 +15922,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Trénink zapsán do zátěže",
+  "t": "Trénink uložen",
   "files": [
    "selfprograms.tsx"
   ],
@@ -20265,6 +20279,13 @@
    "training.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Skrýt kanály",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Smazat závod",

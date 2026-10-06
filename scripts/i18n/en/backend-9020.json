@@ -22,5 +22,6 @@
 "Týden na vaší normě.": "A week at your norm.",
 "Zmizí, když se HRV/tep/spánek vrátí k vaší normě nebo skok odezní.": "Goes away once HRV/heart rate/sleep return to your norm or the jump fades.",
 "Řetězec VO → zatížení → zranění je odvozený, ne prokázaný prospektivně. Hodnoty se navíc liší mezi zařízeními, takže při výměně hodinek je nutné postavit normu znovu.": "The chain VO → loading → injury is inferred, not shown prospectively. Values also differ between devices, so when you change watches the norm has to be rebuilt.",
-"Skóre spánku {} ze 100.": "Sleep score {0} out of 100."
+"Skóre spánku {} ze 100.": "Sleep score {0} out of 100.",
+"Posilování ·": "Strength ·"
 }

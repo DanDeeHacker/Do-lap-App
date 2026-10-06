@@ -160,6 +160,10 @@ def _out(p: models.SelfProgram, db=None) -> dict:
 @router.get("/{rid}/self-programs")
 def get_self_programs(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_read_access(db, user, rid)
+    # feedback #204 — sessions saved as activities of their own before are tidied up here too
+    if DU.link_sessions(db, rid):
+        db.commit()
+        E.recompute_assessment(db, rid)
     # feedback #186 — several programmes can run at once; the newest first
     actives = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid,
                                                    models.SelfProgram.active.is_(True)).order_by(models.SelfProgram.id.desc()).all()
@@ -243,8 +247,10 @@ def finish_durability_session(rid: str, pid: int, body: FinishRequest, user: mod
     t_iso = today.isoformat()
     st = dict(p.state or {})
     hist = list(st.get("history") or [])
+    prev_aid = None
     if hist and hist[-1]["date"] == t_iso:      # re-rating today's session: undo its progression first
         last = hist.pop()
+        prev_aid = last.get("activityId")
         st = {**st, **(last.get("before") or {}), "history": hist}
         ses = last["session"]
     else:
@@ -276,34 +282,28 @@ def finish_durability_session(rid: str, pid: int, body: FinishRequest, user: mod
     st["history"][-1]["before"] = before
     # the load: the part of the dose the runner did today, its length and how hard it felt
     minutes = max(5, round(DU.estimate_min(ses, plan) * completion))
-    rpe = DU.FEEL[body.feel]
-    twin = E.find_twin(db, rid, "strength", t_iso, minutes)
-    if twin is None:
-        twin = db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.sport == "strength",
-                                                models.Activity.provider == "manual",
-                                                models.Activity.started_at >= t_iso).first()
-    if twin is None:
-        twin = models.Activity(runner_id=rid, provider="manual", started_at=t_iso, sport="strength",
-                               title=f"Posilování · {DU.SESSIONS[ses]['label']}", duration_min=float(minutes))
-        db.add(twin)
-        db.flush()
-    if twin.provider == "manual":                # the app's own record follows the part that was done
-        twin.duration_min = float(minutes)
-    twin.strength_focus = twin.strength_focus or DU.SESSIONS[ses]["focus"]
-    twin.strength_type = DU.SESSIONS[ses]["type"]
-    fb = db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == twin.id).first()
-    if fb is None:
-        fb = models.ActivityFeedback(activity_id=twin.id, runner_id=rid, submitted_at=t_iso, pain_points=[])
-        db.add(fb)
-    fb.rpe = rpe
-    fb.note = f"Runner's must-have {ses}: {DU.FEEL_CS[body.feel]}" + (f", hotovo {round(completion * 100)} % sérií" if partial else "")
-    if body.feel == "pain":
-        fb.niggle = True
-    st["history"][-1]["activityId"] = twin.id
+    # feedback #204 — no activity of the app's own (it doubled the watch's recording): the
+    # rating waits in the history and goes onto today's strength workout from the watch,
+    # now if it has synced already, otherwise with the sync that brings it
+    rate = {"rpe": DU.FEEL[body.feel], "minutes": minutes, "focus": DU.SESSIONS[ses]["focus"], "type": DU.SESSIONS[ses]["type"],
+            "note": f"Runner's must-have {ses}: {DU.FEEL_CS[body.feel]}" + (f", hotovo {round(completion * 100)} % sérií" if partial else ""),
+            "niggle": body.feel == "pain"}
+    st["history"][-1]["rate"] = rate
+    prev = db.query(models.Activity).filter(models.Activity.id == prev_aid).first() if prev_aid else None
+    if prev is not None and prev.provider != "manual":      # re-rated: the same watch recording takes the new rating
+        DU.rate_activity(db, rid, prev, rate)
+        st["history"][-1]["activityId"] = prev.id
+    elif prev is not None and (prev.title or "").startswith(DU.PROGRAM_TITLE):
+        db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == prev.id).delete()
+        db.delete(prev)
     p.state = st
+    db.flush()
+    DU.link_sessions(db, rid)
     db.commit()
     E.recompute_assessment(db, rid)
-    return _out(p, db)
+    out = _out(p, db)
+    out["sessionLinked"] = bool(((p.state or {}).get("history") or [{}])[-1].get("activityId"))
+    return out
 
 
 @router.delete("/{rid}/self-programs/{pid}", dependencies=[Depends(verify_csrf)])

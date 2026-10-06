@@ -1054,6 +1054,12 @@
   ]
  },
  {
+  "t": "Posilování ·",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
   "t": "Příští trénink bude lehčí verze: o sérii méně a opakování na spodní hranici.",
   "files": [
    "durability.py"
@@ -14118,12 +14124,6 @@
  },
  {
   "t": "Neznámé hodnocení",
-  "files": [
-   "routers/self_programs.py"
-  ]
- },
- {
-  "t": "Posilování · {}",
   "files": [
    "routers/self_programs.py"
   ]
