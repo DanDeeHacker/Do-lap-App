@@ -1,0 +1,8 @@
+{
+"Nevstřebaná zátěž z posledních dní je na stropu týdenní kapacity.": "The load still unabsorbed from recent days is at the weekly capacity ceiling.",
+"Nevstřebaná zátěž z posledních dní {} km je na stropu týdenní kapacity ({} km), dnes volno. Starší běhy se počítají jen zčásti, jak tělo zátěž vstřebává.": "The load still unabsorbed from recent days, {0} km, is at the weekly capacity ceiling ({1} km), so a rest day today. Older runs count only partly, as the body absorbs the load.",
+"Nevstřebané minuty v Z4+ z posledních dní jsou na hranici kapacity, tvrdý trénink počká pár dní.": "The Z4+ minutes still unabsorbed from recent days are at the capacity limit; the hard session waits a few days.",
+"Týdenní cíl je splněný (od pondělí {} z {} km) — dnes volno.": "The weekly target is met (from Monday {0} of {1} km) — a rest day today.",
+"Nevstřebaná zátěž z posledních dní ani jeden den nepřesáhne strop týdenní kapacity: starší běhy se počítají jen zčásti, jak je tělo vstřebává.": "On no day does the load still unabsorbed from recent days go over the weekly capacity ceiling: older runs count only partly, as the body absorbs them.",
+"Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu nebo týdenní kapacity. Cíl je horní hranice, ne povinnost.": "The remaining {0} km don't fit into the week without going over the single-run ceiling or the weekly capacity. The target is an upper limit, not an obligation."
+}

@@ -121,6 +121,20 @@ def _roll_left(day: date, past: dict, planned: dict, ceil7) -> float | None:
     return max(0.0, ceil7 - used)
 
 
+def _room(day: date, today: date, chw: dict, past: dict, planned: dict) -> float | None:
+    """What the weekly ceiling leaves for `day`. Owner request 2026-10-06: under the
+    absorbed load, like the score and today's limit — this morning's unabsorbed load and
+    today's and the planned days' sessions, each fading by the nightly share — so a long
+    run keeps counting less and less instead of fully for 6 days. The plain 7-day ceiling
+    minus the 6 days before only when the absorbed figures are missing."""
+    mx, k, base = chw.get("absorbedMax"), chw.get("absorbK"), chw.get("absorbedPast")
+    if mx is None or not k or base is None:
+        return _roll_left(day, past, planned, chw.get("ceiling7"))
+    q = 1 - k
+    used = base * q ** (day - today).days + sum((v or 0) * q ** (day - e).days for e, v in planned.items() if today <= e < day)
+    return max(0.0, mx - used)
+
+
 def _headline(g) -> str:
     w = g.get("week") or {}
     mode, cyc = w.get("mode"), w.get("cycle") or {}
@@ -339,7 +353,7 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         planned.clear()
         planned[today] = (vol.get("doneToday") or 0) if g.get("done") else today_km
         for d in sorted(plan_km):
-            room = _roll_left(d, pvol, planned, vol.get("ceiling7"))
+            room = _room(d, today, vol, pvol, planned)
             if room is not None and plan_km[d] > room:
                 plan_km[d] = room
             if plan_km[d] < min_run:
@@ -356,7 +370,7 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         if d not in plan_km:
             del z4[d]
             continue
-        room = _roll_left(d, x["past"]["intensity"], planned_i, inten.get("ceiling7"))
+        room = _room(d, today, inten, x["past"]["intensity"], planned_i)
         if room is not None and z4[d] > room:
             z4[d] = room
         if z4[d] < HARD_Z4_MIN and not x.get("novice"):
@@ -371,7 +385,11 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         return sum((planned.get(e - timedelta(days=j)) if (e - timedelta(days=j)) in planned
                     else pvol.get((e - timedelta(days=j)).isoformat(), 0.0)) or 0.0 for j in range(7))
 
-    def room_at(d):                         # how much more `d` can take without any 7 days going over
+    def room_at(d):                         # how much more `d` can take without any later day going over
+        if vol.get("absorbedMax") is not None and vol.get("absorbK"):
+            q = 1 - vol["absorbK"]
+            ends = [d] + [e for e in planned if e > d]
+            return max(0.0, min((_room(e, today, vol, pvol, planned) - (planned.get(e) or 0)) / q ** (e - d).days for e in ends))
         if ceil7 is None:
             return 1e9
         ends = [d] + [e for e in planned if d < e <= d + timedelta(days=6)]
@@ -533,7 +551,7 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
             n -= 1
         for d in sorted(cand[:n]):
             m = min(KOLO_MAX, room / n / per_min)
-            r7 = _roll_left(d, psys, day_sys, sysw.get("ceiling7"))
+            r7 = _room(d, today, sysw, psys, day_sys)
             if r7 is not None:
                 m = min(m, r7 / per_min)
             if m < CROSS_MIN:
@@ -568,7 +586,7 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         notes.append(f"Závod {WD_IN[d.weekday()]}: {r.get('name') or 'závod'} — dva dny před ním a po něm bez tvrdého "
                      "tréninku, tři dny před ním bez posilování, týden bez dlouhého běhu.")
     if leftover > 2:
-        notes.append(f"Zbylých {_cz(leftover)} km se do týdne nevejde bez překročení stropu jednoho běhu nebo 7 dní. "
+        notes.append(f"Zbylých {_cz(leftover)} km se do týdne nevejde bez překročení stropu jednoho běhu nebo týdenní kapacity. "
                      "Cíl je horní hranice, ne povinnost.")
     if extra:
         notes.append(f"Navíc volitelný krátký lehký běh {WD_IN[extra.weekday()]}, když se budete cítit dobře — zbytek "
@@ -576,7 +594,9 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     out["rules"] = [
         f"Tvrdé tréninky aspoň 48 hodin od sebe a ne vedle dlouhého běhu, nejvýš {x.get('hardCap') or 2} za týden.",
         "Posilování ne den před tvrdým nebo dlouhým během, těžší A ani v ten den a den po něm.",
-        (f"Žádných 7 dní po sobě nepřesáhne strop kapacity {_cz(vol['ceiling7'])} km." if vol.get("ceiling7") else
+        ("Nevstřebaná zátěž z posledních dní ani jeden den nepřesáhne strop týdenní kapacity: starší běhy se počítají "
+         "jen zčásti, jak je tělo vstřebává." if vol.get("absorbedMax") is not None else
+         f"Žádných 7 dní po sobě nepřesáhne strop kapacity {_cz(vol['ceiling7'])} km." if vol.get("ceiling7") else
          "Týdenní objem roste nejvýš o 10 % proti minulému týdnu."),
         "Každé ráno Trénink den upraví podle připravenosti — plán počítá s běžným zotavením.",
     ]

@@ -224,6 +224,37 @@ def residual_week(daily, days, rates, ch):
     return min(w, w_nom * RESIDUAL_CAP) if ch in CARDIO else w
 
 
+def absorbed_room(daily, days, rates, ch, t_iso, ceil_res):
+    """Owner request 2026-10-06 — the room under the weekly ceiling from the same absorbed
+    load the weekly score uses (residual_week), in today's units (km, min, m) so that it
+    adds up: `absorbedPast` = what is still unabsorbed this morning of every earlier day
+    (a run six nights ago ≈ 30 % of it on the 3.5-night half-life), `absorbed` = that plus
+    today's sessions at full weight, `absorbedMax` = the ceiling where the weekly score
+    starts, `absorbedLeft` = how much more today can take. The plain 7-day sum let a long
+    run count fully for six days and vanish overnight on the seventh."""
+    k_ref = _k(HALF_CARDIO_REF if ch in CARDIO else HALF_MSK)
+    level = nominal = 0.0
+    for d in days:
+        if d >= t_iso:                        # this morning: the night's absorption, today's load not yet
+            level *= 1 - rates[d]
+            nominal *= 1 - k_ref
+            break
+        x = daily.get(d, 0.0)
+        level = level * (1 - rates[d]) + k_ref * x
+        nominal = nominal * (1 - k_ref) + k_ref * x
+    today = daily.get(t_iso, 0.0)
+    unit = 7 * k_ref                          # weekly-equivalent residual per unit of today's load
+    resid = 7 * (level + k_ref * today)
+    x_max = (ceil_res / 7 - level) / k_ref
+    past = level / k_ref
+    if ch in CARDIO:                          # residual_week's cap on what poor nights may keep
+        resid = min(resid, RESIDUAL_CAP * 7 * (nominal + k_ref * today))
+        x_max = max(x_max, (ceil_res / (7 * RESIDUAL_CAP) - nominal) / k_ref)
+        past = min(past, RESIDUAL_CAP * nominal / k_ref)
+    return {"absorbed": resid / unit, "absorbedPast": past, "absorbedMax": ceil_res / unit,
+            "absorbedLeft": max(0.0, x_max - today), "absorbK": k_ref}
+
+
 def absorbed_left(rates, since, today_iso, days):
     """Share of an exposure on `since` still unabsorbed this morning."""
     left = 1.0
@@ -1830,6 +1861,11 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             week = {"now": _fmt(now_w, ch), "residual": _fmt(resid_w, ch), "cap": _fmt(capw, ch), "ratio": round(rw, 2),
                     "capPeak": _fmt(cap_peak, ch) if cap_peak is not None else None,
                     "ceiling": _fmt(ceil_w, ch), "left": _fmt(max(0.0, ceil_w - now_w), ch)}
+            # the room left under the same ceiling the weekly score uses (in its units), as the
+            # absorbed load in today's units — the guidance's 7-day limit and the week's plan
+            ab = absorbed_room(daily, absorb_days, rates, ch, t_iso,
+                               (cap_peak or capw) * wk_ready_c * wk_bfac * (1 + mw_c * wk_hold))
+            week.update({k: (round(v, 4) if k == "absorbK" else _fmt(v, ch)) for k, v in ab.items()})
             if capw != cap_base:
                 week["capBase"] = _fmt(cap_base, ch)
         # railway#113 — who carries the unabsorbed 7-day load (the same split as the history)

@@ -667,7 +667,7 @@ function PlanMeter({ label, value, target, ceil, unit, col, testid }: { label: s
       </div>
       <div className="mt-1 flex gap-3 text-[10.5px] text-fg-3">
         {target != null && <span className="flex items-center gap-1"><i className="h-2.5 w-0.5 rounded-full" style={{ background: C.watch }} />cíl týdne</span>}
-        {ceil != null && <span className="flex items-center gap-1"><i className="h-2.5 w-0.5 rounded-full bg-fg" />strop kapacity za 7 dní</span>}
+        {ceil != null && <span className="flex items-center gap-1"><i className="h-2.5 w-0.5 rounded-full bg-fg" />týdenní kapacita s rezervou</span>}
       </div>
     </div>
   )

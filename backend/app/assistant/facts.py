@@ -86,7 +86,7 @@ def _today_extra(a) -> dict:
     return out
 
 
-LIMITED_BY = {"week": "zbytek týdenního cíle", "7d": "součet posledních 7 dní proti kapacitě",
+LIMITED_BY = {"week": "zbytek týdenního cíle (kalendářní týden od pondělí)", "7d": "nevstřebaná zátěž posledních dní proti týdenní kapacitě",
               "run": "strop jednoho běhu", "systemic": "celková zátěž ze všech sportů",
               "mechanics": "mechanika nad vaším prahem"}
 
@@ -104,12 +104,12 @@ def _why_today_max(a, today) -> None:
         c = chans.get(key) or {}
         u = row.get("unit") or ""
         parts = [f"{row.get('label')} ({u}): týdenní cíl {row.get('weekTarget')}",
-                 f"tento týden hotovo {row.get('doneThisWeek')}", f"do konce týdne zbývá {row.get('leftThisWeek')}"]
+                 f"tento týden (od pondělí) hotovo {row.get('doneThisWeek')}", f"do neděle zbývá {row.get('leftThisWeek')}"]
         if row.get("todayMax") not in (None, "", "–"):
             why = LIMITED_BY.get(c.get("limitedBy"))
             parts.append(f"dnešní strop {row.get('todayMax')}" + (f" (určuje ho {why})" if why else ""))
         if c.get("left7") is not None:
-            parts.append(f"v klouzavých 7 dnech zbývá {G._cz(c['left7'], 1 if key == 'volume' else 0)}")
+            parts.append(f"pod stropem nevstřebané zátěže zbývá {G._cz(c['left7'], 1 if key == 'volume' else 0)}")
         lines.append(", ".join(parts) + ".")
     today["weekBudget"] = lines
 

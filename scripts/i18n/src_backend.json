@@ -5282,6 +5282,24 @@
   ]
  },
  {
+  "t": "Nevstřebaná zátěž z posledních dní je na stropu týdenní kapacity.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Nevstřebaná zátěž z posledních dní {} km je na stropu týdenní kapacity ({} km), dnes volno. Starší běhy se počítají jen zčásti, jak tělo zátěž vstřebává.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Nevstřebané minuty v Z4+ z posledních dní jsou na hranici kapacity, tvrdý trénink počká pár dní.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Nová obuv {} ({}) od {}: lýtka, Achillovy šlachy a chodidla si na ni zvykají, proto jsou do {} rezervy na běh užší. Střídejte ji s dosavadní obuví a začněte kratšími běhy",
   "files": [
    "metrics/guidance.py"
@@ -5456,12 +5474,6 @@
   ]
  },
  {
-  "t": "Posledních 7 dní jste na stropu týdenní kapacity.",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
   "t": "Posledních 7 dní {} km — na stropu vaší týdenní kapacity ({} km), dnes volno.",
   "files": [
    "metrics/guidance.py"
@@ -5594,7 +5606,7 @@
   ]
  },
  {
-  "t": "Týdenní cíl je splněný ({} z {} km) — dnes volno.",
+  "t": "Týdenní cíl je splněný (od pondělí {} z {} km) — dnes volno.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5656,12 +5668,6 @@
  },
  {
   "t": "Za poslední 4 týdny průměrně {} běhu a {} min týdně — při malé běžecké základně stačí ke zranění menší skok, proto jsou rezervy užší",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "Za posledních 7 dní máte minuty v Z4+ na hranici kapacity, tvrdý trénink počká pár dní.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -8959,6 +8965,12 @@
   ]
  },
  {
+  "t": "Nevstřebaná zátěž z posledních dní ani jeden den nepřesáhne strop týdenní kapacity: starší běhy se počítají jen zčásti, jak je tělo vstřebává.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Návrat po zranění · {}. týden ze 3",
   "files": [
    "metrics/week_plan.py"
@@ -9049,7 +9061,7 @@
   ]
  },
  {
-  "t": "Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu nebo 7 dní. Cíl je horní hranice, ne povinnost.",
+  "t": "Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu nebo týdenní kapacity. Cíl je horní hranice, ne povinnost.",
   "files": [
    "metrics/week_plan.py"
   ]

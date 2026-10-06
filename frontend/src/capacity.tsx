@@ -261,15 +261,27 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
         <>
           <p className="mt-1.5 text-[12px] text-fg-2">
             Týdenní kapacita <b className="text-fg">{num(wk.cap)} {c.unit}</b>
-            <span className="text-[11px] text-fg-3"> · strop {num(wk.ceiling)}{wk.ceiling < wk.cap ? " (snížený připraveností)" : " s rezervou"}</span>
+            <span className="text-[11px] text-fg-3">{` · za posledních 7 dní ${num(wk.now)}`}</span>
           </p>
-          <div className="mt-2">
-            <div className="mb-1 flex justify-between text-[11px] text-fg-3">
-              <span>posledních 7 dní <b className="text-fg">{num(wk.now)}</b> {c.unit}</span>
-              <span>{wk.left > 0 ? `do stropu zbývá ${num(wk.left)}` : "strop vyčerpán"}</span>
+          {/* owner request 2026-10-06: the load still unabsorbed (older days count only partly)
+              against the ceiling where the weekly score starts — the same room Trénink uses */}
+          {wk.absorbedMax != null ? (
+            <div className="mt-2" data-testid="absorbed-row">
+              <div className="mb-1 flex justify-between text-[11px] text-fg-3">
+                <span><span>nevstřebáno </span><b className="text-fg">{num(wk.absorbed)}</b><span>{` z ${num(wk.absorbedMax)}`}</span>{" "}<span>{c.unit}</span></span>
+                <span>{wk.absorbedLeft > 0 ? `do stropu zbývá ${num(wk.absorbedLeft)}` : "strop vyčerpán"}</span>
+              </div>
+              <HeadroomBar now={wk.absorbed} ceiling={wk.absorbedMax} tone={wTone} />
             </div>
-            <HeadroomBar now={wk.now} ceiling={wk.ceiling} tone={wTone} target={target && target.budget < wk.ceiling - 0.05 ? target.budget : null} />
-          </div>
+          ) : (
+            <div className="mt-2">
+              <div className="mb-1 flex justify-between text-[11px] text-fg-3">
+                <span>posledních 7 dní <b className="text-fg">{num(wk.now)}</b> {c.unit}</span>
+                <span>{wk.left > 0 ? `do stropu zbývá ${num(wk.left)}` : "strop vyčerpán"}</span>
+              </div>
+              <HeadroomBar now={wk.now} ceiling={wk.ceiling} tone={wTone} target={target && target.budget < wk.ceiling - 0.05 ? target.budget : null} />
+            </div>
+          )}
           {/* feedback #181 — the week's target from Trénink, when it is lower than the ceiling */}
           {target && target.budget < wk.ceiling - 0.05 && (
             <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-fg-3" data-testid="cycle-target">
@@ -283,10 +295,10 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
         // feedback #150 — strength load lives in the all-sport card, as its own sub-channel
         <div className="mt-3 border-t border-white/[.07] pt-2.5" data-testid="strength-sub">
           <div className="mb-1 flex justify-between gap-2 text-[11px] text-fg-3">
-            <span><b className="text-fg-soft">z toho posilování</b> · 7 dní <b className="text-fg">{num(sub.week.now)}</b> {sub.unit}</span>
-            <span>{sub.week.left > 0 ? `do stropu ${num(sub.week.left)}` : "strop vyčerpán"}{sub.pts ? ` · ${scale != null ? fmtImpact(toImpact(sub.pts, scale)) : `+${sub.pts} b`}` : ""}</span>
+            <span><b className="text-fg-soft">z toho posilování</b> · nevstřebáno <b className="text-fg">{num(sub.week.absorbed ?? sub.week.now)}</b> {sub.unit}</span>
+            <span>{(sub.week.absorbedLeft ?? sub.week.left) > 0 ? `do stropu ${num(sub.week.absorbedLeft ?? sub.week.left)}` : "strop vyčerpán"}{sub.pts ? ` · ${scale != null ? fmtImpact(toImpact(sub.pts, scale)) : `+${sub.pts} b`}` : ""}</span>
           </div>
-          <HeadroomBar now={sub.week.now} ceiling={sub.week.ceiling} tone={toneOf(sub.week.ratio, margins.week)} />
+          <HeadroomBar now={sub.week.absorbed ?? sub.week.now} ceiling={sub.week.absorbedMax ?? sub.week.ceiling} tone={toneOf(sub.week.ratio, margins.week)} />
         </div>
       )}
       {hasDetail && (
@@ -673,7 +685,7 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <span className="flex items-center gap-1.5"><Label>Týdenní kapacita</Label><InfoDot wide label="Kapacita" text={<>
-            <span className="block">Posledních 7 dní proti tomu, co za týden prokazatelně zvládáte bez obtíží. Bílá čárka = strop (kapacita + 15 % rezerva, podle připravenosti v týdnu). Kolik z toho je v plánu na tento týden a na dnešek, ukazuje Trénink.</span>
+            <span className="block">Nevstřebaná zátěž z posledních dní proti tomu, co za týden prokazatelně zvládáte bez obtíží. Starší dny se počítají jen zčásti, podle toho, kolik z nich tělo už vstřebalo: běh před 6 dny zhruba ze 30 %, takže z výpočtu nezmizí naráz. Bílá čárka = strop (kapacita s 15% rezervou podle připravenosti v týdnu), tam začíná ubírat hodnocení zátěže. Cíl týdne od pondělí a dnešek ukazuje Trénink.</span>
             <span className="mt-2 block">{MI.capacity}</span>
           </>} /></span>
         </div>
@@ -700,16 +712,16 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
   )
 }
 
-// Feedback railway#83 — Dnes: today's room against the 7-day room, per run channel.
-// One bar per channel on the 7-day scale: what the last 7 days used (solid), what
-// today may still add (lime, = the Trénink "dnes max"), what is left of the 7-day
-// ceiling after that (faint), and the ceiling itself (white tick).
+// Feedback railway#83 — Dnes: today's room against the weekly ceiling, per run channel.
+// One bar per channel: the load still unabsorbed from the last days (solid; owner request
+// 2026-10-06, older days count only partly), what today may still add (lime, = the
+// Trénink "dnes max"), what is left of the ceiling after that (faint), the ceiling (tick).
 export function CapacityMini({ cap, week, className = "mt-4 border-t border-white/10 pt-4" }: { cap: any; week?: any; className?: string }) {
   if (!cap?.channels) return null
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><p className="t-label !text-fg-3">Kapacita · dnes vs. 7 dní</p><InfoDot text={MI.capacity} label="Kapacita" /></span>
+        <span className="flex items-center gap-1.5"><p className="t-label !text-fg-3">Kapacita · dnes vs. nevstřebaná zátěž</p><InfoDot text={MI.capacity} label="Kapacita" /></span>
         <span className="text-[11px] font-bold" style={{ color: readinessCol(readinessPct(cap.readiness)) }}>připravenost {readinessPct(cap.readiness)} %</span>
       </div>
       <div className="mt-3 grid gap-3.5 sm:grid-cols-2">
@@ -718,8 +730,9 @@ export function CapacityMini({ cap, week, className = "mt-4 border-t border-whit
           if (!c) return null
           const g = week?.[id]
           const wk = c.week
-          const done = g?.done7 ?? wk?.now ?? null
-          const ceil = g?.ceiling7 ?? wk?.ceiling ?? null
+          const ab = (g?.absorbedMax ?? wk?.absorbedMax) != null
+          const done = ab ? (g?.absorbed ?? wk?.absorbed) : (g?.done7 ?? wk?.now ?? null)
+          const ceil = ab ? (g?.absorbedMax ?? wk?.absorbedMax) : (g?.ceiling7 ?? wk?.ceiling ?? null)
           const today = g?.todayMax ?? null
           if (done == null || ceil == null || ceil <= 0) {
             return (
@@ -748,18 +761,22 @@ export function CapacityMini({ cap, week, className = "mt-4 border-t border-whit
                 <i className="block h-full" style={{ width: W(Math.min(done, scale)), background: over ? TONE.alert : col, opacity: 0.9 }} />
                 {today != null && today > 0 && <i className="block h-full" style={{ width: W(today), background: C.accent, backgroundImage: "repeating-linear-gradient(135deg, rgb(0 0 0 / .18) 0 3px, transparent 3px 6px)" }} />}
                 {rest > 0 && <i className="block h-full bg-white/[.14]" style={{ width: W(rest) }} />}
-                <i className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `calc(${(ceil / scale) * 100}% - 1px)` }} title="strop 7 dní" />
+                <i className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `calc(${(ceil / scale) * 100}% - 1px)` }} title="strop týdenní kapacity" />
               </div>
-              <p className="mt-1 tabular-nums text-[11px] text-fg-3">7 dní {num(done)} / strop {num(ceil)} {c.unit}{g?.left7 != null ? ` · zbývá ${num(g.left7)}` : ""}</p>
+              <p className="mt-1 tabular-nums text-[11px] text-fg-3">
+                <span>{ab ? `nevstřebáno ${num(done)} / strop ${num(ceil)}` : `7 dní ${num(done)} / strop ${num(ceil)}`}</span>{" "}<span>{c.unit}</span>
+                {g?.left7 != null && <span>{` · zbývá ${num(g.left7)}`}</span>}
+                {ab && (g?.done7 ?? wk?.now) != null && <span>{` · za 7 dní ${num(g?.done7 ?? wk?.now)}`}</span>}
+              </p>
             </div>
           )
         })}
       </div>
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-fg-3">
-        <span className="flex items-center gap-1.5"><i className="h-2 w-3 rounded-sm" style={{ background: TONE.ok }} />posledních 7 dní</span>
+        <span className="flex items-center gap-1.5"><i className="h-2 w-3 rounded-sm" style={{ background: TONE.ok }} />nevstřebáno z posledních dní</span>
         <span className="flex items-center gap-1.5"><i className="h-2 w-3 rounded-sm" style={{ background: C.accent }} />dnes k dispozici</span>
         <span className="flex items-center gap-1.5"><i className="h-2 w-3 rounded-sm bg-white/[.14]" />zbytek do stropu</span>
-        <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 bg-fg" />strop 7 dní</span>
+        <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 bg-fg" />strop týdenní kapacity</span>
       </div>
     </div>
   )

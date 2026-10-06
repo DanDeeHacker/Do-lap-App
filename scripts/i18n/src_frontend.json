@@ -4059,13 +4059,6 @@
   "kind": "tpl"
  },
  {
-  "t": "· 7 dní",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "· bez detailních dat odhad z průměrného tepu",
   "files": [
    "capacity.tsx"
@@ -4094,6 +4087,13 @@
   "kind": "jsx"
  },
  {
+  "t": "· nevstřebáno",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "· obvyklá týdenní špička {}",
   "files": [
    "capacity.tsx"
@@ -4115,11 +4115,18 @@
   "kind": "tpl"
  },
  {
-  "t": "· strop",
+  "t": "· za 7 dní {}",
   "files": [
    "capacity.tsx"
   ],
-  "kind": "jsx"
+  "kind": "tpl"
+ },
+ {
+  "t": "· za posledních 7 dní {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "· zbývá {}",
@@ -4135,13 +4142,6 @@
    "report.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "(snížený připraveností)",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "(tep v ní bývá o {} úderu {}{})",
@@ -4249,11 +4249,11 @@
   "kind": "tpl"
  },
  {
-  "t": "7 dní",
+  "t": "7 dní {} / strop {}",
   "files": [
    "capacity.tsx"
   ],
-  "kind": "jsx"
+  "kind": "tpl"
  },
  {
   "t": "7 dní celkem",
@@ -4687,7 +4687,7 @@
   "kind": "str"
  },
  {
-  "t": "Kapacita · dnes vs. 7 dní",
+  "t": "Kapacita · dnes vs. nevstřebaná zátěž",
   "files": [
    "capacity.tsx"
   ],
@@ -4897,7 +4897,35 @@
   "kind": "tpl"
  },
  {
+  "t": "Nevstřebaná zátěž z posledních dní proti tomu, co za týden prokazatelně zvládáte bez obtíží. Starší dny se počítají jen zčásti, podle toho, kolik z nich tělo už vstřebalo: běh před 6 dny zhruba ze 30 %, takže z výpočtu nezmizí naráz. Bílá čárka = strop (kapacita s 15% rezervou podle připravenosti v týdnu), tam začíná ubírat hodnocení zátěže. Cíl týdne od pondělí a dnešek ukazuje Trénink.",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "nevstřebáno",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Nevstřebáno · týdenní ekvivalent",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "nevstřebáno {} / strop {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "nevstřebáno z posledních dní",
   "files": [
    "capacity.tsx"
   ],
@@ -5097,13 +5125,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Posledních 7 dní proti tomu, co za týden prokazatelně zvládáte bez obtíží. Bílá čárka = strop (kapacita + 15 % rezerva, podle připravenosti v týdnu). Kolik z toho je v plánu na tento týden a na dnešek, ukazuje Trénink.",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "poznáváme",
   "files": [
    "capacity.tsx"
@@ -5167,13 +5188,6 @@
   "kind": "str"
  },
  {
-  "t": "s rezervou",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "se do kapacity nepočítá do {}",
   "files": [
    "capacity.tsx"
@@ -5231,6 +5245,13 @@
  },
  {
   "t": "strop 7 dní",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "strop týdenní kapacity",
   "files": [
    "capacity.tsx",
    "training.tsx"
@@ -5409,6 +5430,13 @@
    "tabs.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "z {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "z nejnáročnějšího zbývá",
@@ -9942,7 +9970,7 @@
   "kind": "str"
  },
  {
-  "t": "Dnešní kapacita = kolik si dnes můžete dovolit, aby: (1) posledních 7 dní nepřekročilo vaši týdenní kapacitu — tu samou, kterou ukazuje Zátěž (kapacita + 15 % rezerva, podle připravenosti v týdnu), (2) tento týden zůstal v cíli podle cyklu (90 / 100 / 110 / 55 %), (3) žádný jednotlivý běh nepřesáhl kapacitu jednoho běhu, (4) celková zátěž (tep × čas ze všech aktivit) zůstala pod stropem. Platí nejpřísnější z nich — u každého kanálu je vidět, který. Když je mechanika nad prahem 25, dnešek se dál zmenšuje (objem −20 %, intenzita a klesání na polovinu); když je nad prahem zátěž, přichází odlehčovací týden. Tak obě osy zůstanou pod prahem.",
+  "t": "Dnešní kapacita = kolik si dnes můžete dovolit, aby: (1) nevstřebaná zátěž z posledních dní nepřekročila vaši týdenní kapacitu — tu samou, kterou ukazuje Zátěž (kapacita + 15 % rezerva, podle připravenosti v týdnu); starší dny se počítají jen zčásti, podle toho, kolik z nich tělo už vstřebalo, (2) tento týden (od pondělí do neděle) zůstal v cíli podle cyklu (90 / 100 / 110 / 55 %), (3) žádný jednotlivý běh nepřesáhl kapacitu jednoho běhu, (4) celková zátěž (tep × čas ze všech aktivit) zůstala pod stropem. Platí nejpřísnější z nich — u každého kanálu je vidět, který. Když je mechanika nad prahem 25, dnešek se dál zmenšuje (objem −20 %, intenzita a klesání na polovinu); když je nad prahem zátěž, přichází odlehčovací týden. Tak obě osy zůstanou pod prahem.",
   "files": [
    "metricinfo.ts"
   ],
@@ -9984,7 +10012,7 @@
   "kind": "str"
  },
  {
-  "t": "Kapacita = co jste prokazatelně zvládli bez obtíží. Za týden: průměrný týden posledních 4 týdnů, nebo 90 % nejlepšího týdne za 6 týdnů (týden o víc než 30 % nad těmi před ním se nepočítá) — zvlášť pro objem, intenzitu (minuty v Z4+), klesání, stoupání a celkovou zátěž (tep × čas ze všech aktivit). Na jeden běh: nejnáročnější běh posledních 30 dní, u intenzity průměr tří nejtvrdších (jeden závod nebo horký den kapacitu nenafoukne). Běhy, po kterých do 3 dnů přišla bolest ≥ 3/10, se nepočítají. Skok o víc než 30 % nad dosavadní kapacitu se 14 dní nepočítá vůbec a potom celý jen tehdy, když ho potvrdí hodnocení nebo check-in bez bolesti (jinak napůl) — kapacita roste jen z toho, co tělo prokazatelně zvládlo. Strop = kapacita + rezerva (+15 % za týden, +10 % na běh), snížená podle připravenosti. Nad stropem přibývají body zátěže. Body se po běhu vstřebávají noc po noci: svaly a šlachy s poločasem asi 3,5 noci, celková zátěž a intenzita rychleji po dobré noci a pomaleji po špatné (2–8 nocí). Prudký skok navíc dozní lineárně do 28. dne. Kolik z kapacity je v plánu na tento týden, ukazuje Trénink.",
+  "t": "Kapacita = co jste prokazatelně zvládli bez obtíží. Za týden: průměrný týden posledních 4 týdnů, nebo 90 % nejlepšího týdne za 6 týdnů (týden o víc než 30 % nad těmi před ním se nepočítá) — zvlášť pro objem, intenzitu (minuty v Z4+), klesání, stoupání a celkovou zátěž (tep × čas ze všech aktivit). Na jeden běh: nejnáročnější běh posledních 30 dní, u intenzity průměr tří nejtvrdších (jeden závod nebo horký den kapacitu nenafoukne). Běhy, po kterých do 3 dnů přišla bolest ≥ 3/10, se nepočítají. Skok o víc než 30 % nad dosavadní kapacitu se 14 dní nepočítá vůbec a potom celý jen tehdy, když ho potvrdí hodnocení nebo check-in bez bolesti (jinak napůl) — kapacita roste jen z toho, co tělo prokazatelně zvládlo. Strop = kapacita + rezerva (+15 % za týden, +10 % na běh), snížená podle připravenosti. Nad stropem přibývají body zátěže. Body se po běhu vstřebávají noc po noci: svaly a šlachy s poločasem asi 3,5 noci, celková zátěž a intenzita rychleji po dobré noci a pomaleji po špatné (2–8 nocí). Prudký skok navíc dozní lineárně do 28. dne. Proto se i místo pod stropem počítá z nevstřebané zátěže: starší dny jen zčásti (běh před 6 dny zhruba ze 30 %), dnešek celý, takže dlouhý běh z výpočtu nezmizí naráz sedmý den. Kapacita a strop běží klouzavě od dneška, cíl týdne v Tréninku od pondělí do neděle.",
   "files": [
    "metricinfo.ts"
   ],
@@ -10124,7 +10152,7 @@
   "kind": "str"
  },
  {
-  "t": "Týdenní cíl jede ve 4týdenním cyklu: 1. týden 90 %, 2. týden 100 %, 3. týden 110 % referenčního týdne (posledního plného týdne před minulým odlehčovacím), 4. týden odlehčovací — 55 % třetího týdne. Kde v cyklu jste, pozná aplikace z posledního odlehčovacího týdne, jinak z toho, jak náročný byl minulý týden proti vaší normě. Cíl nikdy nepřekročí strop vaší týdenní kapacity (Zátěž); při zvýšené zátěži přijde odlehčovací týden dřív, před závodem ladění. Prvních 6 týdnů dat cyklus ještě neběží: cílem je minulý týden + 10 %, dlouhý běh nejvýš o 10 % delší než nejdelší za 30 dní a intenzita ani převýšení nic neblokují. Po zranění, které označíte jako zahojené, jdou 3 týdny postupného návratu (50 / 75 / 90 % týdne před zraněním). Vzorec 3 + 1 je běžná praxe periodizace ve vytrvalostních sportech (Issurin 2010, Mujika 2018): zátěž musí střídat regenerace (Meeusen 2013); přesná procenta jsou zavedená konvence, proto ji pořád hlídá kapacita a denní připravenost.",
+  "t": "Týdenní cíl jede ve 4týdenním cyklu: 1. týden 90 %, 2. týden 100 %, 3. týden 110 % referenčního týdne (posledního plného týdne před minulým odlehčovacím), 4. týden odlehčovací — 55 % třetího týdne. Kde v cyklu jste, pozná aplikace z posledního odlehčovacího týdne, jinak z toho, jak náročný byl minulý týden proti vaší normě. Týden se počítá od pondělí do neděle. Cíl nikdy nepřekročí vaši týdenní kapacitu s rezervou (Zátěž); při zvýšené zátěži přijde odlehčovací týden dřív, před závodem ladění. Prvních 6 týdnů dat cyklus ještě neběží: cílem je minulý týden + 10 %, dlouhý běh nejvýš o 10 % delší než nejdelší za 30 dní a intenzita ani převýšení nic neblokují. Po zranění, které označíte jako zahojené, jdou 3 týdny postupného návratu (50 / 75 / 90 % týdne před zraněním). Vzorec 3 + 1 je běžná praxe periodizace ve vytrvalostních sportech (Issurin 2010, Mujika 2018): zátěž musí střídat regenerace (Meeusen 2013); přesná procenta jsou zavedená konvence, proto ji pořád hlídá kapacita a denní připravenost.",
   "files": [
    "metricinfo.ts"
   ],
@@ -13972,13 +14000,6 @@
   "kind": "str"
  },
  {
-  "t": "strop kapacity za 7 dní",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "T12:00:00",
   "files": [
    "report.tsx",
@@ -14046,6 +14067,13 @@
    "report.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "týdenní kapacita s rezervou",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "u vás bez znatelného vlivu na noc",
@@ -18542,7 +18570,7 @@
   "kind": "tpl"
  },
  {
-  "t": "({}. týden, {} %)",
+  "t": "({}. týden cyklu, {} %)",
   "files": [
    "training.tsx"
   ],
@@ -18584,13 +18612,6 @@
   "kind": "tpl"
  },
  {
-  "t": "{} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž ({} km za 7 dní).",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "{} min plavání v klidném tempu",
   "files": [
    "training.tsx"
@@ -18606,6 +18627,13 @@
  },
  {
   "t": "{} min v Z2 na kole",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} Týden se počítá od pondělí do neděle. Cíl nikdy nepřekročí vaši týdenní kapacitu s rezervou z tabu Zátěž ({} km za týden).",
   "files": [
    "training.tsx"
   ],
@@ -18829,18 +18857,32 @@
   "kind": "str"
  },
  {
-  "t": "cíl tohoto týdne v cyklu",
+  "t": "Cíl týdne (od pondělí) · závod {} km",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "cíl týdne od pondělí",
   "files": [
    "training.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Cíl týdne (od pondělí) · závod {} km",
+  "t": "Cíl týdne od pondělí je {} km, odběhnuto {} km, takže delší běh než {} km by cíl překročil.",
   "files": [
    "training.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "cíl týdne v cyklu (od pondělí)",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Cítíte se po zranění v pořádku?",
@@ -18974,6 +19016,13 @@
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "do neděle",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Doporučení",
@@ -19310,6 +19359,13 @@
    "training.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "od pondělí {} z {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "odběhnuto {} km + závod",
@@ -19774,14 +19830,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Tento týden je v cyklu cíl {} km, odběhnuto {} km, takže delší běh než {} km by cíl překročil.",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Tento týden v cyklu{}",
+  "t": "Tento týden od pondělí{}",
   "files": [
    "training.tsx"
   ],
@@ -19879,21 +19928,7 @@
   "kind": "jsx"
  },
  {
-  "t": "týden v cyklu {} z {} {}",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "Týdenní cíl a cyklus",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "týdenní cíl cyklu",
   "files": [
    "training.tsx"
   ],
@@ -19907,7 +19942,7 @@
   "kind": "jsx"
  },
  {
-  "t": "týdenní kapacita (posledních 7 dní)",
+  "t": "týdenní kapacita (nevstřebaná zátěž posledních dní)",
   "files": [
    "training.tsx"
   ],
@@ -20145,7 +20180,7 @@
   "kind": "str"
  },
  {
-  "t": "zbytek cíle tohoto týdne v cyklu",
+  "t": "zbytek cíle týdne od pondělí",
   "files": [
    "training.tsx"
   ],
@@ -20159,7 +20194,7 @@
   "kind": "tpl"
  },
  {
-  "t": "Zelená = tato aktivita, šedá = co dnes zbývá do limitu (týdenní cíl, strop 7 dní a jednoho běhu, celková zátěž).",
+  "t": "Zelená = tato aktivita, šedá = co dnes zbývá do limitu (cíl týdne od pondělí, strop týdenní kapacity a jednoho běhu, celková zátěž).",
   "files": [
    "training.tsx"
   ],

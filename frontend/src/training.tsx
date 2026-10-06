@@ -26,7 +26,7 @@ const MODE: Record<string, [string, string]> = {
 }
 const CYCLE_PCT = [90, 100, 110, 55]
 const LIMIT: Record<string, string> = {
-  week: "cíl tohoto týdne v cyklu", "7d": "týdenní kapacita (posledních 7 dní)", run: "strop jednoho běhu",
+  week: "cíl týdne v cyklu (od pondělí)", "7d": "týdenní kapacita (nevstřebaná zátěž posledních dní)", run: "strop jednoho běhu",
   systemic: "celková zátěž", mechanics: "mechanika nad prahem",
 }
 const CH_ICON: Record<string, string> = { volume: "Objem", intensity: "Intenzita", descent: "Klesání", ascent: "Stoupání", systemic: "Celková zátěž" }
@@ -107,7 +107,7 @@ function SafeRunLimits({ limits, today, week }: { limits: [number, string][]; to
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <span className="flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold text-fg-2"><MoveDiagonal className="size-3.5 text-info" aria-hidden />Nejdelší bezpečný běh</span>
         <span className="whitespace-nowrap tabular-nums text-[12px] text-fg-3">
-          {today != null ? <>dnes <b className="text-[15px] text-fg">≈ {num(today)} km</b> · </> : null}tento týden <b className="text-fg">≈ {num(bind[0])} km</b>
+          {today != null ? <>dnes <b className="text-[15px] text-fg">≈ {num(today)} km</b> · </> : null}do neděle <b className="text-fg">≈ {num(bind[0])} km</b>
         </span>
       </div>
       <div className="mt-2.5 space-y-1.5">
@@ -127,7 +127,7 @@ function SafeRunLimits({ limits, today, week }: { limits: [number, string][]; to
       {/* feedback #189 — what the single-run capacity is and why the shorter limit wins */}
       <p className="mt-2.5 text-[11px] leading-4 text-fg-3" data-testid="safe-run-why">
         Kapacita jednoho běhu je nejdelší běh za posledních 30 dní, který proběhl bez bolesti (starší se počítají méně), plus 10 % rezerva.
-        Nevychází z objemu týdnů, říká jen, jak dlouhý jeden běh tělo zvládá.{week?.budget != null ? ` Tento týden je v cyklu cíl ${num(week.budget)} km, odběhnuto ${num(week.done ?? 0)} km, takže delší běh než ${num(week.left ?? 0)} km by cíl překročil.` : ""} Platí vždy nižší z limitů.
+        Nevychází z objemu týdnů, říká jen, jak dlouhý jeden běh tělo zvládá.{week?.budget != null ? ` Cíl týdne od pondělí je ${num(week.budget)} km, odběhnuto ${num(week.done ?? 0)} km, takže delší běh než ${num(week.left ?? 0)} km by cíl překročil.` : ""} Platí vždy nižší z limitů.
       </p>
     </div>
   )
@@ -174,7 +174,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     if (base == null) return null
     // feedback #188/#189 — no 7-day ceiling here; the single-run capacity named for what it is
     const limits: [number, string][] = [[base, "nejdelší zvládnutý běh (30 dní) + 10 %"]]
-    if (vol.left != null) limits.push([vol.left, "zbytek cíle tohoto týdne v cyklu"])
+    if (vol.left != null) limits.push([vol.left, "zbytek cíle týdne od pondělí"])
     // railway: the binding limit of today may be Celková zátěž (its km equivalent) or the mechanics cut
     if (vol.sysKm != null) limits.push([vol.sysKm, "zbytek celkové zátěže (≈ km lehkého běhu)"])
     if (vol.limitedBy === "mechanics" && vol.todayMax != null) limits.push([vol.todayMax, "mechanika nad prahem (−20 %)"])
@@ -206,11 +206,11 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     const isOpen = !!open[id]
     const limit = c.limitedBy ? <span className="text-[11px] font-semibold leading-4 text-watch">omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</span> : null
     const weekNote = c.budget != null
-      ? <span className="inline-flex items-center gap-1 tabular-nums text-[11px] text-fg-3"><CeilSw />{`týden v cyklu ${num(c.done ?? 0, d)} z ${num(c.budget, d)} ${c.unit}`}</span>
+      ? <span className="inline-flex items-center gap-1 tabular-nums text-[11px] text-fg-3"><CeilSw /><span>{`od pondělí ${num(c.done ?? 0, d)} z ${num(c.budget, d)}`}</span><span>{c.unit}</span></span>
       : c.ceilingRun != null ? <span className="tabular-nums text-[11px] text-fg-3">{`jeden běh nejvýš ${num(c.ceilingRun, d)} ${c.unit}`}</span> : null
     const rows = (
       <div className="mt-3 w-full space-y-2.5 border-t border-white/[.07] pt-3 text-left">
-        <UsageBar label={`Tento týden v cyklu${cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden, ${pct} %)` : ""}`} used={c.done} total={c.budget} unit={c.unit} d={d} />
+        <UsageBar label={`Tento týden od pondělí${cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden cyklu, ${pct} %)` : ""}`} used={c.done} total={c.budget} unit={c.unit} d={d} />
         {c.ceilingRun != null && <UsageBar label="Jeden běh · dnes max" used={c.todayMax} total={c.ceilingRun} unit={c.unit} d={d} col={C.info} />}
         {c.doneToday ? <p className="text-[11px] text-fg-3">z toho dnes {num(c.doneToday, d)} {c.unit}</p> : null}
         {id === "volume" && safe && <SafeRunLimits limits={safe.limits} today={safe.today} week={vol} />}
@@ -383,7 +383,7 @@ function WeekPanel({ g, embedded = false }: { g: any; embedded?: boolean }) {
       {/* railway#86 — how this week's target is set, outside the selector */}
       <p className="mt-1.5 flex items-center justify-end gap-1.5 text-[11px] text-fg-3">
         Jak se počítá cíl {cyc.pos ? `${cyc.pos}. týdne` : "tohoto týdne"}
-        <InfoDot label="Cíl tohoto týdne" text={`${how} Cíl nikdy nepřekročí strop vaší týdenní kapacity z tabu Zátěž (${num(vol.ceiling7)} km za 7 dní).`} />
+        <InfoDot label="Cíl tohoto týdne" text={`${how} Týden se počítá od pondělí do neděle. Cíl nikdy nepřekročí vaši týdenní kapacitu s rezervou z tabu Zátěž (${num(vol.ceiling7)} km za týden).`} />
       </p>
       {ask != null && (
         <div className="nest mt-2 !border-accent/35 !bg-accent/[.06] p-3 text-[13px] leading-5 text-fg">
@@ -758,7 +758,7 @@ function SessionDetail({ g, a, kind }: { g: any; a: any; kind: string }) {
 
 // feedback railway#200 — how the activity sits in today's capacities: per channel what it
 // takes (planned, or its upper limit) against what today leaves, and what limits it
-const LIMIT_CS: Record<string, string> = { week: "týdenní cíl cyklu", "7d": "strop 7 dní", run: "strop jednoho běhu",
+const LIMIT_CS: Record<string, string> = { week: "cíl týdne od pondělí", "7d": "strop týdenní kapacity", run: "strop jednoho běhu",
   systemic: "celková zátěž", mechanics: "odchylka mechaniky" }
 function FitRow({ label, use, left, unit, d = 0, by, note, testid }: { label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; note?: string; testid?: string }) {
   const top = Math.max(use || 0, left || 0, 1e-6)
@@ -822,7 +822,7 @@ function CapacityFit({ g, kind }: { g: any; kind: string }) {
       <div className="mt-2.5 grid gap-3">
         {rows.map(({ key, ...r }) => <FitRow key={key} testid={`fit-${key}`} {...r} />)}
       </div>
-      <p className="mt-2 text-[11px] leading-4 text-fg-3">Zelená = tato aktivita, šedá = co dnes zbývá do limitu (týdenní cíl, strop 7 dní a jednoho běhu, celková zátěž).</p>
+      <p className="mt-2 text-[11px] leading-4 text-fg-3">Zelená = tato aktivita, šedá = co dnes zbývá do limitu (cíl týdne od pondělí, strop týdenní kapacity a jednoho běhu, celková zátěž).</p>
     </div>
   )
 }
