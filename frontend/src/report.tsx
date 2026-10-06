@@ -1353,7 +1353,6 @@ function LastNightTags({ x }: { x: any }) {
 }
 
 // ---- evening ------------------------------------------------------------------------------
-const TYPE_COL: Record<string, string> = { "dlouhý": C.load, "kvalitní": C.alert, "lehký": C.info, volno: C.fg4, "lehce / volno": C.fg4 }
 
 function eveningCards(r: any, c: Ctx): Card[] {
   const v = r.dayView, ld = r.load || {}, w = r.week || {}, rw = r.restOfWeek || {}, t = r.tonight || {}, tm = r.tomorrow || {}
@@ -1443,7 +1442,8 @@ function eveningCards(r: any, c: Ctx): Card[] {
     key: "tomorrow", title: "Co ovlivní zítřek", body: (
       <>
         <Lbl>Zítřek</Lbl>
-        <Big>{tm.plan ? `${tm.plan.wd}: ${tm.plan.type}${tm.plan.km ? ` ≈ ${num(tm.plan.km)} km` : ""}` : "Co ovlivní zítřek"}</Big>
+        {/* owner request 2026-10-06: the same plan as the rest of the week and the Monday sheet */}
+        <Big>{tm.plan ? `${tm.plan.wd}: ${tm.plan.text || tm.plan.label}` : "Co ovlivní zítřek"}</Big>
         {note(c, "tomorrow")}
         <Panel>
           <ul className="space-y-2.5" data-testid="tomorrow-effects">
@@ -1463,21 +1463,19 @@ function eveningCards(r: any, c: Ctx): Card[] {
           <Bars max={maxKm} items={days.map((x) => {
             const pl = planned[x.date]
             return x.past || x.today ? { label: x.wd, v: x.km || (x.other?.length ? 0.01 : null), col: x.today ? C.accent : C.info, on: x.today }
-              : { label: x.wd, v: pl?.km ?? null, col: TYPE_COL[pl?.type] || C.fg4, hatch: true }
+              : { label: x.wd, v: pl?.km ?? null, col: PLAN_COL[pl?.type] || C.fg4, hatch: true }
           })} />
           <p className="mt-2 text-[11px] text-fg-3">Plné: odběhnuto · šrafované: návrh na zbytek týdne.</p>
         </Panel>
         <Panel>
           <Lbl>Zbytek týdne</Lbl>
           {rw.note && <p className="mt-1 text-[13px] text-fg-2">{rw.note}</p>}
-          <div className="mt-1 divide-y divide-white/[.06]">
-            {(rw.days || []).map((x: any) => (
-              <div key={x.date} className="flex items-center justify-between py-2 text-[13px]">
-                <span className="flex items-center gap-2"><b className="w-6 text-fg-2">{x.wd}</b><i className="size-2 rounded-full" style={{ background: TYPE_COL[x.type] || C.fg4 }} /><span className="text-fg">{x.type}</span></span>
-                <span className="tabular-nums text-fg-2">{x.km ? `≈ ${num(x.km)} km` : ""}</span>
-              </div>
-            ))}
-          </div>
+          {rw.days?.length ? (
+            <>
+              <p className="mt-1 text-[11px] text-fg-3">Plán týdne přepočítaný podle toho, co už máte odběhnuto. Klepnutím na den zobrazíte tep, tempo a čas.</p>
+              <ul className="mt-1 divide-y divide-white/[.06]" data-no-tap data-testid="rest-of-week">{rw.days.map((d: any) => <PlanDay key={d.date} d={d} />)}</ul>
+            </>
+          ) : null}
         </Panel>
       </>
     ),

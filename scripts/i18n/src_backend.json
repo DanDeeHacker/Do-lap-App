@@ -1251,6 +1251,7 @@
   "files": [
    "durability.py",
    "metrics/capacity.py",
+   "metrics/daily_report.py",
    "metrics/guidance.py",
    "metrics/mobility.py",
    "metrics/week_plan.py",
@@ -1339,6 +1340,7 @@
   "t": "závod",
   "files": [
    "durability.py",
+   "metrics/daily_report.py",
    "metrics/engine.py",
    "metrics/guidance.py",
    "metrics/week_plan.py"
@@ -2093,6 +2095,7 @@
   "t": "plavání",
   "files": [
    "metrics/capacity.py",
+   "metrics/daily_report.py",
    "metrics/engine.py",
    "metrics/mobility.py",
    "metrics/signal_sources.py",
@@ -2741,6 +2744,12 @@
   ]
  },
  {
+  "t": "Každé ráno plán upřesní připravenost.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": "Klidnější den bez tréninku: dobrá příležitost k regeneraci.",
   "files": [
    "metrics/daily_report.py"
@@ -2802,6 +2811,12 @@
  },
  {
   "t": "Náročný den: tělo bude v noci zpracovávat víc zátěže, zítřejší připravenost může být nižší.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Plán zbytku týdne zatím nejde sestavit. Každé ráno den určí Trénink.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2904,7 +2919,7 @@
   ]
  },
  {
-  "t": "Týden končí, zítra začíná nový.",
+  "t": "Týden končí, zítra začíná nový. Plán na nový týden přinese pondělní ranní report.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2917,12 +2932,6 @@
  },
  {
   "t": "Týdenní cíl máte splněný. Zbytek týdne lehce, nebo volno.",
-  "files": [
-   "metrics/daily_report.py"
-  ]
- },
- {
-  "t": "Týdenní cíl se zatím neurčil.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2958,6 +2967,14 @@
   ]
  },
  {
+  "t": "Volno",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Včera bez tréninku.",
   "files": [
    "metrics/daily_report.py"
@@ -2989,13 +3006,7 @@
   ]
  },
  {
-  "t": "Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu. Cíl je horní hranice, ne povinnost.",
-  "files": [
-   "metrics/daily_report.py"
-  ]
- },
- {
-  "t": "Zbytek týdne rozložte podle návrhu, každé ráno ho upřesní připravenost.",
+  "t": "Zbylých",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -3019,7 +3030,13 @@
   ]
  },
  {
-  "t": "Zítra podle plánu týdne: {}",
+  "t": "Zítra podle plánu týdne: {}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Zítra podle plánu: {}.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -3042,16 +3059,6 @@
  },
  {
   "t": "kvalitní",
-  "files": [
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/mobility.py",
-   "metrics/week_plan.py",
-   "mobility_library.py"
-  ]
- },
- {
-  "t": "lehký",
   "files": [
    "metrics/daily_report.py",
    "metrics/guidance.py",
@@ -5649,13 +5656,6 @@
   ]
  },
  {
-  "t": "Volno",
-  "files": [
-   "metrics/guidance.py",
-   "metrics/week_plan.py"
-  ]
- },
- {
   "t": "Volno, případně jiný sport bez nárazů (kolo, plavání).",
   "files": [
    "metrics/guidance.py"
@@ -5811,6 +5811,15 @@
   "t": "kvadricepsová",
   "files": [
    "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "lehký",
+  "files": [
+   "metrics/guidance.py",
+   "metrics/mobility.py",
+   "metrics/week_plan.py",
+   "mobility_library.py"
   ]
  },
  {
@@ -6502,7 +6511,7 @@
   ]
  },
  {
-  "t": "Jsi zkušený běžecký trenér v aplikaci Došlap. Dostaneš fakta z ranního nebo večerního reportu běžce, rozdělená po listech. Ke KAŽDÉMU listu napiš 2–3 krátké věty česky, tykání ne, vykej: nejdřív stručně zhodnoť, co fakta říkají (dobře / pozor), pak dej jeden konkrétní, proveditelný tip, jak se zlepšit nebo na co si dát pozor. Používej jen čísla, která jsou ve faktech (nic nepočítej, nezaokrouhluj jinak). Žádné diagnózy, žádné léky, nikdy nedoporučuj běhat přes bolest a nenavrhuj náročnější trénink, než je dnešní doporučení. Bez nadpisů a odkazů. Odpověz POUZE platným JSON objektem {\"klíč listu\": \"text\"} se stejnými klíči, jaké dostaneš.",
+  "t": "Jsi zkušený běžecký trenér v aplikaci Došlap. Dostaneš fakta z ranního nebo večerního reportu běžce, rozdělená po listech. Ke KAŽDÉMU listu napiš 2–3 krátké věty česky, tykání ne, vykej: nejdřív stručně zhodnoť, co fakta říkají (dobře / pozor), pak dej jeden konkrétní, proveditelný tip, jak se zlepšit nebo na co si dát pozor. Používej jen čísla, která jsou ve faktech (nic nepočítej, nezaokrouhluj jinak). Žádné diagnózy, žádné léky, nikdy nedoporučuj běhat přes bolest a nenavrhuj náročnější trénink, než je dnešní doporučení. Zítřek a zbytek týdne popisuj jen podle 'zitra_plan' a 'navrh' (stejný plán je ve všech listech); 'dnes_doporuceno' je dnešek, ne zítřek; kde list plán nemá, o dalším tréninku nepiš. Bez nadpisů a odkazů. Odpověz POUZE platným JSON objektem {\"klíč listu\": \"text\"} se stejnými klíči, jaké dostaneš.",
   "files": [
    "metrics/report_ai.py"
   ]

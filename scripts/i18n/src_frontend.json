@@ -13116,13 +13116,6 @@
   "kind": "str"
  },
  {
-  "t": "≈ {} km",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "2px solid {}",
   "files": [
    "report.tsx"
@@ -14001,6 +13994,13 @@
    "report.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Plán týdne přepočítaný podle toho, co už máte odběhnuto. Klepnutím na den zobrazíte tep, tempo a čas.",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Plné: odběhnuto · šrafované: návrh na zbytek týdne.",
