@@ -130,7 +130,8 @@ export const api = {
   saveDayTags: (id: string, body: { date?: string; tags: string[] }) => call("PUT", `/api/runners/${id}/day-tags`, body),
   dayToday: (id: string) => call("GET", `/api/runners/${id}/day-today`),
   reportAi: (id: string, kind: "morning" | "evening") => call("POST", `/api/runners/${id}/report/ai?kind=${kind}`, {}),
-  finishSelfProgram: (id: string, pid: number, feel: string) => call("POST", `/api/runners/${id}/self-programs/${pid}/finish`, { feel }),
+  finishSelfProgram: (id: string, pid: number, feel: string, extra: { easier?: boolean; sets?: Record<string, number> } = {}) =>
+    call("POST", `/api/runners/${id}/self-programs/${pid}/finish`, { feel, ...extra }),
   endSelfProgram: (id: string, pid: number) => call("DELETE", `/api/runners/${id}/self-programs/${pid}`),
   engineCompare: (id: string) => call("GET", `/api/runners/${id}/engine-compare`),
   outcomesOverview: () => call("GET", "/api/engine/outcomes", undefined, { skipAuthRedirect: true }),

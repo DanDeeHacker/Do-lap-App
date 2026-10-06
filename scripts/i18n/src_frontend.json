@@ -1910,7 +1910,8 @@
   "files": [
    "App.tsx",
    "annotate.tsx",
-   "profile.tsx"
+   "profile.tsx",
+   "selfprograms.tsx"
   ],
   "kind": "str"
  },
@@ -14899,6 +14900,20 @@
   "kind": "str"
  },
  {
+  "t": "Ano, lehčí",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ano, těžký",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Běžící programy · {} / {}",
   "files": [
    "selfprograms.tsx"
@@ -14920,7 +14935,21 @@
   "kind": "str"
  },
  {
+  "t": "Byl trénink těžký?",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Celý postup a chyby →",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Chcete příště jednodušší verzi?",
   "files": [
    "selfprograms.tsx"
   ],
@@ -14968,6 +14997,13 @@
    "selfprograms.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Dnes lehčí verze, jak jste si minule řekli: o sérii méně a opakování na spodní hranici.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe.",
@@ -15026,6 +15062,13 @@
   "kind": "str"
  },
  {
+  "t": "Hotovo {} z {} sérií.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "hotovo dnes",
   "files": [
    "selfprograms.tsx"
@@ -15052,6 +15095,13 @@
    "selfprograms.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Lehčí verze",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "lehké",
@@ -15125,6 +15175,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Ne, stejně",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "něco bolelo",
   "files": [
    "selfprograms.tsx"
@@ -15139,6 +15196,41 @@
   "kind": "str"
  },
  {
+  "t": "Nedokončený trénink se příště nepřidává. Když byl těžký, příště bude méně opakování.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Neodškrtnuté zůstaly {} cviky:",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "neodškrtnuto",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Neodškrtnutý zůstal 1 cvik:",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Neodškrtnutých zůstalo {} cviků:",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Nepodařilo se zapsat",
   "files": [
    "selfprograms.tsx"
@@ -15151,6 +15243,13 @@
    "selfprograms.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "O sérii méně u každého cviku a opakování na spodní hranici.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Odlehčovací týden",
@@ -15294,6 +15393,13 @@
   "kind": "tpl"
  },
  {
+  "t": "rounded-[12px] border px-3 py-2 text-[13px] font-bold transition active:scale-[.98] {}",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "rounded-[12px] border px-3 py-2.5 text-left transition active:scale-[.98] disabled:opacity-50 {}",
   "files": [
    "selfprograms.tsx"
@@ -15430,6 +15536,34 @@
   "kind": "str"
  },
  {
+  "t": "Ukončeno dřív: hotovo {} % sérií.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Ukončit a zapsat",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ukončit trénink",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ukončit trénink?",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Uložit do mých programů",
   "files": [
    "selfprograms.tsx"
@@ -15521,6 +15655,13 @@
   "kind": "str"
  },
  {
+  "t": "Zatím není odcvičená žádná série, takže není co zapsat. Trénink můžete sbalit a vrátit se k němu později.",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "zhruba {} min",
   "files": [
    "selfprograms.tsx"
@@ -15536,6 +15677,13 @@
  },
  {
   "t": "Změnit hodnocení",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zpět k tréninku",
   "files": [
    "selfprograms.tsx"
   ],

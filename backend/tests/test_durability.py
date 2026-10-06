@@ -139,3 +139,66 @@ def test_a_demanding_day_gets_b_instead_of_a(client, db_session):
         pick = DU.choose(db_session, rid, None, {"history": [{"date": "2026-10-05", "session": "A"},
                                                              {"date": "2026-10-07", "session": "B"}]}, date(2026, 10, 10))
         assert pick["blocked"] and "2 z 2" in pick["blocked"]
+
+
+# ---------------------------------------------------------------- owner request 2026-10-06
+def test_an_exercise_added_to_the_template_later_can_be_logged(client, db_session, monkeypatch):
+    """A programme started before pelvic_drop joined session B couldn't log it (422), so the
+    session never ended."""
+    _pin(monkeypatch, date(2026, 10, 5))
+    rid, p = _start(client, "dur10@test.cz")
+    prog = db_session.get(models.SelfProgram, p["id"])
+    prog.exercises = [x for x in prog.exercises if x != "pelvic_drop"]
+    db_session.commit()
+    r = client.patch(f"/api/runners/{rid}/self-programs/{p['id']}/log", json={"exercise": "pelvic_drop", "done": True})
+    assert r.status_code == 200
+    db_session.refresh(prog)
+    assert "pelvic_drop" in prog.exercises
+    assert client.patch(f"/api/runners/{rid}/self-programs/{p['id']}/log", json={"exercise": "nordic", "done": True}).status_code == 422
+
+
+def test_ending_a_session_early(client, db_session, monkeypatch):
+    _pin(monkeypatch, date(2026, 10, 5))
+    rid, p = _start(client, "dur11@test.cz")
+    prog = db_session.get(models.SelfProgram, p["id"])
+    prog.state = {**prog.state, "levels": {"A": 2, "B": 0}}
+    db_session.commit()
+    p = client.get(f"/api/runners/{rid}/self-programs").json()["active"]
+    plan = p["durability"]["plan"]
+    url = f"/api/runners/{rid}/self-programs/{p['id']}/finish"
+    assert client.post(url, json={"feel": "ok"}).status_code == 422                # nothing done yet
+    for x in plan[:3]:
+        client.patch(f"/api/runners/{rid}/self-programs/{p['id']}/log", json={"exercise": x["id"], "done": True})
+    p = client.post(url, json={"feel": "hard", "easier": True, "sets": {plan[3]["id"]: 1}}).json()
+    d = p["durability"]
+    total = sum(x["sets"] for x in plan)
+    done = sum(x["sets"] for x in plan[:3]) + 1
+    assert d["doneToday"] and d["partialToday"] and d["completionToday"] == round(done / total, 2)
+    assert d["easierNext"] and "nebyl celý a byl těžký" in d["note"] and "lehčí verze" in d["noteNext"]
+    db_session.refresh(prog)
+    assert prog.state["levels"]["A"] == 1 and prog.state["easier"] is True
+    act = db_session.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.sport == "strength").one()
+    assert act.duration_min < DU.estimate_min("A", plan) and "hotovo" in db_session.query(models.ActivityFeedback).filter(
+        models.ActivityFeedback.activity_id == act.id).one().note
+    # the next session is the lighter version: one set less, the bottom of the range
+    _pin(monkeypatch, date(2026, 10, 7))
+    p = client.get(f"/api/runners/{rid}/self-programs").json()["active"]
+    d = p["durability"]
+    assert d["session"] == "B" and d["light"]
+    week = DU.week_of(prog.started_on, date(2026, 10, 7))
+    assert [x["sets"] for x in d["plan"]] == [x["sets"] for x in DU.session_plan("B", week, 0, True)]
+    for x in d["plan"]:
+        client.patch(f"/api/runners/{rid}/self-programs/{p['id']}/log", json={"exercise": x["id"], "done": True})
+    p = client.post(f"/api/runners/{rid}/self-programs/{p['id']}/finish", json={"feel": "ok"}).json()
+    db_session.refresh(prog)
+    assert prog.state["easier"] is False and prog.state["history"][-1].get("light") and not p["durability"]["partialToday"]
+
+
+def test_a_partial_session_never_goes_up():
+    st = {"levels": {"A": 1, "B": 0}, "steps": {"A": 0, "B": 0}, "history": []}
+    st = DU.progress(st, "A", "easy", 6, partial=True, completion=0.6)
+    assert st["levels"]["A"] == 1 and "nebyl celý" in st["note"] and st["history"][-1]["partial"]
+    st = DU.progress(st, "A", "ok", 6, partial=True, completion=0.8, easier=True)
+    assert st["levels"]["A"] == 1 and st["easier"] and "lehčí verze" in st["noteNext"]
+    st = DU.progress(st, "A", "pain", 6, partial=True, completion=0.3)
+    assert st["levels"]["A"] == 0 and not st["easier"]

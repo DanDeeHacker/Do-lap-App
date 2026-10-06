@@ -1,0 +1,22 @@
+{
+"Ano, lehčí": "Yes, lighter",
+"Ano, těžký": "Yes, hard",
+"Byl trénink těžký?": "Was the session hard?",
+"Chcete příště jednodušší verzi?": "Do you want an easier version next time?",
+"Dnes lehčí verze, jak jste si minule řekli: o sérii méně a opakování na spodní hranici.": "Today the lighter version, as you asked last time: one set less and reps at the bottom of the range.",
+"Hotovo {} z {} sérií.": "{0} of {1} sets done.",
+"Lehčí verze": "Lighter version",
+"Ne, stejně": "No, the same",
+"Nedokončený trénink se příště nepřidává. Když byl těžký, příště bude méně opakování.": "An unfinished session doesn't progress next time. If it was hard, the next one has fewer reps.",
+"Neodškrtnuté zůstaly {} cviky:": "{0} exercises are not ticked off:",
+"neodškrtnuto": "not ticked",
+"Neodškrtnutý zůstal 1 cvik:": "1 exercise is not ticked off:",
+"Neodškrtnutých zůstalo {} cviků:": "{0} exercises are not ticked off:",
+"O sérii méně u každého cviku a opakování na spodní hranici.": "One set less of each exercise and reps at the bottom of the range.",
+"Ukončeno dřív: hotovo {} % sérií.": "Ended early: {0}% of the sets done.",
+"Ukončit a zapsat": "End and log",
+"Ukončit trénink": "End the session",
+"Ukončit trénink?": "End the session?",
+"Zatím není odcvičená žádná série, takže není co zapsat. Trénink můžete sbalit a vrátit se k němu později.": "No set is done yet, so there's nothing to log. You can fold the session and come back to it later.",
+"Zpět k tréninku": "Back to the session"
+}

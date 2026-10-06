@@ -9,7 +9,7 @@ import { useSearchParams } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Button, Card, Chip, Label, Segmented, Sheet, useToast } from "@/ui"
-import { BookOpen, Check, ChevronDown, ChevronRight, Dumbbell, ExternalLink, Info, Moon, Pause, PersonStanding, Play, Plus, RotateCcw, Sparkles, Timer } from "lucide-react"
+import { BookOpen, Check, ChevronDown, ChevronRight, Dumbbell, ExternalLink, Flag, Info, Moon, Pause, PersonStanding, Play, Plus, RotateCcw, Sparkles, Timer, TriangleAlert } from "lucide-react"
 import { fmtD, plural } from "@/lib"
 import { ExerciseFigure, ExerciseThumb, hasFigure } from "@/exfigure"
 
@@ -68,7 +68,8 @@ function HoldTimer({ secs, onDone }: { secs: number; onDone: () => void }) {
   )
 }
 
-function ExerciseModule({ e, progId, onToggle, onOpen }: { e: any; progId: any; onToggle: (done: boolean) => Promise<void>; onOpen: () => void }) {
+function ExerciseModule({ e, progId, onToggle, onOpen, onTicks, missing }: { e: any; progId: any; onToggle: (done: boolean) => Promise<void>; onOpen: () => void
+  onTicks?: (n: number) => void; missing?: boolean }) {
   const sets = setsOf(e.dose || "")
   const hold = holdOf(e.dose || "")
   const key = `dl-sets:${progId}:${e.id}:${todayKey()}`
@@ -81,12 +82,13 @@ function ExerciseModule({ e, progId, onToggle, onOpen }: { e: any; progId: any; 
     const next = k < n ? k : k + 1            // tapping a filled set steps back to it
     setN(next)
     saveSets(key, next)
+    onTicks?.(next)
     if (next >= sets && !e.doneToday) { setBusy(true); try { await onToggle(true) } finally { setBusy(false) } }
     else if (next < sets && e.doneToday) { setBusy(true); try { await onToggle(false) } finally { setBusy(false) } }
   }
   const done = n >= sets
   return (
-    <div className={`py-3 transition ${done ? "opacity-90" : ""}`} data-testid="exercise-module">
+    <div className={`py-3 transition ${done ? "opacity-90" : ""}`} data-testid="exercise-module" data-missing={missing ? "1" : undefined}>
       <div className="flex items-center gap-3">
         <button type="button" onClick={onOpen} data-testid="self-ex-open" aria-label={`Provedení: ${e.name}`} className="shrink-0"><Thumb id={e.id} /></button>
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="min-w-0 flex-1 text-left">
@@ -105,6 +107,7 @@ function ExerciseModule({ e, progId, onToggle, onOpen }: { e: any; progId: any; 
           </button>
         ))}
         <span className="ml-1 text-[11px] text-fg-3">{done ? "hotovo dnes" : `${n}/${sets} sérií`}</span>
+        {missing && !done && <span className="ml-1 rounded-full bg-watch/15 px-2 py-0.5 text-[10.5px] font-bold text-watch">neodškrtnuto</span>}
       </div>
       {/* this week, one dot per planned session */}
       <div className="mt-2 flex gap-1" aria-hidden>
@@ -181,9 +184,14 @@ function SessionDone({ act, lib, onReopen, onRerate }: { act: any; lib: any; onR
           </span>
         </div>
       </div>
+      {dur?.partialToday && (
+        <p className="mt-3 flex items-center gap-2 text-[12.5px] text-watch" data-testid="partial-done">
+          <Flag className="size-4 shrink-0" aria-hidden /><span>{`Ukončeno dřív: hotovo ${Math.round((dur.completionToday || 0) * 100)} % sérií.`}</span>
+        </p>
+      )}
       {dur?.note && (
         <p className="mt-3 flex items-start gap-2 rounded-[12px] bg-white/[.04] px-3 py-2 text-[13px] leading-5 text-fg" data-testid="progress-note">
-          <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />{dur.note}
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden /><span><span>{dur.note}</span>{dur.noteNext && <>{" "}<span>{dur.noteNext}</span></>}</span>
         </p>
       )}
       {act.weeks ? (
@@ -251,6 +259,67 @@ function FeelPrompt({ onPick, busy }: { onPick: (k: string) => void; busy: boole
   )
 }
 
+// owner request 2026-10-06 — ending a session before every set is ticked: which exercises
+// are left, was it hard, and should the next session be the lighter version
+const END_HARD = [
+  { k: "hard", label: "Ano, těžký" },
+  { k: "ok", label: "Ne" },
+  { k: "pain", label: "Něco bolelo" },
+]
+function EndSession({ missing, doneSets, totalSets, busy, onCancel, onFinish }: {
+  missing: { id: string; name: string; n: number; sets: number }[]; doneSets: number; totalSets: number; busy: boolean
+  onCancel: () => void; onFinish: (feel: string, easier: boolean) => void }) {
+  const [feel, setFeel] = useState<string | null>(null)
+  const [easier, setEasier] = useState<boolean | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => { ref.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" }) }, [])
+  const opt = (on: boolean, warn = false) => `rounded-[12px] border px-3 py-2 text-[13px] font-bold transition active:scale-[.98] ${on
+    ? (warn ? "border-watch bg-watch/20 text-watch" : "border-accent bg-accent text-ink") : "border-white/12 text-fg hover:border-accent/60"}`
+  return (
+    <div ref={ref} className="mt-3 rounded-[16px] border border-watch/40 bg-watch/[.06] p-3.5 animate-[careReveal_.28s_ease-out]" data-testid="end-session">
+      <b className="flex items-center gap-2 text-[15px] text-fg"><TriangleAlert className="size-4 text-watch" aria-hidden />Ukončit trénink?</b>
+      <p className="mt-1 text-[12.5px] leading-5 text-fg-2">
+        <span>{`Hotovo ${doneSets} z ${totalSets} sérií.`}</span>{" "}
+        <span>{missing.length === 1 ? "Neodškrtnutý zůstal 1 cvik:" : missing.length <= 4 ? `Neodškrtnuté zůstaly ${missing.length} cviky:` : `Neodškrtnutých zůstalo ${missing.length} cviků:`}</span>
+      </p>
+      <ul className="mt-2 space-y-1" data-testid="end-missing">
+        {missing.map((m) => (
+          <li key={m.id} className="flex items-center justify-between gap-2 text-[13px]">
+            <span className="min-w-0 truncate text-fg">{m.name}</span>
+            <span className="shrink-0 tabular-nums text-watch">{`${m.n}/${m.sets} sérií`}</span>
+          </li>
+        ))}
+      </ul>
+      {doneSets === 0 ? (
+        <p className="mt-3 text-[12.5px] leading-5 text-fg-2">Zatím není odcvičená žádná série, takže není co zapsat. Trénink můžete sbalit a vrátit se k němu později.</p>
+      ) : (
+        <>
+          <p className="mt-3 text-[13px] font-bold text-fg">Byl trénink těžký?</p>
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Byl trénink těžký?">
+            {END_HARD.map((o) => (
+              <button key={o.k} type="button" role="radio" aria-checked={feel === o.k} onClick={() => setFeel(o.k)} data-testid={`end-feel-${o.k}`}
+                className={opt(feel === o.k, o.k === "pain")}>{o.label}</button>
+            ))}
+          </div>
+          <p className="mt-3 text-[13px] font-bold text-fg">Chcete příště jednodušší verzi?</p>
+          <p className="text-[11.5px] leading-4 text-fg-3">O sérii méně u každého cviku a opakování na spodní hranici.</p>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Chcete příště jednodušší verzi?">
+            <button type="button" role="radio" aria-checked={easier === true} onClick={() => setEasier(true)} data-testid="end-easier-yes" className={opt(easier === true)}>Ano, lehčí</button>
+            <button type="button" role="radio" aria-checked={easier === false} onClick={() => setEasier(false)} data-testid="end-easier-no" className={opt(easier === false)}>Ne, stejně</button>
+          </div>
+          <p className="mt-2.5 text-[11.5px] leading-4 text-fg-3">Nedokončený trénink se příště nepřidává. Když byl těžký, příště bude méně opakování.</p>
+        </>
+      )}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Button size="sm" variant="outline" onClick={onCancel} data-testid="end-cancel">Zpět k tréninku</Button>
+        <Button size="sm" disabled={busy || doneSets === 0 || !feel || easier == null} onClick={() => feel && easier != null && onFinish(feel, easier)} data-testid="end-confirm">
+          Ukončit a zapsat
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function PhaseBar({ phases, week, weeks }: { phases: Phase[]; week: number; weeks: number }) {
   return (
     <div className="mt-3" data-testid="phase-bar">
@@ -279,10 +348,12 @@ function DurabilityHead({ d }: { d: any }) {
         <Chip>{`${d.week}. týden z ${d.weeks}`}</Chip>
         <Chip>{`tento týden ${d.weekDone}/${d.perWeek}`}</Chip>
         {d.deload && <span className="rounded-full bg-info/15 px-2.5 py-1 text-[11px] font-bold text-info" data-testid="deload-chip">Odlehčovací týden</span>}
+        {d.light && !d.deload && <span className="rounded-full bg-info/15 px-2.5 py-1 text-[11px] font-bold text-info" data-testid="light-chip">Lehčí verze</span>}
       </div>
       <PhaseBar phases={d.phases} week={d.week} weeks={d.weeks} />
       <p className="mt-2 text-[13px] leading-5 text-fg-soft"><b className="text-fg">{d.phase.name}</b> · <span>{d.phase.goal}</span> <span>{`Cílová náročnost ${d.phase.rpe} z 10, zhruba ${d.estMin} min.`}</span></p>
       {!d.doneToday && <p className="mt-1 text-[12px] leading-5 text-fg-2" data-testid="session-why">{d.why}</p>}
+      {d.light && !d.doneToday && <p className="mt-1 text-[12px] leading-5 text-info">Dnes lehčí verze, jak jste si minule řekli: o sérii méně a opakování na spodní hranici.</p>}
       {d.scaled && d.capacity && (
         <p className="mt-1 text-[11px] leading-4 text-watch">{`Série jsou upravené podle týdenní kapacity posilování: dva tréninky by daly ≈ ${d.capacity.weekly} sRPE·min, strop je ${d.capacity.ceiling}.`}</p>
       )}
@@ -475,9 +546,27 @@ function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any;
   const n = act.exercises.length
   const mins = act.durability ? act.durability.estMin
     : act.exercises.every((e: any) => lib.exercises[e.id]?.min) ? act.exercises.reduce((a: number, e: any) => a + lib.exercises[e.id].min, 0) : null
-  const finish = async (feel: string) => {
+  // the sets ticked today per exercise (the module keeps them on this device), for ending early
+  const ticksOf = (e: any) => {
+    const sets = setsOf(e.dose || lib.exercises[e.id]?.dose || "")
+    return e.doneToday ? sets : Math.min(loadSets(`dl-sets:${act.id}:${e.id}:${day}`), sets)
+  }
+  const [ticks, setTicks] = useState<Record<string, number>>(() => Object.fromEntries(act.exercises.map((e: any) => [e.id, ticksOf(e)])))
+  const [ending, setEnding] = useState(false)
+  const rows = act.exercises.map((e: any) => {
+    const sets = setsOf(e.dose || lib.exercises[e.id]?.dose || "")
+    return { id: e.id, name: lib.exercises[e.id]?.name || e.name, sets, n: e.doneToday ? sets : Math.min(ticks[e.id] ?? 0, sets), done: !!e.doneToday }
+  })
+  const missing = rows.filter((x: any) => !x.done && x.n < x.sets)
+  const doneSets = rows.reduce((t: number, x: any) => t + x.n, 0)
+  const totalSets = rows.reduce((t: number, x: any) => t + x.sets, 0)
+  const finish = async (feel: string, easier = false) => {
     setBusy(true)
-    try { onChange(await api.finishSelfProgram(rid, act.id, feel)); setRerate(false); setReopen(false); toast({ title: "Trénink zapsán do zátěže" }) }
+    const sets = Object.fromEntries(rows.filter((x: any) => !x.done).map((x: any) => [x.id, x.n]))
+    try {
+      onChange(await api.finishSelfProgram(rid, act.id, feel, { easier, sets }))
+      setRerate(false); setReopen(false); setEnding(false); toast({ title: "Trénink zapsán do zátěže" })
+    }
     catch (e: any) { toast({ title: e?.message || "Hodnocení se nepodařilo uložit" }) } finally { setBusy(false) }
   }
   return (
@@ -519,11 +608,25 @@ function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any;
         </div>
         {act.exercises.map((e: any) => (
           <ExerciseModule key={e.id} e={{ ...lib.exercises[e.id], ...e }} progId={act.id} onOpen={() => setExId(e.id)}
+            onTicks={(n) => setTicks((t) => ({ ...t, [e.id]: n }))} missing={ending && missing.some((m: any) => m.id === e.id)}
             onToggle={async (done) => {
               try { onChange(await api.logSelfProgram(rid, act.id, e.id, done)) }
               catch (err: any) { toast({ title: err?.message || "Nepodařilo se zapsat" }) }
             }} />
         ))}
+        {/* owner request 2026-10-06: the session can always be ended, ticked through or not */}
+        {act.durability && !act.durability.doneToday && (
+          <div className="pt-3">
+            {ending && missing.length > 0 ? (
+              <EndSession missing={missing} doneSets={doneSets} totalSets={totalSets} busy={busy}
+                onCancel={() => setEnding(false)} onFinish={(feel, easier) => finish(feel, easier)} />
+            ) : ending ? (
+              <FeelPrompt busy={busy} onPick={(k) => finish(k)} />
+            ) : (
+              <Button className="w-full" variant="outline" icon={Flag} onClick={() => setEnding(true)} data-testid="session-end">Ukončit trénink</Button>
+            )}
+          </div>
+        )}
       </div>
       )}
       <p className="mt-2 text-[11px] leading-4 text-fg-3">{lib.painRule}</p>

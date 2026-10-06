@@ -1054,6 +1054,12 @@
   ]
  },
  {
+  "t": "Příští trénink bude lehčí verze: o sérii méně a opakování na spodní hranici.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
   "t": "Příště méně opakování. Bolest při cviku do 5 z 10 je v pořádku, do rána musí odeznít.",
   "files": [
    "durability.py"
@@ -1103,6 +1109,18 @@
  },
  {
   "t": "Tento týden máte {} z {} tréninků hotové.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Trénink nebyl celý a byl těžký: příště méně opakování.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Trénink nebyl celý, proto se příště nepřidává: stejné dávky.",
   "files": [
    "durability.py"
   ]
@@ -14062,6 +14080,12 @@
   ]
  },
  {
+  "t": ", hotovo {} % sérií",
+  "files": [
+   "routers/self_programs.py"
+  ]
+ },
+ {
   "t": "Cvik v programu není",
   "files": [
    "routers/self_programs.py"
@@ -14099,6 +14123,12 @@
  },
  {
   "t": "Vyberte aspoň jeden cvik",
+  "files": [
+   "routers/self_programs.py"
+  ]
+ },
+ {
+  "t": "Zatím není odcvičená žádná série",
   "files": [
    "routers/self_programs.py"
   ]

@@ -15,6 +15,13 @@ load goes up ("load step") and the reps start again at the bottom (double
 progression). Easy → up a level; just right twice in a row → up; hard twice in a
 row → down; pain → down at once.
 
+A session ended before every set was ticked (owner request 2026-10-06) never goes up:
+not finished and hard (or painful) → down a level at once, not finished otherwise →
+the same doses again. The runner can also ask for an easier next session: the next
+session (A or B) is then the lighter version — one set less and the bottom of the
+range, like a deload — and the flag is used up by it. The session's load counts the
+part that was done (the share of the sets ticked).
+
 The 26 weeks in five phases: basics → strength and volume → heavy strength →
 reactive strength → maintenance and re-test. After the basics every 4th week (or the running cycle's
 recovery week, taper or graded return) is a deload: one set less, the bottom of the
@@ -266,8 +273,12 @@ def choose(db, rid: str, a: dict | None, state: dict, today: date) -> dict:
     return {"session": session, "due": due, "why": why, "reasons": reasons, "blocked": blocked}
 
 
-def progress(state: dict, session: str, feel: str, week: int) -> dict:
-    """Moves the session's level (and load steps) by how the end of the session felt."""
+def progress(state: dict, session: str, feel: str, week: int, partial: bool = False,
+             completion: float | None = None, easier: bool = False, light: bool = False) -> dict:
+    """Moves the session's level (and load steps) by how the end of the session felt.
+    `partial` = ended before every set was done (`completion` = the share of the sets),
+    `easier` = the runner wants the next session lighter, `light` = today's session was
+    the lighter version already."""
     lv = dict(state.get("levels") or {"A": 0, "B": 0})
     steps = dict(state.get("steps") or {"A": 0, "B": 0})
     hist = list(state.get("history") or [])
@@ -278,13 +289,22 @@ def progress(state: dict, session: str, feel: str, week: int) -> dict:
     cur = lv.get(session, 0)
     same_prev = prev and prev.get("phase") == ph and prev.get("level") == cur
     note = None
-    if feel == "easy":
+    if partial:
+        up = False
+    elif feel == "easy":
         up = True
     elif feel == "ok":
         up = bool(same_prev and prev.get("feel") == "ok")
     else:
         up = False
-    if up:
+    if partial:
+        if feel in ("hard", "pain"):
+            lv[session] = max(0, cur - 1)
+            note = ("Příště méně opakování. Bolest při cviku do 5 z 10 je v pořádku, do rána musí odeznít."
+                    if feel == "pain" else "Trénink nebyl celý a byl těžký: příště méně opakování.")
+        else:
+            note = "Trénink nebyl celý, proto se příště nepřidává: stejné dávky."
+    elif up:
         if cur >= 2:
             lv[session], steps[session] = 0, steps.get(session, 0) + 1
             note = "Příště přidejte zátěž a začněte znovu na spodní hranici opakování."
@@ -297,8 +317,20 @@ def progress(state: dict, session: str, feel: str, week: int) -> dict:
                 if feel == "pain" else "Dvakrát po sobě těžké: příště méně opakování.")
     else:
         note = "Příště stejně, ať se tělo přizpůsobí."
-    hist.append({"date": E.today_date().isoformat(), "session": session, "feel": feel, "level": cur, "phase": ph, "week": week})
-    return {**state, "levels": lv, "steps": steps, "history": hist[-120:], "note": note}
+    # a sentence of its own (the page translates whole sentences)
+    note_next = "Příští trénink bude lehčí verze: o sérii méně a opakování na spodní hranici." if easier else None
+    entry = {"date": E.today_date().isoformat(), "session": session, "feel": feel, "level": cur, "phase": ph, "week": week}
+    if partial:
+        entry["partial"] = True
+        entry["completion"] = round(completion, 2) if completion is not None else None
+    if light:
+        entry["light"] = True
+    if easier:
+        entry["easier"] = True
+    hist.append(entry)
+    # the easier-next flag is used up by today's session and set again only when asked
+    return {**state, "levels": lv, "steps": steps, "history": hist[-120:], "note": note, "noteNext": note_next,
+            "easier": bool(easier)}
 
 
 def is_deload(week: int, a: dict | None) -> bool:
