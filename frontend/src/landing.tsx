@@ -88,7 +88,11 @@ const TH = 25
 const AX_MAX = 60
 const quadOf = (m: number, z: number): Q => (z >= TH && m >= TH ? "critical" : z >= TH ? "overreaching" : m >= TH ? "silent" : "stable")
 const scoreOf = (m: number, z: number, s: number) => Math.max(0, 100 - Math.min(100, Math.round(0.38 * m + 0.4 * z + 0.52 * s)))
-const tierOf = (score: number) => (100 - score >= 70 ? { t: "Jednat", c: C.alert } : 100 - score >= 40 ? { t: "Sledovat", c: C.watch } : { t: "V pořádku", c: C.ok })
+const TIERS = [{ t: "V pořádku", c: C.ok }, { t: "Sledovat", c: C.watch }, { t: "Jednat", c: C.alert }]
+const QTIER: Record<Q, number> = { stable: 0, overreaching: 1, silent: 1, critical: 2 }
+// UX audit F20 — the label follows the worse of the score and the state, as in the app
+// (the demo read "v pořádku" next to "Přetížení")
+const tierOf = (score: number, q: Q) => TIERS[Math.max(100 - score >= 70 ? 2 : 100 - score >= 40 ? 1 : 0, QTIER[q])]
 
 function ScoreRing({ value, color, size = 132 }: { value: number; color: string; size?: number }) {
   const r = 44
@@ -224,7 +228,7 @@ const AXES: { key: string; t: string; icon: typeof Footprints; col: string; shor
     items: ["Vertikální poměr, kontakt se zemí, kadence a vertikální oscilace", "Srovnání ve stejném tempu a terénu, ne napříč všemi běhy", "Drift techniky bývá časný znak únavy, který ještě necítíte"] },
   { key: "load", t: "Zátěž", icon: Activity, col: C.load, short: "Unesete to, co běháte?",
     items: ["Objem, intenzita, stoupání a klesání proti vaší kapacitě", "Prudké skoky oproti posledním týdnům", "Spánek, HRV a klidový tep jako ranní regenerace"] },
-  { key: "symp", t: "Symptomy", icon: NotebookPen, col: C.watch, short: "Co říká vaše tělo?",
+  { key: "symp", t: "Příznaky", icon: NotebookPen, col: C.watch, short: "Co říká vaše tělo?",
     items: ["Denní check-in za pár vteřin: bolest, ztuhlost, únava", "Bolest označená přímo na mapě těla", "Opakující se obtíže mají větší váhu než jednorázové"] },
 ]
 function Axes() {
@@ -291,7 +295,7 @@ function EngineDemo() {
   const [s, setS] = useState(10)
   const q = quadOf(m, z)
   const score = scoreOf(m, z, s)
-  const tier = tierOf(score)
+  const tier = tierOf(score, q)
   const pos = (v: number) => `${(Math.min(v, AX_MAX) / AX_MAX) * 100}%`
   const th = `${(TH / AX_MAX) * 100}%`
   const cells: { q: Q; style: React.CSSProperties }[] = [
@@ -321,7 +325,7 @@ function EngineDemo() {
             </div>
             <DemoSlider label="Mechanika" hint="drift techniky proti vaší normě" value={m} onChange={setM} col={C.self} />
             <DemoSlider label="Zátěž" hint="skoky v objemu a intenzitě, regenerace" value={z} onChange={setZ} col={C.load} />
-            <DemoSlider label="Symptomy" hint="bolest, ztuhlost a únava z deníku" value={s} onChange={setS} col={C.watch} />
+            <DemoSlider label="Příznaky" hint="bolest, ztuhlost a únava z deníku" value={s} onChange={setS} col={C.watch} />
             <p className="text-[12px] leading-5 text-fg-3">Zjednodušená ukázka. Skutečný výpočet pracuje s vaší osobní normou, desítkami signálů a hysterezí, aby stav zbytečně nepřeskakoval.</p>
           </div>
           <div>
@@ -364,9 +368,9 @@ const TABS: TabInfo[] = [
     points: ["Kvadrant stavu a jeho vývoj za 6 měsíců", "Signály seřazené podle vlivu", "Denní check-in přímo z obrazovky"] },
   { t: "Trénink", title: "Kolik toho dnes unesete", viz: "bars", body: "Rozsah kilometrů, tepové zóny a tempo podle toho, co jste v posledních týdnech prokazatelně zvládli.",
     points: ["Dnešní kapacita objemu, intenzity a převýšení", "Čtyřtýdenní cyklus s odlehčovacím týdnem", "Kolo, plavání i posilování s konkrétní dávkou"] },
-  { t: "Deník", title: "Vaše zkušenost jako nejcennější data", viz: "journal", body: "Po každém běhu krátce zapíšete, jak se běželo a jestli něco bolelo. Tyto zápisy engine používá nejvíc.",
+  { t: "Deník", title: "Vaše zkušenost jako nejcennější data", viz: "journal", body: "Po každém běhu krátce zapíšete, jak se běželo a jestli něco bolelo. Tyto zápisy aplikace používá nejvíc.",
     points: ["Běhy čekající na zápis", "Mapa těla s místy obtíží", "Souhrn posledních týdnů"] },
-  { t: "Pohyb", title: "Technika proti vaší vlastní normě", viz: "mech", body: "Kontakt se zemí, kadence nebo vertikální poměr se štítkem v normě, na hraně nebo mimo normu.",
+  { t: "Mechanika", title: "Technika proti vaší vlastní normě", viz: "mech", body: "Kontakt se zemí, kadence nebo vertikální poměr se štítkem v normě, na hraně nebo mimo normu.",
     points: ["Trend mechanické stability po dnech", "Srovnání na rovině, v kopcích a v tempu", "Porovnání běhu s během před měsícem"] },
   { t: "Zátěž", title: "Skoky, které tělo nestihne vstřebat", viz: "load", body: "Objem, intenzita, stoupání a klesání, každý kanál proti vaší kapacitě, doplněné o spánek, HRV a klidový tep.",
     points: ["Týdenní kapacita po kanálech", "Co nejvíc tvoří dnešní skóre", "Regenerace proti vaší normě"] },
@@ -630,7 +634,7 @@ export function scrollToLanding() {
   document.getElementById("co-doslap-umi")?.scrollIntoView({ behavior: "smooth", block: "start" })
 }
 
-export function Landing({ onCta }: { onCta: () => void }) {
+export function Landing({ onCta, onDemo, demoBusy = false, onLogin }: { onCta: () => void; onDemo?: () => void; demoBusy?: boolean; onLogin?: () => void }) {
   // Floating "Vytvořit účet" pill once the visitor has scrolled past the form.
   const [pill, setPill] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
@@ -659,9 +663,13 @@ export function Landing({ onCta }: { onCta: () => void }) {
               Došlap propojuje běžce a fyzioterapeuty. Každý den skládá data z hodinek a krátký deník do jednoho srozumitelného stavu. Když je čas zpomalit nebo zajít za odborníkem, řekne vám to a vysvětlí proč.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <button onClick={onCta} className="btn btn-primary px-6 py-3.5 text-[14px]">Vytvořit účet<ArrowRight className="size-4" aria-hidden /></button>
-              <a href="#vyzkousejte" className="btn btn-outline px-6 py-3.5 text-[14px]">Vyzkoušet ukázku</a>
+              <button onClick={onCta} className="btn btn-primary px-6 py-3.5 text-[14px]" data-testid="hero-register">Vytvořit účet<ArrowRight className="size-4" aria-hidden /></button>
+              {onDemo
+                ? <button onClick={onDemo} disabled={demoBusy} className="btn btn-outline px-6 py-3.5 text-[14px]" data-testid="hero-demo">{demoBusy ? "Otevírám ukázku…" : "Vyzkoušet ukázku"}</button>
+                : <a href="#vyzkousejte" className="btn btn-outline px-6 py-3.5 text-[14px]">Vyzkoušet ukázku</a>}
             </div>
+            {onDemo && <p className="mt-2.5 text-[12px] text-fg-3">Ukázka je bez registrace, na běžci s vymyšlenými daty.</p>}
+            {onLogin && <button onClick={onLogin} className="mt-3 text-[13px] font-bold text-fg-2 hover:text-accent md:hidden" data-testid="hero-login">Už máte účet? Přihlásit se</button>}
             <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-[13px] text-fg-2">
               {["Osobní norma místo průměru", "Vysvětlitelné skóre", "Napojení na fyzioterapeuta"].map((t) => (
                 <span key={t} className="flex items-center gap-2"><Check className="size-4" style={{ color: C.accent }} aria-hidden />{t}</span>

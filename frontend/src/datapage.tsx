@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { Button, Card, Chip, Field, Label, ListRow, Segmented, Switch, useAsync, useToast } from "@/ui"
+import { Button, Card, Chip, Field, Label, ListRow, Switch, useAsync, useToast } from "@/ui"
 import { ArrowRight, Copy, Database, Download, Eye, Map as MapIcon, Mountain, Pencil, Power, RefreshCw, Smartphone, Sunrise, Unplug, Upload, Watch } from "lucide-react"
 import { fmtD, initials } from "@/lib"
 import { ASSISTANT_REFRESH_EVENT, KnowledgeAdminCard } from "@/assistant"
@@ -14,7 +14,8 @@ export function DataView() {
   const rid = me!.runner_id!
   const integ = boot?.integration
   const acts = boot?.activities || []
-  const [source, setSource] = useState<"garmin" | "garminlive" | "apple">("garmin")
+  // UX audit F05 — the one-step Garmin login is the default, the file export the fallback
+  const [source, setSource] = useState<"garmin" | "garminlive" | "apple">("garminlive")
   const [res, setRes] = useState<Result | null>(null)
   const file = useRef<HTMLInputElement>(null)
   const afile = useRef<HTMLInputElement>(null)
@@ -217,7 +218,7 @@ export function DataView() {
         </div>
         <div className="flex items-center gap-3 p-4">
           <span className="grid size-[34px] shrink-0 place-items-center rounded-full bg-accent text-[11px] font-extrabold text-ink">{initials(me?.name)}</span>
-          <span className="min-w-0"><span className="t-label block !text-fg-3">Profil</span><b className="block text-[17px] font-bold leading-tight">{(me?.name || "").split(" ")[0]}</b><span className="block truncate text-[12px] text-fg-3">běžec / pacient</span></span>
+          <span className="min-w-0"><span className="t-label block !text-fg-3">Profil</span><b className="block text-[17px] font-bold leading-tight">{(me?.name || "").split(" ")[0]}</b><span className="block truncate text-[12px] text-fg-3">běžec</span></span>
         </div>
       </div>
 
@@ -268,11 +269,17 @@ export function DataView() {
       </Card>
       )}
 
-      <CoachConsentCard rid={rid} />
-      <KnowledgeAdminCard />
-
-      <Card className="mt-4">
-        <Segmented ariaLabel="Zdroj dat" options={[["garmin", "Garmin – soubor"], ["garminlive", "Garmin – přihlášení"], ["apple", "Apple Health"]] as const} value={source} onChange={setSource} />
+      {/* UX audit F05 — connecting comes first; the AI consent sits below it */}
+      <Card className="mt-4" data-testid="connect-card">
+        <p className="t-label">Odkud data vezmeme</p>
+        <div role="group" aria-label="Zdroj dat" className="mt-2.5 grid grid-cols-3 gap-1 rounded-[18px] bg-white/[.06] p-[3px]">
+          {([["garminlive", "Garmin", "přihlášení"], ["garmin", "Garmin", "soubor"], ["apple", "Apple Health", "iPhone"]] as const).map(([k, l, sub]) => (
+            <button key={k} type="button" aria-pressed={source === k} onClick={() => setSource(k)}
+              className={`rounded-[15px] px-2 py-2 text-center text-[12px] font-bold leading-tight transition ${source === k ? "bg-fg text-ink" : "text-fg-2 hover:text-fg"}`}>
+              {l}<span className={`block text-[11px] font-semibold ${source === k ? "text-ink/70" : "text-fg-3"}`}>{sub}</span>
+            </button>
+          ))}
+        </div>
 
         <div className="mt-6">
           {source === "garmin" && (
@@ -370,6 +377,18 @@ export function DataView() {
           )}
         </div>
       </Card>
+
+      {/* UX audit F05 — other watches and no watch at all */}
+      <Card className="mt-4" data-testid="other-watches">
+        <Label>Jiné hodinky nebo bez hodinek</Label>
+        <ul className="mt-2 grid gap-2 text-[13px] leading-5 text-fg-2">
+          <li><b className="text-fg">Polar, Coros, Suunto a další</b> zatím přímo nepřipojíme. Když jejich aplikace zapisuje do Apple Health, nahrajte data přes Apple Health: načtou se běhy, tep a noci. Technika běhu (kontakt se zemí, kadence) jen pokud ji tam hodinky ukládají.</li>
+          <li><b className="text-fg">Bez hodinek</b> funguje denní check-in a zápis kola, plavání nebo posilování v Deníku. Zátěž běhu, techniku a připravenost ale aplikace počítá z dat hodinek.</li>
+        </ul>
+      </Card>
+
+      <CoachConsentCard rid={rid} />
+      <KnowledgeAdminCard />
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
@@ -471,14 +490,14 @@ function CoachConsentCard({ rid }: { rid: string }) {
   return (
     <Card className="mt-4">
       <div className="flex items-center justify-between gap-3">
-        <span><Label>AI shrnutí a Physio AI Assistant · beta</Label></span>
-        <Switch checked={!!st.consent} onChange={() => toggle()} label="AI shrnutí a Physio AI Assistant" disabled={busy} />
+        <span><Label>AI shrnutí a AI asistent · beta</Label></span>
+        <Switch checked={!!st.consent} onChange={() => toggle()} label="AI shrnutí a AI asistent" disabled={busy} />
       </div>
       <p className="mt-2 text-sm leading-6 text-fg-2">
-        Denní shrnutí vašeho stavu, komentář k dnešnímu tréninku (engine Kapacitní) a každé pondělí shrnutí uplynulého týdne.
+        Denní shrnutí vašeho stavu, komentář k dnešnímu tréninku a každé pondělí shrnutí uplynulého týdne.
         Píše je jazykový model jen z čísel, která spočítá aplikace. Doporučení nemění a každý text se automaticky kontroluje —
         když kontrolou neprojde, dostanete místo něj text sestavený přímo aplikací.
-        Stejný souhlas zapíná Physio AI Assistant, který odpovídá na otázky k vašim datům, tréninku a aplikaci
+        Stejný souhlas zapíná AI asistenta, který odpovídá na otázky k vašim datům, tréninku a aplikaci
         z vašich čísel a z odborných studií.
       </p>
       <p className="mt-2 text-[11px] leading-5 text-fg-3">

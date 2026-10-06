@@ -13,7 +13,10 @@ from ..metrics import guidance as G
 PART_LABEL = {"hrv": "HRV pod normou", "rhr": "klidový tep nad normou", "sleep": "kratší spánek než obvykle (3 noci)",
               "sleepQuality": "víc bdění v noci než obvykle (efektivita spánku, 3 noci)",
               "soreness": "svalová bolest z check-inu", "fatigue": "únava z check-inu", "stress": "stres mimo trénink",
-              "dayStress": "zvýšený tep v klidu včera"}
+              "dayStress": "zvýšený tep v klidu včera", "sleepSelf": "horší noc podle check-inu",
+              # UX audit F14 — parts added after the morning; an unknown key is left out, never printed
+              "session": "dnešní trénink", "dayLoad": "pohyb mimo trénink nad obvyklý den",
+              "dayStressNow": "zvýšený tep v klidu dnes"}
 MECH_IDS = {"tavr", "gct", "cad", "vosc", "bal", "dec", "gaitcv", "stiffness"}
 CH_LABEL = {"volume": "objem", "intensity": "intenzita", "descent": "klesání", "ascent": "stoupání",
             "systemic": "celková zátěž", "strength": "silová zátěž"}
@@ -117,7 +120,7 @@ def _why_today_max(a, today) -> None:
 def _readiness(a) -> dict:
     out = F._recovery(a)
     cr = a.get("readiness") or (a.get("capacity") or {}).get("readiness") or {}
-    parts = {PART_LABEL.get(k, k): f"{round(v * 100)} %" for k, v in (cr.get("parts") or {}).items() if v and v > 0.05}
+    parts = {PART_LABEL[k]: f"{round(v * 100)} %" for k, v in (cr.get("parts") or {}).items() if v and v > 0.05 and k in PART_LABEL}
     if parts:
         out["whatLowersReadiness"] = parts
     hab = (cr.get("inputs") or {}).get("sleepHabit")

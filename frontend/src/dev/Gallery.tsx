@@ -42,7 +42,7 @@ export default function Gallery() {
             <Label>Alert banners</Label>
             <div className="mt-3 grid gap-2">
               <AlertBanner tone="stop" title="Bolest omezuje pohyb — dnes neběhat">Hýbejte se jen tak, aby to nebolelo, a nechte to posoudit fyzioterapeutem do 48 hodin.</AlertBanner>
-              <AlertBanner tone="alert" title="Nahlásil jste bolest 8/10" collapsible open={open === 1} onToggle={() => setOpen(open === 1 ? 0 : 1)}>Achillova šlacha (P) · Bolest nad 3/10 stojí za pozornost.</AlertBanner>
+              <AlertBanner tone="alert" title="Hlášená bolest 8/10" collapsible open={open === 1} onToggle={() => setOpen(open === 1 ? 0 : 1)}>Achillova šlacha (P) · Bolest nad 3/10 stojí za pozornost.</AlertBanner>
               <AlertBanner tone="watch" icon={Zap} title="Akutní přetížení po běhu" collapsible open={open === 2} onToggle={() => setOpen(open === 2 ? 0 : 2)}>Den dva bez běhu, pak jen volně a krátce.</AlertBanner>
               <AlertBanner tone="watch" icon={TrendingUp} title="Bolest týden od týdne roste" collapsible open={open === 3} onToggle={() => setOpen(open === 3 ? 0 : 3)}>Průměr za 7 dní 3,8/10, týden předtím 1,7/10.</AlertBanner>
               <AlertBanner tone="info" icon={Flag} title="Zotavení po závodním úsilí · den 2 z 4" />

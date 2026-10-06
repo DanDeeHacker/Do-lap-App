@@ -31,7 +31,7 @@ GLOSSARY = (
     "Zátěž → Load, Péče → Care, Data → Data, Skóre → Score, Připravenost → Readiness, Příznaky → Symptoms, "
     "Mechanika → Mechanics, kvadrant → quadrant, tichý drift → silent drift, přetížení → overload, "
     "kritická kombinace → critical combination, stabilní → stable, kapacita → capacity, strop → ceiling, "
-    "check-in → check-in, j.z. → LU (load units), tep → heart rate (bpm), fyzioterapeut → physiotherapist, "
+    "check-in → check-in, j.z. → LU (load units), body zátěže / bodů zátěže → load points, tep → heart rate (bpm), fyzioterapeut → physiotherapist, "
     "Ve vašich datech: → In your data:, Co říká výzkum: → What the research says:, Co s tím: → What to do:"
 )
 SYSTEM_EN = (

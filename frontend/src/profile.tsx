@@ -78,7 +78,7 @@ function CycleFields({ c, set }: { c: Cycle; set: (c: Cycle) => void }) {
           <p className="mt-2 text-[11.5px] leading-[17px] text-fg-3">
             {c.hormonal
               ? "S hormonální antikoncepcí se cyklus na tepu a HRV projevuje málo, připravenost proto zůstává bez úprav."
-              : "V druhé polovině cyklu bývá HRV nižší a klidový tep o pár úderů vyšší. Engine je pak porovná s vaší normou ze stejné fáze, aby to nevypadalo jako horší zotavení. Začátek další menstruace zapíšete v denním check-inu."}
+              : "V druhé polovině cyklu bývá HRV nižší a klidový tep o pár úderů vyšší. Aplikace je pak porovná s vaší normou ze stejné fáze, aby to nevypadalo jako horší zotavení. Začátek další menstruace zapíšete v denním check-inu."}
           </p>
         </div>
       )}
@@ -125,8 +125,8 @@ export function ProfileGate({ missing, onDone }: { missing: string[]; onDone: ()
         className="my-4 w-full max-w-[520px] animate-[careReveal_.28s_ease-out] rounded-[24px] border border-white/10 bg-raised p-5 text-fg shadow-[0_24px_70px_rgb(0_0_0_/_0.55)]">
         <h2 className="text-[20px] font-extrabold tracking-[-.02em]">{first ? "Než začneme" : "Doplňte prosím profil"}</h2>
         <p className="mt-1 text-[13.5px] leading-5 text-fg-2">
-          {first ? "Pár údajů, ze kterých engine od prvního dne nastaví bezpečné rezervy. Kdykoli je změníte v profilu."
-            : `Engine nově potřebuje ${missing.includes("running_since") && missing.length === 1 ? "vědět, jak dlouho běháte" : "pár údajů navíc"}. Zabere to půl minuty.`}
+          {first ? "Pár údajů, ze kterých aplikace od prvního dne nastaví bezpečné rezervy. Kdykoli je změníte v profilu."
+            : `Aplikace nově potřebuje ${missing.includes("running_since") && missing.length === 1 ? "vědět, jak dlouho běháte" : "pár údajů navíc"}. Zabere to půl minuty.`}
         </p>
         <p className="mt-4 text-[13px] font-bold text-fg-soft">Pohlaví</p>
         <div className="mt-2 grid grid-cols-2 gap-2">
@@ -145,7 +145,7 @@ export function ProfileGate({ missing, onDone }: { missing: string[]; onDone: ()
             </Choice>
           ))}
         </div>
-        <p className="mt-1.5 text-[11.5px] leading-[17px] text-fg-3">V prvním roce pravidelného běhání se běžci zraňují zhruba dvakrát častěji, proto jim engine nechává menší rezervy nad zvládnutou zátěží.</p>
+        <p className="mt-1.5 text-[11.5px] leading-[17px] text-fg-3">V prvním roce pravidelného běhání se běžci zraňují zhruba dvakrát častěji, proto jim aplikace nechává menší rezervy nad zvládnutou zátěží.</p>
         <p className="mt-4 text-[13px] font-bold text-fg-soft">Běžecké zranění za posledních 12 měsíců?</p>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <Choice on={injured === "no"} onClick={() => setInjured("no")} testid="gate-injury-no">Ne</Choice>
@@ -218,7 +218,7 @@ export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => 
   return (
     <Sheet open={open} onClose={onClose}>
       <h2 className="font-serif text-2xl">Upravit profil</h2>
-      <p className="mt-1 text-xs text-fg-2">Údaje, které používá engine (zkušenost, dřívější zranění, obuv, cílový závod) a fyzioterapeut (věk, pohlaví, město).</p>
+      <p className="mt-1 text-xs text-fg-2">Údaje, které používá aplikace (zkušenost, dřívější zranění, obuv, cílový závod) a fyzioterapeut (věk, pohlaví, město).</p>
       <div className="grid gap-1 md:grid-cols-2">
         <Field label="Rok narození"><input className={inp} inputMode="numeric" value={f.birth_year ?? ""} onChange={(e) => set("birth_year", e.target.value)} /></Field>
         <Field label="Pohlaví"><select className={inp} value={f.sex ?? ""} onChange={(e) => set("sex", e.target.value)}><option value="">—</option><option value="f">žena</option><option value="m">muž</option></select></Field>
@@ -229,7 +229,7 @@ export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => 
         <Field label="Cílový závod"><input className={inp} value={f.goal_race ?? ""} onChange={(e) => set("goal_race", e.target.value)} placeholder="např. Pražský půlmaraton" /></Field>
         <Field label="Datum závodu" hint="další závody přidáte v Tréninku → Závody"><input type="date" className={inp} value={f.goal_date ?? ""} onChange={(e) => set("goal_date", e.target.value)} /></Field>
         <Field label="Dřívější zranění"><input className={inp} value={f.prior_injury ?? ""} onChange={(e) => set("prior_injury", e.target.value)} placeholder="např. Achillova šlacha" /></Field>
-        <Field label="Kdy se zranění stalo" hint={f.prior_injury && !f.prior_injury_date ? "bez data ho engine počítá jako nedávné" : undefined}><input type="date" className={inp} value={f.prior_injury_date ?? ""} max={todayIso()} onChange={(e) => set("prior_injury_date", e.target.value)} /></Field>
+        <Field label="Kdy se zranění stalo" hint={f.prior_injury && !f.prior_injury_date ? "bez data ho aplikace počítá jako nedávné" : undefined}><input type="date" className={inp} value={f.prior_injury_date ?? ""} max={todayIso()} onChange={(e) => set("prior_injury_date", e.target.value)} /></Field>
         <Field label="Maximální tep (změřený)" hint={f.hr_max ? "tepové zóny se počítají z něj" : "z testu nebo závodu do vrchu; bez něj zóny odhadujeme"}><input className={inp} inputMode="numeric" value={f.hr_max ?? ""} placeholder="např. 192" onChange={(e) => set("hr_max", e.target.value.replace(/\D/g, ""))} /></Field>
         <Field label="Tep na prahu (LTHR)" hint={f.threshold_hr ? "zóny a tvrdé minuty se počítají z prahu" : "z laktátového nebo terénního testu (průměr posledních 20 min 30min testu); nepovinné"}><input className={inp} inputMode="numeric" value={f.threshold_hr ?? ""} placeholder="např. 172" onChange={(e) => set("threshold_hr", e.target.value.replace(/\D/g, ""))} /></Field>
         <Field label="Strana"><select className={inp} value={f.prior_injury_side ?? ""} onChange={(e) => set("prior_injury_side", e.target.value)}><option value="">—</option><option value="left">levá</option><option value="right">pravá</option><option value="both">obě</option></select></Field>
@@ -410,7 +410,7 @@ export function Shoes({ rid }: { rid: string }) {
             <Field label="Drop (mm)" hint="rozdíl pata–špička"><input className={inp} inputMode="decimal" value={form.drop_mm} placeholder="např. 8" onChange={(e) => set("drop_mm", e.target.value.replace(/[^\d.,]/g, ""))} /></Field>
           </div>
           {catLine && catLine.drop == null && form.drop_mm === "" && (
-            <p className="mt-2 text-[11.5px] leading-[17px] text-fg-3" data-testid="shoe-drop-hint">Drop se u řady {catLine.name} mezi verzemi mění. Najdete ho na krabici, na jazyku boty nebo na webu výrobce; bez něj engine pozná přechod jen podle typu boty.</p>
+            <p className="mt-2 text-[11.5px] leading-[17px] text-fg-3" data-testid="shoe-drop-hint">Drop se u řady {catLine.name} mezi verzemi mění. Najdete ho na krabici, na jazyku boty nebo na webu výrobce; bez něj aplikace pozná přechod jen podle typu boty.</p>
           )}
           <div className="mt-3"><Toggle on={form.carbon} onClick={() => set("carbon", !form.carbon)} label="Karbonová deska" /></div>
           <p className="mt-4 text-[13px] font-bold text-fg-soft">První použití</p>

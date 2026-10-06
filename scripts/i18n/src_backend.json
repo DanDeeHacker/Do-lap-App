@@ -1741,7 +1741,7 @@
   ]
  },
  {
-  "t": "Tréninková zátěž za 7 dní {} proti chronickému průměru {} j.z./týden (vč. jiného sportu){}.",
+  "t": "Tréninková zátěž za 7 dní {} proti chronickému průměru {} bodů zátěže za týden (vč. jiného sportu){}.",
   "files": [
    "metrics/ai_brief.py"
   ]
@@ -1996,6 +1996,13 @@
   "t": "aktivní zranění ({}), dnes bez běhu",
   "files": [
    "metrics/capacity.py"
+  ]
+ },
+ {
+  "t": "bodů",
+  "files": [
+   "metrics/capacity.py",
+   "metrics/guidance.py"
   ]
  },
  {
@@ -2578,7 +2585,7 @@
   ]
  },
  {
-  "t": "Celková zátěž dne {} j.z., z toho mimo trénink {}.",
+  "t": "Celková zátěž dne {} bodů, z toho mimo trénink {}.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2855,7 +2862,7 @@
   ]
  },
  {
-  "t": "Skóre spánku {} ze 100. {} {}",
+  "t": "Skóre spánku {} ze 100.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2988,7 +2995,7 @@
   ]
  },
  {
-  "t": "Zátěž dne {} j.z.",
+  "t": "Zátěž dne {} bodů",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -3385,30 +3392,6 @@
   ]
  },
  {
-  "t": "Akutní zátěž {} proti chronické {} j.z./týden. Pozn.: v běžecké kohortě sám poměr 7:28 riziko nepředpovídá — hlavní signál je skok v jednotlivém běhu výše.",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
-  "t": "Baseline je dostatečný.",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
-  "t": "Baseline se zatím buduje — mechanické signály se nezobrazují.",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
-  "t": "Baseline {} ms · {} za posledních 7 dní",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
   "t": "Blízký závod při zvýšené zátěži",
   "files": [
    "metrics/engine.py",
@@ -3504,12 +3487,6 @@
   ]
  },
  {
-  "t": "Během baseline okna došlo ke změně hodinek — mechanické signály jsou umlčené, dokud se baseline nepostaví znovu na novém zařízení.",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
   "t": "Datum zranění chybí — počítáme ho jako nedávné, doplňte ho v profilu.",
   "files": [
    "metrics/engine.py"
@@ -3554,7 +3531,7 @@
   ]
  },
  {
-  "t": "Fitness (42denní průměr) {} proti aktuální zátěži {} j.z./týden — akutní zátěž předbíhá vybudovanou",
+  "t": "Fitness (42denní průměr) {} proti aktuální zátěži {} bodů zátěže za týden — zátěž předbíhá to, co máte vybudované",
   "files": [
    "metrics/engine.py"
   ]
@@ -3623,7 +3600,7 @@
   ]
  },
  {
-  "t": "Mechanika se {}. {}. skokově změnila v {} metrikách najednou ({}) a bez hlášených obtíží — spíš nové boty, jiný snímač nebo aktualizace hodinek než změna běhu. Baseline se staví znovu od toho dne",
+  "t": "Mechanika se {}. {}. skokově změnila v {} metrikách najednou ({}) a bez hlášených obtíží — spíš nové boty, jiný snímač nebo aktualizace hodinek než změna běhu. Vaše norma se staví znovu od toho dne",
   "files": [
    "metrics/engine.py"
   ]
@@ -3705,6 +3682,12 @@
   ]
  },
  {
+  "t": "Norma techniky je spolehlivá.",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
   "t": "Náhlý pokles zátěže",
   "files": [
    "metrics/engine.py",
@@ -3738,6 +3721,12 @@
   "files": [
    "metrics/engine.py",
    "seed.py"
+  ]
+ },
+ {
+  "t": "Obvykle {} ms · {} za posledních 7 dní",
+  "files": [
+   "metrics/engine.py"
   ]
  },
  {
@@ -3967,7 +3956,7 @@
   ]
  },
  {
-  "t": "Tvrdá práce (vysoký tep) {} vs obvyklých {} j.z./týden. Prudký nárůst intenzity na nízké základně nese vyšší riziko než stejná zátěž volně.",
+  "t": "Tvrdá práce (vysoký tep) {} proti obvyklým {} bodům zátěže za týden. Prudký nárůst intenzity na nízké základně nese vyšší riziko než stejná zátěž volně.",
   "files": [
    "metrics/engine.py"
   ]
@@ -3985,6 +3974,12 @@
   ]
  },
  {
+  "t": "V posledních 12 týdnech se změnily hodinky. Techniku běhu zatím nehodnotíme, dokud se vaše norma nepostaví znovu na nových hodinkách.",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
   "t": "Varovné příznaky u bolesti zad",
   "files": [
    "metrics/engine.py",
@@ -3993,6 +3988,12 @@
  },
  {
   "t": "Vaše hodnocení noci v check-inu.",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
+  "t": "Vaši normu techniky zatím poznáváme, signály techniky se zatím nezobrazují.",
   "files": [
    "metrics/engine.py"
   ]
@@ -4108,6 +4109,12 @@
  },
  {
   "t": "Zátěž pozvolna roste dva týdny po sobě, i když poměr 7:28 je ještě v klidu — plíživé navyšování předchází zranění častěji než jednorázový skok.",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
+  "t": "Zátěž za posledních 7 dní {} proti obvyklým {} bodům zátěže za týden. Pozn.: v běžecké kohortě sám poměr 7:28 riziko nepředpovídá — hlavní signál je skok v jednotlivém běhu výše.",
   "files": [
    "metrics/engine.py"
   ]
@@ -4555,6 +4562,12 @@
   ]
  },
  {
+  "t": "{} bodů/týden",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
   "t": "{} dní / 28",
   "files": [
    "metrics/engine.py",
@@ -4570,12 +4583,6 @@
  },
  {
   "t": "{} h proti obvyklým {} h",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
-  "t": "{} j.z./týd",
   "files": [
    "metrics/engine.py"
   ]
@@ -4611,7 +4618,7 @@
   ]
  },
  {
-  "t": "{} — místo dřívějšího zranění ({}{}) jste označil {}× za {} dní. U dříve zraněného místa stačí jediné označení bez ohledu na intenzitu. Počet označení váhu nezvyšuje, řídí ji průběh bolesti na místě: teď {} % plné váhy (dny bez bolesti ji půlí, třetí ji ukončí). Samotné zranění v anamnéze body nepřidává, jen snižuje toleranci zátěže (×{}).",
+  "t": "{} — místo dřívějšího zranění ({}{}) se v zápisech objevilo {}× za {} dní. U dříve zraněného místa stačí jediné označení bez ohledu na intenzitu. Počet označení váhu nezvyšuje, řídí ji průběh bolesti na místě: teď {} % plné váhy (dny bez bolesti ji půlí, třetí ji ukončí). Samotné zranění v anamnéze body nepřidává, jen snižuje toleranci zátěže (×{}).",
   "files": [
    "metrics/engine.py"
   ]
@@ -5727,12 +5734,6 @@
   ]
  },
  {
-  "t": "bodů",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
   "t": "byl to tvrdý trénink",
   "files": [
    "metrics/guidance.py"
@@ -5867,7 +5868,7 @@
   ]
  },
  {
-  "t": "pohyb mimo trénink nad obvyklý den (+{} j.z.)",
+  "t": "pohyb mimo trénink nad obvyklý den (+{} bodů zátěže)",
   "files": [
    "metrics/guidance.py"
   ]
@@ -7356,7 +7357,7 @@
   ]
  },
  {
-  "t": "Dva až tři regenerační týdny obvykle vrátí GCT k baseline. Pokud ne, jde spíš o změnu techniky nebo obuvi.",
+  "t": "Dva až tři regenerační týdny obvykle vrátí GCT k vaší normě. Pokud ne, jde spíš o změnu techniky nebo obuvi.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -7596,7 +7597,7 @@
   ]
  },
  {
-  "t": "Návrat k baseline po dvou až třech dnech.",
+  "t": "Návrat k vaší normě po dvou až třech dnech.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -7776,7 +7777,7 @@
   ]
  },
  {
-  "t": "Rozptyl se vrátí k baseline po pár konzistentních bězích ve srovnatelných podmínkách.",
+  "t": "Rozptyl se vrátí k vaší normě po pár konzistentních bězích ve srovnatelných podmínkách.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -7914,7 +7915,7 @@
   ]
  },
  {
-  "t": "Stupeň C, závisí na kvalitě odhadu spánku z náramku. Práh 85 % je konvence; ideální je sledovat i vlastní baseline. Importuje se jen z novějších Garminů/Apple, u starších dat chybí.",
+  "t": "Stupeň C, závisí na kvalitě odhadu spánku z náramku. Práh 85 % je konvence; ideální je sledovat i vlastní normu. Importuje se jen z novějších Garminů/Apple, u starších dat chybí.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -8010,19 +8011,19 @@
   ]
  },
  {
-  "t": "Týden bez sbíhání nad baseline.",
+  "t": "Týden bez sbíhání nad vaší normou.",
   "files": [
    "metrics/sig_doc.py"
   ]
  },
  {
-  "t": "Týden bez strmého klesání nad baseline.",
+  "t": "Týden bez strmého klesání nad vaší normou.",
   "files": [
    "metrics/sig_doc.py"
   ]
  },
  {
-  "t": "Týden na baseline.",
+  "t": "Týden na vaší normě.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -8112,7 +8113,7 @@
   ]
  },
  {
-  "t": "Zmizí, když se HRV/tep/spánek vrátí k baseline nebo skok odezní.",
+  "t": "Zmizí, když se HRV/tep/spánek vrátí k vaší normě nebo skok odezní.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -8467,7 +8468,7 @@
   ]
  },
  {
-  "t": "Řetězec VO → zatížení → zranění je odvozený, ne prokázaný prospektivně. Hodnoty se navíc liší mezi zařízeními, takže při výměně hodinek je nutné baseline resetovat.",
+  "t": "Řetězec VO → zatížení → zranění je odvozený, ne prokázaný prospektivně. Hodnoty se navíc liší mezi zařízeními, takže při výměně hodinek je nutné postavit normu znovu.",
   "files": [
    "metrics/sig_doc.py"
   ]

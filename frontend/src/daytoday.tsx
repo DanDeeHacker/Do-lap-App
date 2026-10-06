@@ -43,7 +43,7 @@ export function DayToday({ rid, stamp }: { rid?: string; stamp?: string }) {
     if (r.sessionDrop >= 0.5)
       steps.push({ key: "s", label: r.carry ? "Včerejší trénink doznívá" : "Dnešní trénink", sub: [...(r.sessions || []), r.band].filter(Boolean).join(" · ") || undefined, delta: -r.sessionDrop })
     if (r.dayDrop >= 0.5) {
-      const bits = [r.nt && `pohyb +${num(r.nt.excess)} j.z. nad obvyklý den`, r.stress && `${num(r.stress.min)} min zvýšeného tepu v klidu`].filter(Boolean)
+      const bits = [r.nt && `pohyb +${num(r.nt.excess)} bodů zátěže nad obvyklý den`, r.stress && `${num(r.stress.min)} min zvýšeného tepu v klidu`].filter(Boolean)
       steps.push({ key: "d", label: "Mimo trénink", sub: bits.join(" · ") || undefined, delta: -r.dayDrop })
     }
     const now = r.now ?? r.morning
@@ -94,28 +94,28 @@ export function DayToday({ rid, stamp }: { rid?: string; stamp?: string }) {
           <div className="nest mt-3 p-3.5" data-testid="day-load">
             <div className="flex items-baseline justify-between gap-2">
               <p className="t-label !text-fg-3">Zátěž dne</p>
-              <b className="text-[13px] tabular-nums text-fg">{num(tr + nt)} j.z.</b>
+              <b className="text-[13px] tabular-nums text-fg">{num(tr + nt)} bodů</b>
             </div>
             <div className="relative mt-2.5 flex h-4 overflow-hidden rounded-full bg-white/[.06]">
-              {tr > 0 && <i style={{ width: `${(tr / scale) * 100}%`, background: TRAIN_COL }} title={`trénink ${num(tr)} j.z.`} />}
-              {nt > 0 && <i style={{ width: `${(nt / scale) * 100}%`, background: NT_COL, marginLeft: tr > 0 ? 2 : 0 }} title={`mimo trénink ${num(nt)} j.z.`} />}
+              {tr > 0 && <i style={{ width: `${(tr / scale) * 100}%`, background: TRAIN_COL }} title={`trénink ${num(tr)} bodů`} />}
+              {nt > 0 && <i style={{ width: `${(nt / scale) * 100}%`, background: NT_COL, marginLeft: tr > 0 ? 2 : 0 }} title={`mimo trénink ${num(nt)} bodů`} />}
               {ld.usualNt != null && <i className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `calc(${((tr + ld.usualNt) / scale) * 100}% - 1px)` }} title="obvyklý den mimo trénink" />}
             </div>
             <ul className="mt-2.5 space-y-1.5 text-[12.5px]">
               <li className="flex items-baseline justify-between gap-2">
                 <span className="flex items-center gap-1.5 text-fg-2"><i className="size-2.5 rounded-sm" style={{ background: TRAIN_COL }} />Trénink</span>
-                <b className="tabular-nums text-fg">{num(tr)} j.z.</b>
+                <b className="tabular-nums text-fg">{num(tr)} bodů</b>
               </li>
               <li className="flex items-baseline justify-between gap-2">
                 <span className="flex items-center gap-1.5 text-fg-2"><i className="size-2.5 rounded-sm" style={{ background: NT_COL }} />Mimo trénink{ld.usualNt != null ? <span className="text-fg-3">{` · obvykle ${num(ld.usualNt)}`}</span> : null}</span>
-                <b className="tabular-nums text-fg">{num(nt)} j.z.</b>
+                <b className="tabular-nums text-fg">{num(nt)} bodů</b>
               </li>
               <li className="flex items-baseline justify-between gap-2 border-t border-white/[.07] pt-1.5">
                 <span className="text-fg-2">Nad obvyklý den, do Celkové zátěže</span>
-                <b className="tabular-nums" style={{ color: (ld.excess || 0) > 0 ? NT_COL : C.fg3 }}>{(ld.excess || 0) > 0 ? `+${num(ld.excess)} j.z.` : "0"}</b>
+                <b className="tabular-nums" style={{ color: (ld.excess || 0) > 0 ? NT_COL : C.fg3 }}>{(ld.excess || 0) > 0 ? `+${num(ld.excess)} bodů` : "0"}</b>
               </li>
             </ul>
-            <p className="mt-2 text-[11px] leading-4 text-fg-3">Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou. Bílá čárka je váš obvyklý den mimo trénink. j.z. = tep × čas</p>
+            <p className="mt-2 text-[11px] leading-4 text-fg-3">Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou. Bílá čárka je váš obvyklý den mimo trénink. Body zátěže = tep × čas.</p>
           </div>
         </>
       ) : null}

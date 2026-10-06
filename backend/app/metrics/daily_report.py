@@ -199,7 +199,7 @@ def _plan(a, db, rid):
     t = (g.get("types") or {}).get(g.get("type")) or {}
     out = {"type": g.get("type"), "label": g.get("typeLabel"), "km": t.get("km"), "hr": t.get("hr"),
            "pace": t.get("pace"), "duration": t.get("durationMin"), "z4": t.get("z4Target"),
-           "terrain": t.get("terrain"), "notes": (t.get("notes") or [])[:3], "reasons": (g.get("reasons") or [])[:3],
+           "terrain": t.get("terrain"), "notes": (t.get("notes") or [])[:3], "reasons": (g.get("reasons") or [])[:6],   # the deciding one is picked in the app (UX audit F09)
            "override": (g.get("override") or {}).get("title"), "afterDone": g.get("afterDone"),
            "strength": None, "readinessScore": g.get("readinessScore")}
     progs = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.active.is_(True)).all()
@@ -540,7 +540,8 @@ def _notes_morning(r) -> dict:
         txt = _night_text(n)
         tip = ("Držte čas usínání co nejpravidelněji, pomáhá to hlubokému spánku." if (n.get("debt") or 0) < 1
                else "Dnes večer jděte spát o půl hodiny dřív a hodinu před spaním vynechte obrazovky.")
-        notes["sleep"] = f"{txt} {tip}".strip() if sc is None else f"Skóre spánku {sc} ze 100. {txt} {tip}"
+        # one sentence per piece, so the English dictionary takes them one by one (UX audit F13)
+        notes["sleep"] = " ".join(x for x in ((f"Skóre spánku {sc} ze 100." if sc is not None else ""), txt, tip) if x)
     else:
         notes["sleep"] = "Noc z hodinek zatím nedorazila. Po synchronizaci se report doplní."
     s0, y0 = rec.get("score"), rec.get("yesterday")
@@ -585,7 +586,7 @@ def _notes_evening(r) -> dict:
     else:
         notes["day"] = "Celodenní tep z hodinek zatím nedorazil. Po synchronizaci se průběh dne doplní."
     ld = r["load"]
-    notes["load"] = (f"Celková zátěž dne {_cz(ld['total'], 0)} j.z., z toho mimo trénink {_cz(ld['nt'], 0)}. "
+    notes["load"] = (f"Celková zátěž dne {_cz(ld['total'], 0)} bodů, z toho mimo trénink {_cz(ld['nt'], 0)}. "
                      + ("Dnešní limity jsou vyčerpané, zbytek dne odpočívejte." if ld.get("left") is not None and ld["left"] <= 0 else
                         "Do dnešních limitů zbývá prostor, ale není nutné ho využít."))
     t = r["tomorrow"]
@@ -743,7 +744,7 @@ def _summary_evening(view, load, week, tonight) -> str:
     if view and view.get("energy"):
         s.append(f"Energie teď {view['energy'][-1][1]} ze 100.")
     if load.get("total"):
-        s.append(f"Zátěž dne {_cz(load['total'], 0)} j.z." + (f", z toho mimo trénink {_cz(load['nt'], 0)}." if load.get("nt") else "."))
+        s.append(f"Zátěž dne {_cz(load['total'], 0)} bodů" + (f", z toho mimo trénink {_cz(load['nt'], 0)}." if load.get("nt") else "."))
     if week.get("budget"):
         left = week.get("left") or 0
         s.append(f"Týden: {_cz(week.get('done') or 0)} z {_cz(week['budget'], 0)} km" + (f", zbývá {_cz(left)} km." if left > 0.5 else ", cíl splněný."))

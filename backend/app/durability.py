@@ -267,7 +267,8 @@ def choose(db, rid: str, a: dict | None, state: dict, today: date) -> dict:
     if session == "A":
         why = "Na řadě je silová session A a den ji unese."
     elif due == "A":
-        why = f"Místo A dnes lehčí B: {', '.join(reasons)}. Silová A přijde příště."
+        # UX audit F13 — " · " between the reasons, so the English translation takes them one by one
+        why = f"Místo A dnes lehčí B: {' · '.join(reasons)}. Silová A přijde příště."
     else:
         why = "Na řadě je B, po minulé A se střídají."
     return {"session": session, "due": due, "why": why, "reasons": reasons, "blocked": blocked}

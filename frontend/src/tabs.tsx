@@ -11,6 +11,7 @@ import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/component
 import { CAP_SIGNAL_IDS, CapacityPanel, readinessCol, readinessPct } from "@/capacity"
 import { C, goodCol } from "@/tokens"
 import { SelfPrograms } from "@/selfprograms"
+import { FirstSteps, NoData, useDataStage } from "@/firstday"
 
 const surf = (s?: string) => ({ road: "silnice", trail: "terén", treadmill: "pás", track: "dráha" } as any)[s || ""] || s || "—"
 const dayAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10)
@@ -249,8 +250,10 @@ export function Post() {
     <>
       <Head
         kicker="Deník běhů"
-        title={unrated.length ? `${unrated.length} ${plural(unrated.length, "běh čeká", "běhy čekají", "běhů čeká")} na zápis` : "Deník máte kompletní"}
+        title={unrated.length ? `${unrated.length} ${plural(unrated.length, "běh čeká", "běhy čekají", "běhů čeká")} na zápis` : acts.length ? "Deník máte kompletní" : "Zatím žádný běh"}
       />
+      {/* UX audit F19 — an empty diary said "complete"; say where the runs come from */}
+      {!acts.length && <FirstSteps className="-mt-2 mb-4" />}
       {rate && <RateSheet act={rate.act} initial={rate.initial} rid={rid} onClose={() => setRate(null)} onDone={() => { setRate(null); refresh() }} />}
       {crossOpen && <CrossSheet rid={rid} onClose={() => setCrossOpen(false)} onDone={() => { setCrossOpen(false); refresh() }} />}
       <div className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
@@ -269,7 +272,7 @@ export function Post() {
                 ))}
               </div>
             ) : (
-              <div className="mt-3"><Empty>Nic nečeká. Další zápis se objeví po příštím běhu.</Empty></div>
+              <div className="mt-3"><Empty>{acts.length ? "Nic nečeká. Další zápis se objeví po příštím běhu." : "Zatím žádný běh. Po synchronizaci hodinek se tu nové běhy objeví k zapsání."}</Empty></div>
             )}
             {sorted.length > 0 && (
               <>
@@ -336,7 +339,7 @@ export function Post() {
                 {Object.keys(ov.painMap).length > 0 && (
                   <div className="mt-4 border-t border-white/[.08] pt-4">
                     <Label>Kde to nejčastěji bolí</Label>
-                    <p className="mt-1 text-[12px] leading-5 text-fg-3">Podle zápisů za posledních 30 dní — čím výraznější místo, tím častěji jste ho označil jako bolestivé.</p>
+                    <p className="mt-1 text-[12px] leading-5 text-fg-3">Podle zápisů za posledních 30 dní — čím výraznější místo, tím častěji se v zápisech objevuje jako bolestivé.</p>
                     <div className="mt-3"><PainHeatmap counts={ov.painSided} /></div>
                     <div className="mt-4 space-y-1.5" data-tour="journal-sites">
                       {ov.topSites.slice(0, 5).map(([region, count]) => {
@@ -414,7 +417,7 @@ function diaryOverview(fb: any[]) {
   const topSite = topSites[0]
 
   const insights: { text: string; tone: "ok" | "watch" | "alert" }[] = []
-  if (niggleCount >= 3) insights.push({ text: `Bolest jste zapsal ${niggleCount}× — na náhodu už je toho dost. Stojí za to sledovat, u jakého typu běhu se vrací.`, tone: "alert" })
+  if (niggleCount >= 3) insights.push({ text: `Bolest se v zápisech objevila ${niggleCount}× — na náhodu už je toho dost. Stojí za to sledovat, u jakého typu běhu se vrací.`, tone: "alert" })
   else if (niggleCount > 0) insights.push({ text: `Bolest se objevila ${niggleCount}×, zatím ojediněle. Držte oči na tom, jestli se neopakuje.`, tone: "watch" })
   else insights.push({ text: "Žádnou bolest jste v zápisech neměl — pokračujte stejně.", tone: "ok" })
   if (topSite && topSite[1] >= 2) insights.push({ text: `Nejčastěji se ozývá ${topSite[0]} (${topSite[1]}×). Opakující se místo bereme vážněji než jednorázové.`, tone: "watch" })
@@ -523,10 +526,16 @@ type Metric = { label: string; unit: string; dec: number; value: number; baselin
 // derived from the continuous deviation for display only. Defaults follow the
 // example bands in Thornton et al. (2019): |z| 1.5–2 = on the edge, ≥ 2 = outside.
 const MECH_BAD_DIR: Record<string, number> = { "Vertikální poměr": 1, "Kontakt se zemí": 1, "Kadence": -1, "Vertikální oscilace": 1 }
-export function normStatus(m: Pick<Metric, "label" | "z">): { word: string; tone: "ok" | "watch" | "alert" } {
+// UX audit F09 — the word follows the engine's signal for the metric as well: a metric that
+// is a signal on Dnes is never "v normě" here, and one without a signal is never "mimo normu"
+const MECH_SIG_ID: Record<string, string> = { "Vertikální poměr": "tavr", "Kontakt se zemí": "gct", "Symetrie kontaktu": "bal", "Kadence": "cad", "Vertikální oscilace": "vosc" }
+export function normStatus(m: Pick<Metric, "label" | "z">, sigIds?: Set<string>): { word: string; tone: "ok" | "watch" | "alert" } {
   const dir = MECH_BAD_DIR[m.label]
   const zb = m.label === "Symetrie kontaktu" ? Math.abs(m.z) / 0.8 : dir ? dir * m.z : Math.abs(m.z)
-  return zb >= 2 ? { word: "mimo normu", tone: "alert" } : zb >= 1.5 ? { word: "na hraně", tone: "watch" } : { word: "v normě", tone: "ok" }
+  const own = zb >= 2 ? 2 : zb >= 1.5 ? 1 : 0
+  const id = MECH_SIG_ID[m.label]
+  const lvl = !sigIds || !id ? own : sigIds.has(id) ? Math.max(own, 1) : Math.min(own, 1)
+  return lvl === 2 ? { word: "mimo normu", tone: "alert" } : lvl === 1 ? { word: "na hraně", tone: "watch" } : { word: "v normě", tone: "ok" }
 }
 
 // dates of the last `n` runs that carry `field` (to label the per-run charts)
@@ -588,9 +597,9 @@ export function LowCadenceAlert({ className = "" }: { className?: string }) {
   )
 }
 
-function MechMetricCard({ m, open, onSelect }: { m: Metric; open: boolean; onSelect: () => void }) {
+function MechMetricCard({ m, open, onSelect, sigIds }: { m: Metric; open: boolean; onSelect: () => void; sigIds?: Set<string> }) {
   const { label, unit, dec, value, baseline, delta, approx } = m
-  const st = normStatus(m)
+  const st = normStatus(m, sigIds)
   const hot = st.tone !== "ok"
   // Numeric axis for the interval bar, so the bar shows real numbers, not just a dot.
   const { lo: bLo, hi: bHi, isd } = usualRange(m)
@@ -951,7 +960,7 @@ function RunFlip({ move, load, initial }: { move: ReactNode; load: ReactNode; in
           {(["move", "load"] as const).map((f) => (
             <button key={f} role="tab" aria-selected={face === f} onClick={() => go(f)}
               className={`rounded-full px-3 py-1 transition ${face === f ? (f === "move" ? "bg-info text-ink" : "bg-load text-ink") : "text-fg-2"}`}>
-              {f === "move" ? "Pohyb" : "Zátěž"}
+              {f === "move" ? "Mechanika" : "Zátěž"}
             </button>
           ))}
         </div>
@@ -1380,13 +1389,14 @@ export function buildMechMetrics(a: any, acts: any[]): Metric[] {
 // position against the runner's usual range
 export function MechMini({ a, acts }: { a: any; acts: any[] }) {
   const ms = buildMechMetrics(a, (acts || []).filter((x: any) => !x.excluded || x.excluded_scope === "load"))
+  const sigIds = new Set<string>(((a?.signals || []) as any[]).filter((s) => MECH_IDS.has(s.id) && (s.pts || 0) > 0).map((s) => s.id))
   if (!ms.length) return null
   return (
     <div className="mt-4 border-t border-white/10 pt-4" data-testid="mech-mini">
       <p className="t-label !text-fg-3">Metriky běhu · proti vaší normě</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {ms.map((m) => {
-          const st = normStatus(m)
+          const st = normStatus(m, sigIds)
           const col = st.tone === "alert" ? C.alert : st.tone === "watch" ? C.watch : C.ok
           const { lo, hi, isd } = usualRange(m)
           const dLo = Math.min(lo, m.value) - isd * 0.8, dHi = Math.max(hi, m.value) + isd * 0.8
@@ -1420,19 +1430,27 @@ export function Mechanics() {
   const [openMetric, setOpenMetric] = useState("Vertikální oscilace")   // feedback #185 — oscillation opens first
   const [terr, setTerr] = useState(false)
   const mechHist = useQuadHistory(rid)   // prefetched by the store (history.ts)
+  const stage = useDataStage()
   if (!a) return <LoadGate />
+  // UX audit F01/F19 — before the first run: what this tab will show, in plain words
+  if (stage === "none")
+    return (
+      <NoData kicker="Mechanika · technika běhu" title="Techniku uvidíte po prvních bězích">
+        Hodinky při každém běhu měří kontakt se zemí, kadenci, odraz a vyváženost kroku. Došlap je porovnává s vašimi vlastními běhy ve stejném terénu a tempu a upozorní, když se technika začne měnit, často dřív, než únavu ucítíte.
+      </NoData>
+    )
   if ((a.confidence?.value ?? 0) < 0.6)
     return (
       <>
-        <Head kicker="Mechanika" title="Baseline se zatím buduje" />
-        <AlertBanner tone="info" icon={Gauge} title={`Spolehlivost ${Math.round((a.confidence?.value ?? 0) * 100)} %`}>
-          — {a.confidence?.sessions} tréninků ve srovnatelných podmínkách, {a.confidence?.days} dní historie. Než tohle číslo překročí 60 %, mechanické signály se nezobrazují.
+        <Head kicker="Mechanika · technika běhu" title="Techniku zatím poznáváme" />
+        <AlertBanner tone="info" icon={Gauge} title={`Připraveno ${Math.round((a.confidence?.value ?? 0) * 100)} %`}>
+          {a.confidence?.deviceChanged ? a.confidence.note : <>Techniku porovnáváme jen s vašimi vlastními běhy ve srovnatelném terénu a tempu. Zatím je jich {a.confidence?.sessions ?? 0} z posledních 4 týdnů a historie má {a.confidence?.days ?? 0} dní. Hodnotit začneme od 60 %, při pravidelném běhání obvykle po 6–8 týdnech.</>}
           <span className="relative mt-2.5 block h-2 rounded-full bg-white/[.08]" aria-hidden>
             <i className="absolute inset-y-0 left-0 rounded-full bg-info" style={{ width: `${clamp((a.confidence?.value ?? 0) * 100, 2, 100)}%` }} />
             <i className="absolute -inset-y-1 left-[60%] w-0.5 bg-fg" title="60 %" />
           </span>
         </AlertBanner>
-        <Card className="mt-4"><Label>Co pomůže nejrychleji</Label><p className="mt-2 text-sm text-fg-2">Opakovat podobné běhy — stejný povrch, podobné tempo. Baseline se počítá po skupinách povrch × sklon × tempo.</p></Card>
+        <Card className="mt-4"><Label>Co pomůže nejrychleji</Label><p className="mt-2 text-sm text-fg-2">Opakovat podobné běhy: stejný povrch, podobné tempo. Běhy srovnáváme po skupinách podle povrchu, sklonu a tempa.</p></Card>
       </>
     )
 
@@ -1443,6 +1461,7 @@ export function Mechanics() {
   const drift = a.quadrant === "silent" || a.quadrant === "critical"
   const headline = drift ? "Mechanika se mění" : a.mech >= 12 ? "Jemný drift proti normě" : "Mechanika drží na normě"
   const mechSig = ((a.signals || []) as any[]).filter((s) => MECH_IDS.has(s.id))
+  const mechSigIds = new Set<string>(mechSig.filter((s) => (s.pts || 0) > 0).map((s) => s.id))
 
   // Reconcile the trend's final point with the live score so the chart's last
   // value *and* date always equal the big number / quadrant — even if this
@@ -1456,7 +1475,7 @@ export function Mechanics() {
       <section className="card overflow-hidden p-4 md:p-6">
         <div className="grid gap-6 lg:grid-cols-[.9fr_1.1fr] lg:items-start">
           <div>
-            <Label>Signál pohybu</Label>
+            <Label>Signál mechaniky</Label>
             <h2 className="mt-2 font-serif text-[28px] leading-tight tracking-[-.02em] text-fg">{headline}</h2>
 
             <div className={`mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-bold ${drift ? "bg-alert/12 text-alert-soft" : "bg-ok/12 text-ok"}`}>
@@ -1477,7 +1496,7 @@ export function Mechanics() {
           <div className="nest p-4 md:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Label>Mechanická stabilita — trend</Label>
-              <span className="text-[12px] text-fg-3">skóre driftu 0–100</span>
+              <span className="text-[12px] text-fg-3">skóre mechaniky 0–100</span>
             </div>
             <div className="mt-2 flex items-end gap-2">
               <b className="t-num text-[40px] leading-none" style={{ color: drift ? C.alert : C.fg }}>{a.mech}</b>
@@ -1486,11 +1505,11 @@ export function Mechanics() {
             {mechHist === null ? (
               <p className="mt-3 text-sm text-fg-3">Počítám trend v čase…</p>
             ) : mechHist.length > 1 ? (
-              <AxisLineChart points={mechPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh driftu" color={drift ? C.alert : C.ok} height={150} zone />
+              <AxisLineChart points={mechPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh" color={drift ? C.alert : C.ok} height={150} zone />
             ) : (
               <p className="mt-3 text-sm text-fg-3">Na trend v čase je zatím málo historie.</p>
             )}
-            <p className="mt-1 text-[11px] text-fg-3">skóre driftu mechaniky po dnech · nad prahem 25 = drift</p>
+            <p className="mt-1 text-[11px] text-fg-3">skóre mechaniky po dnech · nad prahem 25 = technika mimo vaši normu</p>
           </div>
         </div>
       </section>
@@ -1508,7 +1527,7 @@ export function Mechanics() {
             const isOpen = openMetric === m.label
             return (
               <div key={m.label} className={`overflow-hidden rounded-[20px] border transition ${isOpen ? "border-accent/70 bg-accent/[.05]" : "border-white/[.08] bg-white/[.03] hover:border-white/20"}`}>
-                <MechMetricCard m={m} open={isOpen} onSelect={() => setOpenMetric(isOpen ? "" : m.label)} />
+                <MechMetricCard m={m} open={isOpen} onSelect={() => setOpenMetric(isOpen ? "" : m.label)} sigIds={mechSigIds} />
                 {isOpen && (
                   <div className="origin-top animate-[careReveal_.28s_ease-out] border-t border-white/[.08] px-4 py-4">
 
@@ -1591,11 +1610,27 @@ export function Load() {
   const L = a?.loadDetail
   const rcv = a?.rcv
   const hist = useQuadHistory(rid)   // prefetched by the store (history.ts)
+  const stage = useDataStage()
+  // UX audit F01 — before the first run "Zátěž drží v normě" was a verdict without data
+  if (stage === "none")
+    return (
+      <NoData kicker="Zátěž" title="Zátěž uvidíte po prvních bězích">
+        Po prvních bězích tu uvidíte, kolik jste naběhali a kolik toho tělo ještě unese: kilometry, intenzitu, stoupání a klesání proti tomu, co jste v posledních týdnech zvládli. Prudký nárůst, který tělo nestihne vstřebat, tu poznáte hned.
+      </NoData>
+    )
   if (!L) return <LoadGate />
 
   // State follows the quadrant (post-hysteresis) so Zátěž matches it exactly.
   const loadHot = a.quadrant === "overreaching" || a.quadrant === "critical"
-  const loadHeadline = loadHot ? "Zátěž je zvýšená" : (a.load ?? 0) >= 12 ? "Zátěž roste" : "Zátěž drží v normě"
+  // UX audit F09 — the headline follows the strongest thing on the page: a channel at its weekly
+  // ceiling is said here too (it read "v normě" above a red "strop vyčerpán")
+  const CH_WORD: Record<string, string> = { volume: "objem", intensity: "intenzita", descent: "klesání", ascent: "stoupání", systemic: "celková zátěž", speed: "rychlost" }
+  const full = Object.entries((a.capacity?.channels || {}) as Record<string, any>)
+    .filter(([k, c]) => CH_WORD[k] && c?.known && c.week && (c.week.absorbedMax != null ? (c.week.absorbedLeft ?? 0) : (c.week.left ?? 0)) <= 0.005)
+    .map(([k]) => CH_WORD[k])
+  const atCeiling = !loadHot && (a.load ?? 0) < 12 && full.length > 0
+  const rising = !loadHot && (a.load ?? 0) >= 12
+  const loadHeadline = loadHot ? "Zátěž je zvýšená" : (a.load ?? 0) >= 12 ? "Zátěž roste" : atCeiling ? "Týden je naplněný" : "Zátěž drží v normě"
   const loadSig = ((a.signals || []) as any[]).filter((s) => LOAD_IDS.has(s.id))
 
   // Same reconciliation as Pohyb: pin the trend's final point to the live load
@@ -1614,11 +1649,16 @@ export function Load() {
             <Label>Signál zátěže</Label>
             <h2 className="mt-2 font-serif text-[28px] leading-tight tracking-[-.02em] text-fg">{loadHeadline}</h2>
           </div>
-          <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-bold ${loadHot ? "bg-alert/12 text-alert-soft" : "bg-ok/12 text-ok"}`}>
-            <i className={`size-2 rounded-full ${loadHot ? "bg-alert" : "bg-ok"}`} />
-            {loadHot ? "nad obvyklou úrovní" : "v obvyklém rozsahu"}
+          <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-bold ${loadHot ? "bg-alert/12 text-alert-soft" : atCeiling || rising ? "bg-watch/12 text-watch" : "bg-ok/12 text-ok"}`}>
+            <i className={`size-2 rounded-full ${loadHot ? "bg-alert" : atCeiling || rising ? "bg-watch" : "bg-ok"}`} />
+            {loadHot ? "nad obvyklou úrovní" : atCeiling ? "na týdenním stropu" : rising ? "mírně nad obvyklou úrovní" : "v obvyklém rozsahu"}
           </div>
         </div>
+        {atCeiling && (
+          <p className="mt-2 max-w-xl text-[13px] leading-5 text-fg-2" data-testid="load-full">
+            Zátěž je pro vás obvyklá, ale {full.join(", ")} {full.length > 1 ? "jsou" : "je"} na týdenním stropu. Do dalšího náročného tréninku nechte pár dní lehčích, ať tělo zátěž vstřebá.
+          </p>
+        )}
         <div className="nest mt-5 p-4 md:p-5">
           <div className="flex items-center justify-between">
             <Label>Skóre zátěže — trend</Label>
@@ -1690,14 +1730,17 @@ export function ReadinessTrend({ a, hist }: { a: any; hist: any[] | null }) {
   const rcv = a?.rcv
   // railway#194 — the morning's readiness (after the night, before today's training and the
   // day outside it lowered it), day by day; how the day lowers it is in Dnešní den below
-  const pct = r ? (r.morningScore ?? readinessPct(r)) : null
+  // UX audit F02 — no night from the watch this morning → no number (it used to read 100 %)
+  const pct = r && r.known !== false ? (r.morningScore ?? readinessPct(r)) : null
   const col = pct != null ? readinessCol(pct) : C.fg3
   const asOf = (a?.computed_at || "").slice(0, 10)
   // feedback #157: the last two months only
   const since = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10)
-  const mornings = (hist || []).map((h) => ({ t: h.date as string, v: (h.readinessMorning ?? h.readiness) as number | null }))
-  const pts = mornings.filter((h) => h.v != null && h.t >= since) as { t: string; v: number }[]
-  if (pts.length && pct != null) pts[pts.length - 1] = { t: asOf || pts[pts.length - 1].t, v: pct }
+  // days without a night stay empty (a gap in the line); the line starts at the first known night
+  const mornings = (hist || []).map((h) => ({ t: h.date as string, v: (h.readinessMorning ?? h.readiness ?? null) as number | null })).filter((h) => h.t >= since)
+  const first = mornings.findIndex((h) => h.v != null)
+  const pts = first < 0 ? [] : mornings.slice(first)
+  if (pts.length) pts[pts.length - 1] = { t: asOf || pts[pts.length - 1].t, v: pct }
   if (pct == null && !rcv) return <p className="nest px-3.5 py-3 text-[12px] text-fg-3">Chybí souvislá data z hodinek za posledních 35 dní (HRV, klidový tep, spánek).</p>
   return (
     <div className="nest p-3.5" data-testid="readiness-trend">
@@ -1712,7 +1755,7 @@ export function ReadinessTrend({ a, hist }: { a: any; hist: any[] | null }) {
         </div>
       )}
       {hist === null ? <p className="mt-2 text-[12px] text-fg-3">Počítám trend v čase…</p>
-        : pts.length > 1 ? <AxisLineChart points={pts} yMin={0} yMax={100} unit=" %" color={col} height={96} />
+        : pts.filter((p) => p.v != null).length > 1 ? <AxisLineChart points={pts} yMin={0} yMax={100} unit=" %" color={col === C.fg3 ? C.info : col} height={96} />
         : <p className="mt-2 text-[12px] text-fg-3">Na trend připravenosti je zatím málo historie.</p>}
       {rcv && (
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="readiness-detail-toggle"
@@ -2135,10 +2178,14 @@ export function Program() {
   const nav = () => (location.hash = "")
   const toast = useToast()
   // railway#116 — without a physio's program the ready-made and own programs take its place
+  // UX audit F12 — "Zatím vám nikdo program neposlal" sat above the runner's own running
+  // programmes; the physio line shows only when a physio is in the picture
+  const hasPhysio = Object.keys(boot?.physios || {}).length > 0
   if (!p)
     return (
       <>
-        <Head kicker="Program" title="Zatím vám nikdo program neposlal" />
+        <Head kicker="Program" title="Vaše programy"
+          sub={hasPhysio ? "Cviky a posilování pro běžce. Program od fyzioterapeuta se objeví tady, až vám ho pošle." : "Cviky a posilování pro běžce. Program spustíte jedním klepnutím a po cvičení ho odškrtnete."} />
         <SelfPrograms />
       </>
     )
@@ -2146,9 +2193,9 @@ export function Program() {
   const adh = ex.length ? Math.round((ex.reduce((s, e) => s + (e.done_count || 0) / (e.target_count || 12), 0) / ex.length) * 100) : 0
   return (
     <>
-      <Head kicker={`${PHASE[p.phase] || p.phase} · ${p.weeks} týdny`} title={p.name} sub={`Vede ${boot?.physios?.[p.physio_id]?.name || "—"}. Odesláno ${fmtD(p.sent_at || p.started_on)}.`} />
+      <Head kicker={`${PHASE[p.phase] || p.phase} · ${p.weeks} týdny`} title={p.name} sub={`Vede ${boot?.physios?.[p.physio_id]?.name || "—"}. Odesláno ${fmtD(p.sent_at || p.started_on)}`} />
       <div className="grid gap-4 lg:grid-cols-[1.5fr_.8fr]">
-        <Card>
+        <Card data-tour="care-programs">
           <div className="flex items-center justify-between"><Label>Cviky</Label><Chip tone={adh >= 60 ? "ok" : "watch"}>{adh} % splněno</Chip></div>
           <div className="mt-2 divide-y divide-white/[.07]">
             {ex.map((e) => (

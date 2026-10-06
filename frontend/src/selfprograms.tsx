@@ -9,7 +9,7 @@ import { useSearchParams } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Button, Card, Chip, Label, Segmented, Sheet, useToast } from "@/ui"
-import { BookOpen, Check, ChevronDown, ChevronRight, Dumbbell, ExternalLink, Flag, Info, Moon, Pause, PersonStanding, Play, Plus, RotateCcw, Sparkles, Timer, TriangleAlert } from "lucide-react"
+import { BookOpen, Check, ChevronDown, ChevronRight, Dumbbell, ExternalLink, Flag, Info, Moon, MoreHorizontal, Pause, PersonStanding, Play, Plus, RotateCcw, Sparkles, Timer, TriangleAlert } from "lucide-react"
 import { fmtD, plural } from "@/lib"
 import { ExerciseFigure, ExerciseThumb, hasFigure } from "@/exfigure"
 
@@ -355,7 +355,7 @@ function DurabilityHead({ d }: { d: any }) {
       {!d.doneToday && <p className="mt-1 text-[12px] leading-5 text-fg-2" data-testid="session-why">{d.why}</p>}
       {d.light && !d.doneToday && <p className="mt-1 text-[12px] leading-5 text-info">Dnes lehčí verze, jak jste si minule řekli: o sérii méně a opakování na spodní hranici.</p>}
       {d.scaled && d.capacity && (
-        <p className="mt-1 text-[11px] leading-4 text-watch">{`Série jsou upravené podle týdenní kapacity posilování: dva tréninky by daly ≈ ${d.capacity.weekly} sRPE·min, strop je ${d.capacity.ceiling}.`}</p>
+        <p className="mt-1 text-[11px] leading-4 text-watch">{`Série jsou upravené podle týdenní kapacity posilování: dva tréninky by daly ≈ ${d.capacity.weekly} bodů zátěže (náročnost × minuty), strop je ${d.capacity.ceiling}.`}</p>
       )}
     </div>
   )
@@ -553,6 +553,9 @@ function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any;
   }
   const [ticks, setTicks] = useState<Record<string, number>>(() => Object.fromEntries(act.exercises.map((e: any) => [e.id, ticksOf(e)])))
   const [ending, setEnding] = useState(false)
+  // UX audit F12 — ending the whole programme sits in a menu and asks first
+  const [menu, setMenu] = useState(false)
+  const [confirmEnd, setConfirmEnd] = useState(false)
   const rows = act.exercises.map((e: any) => {
     const sets = setsOf(e.dose || lib.exercises[e.id]?.dose || "")
     return { id: e.id, name: lib.exercises[e.id]?.name || e.name, sets, n: e.doneToday ? sets : Math.min(ticks[e.id] ?? 0, sets), done: !!e.doneToday }
@@ -577,8 +580,29 @@ function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any;
           <h3 className="mt-1 font-serif text-[22px] leading-tight">{act.name}</h3>
           <p className="text-[12px] text-fg-3">od {fmtD(act.startedOn)}{act.weeks ? ` · ${act.weeks} týdnů` : ""}</p>
         </div>
-        <Button size="sm" variant="outline" onClick={onEnd}>Ukončit</Button>
+        <div className="relative">
+          <button type="button" onClick={() => setMenu((v) => !v)} aria-expanded={menu} aria-label="Možnosti programu" data-testid="program-menu"
+            className="grid size-9 place-items-center rounded-full border border-white/12 text-fg-2 transition hover:text-fg"><MoreHorizontal className="size-4" aria-hidden /></button>
+          {menu && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
+              <div className="absolute right-0 top-11 z-20 w-48 rounded-[14px] border border-white/10 bg-raised p-1.5 shadow-[0_16px_40px_rgb(0_0_0_/_0.45)]">
+                <button type="button" onClick={() => { setMenu(false); setConfirmEnd(true) }} data-testid="program-end"
+                  className="w-full rounded-[10px] px-3 py-2 text-left text-[13px] font-bold text-alert-soft hover:bg-white/[.06]">Ukončit program</button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
+      {confirmEnd && (
+        <div className="mt-3 rounded-[14px] border border-alert/30 bg-alert/[.06] p-3" data-testid="program-end-confirm">
+          <p className="text-[13px] leading-5 text-fg">Ukončit celý program „{act.name}“? Zmizí z běžících programů. Kdykoli ho můžete spustit znovu od začátku.</p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <Button size="sm" variant="danger" onClick={() => { setConfirmEnd(false); onEnd() }}>Ukončit program</Button>
+            <Button size="sm" variant="outline" onClick={() => setConfirmEnd(false)}>Ponechat</Button>
+          </div>
+        </div>
+      )}
       {act.durability && <DurabilityHead d={act.durability} />}
       {(act.durability ? act.durability.doneToday && !rerate : act.exercises.length > 0 && act.exercises.every((e: any) => e.doneToday)) ? (
         reopen ? <LastSession act={act} lib={lib} onBack={() => setReopen(false)} />
@@ -643,12 +667,8 @@ export function SelfPrograms() {
   const [build, setBuild] = useState(false)
   const [exId, setExId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [slide, setSlide] = useState(0)
   // feedback railway#202 — one box with tabs by the programmes' focus instead of three boxes
   const [tab, setTab] = useState<"pain" | "performance" | "mobility">("pain")
-  const rail = useRef<HTMLDivElement>(null)
-  const onRail = () => { const el = rail.current; if (el) setSlide(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))) }
-  const goSlide = (i: number) => { const el = rail.current; if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" }) }
   const load = () => api.selfPrograms(rid).then(setD).catch(() => setD(false))
   useEffect(() => { load() }, [rid]) // eslint-disable-line react-hooks/exhaustive-deps
   // railway#196 — Trénink links here (?prog=durability): the running programme comes
@@ -666,7 +686,7 @@ export function SelfPrograms() {
       const acts: any[] = nd.actives || (nd.active ? [nd.active] : [])
       const i = acts.findIndex((x: any) => x.template === want)
       if (i >= 0) {
-        setTimeout(() => { goSlide(i); box.current?.scrollIntoView({ behavior: "smooth", block: "start" }) }, 60)
+        setTimeout(() => { (box.current?.querySelector(`[data-prog="${want}"]`) || box.current)?.scrollIntoView({ behavior: "smooth", block: "start" }) }, 60)
       } else {
         const p = (nd.library?.programs || []).find((x: Prog) => x.key === want)
         if (p) { setOpen(p); setTab(((p.group || "pain") as "pain" | "performance" | "mobility")) }
@@ -707,21 +727,12 @@ export function SelfPrograms() {
   return (
     <div className="mt-4 grid gap-4" data-testid="self-programs">
       {actives.length > 0 && (
-        <div ref={box} className="scroll-mt-24" data-testid="active-programs">
-          {actives.length > 1 && (
-            <div className="mb-2 flex items-center justify-between gap-2 px-1">
-              <span className="t-label !text-fg-3">{`Běžící programy · ${slide + 1} / ${actives.length}`}</span>
-              <span className="flex gap-1.5">
-                {actives.map((a: any, i: number) => (
-                  <button key={a.id} type="button" aria-label={a.name} onClick={() => goSlide(i)}
-                    className={`h-2 rounded-full transition-all ${i === slide ? "w-5 bg-accent" : "w-2 bg-white/25"}`} />
-                ))}
-              </span>
-            </div>
-          )}
-          <div ref={rail} onScroll={onRail} className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+        // UX audit F12 — the running programmes as a list (the strength programme sat on slide 2 of a carousel)
+        <div ref={box} className="scroll-mt-24" data-testid="active-programs" data-tour="care-programs">
+          {actives.length > 1 && <p className="t-label mb-2 px-1 !text-fg-3">{`Běžící programy · ${actives.length}`}</p>}
+          <div className="grid gap-3">
             {actives.map((a: any) => (
-              <div key={a.id} className="w-full shrink-0 snap-center">
+              <div key={a.id} data-prog={a.template} className="scroll-mt-24">
                 <ActiveProgram act={a} lib={lib} rid={rid} onOpenEx={setExId}
                   onChange={(n) => setD({ ...d, actives: actives.map((x: any) => (x.id === n.id ? n : x)), active: d.active?.id === n.id ? n : d.active })}
                   onEnd={async () => { await api.endSelfProgram(rid, a.id); load() }} />

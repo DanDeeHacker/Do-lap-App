@@ -71,13 +71,13 @@ CHANNELS = {
                 "floor_s": 50.0, "floor_w": 150.0},
     "ascent": {"label": "Stoupání", "unit": "m", "dec": 0, "w": 0.5, "grade": "C",
                "floor_s": 50.0, "floor_w": 150.0},
-    "systemic": {"label": "Celková zátěž", "unit": "j.z.", "dec": 0, "w": 0.7, "grade": "B",
+    "systemic": {"label": "Celková zátěž", "unit": "bodů", "dec": 0, "w": 0.7, "grade": "B",
                  "floor_s": 30.0, "floor_w": 100.0},
     # Strength sessions (session RPE × minutes × body-region weight). Its own local
     # load with its own capacity, so a sudden first plyometric block shows up; low
     # weight because only indirect evidence supports it (grade C). Floors = one
     # 30-min session at RPE 4 / two a week (working assumptions).
-    "strength": {"label": "Silová zátěž", "unit": "sRPE·min", "dec": 0, "w": 0.5, "grade": "C",
+    "strength": {"label": "Silová zátěž", "unit": "bodů", "dec": 0, "w": 0.5, "grade": "C",
                  "floor_s": 120.0, "floor_w": 240.0},
     # v0.12.0 — high-speed running (≥ 1.10 × critical speed, speed.py): spikes in it
     # preceded hamstring injuries (Duhig et al., 2016), regular exposure protected (Malone

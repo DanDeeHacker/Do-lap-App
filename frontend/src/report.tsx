@@ -13,6 +13,7 @@ import { ExerciseFigure } from "@/exfigure"
 import { Bed, Bike, Bookmark, BookmarkCheck, Check, ChevronRight, Coffee, Dumbbell, Eye, Flag, Info, MessageCircle, Moon, Play, Sparkles, Sun, TriangleAlert, X } from "lucide-react"
 import { useNavigate } from "react-router"
 import { CARE_SUB_EVENT } from "@/onboarding"
+import { leadReasons } from "@/lib"
 
 const STAGE_COL: Record<string, string> = { deep: "#4c6ef5", light: "#74c0fc", rem: "#c084fc", awake: C.watch }
 const STAGE_LABEL: Record<string, string> = { deep: "Hluboký", light: "Lehký", rem: "REM", awake: "Bdění" }
@@ -337,7 +338,7 @@ function StackBars({ days }: { days: any[] }) {
         {days.map((d) => {
           const t = d.train || 0, n = d.nt || 0
           return (
-            <div key={d.date} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-[2px]" style={{ height: H }} title={`${d.wd}: trénink ${t}, mimo trénink ${n} j.z.`}>
+            <div key={d.date} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-[2px]" style={{ height: H }} title={`${d.wd}: trénink ${t}, mimo trénink ${n} bodů zátěže`}>
               <span className="mb-0.5 text-[10px] tabular-nums text-fg-3">{t + n ? Math.round(t + n) : ""}</span>
               {n > 0 && <i className="block w-full rounded-t-[4px]" style={{ height: (n / max) * (H - 16), background: "#2c8cc6", opacity: 0.55 }} />}
               <i className={`block w-full ${n > 0 ? "" : "rounded-t-[4px]"}`} style={{ height: Math.max(t ? 3 : 0, (t / max) * (H - 16)), background: d.today ? C.accent : "#b08a22", outline: d.today ? `2px solid ${C.fg}` : undefined, outlineOffset: 1 }} />
@@ -351,7 +352,7 @@ function StackBars({ days }: { days: any[] }) {
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-fg-3">
         <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: "#b08a22" }} />trénink</span>
         <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: "#2c8cc6", opacity: 0.55 }} />mimo trénink nad obvyklý den</span>
-        <span>j.z. = tep × čas</span>
+        <span>body zátěže = tep × čas</span>
       </div>
     </div>
   )
@@ -476,8 +477,10 @@ function morningCards(r: any, c: Ctx): Card[] {
           </Panel>
         )}
         <Panel>
-          <div className="flex items-baseline justify-between"><Lbl>Celková zátěž po dnech</Lbl><span className="text-[11px] text-fg-3">{rn.budget ? `${num(rn.weekKm || 0)} z ${num(rn.budget, 0)} km` : ""}</span></div>
+          {/* UX audit F17 — the chart in load points, the week's kilometres on their own line */}
+          <Lbl>Zátěž po dnech · body zátěže</Lbl>
           <div className="mt-2"><StackBars days={rn.week || []} /></div>
+          {rn.budget ? <p className="mt-2 text-[12px] text-fg-2" data-testid="week-km"><span>Naběháno od pondělí: </span><b className="text-fg">{num(rn.weekKm || 0)}</b><span>{` z ${num(rn.budget, 0)} km`}</span></p> : null}
         </Panel>
         {rn.carry?.length ? (
           <Panel className="space-y-2.5">
@@ -511,14 +514,7 @@ function morningCards(r: any, c: Ctx): Card[] {
             </ul>
           ) : <p className="mt-1.5 text-[13px] text-fg-2">Nic zvláštního k hlídání.</p>}
         </Panel>
-        {(p.notes?.length || p.reasons?.length) ? (
-          <Panel>
-            <Lbl>Proč právě takhle</Lbl>
-            <ul className="mt-2 space-y-1.5 text-[13px] leading-5 text-fg-soft">
-              {[...(p.reasons || []), ...(p.notes || [])].slice(0, 4).map((t: string, k: number) => <li key={k} className="flex gap-2"><span className="text-accent">›</span><span>{t}</span></li>)}
-            </ul>
-          </Panel>
-        ) : null}
+        {(p.notes?.length || p.reasons?.length) ? <WhyPlan type={p.type} reasons={p.reasons || []} notes={p.notes || []} /> : null}
         {p.strength && (
           <Panel>
             <Lbl>Posilování</Lbl>
@@ -536,6 +532,23 @@ function morningCards(r: any, c: Ctx): Card[] {
 
 // ---- the week's plan (Monday morning, backend metrics/week_plan.py) ---------------------------
 const PLAN_COL: Record<string, string> = { "dlouhý": C.load, "kvalitní": C.alert, "lehký": C.info, regenerace: C.ok }
+// UX audit F09 — the reason that decides today's plan first, the rest one tap away
+function WhyPlan({ type, reasons, notes }: { type?: string; reasons: string[]; notes: string[] }) {
+  const [more, setMore] = useState(false)
+  const [lead, rest0] = leadReasons(type, reasons)
+  const rest = [...rest0, ...notes]
+  return (
+    <Panel>
+      <Lbl>Proč právě takhle</Lbl>
+      <ul className="mt-2 space-y-1.5 text-[13px] leading-5 text-fg-soft" data-testid="why-plan">
+        {(lead ? [lead] : []).map((t, k) => <li key={`l${k}`} className="flex gap-2 font-semibold text-fg"><span className="text-accent">›</span><span>{t}</span></li>)}
+        {(lead ? (more ? rest : []) : rest).map((t, k) => <li key={k} className="flex gap-2"><span className="text-accent">›</span><span>{t}</span></li>)}
+      </ul>
+      {lead && rest.length > 0 && !more && <button type="button" onClick={() => setMore(true)} className="mt-1.5 text-[12px] font-bold text-accent hover:underline">{`Další důvody (${rest.length})`}</button>}
+    </Panel>
+  )
+}
+
 const itemCol = (it: any) => (it.kind === "run" ? PLAN_COL[it.type] || C.info : it.kind === "strength" ? C.self
   : it.kind === "ride" || it.kind === "swim" ? C.watch : it.kind === "race" ? C.accent : it.kind === "done" ? C.fg2 : C.fg4)
 const dayKm = (d: any) => d.items.reduce((a: number, it: any) => a + (it.kind === "run" ? it.km?.hi || 0 : it.kind === "done" ? it.km || 0 : 0), 0)
@@ -698,7 +711,7 @@ function WeekPlan({ p, text }: { p: any; text?: string }) {
       {t && (
         <Panel className="space-y-4">
           <PlanMeter label="Běh" value={t.km} target={t.kmBudget} ceil={t.kmCeiling7} unit="km" col={C.info} testid="plan-km" />
-          {t.z4Budget != null && <PlanMeter label="Minuty v Z4+" value={t.z4} target={t.z4Budget} unit="min" col={C.alert} testid="plan-z4" />}
+          {t.z4Budget != null && <PlanMeter label="Tvrdá práce (Z4+)" value={t.z4} target={t.z4Budget} unit="min" col={C.alert} testid="plan-z4" />}
           {t.kmOptional ? <p className="text-[11px] text-fg-3">{`+ ${num(t.kmOptional)} km volitelný běh`}</p> : null}
         </Panel>
       )}
@@ -922,7 +935,9 @@ function WakeEdit({ t, wake, usual, onChange }: { t: any; wake: number; usual: n
   )
 }
 
-function Tonight({ t, date, text }: { t: any; date?: string; text: ReactNode }) {
+function Tonight({ t, date, text, extra }: { t: any; date?: string; text: ReactNode; extra?: ReactNode }) {
+  // UX audit F22 — how the time was derived (and the sleep tips) fold under one row
+  const [why, setWhy] = useState(false)
   // the runner can try another wake time for tomorrow (an early alarm); kept for this evening only
   const key = `dl-wake:${date || ""}`
   const usual = t.wakeMin ?? 390
@@ -946,8 +961,18 @@ function Tonight({ t, date, text }: { t: any; date?: string; text: ReactNode }) 
         <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Coffee className="mx-auto size-5 text-fg-2" aria-hidden /><p className="t-num mt-1 text-[22px]">{v.caffeine}</p><p className="text-[10.5px] text-fg-3">poslední káva</p></div>
       </div>
       <WakeEdit t={v} wake={v.wakeMin ?? usual} usual={usual} onChange={choose} />
-      {v.timing && <Panel><SleepTimes t={v} /></Panel>}
-      <Panel><BedtimeMath t={v} /></Panel>
+      <button type="button" onClick={() => setWhy((x) => !x)} aria-expanded={why} data-testid="bedtime-why"
+        className="mt-3 flex w-full items-center justify-between gap-2 rounded-[14px] bg-white/[.04] px-3.5 py-2.5 text-left text-[13px] font-semibold text-fg-2 transition hover:text-fg">
+        <span>Jak jsme k času došli</span>
+        <ChevronRight className={`size-4 shrink-0 transition ${why ? "rotate-90 text-accent" : "text-fg-3"}`} aria-hidden />
+      </button>
+      {why && (
+        <>
+          {v.timing && <Panel><SleepTimes t={v} /></Panel>}
+          <Panel><BedtimeMath t={v} /></Panel>
+          {extra}
+        </>
+      )}
     </>
   )
 }
@@ -1341,13 +1366,14 @@ function eveningCards(r: any, c: Ctx): Card[] {
         <Big>{r.greeting}</Big>
         <div className="mt-4 grid grid-cols-3 gap-2">
           <Tile label="Energie teď" value={r.energyNow ?? "—"} col={goodCol(r.energyNow)} sub="ze 100" />
-          <Tile label="Zátěž dne" value={ld.total != null ? num(ld.total, 0) : "—"} sub="j.z." />
+          <Tile label="Zátěž dne" value={ld.total != null ? num(ld.total, 0) : "—"} sub="bodů zátěže" />
           <Tile label="Na noc" value={`${num(t.target)} h`} sub={`do postele ${t.bed}`} />
         </div>
         {note(c, "intro")}
       </div>
     ),
   }]
+  const tot = Math.max(1, (ld.train || 0) + (ld.nt || 0), ld.usualNt || 0)
   cards.push({
     key: "day", title: "Váš den", body: (
       <>
@@ -1379,15 +1405,10 @@ function eveningCards(r: any, c: Ctx): Card[] {
             ) : null}
           </>
         ) : <Sub>Celodenní tep z hodinek zatím nedorazil. Po synchronizaci se průběh doplní.</Sub>}
-      </>
-    ),
-  })
-  const tot = Math.max(1, (ld.train || 0) + (ld.nt || 0), ld.usualNt || 0)
-  cards.push({
-    key: "load", title: "Zátěž dne", body: (
-      <>
-        <Lbl>Celková zátěž dne</Lbl>
-        <Big>{ld.total != null ? `${num(ld.total, 0)} j.z.` : "—"}</Big>
+        {/* UX audit F22 — the day's load is part of the day (it was a card of its own) */}
+        <Panel>
+          <div className="flex items-baseline justify-between gap-2"><Lbl>Zátěž dne</Lbl><b className="text-[13px] tabular-nums text-fg">{ld.total != null ? `${num(ld.total, 0)} bodů` : "—"}</b></div>
+        </Panel>
         {note(c, "load")}
         <Panel>
           <div className="flex h-5 overflow-hidden rounded-full bg-white/[.06]" data-testid="load-split">
@@ -1414,6 +1435,9 @@ function eveningCards(r: any, c: Ctx): Card[] {
       </>
     ),
   })
+  const days: any[] = w.days || []
+  const planned: Record<string, any> = Object.fromEntries((rw.days || []).map((x: any) => [x.date, x]))
+  const maxKm = Math.max(10, ...days.map((x) => Math.max(x.km || 0, planned[x.date]?.km || 0)))
   const eff: any[] = tm.effects || []
   cards.push({
     key: "tomorrow", title: "Co ovlivní zítřek", body: (
@@ -1432,19 +1456,10 @@ function eveningCards(r: any, c: Ctx): Card[] {
           </ul>
           <p className="mt-3 text-[11px] leading-4 text-fg-3">↓ zítřejší připravenost a kapacitu spíš sníží · ↑ spíš pomůže · → plán. Ráno to přesně ukáže noc.</p>
         </Panel>
-      </>
-    ),
-  })
-  const days: any[] = w.days || []
-  const planned: Record<string, any> = Object.fromEntries((rw.days || []).map((x: any) => [x.date, x]))
-  const maxKm = Math.max(10, ...days.map((x) => Math.max(x.km || 0, planned[x.date]?.km || 0)))
-  cards.push({
-    key: "week", title: "Týden", body: (
-      <>
-        <Lbl>Tento týden</Lbl>
-        <Big>{w.budget ? `${num(w.done || 0)} z ${num(w.budget, 0)} km` : `${num(w.done || 0)} km`}</Big>
+        {/* UX audit F22 — the rest of the week belongs to "what comes next" (it was a card of its own) */}
         {note(c, "week")}
         <Panel>
+          <div className="mb-2 flex items-baseline justify-between gap-2"><Lbl>Tento týden</Lbl><b className="text-[13px] tabular-nums text-fg">{w.budget ? `${num(w.done || 0)} z ${num(w.budget, 0)} km` : `${num(w.done || 0)} km`}</b></div>
           <Bars max={maxKm} items={days.map((x) => {
             const pl = planned[x.date]
             return x.past || x.today ? { label: x.wd, v: x.km || (x.other?.length ? 0.01 : null), col: x.today ? C.accent : C.info, on: x.today }
@@ -1472,7 +1487,7 @@ function eveningCards(r: any, c: Ctx): Card[] {
   cards.push({
     key: "tonight", title: "Na noc", body: (
       <>
-        <Tonight t={t} date={r.date} text={note(c, "tonight")} />
+        <Tonight t={t} date={r.date} text={note(c, "tonight")} extra={
         <Panel>
           <ul className="space-y-1.5 text-[13px] leading-5 text-fg-soft">
             <li className="flex gap-2"><span className="text-load">›</span><span>Sportovcům se doporučuje 7–9 hodin spánku, při náročném tréninku spíš víc (Walsh et al., 2021).</span></li>
@@ -1480,7 +1495,7 @@ function eveningCards(r: any, c: Ctx): Card[] {
             <li className="flex gap-2"><span className="text-load">›</span><span>Kofein ještě 6 hodin před spaním zkracuje a zhoršuje spánek (Drake et al., 2013).</span></li>
             <li className="flex gap-2"><span className="text-load">›</span><span>Hodinu před spaním ztlumit světlo a obrazovky, v ložnici chladno a tma.</span></li>
           </ul>
-        </Panel>
+        </Panel>} />
       </>
     ),
   })

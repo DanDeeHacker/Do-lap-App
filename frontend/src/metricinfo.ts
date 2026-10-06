@@ -18,28 +18,28 @@ export const METRIC_INFO: Record<string, string> = {
   safeLongRun:
     "Odhad délky nejdelšího běhu, který teď zvládnete bez velkého skoku v zátěži — odvozeno z vaší nedávné historie. Slouží jako strop pro plánování víkendového dlouhého běhu.",
   gradeAdj:
-    "Efektivní „plochý ekvivalent\" kilometrů za 7 dní — vzdálenost přepočtená podle energetické náročnosti sklonu (Minetti). Kopcovitý běh stojí víc než stejně dlouhý po rovině, takže tohle číslo je vyšší než reálné km na členitém terénu. Citlivý engine pro skok v zátěži počítá náročnost terénu zvlášť: stoupání podle energetické náročnosti, klesání podle excentrické zátěže — strmý sjezd stojí méně energie, ale nohy zatěžuje víc.",
+    "Efektivní „plochý ekvivalent\" kilometrů za 7 dní — vzdálenost přepočtená podle energetické náročnosti sklonu (Minetti). Kopcovitý běh stojí víc než stejně dlouhý po rovině, takže tohle číslo je vyšší než reálné km na členitém terénu. Pro skok v zátěži se náročnost terénu počítá zvlášť: stoupání podle energetické náročnosti, klesání podle excentrické zátěže — strmý sjezd stojí méně energie, ale nohy zatěžuje víc.",
   downhill:
     "Kilometry naběhané v klesání od −5 % sklonu za 7 dní. Klesání zatěžuje svaly excentricky (brzdění) víc, než odpovídá jeho nízké metabolické ceně — proto ho sledujeme zvlášť. Prudký nárůst bývá spouštěč bolesti stehen a kolen.",
 
   // — Regenerace (recovery) —
-  hrv: "Variabilita tepové frekvence přes noc (ms). Vyšší = lépe zregenerováno. Důležitá je odchylka od VAŠÍ baseline (v procentech), ne absolutní hodnota — výraznější pokles proti vašemu obvyklému rozptylu napovídá únavu nebo blížící se nemoc.",
-  rhr: "Klidový tep přes noc. Trvale zvýšený proti vaší baseline = tělo se nedostalo zpět (únava, stres, nemoc). Jednorázový výkyv nevadí; sledujte trend.",
+  hrv: "Variabilita tepové frekvence přes noc (ms). Vyšší = lépe zregenerováno. Důležitá je odchylka od VAŠÍ normy (v procentech), ne absolutní hodnota — výraznější pokles proti vašemu obvyklému rozptylu napovídá únavu nebo blížící se nemoc.",
+  rhr: "Klidový tep přes noc. Trvale zvýšený proti vaší normě = tělo se nedostalo zpět (únava, stres, nemoc). Jednorázový výkyv nevadí; sledujte trend.",
   sleep: "Doba spánku a jeho efektivita. Vztahujeme k vašemu obvyklému množství — kumulovaný spánkový dluh snižuje toleranci k zátěži a zhoršuje regeneraci.",
 
   // — Mechanika (running form) —
   vertRatio:
-    "Poměr vertikálního pohybu k délce kroku (%). Nižší = ekonomičtější, „plošší\" běh. Zajímá nás posun proti vaší baseline ve srovnatelném tempu a terénu — zhoršení bývá známka únavy formy.",
+    "Poměr vertikálního pohybu k délce kroku (%). Nižší = ekonomičtější, „plošší\" běh. Zajímá nás posun proti vaší normě ve srovnatelném tempu a terénu — zhoršení bývá známka únavy formy.",
   vertOsc: "Vertikální oscilace — o kolik se při každém kroku „nadskakuje\" (cm). Nižší bývá ekonomičtější. Hodnotí se proti vašim vlastním běhům, ne proti tabulkám.",
   cadence: "Kadence — počet kroků za minutu. Pokles kadence při stejném tempu často doprovází únavu. Neexistuje jedno správné číslo; klíčová je stabilita vůči vaší normě.",
-  gct: "Doba kontaktu se zemí (ms) — jak dlouho je noha na zemi. Prodloužení proti baseline (při srovnatelném tempu) naznačuje únavu nebo ztrátu opory.",
+  gct: "Doba kontaktu se zemí (ms) — jak dlouho je noha na zemi. Prodloužení proti vaší normě (při srovnatelném tempu) naznačuje únavu nebo ztrátu opory.",
   gctBalance: "Symetrie doby kontaktu levá/pravá (%). Ideál kolem 50/50. Rostoucí nesymetrie může souviset s jednostranným přetížením — sledujte trend, ne jeden běh.",
-  strideLen: "Délka kroku (m). Kratší krok při stejném tempu = vyšší kadence a naopak. Zajímá nás změna proti vaší baseline ve srovnatelných podmínkách.",
+  strideLen: "Délka kroku (m). Kratší krok při stejném tempu = vyšší kadence a naopak. Zajímá nás změna proti vaší normě ve srovnatelných podmínkách.",
   mechStability: "Souhrn stability běžecké formy v čase. Klesající křivka = forma se rozpadá (typicky únava); stabilní = držíte techniku.",
 
   // — Stav / kvadrant —
-  overall: "Skóre stavu (0–100): čím vyšší, tím lépe. Počítá se jako 100 minus riziko složené z mechaniky, zátěže a příznaků, vážené podle síly důkazů. 100 = nic k pozornosti. Nad 60 je nízké riziko, 31 až 60 sledovat, 30 a méně vysoké riziko. Když den do vyššího pásma posune bezpečnostní pravidlo, opakovaná bolest nebo stav zátěže, místo v pásmu určí jejich závažnost spolu s modelem. U běžných dnů zobrazení zvýrazňuje i malé rozdíly. U každého signálu ukazujeme, o kolik procentních bodů Skóre snižuje. Vždy proti vaší vlastní historii.",
-  confidence: "Spolehlivost — nakolik je už postavená vaše baseline (počet srovnatelných tréninků a dní historie). Dokud je nízká, mechanické signály se raději nezobrazují, aby nemátly.",
+  overall: "Skóre stavu (0–100): čím vyšší, tím lépe. Počítá se jako 100 minus riziko složené z mechaniky, zátěže a příznaků, vážené podle síly důkazů. 100 = nic k pozornosti. Nad 60 je nízké riziko, 31 až 60 sledovat, 30 a méně vysoké riziko. Když den do vyššího pásma posune bezpečnostní pravidlo, opakovaná bolest nebo stav zátěže, místo v pásmu určí jejich závažnost spolu s modelem. U běžných dnů zobrazení zvýrazňuje i malé rozdíly. U každého signálu ukazujeme, o kolik bodů Skóre snižuje. Písmeno A, B nebo C u signálu je síla důkazů z výzkumu: A silná, B střední, C slabší nebo nepřímá. Vždy proti vaší vlastní historii.",
+  confidence: "Připraveno — nakolik už známe vaši normu techniky (počet srovnatelných běhů a dní historie). Dokud je nízká, mechanické signály se raději nezobrazují, aby nemátly.",
   // — Kapacitní engine (v3) —
   capacity:
     "Kapacita = co jste prokazatelně zvládli bez obtíží. Za týden: průměrný týden posledních 4 týdnů, nebo 90 % nejlepšího týdne za 6 týdnů (týden o víc než 30 % nad těmi před ním se nepočítá) — zvlášť pro objem, intenzitu (minuty v Z4+), klesání, stoupání a celkovou zátěž (tep × čas ze všech aktivit). Na jeden běh: nejnáročnější běh posledních 30 dní, u intenzity průměr tří nejtvrdších (jeden závod nebo horký den kapacitu nenafoukne). Běhy, po kterých do 3 dnů přišla bolest ≥ 3/10, se nepočítají. Skok o víc než 30 % nad dosavadní kapacitu se 14 dní nepočítá vůbec a potom celý jen tehdy, když ho potvrdí hodnocení nebo check-in bez bolesti (jinak napůl) — kapacita roste jen z toho, co tělo prokazatelně zvládlo. Strop = kapacita + rezerva (+15 % za týden, +10 % na běh), snížená podle připravenosti. Nad stropem přibývají body zátěže. Body se po běhu vstřebávají noc po noci: svaly a šlachy s poločasem asi 3,5 noci, celková zátěž a intenzita rychleji po dobré noci a pomaleji po špatné (2–8 nocí). Prudký skok navíc dozní lineárně do 28. dne. Proto se i místo pod stropem počítá z nevstřebané zátěže: starší dny jen zčásti (běh před 6 dny zhruba ze 30 %), dnešek celý, takže dlouhý běh z výpočtu nezmizí naráz sedmý den. Kapacita a strop běží klouzavě od dneška, cíl týdne v Tréninku od pondělí do neděle.",
@@ -67,5 +67,5 @@ export const MECH_INFO_BY_LABEL: Record<string, string> = {
   Kadence: METRIC_INFO.cadence,
   "Délka kroku": METRIC_INFO.strideLen,
   "Vertikální oscilace": METRIC_INFO.vertOsc,
-  "Poměr kontaktu": "Podíl doby kontaktu se zemí na celkové délce kroku (duty factor). Nižší bývá pružnější, ekonomičtější běh. Hodnotí se proti vaší baseline ve srovnatelném tempu — nárůst doprovází únavu.",
+  "Poměr kontaktu": "Podíl doby kontaktu se zemí na celkové délce kroku (duty factor). Nižší bývá pružnější, ekonomičtější běh. Hodnotí se proti vaší normě ve srovnatelném tempu — nárůst doprovází únavu.",
 }

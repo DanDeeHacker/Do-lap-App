@@ -13,7 +13,8 @@ import { DayToday } from "@/daytoday"
 import { AlertBanner, Button, Card, Chip, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { readinessCol } from "@/capacity"
-import { fmtD, paceStr } from "@/lib"
+import { EarlyNote, NoData, useDataStage } from "@/firstday"
+import { fmtD, leadReasons, paceStr } from "@/lib"
 import { C } from "@/tokens"
 import { Bike, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Waves, X, Zap, type LucideIcon } from "lucide-react"
 
@@ -163,6 +164,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
   const mechHot = (ax.mech ?? 0) >= th
   const pct = Math.round((wk.progression ?? 1) * 100)
   const [open, setOpen] = useState<Record<string, boolean>>({})
+  const [showAll, setShowAll] = useState(false)
   // feedback railway#52 — the safe longest run lives here now and follows the plan:
   // the proven single-run capacity + 10 %, never above what this week / 7 days /
   // today still allow.
@@ -249,6 +251,9 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     return c.todayMax != null ? c.todayMax / ref : 4
   }
   const order = [...CH_ORDER].sort((a, b) => pressure(a) - pressure(b))
+  // UX audit F11 — a day without running: one line instead of five gauges that all read "max 0"
+  const restDay = (["volume", "intensity", "descent", "ascent"] as const).every((id) => { const c = wk.channels?.[id]; return !c || (c.todayMax != null && c.todayMax <= 0) })
+  const restBy = wk.channels?.volume?.limitedBy
   return (
     <section className="card mt-4 p-4 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -256,9 +261,17 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
         <span className="text-[12px] text-fg-2">kolik si dnes můžete dovolit</span>
       </div>
       {status && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
-      <div className="mt-4 grid gap-3">
-        {order.map((id) => channel(id))}
-      </div>
+      {restDay && !showAll ? (
+        <div className="nest mt-4 px-3.5 py-3" data-testid="rest-day">
+          <p className="text-[13.5px] leading-5 text-fg"><b>Dnes už bez běhu.</b>{restBy && LIMIT[restBy] ? <span className="text-fg-2">{` Omezuje: ${LIMIT[restBy]}.`}</span> : null}</p>
+          <p className="mt-1 text-[12px] leading-5 text-fg-3">Kapacita se ráno přepočítá podle noci a toho, co jste odběhli.</p>
+          <button type="button" onClick={() => setShowAll(true)} className="mt-2 text-[12px] font-bold text-accent hover:underline">Zobrazit kanály</button>
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-3">
+          {order.map((id) => channel(id))}
+        </div>
+      )}
       {cyc.next && (
         <p className="mt-3 text-[13px] leading-5 text-fg-2">
           <b className="text-fg">Příští týden:</b> {`${cyc.next.pos}. týden cyklu (${cyc.next.pct} %) — cíl objemu ≈ ${num(cyc.next.km)} km${cyc.next.pos === 1 ? ", nový cyklus na vyšší úrovni" : ""}.`} Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.
@@ -272,6 +285,21 @@ const num = (v: number | null | undefined, d = 1) =>
   v == null ? "—" : v.toLocaleString("cs-CZ", { maximumFractionDigits: d, minimumFractionDigits: 0 })
 const range = (lo?: number | null, hi?: number | null, d = 1) =>
   lo == null || hi == null ? "—" : Math.abs(lo - hi) < 0.05 ? num(hi, d) : `${num(lo, d)}–${num(hi, d)}`
+
+// UX audit F09 — the deciding reason first, the others folded
+function ReasonList({ type, reasons }: { type: string; reasons: string[] }) {
+  const [more, setMore] = useState(false)
+  const [lead, rest] = leadReasons(type, reasons)
+  return (
+    <span className="grid gap-1.5" data-testid="reasons">
+      {lead && <span className="flex gap-1.5 font-semibold text-fg"><ChevronRight className="mt-0.5 size-3.5 shrink-0 text-info" aria-hidden /><span>{lead}</span></span>}
+      {rest.length > 0 && !more && (
+        <button type="button" onClick={() => setMore(true)} className="w-fit text-[12px] font-bold text-accent hover:underline">{`Další důvody (${rest.length})`}</button>
+      )}
+      {more && rest.map((r, i) => <span key={i} className="flex gap-1.5"><ChevronRight className="mt-0.5 size-3.5 shrink-0 text-fg-3" aria-hidden /><span>{r}</span></span>)}
+    </span>
+  )
+}
 
 function Stat({ label, value, sub, warn, text }: { label: string; value: string; sub?: string; warn?: boolean; text?: boolean }) {
   return (
@@ -733,9 +761,9 @@ function SessionDetail({ g, a, kind }: { g: any; a: any; kind: string }) {
           <Stat label="Tep" value={t.hr ? `${t.hr[0]}–${t.hr[1]}` : "—"} sub={`tep/min · ${t.hrZones || ""}`} />
           <Stat label="Tempo" value={t.pace ? `${paceStr(t.pace[0])}–${paceStr(t.pace[1])}` : kind === "kvalitní" ? "dle tepu" : "—"} sub={t.pace ? `/km · ${g.hrSource === "fit" ? "z vašeho vztahu tep–tempo" : "z vašeho obvyklého tempa"}` : "úseky řiďte tepem"} />
           {kind === "kvalitní" && t.z4Target ? (
-            <Stat label="Minuty v Z4+" value={`${range(t.z4Target.lo, t.z4Target.hi, 0)} min`} sub="součet tvrdých úseků" warn />
+            <Stat label="Tvrdá práce (Z4+)" value={`${range(t.z4Target.lo, t.z4Target.hi, 0)} min`} sub="součet tvrdých úseků" warn />
           ) : (
-            <Stat label="Minuty v Z4+" value={t.z4Max != null ? `max ${num(t.z4Max, 0)}` : "—"} sub="tvrdá práce ≥ 80 % tepové rezervy" />
+            <Stat label="Tvrdá práce (Z4+)" value={t.z4Max != null ? `max ${num(t.z4Max, 0)}` : "—"} sub="tvrdá práce ≥ 80 % tepové rezervy" />
           )}
           <Stat label="Stoupání" value={t.ascentMax != null ? `max ${num(t.ascentMax, 0)} m` : "—"} />
           <Stat label="Klesání" value={t.descentMax != null ? `max ${num(t.descentMax, 0)} m` : "—"} sub="strmé klesání zatěžuje víc" />
@@ -793,18 +821,18 @@ function CapacityFit({ g, kind }: { g: any; kind: string }) {
     const km = t.km?.hi ?? null
     const z4 = kind === "kvalitní" ? t.z4Target?.hi ?? null : t.z4Max ?? null
     rows.push({ key: "volume", label: "Objem běhu", use: km, left: ch.volume?.todayMax ?? null, unit: "km", d: 1, by: ch.volume?.limitedBy })
-    rows.push({ key: "intensity", label: "Minuty v Z4+", use: z4, left: ch.intensity?.todayMax ?? null, unit: "min", by: ch.intensity?.limitedBy,
+    rows.push({ key: "intensity", label: "Tvrdá práce (Z4+)", use: z4, left: ch.intensity?.todayMax ?? null, unit: "min", by: ch.intensity?.limitedBy,
       note: kind === "kvalitní" ? "tvrdé úseky" : "nejvýš, cílem je je nemít" })
     if (t.descentMax != null) rows.push({ key: "descent", label: "Klesání", use: t.descentMax, left: ch.descent?.todayMax ?? null, unit: "m", by: ch.descent?.limitedBy, note: "nejvýš" })
     if (km != null && x.perKm) rows.push({ key: "systemic", label: "Celková zátěž", use: km * x.perKm + (z4 || 0) * (kind === "kvalitní" ? (x.z4PerMin || 0) * 0.5 : 0),
-      left: sys.todayMax ?? null, unit: "j.z.", by: sys.limitedBy, note: "tep × čas, odhad z vašich lehkých běhů" })
+      left: sys.todayMax ?? null, unit: "bodů", by: sys.limitedBy, note: "body zátěže = tep × čas, odhad z vašich lehkých běhů" })
   } else {
     const min = mid(t.durationMin)
     const perMin = kind === "kolo" ? x.perMinRide : kind === "voda" ? 4 * (x.kSrpe || 0) : 6.5 * (x.kSrpe || 0)
-    rows.push({ key: "systemic", label: "Celková zátěž", use: min != null && perMin ? min * perMin : null, left: sys.todayMax ?? null, unit: "j.z.",
+    rows.push({ key: "systemic", label: "Celková zátěž", use: min != null && perMin ? min * perMin : null, left: sys.todayMax ?? null, unit: "bodů",
       by: sys.limitedBy, note: kind === "kolo" ? `${min} min v Z2 na kole` : kind === "voda" ? `${min} min plavání v klidném tempu` : `${min} min posilování` })
     rows.push({ key: "volume", label: "Objem běhu", use: 0, left: ch.volume?.todayMax ?? null, unit: "km", d: 1, note: "běžecké kilometry se nepočítají" })
-    if (kind !== "posilování") rows.push({ key: "intensity", label: "Minuty v Z4+", use: 0, left: ch.intensity?.todayMax ?? null, unit: "min",
+    if (kind !== "posilování") rows.push({ key: "intensity", label: "Tvrdá práce (Z4+)", use: 0, left: ch.intensity?.todayMax ?? null, unit: "min",
       note: kind === "kolo" ? "v Z2 žádné, tvrdé úseky by se počítaly" : "v klidném tempu žádné" })
   }
   const over = rows.find((r) => r.use != null && r.left != null && r.use > r.left + 0.05)
@@ -931,12 +959,23 @@ export function Training() {
   const carousel = useRef<HTMLDivElement | null>(null)
   useEffect(() => { setSel(null) }, [g?.date, g?.type])
   useArcScroll(carousel, [g?.date, g?.type, a?.engineMode, (g?.rank || []).length])
+  const stage = useDataStage()
   if (!a) return <p className="text-sm text-fg-3">Načítám…</p>
+  // UX audit F01 — no plan, limits or readiness before the first run or night
+  if (stage === "none")
+    return (
+      <>
+        <NoData kicker="Trénink" title="Plán se ukáže po prvních datech">
+          Denní doporučení stojí na tom, co prokazatelně zvládáte: na vašich bězích a nocích z hodinek. Bez nich by rozsahy kilometrů a tepu byly jen odhad, proto je zatím neukazujeme. Závody si ale můžete zadat už teď.
+        </NoData>
+        {g && <RacesCard outlook={a.races} g={g} cap={a.capacity} />}
+      </>
+    )
   if (a.engineMode !== "v3" || !g) {
     return (
       <Card>
         <Label>Trénink</Label>
-        <p className="mt-2 text-sm text-fg-2">Denní doporučení počítá Kapacitní engine. Zapnete ho v <Link to="/data" className="font-bold text-accent">Data a propojení → Engine hodnocení → Kapacitní</Link>.</p>
+        <p className="mt-2 text-sm text-fg-2">Denní doporučení pro tento účet zatím není zapnuté.</p>
       </Card>
     )
   }
@@ -965,6 +1004,8 @@ export function Training() {
           <WhyButton question={`Proč mám dnes ${rec.label.toLowerCase()} a jak ho pojmout?`} context={{ kind: "guidance" }} label="Proč právě tohle?" />
           {g.provisional && <Chip tone="watch">předběžné · čeká na ranní data</Chip>}
           {(() => {
+            // no night from the watch → no readiness chip (UX audit F02)
+            if ((a.readiness ?? a.capacity?.readiness)?.known === false) return null
             const rp = g.readinessScore ?? Math.round((g.readiness ?? 1) * 100)
             const col = readinessCol(rp)
             return (
@@ -978,9 +1019,7 @@ export function Training() {
       </div>
       {why && (
         <div className="nest mt-3 origin-top animate-[careReveal_.28s_ease-out] p-3.5 text-[13px] leading-5 text-fg-soft" data-testid="why-panel">
-          {g.reasons?.length ? (
-            <span className="grid gap-1.5">{g.reasons.map((r: string, i: number) => <span key={i} className="flex gap-1.5"><ChevronRight className="mt-0.5 size-3.5 shrink-0 text-info" aria-hidden /><span>{r}</span></span>)}</span>
-          ) : "Vše v normě — běžný tréninkový den."}
+          {g.reasons?.length ? <ReasonList type={g.type} reasons={g.reasons} /> : "Vše v normě — běžný tréninkový den."}
           <span className="mt-2 block border-t border-white/10 pt-2 text-[11px] text-fg-3">
             {pat.runDayNames?.length ? `Obvykle běháte: ${pat.runDayNames.join(", ")}` : "Pravidelné dny zatím nepoznáváme"}
             {pat.longDayName ? ` · dlouhý běh ${pat.longDayName}` : ""}
@@ -1008,6 +1047,7 @@ export function Training() {
         </AlertBanner>
       )}
 
+      {stage === "early" && !g.override && <EarlyNote className="mt-4" />}
       <section className="card mt-4 p-4 md:p-6" data-tour="training-session">
         <SessionDetail g={g} a={a} kind={g.type} />
       </section>

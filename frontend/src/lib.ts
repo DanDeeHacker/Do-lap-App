@@ -16,9 +16,13 @@ export const impactNum = (v: number | null | undefined) => {
   if (x < 0.05) return "<0,1"
   return x < 1 ? x.toFixed(1).replace(".", ",") : String(Math.round(x))
 }
-export const fmtImpact = (v: number | null | undefined, unit = " p. b.") => {
+// UX audit F10 — written as "bodů" (points off the Skóre): "p. b." also meant a measured
+// change (contact balance) in the same row
+const bodu = (n: string) => (/[,<]/.test(n) ? "bodu" : n === "1" ? "bod" : n === "2" || n === "3" || n === "4" ? "body" : "bodů")
+export const fmtImpact = (v: number | null | undefined, unit?: string) => {
   const n = impactNum(v)
-  return n === "0" ? `0${unit}` : `−${n}${unit}`
+  const u = unit ?? ` ${bodu(n)}`
+  return n === "0" ? `0${u}` : `−${n}${u}`
 }
 // axis points → Skóre percentage points with the assessment's per-axis scale
 export const toImpact = (pts: number | null | undefined, scale: number | null | undefined) => (pts || 0) * (scale ?? 0)
@@ -63,11 +67,12 @@ export const paceStr = (sPerKm?: number | null) => {
 
 export const sgn = (n?: number | null) => (n == null ? "—" : n > 0 ? `+${cz(n)}` : cz(n))
 
+// UX audit F07 — each state says in plain words what it means for the runner
 export const QUAD: Record<string, { t: string; d: string }> = {
-  stable: { t: "Stabilní", d: "Zátěž i mechanika sedí na vlastní normě." },
-  overreaching: { t: "Přetížení", d: "Zátěž vyskočila, ale technika zatím drží." },
-  silent: { t: "Tichý drift", d: "Mechanika se odchyluje od vaší normy — signál únavy/přetížení, ne předpověď zranění." },
-  critical: { t: "Kritická kombinace", d: "Zátěž i mechanika se hýbou naráz." },
+  stable: { t: "Stabilní", d: "Zátěž i technika běhu sedí na vaší normě." },
+  overreaching: { t: "Přetížení", d: "Zátěž vyskočila nad to, co jste v posledních týdnech zvládali. Technika zatím drží." },
+  silent: { t: "Tichý drift", d: "Technika běhu se mění, i když to možná necítíte. Bývá to znak únavy, ne předpověď zranění." },
+  critical: { t: "Kritická kombinace", d: "Zátěž je nad normou a zároveň se mění technika běhu." },
 }
 export const TIER: Record<string, string> = { ok: "Nízké riziko", watch: "Sledovat", alert: "Vysoké riziko" }
 export const FEEL_LABEL = ["", "špatný", "slabší", "normální", "dobrý", "výborný"]
@@ -81,4 +86,14 @@ export const roleHome = (_role: string) => "/app/today"
 export const plural = (n: number, one: string, few: string, many: string) => {
   const a = Math.abs(n)
   return a === 1 ? one : a >= 2 && a <= 4 ? few : many
+}
+
+// UX audit F09 — the reasons behind today's plan, the one that decides the day first: on a
+// day off the reason for the day off leads (a "nanejvýš krátký volný běh" from an earlier
+// rule read as a contradiction above "dnes volno"); the rest are shown folded.
+export function leadReasons(type: string | null | undefined, reasons: string[]): [string | null, string[]] {
+  if (!reasons.length) return [null, []]
+  const off = type === "volno" ? reasons.findIndex((r) => /volno|odpočinek|neběhat|bez běhu/i.test(r)) : -1
+  const i = off >= 0 ? off : 0
+  return [reasons[i], reasons.filter((_, k) => k !== i)]
 }
