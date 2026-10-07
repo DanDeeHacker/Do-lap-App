@@ -8,14 +8,14 @@ import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { Button, Card, Chip, Label, Sheet, useToast } from "@/ui"
-import { BookOpen, Check, ChevronDown, ChevronRight, Dumbbell, ExternalLink, Info, Pause, Play, Plus, RotateCcw, Sparkles, Timer } from "lucide-react"
+import { Button, Card, Chip, Label, Segmented, Sheet, useToast } from "@/ui"
+import { BookOpen, Check, ChevronDown, ChevronRight, Dumbbell, ExternalLink, Flag, Info, Moon, MoreHorizontal, Pause, PersonStanding, Play, Plus, RotateCcw, Sparkles, Timer, TriangleAlert } from "lucide-react"
 import { fmtD, plural } from "@/lib"
 import { ExerciseFigure, ExerciseThumb, hasFigure } from "@/exfigure"
 
-type Ex = { name: string; area: string; how: string; dose: string; perWeek: number; steps?: string[]; mistakes?: string[]; caution?: string; links?: { url: string; topic: string }[] }
+type Ex = { name: string; area: string; how: string; dose: string; perWeek: number; kind?: string; min?: number; steps?: string[]; mistakes?: string[]; caution?: string; links?: { url: string; topic: string }[] }
 type Phase = { key: string; name: string; goal?: string; from: number; to: number; rpe: string }
-type Prog = { key: string; group?: string; physio?: string; name: string; weeks: number; summary: string; exercises: string[]; evidence: string; refs: string[]; assumption: string | null
+type Prog = { key: string; group?: string; sub?: string; minutes?: number; physio?: string; name: string; weeks: number | null; summary: string; exercises: string[]; evidence: string; refs: string[]; assumption: string | null
   perWeek?: number; sessions?: Record<string, string[]>; sessionLabels?: Record<string, string>; sessionDoses?: Record<string, Record<string, string>>; phases?: Phase[] }
 
 /** railway#133 — the most recent marked region, shortened for the chip. */
@@ -32,7 +32,8 @@ export function shortRegion(r: string) {
 // sets one by one (kept on this device for today), a hold timer where the dose has
 // seconds, the moving figure inline; the last set logs the exercise as done.
 const setsOf = (dose: string) => Math.min(10, Math.max(1, Number((dose.match(/(\d+)\s*×/) || [])[1]) || 1))
-const holdOf = (dose: string) => Number((dose.match(/(\d+)\s*s\b/) || [])[1]) || 0
+// a hold in seconds ("2 × 30 s"), or a whole timed item in minutes ("5 min", bedtime mobility)
+const holdOf = (dose: string) => Number((dose.match(/(\d+)\s*s\b/) || [])[1]) || 60 * (Number((dose.match(/^(\d+)\s*min\b/) || [])[1]) || 0)
 const todayKey = () => new Date().toLocaleDateString("sv-SE")
 function loadSets(key: string): number {
   try { return Number(localStorage.getItem(key)) || 0 } catch { return 0 }
@@ -61,13 +62,14 @@ function HoldTimer({ secs, onDone }: { secs: number; onDone: () => void }) {
         </svg>
         {run ? <Pause className="size-4" aria-hidden /> : <Play className="size-4" aria-hidden />}
       </button>
-      <span className="tabular-nums text-[13px] font-bold text-fg">{left} s</span>
+      <span className="tabular-nums text-[13px] font-bold text-fg">{left >= 60 ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : `${left} s`}</span>
       {!run && left !== secs && <button type="button" onClick={() => setLeft(secs)} aria-label="Vynulovat" className="text-fg-3"><RotateCcw className="size-3.5" aria-hidden /></button>}
     </div>
   )
 }
 
-function ExerciseModule({ e, progId, onToggle, onOpen }: { e: any; progId: any; onToggle: (done: boolean) => Promise<void>; onOpen: () => void }) {
+function ExerciseModule({ e, progId, onToggle, onOpen, onTicks, missing }: { e: any; progId: any; onToggle: (done: boolean) => Promise<void>; onOpen: () => void
+  onTicks?: (n: number) => void; missing?: boolean }) {
   const sets = setsOf(e.dose || "")
   const hold = holdOf(e.dose || "")
   const key = `dl-sets:${progId}:${e.id}:${todayKey()}`
@@ -80,12 +82,13 @@ function ExerciseModule({ e, progId, onToggle, onOpen }: { e: any; progId: any; 
     const next = k < n ? k : k + 1            // tapping a filled set steps back to it
     setN(next)
     saveSets(key, next)
+    onTicks?.(next)
     if (next >= sets && !e.doneToday) { setBusy(true); try { await onToggle(true) } finally { setBusy(false) } }
     else if (next < sets && e.doneToday) { setBusy(true); try { await onToggle(false) } finally { setBusy(false) } }
   }
   const done = n >= sets
   return (
-    <div className={`py-3 transition ${done ? "opacity-90" : ""}`} data-testid="exercise-module">
+    <div className={`py-3 transition ${done ? "opacity-90" : ""}`} data-testid="exercise-module" data-missing={missing ? "1" : undefined}>
       <div className="flex items-center gap-3">
         <button type="button" onClick={onOpen} data-testid="self-ex-open" aria-label={`Provedení: ${e.name}`} className="shrink-0"><Thumb id={e.id} /></button>
         <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="min-w-0 flex-1 text-left">
@@ -104,6 +107,7 @@ function ExerciseModule({ e, progId, onToggle, onOpen }: { e: any; progId: any; 
           </button>
         ))}
         <span className="ml-1 text-[11px] text-fg-3">{done ? "hotovo dnes" : `${n}/${sets} sérií`}</span>
+        {missing && !done && <span className="ml-1 rounded-full bg-watch/15 px-2 py-0.5 text-[10.5px] font-bold text-watch">neodškrtnuto</span>}
       </div>
       {/* this week, one dot per planned session */}
       <div className="mt-2 flex gap-1" aria-hidden>
@@ -180,9 +184,14 @@ function SessionDone({ act, lib, onReopen, onRerate }: { act: any; lib: any; onR
           </span>
         </div>
       </div>
+      {dur?.partialToday && (
+        <p className="mt-3 flex items-center gap-2 text-[12.5px] text-watch" data-testid="partial-done">
+          <Flag className="size-4 shrink-0" aria-hidden /><span>{`Ukončeno dřív: hotovo ${Math.round((dur.completionToday || 0) * 100)} % sérií.`}</span>
+        </p>
+      )}
       {dur?.note && (
         <p className="mt-3 flex items-start gap-2 rounded-[12px] bg-white/[.04] px-3 py-2 text-[13px] leading-5 text-fg" data-testid="progress-note">
-          <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />{dur.note}
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden /><span><span>{dur.note}</span>{dur.noteNext && <>{" "}<span>{dur.noteNext}</span></>}</span>
         </p>
       )}
       {act.weeks ? (
@@ -236,7 +245,7 @@ function FeelPrompt({ onPick, busy }: { onPick: (k: string) => void; busy: boole
   return (
     <div className="mt-3 rounded-[16px] border border-accent/30 bg-accent/[.06] p-3.5 animate-[careReveal_.28s_ease-out]" data-testid="feel-prompt">
       <b className="block text-[15px] text-fg">Jak jste se cítili na konci tréninku?</b>
-      <p className="mt-0.5 text-[12px] leading-5 text-fg-2">Podle toho se příště přidá, nebo ubere. Trénink se započítá do týdenní zátěže.</p>
+      <p className="mt-0.5 text-[12px] leading-5 text-fg-2">Podle toho se příště přidá, nebo ubere. Do zátěže se trénink započítá ze záznamu hodinek.</p>
       <div className="mt-3 grid grid-cols-2 gap-2">
         {FEELS.map((f) => (
           <button key={f.k} type="button" disabled={busy} onClick={() => onPick(f.k)} data-testid={`feel-${f.k}`}
@@ -245,6 +254,67 @@ function FeelPrompt({ onPick, busy }: { onPick: (k: string) => void; busy: boole
             <span className="block text-[11px] leading-4 text-fg-3">{f.sub}</span>
           </button>
         ))}
+      </div>
+    </div>
+  )
+}
+
+// owner request 2026-10-06 — ending a session before every set is ticked: which exercises
+// are left, was it hard, and should the next session be the lighter version
+const END_HARD = [
+  { k: "hard", label: "Ano, těžký" },
+  { k: "ok", label: "Ne" },
+  { k: "pain", label: "Něco bolelo" },
+]
+function EndSession({ missing, doneSets, totalSets, busy, onCancel, onFinish }: {
+  missing: { id: string; name: string; n: number; sets: number }[]; doneSets: number; totalSets: number; busy: boolean
+  onCancel: () => void; onFinish: (feel: string, easier: boolean) => void }) {
+  const [feel, setFeel] = useState<string | null>(null)
+  const [easier, setEasier] = useState<boolean | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => { ref.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" }) }, [])
+  const opt = (on: boolean, warn = false) => `rounded-[12px] border px-3 py-2 text-[13px] font-bold transition active:scale-[.98] ${on
+    ? (warn ? "border-watch bg-watch/20 text-watch" : "border-accent bg-accent text-ink") : "border-white/12 text-fg hover:border-accent/60"}`
+  return (
+    <div ref={ref} className="mt-3 rounded-[16px] border border-watch/40 bg-watch/[.06] p-3.5 animate-[careReveal_.28s_ease-out]" data-testid="end-session">
+      <b className="flex items-center gap-2 text-[15px] text-fg"><TriangleAlert className="size-4 text-watch" aria-hidden />Ukončit trénink?</b>
+      <p className="mt-1 text-[12.5px] leading-5 text-fg-2">
+        <span>{`Hotovo ${doneSets} z ${totalSets} sérií.`}</span>{" "}
+        <span>{missing.length === 1 ? "Neodškrtnutý zůstal 1 cvik:" : missing.length <= 4 ? `Neodškrtnuté zůstaly ${missing.length} cviky:` : `Neodškrtnutých zůstalo ${missing.length} cviků:`}</span>
+      </p>
+      <ul className="mt-2 space-y-1" data-testid="end-missing">
+        {missing.map((m) => (
+          <li key={m.id} className="flex items-center justify-between gap-2 text-[13px]">
+            <span className="min-w-0 truncate text-fg">{m.name}</span>
+            <span className="shrink-0 tabular-nums text-watch">{`${m.n}/${m.sets} sérií`}</span>
+          </li>
+        ))}
+      </ul>
+      {doneSets === 0 ? (
+        <p className="mt-3 text-[12.5px] leading-5 text-fg-2">Zatím není odcvičená žádná série, takže není co zapsat. Trénink můžete sbalit a vrátit se k němu později.</p>
+      ) : (
+        <>
+          <p className="mt-3 text-[13px] font-bold text-fg">Byl trénink těžký?</p>
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Byl trénink těžký?">
+            {END_HARD.map((o) => (
+              <button key={o.k} type="button" role="radio" aria-checked={feel === o.k} onClick={() => setFeel(o.k)} data-testid={`end-feel-${o.k}`}
+                className={opt(feel === o.k, o.k === "pain")}>{o.label}</button>
+            ))}
+          </div>
+          <p className="mt-3 text-[13px] font-bold text-fg">Chcete příště jednodušší verzi?</p>
+          <p className="text-[11.5px] leading-4 text-fg-3">O sérii méně u každého cviku a opakování na spodní hranici.</p>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Chcete příště jednodušší verzi?">
+            <button type="button" role="radio" aria-checked={easier === true} onClick={() => setEasier(true)} data-testid="end-easier-yes" className={opt(easier === true)}>Ano, lehčí</button>
+            <button type="button" role="radio" aria-checked={easier === false} onClick={() => setEasier(false)} data-testid="end-easier-no" className={opt(easier === false)}>Ne, stejně</button>
+          </div>
+          <p className="mt-2.5 text-[11.5px] leading-4 text-fg-3">Nedokončený trénink se příště nepřidává. Když byl těžký, příště bude méně opakování.</p>
+        </>
+      )}
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <Button size="sm" variant="outline" onClick={onCancel} data-testid="end-cancel">Zpět k tréninku</Button>
+        <Button size="sm" disabled={busy || doneSets === 0 || !feel || easier == null} onClick={() => feel && easier != null && onFinish(feel, easier)} data-testid="end-confirm">
+          Ukončit a zapsat
+        </Button>
       </div>
     </div>
   )
@@ -278,30 +348,33 @@ function DurabilityHead({ d }: { d: any }) {
         <Chip>{`${d.week}. týden z ${d.weeks}`}</Chip>
         <Chip>{`tento týden ${d.weekDone}/${d.perWeek}`}</Chip>
         {d.deload && <span className="rounded-full bg-info/15 px-2.5 py-1 text-[11px] font-bold text-info" data-testid="deload-chip">Odlehčovací týden</span>}
+        {d.light && !d.deload && <span className="rounded-full bg-info/15 px-2.5 py-1 text-[11px] font-bold text-info" data-testid="light-chip">Lehčí verze</span>}
       </div>
       <PhaseBar phases={d.phases} week={d.week} weeks={d.weeks} />
       <p className="mt-2 text-[13px] leading-5 text-fg-soft"><b className="text-fg">{d.phase.name}</b> · <span>{d.phase.goal}</span> <span>{`Cílová náročnost ${d.phase.rpe} z 10, zhruba ${d.estMin} min.`}</span></p>
       {!d.doneToday && <p className="mt-1 text-[12px] leading-5 text-fg-2" data-testid="session-why">{d.why}</p>}
+      {d.light && !d.doneToday && <p className="mt-1 text-[12px] leading-5 text-info">Dnes lehčí verze, jak jste si minule řekli: o sérii méně a opakování na spodní hranici.</p>}
       {d.scaled && d.capacity && (
-        <p className="mt-1 text-[11px] leading-4 text-watch">{`Série jsou upravené podle týdenní kapacity posilování: dva tréninky by daly ≈ ${d.capacity.weekly} sRPE·min, strop je ${d.capacity.ceiling}.`}</p>
+        <p className="mt-1 text-[11px] leading-4 text-watch">{`Série jsou upravené podle týdenní kapacity posilování: dva tréninky by daly ≈ ${d.capacity.weekly} bodů zátěže (náročnost × minuty), strop je ${d.capacity.ceiling}.`}</p>
       )}
     </div>
   )
 }
 
 function Thumb({ id }: { id: string }) {
+  const Icon = id.startsWith("mob_") ? PersonStanding : Dumbbell      // bedtime mobility (no figure yet)
   return hasFigure(id)
     ? <span className="grid size-11 shrink-0 place-items-center rounded-[10px] bg-white/[.04]"><ExerciseThumb id={id} className="size-10" /></span>
-    : <span className="grid size-11 shrink-0 place-items-center rounded-[10px] bg-white/[.06] text-fg-2"><Dumbbell className="size-4" aria-hidden /></span>
+    : <span className="grid size-11 shrink-0 place-items-center rounded-[10px] bg-white/[.06] text-fg-2"><Icon className="size-4" aria-hidden /></span>
 }
 
 export function ExerciseSheet({ id, ex, onClose }: { id: string; ex: Ex; onClose: () => void }) {
   return (
     <Sheet open onClose={onClose} layer="z-[90]">
       <div data-testid="exercise-sheet">
-        <p className="t-label !text-fg-3">{ex.area}</p>
+        <p className="t-label flex items-center gap-2 !text-fg-3">{ex.area}{ex.kind === "mobility" && <Chip className="!py-0 text-[10.5px]" data-testid="mobility-tag">Mobilita</Chip>}</p>
         <h2 className="mt-1 font-serif text-[24px] leading-tight text-fg">{ex.name}</h2>
-        <p className="mt-1 inline-flex items-center gap-1.5 text-[13px] tabular-nums text-fg-2"><Timer className="size-3.5 text-fg-3" aria-hidden />{ex.dose} · {ex.perWeek}× týdně</p>
+        <p className="mt-1 inline-flex items-center gap-1.5 text-[13px] tabular-nums text-fg-2"><Timer className="size-3.5 text-fg-3" aria-hidden />{ex.dose} · {ex.kind === "mobility" ? "denně, klidně před spaním" : `${ex.perWeek}× týdně`}</p>
         {hasFigure(id) && (
           <figure className="nest mt-3 overflow-hidden px-2 pb-1 pt-2" data-testid="exercise-figure">
             <ExerciseFigure id={id} className="mx-auto block max-h-[300px] w-full max-w-[360px]" />
@@ -345,15 +418,15 @@ export function ExerciseSheet({ id, ex, onClose }: { id: string; ex: Ex; onClose
 
 function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: Prog; lib: any; onClose: () => void; onStart: () => void; busy: boolean; onOpenEx: (id: string) => void }) {
   const [refs, setRefs] = useState(false)
-  const perf = prog.group === "performance"
+  const perf = prog.group === "performance" || prog.group === "mobility"
   return (
     <Sheet open onClose={onClose}>
       <div data-testid="program-sheet">
-        <p className="t-label !text-fg-3">Program · {prog.weeks} týdnů{prog.perWeek ? ` · ${prog.perWeek}× týdně` : ""}</p>
+        <p className="t-label !text-fg-3">{prog.group === "mobility" ? `Mobilita před spaním · zhruba ${prog.minutes} min · denně` : `Program · ${prog.weeks} týdnů${prog.perWeek ? ` · ${prog.perWeek}× týdně` : ""}`}</p>
         <h2 className="mt-1 font-serif text-[24px] leading-tight text-fg">{prog.name}</h2>
         <p className="mt-1 text-[13px] leading-5 text-fg-2">{prog.summary}</p>
         {/* feedback #173 — start above the exercises, not at the very bottom */}
-        <Button className="mt-4 w-full" disabled={busy} onClick={onStart} data-testid="program-start">Začít program</Button>
+        <Button className="mt-4 w-full" disabled={busy} onClick={onStart} data-testid="program-start">{prog.group === "mobility" ? "Uložit do mých programů" : "Začít program"}</Button>
         {prog.phases && (
           <div className="mt-4 grid gap-1.5" data-testid="program-phases">
             {prog.phases.map((ph) => (
@@ -377,7 +450,7 @@ function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: P
                   <Thumb id={id} />
                   <span className="min-w-0 flex-1">
                     <b className="block text-[14px] font-bold text-fg">{e.name}</b>
-                    <span className="block tabular-nums text-[12px] text-fg-2">{sk ? prog.sessionDoses?.[sk]?.[id] || e.dose : `${e.dose} · ${e.perWeek}× týdně`}</span>
+                    <span className="block tabular-nums text-[12px] text-fg-2">{sk ? prog.sessionDoses?.[sk]?.[id] || e.dose : e.kind === "mobility" ? e.dose : `${e.dose} · ${e.perWeek}× týdně`}</span>
                     <span className="mt-0.5 block text-[12px] leading-5 text-fg-3">{e.how}</span>
                   </span>
                   <ChevronRight className="size-4 shrink-0 text-fg-3" aria-hidden />
@@ -400,7 +473,8 @@ function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: P
           {refs && <ul className="mt-1 space-y-1 text-[11px] leading-4 text-fg-3">{prog.refs.map((r) => <li key={r}>{lib.references[r] || r}</li>)}</ul>}
         </div>
         <p className="mt-2 text-[11px] leading-4 text-fg-3">{perf
-          ? "Program doplňuje běžecký trénink. Když cvik bolí, vynechte ho."
+          ? (prog.group === "mobility" ? "Mobilita je pro uvolnění a lepší usínání, zraněním sama nepředchází. Protahujte jen do mírného tahu, nikdy do bolesti."
+            : "Program doplňuje běžecký trénink. Když cvik bolí, vynechte ho.")
           : "Program je pro mírné obtíže a nenahrazuje vyšetření. Bolest, která se zhoršuje, bolí v noci nebo omezuje chůzi, nechte posoudit fyzioterapeutem."}</p>
       </div>
     </Sheet>
@@ -459,9 +533,47 @@ function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any;
   const [force, setForce] = useState(false)
   const [rerate, setRerate] = useState(false)
   const setExId = onOpenEx
-  const finish = async (feel: string) => {
+  // feedback railway#201 — the exercises stay folded until the runner starts the session
+  // (kept open for the day once started, or when anything is already ticked today)
+  const day = todayKey()
+  const openKey = `dl-session-open:${act.id}:${day}`
+  const startedToday = act.exercises.some((e: any) => e.doneToday) || (() => {
+    try { return !!localStorage.getItem(openKey) || act.exercises.some((e: any) => !!localStorage.getItem(`dl-sets:${act.id}:${e.id}:${day}`)) } catch { return false }
+  })()
+  const [sessionOpen, setSessionOpen] = useState<boolean>(startedToday)
+  const begin = () => { setSessionOpen(true); try { localStorage.setItem(openKey, "1") } catch { /* private mode */ } }
+  const fold = () => { setSessionOpen(false); try { localStorage.removeItem(openKey) } catch { /* private mode */ } }
+  const n = act.exercises.length
+  const mins = act.durability ? act.durability.estMin
+    : act.exercises.every((e: any) => lib.exercises[e.id]?.min) ? act.exercises.reduce((a: number, e: any) => a + lib.exercises[e.id].min, 0) : null
+  // the sets ticked today per exercise (the module keeps them on this device), for ending early
+  const ticksOf = (e: any) => {
+    const sets = setsOf(e.dose || lib.exercises[e.id]?.dose || "")
+    return e.doneToday ? sets : Math.min(loadSets(`dl-sets:${act.id}:${e.id}:${day}`), sets)
+  }
+  const [ticks, setTicks] = useState<Record<string, number>>(() => Object.fromEntries(act.exercises.map((e: any) => [e.id, ticksOf(e)])))
+  const [ending, setEnding] = useState(false)
+  // UX audit F12 — ending the whole programme sits in a menu and asks first
+  const [menu, setMenu] = useState(false)
+  const [confirmEnd, setConfirmEnd] = useState(false)
+  const rows = act.exercises.map((e: any) => {
+    const sets = setsOf(e.dose || lib.exercises[e.id]?.dose || "")
+    return { id: e.id, name: lib.exercises[e.id]?.name || e.name, sets, n: e.doneToday ? sets : Math.min(ticks[e.id] ?? 0, sets), done: !!e.doneToday }
+  })
+  const missing = rows.filter((x: any) => !x.done && x.n < x.sets)
+  const doneSets = rows.reduce((t: number, x: any) => t + x.n, 0)
+  const totalSets = rows.reduce((t: number, x: any) => t + x.sets, 0)
+  const finish = async (feel: string, easier = false) => {
     setBusy(true)
-    try { onChange(await api.finishSelfProgram(rid, act.id, feel)); setRerate(false); setReopen(false); toast({ title: "Trénink zapsán do zátěže" }) }
+    const sets = Object.fromEntries(rows.filter((x: any) => !x.done).map((x: any) => [x.id, x.n]))
+    try {
+      const out: any = await api.finishSelfProgram(rid, act.id, feel, { easier, sets })
+      onChange(out)
+      // feedback #204 — the session rates the watch's recording; it is no activity of its own
+      setRerate(false); setReopen(false); setEnding(false)
+      toast(out?.sessionLinked ? { title: "Hodnocení připojeno k záznamu z hodinek" }
+        : { title: "Trénink uložen", msg: "Do zátěže ho započítá záznam posilování z hodinek, až se synchronizuje." })
+    }
     catch (e: any) { toast({ title: e?.message || "Hodnocení se nepodařilo uložit" }) } finally { setBusy(false) }
   }
   return (
@@ -472,8 +584,29 @@ function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any;
           <h3 className="mt-1 font-serif text-[22px] leading-tight">{act.name}</h3>
           <p className="text-[12px] text-fg-3">od {fmtD(act.startedOn)}{act.weeks ? ` · ${act.weeks} týdnů` : ""}</p>
         </div>
-        <Button size="sm" variant="outline" onClick={onEnd}>Ukončit</Button>
+        <div className="relative">
+          <button type="button" onClick={() => setMenu((v) => !v)} aria-expanded={menu} aria-label="Možnosti programu" data-testid="program-menu"
+            className="grid size-9 place-items-center rounded-full border border-white/12 text-fg-2 transition hover:text-fg"><MoreHorizontal className="size-4" aria-hidden /></button>
+          {menu && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
+              <div className="absolute right-0 top-11 z-20 w-48 rounded-[14px] border border-white/10 bg-raised p-1.5 shadow-[0_16px_40px_rgb(0_0_0_/_0.45)]">
+                <button type="button" onClick={() => { setMenu(false); setConfirmEnd(true) }} data-testid="program-end"
+                  className="w-full rounded-[10px] px-3 py-2 text-left text-[13px] font-bold text-alert-soft hover:bg-white/[.06]">Ukončit program</button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
+      {confirmEnd && (
+        <div className="mt-3 rounded-[14px] border border-alert/30 bg-alert/[.06] p-3" data-testid="program-end-confirm">
+          <p className="text-[13px] leading-5 text-fg">Ukončit celý program „{act.name}“? Zmizí z běžících programů. Kdykoli ho můžete spustit znovu od začátku.</p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <Button size="sm" variant="danger" onClick={() => { setConfirmEnd(false); onEnd() }}>Ukončit program</Button>
+            <Button size="sm" variant="outline" onClick={() => setConfirmEnd(false)}>Ponechat</Button>
+          </div>
+        </div>
+      )}
       {act.durability && <DurabilityHead d={act.durability} />}
       {(act.durability ? act.durability.doneToday && !rerate : act.exercises.length > 0 && act.exercises.every((e: any) => e.doneToday)) ? (
         reopen ? <LastSession act={act} lib={lib} onBack={() => setReopen(false)} />
@@ -489,17 +622,39 @@ function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any;
               <div key={e.id} className="flex items-center gap-3 py-2"><Thumb id={e.id} /><span className="min-w-0"><b className="block text-[13px] font-bold">{e.name}</b><span className="text-[12px] text-fg-3">{e.dose}</span></span></div>
             ))}
           </div>
-          <Button size="sm" variant="outline" className="mt-2" onClick={() => setForce(true)} data-testid="durability-force">Přesto odcvičit dnes</Button>
+          <Button size="sm" variant="outline" className="mt-2" onClick={() => { setForce(true); begin() }} data-testid="durability-force">Přesto odcvičit dnes</Button>
+        </div>
+      ) : !sessionOpen ? (
+        <div className="mt-3 rounded-[14px] border border-white/[.08] bg-white/[.03] p-3" data-testid="session-folded">
+          <p className="text-[13px] leading-5 text-fg-2">{n} {plural(n, "cvik", "cviky", "cviků")}{mins ? <span>{` · zhruba ${Math.round(mins)} min`}</span> : null}</p>
+          <Button className="mt-2 w-full" icon={Play} onClick={begin} data-testid="session-start">Zahájit trénink</Button>
         </div>
       ) : (
-      <div className="mt-2 divide-y divide-white/[.07]">
+      <div className="mt-2 divide-y divide-white/[.07]" data-testid="session-open">
+        <div className="flex justify-end pb-1">
+          <button type="button" onClick={fold} className="text-[11px] font-bold text-fg-3 underline-offset-2 hover:text-fg-2 hover:underline" data-testid="session-fold">Sbalit cviky</button>
+        </div>
         {act.exercises.map((e: any) => (
           <ExerciseModule key={e.id} e={{ ...lib.exercises[e.id], ...e }} progId={act.id} onOpen={() => setExId(e.id)}
+            onTicks={(n) => setTicks((t) => ({ ...t, [e.id]: n }))} missing={ending && missing.some((m: any) => m.id === e.id)}
             onToggle={async (done) => {
               try { onChange(await api.logSelfProgram(rid, act.id, e.id, done)) }
               catch (err: any) { toast({ title: err?.message || "Nepodařilo se zapsat" }) }
             }} />
         ))}
+        {/* owner request 2026-10-06: the session can always be ended, ticked through or not */}
+        {act.durability && !act.durability.doneToday && (
+          <div className="pt-3">
+            {ending && missing.length > 0 ? (
+              <EndSession missing={missing} doneSets={doneSets} totalSets={totalSets} busy={busy}
+                onCancel={() => setEnding(false)} onFinish={(feel, easier) => finish(feel, easier)} />
+            ) : ending ? (
+              <FeelPrompt busy={busy} onPick={(k) => finish(k)} />
+            ) : (
+              <Button className="w-full" variant="outline" icon={Flag} onClick={() => setEnding(true)} data-testid="session-end">Ukončit trénink</Button>
+            )}
+          </div>
+        )}
       </div>
       )}
       <p className="mt-2 text-[11px] leading-4 text-fg-3">{lib.painRule}</p>
@@ -516,10 +671,8 @@ export function SelfPrograms() {
   const [build, setBuild] = useState(false)
   const [exId, setExId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [slide, setSlide] = useState(0)
-  const rail = useRef<HTMLDivElement>(null)
-  const onRail = () => { const el = rail.current; if (el) setSlide(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))) }
-  const goSlide = (i: number) => { const el = rail.current; if (el) el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" }) }
+  // feedback railway#202 — one box with tabs by the programmes' focus instead of three boxes
+  const [tab, setTab] = useState<"pain" | "performance" | "mobility">("pain")
   const load = () => api.selfPrograms(rid).then(setD).catch(() => setD(false))
   useEffect(() => { load() }, [rid]) // eslint-disable-line react-hooks/exhaustive-deps
   // railway#196 — Trénink links here (?prog=durability): the running programme comes
@@ -527,20 +680,27 @@ export function SelfPrograms() {
   const [params, setParams] = useSearchParams()
   const want = params.get("prog")
   const box = useRef<HTMLDivElement>(null)
+  // (the evening report saves a mobility programme first and links here: fetched fresh)
   useEffect(() => {
-    if (!want || !d) return
-    const acts: any[] = d.actives || (d.active ? [d.active] : [])
-    const i = acts.findIndex((x: any) => x.template === want)
-    if (i >= 0) {
-      requestAnimationFrame(() => { goSlide(i); box.current?.scrollIntoView({ behavior: "smooth", block: "start" }) })
-    } else {
-      const p = (d.library?.programs || []).find((x: Prog) => x.key === want)
-      if (p) setOpen(p)
-    }
-    const next = new URLSearchParams(params)
-    next.delete("prog")
-    setParams(next, { replace: true })
-  }, [want, d]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (!want) return
+    let alive = true
+    api.selfPrograms(rid).then((nd: any) => {
+      if (!alive) return
+      setD(nd)
+      const acts: any[] = nd.actives || (nd.active ? [nd.active] : [])
+      const i = acts.findIndex((x: any) => x.template === want)
+      if (i >= 0) {
+        setTimeout(() => { (box.current?.querySelector(`[data-prog="${want}"]`) || box.current)?.scrollIntoView({ behavior: "smooth", block: "start" }) }, 60)
+      } else {
+        const p = (nd.library?.programs || []).find((x: Prog) => x.key === want)
+        if (p) { setOpen(p); setTab(((p.group || "pain") as "pain" | "performance" | "mobility")) }
+      }
+      const next = new URLSearchParams(params)
+      next.delete("prog")
+      setParams(next, { replace: true })
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [want]) // eslint-disable-line react-hooks/exhaustive-deps
   if (d === null) return <p className="mt-4 text-sm text-fg-3">Načítám programy…</p>
   if (d === false) return null
   const lib = d.library
@@ -556,34 +716,27 @@ export function SelfPrograms() {
   const row = (p: Prog, recommended: boolean) => (
     <button key={p.key} type="button" onClick={() => setOpen(p)} data-testid="program-row"
       className="flex w-full items-center gap-3 py-3 text-left">
-      <span className={`grid size-[34px] shrink-0 place-items-center rounded-[10px] ${recommended ? "bg-accent/15 text-accent" : "bg-white/[.06] text-fg-2"}`}><Dumbbell className="size-4" aria-hidden /></span>
+      <span className={`grid size-[34px] shrink-0 place-items-center rounded-[10px] ${recommended ? "bg-accent/15 text-accent" : "bg-white/[.06] text-fg-2"}`}>{p.group === "mobility" ? <PersonStanding className="size-4" aria-hidden /> : <Dumbbell className="size-4" aria-hidden />}</span>
       <span className="min-w-0 flex-1">
         <b className="text-sm font-bold text-fg">{p.name}</b>
-        <span className="block truncate text-[12px] text-fg-3">{p.weeks} týdnů · {p.exercises.length} {plural(p.exercises.length, "cvik", "cviky", "cviků")} · {p.summary}</span>
+        <span className="block truncate text-[12px] text-fg-3">{p.group === "mobility" ? `zhruba ${p.minutes} min` : `${p.weeks} týdnů`} · {p.exercises.length} {plural(p.exercises.length, "cvik", "cviky", "cviků")} · {p.summary}</span>
       </span>
       <ChevronRight className="size-4 shrink-0 text-fg-3" aria-hidden />
     </button>
   )
   const painProgs = progs.filter((p) => (p.group || "pain") === "pain" && !rec.includes(p.key))
   const perfProgs = progs.filter((p) => p.group === "performance")
+  const mobDay = progs.filter((p) => p.group === "mobility" && p.sub === "day")
+  const mobRegion = progs.filter((p) => p.group === "mobility" && p.sub === "region")
   return (
     <div className="mt-4 grid gap-4" data-testid="self-programs">
       {actives.length > 0 && (
-        <div ref={box} className="scroll-mt-24" data-testid="active-programs">
-          {actives.length > 1 && (
-            <div className="mb-2 flex items-center justify-between gap-2 px-1">
-              <span className="t-label !text-fg-3">{`Běžící programy · ${slide + 1} / ${actives.length}`}</span>
-              <span className="flex gap-1.5">
-                {actives.map((a: any, i: number) => (
-                  <button key={a.id} type="button" aria-label={a.name} onClick={() => goSlide(i)}
-                    className={`h-2 rounded-full transition-all ${i === slide ? "w-5 bg-accent" : "w-2 bg-white/25"}`} />
-                ))}
-              </span>
-            </div>
-          )}
-          <div ref={rail} onScroll={onRail} className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+        // UX audit F12 — the running programmes as a list (the strength programme sat on slide 2 of a carousel)
+        <div ref={box} className="scroll-mt-24" data-testid="active-programs" data-tour="care-programs">
+          {actives.length > 1 && <p className="t-label mb-2 px-1 !text-fg-3">{`Běžící programy · ${actives.length}`}</p>}
+          <div className="grid gap-3">
             {actives.map((a: any) => (
-              <div key={a.id} className="w-full shrink-0 snap-center">
+              <div key={a.id} data-prog={a.template} className="scroll-mt-24">
                 <ActiveProgram act={a} lib={lib} rid={rid} onOpenEx={setExId}
                   onChange={(n) => setD({ ...d, actives: actives.map((x: any) => (x.id === n.id ? n : x)), active: d.active?.id === n.id ? n : d.active })}
                   onEnd={async () => { await api.endSelfProgram(rid, a.id); load() }} />
@@ -607,21 +760,34 @@ export function SelfPrograms() {
           <p className="mt-2 text-sm text-fg-2">Za poslední 4 týdny jste neoznačili bolest, ke které máme program. Níže jsou všechny programy.</p>
         )}
       </Card>
-      <Card>
-        <div className="flex items-center justify-between gap-2">
-          <Label>Při potížích</Label>
-          <Button size="sm" variant="outline" icon={Plus} onClick={() => setBuild(true)} data-testid="builder-open">Vlastní trénink</Button>
+      <div data-testid="program-tabs"><Card>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Segmented size="sm" ariaLabel="Zaměření programů" value={tab} onChange={setTab}
+            options={[["pain", "Při potížích"], ["performance", "Síla a technika"], ["mobility", "Mobilita"]] as const} />
+          {tab === "pain" && <Button size="sm" variant="outline" icon={Plus} onClick={() => setBuild(true)} data-testid="builder-open">Vlastní trénink</Button>}
         </div>
-        <div className="mt-1 divide-y divide-white/[.07]">{painProgs.map((p) => row(p, false))}</div>
-        <p className="mt-2 text-[11px] leading-4 text-fg-3">Programy vycházejí z publikovaných postupů, u každého je zdroj. Na odbornou revizi fyzioterapeutem Došlapu zatím čekají a nenahrazují vyšetření.</p>
-      </Card>
-      {perfProgs.length > 0 && (
-        <div data-testid="perf-programs"><Card>
-          <Label>Síla a technika</Label>
-          <div className="mt-1 divide-y divide-white/[.07]">{perfProgs.map((p) => row(p, false))}</div>
-          <p className="mt-2 text-[11px] leading-4 text-fg-3">Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe.</p>
-        </Card></div>
-      )}
+        {tab === "pain" && (
+          <div data-testid="pain-programs">
+            <div className="mt-1 divide-y divide-white/[.07]">{painProgs.map((p) => row(p, false))}</div>
+            <p className="mt-2 text-[11px] leading-4 text-fg-3">Programy vycházejí z publikovaných postupů, u každého je zdroj. Na odbornou revizi fyzioterapeutem Došlapu zatím čekají a nenahrazují vyšetření.</p>
+          </div>
+        )}
+        {tab === "performance" && (
+          <div data-testid="perf-programs">
+            <div className="mt-1 divide-y divide-white/[.07]">{perfProgs.map((p) => row(p, false))}</div>
+            <p className="mt-2 text-[11px] leading-4 text-fg-3">Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe.</p>
+          </div>
+        )}
+        {tab === "mobility" && (
+          <div data-testid="mobility-programs">
+            <p className="mt-3 flex items-center gap-1.5 text-[12px] leading-5 text-fg-3"><Moon className="size-3.5 shrink-0 text-load" aria-hidden />Večerní report vybere program podle toho, co jste ten den dělali. Tady jsou všechny.</p>
+            <p className="t-label mt-3 !text-fg-3">Podle dne</p>
+            <div className="divide-y divide-white/[.07]">{mobDay.map((p) => row(p, false))}</div>
+            <p className="t-label mt-3 !text-fg-3">Podle partie</p>
+            <div className="divide-y divide-white/[.07]">{mobRegion.map((p) => row(p, false))}</div>
+          </div>
+        )}
+      </Card></div>
       {open && <ProgramSheet prog={open} lib={lib} busy={busy} onClose={() => setOpen(null)} onStart={() => start({ template: open.key })} onOpenEx={setExId} />}
       {build && <BuilderSheet lib={lib} busy={busy} onClose={() => setBuild(false)} onStart={(name, ids) => start({ name, exercises: ids })} onOpenEx={setExId} />}
       {exId && lib.exercises[exId] && <ExerciseSheet id={exId} ex={lib.exercises[exId]} onClose={() => setExId(null)} />}

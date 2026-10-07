@@ -17,18 +17,25 @@ Morning (after the night is synced): the night (hypnogram, stages against the
 runner's 4-week norm, sleep debt), recovery (readiness, HRV, resting HR, Body
 Battery), what is left of the last days' load, and today's plan.
 Evening: the day in numbers (steps, stress and Body Battery curves), today against
-the plan, the week, the rest of the week laid out by the runner's usual pattern, and
+the plan, the week, the rest of the week from the week planner (week_plan.py), and
 tonight's sleep target.
 
 Sleep guidance follows Walsh et al. (2021, BJSM consensus: athletes 7–9 h, more under
 heavy training) and Drake et al. (2013: caffeine even 6 h before bed disturbs sleep).
-The rest-of-week split, the bedtime arithmetic and the wording are working assumptions."""
+The bedtime arithmetic and the wording are working assumptions."""
+import logging
 from datetime import date, timedelta
 
 from .. import models
 from . import dayload as DL
 from . import engine as E
+from . import day_tags as DT
+from . import mobility as MOB
+from . import tendon as TD
 from . import week_plan as WP
+from .guidance import WD_IN
+
+log = logging.getLogger(__name__)
 
 WD = ["po", "út", "st", "čt", "pá", "so", "ne"]
 WD_LONG = ["pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota", "neděle"]
@@ -36,7 +43,6 @@ NORM_DAYS = 28
 SLEEP_MIN_H, SLEEP_MAX_H = 7.0, 9.5
 FALL_ASLEEP_MIN = 15
 CAFFEINE_H = 6
-LONG_SHARE = 0.35                  # the long run's share of the rest of the week (working assumption)
 
 
 def _avg(vals):
@@ -196,7 +202,7 @@ def _plan(a, db, rid):
     t = (g.get("types") or {}).get(g.get("type")) or {}
     out = {"type": g.get("type"), "label": g.get("typeLabel"), "km": t.get("km"), "hr": t.get("hr"),
            "pace": t.get("pace"), "duration": t.get("durationMin"), "z4": t.get("z4Target"),
-           "terrain": t.get("terrain"), "notes": (t.get("notes") or [])[:3], "reasons": (g.get("reasons") or [])[:3],
+           "terrain": t.get("terrain"), "notes": (t.get("notes") or [])[:3], "reasons": (g.get("reasons") or [])[:6],   # the deciding one is picked in the app (UX audit F09)
            "override": (g.get("override") or {}).get("title"), "afterDone": g.get("afterDone"),
            "strength": None, "readinessScore": g.get("readinessScore")}
     progs = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.active.is_(True)).all()
@@ -240,45 +246,63 @@ def _week(a, db, rid, today):
             "cycle": ((g.get("week") or {}).get("cycle") or {}).get("pos")}
 
 
-def _rest_of_week(a, today, week):
-    """The week's remaining kilometres over the remaining days by the runner's pattern:
-    the usual long-run day gets ~35 % (never above the single-run ceiling), the other
-    usual run days share the rest, the other days are rest days."""
-    g = (a or {}).get("guidance") or {}
-    pat = g.get("pattern") or {}
+KIND_TYPE = {"rest": "volno", "ride": "kolo", "swim": "plavání", "strength": "posilování", "race": "závod"}
+
+
+def _item_text(it, short=False) -> str:
+    """One planned item in a few words, the way the Monday sheet lists it (`short`: a
+    strength session by its letter only, when it rides along with a run)."""
+    if it["kind"] == "run":
+        km = it.get("km") or {}
+        rng = f" {_cz(km['lo'])}–{_cz(km['hi'])} km" if km.get("lo") is not None and km.get("hi") else ""
+        return f"{it['label']}{rng}"
+    if it["kind"] == "strength":
+        if short and it.get("sessionKey"):
+            return f"{it['label']} {it['sessionKey']}"
+        return f"{it['label']} {it['session']}" if it.get("session") else it["label"]
+    if it["kind"] in ("ride", "swim") and it.get("min"):
+        return f"{it['label']} {it['min'][0]}–{it['min'][1]} min"
+    return it.get("label") or ""
+
+
+def _rest_of_week(plan, today, week):
+    """The days after today from the same planner as the Monday sheet (week_plan.py), so
+    tomorrow, the week card, its AI notes and the Monday plan say the same thing — and today
+    is exactly Trénink's recommendation. Owner request 2026-10-06: a simpler split here used
+    to put all the week's kilometres on the usual hard day while the plan said otherwise.
+    Each day keeps the planner's items (the report lists them like the Monday sheet) plus its
+    headline: the run (a fixed one before an optional one), else a race, a ride, strength,
+    rest."""
     left = week.get("left")
-    run_days = set(pat.get("runDays") or [])
-    long_day = pat.get("longDay")
-    hard = set(pat.get("hardDays") or [])
-    ceil_run = ((((a or {}).get("capacity") or {}).get("channels") or {}).get("volume") or {}).get("ceilingSession")
-    rest = [today + timedelta(days=k) for k in range(1, 7 - today.weekday())]
-    if not rest:
-        return {"days": [], "left": left, "note": "Týden končí, zítra začíná nový."}
-    if left is None:
-        return {"days": [], "left": None, "note": "Týdenní cíl se zatím neurčil."}
-    if left <= 0.5:
-        return {"days": [{"date": d.isoformat(), "wd": WD[d.weekday()], "type": "lehce / volno", "km": None} for d in rest],
-                "left": left, "note": "Týdenní cíl máte splněný. Zbytek týdne lehce, nebo volno."}
-    runs = [d for d in rest if d.weekday() in run_days] or rest[: max(1, min(len(rest), round(len(run_days) * len(rest) / 7) or 1))]
-    out, km_left = {}, left
-    long_d = next((d for d in runs if d.weekday() == long_day), None)
-    if long_d and len(runs) > 1:
-        lk = min(LONG_SHARE * left if len(runs) > 2 else left / 2, ceil_run or 1e9)
-        out[long_d] = ("dlouhý", lk)
-        km_left -= lk
-    others = [d for d in runs if d not in out]
-    for d in others:
-        out[d] = ("kvalitní" if d.weekday() in hard else "lehký", km_left / len(others))
+    if today.weekday() == 6:
+        return {"days": [], "left": _r(left), "notes": [],
+                "note": "Týden končí, zítra začíná nový. Plán na nový týden přinese pondělní ranní report."}
+    if not plan:
+        return {"days": [], "left": _r(left), "notes": [],
+                "note": "Plán zbytku týdne zatím nejde sestavit. Každé ráno den určí Trénink."}
+    order = ("run", "race", "ride", "swim", "strength", "rest")
     days = []
-    for d in rest:
-        typ, km = out.get(d, ("volno", None))
-        if km is not None and ceil_run:
-            km = min(km, ceil_run)
-        days.append({"date": d.isoformat(), "wd": WD[d.weekday()], "type": typ, "km": _r(km)})
-    planned = sum(d["km"] or 0 for d in days)
-    note = (f"Zbylých {_cz(left - planned)} km se do týdne nevejde bez překročení stropu jednoho běhu. "
-            "Cíl je horní hranice, ne povinnost." if left - planned > 2 else None)
-    return {"days": days, "left": _r(left), "note": note}
+    for d in plan.get("days") or []:
+        if d.get("past") or d.get("today") or not d.get("items"):
+            continue
+        items = d["items"]
+        main = min(items, key=lambda it: (order.index(it["kind"]) if it["kind"] in order else 9, bool(it.get("optional"))))
+        typ = main.get("type") if main["kind"] == "run" else KIND_TYPE.get(main["kind"])
+        if main["kind"] == "rest" and main.get("label") != "Volno":
+            typ = None                                  # "Podle ranního doporučení" — no data for a plan yet
+        km = (main.get("km") or {}).get("hi") if main["kind"] == "run" else None
+        days.append({**d, "type": typ, "label": main.get("label"), "km": _r(km),
+                     "kmLo": _r((main.get("km") or {}).get("lo")) if main["kind"] == "run" else None,
+                     "optional": bool(main.get("optional")),
+                     "text": " · ".join(t for t in (_item_text(main), *(_lower1(_item_text(it, True)) for it in items if it is not main)) if t)})
+    notes = plan.get("notes") or []
+    if plan.get("override"):
+        note = plan["override"].rstrip(".") + "."
+    elif left is not None and left <= 0.5:
+        note = "Týdenní cíl máte splněný. Zbytek týdne lehce, nebo volno."
+    else:
+        note = next((n for n in notes if n.startswith("Zbylých")), None)
+    return {"days": days, "left": _r(left), "note": note, "notes": notes}
 
 
 def _day(dm, det, today, acts_today):
@@ -295,19 +319,95 @@ def _day(dm, det, today, acts_today):
             "bbCharged": day.get("bbCharged"), "bbDrained": day.get("bbDrained"), "activities": acts_today}
 
 
+TIMING_NIGHTS, TREND_NIGHTS = 28, 14
+STEP_MAX_MIN = 30          # a bedtime at most this much earlier than the usual one at a time (working assumption)
+TREND_MIN_WEEK = 10        # a drift of the sleep onset worth mentioning, min a week
+
+
+def _onset_scale(m: int | None) -> int | None:
+    """Sleep onset on one evening scale: 23:10 → 1390, 00:30 → 1470 (minutes from the evening's midnight)."""
+    if m is None:
+        return None
+    return m + 1440 if m < 12 * 60 else m
+
+
+def _sleep_timing(det, today):
+    """The last nights' sleep onset and wake times from the watch (the night belongs to the
+    morning it ends): series, the usual times for the kind of day tomorrow is (a workday
+    or the weekend), how regular the onset is and where it drifts."""
+    nights = []
+    for k in range(TIMING_NIGHTS - 1, -1, -1):
+        d = today - timedelta(days=k)
+        sl = (det[d.isoformat()].sleep or {}) if d.isoformat() in det else {}
+        on, wk = _onset_scale(_min_of(sl.get("start"))), _min_of(sl.get("end"))
+        if on is None or wk is None or not (18 * 60 <= on <= 30 * 60) or not (3 * 60 <= wk <= 13 * 60):
+            continue
+        nights.append({"d": d.isoformat(), "wd": WD[d.weekday()], "weekend": d.weekday() >= 5, "onset": on, "wake": wk})
+    if len(nights) < 3:
+        return None
+    tomorrow_weekend = (today + timedelta(days=1)).weekday() >= 5
+    same = [n for n in nights if n["weekend"] == tomorrow_weekend]
+    pool = same if len(same) >= 3 else nights
+
+    def med(xs):
+        xs = sorted(xs)
+        return xs[len(xs) // 2] if len(xs) % 2 else (xs[len(xs) // 2 - 1] + xs[len(xs) // 2]) / 2
+    recent = nights[-TREND_NIGHTS:]
+    ons = [n["onset"] for n in recent]
+    mean = sum(ons) / len(ons)
+    sd = (sum((x - mean) ** 2 for x in ons) / len(ons)) ** 0.5
+    trend = None
+    if len(recent) >= 7:
+        xs = [(date.fromisoformat(n["d"]) - today).days for n in recent]
+        mx = sum(xs) / len(xs)
+        den = sum((x - mx) ** 2 for x in xs)
+        if den:
+            trend = round(sum((x - mx) * (y - mean) for x, y in zip(xs, ons)) / den * 7)
+    wd_n = [n for n in nights if not n["weekend"]]
+    we_n = [n for n in nights if n["weekend"]]
+    jetlag = None
+    if len(wd_n) >= 3 and len(we_n) >= 2:
+        mid = lambda ns: med([(n["onset"] + n["wake"] + 1440) / 2 for n in ns])
+        jetlag = round(mid(we_n) - mid(wd_n))
+    return {"nights": nights[-TREND_NIGHTS:], "onset": round(med([n["onset"] for n in pool])),
+            "wake": round(med([n["wake"] for n in pool])), "sd": round(sd), "trend": trend, "jetlag": jetlag,
+            "tomorrowWeekend": tomorrow_weekend, "basis": "same" if pool is same else "all", "n": len(nights)}
+
+
 def _tonight(a, det, dm, today, norm, week_next_hard: bool, debt):
     """Tonight's sleep target and when to go to bed for it: the runner's norm (7–9.5 h),
-    +30 min before a hard or long day, + up to 1 h back of a sleep debt (Walsh et al., 2021)."""
+    +30 min before a hard or long day, + up to 1 h back of a sleep debt (Walsh et al., 2021).
+    The bedtime comes from tomorrow's usual wake time (workday / weekend) minus the target and
+    15 min to fall asleep; when that is over half an hour earlier than the runner's usual
+    sleep onset, tonight moves only half an hour earlier — the evening before the habitual
+    sleep time is the hardest time to fall asleep (the "forbidden zone", Lavie, 1986) — and
+    the same time every night counts too: regular sleep timing predicted mortality better than
+    sleep length (Windred et al., 2024)."""
     base = max(SLEEP_MIN_H, norm.get("h") or 7.5)
     target = base + (0.5 if week_next_hard else 0) + min(1.0, (debt or 0) / 2)
     target = min(SLEEP_MAX_H, round(target * 4) / 4)
-    wakes = [_min_of(((det[x].sleep or {}).get("end"))) for x in det if x <= today.isoformat() and det[x].sleep]
-    wakes = sorted(w for w in wakes if w is not None)
-    wake = wakes[len(wakes) // 2] if wakes else 6 * 60 + 30
-    bed = wake - target * 60 - FALL_ASLEEP_MIN
-    return {"target": target, "wake": _hm(wake), "bed": _hm(bed), "caffeine": _hm(bed - CAFFEINE_H * 60),
-            "base": _r(base), "hardTomorrow": week_next_hard, "debt": debt, "wakeFromWatch": bool(wakes)}
-
+    tm = _sleep_timing(det, today)
+    wake = tm["wake"] if tm else 6 * 60 + 30
+    ideal = wake - target * 60 - FALL_ASLEEP_MIN + 1440          # on the evening scale
+    bed, mode, usual_bed = ideal, "ideal", None
+    if tm:
+        usual_bed = tm["onset"] - FALL_ASLEEP_MIN
+        gap = usual_bed - ideal
+        if gap > STEP_MAX_MIN:
+            bed, mode = usual_bed - STEP_MAX_MIN, "step"
+        elif gap < -STEP_MAX_MIN:
+            bed, mode = usual_bed, "keep"
+    bed, ideal = 5 * (bed // 5), 5 * round(ideal / 5)          # a bedtime on a 5-minute mark, not later than computed
+    out = {"target": target, "wake": _hm(wake), "bed": _hm(bed), "caffeine": _hm(bed - CAFFEINE_H * 60),
+           "base": _r(base), "hardTomorrow": week_next_hard, "debt": debt, "wakeFromWatch": bool(tm),
+           "ideal": _hm(ideal), "mode": mode, "latency": FALL_ASLEEP_MIN,
+           # what the report needs to redo the sum for another wake time the runner picks
+           "wakeMin": round(wake) % 1440, "stepMax": STEP_MAX_MIN, "caffeineH": CAFFEINE_H,
+           "usualBedMin": None if usual_bed is None else round(usual_bed)}
+    if tm:
+        out["timing"] = {**tm, "usualOnset": _hm(tm["onset"]), "usualWake": _hm(tm["wake"]), "usualBed": _hm(usual_bed),
+                         "bedMin": round(bed), "idealMin": round(ideal), "wakeMin": wake}
+    return out
 
 
 # ------------------------------------------------------------------ v2 pieces
@@ -391,6 +491,9 @@ def _watchouts(a, rec, night, plan):
     """What to watch today, most important first: [{level: alert|watch|info, text}]."""
     g = (a or {}).get("guidance") or {}
     out = []
+    ov = g.get("override") or {}
+    if ov.get("title"):                          # a rule that changes today outright (pain, illness, a tendon test …) first
+        out.append({"level": "alert", "text": f"{ov['title']}."})
     if (g.get("pain") or 0) >= 3:
         out.append({"level": "alert", "text": f"Bolest {g['pain']}/10: při běhu nanejvýš 5/10 a do rána musí odeznít, jinak uberte."})
     sc = rec.get("score")
@@ -442,11 +545,22 @@ def _tomorrow(a, today_view, dm, today, night, rest, tonight, hard_tomorrow):
         out.append({"dir": -1, "text": f"Spánkový dluh {_dur(night['debt'])}: dnešní noc rozhodne, jak zítra vstanete."})
     else:
         out.append({"dir": 1, "text": f"S {_dur(tonight['target'])} spánku by zítřejší připravenost měla držet."})
-    nxt = next((d for d in rest.get("days") or [] if d["date"] == (today + timedelta(days=1)).isoformat()), None)
-    plan_tmr = {"type": nxt["type"], "km": nxt["km"], "wd": nxt["wd"]} if nxt else None
-    if plan_tmr:
-        out.append({"dir": 0, "text": f"Zítra podle plánu týdne: {plan_tmr['type']}" + (f" ≈ {_cz(plan_tmr['km'])} km." if plan_tmr['km'] else ".")})
+    nxt = _next_day(rest, today)
+    plan_tmr = None
+    if nxt:
+        plan_tmr = {"type": nxt["type"], "label": nxt["label"], "km": nxt["km"], "kmLo": nxt.get("kmLo"),
+                    "wd": nxt["wd"], "text": nxt["text"], "optional": nxt.get("optional")}
+        out.append({"dir": 0, "text": f"Zítra podle plánu týdne: {_lower1(nxt['text'])}."})
     return {"effects": out[:5], "plan": plan_tmr}
+
+
+def _next_day(rest, today):
+    return next((d for d in (rest or {}).get("days") or [] if d["date"] == (today + timedelta(days=1)).isoformat()), None)
+
+
+def _lower1(txt: str) -> str:
+    """"Lehký běh 5–6 km" → "lehký běh 5–6 km" in the middle of a sentence (a race keeps its name)."""
+    return txt[:1].lower() + txt[1:] if txt and not txt[1:2].isupper() else txt
 
 
 # ------------------------------------------------------------------ rule-based card notes (fallback for the AI)
@@ -458,7 +572,8 @@ def _notes_morning(r) -> dict:
         txt = _night_text(n)
         tip = ("Držte čas usínání co nejpravidelněji, pomáhá to hlubokému spánku." if (n.get("debt") or 0) < 1
                else "Dnes večer jděte spát o půl hodiny dřív a hodinu před spaním vynechte obrazovky.")
-        notes["sleep"] = f"{txt} {tip}".strip() if sc is None else f"Skóre spánku {sc} ze 100. {txt} {tip}"
+        # one sentence per piece, so the English dictionary takes them one by one (UX audit F13)
+        notes["sleep"] = " ".join(x for x in ((f"Skóre spánku {sc} ze 100." if sc is not None else ""), txt, tip) if x)
     else:
         notes["sleep"] = "Noc z hodinek zatím nedorazila. Po synchronizaci se report doplní."
     s0, y0 = rec.get("score"), rec.get("yesterday")
@@ -481,6 +596,10 @@ def _notes_morning(r) -> dict:
                                                 if rest else "Nic zvláštního k hlídání, běžte podle plánu a v klidném tempu.")))
     if r.get("weekPlan"):
         notes["weekPlan"] = WP.note(r["weekPlan"])
+    if r.get("tendon"):
+        notes["tendon"] = TD.note(r["tendon"])
+    if r.get("tagsLastNight"):
+        notes["tagsLastNight"] = DT.note_last_night(r["tagsLastNight"])
     notes["intro"] = r["summary"]
     return notes
 
@@ -499,18 +618,32 @@ def _notes_evening(r) -> dict:
     else:
         notes["day"] = "Celodenní tep z hodinek zatím nedorazil. Po synchronizaci se průběh dne doplní."
     ld = r["load"]
-    notes["load"] = (f"Celková zátěž dne {_cz(ld['total'], 0)} j.z., z toho mimo trénink {_cz(ld['nt'], 0)}. "
+    notes["load"] = (f"Celková zátěž dne {_cz(ld['total'], 0)} bodů, z toho mimo trénink {_cz(ld['nt'], 0)}. "
                      + ("Dnešní limity jsou vyčerpané, zbytek dne odpočívejte." if ld.get("left") is not None and ld["left"] <= 0 else
                         "Do dnešních limitů zbývá prostor, ale není nutné ho využít."))
     t = r["tomorrow"]
     bad = [e for e in t["effects"] if e["dir"] < 0]
     notes["tomorrow"] = (bad[0]["text"] if bad else "Nic dnes zítřek výrazně nezhorší.") + (
-        f" Zítra: {t['plan']['type']}." if t.get("plan") else "")
-    wk = r["week"]
-    notes["week"] = (f"Tento týden {_cz(wk.get('done') or 0)} z {_cz(wk['budget'], 0)} km. " if wk.get("budget") else "") + (
-        r["restOfWeek"].get("note") or "Zbytek týdne rozložte podle návrhu, každé ráno ho upřesní připravenost.")
+        f" Zítra: {_lower1(t['plan']['text'])}." if t.get("plan") else "")
+    wk, rw = r["week"], r["restOfWeek"]
+    key = [d for d in rw.get("days") or [] if d.get("type") in ("kvalitní", "dlouhý") and not d.get("optional")]
+    shape = " ".join(f"{WD_IN[date.fromisoformat(d['date']).weekday()].capitalize()} {d['label'].lower()}." for d in key) or None
+    notes["week"] = " ".join(x for x in (
+        f"Tento týden {_cz(wk.get('done') or 0)} z {_cz(wk['budget'], 0)} km." if wk.get("budget") else None,
+        rw.get("note"), shape if not rw.get("note") or rw.get("note", "").startswith("Zbylých") else None,
+        "Každé ráno plán upřesní připravenost.") if x)
+    if r.get("mobility"):
+        notes["mobility"] = MOB.note(r["mobility"])
     tn = r["tonight"]
-    notes["tonight"] = f"Cíl {_dur(tn['target'])} spánku: do postele kolem {tn['bed']}, poslední káva do {tn['caffeine']}. Chladná a tmavá ložnice pomůže."
+    tmg = tn.get("timing") or {}
+    notes["tonight"] = f"Cíl {_dur(tn['target'])} spánku: zítra vstáváte kolem {tn['wake']}, do postele kolem {tn['bed']}, poslední káva do {tn['caffeine']}."
+    if tn.get("mode") == "step":
+        notes["tonight"] += (f" Ideálně by to bylo {tn['ideal']}, obvykle ale usínáte až v {tmg.get('usualOnset')}, "
+                             "proto dnes jen o půl hodiny dřív a další večery postupně.")
+    elif (tmg.get("sd") or 0) >= 45:
+        notes["tonight"] += f" Usínání vám kolísá zhruba o {tmg['sd']} min, stejný čas každý večer pomůže."
+    else:
+        notes["tonight"] += " Chladná a tmavá ložnice pomůže."
     return notes
 
 
@@ -545,6 +678,10 @@ def build(db, rid: str, kind: str) -> dict:
              "plan": plan, "watch": [], "questions": MORNING_Q}
         if today.weekday() == 0:                 # owner request 2026-10-04: the week's plan every Monday
             r["weekPlan"] = _week_plan(a, db, rid, today)
+        # suggestions #7 and #10: the morning test of a watched tendon, last evening's tags
+        from . import data as D
+        r["tendon"] = TD.card(D.load_runner_data(db, rid, priors=False), today)
+        r["tagsLastNight"] = DT.last_night(db, rid, today)
         r["watch"] = _watchouts(a, rec, night, plan)
         r["summary"] = _summary_morning(night, rec, plan)
         r["notes"] = _notes_morning(r)
@@ -552,12 +689,20 @@ def build(db, rid: str, kind: str) -> dict:
     acts = _activities(db, rid, today, today)
     day = _day(dm, det, today, acts)
     week = _week(a, db, rid, today)
-    rest = _rest_of_week(a, today, week)
+    # owner request 2026-10-06: tomorrow and the rest of the week from the Monday sheet's planner
+    plan = None
+    if today.weekday() < 6:
+        try:
+            plan = _week_plan(a, db, rid, today)
+        except Exception:                        # the report stands without the plan rather than fail
+            log.exception("week plan for the evening report failed (runner %s)", rid)
+    rest = _rest_of_week(plan, today, week)
     g = (a or {}).get("guidance") or {}
     tomorrow = (today + timedelta(days=1)).weekday()
     pat = g.get("pattern") or {}
-    nxt = next((d for d in rest.get("days") or [] if d["date"] == (today + timedelta(days=1)).isoformat()), None)
-    hard_tomorrow = bool(nxt and nxt["type"] in ("dlouhý", "kvalitní")) or tomorrow in (pat.get("hardDays") or [])
+    nxt = _next_day(rest, today)
+    # a hard or long run (or a race) tomorrow: by the plan; by the usual hard days only without one
+    hard_tomorrow = (nxt["type"] in ("dlouhý", "kvalitní", "závod")) if nxt else tomorrow in (pat.get("hardDays") or [])
     tonight = _tonight(a, det, dm, today, norm, hard_tomorrow, (night or {}).get("debt"))
     now_min = None
     try:
@@ -579,10 +724,13 @@ def build(db, rid: str, kind: str) -> dict:
             "plan": {"type": g.get("type"), "label": g.get("typeLabel"), "afterDone": g.get("afterDone")}}
     r = {**base, "day": day, "dayView": view, "load": load, "week": week, "weekLoads": _week_loads(a, db, rid, today),
          "restOfWeek": rest, "tonight": tonight, "recovery": rec, "questions": EVENING_Q}
+    # owner request 2026-10-05: bedtime mobility picked by the day's activities
+    r["mobility"] = MOB.evening(db, rid, a, today, acts, tonight.get("bed"), now_min, (view or {}).get("steps"))
     r["tomorrow"] = _tomorrow(a, view, dm, today, night, rest, tonight, hard_tomorrow)
+    r["dayTags"] = DT.evening(db, rid, today)          # suggestion #10: what the day held
     if view and view.get("energy"):
         r["energyNow"] = view["energy"][-1][1]
-    r["summary"] = _summary_evening(view, load, week, tonight)
+    r["summary"] = _summary_evening(view, load, week, tonight, r["tomorrow"].get("plan"))
     r["notes"] = _notes_evening(r)
     return r
 
@@ -635,14 +783,16 @@ def _summary_morning(night, rec, plan) -> str:
     return " ".join(s)
 
 
-def _summary_evening(view, load, week, tonight) -> str:
+def _summary_evening(view, load, week, tonight, plan_tmr=None) -> str:
     s = []
     if view and view.get("energy"):
         s.append(f"Energie teď {view['energy'][-1][1]} ze 100.")
     if load.get("total"):
-        s.append(f"Zátěž dne {_cz(load['total'], 0)} j.z." + (f", z toho mimo trénink {_cz(load['nt'], 0)}." if load.get("nt") else "."))
+        s.append(f"Zátěž dne {_cz(load['total'], 0)} bodů" + (f", z toho mimo trénink {_cz(load['nt'], 0)}." if load.get("nt") else "."))
     if week.get("budget"):
         left = week.get("left") or 0
         s.append(f"Týden: {_cz(week.get('done') or 0)} z {_cz(week['budget'], 0)} km" + (f", zbývá {_cz(left)} km." if left > 0.5 else ", cíl splněný."))
+    if plan_tmr:
+        s.append(f"Zítra podle plánu: {_lower1(plan_tmr['text'])}.")
     s.append(f"Na noc {_dur(tonight['target'])} spánku, do postele kolem {tonight['bed']}.")
     return " ".join(s)

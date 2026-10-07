@@ -34,7 +34,7 @@ from .. import models
 # sleep deviations (8-week baseline); guidance gates on it; mechanics over its
 # threshold trims today's volume / intensity / descent.
 # v0.7.3 — readiness recalibrated on real data (7-night mean ×1.25, full at 3 SD).
-ENGINE_VERSION = "v0.12.0"  # v0.12.0: risk factors from the profile gate and new load measures — running experience (first year: margins × 0.8 / × 0.9, Videbæk 2015), shoes (6-week transition after a minimal / ≥ 4 mm lower drop / carbon shoe narrows the running channels' margins, more over 85 kg, Fuller 2017; rotation shown as protective, Malisoux 2015), critical speed from training (mean-max 3–20 min, Jones 2019, Smyth & Muniz-Pumares 2020): minutes above it into Intenzita, ≥ 20 min of threshold work = a hard day; the Rychlost channel (≥ 1.10 × CS, Duhig 2016, Malone 2017) with a strides note after 4 weeks without; an illness signal from resting HR and breathing rate in sleep (Quer 2021) with two check-in questions (neck check); menstrual-cycle-aware readiness (same-phase norm, Schmalenberger 2019); v0.11.0: sleep in readiness by the evidence on watch sleep data — length and quality are separate parts; quality = sleep efficiency only (deep + REM share shown, not scored), over the last 3 nights, at most a quarter of a signal and half of that unless HRV or resting HR confirm; the 7-hour floor only until the own norm is known, then a separate note (sleepHabit); v0.10.5: hard minutes of cycling and swimming (Z4+ against the sport's own HR max) count in Intenzita — weekly load, per-session capacity and the spacing of hard days (railway#192); v0.10.4: the day outside training lowers today's readiness like a session (load above the usual day, at most ~8 points; today's raised resting heart rate × 0.6) until the night's data arrive; v0.10.3: all-day heart rate, own logic for every device (dayload.py) — load outside training above the usual day at half weight in the all-sport channel, yesterday's raised resting heart rate as a minor readiness signal (dayStress); v0.10.2: display data only, no scoring change — every session of the last 7 days per capacity channel (week7, feedback #149) and how far a run went past the hardest of 8 weeks (relativeEffort overMax, #148); v0.10.1: the weekly score compares the unabsorbed load with the usual weekly peak of the same measure (a once-a-week hard session no longer reads as over capacity on its own day); v0.10.0: pain and injury act on the capacity itself by the pain-monitoring model (hold inside it, one step back over it, no running on worse morning pain or an active injury, graded return caps the week), readiness per tissue (muscle / tendon / bone channels take HRV and resting HR at half weight); Příznaky and the readiness score unchanged; v0.9.4: the check-in steers the training recommendation again (not the Skóre or readiness), guidance.checkinReadiness; v0.9.3: graduated pain episodes per site (median / P75 re-marks, clean days halve, 3rd ends), no count escalation; check-in items only on Příznaky, watch sleep only through readiness; v0.9.2: displayed scores by band (tier band, model and trigger severity place the day in it; ok days spread), no fixed Skóre 60 floor; v0.9.1: recovery nights history and baseline spread for the readiness detail on Zátěž (railway#138), approximate per-item shares of every signal source (railway#132); v0.9.0: engine evaluation 2026-09 — pure snapshot engine (RunnerData, history replays by as_of), jump confirmation by repeats and passive tolerance, pace spike vs own fast runs, monotony only over capacity, RUNSAFE-shaped band curve, weather/equipment/pace-tertile confounders in mechanics, log-HRV readiness (single-night Regenerace removed), injury history to 24 months, under-conditioning, sex-specific TRIMP / bone / Achilles rules, safety rules outside the calibrated score, independent primary outcomes with censoring and session-scale data, LTHR zones and pace-based hard minutes, no physio referral for movement-only drift; v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
+ENGINE_VERSION = "v0.12.3"  # v0.12.3: UX audit, wording only — no scoring change: readiness is "known" only with a night from the watch (the history leaves other days empty), load in "bodů zátěže" instead of j.z. / sRPE·min, "norma" instead of baseline, the contact-balance value in its own unit; v0.12.2: the room under the weekly ceiling (Trénink's 7-day limit, the week's plan) from the absorbed load the weekly score uses — every earlier day with what is still unabsorbed of it, today in full, against the ceiling where the score starts (capacity.absorbed_room) — instead of a plain 7-day sum that dropped a long run all at once on day 8; the week's target stays the calendar week from Monday; v0.12.1: the morning tendon test (tendon.py) in the pain-monitoring model — a marked Achilles / patellar tendon gets the same load test every morning (Malliaras 2015); 2 or more points above the test before the run, or above 5/10, = no running today (morningWorse), the tests' weekly mean rising = trend; the test is not a check-in and leaves the pain episodes alone; v0.12.0: risk factors from the profile gate and new load measures — running experience (first year: margins × 0.8 / × 0.9, Videbæk 2015), shoes (6-week transition after a minimal / ≥ 4 mm lower drop / carbon shoe narrows the running channels' margins, more over 85 kg, Fuller 2017; rotation shown as protective, Malisoux 2015), critical speed from training (mean-max 3–20 min, Jones 2019, Smyth & Muniz-Pumares 2020): minutes above it into Intenzita, ≥ 20 min of threshold work = a hard day; the Rychlost channel (≥ 1.10 × CS, Duhig 2016, Malone 2017) with a strides note after 4 weeks without; an illness signal from resting HR and breathing rate in sleep (Quer 2021) with two check-in questions (neck check); menstrual-cycle-aware readiness (same-phase norm, Schmalenberger 2019); v0.11.0: sleep in readiness by the evidence on watch sleep data — length and quality are separate parts; quality = sleep efficiency only (deep + REM share shown, not scored), over the last 3 nights, at most a quarter of a signal and half of that unless HRV or resting HR confirm; the 7-hour floor only until the own norm is known, then a separate note (sleepHabit); v0.10.5: hard minutes of cycling and swimming (Z4+ against the sport's own HR max) count in Intenzita — weekly load, per-session capacity and the spacing of hard days (railway#192); v0.10.4: the day outside training lowers today's readiness like a session (load above the usual day, at most ~8 points; today's raised resting heart rate × 0.6) until the night's data arrive; v0.10.3: all-day heart rate, own logic for every device (dayload.py) — load outside training above the usual day at half weight in the all-sport channel, yesterday's raised resting heart rate as a minor readiness signal (dayStress); v0.10.2: display data only, no scoring change — every session of the last 7 days per capacity channel (week7, feedback #149) and how far a run went past the hardest of 8 weeks (relativeEffort overMax, #148); v0.10.1: the weekly score compares the unabsorbed load with the usual weekly peak of the same measure (a once-a-week hard session no longer reads as over capacity on its own day); v0.10.0: pain and injury act on the capacity itself by the pain-monitoring model (hold inside it, one step back over it, no running on worse morning pain or an active injury, graded return caps the week), readiness per tissue (muscle / tendon / bone channels take HRV and resting HR at half weight); Příznaky and the readiness score unchanged; v0.9.4: the check-in steers the training recommendation again (not the Skóre or readiness), guidance.checkinReadiness; v0.9.3: graduated pain episodes per site (median / P75 re-marks, clean days halve, 3rd ends), no count escalation; check-in items only on Příznaky, watch sleep only through readiness; v0.9.2: displayed scores by band (tier band, model and trigger severity place the day in it; ok days spread), no fixed Skóre 60 floor; v0.9.1: recovery nights history and baseline spread for the readiness detail on Zátěž (railway#138), approximate per-item shares of every signal source (railway#132); v0.9.0: engine evaluation 2026-09 — pure snapshot engine (RunnerData, history replays by as_of), jump confirmation by repeats and passive tolerance, pace spike vs own fast runs, monotony only over capacity, RUNSAFE-shaped band curve, weather/equipment/pace-tertile confounders in mechanics, log-HRV readiness (single-night Regenerace removed), injury history to 24 months, under-conditioning, sex-specific TRIMP / bone / Achilles rules, safety rules outside the calibrated score, independent primary outcomes with censoring and session-scale data, LTHR zones and pace-based hard minutes, no physio referral for movement-only drift; v0.8.11: approximate per-item shares of every signal source (railway#132); v0.8.10: activity carousel rank (railway#119), swimming only (#118), sleep history (#114); v0.8.9: Czech decimal comma in all runner-facing engine texts; v0.8.8: signal effects in Skóre percentage points (railway#111), signal sources (#113), activity room and readiness around it (#110); v0.8.7: readiness breakdown (railway#107: what lowers it, change since yesterday), per-activity load history (Zátěž); v0.8.6: readiness after today's session (relative effort, Stanley 2013); v0.8.5: pain state (today's check-in decides, clean streaks, fading pain points, site-aware cross-training); v0.8.4: literature review 2026-09 (screening, readiness, heat, hard sessions); v0.8.3: cross-training (sport HR max, sRPE, strength channel, carry-over); v0.8.2: continuous point ramps, individual reference ranges, SWC dead zone (thresholds plan); v0.8.1: absorption (railway#100), prior-site rule (#91)
 BASE_FROM, BASE_TO, RECENT = 84, 29, 28
 QUAD_THRESHOLD = 25
 QUAD_EXIT = 18  # hysteresis: an axis already "hot" stays hot until it drops below this
@@ -728,6 +728,16 @@ def find_twin(db: DBSession, rid: str, sport: str, day: str, dur: float, manual:
     return None
 
 
+def delete_activity(db: DBSession, a) -> None:
+    """Removes an activity with the rows that point at it: its ratings and its stream row
+    (a hand-logged session gets a tombstone stream from the detail backfill). Postgres
+    enforces those foreign keys, so the activity alone can't go."""
+    db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == a.id).delete(synchronize_session=False)
+    db.query(models.ActivityStream).filter(models.ActivityStream.activity_id == a.id).delete(synchronize_session=False)
+    db.flush()
+    db.delete(a)
+
+
 def absorb_manual(db: DBSession, rid: str) -> int:
     """A watch recording that arrives after a hand-logged session of the same sport,
     day and length replaces it: the rating and the strength details move over."""
@@ -744,7 +754,8 @@ def absorb_manual(db: DBSession, rid: str) -> int:
                 db.delete(f)
         twin.strength_focus = twin.strength_focus or m.strength_focus
         twin.strength_type = twin.strength_type or m.strength_type
-        db.delete(m)
+        db.flush()
+        delete_activity(db, m)
         moved += 1
     if moved:
         db.flush()
@@ -2365,7 +2376,8 @@ def pain_monitor(db: DBSession, rid: str):
                    days before, reaching ≥ 2 → training is modified."""
     today = today_date()
     t_iso, y_iso = iso_date(today), iso_date(today - timedelta(days=1))
-    reps = _pain_reports(db, rid, iso_date(today - timedelta(days=14)))
+    data = D.of(db, rid)
+    reps = _pain_reports(data, rid, iso_date(today - timedelta(days=14)))
     morning = None
     ci = [r for r in reps if r["kind"] == "checkin" and r["day"] == t_iso and r["pain"] >= PAIN_MORNING_MIN]
     ran = [r for r in reps if r["kind"] == "run" and r["day"] == y_iso]
@@ -2393,6 +2405,13 @@ def pain_monitor(db: DBSession, rid: str):
         mn, mb = mean(now), mean(before)
         if mn - mb >= PAIN_TREND_RISE and mn >= PAIN_TREND_MIN:
             trend = {"now": r1(mn), "before": r1(mb), "daysNow": len(now), "daysBefore": len(before)}
+    # suggestion #7 — the morning load test of a marked Achilles / patellar tendon (tendon.py):
+    # not settled after a run (≥ 2 above the baseline) or above 5/10 = morningWorse, the
+    # tests' weekly mean rising = trend
+    from . import tendon as TD
+    tm = TD.monitor(data, rid, today)
+    morning = morning or tm["morningWorse"]
+    trend = trend or tm["trend"]
     if not morning and not trend:
         return None
     return {"morningWorse": morning, "trend": trend}
@@ -2673,16 +2692,16 @@ def confidence(db: DBSession, rid: str):
     step = getattr(_engine_ctx, "mech_step", None)
 
     if device_changed:
-        note = "Během baseline okna došlo ke změně hodinek — mechanické signály jsou umlčené, dokud se baseline nepostaví znovu na novém zařízení."
+        note = "V posledních 12 týdnech se změnily hodinky. Techniku běhu zatím nehodnotíme, dokud se vaše norma nepostaví znovu na nových hodinkách."
     elif step:
         note = (f"Mechanika se {step['date'][8:10].lstrip('0')}. {step['date'][5:7].lstrip('0')}. skokově změnila "
                 f"v {len(step['metrics'])} metrikách najednou ({', '.join(step['labels'])}) a bez hlášených obtíží — "
-                "spíš nové boty, jiný snímač nebo aktualizace hodinek než změna běhu. Baseline se staví znovu od toho dne"
+                "spíš nové boty, jiný snímač nebo aktualizace hodinek než změna běhu. Vaše norma se staví znovu od toho dne"
                 + (", do té doby se mechanika nehodnotí." if v < 0.6 else "."))
     elif v < 0.6:
-        note = "Baseline se zatím buduje — mechanické signály se nezobrazují."
+        note = "Vaši normu techniky zatím poznáváme, signály techniky se zatím nezobrazují."
     else:
-        note = "Baseline je dostatečný."
+        note = "Norma techniky je spolehlivá."
     return {
         "value": v, "sessions": matched, "days": days, "baseSessions": len(base),
         "note": note, "deviceChanged": device_changed, "equipmentStep": step,
@@ -3339,7 +3358,7 @@ def _assess(db, rid: str) -> dict:
         d = _seg_detail(vosc) if vosc.get("segment") else f"{vosc['baseMean']} → {vosc['recMean']} cm · {vosc['buckets']} shodných profilů terénu{_pace_note(vosc)}"
         mech_terms.append(("vosc", "Vyšší vertikální oscilace", "C", vosc["z"], 0.2, 10, 4.0, 0.6, _pct(vosc), d))
     if bal:
-        mech_terms.append(("bal", "Posun v symetrii kontaktu", "B", bal["excursion"], 0.4, 22, 3.0, 0.8, f"{sgn(bal['excursion'])} p.b.",
+        mech_terms.append(("bal", "Posun v symetrii kontaktu", "B", bal["excursion"], 0.4, 22, 3.0, 0.8, f"vlevo {bal['now']} %, obvykle {bal['baseline']} %",
                            f"{bal['baseline']} % → {bal['now']} % vlevo · {bal['direction']}"))
     # Plan phase 2A: the dead zone is the smallest worthwhile change in z units and a
     # metric too noisy to resolve it (typical error >= SWC) counts at half weight.
@@ -3501,7 +3520,7 @@ def _assess(db, rid: str) -> dict:
             load_score += p
             if p:   # every contributing point is listed, so the axis adds up (plan 2B)
                 push("ewma", "Zvýšený poměr zátěže (7:28)", "C", p, f"×{L['ratio']}",
-                     f"Akutní zátěž {L['acute']} proti chronické {L['chronic']} j.z./týden. Pozn.: v běžecké kohortě "
+                     f"Zátěž za posledních 7 dní {L['acute']} proti obvyklým {L['chronic']} bodům zátěže za týden. Pozn.: v běžecké kohortě "
                      "sám poměr 7:28 riziko nepředpovídá — hlavní signál je skok v jednotlivém běhu výše.")
         elif p:
             load_score += p
@@ -3514,7 +3533,7 @@ def _assess(db, rid: str) -> dict:
             p = rnd(clamp((L["hiRatio"] - 1.5) * 20, 0, 20))
             load_score += p
             push("hi_load", "Skok ve vysoké intenzitě", "B", p, f"×{L['hiRatio']}",
-                 f"Tvrdá práce (vysoký tep) {L['hiAcute']} vs obvyklých {L['hiChronic']} j.z./týden. "
+                 f"Tvrdá práce (vysoký tep) {L['hiAcute']} proti obvyklým {L['hiChronic']} bodům zátěže za týden. "
                  "Prudký nárůst intenzity na nízké základně nese vyšší riziko než stejná zátěž volně.")
 
         # v0.5 — load creep: slow, persistent acute rise the spike thresholds miss
@@ -3551,12 +3570,12 @@ def _assess(db, rid: str) -> dict:
         load_score += p
         if p:
             push("hrv", "Potlačená HRV", "B", p, f"{rcv['hrv']['now']} ms",
-                 f"Baseline {rcv['hrv']['base']} ms · {_pct({'baseMean': rcv['hrv']['base'], 'recMean': rcv['hrv']['now'], 'z': rcv['hrv']['z']})} za posledních 7 dní")
+                 f"Obvykle {rcv['hrv']['base']} ms · {_pct({'baseMean': rcv['hrv']['base'], 'recMean': rcv['hrv']['now'], 'z': rcv['hrv']['z']})} za posledních 7 dní")
         p = rnd(pts_rhr_high(rcv["rhr"]["z"])) if rcv and rcv["rhr"]["z"] is not None else 0
         load_score += p
         if p:
             push("rhr", "Zvýšený klidový tep", "B", p, f"{rcv['rhr']['now']} tep/min",
-                 f"Baseline {rcv['rhr']['base']} · {_pct({'baseMean': rcv['rhr']['base'], 'recMean': rcv['rhr']['now'], 'z': rcv['rhr']['z']})}")
+                 f"Obvykle {rcv['rhr']['base']} tep/min · {_pct({'baseMean': rcv['rhr']['base'], 'recMean': rcv['rhr']['now'], 'z': rcv['rhr']['z']})}")
         if hcv and hcv["ratio"] is not None and hcv["ratio"] >= 1.4:
             p = rnd(clamp((hcv["ratio"] - 1.4) * 14, 0, 10))
             load_score += p
@@ -3579,8 +3598,8 @@ def _assess(db, rid: str) -> dict:
             p = rnd(clamp((-tsb_rel - 0.12) * 90, 0, 12)) if tsb_rel <= -0.12 else 0
             if p:                                    # no 0-point signal at the threshold (as hrvcv, the sandbox)
                 load_score += p
-                push("tsb", "Nepříznivá bilance zátěže", "C", p, f"{sgn(L['tsbBalance'])} j.z./týd",
-                     f"Fitness (42denní průměr) {L['fitness42']} proti aktuální zátěži {L['acute']} j.z./týden — akutní zátěž předbíhá vybudovanou")
+                push("tsb", "Nepříznivá bilance zátěže", "C", p, f"{sgn(L['tsbBalance'])} bodů/týden",
+                     f"Fitness (42denní průměr) {L['fitness42']} proti aktuální zátěži {L['acute']} bodů zátěže za týden — zátěž předbíhá to, co máte vybudované")
 
         # v0.6 — LOAD × CAPACITY interaction (Bertelsen 2017 framework: injury is
         # cumulative load exceeding *structure-specific capacity*, and capacity is
@@ -3754,7 +3773,7 @@ def _assess(db, rid: str) -> dict:
         side = _SIDE_CZ.get(getattr(r, "prior_injury_side", None) or "", "") if st.get("profile") else ""
         push("pain_prior", "Bolest v místě dřívějšího zranění", "A", p, f"{ph['days']}× / {PRIOR_HIT_WINDOW} dní",
              f"{', '.join(x for x in ph['labels'] if x)} — místo dřívějšího zranění ({st['label']}{f', {side}' if side else ''}) "
-             f"jste označil {ph['days']}× za {PRIOR_HIT_WINDOW} dní. U dříve zraněného místa stačí jediné označení "
+             f"se v zápisech objevilo {ph['days']}× za {PRIOR_HIT_WINDOW} dní. U dříve zraněného místa stačí jediné označení "
              f"bez ohledu na intenzitu. Počet označení váhu nezvyšuje, řídí ji průběh bolesti na místě: teď "
              f"{round(mult * 100)} % plné váhy (dny bez bolesti ji půlí, třetí ji ukončí). Samotné zranění v anamnéze "
              f"body nepřidává, jen snižuje toleranci zátěže (×{r2(frailty)})."
@@ -3815,14 +3834,23 @@ def _assess(db, rid: str) -> dict:
     pmon = pain_monitor(db, rid)
     if pmon and pmon["morningWorse"]:
         mw = pmon["morningWorse"]
-        push("pain_morning", "Bolest ráno horší než při běhu", "B", 25, f"{mw['morning']}/10 vs {mw['during']}/10",
-             f"{mw['site'] or 'Bolest'}: ráno po běhu {mw['morning']}/10, při běhu {mw['during']}/10. Podle modelu "
-             "sledování bolesti (Silbernagel 2007) má bolest do rána odeznít — když je horší, byla zátěž moc; dnes bez běhu.",
-             rule="watch")
+        if mw.get("source") == "tendonTest":
+            base = f", před během {mw['baseline']}/10" if mw.get("baseline") is not None and mw.get("runDate") else ""
+            push("pain_morning", "Šlacha se do rána neuklidnila", "B", 25, f"test {mw['morning']}/10",
+                 f"{mw['site']}: ranní test ({mw['test']}) {mw['morning']}/10{base}. Podle modelu sledování bolesti "
+                 "(Silbernagel 2007) má bolest do rána odeznít a nepřekročit 5/10; dnes bez běhu.", rule="watch")
+        else:
+            push("pain_morning", "Bolest ráno horší než při běhu", "B", 25, f"{mw['morning']}/10 vs {mw['during']}/10",
+                 f"{mw['site'] or 'Bolest'}: ráno po běhu {mw['morning']}/10, při běhu {mw['during']}/10. Podle modelu "
+                 "sledování bolesti (Silbernagel 2007) má bolest do rána odeznít — když je horší, byla zátěž moc; dnes bez běhu.",
+                 rule="watch")
     if pmon and pmon["trend"]:
         tr = pmon["trend"]
         symp_score += 12
         push("pain_trend", "Bolest týden od týdne roste", "B", 12, f"{_cz_num(tr['before'])} → {_cz_num(tr['now'])}",
+             (f"{tr['site']}: průměr ranních testů za 7 dní {_cz_num(tr['now'])}/10 proti {_cz_num(tr['before'])}/10 týden předtím — "
+              "bolest nemá z týdne na týden růst (Silbernagel 2007); odlehčit, bez intenzity a dlouhého běhu.")
+             if tr.get("source") == "tendonTest" else
              f"Průměrná hlášená bolest za 7 dní {_cz_num(tr['now'])}/10 proti {_cz_num(tr['before'])}/10 týden předtím — "
              "bolest nemá z týdne na týden růst (Silbernagel 2007); odlehčit, bez intenzity a dlouhého běhu.")
     # v0.8.4 — screening: red flags, bone-stress warning signs, bone-typical pain,

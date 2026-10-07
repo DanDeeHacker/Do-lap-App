@@ -25,7 +25,7 @@ export const readinessCol = (pct: number) => goodCol(pct)
 
 // v0.10.4 — today's drop: the session(s) and the day outside training so far
 export function dayBits(a: any): string[] {
-  return [a?.nt && `pohyb mimo trénink +${a.nt.excess} j.z. nad obvyklý den`, a?.stress && `${a.stress.min} min zvýšeného tepu v klidu`].filter(Boolean) as string[]
+  return [a?.nt && `pohyb mimo trénink +${a.nt.excess} bodů zátěže nad obvyklý den`, a?.stress && `${a.stress.min} min zvýšeného tepu v klidu`].filter(Boolean) as string[]
 }
 export function afterLine(r: any): string {
   const a = r?.afterSession
@@ -243,7 +243,8 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
   const wTone = toneOf(wk?.ratio, margins.week)
   const sTone = toneOf(ses?.ratio, margins.session)
   const why = !c.pts ? null : c.driver === "session" ? (id === "strength" ? "za jedno posilování nad kapacitou" : "za jeden běh nad kapacitou") : c.driver === "week" ? "za 7 dní nad kapacitou" : c.driver === "latent" ? "doznívající skok" : null
-  const hasDetail = !!(extra || (c.known && (ses || c.latent || c.pendingJump || CH_NOTE[id])))
+  const hasDetail = !!(extra || (c.known && (wk || ses || c.latent || c.pendingJump || CH_NOTE[id])) || sub?.known)
+  const roomLeft = wk ? (wk.absorbedMax != null ? (wk.absorbedLeft ?? 0) : (wk.left ?? 0)) : 0
   return (
     <div className={`nest p-3.5 transition ${open ? "md:col-span-full !border-accent/60" : ""}`}>
       <div className="flex items-center gap-2">
@@ -251,42 +252,21 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
         <span className="grid size-5 place-items-center rounded-full bg-white/[.07] text-[11px] font-extrabold text-fg-2">{c.grade}</span>
         <span className="ml-auto text-right tabular-nums text-[12px] font-bold" style={{ color: c.pts ? C.watch : C.fg3 }}>
           {/* railway#111 — percentage points off the overall Skóre, not load points (#150: incl. strength) */}
-          <span title="o kolik procentních bodů snižuje celkové Skóre">{scale != null ? fmtImpact(toImpact((c.pts || 0) + (sub?.pts || 0), scale)) : c.pts ? `+${c.pts} b` : "0 b"}</span>
+          <span title="o kolik bodů snižuje skóre dne">{scale != null ? fmtImpact(toImpact((c.pts || 0) + (sub?.pts || 0), scale)) : c.pts ? `+${c.pts} b` : "0 b"}</span>
           {why && <span className="block font-sans text-[11px] font-normal text-fg-3">{why}</span>}
         </span>
       </div>
       {!c.known ? (
         <p className="mt-2 text-[11px] text-fg-3">Kapacitu teprve poznáváme — {id === "intensity" ? "stačí pár běhů nebo jízd s tepem." : "stačí pár běhů."}</p>
       ) : wk && (
-        <>
-          <p className="mt-1.5 text-[12px] text-fg-2">
-            Týdenní kapacita <b className="text-fg">{num(wk.cap)} {c.unit}</b>
-            <span className="text-[11px] text-fg-3"> · strop {num(wk.ceiling)}{wk.ceiling < wk.cap ? " (snížený připraveností)" : " s rezervou"}</span>
+        // UX audit F11 — one sentence and one bar per channel; the numbers open under Detail
+        <div className="mt-2" data-testid={wk.absorbedMax != null ? "absorbed-row" : undefined}>
+          <p className="mb-1.5 text-[12.5px] text-fg-2" data-testid="channel-room">
+            {roomLeft > 0.005 ? <><span>Do týdenního stropu zbývá </span><b className="text-fg">{num(roomLeft)}</b>{" "}<span>{c.unit}</span></> : <b className="text-fg">Týdenní strop je naplněný</b>}
           </p>
-          <div className="mt-2">
-            <div className="mb-1 flex justify-between text-[11px] text-fg-3">
-              <span>posledních 7 dní <b className="text-fg">{num(wk.now)}</b> {c.unit}</span>
-              <span>{wk.left > 0 ? `do stropu zbývá ${num(wk.left)}` : "strop vyčerpán"}</span>
-            </div>
-            <HeadroomBar now={wk.now} ceiling={wk.ceiling} tone={wTone} target={target && target.budget < wk.ceiling - 0.05 ? target.budget : null} />
-          </div>
-          {/* feedback #181 — the week's target from Trénink, when it is lower than the ceiling */}
-          {target && target.budget < wk.ceiling - 0.05 && (
-            <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-fg-3" data-testid="cycle-target">
-              <i className="h-2.5 w-0.5 rounded-full" style={{ background: C.watch }} />
-              {`cíl týdne v cyklu ${num(target.budget)} ${c.unit} · od pondělí ${num(target.done)}`}
-            </p>
-          )}
-        </>
-      )}
-      {sub?.known && sub.week && (
-        // feedback #150 — strength load lives in the all-sport card, as its own sub-channel
-        <div className="mt-3 border-t border-white/[.07] pt-2.5" data-testid="strength-sub">
-          <div className="mb-1 flex justify-between gap-2 text-[11px] text-fg-3">
-            <span><b className="text-fg-soft">z toho posilování</b> · 7 dní <b className="text-fg">{num(sub.week.now)}</b> {sub.unit}</span>
-            <span>{sub.week.left > 0 ? `do stropu ${num(sub.week.left)}` : "strop vyčerpán"}{sub.pts ? ` · ${scale != null ? fmtImpact(toImpact(sub.pts, scale)) : `+${sub.pts} b`}` : ""}</span>
-          </div>
-          <HeadroomBar now={sub.week.now} ceiling={sub.week.ceiling} tone={toneOf(sub.week.ratio, margins.week)} />
+          {wk.absorbedMax != null
+            ? <HeadroomBar now={wk.absorbed} ceiling={wk.absorbedMax} tone={wTone} />
+            : <HeadroomBar now={wk.now} ceiling={wk.ceiling} tone={wTone} target={target && target.budget < wk.ceiling - 0.05 ? target.budget : null} />}
         </div>
       )}
       {hasDetail && (
@@ -298,6 +278,32 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
       )}
       {open && hasDetail && (
         <div className="origin-top animate-[careReveal_.28s_ease-out] pt-2">
+          {c.known && wk && (
+            <div className="mb-3 grid gap-1 text-[12px] text-fg-2" data-testid="channel-numbers">
+              <p><span>Týdenní kapacita: </span><b className="text-fg">{num(wk.cap)}</b>{" "}<span>{c.unit}</span></p>
+              <p><span>Za posledních 7 dní: </span><b className="text-fg">{num(wk.now)}</b>{" "}<span>{c.unit}</span></p>
+              {wk.absorbedMax != null && <p><span>Z toho ještě nevstřebáno: </span><b className="text-fg">{num(wk.absorbed)}</b><span>{` z ${num(wk.absorbedMax)}`}</span>{" "}<span>{c.unit}</span></p>}
+              {/* feedback #181 — the week's target from Trénink, when it is lower than the ceiling;
+                  UX audit F13 — label and number in their own nodes (the translator matches whole nodes) */}
+              {target && target.budget < wk.ceiling - 0.05 && (
+                <p className="flex items-center gap-1.5" data-testid="cycle-target">
+                  <i className="h-2.5 w-0.5 rounded-full" style={{ background: C.watch }} />
+                  <span>Cíl týdne v cyklu: </span><b className="text-fg">{num(target.budget)}</b>{" "}<span>{c.unit}</span>
+                  <span className="text-fg-3">·</span><span>od pondělí </span><b className="text-fg">{num(target.done)}</b>
+                </p>
+              )}
+            </div>
+          )}
+          {sub?.known && sub.week && (
+            // feedback #150 — strength load lives in the all-sport card, as its own sub-channel
+            <div className="mb-3 border-t border-white/[.07] pt-2.5" data-testid="strength-sub">
+              <div className="mb-1 flex justify-between gap-2 text-[11px] text-fg-3">
+                <span><b className="text-fg-soft">z toho posilování</b> · nevstřebáno <b className="text-fg">{num(sub.week.absorbed ?? sub.week.now)}</b> {sub.unit}</span>
+                <span>{(sub.week.absorbedLeft ?? sub.week.left) > 0 ? `do stropu ${num(sub.week.absorbedLeft ?? sub.week.left)}` : "strop naplněný"}{sub.pts ? ` · ${scale != null ? fmtImpact(toImpact(sub.pts, scale)) : `+${sub.pts} b`}` : ""}</span>
+              </div>
+              <HeadroomBar now={sub.week.absorbed ?? sub.week.now} ceiling={sub.week.absorbedMax ?? sub.week.ceiling} tone={toneOf(sub.week.ratio, margins.week)} />
+            </div>
+          )}
           {c.known && id !== "systemic" && (ses || wk?.residual != null) && (
             <div className="grid gap-2.5 sm:grid-cols-2" data-testid="channel-gauges">
               {ses && <SessionTile id={id} ses={ses} unit={c.unit} margin={margins.session} tone={sTone} />}
@@ -355,7 +361,7 @@ function ActivityWaterfall({ c, target, id }: { c: any; target?: number | null; 
         )}
       </div>
       <Waterfall steps={steps} hi={Math.max(tot, wk?.ceiling || 0, target || 0) * 1.04} testid={id === "systemic" ? "systemic-waterfall" : `waterfall-${id}`} />
-      {id === "systemic" && <p className="mt-2 text-[11px] text-fg-3">j.z. = tep × čas, u posilování a plavání náročnost × minuty</p>}
+      {id === "systemic" && <p className="mt-2 text-[11px] text-fg-3">Body zátěže = tep × čas, u posilování a plavání náročnost × minuty.</p>}
     </div>
   )
 }
@@ -521,7 +527,7 @@ function RelativeEffort({ re }: { re: any }) {
                     <b className="shrink-0 whitespace-nowrap text-[11px]" style={{ color: bc }}>{bl}</b>
                   </div>
                   <div className="mt-1.5 flex items-center gap-2">
-                    <span className="w-12 shrink-0 whitespace-nowrap text-right tabular-nums text-[10.5px] text-fg-3">{r.effort} j.z.</span>
+                    <span className="w-12 shrink-0 whitespace-nowrap text-right tabular-nums text-[10.5px] text-fg-3" title="body zátěže (tep × čas)">{r.effort}</span>
                     <span className="flex-1"><EffortScale pos={effortPos(r)} col={bc} /></span>
                   </div>
                   {r.hrDelta != null && Math.abs(r.hrDelta) >= 5 && (
@@ -536,7 +542,7 @@ function RelativeEffort({ re }: { re: any }) {
       {wk && (
         <div className="mt-2 border-t border-white/[.07] pt-2">
           <div className="flex items-baseline justify-between gap-2 text-[11px] text-fg-2">
-            <span>Týden: <b className="text-fg">{wk.now} j.z.</b> · obvykle {wk.lo}–{wk.hi}</span>
+            <span>Týden: <b className="text-fg">{wk.now} bodů zátěže</b> · obvykle {wk.lo}–{wk.hi}</span>
             <b style={{ color: (EFFORT_BAND[wk.band] || [])[1] }}>{(EFFORT_BAND[wk.band] || [wk.band])[0]}</b>
           </div>
           <div className="mt-1.5"><EffortScale pos={wkPos} col={(EFFORT_BAND[wk.band] || [])[1] || C.fg3} /></div>
@@ -673,7 +679,7 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <span className="flex items-center gap-1.5"><Label>Týdenní kapacita</Label><InfoDot wide label="Kapacita" text={<>
-            <span className="block">Posledních 7 dní proti tomu, co za týden prokazatelně zvládáte bez obtíží. Bílá čárka = strop (kapacita + 15 % rezerva, podle připravenosti v týdnu). Kolik z toho je v plánu na tento týden a na dnešek, ukazuje Trénink.</span>
+            <span className="block">Nevstřebaná zátěž z posledních dní proti tomu, co za týden prokazatelně zvládáte bez obtíží. Starší dny se počítají jen zčásti, podle toho, kolik z nich tělo už vstřebalo: běh před 6 dny zhruba ze 30 %, takže z výpočtu nezmizí naráz. Bílá čárka = strop (kapacita s 15% rezervou podle připravenosti v týdnu), tam začíná ubírat hodnocení zátěže. Cíl týdne od pondělí a dnešek ukazuje Trénink.</span>
             <span className="mt-2 block">{MI.capacity}</span>
           </>} /></span>
         </div>
@@ -700,16 +706,16 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
   )
 }
 
-// Feedback railway#83 — Dnes: today's room against the 7-day room, per run channel.
-// One bar per channel on the 7-day scale: what the last 7 days used (solid), what
-// today may still add (lime, = the Trénink "dnes max"), what is left of the 7-day
-// ceiling after that (faint), and the ceiling itself (white tick).
+// Feedback railway#83 — Dnes: today's room against the weekly ceiling, per run channel.
+// One bar per channel: the load still unabsorbed from the last days (solid; owner request
+// 2026-10-06, older days count only partly), what today may still add (lime, = the
+// Trénink "dnes max"), what is left of the ceiling after that (faint), the ceiling (tick).
 export function CapacityMini({ cap, week, className = "mt-4 border-t border-white/10 pt-4" }: { cap: any; week?: any; className?: string }) {
   if (!cap?.channels) return null
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><p className="t-label !text-fg-3">Kapacita · dnes vs. 7 dní</p><InfoDot text={MI.capacity} label="Kapacita" /></span>
+        <span className="flex items-center gap-1.5"><p className="t-label !text-fg-3">Kapacita · dnes vs. nevstřebaná zátěž</p><InfoDot text={MI.capacity} label="Kapacita" /></span>
         <span className="text-[11px] font-bold" style={{ color: readinessCol(readinessPct(cap.readiness)) }}>připravenost {readinessPct(cap.readiness)} %</span>
       </div>
       <div className="mt-3 grid gap-3.5 sm:grid-cols-2">
@@ -718,8 +724,9 @@ export function CapacityMini({ cap, week, className = "mt-4 border-t border-whit
           if (!c) return null
           const g = week?.[id]
           const wk = c.week
-          const done = g?.done7 ?? wk?.now ?? null
-          const ceil = g?.ceiling7 ?? wk?.ceiling ?? null
+          const ab = (g?.absorbedMax ?? wk?.absorbedMax) != null
+          const done = ab ? (g?.absorbed ?? wk?.absorbed) : (g?.done7 ?? wk?.now ?? null)
+          const ceil = ab ? (g?.absorbedMax ?? wk?.absorbedMax) : (g?.ceiling7 ?? wk?.ceiling ?? null)
           const today = g?.todayMax ?? null
           if (done == null || ceil == null || ceil <= 0) {
             return (
@@ -748,18 +755,22 @@ export function CapacityMini({ cap, week, className = "mt-4 border-t border-whit
                 <i className="block h-full" style={{ width: W(Math.min(done, scale)), background: over ? TONE.alert : col, opacity: 0.9 }} />
                 {today != null && today > 0 && <i className="block h-full" style={{ width: W(today), background: C.accent, backgroundImage: "repeating-linear-gradient(135deg, rgb(0 0 0 / .18) 0 3px, transparent 3px 6px)" }} />}
                 {rest > 0 && <i className="block h-full bg-white/[.14]" style={{ width: W(rest) }} />}
-                <i className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `calc(${(ceil / scale) * 100}% - 1px)` }} title="strop 7 dní" />
+                <i className="absolute inset-y-0 w-0.5 bg-fg" style={{ left: `calc(${(ceil / scale) * 100}% - 1px)` }} title="strop týdenní kapacity" />
               </div>
-              <p className="mt-1 tabular-nums text-[11px] text-fg-3">7 dní {num(done)} / strop {num(ceil)} {c.unit}{g?.left7 != null ? ` · zbývá ${num(g.left7)}` : ""}</p>
+              <p className="mt-1 tabular-nums text-[11px] text-fg-3">
+                <span>{ab ? `nevstřebáno ${num(done)} / strop ${num(ceil)}` : `7 dní ${num(done)} / strop ${num(ceil)}`}</span>{" "}<span>{c.unit}</span>
+                {g?.left7 != null && <span>{` · zbývá ${num(g.left7)}`}</span>}
+                {ab && (g?.done7 ?? wk?.now) != null && <span>{` · za 7 dní ${num(g?.done7 ?? wk?.now)}`}</span>}
+              </p>
             </div>
           )
         })}
       </div>
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-fg-3">
-        <span className="flex items-center gap-1.5"><i className="h-2 w-3 rounded-sm" style={{ background: TONE.ok }} />posledních 7 dní</span>
+        <span className="flex items-center gap-1.5"><i className="h-2 w-3 rounded-sm" style={{ background: TONE.ok }} />nevstřebáno z posledních dní</span>
         <span className="flex items-center gap-1.5"><i className="h-2 w-3 rounded-sm" style={{ background: C.accent }} />dnes k dispozici</span>
         <span className="flex items-center gap-1.5"><i className="h-2 w-3 rounded-sm bg-white/[.14]" />zbytek do stropu</span>
-        <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 bg-fg" />strop 7 dní</span>
+        <span className="flex items-center gap-1.5"><i className="h-3 w-0.5 bg-fg" />strop týdenní kapacity</span>
       </div>
     </div>
   )

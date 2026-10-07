@@ -1,5 +1,6 @@
 """railway#116 — programs the runner starts on their own (ready-made ones for common
 running problems, recommended by the pain they marked, or an own pick of exercises)."""
+import logging
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,6 +14,7 @@ from ..db import get_db
 from ..deps import ensure_runner_read_access, ensure_runner_self, get_current_user, or_404, verify_csrf
 from ..metrics import engine as E
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/runners", tags=["self-programs"])
 MARK_DAYS = 28
 
@@ -28,6 +30,8 @@ class FinishRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
     feel: str
     session: str | None = None
+    easier: bool = False                     # the next session the lighter version
+    sets: dict[str, int] | None = None       # sets ticked per exercise (an exercise not logged as done)
 
 
 class LogRequest(BaseModel):
@@ -81,10 +85,12 @@ def _durability(db, rid, p: models.SelfProgram, today: date) -> dict:
     ses = pick["session"]
     deload = DU.is_deload(week, a)
     level = (st.get("levels") or {}).get(ses, 0)
+    # owner request 2026-10-06: the lighter version the runner asked for after the last session
+    light = bool(done_today.get("light")) if done_today else bool(st.get("easier"))
     if done_today:
         level = done_today.get("level", level)
     scale, cap = DU.capacity_scale(a, week, level, deload)
-    plan = DU.session_plan(ses, week, level, deload, scale)
+    plan = DU.session_plan(ses, week, level, deload or light, scale)
     other = "B" if ses == "A" else "A"
     ws = _week_start(today).isoformat()
     return {
@@ -96,6 +102,10 @@ def _durability(db, rid, p: models.SelfProgram, today: date) -> dict:
         "plan": plan, "estMin": DU.estimate_min(ses, plan), "capacity": cap, "scaled": scale < 1.0,
         "weekDone": sum(1 for h in hist if h["date"] >= ws), "perWeek": DU.PER_WEEK,
         "history": hist[-12:], "note": st.get("note") if done_today else None, "doneToday": bool(done_today),
+        "noteNext": st.get("noteNext") if done_today else None,
+        "light": light, "easierNext": bool(st.get("easier")) and bool(done_today),
+        "partialToday": bool(done_today and done_today.get("partial")),
+        "completionToday": done_today.get("completion") if done_today else None,
         "otherSession": {"session": other, "label": DU.SESSIONS[other]["label"],
                          "plan": DU.session_plan(other, week, (st.get("levels") or {}).get(other, 0), deload, scale)},
     }
@@ -152,6 +162,15 @@ def _out(p: models.SelfProgram, db=None) -> dict:
 @router.get("/{rid}/self-programs")
 def get_self_programs(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_read_access(db, user, rid)
+    # feedback #204 — sessions saved as activities of their own before are tidied up here too;
+    # a failure there never keeps the programmes from loading
+    try:
+        if DU.link_sessions(db, rid):
+            db.commit()
+            E.recompute_assessment(db, rid)
+    except Exception:
+        db.rollback()
+        log.exception("linking programme sessions failed for %s", rid)
     # feedback #186 — several programmes can run at once; the newest first
     actives = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid,
                                                    models.SelfProgram.active.is_(True)).order_by(models.SelfProgram.id.desc()).all()
@@ -199,7 +218,14 @@ def log_self_program(rid: str, pid: int, body: LogRequest, user: models.User = D
     p = or_404(db.query(models.SelfProgram).filter(models.SelfProgram.id == pid, models.SelfProgram.runner_id == rid).first(),
                "Program nenalezen")
     if body.exercise not in (p.exercises or []):
-        raise HTTPException(status_code=422, detail="Cvik v programu není")
+        # owner report 2026-10-06: a programme started before an exercise joined its
+        # template (pelvic_drop in session B) couldn't log it, so the session never ended
+        tpl = PL.PROGRAM_BY_KEY.get(p.template or "")
+        known = ({x[0] for s in DU.SESSIONS.values() for x in s["plan"]} if p.template == "durability"
+                 else set(tpl["exercises"]) if tpl else set())
+        if body.exercise not in known:
+            raise HTTPException(status_code=422, detail="Cvik v programu není")
+        p.exercises = list(p.exercises or []) + [body.exercise]
     day = E.today_date().isoformat()
     log = dict(p.log or {})
     ids = [x for x in (log.get(day) or []) if x != body.exercise]
@@ -228,52 +254,62 @@ def finish_durability_session(rid: str, pid: int, body: FinishRequest, user: mod
     t_iso = today.isoformat()
     st = dict(p.state or {})
     hist = list(st.get("history") or [])
+    prev_aid = None
     if hist and hist[-1]["date"] == t_iso:      # re-rating today's session: undo its progression first
         last = hist.pop()
+        prev_aid = last.get("activityId")
         st = {**st, **(last.get("before") or {}), "history": hist}
         ses = last["session"]
     else:
         dur = _durability(db, rid, p, today)
         ses = body.session if body.session in DU.SESSIONS else dur["session"]
     week = DU.week_of(p.started_on, today)
-    before = {"levels": dict(st.get("levels") or {"A": 0, "B": 0}), "steps": dict(st.get("steps") or {"A": 0, "B": 0})}
+    before = {"levels": dict(st.get("levels") or {"A": 0, "B": 0}), "steps": dict(st.get("steps") or {"A": 0, "B": 0}),
+              "easier": bool(st.get("easier"))}
     level = before["levels"].get(ses, 0)
-    st = DU.progress(st, ses, body.feel, week)
-    st["history"][-1]["before"] = before
-    # the load: the dose the runner did today, its length and how hard it felt
+    light = before["easier"]
     try:
         a = E.get_or_refresh_assessment(db, rid)
     except Exception:
         a = None
     deload = DU.is_deload(week, a)
     scale, _cap = DU.capacity_scale(a, week, level, deload)
-    minutes = DU.estimate_min(ses, DU.session_plan(ses, week, level, deload, scale))
-    rpe = DU.FEEL[body.feel]
-    twin = E.find_twin(db, rid, "strength", t_iso, minutes)
-    if twin is None:
-        twin = db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.sport == "strength",
-                                                models.Activity.provider == "manual",
-                                                models.Activity.started_at >= t_iso).first()
-    if twin is None:
-        twin = models.Activity(runner_id=rid, provider="manual", started_at=t_iso, sport="strength",
-                               title=f"Posilování · {DU.SESSIONS[ses]['label']}", duration_min=float(minutes))
-        db.add(twin)
-        db.flush()
-    twin.strength_focus = twin.strength_focus or DU.SESSIONS[ses]["focus"]
-    twin.strength_type = DU.SESSIONS[ses]["type"]
-    fb = db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == twin.id).first()
-    if fb is None:
-        fb = models.ActivityFeedback(activity_id=twin.id, runner_id=rid, submitted_at=t_iso, pain_points=[])
-        db.add(fb)
-    fb.rpe = rpe
-    fb.note = f"Runner's must-have {ses}: {DU.FEEL_CS[body.feel]}"
-    if body.feel == "pain":
-        fb.niggle = True
-    st["history"][-1]["activityId"] = twin.id
+    plan = DU.session_plan(ses, week, level, deload or light, scale)
+    # owner request 2026-10-06: how much of it was done — a logged exercise is whole, the
+    # others count the sets ticked on the phone
+    logged = set((p.log or {}).get(t_iso) or [])
+    ticks = body.sets or {}
+    total = sum(x["sets"] for x in plan) or 1
+    done = sum(x["sets"] if x["id"] in logged else min(x["sets"], max(0, int(ticks.get(x["id"]) or 0))) for x in plan)
+    completion = done / total
+    if done == 0:
+        raise HTTPException(status_code=422, detail="Zatím není odcvičená žádná série")
+    partial = completion < 1.0
+    st = DU.progress(st, ses, body.feel, week, partial=partial, completion=completion, easier=body.easier, light=light)
+    st["history"][-1]["before"] = before
+    # the load: the part of the dose the runner did today, its length and how hard it felt
+    minutes = max(5, round(DU.estimate_min(ses, plan) * completion))
+    # feedback #204 — no activity of the app's own (it doubled the watch's recording): the
+    # rating waits in the history and goes onto today's strength workout from the watch,
+    # now if it has synced already, otherwise with the sync that brings it
+    rate = {"rpe": DU.FEEL[body.feel], "minutes": minutes, "focus": DU.SESSIONS[ses]["focus"], "type": DU.SESSIONS[ses]["type"],
+            "note": f"Runner's must-have {ses}: {DU.FEEL_CS[body.feel]}" + (f", hotovo {round(completion * 100)} % sérií" if partial else ""),
+            "niggle": body.feel == "pain"}
+    st["history"][-1]["rate"] = rate
+    prev = db.query(models.Activity).filter(models.Activity.id == prev_aid).first() if prev_aid else None
+    if prev is not None and prev.provider != "manual":      # re-rated: the same watch recording takes the new rating
+        DU.rate_activity(db, rid, prev, rate)
+        st["history"][-1]["activityId"] = prev.id
+    elif prev is not None and (prev.title or "").startswith(DU.PROGRAM_TITLE):
+        E.delete_activity(db, prev)
     p.state = st
+    db.flush()
+    DU.link_sessions(db, rid)
     db.commit()
     E.recompute_assessment(db, rid)
-    return _out(p, db)
+    out = _out(p, db)
+    out["sessionLinked"] = bool(((p.state or {}).get("history") or [{}])[-1].get("activityId"))
+    return out
 
 
 @router.delete("/{rid}/self-programs/{pid}", dependencies=[Depends(verify_csrf)])

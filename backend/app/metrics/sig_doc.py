@@ -25,7 +25,7 @@ SIG_DOC = {
                "faktorem zranění dolní končetiny. Rostoucí VR ve srovnatelných podmínkách proto naznačuje "
                "ztrátu elastického odrazu dřív, než to začne bolet.",
         "limit": "Řetězec VO → zatížení → zranění je odvozený, ne prokázaný prospektivně. Hodnoty se navíc liší "
-                 "mezi zařízeními, takže při výměně hodinek je nutné baseline resetovat.",
+                 "mezi zařízeními, takže při výměně hodinek je nutné postavit normu znovu.",
         "clear": "Signál zmizí, když se VR ve stejných podmínkách vrátí do pásma ±1 SD po dobu tří tréninků.",
     },
     "gct": {
@@ -36,7 +36,7 @@ SIG_DOC = {
                "kadenci naznačuje, že se únava mezi tréninky nestíhá odbourávat.",
         "limit": "Citlivé na obuv. Přechod do vyšší tlumené boty GCT prodlouží bez jakékoli patologie — je "
                  "potřeba se zeptat, ne jen měřit.",
-        "clear": "Dva až tři regenerační týdny obvykle vrátí GCT k baseline. Pokud ne, jde spíš o změnu techniky "
+        "clear": "Dva až tři regenerační týdny obvykle vrátí GCT k vaší normě. Pokud ne, jde spíš o změnu techniky "
                  "nebo obuvi.",
     },
     "bal": {
@@ -106,7 +106,7 @@ SIG_DOC = {
                "v patologii pohybu zavedený marker.",
         "limit": "Stupeň C. Je to variabilita mezi běhy z průměrů na běh, ne stride-to-stride CV z laboratoře "
                  "(per-krok streamy summary API nedává). Citlivé na pestrost terénu i počet běhů.",
-        "clear": "Rozptyl se vrátí k baseline po pár konzistentních bězích ve srovnatelných podmínkách.",
+        "clear": "Rozptyl se vrátí k vaší normě po pár konzistentních bězích ve srovnatelných podmínkách.",
     },
     "sleepeff": {
         "t": "Nízká efektivita spánku", "g": "C",
@@ -114,7 +114,7 @@ SIG_DOC = {
         "why": "Roztříštěný spánek (nízká efektivita, WASO) je spojen s vyšším rizikem svalově-kosterních zranění "
                "nad rámec pouhého počtu naspaných hodin — kohorty u dospívajících i elitních sportovců.",
         "limit": "Stupeň C, závisí na kvalitě odhadu spánku z náramku. Práh 85 % je konvence; ideální je sledovat "
-                 "i vlastní baseline. Importuje se jen z novějších Garminů/Apple, u starších dat chybí.",
+                 "i vlastní normu. Importuje se jen z novějších Garminů/Apple, u starších dat chybí.",
         "clear": "Nad ~85 % po několika nocích klidnějšího spánku.",
     },
     "session_spike": {
@@ -157,7 +157,7 @@ SIG_DOC = {
                "(Bertelsen 2017). Stejný skok na unaveném těle přesáhne momentální kapacitu dřív než na "
                "odpočatém — proto se skóruje interakce, ne jen obě veličiny zvlášť.",
         "limit": "Kapacitu tkáně nelze měřit přímo; deficit je jen nepřímý proxy z regeneračních markerů.",
-        "clear": "Zmizí, když se HRV/tep/spánek vrátí k baseline nebo skok odezní.",
+        "clear": "Zmizí, když se HRV/tep/spánek vrátí k vaší normě nebo skok odezní.",
     },
     "complaints": {
         "t": "Opakované obtíže (napříč místy)", "g": "B",
@@ -218,7 +218,7 @@ SIG_DOC = {
                "mechanická zátěž.",
         "limit": "Nerozlišuje strmost — proto doplňkový signál desc_steep, který sklon už rozlišuje. 900 m "
                  "rozložených do dlouhého mírného sjezdu není totéž co 900 m technického srázu.",
-        "clear": "Týden bez sbíhání nad baseline.",
+        "clear": "Týden bez sbíhání nad vaší normou.",
     },
     "desc_steep": {
         "t": "Nárůst strmého klesání (≥10 % sklon)", "g": "C",
@@ -232,7 +232,7 @@ SIG_DOC = {
         "limit": "Stupeň C — mechanistická úvaha, ne prospektivně validovaný práh. U reálných dat závisí na "
                  "hustotě GPS/výškových záznamů v exportu; u demo dat je profil syntetizovaný ze skutečného "
                  "celkového převýšení běhu, ne měřený.",
-        "clear": "Týden bez strmého klesání nad baseline.",
+        "clear": "Týden bez strmého klesání nad vaší normou.",
     },
     "aer": {
         "t": "Aerobní decoupling", "g": "B",
@@ -267,7 +267,7 @@ SIG_DOC = {
         "why": "Zvýšení klidového tepu proti vlastní normě obvykle předchází poklesu výkonu a doprovází "
                "nedoléčenou únavu nebo začínající infekt.",
         "limit": "Nespecifické. Rozlišit infekt od přetížení bez dalších dat nelze — proto se váže na check-in.",
-        "clear": "Návrat k baseline po dvou až třech dnech.",
+        "clear": "Návrat k vaší normě po dvou až třech dnech.",
     },
     "tsb": {
         "t": "Nepříznivá bilance zátěže (fitness–fatigue)", "g": "C",
@@ -316,7 +316,7 @@ SIG_DOC = {
         "why": "Spánek pod vlastní normou opakovaně snižuje toleranci zátěže a zhoršuje regeneraci měkkých "
                "tkání.",
         "limit": "Měření spánku z hodinek je nepřesné, zvlášť u fází. Proto je hodnota ručně přepsatelná.",
-        "clear": "Týden na baseline.",
+        "clear": "Týden na vaší normě.",
     },
     "sleepreg": {
         "t": "Nepravidelná délka spánku", "g": "C",

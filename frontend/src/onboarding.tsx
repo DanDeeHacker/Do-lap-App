@@ -1,7 +1,7 @@
 // Getting started — the checklist a new runner sees first after registering
-// (connect data → take the tour), and the clickable tour itself: every tab of a demo
-// account, personalised with the runner's own name, with at most five highlighted
-// features per tab. Closing the checklist keeps it under the profile icon until both
+// (connect data → take the tour), and the clickable tour itself on a demo account
+// personalised with the runner's own name: six core steps, and a short tour of each
+// tab behind the compass in the top bar (UX audit F06). Closing the checklist keeps it under the profile icon until both
 // steps are done. v0.12.0: the profile is asked before it (profile.tsx ProfileGate),
 // of every account that misses a required item, so it can't be skipped.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
@@ -23,15 +23,17 @@ type ObCtx = {
   guest: boolean
   exitDemo: () => void
   restartTour: () => void
+  /** UX audit F06 — the short tour of one tab (on the demo runner) */
+  startTabTour: (route: string) => void
 }
-const Ctx = createContext<ObCtx>({ state: null, openCard: () => {}, pending: 0, guest: false, exitDemo: () => {}, restartTour: () => {} })
+const Ctx = createContext<ObCtx>({ state: null, openCard: () => {}, pending: 0, guest: false, exitDemo: () => {}, restartTour: () => {}, startTabTour: () => {} })
 export const useOnboarding = () => useContext(Ctx)
 
 export const EDIT_PROFILE_EVENT = "doslap:edit-profile"
 
 const STEP_UI: Record<Step["id"], { title: string; sub: string; icon: typeof PlugZap }> = {
   data: { title: "Připojit data", sub: "Garmin nebo Apple Health v Data a připojení", icon: PlugZap },
-  tutorial: { title: "Projít průvodce aplikací", sub: "ukázkový účet s vaším jménem, záložku po záložce", icon: Compass },
+  tutorial: { title: "Projít průvodce aplikací", sub: "šest krátkých kroků na ukázkovém účtu s vaším jménem", icon: Compass },
 }
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
@@ -41,6 +43,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ObState | null>(null)
   const [manual, setManual] = useState(false)
   const [tourOn, setTourOn] = useState(false)
+  // null = the core tour; a route = that tab's own tour
+  const [tabTour, setTabTour] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const nav = useNavigate()
   const { pathname } = useLocation()
@@ -69,9 +73,19 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       setBusy(true)
       const ok = await startTour()
       setBusy(false)
-      if (ok) { setManual(false); setTourOn(true); nav("/app/today") }
+      if (ok) { setManual(false); setTabTour(null); setTourOn(true); nav("/app/today") }
     }
   }
+  const startTabTour = useCallback(async (route: string) => {
+    if (!TAB_TOURS[route]) return
+    if (!guest) {
+      const ok = await startTour()
+      if (!ok) return
+    }
+    setManual(false)
+    setTabTour(route)
+    setTourOn(true)
+  }, [guest, startTour])
   // public demo: the tour starts on its own; leaving the demo returns to sign-up
   const guestStarted = useRef(false)
   useEffect(() => {
@@ -91,6 +105,13 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   }, [logout, nav])
   const finishTour = (done: boolean) => {
     setTourOn(false)
+    const tab = tabTour
+    setTabTour(null)
+    if (tab) {                                    // a tab's tour returns to that tab
+      if (!guest) endTour()
+      nav(tab)
+      return
+    }
     if (guest) { nav("/app/today"); return }       // the guest keeps browsing the demo
     endTour()
     nav("/app/today")
@@ -99,11 +120,11 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Ctx.Provider value={{ state, openCard: () => setManual(true), pending, guest, exitDemo, restartTour: () => setTourOn(true) }}>
+    <Ctx.Provider value={{ state, openCard: () => setManual(true), pending, guest, exitDemo, restartTour: () => { setTabTour(null); setTourOn(true) }, startTabTour }}>
       {children}
       {gate && state && <ProfileGate missing={state.profileMissing || []} onDone={load} />}
       {show && state && <GetStartedCard state={state} name={realMe?.name} busy={busy} onAct={act} onClose={close} />}
-      {tourOn && touring && <Tour name={guest ? null : realMe?.name} guest={guest} onFinish={finishTour} onExitDemo={exitDemo} />}
+      {tourOn && touring && <Tour key={tabTour || "core"} steps={tabTour ? TAB_TOURS[tabTour] : CORE_TOUR} tabTour={!!tabTour} name={guest ? null : realMe?.name} guest={guest} onFinish={finishTour} onExitDemo={exitDemo} />}
     </Ctx.Provider>
   )
 }
@@ -184,107 +205,103 @@ type TourStep = { route: string; tab: string; target?: Target; title: string; bo
 /** Péče keeps its sub-tab in local state; the tour asks it to switch with this event. */
 export const CARE_SUB_EVENT = "doslap:care-sub"
 
-const TABS: [string, string][] = [["/app/today", "Dnes"], ["/app/training", "Trénink"], ["/app/post", "Deník"], ["/app/mechanics", "Pohyb"], ["/app/load", "Zátěž"], ["/app/messages", "Péče"]]
-
-// At most five features per tab. `body` says what the feature shows and how to use
-// it, `value` why it is worth the runner's attention. No medical claims.
-export const TOUR: TourStep[] = [
-  { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-score"]' }, title: "Skóre a osy stavu",
-    body: "Velké číslo je celkové skóre dne od 0 do 100, čím vyšší, tím lépe. Klepnutím na něj (šipka u Skóre) otevřete vývoj stavu za 6 měsíců. Kolem něj jsou čtyři kruhy: připravenost, příznaky, zátěž a mechanika, klepnutím na kterýkoli otevřete jeho detail.",
-    value: "Za pár vteřin víte, jak na tom tělo dnes je, a hned vidíte, která oblast skóre táhne dolů." },
-  { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-reco"]' }, title: "Dnešní doporučení",
-    body: "Konkrétní typ tréninku na dnešek s rozsahem kilometrů. Vychází z vaší kapacity, ranní připravenosti a z toho, co jste odběhli v posledních dnech.",
-    value: "Nemusíte hádat, jestli dnes přidat, nebo ubrat. Doporučení se každé ráno přepočítá podle nových dat." },
-  { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-quadrant"]' }, title: "Kvadrant stavu",
-    body: "Zátěž a mechanika společně určí jeden ze čtyř stavů: stabilní, přetížení, tichý drift nebo kritická kombinace. Klepnutím zobrazíte vývoj stavu za posledních 6 měsíců.",
-    value: "Odliší obyčejnou únavu z objemu od změny techniky, kterou zatím necítíte. Každá z těch situací chce jinou reakci." },
-  { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-drivers"]' }, title: "Co ovlivňuje stav",
-    body: "Signály seřazené podle toho, o kolik procentních bodů snižují celkové Skóre, například klesání nad kapacitou nebo prodloužený kontakt se zemí. Po rozkliknutí uvidíte, které aktivity nebo záznamy k signálu přispívají.",
-    value: "Skóre není černá skříňka. Vidíte, co přesně ho tvoří, a víte, na co se zaměřit." },
+// UX audit F06 — the first tour is the six things a new runner needs (it used to be 31
+// steps over every tab, without the reports or the programmes); the rest of each tab
+// lives in a short tour behind the compass in the top bar. `body` says what the feature
+// shows and how to use it, `value` why it is worth the runner's attention. No medical claims.
+export const CORE_TOUR: TourStep[] = [
+  { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-score"]' }, title: "Skóre dne a čtyři oblasti",
+    body: "Velké číslo je skóre dne od 0 do 100, čím vyšší, tím lépe. Kolem něj jsou čtyři oblasti: připravenost po noci, příznaky z check-inu, zátěž a technika běhu. Klepnutím na kruh otevřete detail, klepnutím na skóre jeho vývoj za 6 měsíců.",
+    value: "Za pár vteřin víte, jak na tom tělo dnes je a co skóre táhne dolů." },
+  { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-reco"]' }, title: "Co dnes běžet",
+    body: "Doporučení na dnešek. Tlačítko Trénink otevře podrobnosti: kolik kilometrů, jaký tep a tempo, kolik stoupání a klesání a co dalšího se dnes hodí.",
+    value: "Nemusíte hádat, jestli přidat, nebo ubrat. Doporučení se každé ráno přepočítá podle noci a posledních dnů." },
   { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="checkin"]' }, title: "Denní check-in",
     body: "Tlačítko Check-in otevře krátký dotazník na bolest, ztuhlost a únavu. Bolest označíte přímo na mapě těla a celé to zabere pár vteřin.",
     value: "Hodinky vaši bolest neznají. Check-in doplní to nejdůležitější a zpřesní hodnocení i doporučení." },
-
-  { route: "/app/training", tab: "Trénink", target: { sel: '[data-tour="training-session"]' }, title: "Dnešní trénink",
-    body: "Doporučený typ dne s konkrétními mantinely: vzdálenost, čas, tepové pásmo, tempo, minuty v Z4+ a maximum stoupání i klesání. Dlaždicemi přepnete na jiný typ a limity se přepočítají.",
-    value: "Víte nejen, co běžet, ale i kde je dnes strop. Tempo a tep jsou spočítané z vašich vlastních běhů." },
-  { route: "/app/training", tab: "Trénink", target: { text: "Připravenost — trend" }, title: "Připravenost",
-    body: "Připravenost po dnech. Pod grafem otevřete spánek, HRV a klidový tep z hodinek, vždy proti vaší vlastní normě.",
-    value: "Po špatné noci unesete méně. Došlap podle toho ráno sníží dnešní stropy." },
-  { route: "/app/training", tab: "Trénink", target: { text: "Dnešní kapacita" }, title: "Dnešní kapacita",
-    body: "Pět kanálů zátěže: objem, intenzita, klesání, stoupání a celková zátěž. U každého vidíte, kolik z týdenní kapacity máte za sebou a kolik si dnes ještě můžete dovolit.",
-    value: "Kapacita roste s tím, co prokazatelně zvládáte, a hlídá prudké skoky, které tělo nestihne vstřebat." },
-  { route: "/app/training", tab: "Trénink", target: { text: "Cyklus · tento týden" }, title: "Týdenní cyklus",
-    body: "Trénink běží ve čtyřtýdenních cyklech, tři týdny budovací a jeden odlehčovací. Sloupce ukazují objem posledních týdnů a cíl toho aktuálního, pozici v cyklu si můžete upravit.",
-    value: "Postupné zvyšování s pravidelným odlehčením je osvědčený tréninkový princip. Došlap ho drží za vás." },
-  { route: "/app/training", tab: "Trénink", target: { text: "Závody" }, title: "Závody",
-    body: "Kalendář závodů s prioritou A, B nebo C. V ukázce je kontrolní půlmaraton a cílový maraton.",
-    value: "Před závodem s prioritou A se trénink sám zklidní, abyste na start přišli odpočatí." },
-  { route: "/app/training", tab: "Trénink", target: { sel: '[data-tour="training-cross"]' }, title: "Jiný sport",
-    body: "Kolo, plavání a posilování, každý s délkou a tepovým pásmem nebo cílovou náročností. Když je běžecký objem vyčerpaný, doporučí kolo. Tréninky bez hodinek zapíšete v Deníku.",
-    value: "Aerobní trénink pokračuje i ve dnech, kdy nohy potřebují pauzu od nárazů, a posilování, které zlepšuje běžeckou ekonomiku, má v týdnu své místo." },
-
-  { route: "/app/post", tab: "Deník", target: { text: "Čeká na zápis" }, title: "Běhy k ohodnocení",
-    body: "Nové běhy z hodinek čekají na krátký zápis: jak se běželo, jak se cítily nohy a jestli něco bolelo. Zápis zabere asi dvacet vteřin.",
-    value: "Váš vlastní pocit z běhu je jeden z nejcitlivějších signálů únavy. Tyto zápisy engine váží nejvíc." },
-  { route: "/app/post", tab: "Deník", target: { text: "Poslední zápisy" }, title: "Poslední zápisy",
-    body: "Pod běhy k zápisu otevřete přehled ohodnocených běhů s vaším pocitem a poznámkou. Klepnutím zápis upravíte, ikonou vpravo otevřete detail běhu s terénem, počasím a úseky.",
-    value: "Když se něco změní, snadno dohledáte, kdy to začalo a na jakém běhu." },
-  { route: "/app/post", tab: "Deník", target: { sel: '[data-tour="journal-summary"]' }, title: "Souhrn deníku",
-    body: "Průměrný pocit z běhů a jeho trend, počet zápisů za 21 dní, kolikrát něco bolelo a nejvyšší nahlášená bolest.",
-    value: "Zhoršující se pocit z běhů se často objeví dřív než změna v datech z hodinek. Tady ho uvidíte přehledně na jednom místě." },
-  { route: "/app/post", tab: "Deník", target: { sel: '[data-tour="journal-sites"]' }, title: "Kde to nejčastěji bolí",
-    body: "Mapa těla a žebříček míst, která jste v posledních 30 dnech označili. V ukázce je to ztuhlá pravá Achillova šlacha po dlouhém běhu.",
-    value: "Místo, které se ozývá opakovaně, stojí za pozornost dřív, než začne omezovat trénink." },
-  { route: "/app/post", tab: "Deník", target: { text: "Check-iny (denní a týdenní)" }, title: "Historie check-inů",
-    body: "Pod souhrnem check-inů otevřete všechny denní check-iny a týdenní dotazníky, s bolestí, ztuhlostí a únavou.",
-    value: "Vývoj za několik týdnů ukáže trend, který z jednoho dne nepoznáte. Fyzioterapeut v něm uvidí souvislosti." },
-
-  { route: "/app/mechanics", tab: "Pohyb", target: { text: "Signál pohybu" }, title: "Stav mechaniky",
-    body: "Souhrnný signál vaší běžecké techniky. Porovnává se vždy se srovnatelnými běhy ve stejném tempu a terénu, nikdy s průměrem ostatních.",
-    value: "Změna techniky bývá časným znakem únavy, často dřív, než ji vůbec ucítíte." },
-  { route: "/app/mechanics", tab: "Pohyb", target: { text: "Mechanická stabilita — trend" }, title: "Trend mechaniky",
-    body: "Skóre driftu po dnech za posledních 6 měsíců. Hodnoty nad prahem 25 znamenají, že se technika drží mimo vaši normu.",
-    value: "Rozlišíte jednorázový výkyv po náročném běhu od plíživého trendu." },
-  { route: "/app/mechanics", tab: "Pohyb", target: { sel: "[data-norm]", box: ".overflow-hidden" }, title: "Jednotlivé metriky",
-    body: "Vertikální poměr, kontakt se zemí, kadence, vyváženost a další. Každá metrika má štítek v normě, na hraně nebo mimo normu a klepnutím otevřete její trend.",
-    value: "Víte přesně, která část kroku se mění, a právě s tím může pracovat fyzioterapeut." },
-  { route: "/app/mechanics", tab: "Pohyb", target: { text: "Podle profilu terénu", box: "div" }, title: "Podle terénu",
-    body: "Srovnání metrik na rovině, do kopce, z kopce a v různém tempu.",
-    value: "V kopci běžíte jinak než na rovině. Porovnání ve stejných podmínkách odfiltruje falešné poplachy." },
-  { route: "/app/mechanics", tab: "Pohyb", target: { text: "Historie běhů" }, title: "Historie běhů",
-    body: "Všechny běhy s metrikami techniky. Každý lze otevřít, porovnat s během před měsícem nebo vyřadit z výpočtů, třeba když hodinky změřily nesmysl.",
-    value: "Máte pod kontrolou, z jakých běhů se vaše norma počítá." },
-
-  { route: "/app/load", tab: "Zátěž", target: { text: "Signál zátěže" }, title: "Stav zátěže",
-    body: "Jestli trénink v posledních dnech nepřekračuje to, co jste v předchozích týdnech prokazatelně zvládli.",
-    value: "Prudký nárůst objemu je podle výzkumu spojený s častějšími běžeckými obtížemi (Nielsen et al., 2014). Tady ho uvidíte hned." },
-  { route: "/app/load", tab: "Zátěž", target: { text: "Skóre zátěže — trend" }, title: "Trend zátěže",
-    body: "Skóre zátěže po dnech za posledních 6 měsíců. Nad prahem 25 je zátěž zvýšená.",
-    value: "Uvidíte, jak rychle se po náročných týdnech vracíte do normy." },
-  { route: "/app/load", tab: "Zátěž", target: { text: "Týdenní kapacita" }, title: "Kapacita po kanálech",
-    body: "Týdenní součet objemu, intenzity, klesání, stoupání a celkové zátěže proti vaší kapacitě, u posilování i silová zátěž. V ukázce je vidět klesání navýšené prudkým trailovým během.",
-    value: "Tělo nezatěžují jen kilometry. Seběh z kopce působí jinak než rovina, a proto se počítá zvlášť." },
-  { route: "/app/load", tab: "Zátěž", target: { text: "Co tvoří skóre zátěže" }, title: "Co tvoří zátěž",
-    body: "Kanály seřazené podle toho, kolik přidávají k dnešnímu skóre zátěže.",
-    value: "Hned víte, čím ubrat, jestli objemem, intenzitou, nebo seběhy." },
-
-  { route: "/app/messages", tab: "Péče", care: "physio", target: { sel: '[data-tour="care-tabs"]' }, title: "Tři části péče",
-    body: "Program s cviky na míru, Fyzioterapeut pro zprávy a schůzky a Zranění pro nahlášení obtíží a závěry z prohlídek.",
-    value: "Všechno kolem péče o tělo je na jednom místě a navazuje na vaše data." },
-  { route: "/app/messages", tab: "Péče", care: "physio", target: { sel: '[data-tour="care-chat"]' }, title: "Zprávy fyzioterapeutovi",
-    body: "Chat s fyzioterapeutem přímo v aplikaci. V ukázce fyzioterapeut podle dat upravil program ještě před další kontrolou. Vaše data uvidí až poté, co potvrdíte zájem a on převezme váš případ.",
-    value: "Nemusíte čekat měsíc na další termín. Plán se upraví hned, když se něco změní." },
-  { route: "/app/messages", tab: "Péče", care: "physio", target: { text: "Schůzka" }, title: "Schůzka",
-    body: "Nadcházející termín i s informacemi, co si vzít s sebou. Nové vyšetření, analýzu běhu nebo videokonzultaci domluvíte tady.",
-    value: "Žádné telefonování ani e-maily. Fyzioterapeut má kontext ještě před schůzkou." },
-  { route: "/app/messages", tab: "Péče", care: "program", target: { text: "Cviky" }, title: "Program cviků",
-    body: "Cviky od fyzioterapeuta s dávkováním a pokyny. Po cvičení je odškrtnete a vidíte, kolik máte splněno i jak se program upravoval.",
-    value: "Vidíte svůj progres a fyzioterapeut ví, jestli program funguje, aniž by se musel ptát." },
-  { route: "/app/messages", tab: "Péče", care: "health", target: { text: "Závěr z prohlídky" }, title: "Závěr z prohlídky",
-    body: "Souhrn poslední prohlídky, který fyzioterapeut zkontroloval a schválil, s nálezem a doporučením.",
-    value: "Doporučení se neztratí na papírku a můžete se k nim kdykoli vrátit." },
+  { route: "/app/today", tab: "Dnes", title: "Ranní a večerní report",
+    body: "Ráno, jakmile se stáhne noc z hodinek, a večer po 20. hodině se sám otevře krátký report: jak jste spali, co vás dnes čeká a co ovlivní zítřek. Znovu ho otevřete ikonou slunce nebo měsíce vedle stavu na Dnes.",
+    value: "Nejrychlejší cesta, jak se v datech vyznat: jedna myšlenka na kartu." },
+  { route: "/app/post", tab: "Deník", target: { text: "Čeká na zápis" }, title: "Zápis po běhu",
+    body: "Nové běhy z hodinek čekají na krátký zápis: jak se běželo, jak se cítily nohy a jestli něco bolelo. Zabere asi dvacet vteřin.",
+    value: "Váš pocit z běhu je jeden z nejcitlivějších signálů únavy. Aplikace ho váží nejvíc." },
+  { route: "/app/messages", tab: "Péče", care: "program", target: { sel: '[data-tour="care-programs"]' }, title: "Cviky a posilování",
+    body: "Programy cviků pro běžce: posilování, mobilita a cviky při konkrétních potížích, třeba s Achillovkou. Spustíte je jedním klepnutím a po cvičení odškrtnete.",
+    value: "Posilování je podle výzkumu jedna z mála věcí, po kterých mají sportovci méně zranění (Lauersen et al., 2014). Tady ho máte rozepsané do týdne." },
 ]
+
+// The rest of each tab, behind the compass in the top bar (on the demo runner too).
+export const TAB_TOURS: Record<string, TourStep[]> = {
+  "/app/today": [
+    { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-quadrant"]' }, title: "Stav podle zátěže a techniky",
+      body: "Zátěž a technika běhu společně určí jeden ze čtyř stavů: stabilní, přetížení (zátěž nad normou), tichý drift (technika se mění, i když to necítíte) a kritická kombinace (obojí naráz). Klepnutím zobrazíte vývoj za 6 měsíců.",
+      value: "Odliší obyčejnou únavu z objemu od změny techniky, kterou zatím necítíte. Každá chce jinou reakci." },
+    { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-drivers"]' }, title: "Co ovlivňuje skóre",
+      body: "Signály seřazené podle toho, kolik bodů ubírají ze skóre dne. Písmeno A, B nebo C u signálu říká, jak silné jsou pro něj důkazy z výzkumu. Po rozkliknutí uvidíte, které běhy nebo záznamy k němu přispívají.",
+      value: "Skóre není černá skříňka. Vidíte, co ho tvoří, a víte, na co se zaměřit." },
+  ],
+  "/app/training": [
+    { route: "/app/training", tab: "Trénink", target: { sel: '[data-tour="training-session"]' }, title: "Dnešní trénink",
+      body: "Doporučený typ dne s mantinely: vzdálenost, čas, tep, tempo, minuty tvrdé práce a maximum stoupání i klesání. Dlaždicemi pod ním přepnete na jiný typ a limity se přepočítají.",
+      value: "Víte nejen, co běžet, ale i kde je dnes strop. Tempo a tep jsou spočítané z vašich vlastních běhů." },
+    { route: "/app/training", tab: "Trénink", target: { text: "Ranní připravenost" }, title: "Připravenost",
+      body: "Připravenost po dnech. Pod grafem otevřete spánek, HRV a klidový tep z hodinek, vždy proti vaší vlastní normě. Dny bez noci z hodinek zůstanou v grafu prázdné.",
+      value: "Po špatné noci unesete méně. Došlap podle toho ráno sníží dnešní stropy." },
+    { route: "/app/training", tab: "Trénink", target: { text: "Dnešní kapacita" }, title: "Dnešní kapacita",
+      body: "Kolik si dnes můžete dovolit v objemu, intenzitě, stoupání, klesání a celkové zátěži. Každý pruh ukazuje, kolik z týdne už máte za sebou a kolik zbývá.",
+      value: "Kapacita roste s tím, co prokazatelně zvládáte, a hlídá prudké skoky, které tělo nestihne vstřebat." },
+    { route: "/app/training", tab: "Trénink", target: { text: "Cyklus · tento týden" }, title: "Týdenní cyklus",
+      body: "Trénink běží ve čtyřtýdenních cyklech, tři týdny budovací a jeden odlehčovací. Sloupce ukazují objem posledních týdnů a cíl toho aktuálního.",
+      value: "Postupné zvyšování s pravidelným odlehčením je osvědčený tréninkový princip. Došlap ho drží za vás." },
+    { route: "/app/training", tab: "Trénink", target: { text: "Závody" }, title: "Závody",
+      body: "Kalendář závodů s prioritou A, B nebo C.",
+      value: "Před závodem s prioritou A se trénink sám zklidní, abyste na start přišli odpočatí." },
+  ],
+  "/app/post": [
+    { route: "/app/post", tab: "Deník", target: { text: "Poslední zápisy" }, title: "Poslední zápisy",
+      body: "Přehled ohodnocených běhů s vaším pocitem a poznámkou. Klepnutím zápis upravíte, ikonou vpravo otevřete detail běhu s terénem, počasím a úseky.",
+      value: "Když se něco změní, snadno dohledáte, kdy to začalo a na jakém běhu." },
+    { route: "/app/post", tab: "Deník", target: { sel: '[data-tour="journal-summary"]' }, title: "Souhrn deníku",
+      body: "Průměrný pocit z běhů a jeho trend, počet zápisů za 21 dní, kolikrát něco bolelo a nejvyšší nahlášená bolest.",
+      value: "Zhoršující se pocit z běhů se často objeví dřív než změna v datech z hodinek." },
+    { route: "/app/post", tab: "Deník", target: { sel: '[data-tour="journal-sites"]' }, title: "Kde to nejčastěji bolí",
+      body: "Mapa těla a žebříček míst, která jste v posledních 30 dnech označili.",
+      value: "Místo, které se ozývá opakovaně, stojí za pozornost dřív, než začne omezovat trénink." },
+  ],
+  "/app/mechanics": [
+    { route: "/app/mechanics", tab: "Mechanika", target: { text: "Signál mechaniky" }, title: "Technika běhu",
+      body: "Souhrn vaší běžecké techniky. Porovnává se vždy se srovnatelnými běhy ve stejném tempu a terénu, nikdy s průměrem ostatních.",
+      value: "Změna techniky bývá časným znakem únavy, často dřív, než ji ucítíte." },
+    { route: "/app/mechanics", tab: "Mechanika", target: { text: "Mechanická stabilita — trend" }, title: "Trend techniky",
+      body: "Skóre techniky po dnech za 6 měsíců. Nad čárkovanou hranicí 25 se technika drží mimo vaši normu.",
+      value: "Rozlišíte jednorázový výkyv po náročném běhu od plíživého trendu." },
+    { route: "/app/mechanics", tab: "Mechanika", target: { sel: "[data-norm]", box: ".overflow-hidden" }, title: "Jednotlivé metriky",
+      body: "Kontakt se zemí, kadence, odraz, vyváženost a další. Každá metrika má štítek v normě, na hraně nebo mimo normu a klepnutím otevřete její trend.",
+      value: "Víte přesně, která část kroku se mění." },
+    { route: "/app/mechanics", tab: "Mechanika", target: { text: "Historie běhů" }, title: "Historie běhů",
+      body: "Všechny běhy s metrikami techniky. Každý lze otevřít, porovnat s během před měsícem nebo vyřadit z výpočtů, třeba když hodinky změřily nesmysl.",
+      value: "Máte pod kontrolou, z jakých běhů se vaše norma počítá." },
+  ],
+  "/app/load": [
+    { route: "/app/load", tab: "Zátěž", target: { text: "Signál zátěže" }, title: "Stav zátěže",
+      body: "Jestli trénink v posledních dnech nepřekračuje to, co jste v předchozích týdnech prokazatelně zvládli. Skóre zátěže po dnech, nad hranicí 25 je zvýšená.",
+      value: "Prudký nárůst objemu je podle výzkumu spojený s častějšími běžeckými obtížemi (Nielsen et al., 2014). Tady ho uvidíte hned." },
+    { route: "/app/load", tab: "Zátěž", target: { text: "Týdenní kapacita" }, title: "Kapacita po kanálech",
+      body: "Objem, intenzita, klesání, stoupání a celková zátěž za posledních 7 dní proti vaší kapacitě. Rozkliknutím řádku uvidíte čísla.",
+      value: "Tělo nezatěžují jen kilometry. Seběh z kopce působí jinak než rovina, a proto se počítá zvlášť." },
+  ],
+  "/app/messages": [
+    { route: "/app/messages", tab: "Péče", care: "program", target: { sel: '[data-tour="care-tabs"]' }, title: "Tři části péče",
+      body: "Program s cviky, Fyzioterapeut pro zprávy a schůzky, pokud ho máte, a Zranění pro nahlášení obtíží a postupný návrat k běhu.",
+      value: "Všechno kolem péče o tělo je na jednom místě a navazuje na vaše data." },
+    { route: "/app/messages", tab: "Péče", care: "program", target: { sel: '[data-testid="program-tabs"]' }, title: "Všechny programy",
+      body: "Programy podle zaměření: při potížích, síla a technika, mobilita. U každého je zdroj a odhad času; sestavit si můžete i vlastní trénink.",
+      value: "Vyberete program, který odpovídá tomu, co vás zrovna trápí nebo co chcete zlepšit." },
+    { route: "/app/messages", tab: "Péče", care: "health", target: { sel: '[data-tour="care-tabs"]' }, title: "Zranění",
+      body: "Když vás něco omezuje v běhu, nahlaste to tady. Plán se přizpůsobí a po zahojení vás aplikace vrátí k běhu postupně.",
+      value: "Návrat po zranění po krocích snižuje riziko, že se obtíž vrátí." },
+  ],
+}
 
 function visible(el: Element) {
   const r = el.getBoundingClientRect()
@@ -307,11 +324,11 @@ export function findTarget(t?: Target): HTMLElement | null {
   return ((box && box.tagName !== "MAIN" ? box : el) as HTMLElement)
 }
 
-function Tour({ name, guest = false, onFinish, onExitDemo }: { name?: string | null; guest?: boolean; onFinish: (done: boolean) => void; onExitDemo?: () => void }) {
+function Tour({ steps: TOUR, tabTour = false, name, guest = false, onFinish, onExitDemo }: { steps: TourStep[]; tabTour?: boolean; name?: string | null; guest?: boolean; onFinish: (done: boolean) => void; onExitDemo?: () => void }) {
   const nav = useNavigate()
   const { pathname } = useLocation()
-  // step −1 = welcome, TOUR.length = done
-  const [i, setI] = useState(-1)
+  // step −1 = welcome, TOUR.length = done (a tab's tour starts on its first step)
+  const [i, setI] = useState(tabTour ? 0 : -1)
   const [rect, setRect] = useState<DOMRect | null>(null)
   const [missing, setMissing] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
@@ -324,13 +341,19 @@ function Tour({ name, guest = false, onFinish, onExitDemo }: { name?: string | n
     setRect(null)
     setMissing(false)
     if (!step) return
+    // a step without a target (the reports) is a centred card over the page
+    if (!step.target) {
+      if (step.care) window.dispatchEvent(new CustomEvent(CARE_SUB_EVENT, { detail: step.care }))
+      return
+    }
     let tries = 0
     let scrolled = false
     const tick = () => {
       if (step.care) window.dispatchEvent(new CustomEvent(CARE_SUB_EVENT, { detail: step.care }))
       const el = findTarget(step.target)
       if (el) {
-        if (!scrolled) { el.scrollIntoView({ block: "center", behavior: "auto" }); scrolled = true }
+        // a tall target scrolls to the top, so the card can take the bottom half without covering it
+        if (!scrolled) { el.scrollIntoView({ block: el.getBoundingClientRect().height > window.innerHeight * 0.45 ? "start" : "center", behavior: "auto" }); scrolled = true }
         setRect(el.getBoundingClientRect())
         setMissing(false)
       } else if (++tries > 12) setMissing(true)
@@ -340,7 +363,7 @@ function Tour({ name, guest = false, onFinish, onExitDemo }: { name?: string | n
     return () => window.clearInterval(id)
   }, [step])
 
-  const go = useCallback((d: number) => setI((v) => Math.max(-1, Math.min(TOUR.length, v + d))), [])
+  const go = useCallback((d: number) => setI((v) => Math.max(tabTour ? 0 : -1, Math.min(TOUR.length, v + d))), [TOUR.length, tabTour])
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") go(1)
@@ -351,11 +374,10 @@ function Tour({ name, guest = false, onFinish, onExitDemo }: { name?: string | n
     return () => window.removeEventListener("keydown", k)
   }, [go, onFinish])
 
-  const tabIdx = step ? TABS.findIndex(([r]) => r === step.route) : -1
-  const inTab = step ? TOUR.filter((s) => s.route === step.route) : []
-  const posInTab = step ? inTab.indexOf(step) + 1 : 0
+  const stepNo = step ? i + 1 : 0
 
-  // tooltip placement: below the target when it fits, else above, else docked at the bottom
+  // tooltip placement: below the target when it fits, else above; a target too tall for
+  // either gets the card docked on the half of the screen away from it (UX audit F06)
   const vw = typeof window !== "undefined" ? window.innerWidth : 390
   const vh = typeof window !== "undefined" ? window.innerHeight : 800
   const cw = Math.min(360, vw - 32)
@@ -363,24 +385,34 @@ function Tour({ name, guest = false, onFinish, onExitDemo }: { name?: string | n
   const r = rect && !missing ? { top: Math.max(rect.top - pad, 60), bottom: Math.min(rect.bottom + pad, vh - 8), left: Math.max(rect.left - pad, 6), right: Math.min(rect.right + pad, vw - 6) } : null
   const ch = cardRef.current?.offsetHeight ?? 220
   let place: "below" | "above" | "dock" | "center" = "center"
-  if (r) place = r.bottom + ch + 24 < vh ? "below" : r.top - ch - 24 > 60 ? "above" : "dock"
+  let dockTop = false
+  if (r) {
+    place = r.bottom + ch + 24 < vh ? "below" : r.top - ch - 24 > 60 ? "above" : "dock"
+    if (place === "dock") {
+      // the side with more free room; ties go to the bottom
+      const roomTop = r.top - 60, roomBottom = vh - r.bottom
+      dockTop = roomTop > roomBottom + 40
+    }
+  }
   const cx = r ? (r.left + r.right) / 2 : vw / 2
   const left = place === "center" || place === "dock" ? (vw - cw) / 2 : Math.max(16, Math.min(vw - cw - 16, cx - cw / 2))
-  const top = place === "below" ? r!.bottom + 14 : place === "above" ? r!.top - ch - 14 : place === "dock" ? vh - ch - 16 : Math.max(80, (vh - ch) / 2)
+  const top = place === "below" ? r!.bottom + 14 : place === "above" ? r!.top - ch - 14 : place === "dock" ? (dockTop ? 72 : vh - ch - 16) : Math.max(80, (vh - ch) / 2)
   const arrowX = Math.max(18, Math.min(cw - 18, cx - left))
 
   const fn = firstName(name)
   const intro = i === -1
   const outro = i === TOUR.length
-  const title = intro ? `Vítejte${fn ? `, ${fn}` : ""}!` : outro ? "Máte hotovo" : step!.title
+  const title = intro ? `Vítejte${fn ? `, ${fn}` : ""}!` : outro ? (tabTour ? "To je celá záložka" : "Máte hotovo") : step!.title
   const body = intro
     ? guest
-      ? "Ukážeme vám aplikaci na ukázkovém běžci s vymyšlenými daty, bez registrace. Projdeme šest záložek a u každé nejvýš pět funkcí. U každé uvidíte, co ukazuje a proč vám pomůže. Šipkami se posunete dál nebo zpět a ukázku můžete kdykoli ukončit."
-      : "Ukážeme vám aplikaci na ukázkovém účtu s vaším jménem. Projdeme šest záložek a u každé nejvýš pět funkcí. U každé uvidíte, co ukazuje a proč vám pomůže. Šipkami se posunete dál nebo zpět."
+      ? "Ukážeme vám to nejdůležitější na ukázkovém běžci s vymyšlenými daty, bez registrace. Šest krátkých kroků, u každého uvidíte, co ukazuje a proč vám pomůže. Ukázku můžete kdykoli ukončit."
+      : "Ukážeme vám to nejdůležitější na ukázkovém účtu s vaším jménem. Šest krátkých kroků, u každého uvidíte, co ukazuje a proč vám pomůže."
     : outro
-      ? guest
-        ? "Teď už víte, kde co najdete. Ukázku můžete dál volně procházet, nebo si založte účet a připojte vlastní data z hodinek."
-        : "Teď už víte, kde co najdete. Průvodce se vrátí na vaše vlastní data a můžete ho kdykoli spustit znovu přes ikonu profilu → Začínáme."
+      ? tabTour
+        ? "Další záložku vám ukáže ikona kompasu nahoře, když na ní budete."
+        : guest
+          ? "To nejdůležitější znáte. Ukázku můžete dál volně procházet, nebo si založte účet a připojte vlastní data z hodinek. Co je na které záložce, ukáže ikona kompasu nahoře."
+          : "To nejdůležitější znáte. Průvodce se vrátí na vaše vlastní data. Co je na které záložce, vám kdykoli ukáže ikona kompasu nahoře."
       : missing ? `${step!.body} (V ukázkovém účtu teď tato část není vidět.)` : step!.body
 
   return createPortal(
@@ -398,7 +430,7 @@ function Tour({ name, guest = false, onFinish, onExitDemo }: { name?: string | n
             style={{ left: arrowX - 7, ...(place === "below" ? { top: -7, borderLeftWidth: 1, borderTopWidth: 1 } : { bottom: -7, borderRightWidth: 1, borderBottomWidth: 1 }) }} />
         )}
         <div className="flex items-center justify-between gap-2">
-          <p className="t-label">{intro ? "Průvodce aplikací" : outro ? "Hotovo" : `${step!.tab} · ${posInTab}/${inTab.length}`}</p>
+          <p className="t-label">{intro ? "Průvodce aplikací" : outro ? "Hotovo" : `${tabTour ? `${step!.tab} · ` : ""}${stepNo}/${TOUR.length}`}</p>
           <button type="button" onClick={() => onFinish(false)} aria-label="Ukončit průvodce" className="grid size-7 place-items-center rounded-full text-fg-2 hover:bg-white/[.07]"><X className="size-4" aria-hidden /></button>
         </div>
         <h3 className="mt-1 text-[17px] font-extrabold tracking-[-.01em]">{title}</h3>
@@ -408,21 +440,21 @@ function Tour({ name, guest = false, onFinish, onExitDemo }: { name?: string | n
             <b className="text-accent">Proč to pomáhá: </b>{step.value}
           </p>
         )}
-        {/* where we are: one dot per tab */}
+        {/* where we are: one dot per step */}
         <div className="mt-3 flex items-center gap-1.5" aria-hidden>
-          {TABS.map(([rt, lbl], k) => (
-            <span key={rt} title={lbl} className={`h-1.5 rounded-full transition-all ${k === tabIdx ? "w-5 bg-accent" : k < tabIdx || outro ? "w-1.5 bg-accent/60" : "w-1.5 bg-white/20"}`} />
+          {TOUR.map((_, k) => (
+            <span key={k} className={`h-1.5 rounded-full transition-all ${k === i ? "w-5 bg-accent" : k < i || outro ? "w-1.5 bg-accent/60" : "w-1.5 bg-white/20"}`} />
           ))}
         </div>
         <div className="mt-3 flex items-center justify-between gap-2">
-          <button type="button" onClick={() => go(-1)} disabled={intro} aria-label="Zpět" className="btn btn-outline btn-sm disabled:opacity-40"><ArrowLeft className="size-4" aria-hidden /></button>
-          {outro && guest
+          <button type="button" onClick={() => go(-1)} disabled={intro || (tabTour && i === 0)} aria-label="Zpět" className="btn btn-outline btn-sm disabled:opacity-40"><ArrowLeft className="size-4" aria-hidden /></button>
+          {outro && guest && !tabTour
             ? <span className="flex gap-2">
                 <button type="button" onClick={() => onFinish(true)} className="btn btn-outline btn-sm">Procházet ukázku</button>
                 <button type="button" onClick={onExitDemo} className="btn btn-primary btn-sm" data-testid="demo-register">Založit účet</button>
               </span>
             : outro
-            ? <button type="button" onClick={() => onFinish(true)} className="btn btn-primary btn-sm">Dokončit průvodce</button>
+            ? <button type="button" onClick={() => onFinish(true)} className="btn btn-primary btn-sm">{tabTour ? "Zpět na záložku" : "Dokončit průvodce"}</button>
             : <button type="button" onClick={() => go(1)} aria-label="Další" className="btn btn-primary btn-sm">{intro ? "Začít" : "Další"} <ArrowRight className="size-4" aria-hidden /></button>}
         </div>
       </div>

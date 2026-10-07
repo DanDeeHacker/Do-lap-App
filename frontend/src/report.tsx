@@ -9,7 +9,11 @@ import { useApp } from "@/store"
 import { useAssistant } from "@/assistant"
 import { C, goodCol } from "@/tokens"
 import { ReadinessFactors } from "@/capacity"
-import { Bed, Bike, ChevronRight, Coffee, Dumbbell, Eye, Flag, Info, MessageCircle, Moon, Sparkles, Sun, TriangleAlert, X } from "lucide-react"
+import { ExerciseFigure } from "@/exfigure"
+import { Bed, Bike, Bookmark, BookmarkCheck, Check, ChevronRight, Coffee, Dumbbell, Eye, Flag, Info, MessageCircle, Moon, Play, Sparkles, Sun, TriangleAlert, X } from "lucide-react"
+import { useNavigate } from "react-router"
+import { CARE_SUB_EVENT } from "@/onboarding"
+import { leadReasons } from "@/lib"
 
 const STAGE_COL: Record<string, string> = { deep: "#4c6ef5", light: "#74c0fc", rem: "#c084fc", awake: C.watch }
 const STAGE_LABEL: Record<string, string> = { deep: "Hluboký", light: "Lehký", rem: "REM", awake: "Bdění" }
@@ -334,7 +338,7 @@ function StackBars({ days }: { days: any[] }) {
         {days.map((d) => {
           const t = d.train || 0, n = d.nt || 0
           return (
-            <div key={d.date} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-[2px]" style={{ height: H }} title={`${d.wd}: trénink ${t}, mimo trénink ${n} j.z.`}>
+            <div key={d.date} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-[2px]" style={{ height: H }} title={`${d.wd}: trénink ${t}, mimo trénink ${n} bodů zátěže`}>
               <span className="mb-0.5 text-[10px] tabular-nums text-fg-3">{t + n ? Math.round(t + n) : ""}</span>
               {n > 0 && <i className="block w-full rounded-t-[4px]" style={{ height: (n / max) * (H - 16), background: "#2c8cc6", opacity: 0.55 }} />}
               <i className={`block w-full ${n > 0 ? "" : "rounded-t-[4px]"}`} style={{ height: Math.max(t ? 3 : 0, (t / max) * (H - 16)), background: d.today ? C.accent : "#b08a22", outline: d.today ? `2px solid ${C.fg}` : undefined, outlineOffset: 1 }} />
@@ -348,7 +352,7 @@ function StackBars({ days }: { days: any[] }) {
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-fg-3">
         <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: "#b08a22" }} />trénink</span>
         <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: "#2c8cc6", opacity: 0.55 }} />mimo trénink nad obvyklý den</span>
-        <span>j.z. = tep × čas</span>
+        <span>body zátěže = tep × čas</span>
       </div>
     </div>
   )
@@ -358,7 +362,8 @@ const LEVEL_COL: Record<string, string> = { alert: C.alert, watch: C.watch, info
 const LEVEL_ICON: Record<string, any> = { alert: TriangleAlert, watch: Eye, info: Info }
 
 // ---- morning ------------------------------------------------------------------------------
-type Ctx = { onAsk: (q: string) => void; hasAssistant: boolean; notes: Record<string, string>; ai: boolean; pending: boolean }
+type Ctx = { onAsk: (q: string) => void; hasAssistant: boolean; notes: Record<string, string>; ai: boolean; pending: boolean
+  onProgram: (key: string, go: boolean) => Promise<boolean>; rid?: string; onRefresh: () => void }
 const note = (c: Ctx, k: string) => <AiNote text={c.notes[k]} ai={c.ai} pending={c.pending} />
 
 function morningCards(r: any, c: Ctx): Card[] {
@@ -381,6 +386,8 @@ function morningCards(r: any, c: Ctx): Card[] {
       </div>
     ),
   }]
+  // suggestion #7: the test first — its result changes today's recommendation
+  if (r.tendon) cards.push({ key: "tendon", title: "Šlacha", body: <TendonCard t={r.tendon} rid={c.rid} onSaved={c.onRefresh} /> })
   cards.push({
     key: "sleep", title: "Spánek", body: !n ? <><Big>Noc zatím chybí</Big>{note(c, "sleep")}</> : (
       <>
@@ -446,6 +453,7 @@ function morningCards(r: any, c: Ctx): Card[] {
           })}
         </div>
         {rec.readiness && <div data-no-tap><ReadinessFactors r={rec.readiness} /></div>}
+        {r.tagsLastNight && <LastNightTags x={r.tagsLastNight} />}
       </>
     ),
   })
@@ -469,8 +477,10 @@ function morningCards(r: any, c: Ctx): Card[] {
           </Panel>
         )}
         <Panel>
-          <div className="flex items-baseline justify-between"><Lbl>Celková zátěž po dnech</Lbl><span className="text-[11px] text-fg-3">{rn.budget ? `${num(rn.weekKm || 0)} z ${num(rn.budget, 0)} km` : ""}</span></div>
+          {/* UX audit F17 — the chart in load points, the week's kilometres on their own line */}
+          <Lbl>Zátěž po dnech · body zátěže</Lbl>
           <div className="mt-2"><StackBars days={rn.week || []} /></div>
+          {rn.budget ? <p className="mt-2 text-[12px] text-fg-2" data-testid="week-km"><span>Naběháno od pondělí: </span><b className="text-fg">{num(rn.weekKm || 0)}</b><span>{` z ${num(rn.budget, 0)} km`}</span></p> : null}
         </Panel>
         {rn.carry?.length ? (
           <Panel className="space-y-2.5">
@@ -504,14 +514,7 @@ function morningCards(r: any, c: Ctx): Card[] {
             </ul>
           ) : <p className="mt-1.5 text-[13px] text-fg-2">Nic zvláštního k hlídání.</p>}
         </Panel>
-        {(p.notes?.length || p.reasons?.length) ? (
-          <Panel>
-            <Lbl>Proč právě takhle</Lbl>
-            <ul className="mt-2 space-y-1.5 text-[13px] leading-5 text-fg-soft">
-              {[...(p.reasons || []), ...(p.notes || [])].slice(0, 4).map((t: string, k: number) => <li key={k} className="flex gap-2"><span className="text-accent">›</span><span>{t}</span></li>)}
-            </ul>
-          </Panel>
-        ) : null}
+        {(p.notes?.length || p.reasons?.length) ? <WhyPlan type={p.type} reasons={p.reasons || []} notes={p.notes || []} /> : null}
         {p.strength && (
           <Panel>
             <Lbl>Posilování</Lbl>
@@ -529,6 +532,23 @@ function morningCards(r: any, c: Ctx): Card[] {
 
 // ---- the week's plan (Monday morning, backend metrics/week_plan.py) ---------------------------
 const PLAN_COL: Record<string, string> = { "dlouhý": C.load, "kvalitní": C.alert, "lehký": C.info, regenerace: C.ok }
+// UX audit F09 — the reason that decides today's plan first, the rest one tap away
+function WhyPlan({ type, reasons, notes }: { type?: string; reasons: string[]; notes: string[] }) {
+  const [more, setMore] = useState(false)
+  const [lead, rest0] = leadReasons(type, reasons)
+  const rest = [...rest0, ...notes]
+  return (
+    <Panel>
+      <Lbl>Proč právě takhle</Lbl>
+      <ul className="mt-2 space-y-1.5 text-[13px] leading-5 text-fg-soft" data-testid="why-plan">
+        {(lead ? [lead] : []).map((t, k) => <li key={`l${k}`} className="flex gap-2 font-semibold text-fg"><span className="text-accent">›</span><span>{t}</span></li>)}
+        {(lead ? (more ? rest : []) : rest).map((t, k) => <li key={k} className="flex gap-2"><span className="text-accent">›</span><span>{t}</span></li>)}
+      </ul>
+      {lead && rest.length > 0 && !more && <button type="button" onClick={() => setMore(true)} className="mt-1.5 text-[12px] font-bold text-accent hover:underline">{`Další důvody (${rest.length})`}</button>}
+    </Panel>
+  )
+}
+
 const itemCol = (it: any) => (it.kind === "run" ? PLAN_COL[it.type] || C.info : it.kind === "strength" ? C.self
   : it.kind === "ride" || it.kind === "swim" ? C.watch : it.kind === "race" ? C.accent : it.kind === "done" ? C.fg2 : C.fg4)
 const dayKm = (d: any) => d.items.reduce((a: number, it: any) => a + (it.kind === "run" ? it.km?.hi || 0 : it.kind === "done" ? it.km || 0 : 0), 0)
@@ -660,7 +680,7 @@ function PlanMeter({ label, value, target, ceil, unit, col, testid }: { label: s
       </div>
       <div className="mt-1 flex gap-3 text-[10.5px] text-fg-3">
         {target != null && <span className="flex items-center gap-1"><i className="h-2.5 w-0.5 rounded-full" style={{ background: C.watch }} />cíl týdne</span>}
-        {ceil != null && <span className="flex items-center gap-1"><i className="h-2.5 w-0.5 rounded-full bg-fg" />strop kapacity za 7 dní</span>}
+        {ceil != null && <span className="flex items-center gap-1"><i className="h-2.5 w-0.5 rounded-full bg-fg" />týdenní kapacita s rezervou</span>}
       </div>
     </div>
   )
@@ -691,7 +711,7 @@ function WeekPlan({ p, text }: { p: any; text?: string }) {
       {t && (
         <Panel className="space-y-4">
           <PlanMeter label="Běh" value={t.km} target={t.kmBudget} ceil={t.kmCeiling7} unit="km" col={C.info} testid="plan-km" />
-          {t.z4Budget != null && <PlanMeter label="Minuty v Z4+" value={t.z4} target={t.z4Budget} unit="min" col={C.alert} testid="plan-z4" />}
+          {t.z4Budget != null && <PlanMeter label="Tvrdá práce (Z4+)" value={t.z4} target={t.z4Budget} unit="min" col={C.alert} testid="plan-z4" />}
           {t.kmOptional ? <p className="text-[11px] text-fg-3">{`+ ${num(t.kmOptional)} km volitelný běh`}</p> : null}
         </Panel>
       )}
@@ -715,8 +735,624 @@ function WeekPlan({ p, text }: { p: any; text?: string }) {
   )
 }
 
+// ---- bedtime mobility (evening, backend metrics/mobility.py) -------------------------------
+function MobilityEx({ x, i, done, onDone }: { x: any; i: number; done: boolean; onDone: () => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <li className="py-2.5" data-testid="mobility-ex">
+      <div className="flex items-start gap-3">
+        <button type="button" onClick={onDone} aria-pressed={done} aria-label={done ? "Odznačit cvik" : "Cvik hotový"}
+          className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border transition ${done ? "border-accent bg-accent text-ink" : "border-white/25 text-fg-3"}`}>
+          {done ? <Check className="size-3.5" aria-hidden /> : <span className="text-[11px] font-bold tabular-nums">{i + 1}</span>}
+        </button>
+        <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="flex min-w-0 flex-1 items-start gap-2 text-left">
+          <span className="min-w-0 flex-1">
+            <b className={`block text-[14px] leading-5 ${done ? "text-fg-3 line-through" : "text-fg"}`}>{x.name}</b>
+            <span className="block text-[12px] tabular-nums text-fg-2">{x.dose}</span>
+            {x.extraFrom && <span className="block text-[11px] text-fg-3">{`navíc z programu ${x.extraFrom}`}</span>}
+            {x.careful && <span className="mt-0.5 block text-[11.5px] leading-4 text-watch">{`Bolest: ${x.careful}. Jen do velmi mírného tahu, nebo cvik vynechte.`}</span>}
+          </span>
+          <ChevronRight className={`mt-0.5 size-4 shrink-0 text-fg-3 transition ${open ? "rotate-90" : ""}`} aria-hidden />
+        </button>
+      </div>
+      {open && (
+        <div className="ml-9 mt-1.5 animate-[careReveal_.25s_ease-out]">
+          <ol className="grid gap-1.5">
+            {(x.steps?.length ? x.steps : [x.how]).map((st: string, k: number) => (
+              <li key={k} className="flex gap-2 text-[12.5px] leading-[18px] text-fg-soft">
+                <span className="grid size-[18px] shrink-0 place-items-center rounded-full bg-accent/15 text-[10.5px] font-bold text-accent">{k + 1}</span>
+                <span>{st}</span>
+              </li>
+            ))}
+          </ol>
+          {x.caution && <p className="mt-1.5 rounded-[10px] bg-watch/10 px-2.5 py-1.5 text-[11.5px] leading-4 text-watch">{x.caution}</p>}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function Mobility({ m, text, onProgram }: { m: any; text?: string; onProgram: (key: string, go: boolean) => Promise<boolean> }) {
+  const [done, setDone] = useState<string[]>([])
+  const [saved, setSaved] = useState<boolean>(!!m.saved)
+  const [busy, setBusy] = useState(false)
+  const n = m.exercises.length
+  const run = async (go: boolean) => {
+    setBusy(true)
+    try { if (await onProgram(m.program.key, go)) setSaved(true) } finally { setBusy(false) }
+  }
+  return (
+    <div data-testid="mobility">
+      <Lbl>Mobilita před spaním</Lbl>
+      <Big>{m.program.name}</Big>
+      <Sub><span>{m.why}</span>{m.also && <span>{` ${m.also}`}</span>}</Sub>
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        <Tile label="Cviků" value={n} sub={m.short ? `zkráceně z ${m.program.count}` : undefined} />
+        <Tile label="Čas" value={`${m.minutes} min`} sub="zhruba" />
+        <Tile label="Hotovo" value={`${done.length}/${n}`} col={done.length === n ? C.ok : undefined} />
+      </div>
+      <AiNote text={text} ai={false} pending={false} />
+      <Panel>
+        <Lbl>Cviky</Lbl>
+        <p className="mt-1 text-[11px] text-fg-3">Klepnutím na cvik zobrazíte provedení, kroužkem ho odškrtnete.</p>
+        <ul className="mt-1 divide-y divide-white/[.06]" data-no-tap>
+          {m.exercises.map((x: any, i: number) => (
+            <MobilityEx key={x.id} x={x} i={i} done={done.includes(x.id)}
+              onDone={() => setDone(done.includes(x.id) ? done.filter((y) => y !== x.id) : [...done, x.id])} />
+          ))}
+        </ul>
+      </Panel>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button type="button" disabled={busy} onClick={() => run(true)} data-testid="mobility-go"
+          className="flex items-center justify-center gap-1.5 rounded-full bg-accent px-3 py-2.5 text-[13px] font-bold text-ink disabled:opacity-60">
+          <Play className="size-4" aria-hidden />Cvičit s časovačem
+        </button>
+        <button type="button" disabled={busy || saved} onClick={() => run(false)} data-testid="mobility-save"
+          className="flex items-center justify-center gap-1.5 rounded-full border border-white/20 px-3 py-2.5 text-[13px] font-bold text-fg disabled:opacity-70">
+          {saved ? <><BookmarkCheck className="size-4 text-accent" aria-hidden />Uloženo</> : <><Bookmark className="size-4" aria-hidden />Uložit na později</>}
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] leading-4 text-fg-3">
+        {saved ? `Program ${m.program.name} máte v Péči mezi svými programy, s časovačem výdrží.` : "Uložený program najdete v Péči mezi svými programy, s časovačem výdrží."}
+      </p>
+    </div>
+  )
+}
+
+// ---- tonight: the sleep onset and wake trend and the bedtime derived from it ----------------
+const clock = (m: number) => { const x = ((Math.round(m) % 1440) + 1440) % 1440; return `${Math.floor(x / 60)}:${String(x % 60).padStart(2, "0")}` }
+
+function SleepTimes({ t }: { t: any }) {
+  // each night a bar from falling asleep to waking (evening at the top), tonight's plan hatched;
+  // the dashed line is tonight's sleep onset (bedtime + the minutes to fall asleep)
+  const tm = t.timing
+  const nights: any[] = tm.nights || []
+  const planOn = tm.bedMin + (t.latency || 15), planWake = tm.wakeMin + 1440
+  const lo = Math.floor((Math.min(planOn, ...nights.map((n) => n.onset)) - 30) / 60) * 60
+  const hi = Math.ceil((Math.max(planWake, ...nights.map((n) => n.wake + 1440)) + 30) / 60) * 60
+  const W = 300, H = 160, L = 30, T = 6, B = 16
+  const cols = nights.length + 1
+  const cw = (W - L) / cols
+  const y = (m: number) => T + ((m - lo) / (hi - lo)) * (H - T - B)
+  const hours = []
+  for (let m = lo; m <= hi; m += (hi - lo) > 9 * 60 ? 120 : 60) hours.push(m)
+  const trend = tm.trend
+  return (
+    <div data-testid="sleep-times">
+      <Lbl>{`Usínání a vstávání · ${nights.length} nocí`}</Lbl>
+      <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full" role="img" aria-label="Časy usínání a vstávání">
+        {hours.map((m) => (
+          <g key={m}>
+            <line x1={L} x2={W} y1={y(m)} y2={y(m)} stroke="rgb(255 255 255 / .07)" />
+            <text x={L - 4} y={y(m) + 3} textAnchor="end" fontSize="8.5" fill={C.fg3}>{clock(m)}</text>
+          </g>
+        ))}
+        {nights.map((n, i) => (
+          <g key={n.d}>
+            <rect x={L + i * cw + cw * 0.22} width={cw * 0.56} y={y(n.onset)} height={Math.max(2, y(n.wake + 1440) - y(n.onset))} rx={2}
+              fill={n.weekend ? C.info : C.load} opacity={0.85} />
+            {i % 2 === nights.length % 2 && <text x={L + i * cw + cw / 2} y={H - 4} textAnchor="middle" fontSize="8" fill={C.fg3}>{n.wd}</text>}
+          </g>
+        ))}
+        <rect x={L + nights.length * cw + cw * 0.22} width={cw * 0.56} y={y(planOn)} height={y(planWake) - y(planOn)} rx={2}
+          fill={C.accent} fillOpacity={0.25} stroke={C.accent} strokeWidth={1} strokeDasharray="2 1.5" />
+        <text x={L + nights.length * cw + cw / 2} y={H - 4} textAnchor="middle" fontSize="8" fontWeight="700" fill={C.accent}>dnes</text>
+        <line x1={L} x2={W} y1={y(planOn)} y2={y(planOn)} stroke={C.accent} strokeWidth={1} strokeDasharray="3 2" opacity={0.8} />
+        <line x1={L} x2={W} y1={y(tm.onset)} y2={y(tm.onset)} stroke={C.fg3} strokeWidth={1} strokeDasharray="1.5 2" />
+      </svg>
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-fg-3">
+        <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: C.load }} />všední den</span>
+        <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: C.info }} />víkend</span>
+        <span className="flex items-center gap-1"><i className="h-0 w-3 border-t border-dashed" style={{ borderColor: C.accent }} />dnešní usnutí</span>
+        <span className="flex items-center gap-1"><i className="h-0 w-3 border-t border-dotted" style={{ borderColor: C.fg3 }} />obvyklé usnutí</span>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <Tile label="Usínáte" value={tm.usualOnset} sub={tm.basis === "same" ? (tm.tomorrowWeekend ? "před víkendem" : "před všedním dnem") : "obvykle"} />
+        <Tile label="Vstáváte" value={tm.usualWake} sub={tm.basis === "same" ? (tm.tomorrowWeekend ? "o víkendu" : "ve všední den") : "obvykle"} />
+        <Tile label="Kolísání" value={`±${tm.sd} min`} sub="čas usínání" col={tm.sd >= 45 ? C.watch : C.ok} />
+      </div>
+      {(trend != null && Math.abs(trend) >= 10) || (tm.jetlag != null && Math.abs(tm.jetlag) >= 60) ? (
+        <ul className="mt-2 space-y-1 text-[12px] leading-[18px] text-fg-2">
+          {trend != null && Math.abs(trend) >= 10 && <li>{trend > 0 ? `Usínáte čím dál později, zhruba o ${trend} min za týden.` : `Usínáte čím dál dřív, zhruba o ${-trend} min za týden.`}</li>}
+          {tm.jetlag != null && Math.abs(tm.jetlag) >= 60 && <li>{`O víkendu spíte posunutě o ${Math.round(Math.abs(tm.jetlag) / 6) / 10} h ${tm.jetlag > 0 ? "později" : "dříve"} než ve všední dny.`}</li>}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
+
+const WAKE_MIN_AT = 3 * 60, WAKE_MAX_AT = 12 * 60, WAKE_STEP = 15
+const hhmm = (m: number) => { const x = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}` }
+
+function withWake(t: any, wake: number) {
+  // the same sum as the server's (daily_report._tonight) for another wake time: wake − target − falling
+  // asleep; at most stepMax earlier than the usual bedtime, and no later than it when that's already enough
+  const lat = t.latency || 15, step = t.stepMax || 30
+  let ideal = wake - (t.target || 8) * 60 - lat + 1440, bed = ideal, mode = "ideal"
+  if (t.usualBedMin != null) {
+    const gap = t.usualBedMin - ideal
+    if (gap > step) { bed = t.usualBedMin - step; mode = "step" } else if (gap < -step) { bed = t.usualBedMin; mode = "keep" }
+  }
+  bed = 5 * Math.floor(bed / 5); ideal = 5 * Math.round(ideal / 5)
+  return {
+    ...t, custom: true, wakeMin: wake, wake: clock(wake), bed: clock(bed), ideal: clock(ideal), mode,
+    caffeine: clock(bed - (t.caffeineH || 6) * 60),
+    timing: t.timing && { ...t.timing, bedMin: bed, idealMin: ideal, wakeMin: wake },
+  }
+}
+
+function WakeEdit({ t, wake, usual, onChange }: { t: any; wake: number; usual: number; onChange: (m: number | null) => void }) {
+  const set = (m: number) => onChange(Math.min(WAKE_MAX_AT, Math.max(WAKE_MIN_AT, m)))
+  const btn = "grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-[18px] font-bold leading-none text-fg disabled:opacity-40"
+  return (
+    <div className="mt-3 rounded-[14px] bg-white/[.05] px-3 py-2.5" data-no-tap data-testid="wake-edit">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-fg">Zítra vstávám jindy?</p>
+          <p className="text-[11px] leading-[14px] text-fg-3">{t.custom ? "Do postele i káva jsou přepočtené." : "Posuňte budík, čas do postele se přepočítá."}</p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button type="button" className={btn} aria-label="Vstávat o 15 minut dřív" disabled={wake <= WAKE_MIN_AT}
+            onClick={() => set(wake - WAKE_STEP)} data-testid="wake-earlier">−</button>
+          {/* the time as the app writes it (24 h); the native picker under it opens on a tap */}
+          <label className="relative w-[60px] rounded-[10px] bg-white/[.06] py-1.5 text-center focus-within:ring-2 focus-within:ring-accent">
+            <span className="t-num text-[16px] text-fg">{clock(wake)}</span>
+            <input type="time" step={300} value={hhmm(wake)} aria-label="Zítřejší čas vstávání" data-testid="wake-input"
+              onClick={(e) => { try { (e.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.() } catch { /* not allowed here */ } }}
+              onChange={(e) => { const [h, m] = e.target.value.split(":").map(Number); if (!Number.isNaN(h) && !Number.isNaN(m)) set(h * 60 + m) }}
+              className="absolute inset-0 h-full w-full cursor-pointer opacity-0 [color-scheme:dark]" />
+          </label>
+          <button type="button" className={btn} aria-label="Vstávat o 15 minut později" disabled={wake >= WAKE_MAX_AT}
+            onClick={() => set(wake + WAKE_STEP)} data-testid="wake-later">+</button>
+        </div>
+      </div>
+      {t.custom && (
+        <button type="button" onClick={() => onChange(null)} className="mt-1.5 text-[12px] font-semibold text-accent" data-testid="wake-reset">
+          {`Zpět na obvyklé vstávání v ${clock(usual)}`}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function Tonight({ t, date, text, extra }: { t: any; date?: string; text: ReactNode; extra?: ReactNode }) {
+  // UX audit F22 — how the time was derived (and the sleep tips) fold under one row
+  const [why, setWhy] = useState(false)
+  // the runner can try another wake time for tomorrow (an early alarm); kept for this evening only
+  const key = `dl-wake:${date || ""}`
+  const usual = t.wakeMin ?? 390
+  const [pick, setPick] = useState<number | null>(() => {
+    try { const v = localStorage.getItem(key); return v == null ? null : Number(v) } catch { return null }
+  })
+  const choose = (m: number | null) => {
+    const v = m == null || m === usual ? null : m
+    setPick(v)
+    try { if (v == null) localStorage.removeItem(key); else localStorage.setItem(key, String(v)) } catch { /* private mode */ }
+  }
+  const v = pick == null || Number.isNaN(pick) ? t : withWake(t, pick)
+  return (
+    <>
+      <Lbl>Dnešní noc</Lbl>
+      <Big>{`${hm((v.target || 8) * 60)} spánku`}</Big>
+      {v.custom ? <p className="mt-2 text-[14px] leading-[21px] text-fg-soft" data-testid="wake-custom-note">{`Přepočteno pro zítřejší vstávání v ${v.wake}.`}</p> : text}
+      <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Bed className="mx-auto size-5 text-load" aria-hidden /><p className="t-num mt-1 text-[22px]" data-testid="tonight-bed">{v.bed}</p><p className="text-[10.5px] text-fg-3">do postele</p></div>
+        <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Sun className="mx-auto size-5 text-watch" aria-hidden /><p className="t-num mt-1 text-[22px]">{v.wake}</p><p className="text-[10.5px] text-fg-3">{v.custom ? "váš čas vstávání" : v.wakeFromWatch ? (v.timing?.tomorrowWeekend ? "obvyklé víkendové vstávání" : "obvyklé vstávání") : "vstávání"}</p></div>
+        <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Coffee className="mx-auto size-5 text-fg-2" aria-hidden /><p className="t-num mt-1 text-[22px]">{v.caffeine}</p><p className="text-[10.5px] text-fg-3">poslední káva</p></div>
+      </div>
+      <WakeEdit t={v} wake={v.wakeMin ?? usual} usual={usual} onChange={choose} />
+      <button type="button" onClick={() => setWhy((x) => !x)} aria-expanded={why} data-testid="bedtime-why"
+        className="mt-3 flex w-full items-center justify-between gap-2 rounded-[14px] bg-white/[.04] px-3.5 py-2.5 text-left text-[13px] font-semibold text-fg-2 transition hover:text-fg">
+        <span>Jak jsme k času došli</span>
+        <ChevronRight className={`size-4 shrink-0 transition ${why ? "rotate-90 text-accent" : "text-fg-3"}`} aria-hidden />
+      </button>
+      {why && (
+        <>
+          {v.timing && <Panel><SleepTimes t={v} /></Panel>}
+          <Panel><BedtimeMath t={v} /></Panel>
+          {extra}
+        </>
+      )}
+    </>
+  )
+}
+
+function BedtimeMath({ t }: { t: any }) {
+  // how the bedtime was derived: tomorrow's wake − the sleep target − falling asleep
+  const tm = t.timing
+  const rows: [string, string][] = [
+    [t.custom ? "Zítra vstáváte (váš čas)" : tm ? (tm.tomorrowWeekend ? "Zítra vstáváte (obvykle o víkendu)" : "Zítra vstáváte (obvykle ve všední den)") : "Zítra vstáváte", t.wake],
+    ["− cíl spánku", hm((t.target || 8) * 60)],
+    ["− usínání", `${t.latency || 15} min`],
+    ["= ideálně do postele", t.ideal || t.bed],
+  ]
+  return (
+    <div data-testid="bedtime-math">
+      <Lbl>Jak jsme k času došli</Lbl>
+      <dl className="mt-2 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-[13px] leading-5">
+        {rows.flatMap(([k, v], i) => [
+          <dt key={`k${i}`} className={i === rows.length - 1 ? "font-bold text-fg" : "text-fg-2"}>{k}</dt>,
+          <dd key={`v${i}`} className={`text-right tabular-nums ${i === rows.length - 1 ? "font-bold text-fg" : "text-fg-soft"}`}>{v}</dd>,
+        ])}
+      </dl>
+      {t.mode === "step" && tm && t.custom && (() => {
+        // one early morning: no use lying in bed long before the usual sleep onset, so a shorter night
+        const sleep = t.wakeMin + 1440 - (tm.bedMin + (t.latency || 15)), short = (t.target || 8) * 60 - sleep
+        return (
+          <p className="mt-2 rounded-[12px] bg-watch/10 px-3 py-2 text-[12.5px] leading-[18px] text-watch-soft" data-testid="bedtime-step">
+            <span>{`Dřív než v ${t.bed} do postele nedoporučujeme: obvykle usínáte až v ${tm.usualOnset} a hodinu před tím se usíná nejhůř.`}</span>
+            {short >= 10 && <span>{` Spánek tak vyjde asi na ${hm(sleep)}, o ${hm(short)} méně než cíl.`}</span>}
+          </p>
+        )
+      })()}
+      {t.mode === "step" && tm && !t.custom && (
+        <p className="mt-2 rounded-[12px] bg-watch/10 px-3 py-2 text-[12.5px] leading-[18px] text-watch-soft" data-testid="bedtime-step">
+          {`Obvykle usínáte až v ${tm.usualOnset}. Hodinu před obvyklým usnutím se usíná nejhůř, proto dnes do postele v ${t.bed} (o půl hodiny dřív než obvykle) a další večery vždy o 15–30 min dřív, než dojdete k ${t.ideal}.`}
+        </p>
+      )}
+      {t.mode === "keep" && tm && (
+        <p className="mt-2 text-[12.5px] leading-[18px] text-fg-2">{`Obvykle chodíte spát už kolem ${tm.usualBed}, to na cíl stačí. Držte stejný čas.`}</p>
+      )}
+      {(t.debt || t.hardTomorrow) ? (
+        <p className="mt-2 text-[11.5px] leading-4 text-fg-3">
+          <span>{`Cíl: vaše norma ${hm((t.base || 7.5) * 60)}`}</span>
+          {t.debt ? <span>{` + část spánkového dluhu (${num(t.debt)} h za 3 noci)`}</span> : null}
+          {t.hardTomorrow ? <span>{" + půl hodiny před náročným dnem"}</span> : null}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+// ---- suggestion #7: the morning tendon test (the 24-hour response of the pain-monitoring model) --
+const SIDE_WORD: Record<string, string> = { L: "levá", P: "pravá" }
+const TENDON_STATE: Record<string, { col: string; label: string }> = {
+  red: { col: C.alert, label: "Dnes bez běhu" }, amber: { col: C.watch, label: "Držet zátěž" },
+  green: { col: C.ok, label: "Šlacha zátěž snesla" }, base: { col: C.info, label: "Výchozí hodnota" },
+}
+
+function TendonLog({ log }: { log: any[] }) {
+  // 14 mornings: the test (bar) and the pain during that day's run (dot); the dashed line is 5/10
+  const [pick, setPick] = useState<number | null>(null)
+  const W = 300, H = 118, L = 24, T = 6, B = 16
+  const cw = (W - L) / log.length
+  const y = (v: number) => T + (1 - v / 10) * (H - T - B)
+  const at = (e: React.PointerEvent<SVGSVGElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    const i = Math.floor(((e.clientX - r.left) / r.width * W - L) / cw)
+    setPick(i >= 0 && i < log.length ? i : null)
+  }
+  const p = pick != null ? log[pick] : null
+  return (
+    <div className="mt-3" data-no-tap data-testid="tendon-log">
+      <Lbl>{`Posledních ${log.length} dní`}</Lbl>
+      <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full touch-none" role="img" aria-label="Ranní test a bolest při běhu"
+        onPointerDown={at} onPointerMove={(e) => (e.buttons || e.pointerType === "mouse") && at(e)} onPointerLeave={() => setPick(null)}>
+        {[0, 5, 10].map((v) => (
+          <g key={v}>
+            <line x1={L} x2={W} y1={y(v)} y2={y(v)} stroke="rgb(255 255 255 / .07)" />
+            <text x={L - 5} y={y(v) + 3} textAnchor="end" fontSize="8.5" fill={C.fg3}>{v}</text>
+          </g>
+        ))}
+        <line x1={L} x2={W} y1={y(5)} y2={y(5)} stroke={C.alert} strokeWidth={1} strokeDasharray="3 2" opacity={0.75} />
+        {log.map((d, i) => (
+          <g key={d.d} opacity={pick == null || pick === i ? 1 : 0.45}>
+            {d.test != null && (d.test > 0
+              ? <rect x={L + i * cw + cw * 0.2} width={cw * 0.6} y={y(d.test)} height={y(0) - y(d.test)} rx={2} fill={C.load} />
+              : <rect x={L + i * cw + cw * 0.2} width={cw * 0.6} y={y(0) - 2} height={2} rx={1} fill={C.load} />)}
+            {d.during != null && <circle cx={L + i * cw + cw / 2} cy={y(d.during)} r={4} fill={C.info} stroke={C.panel} strokeWidth={2} />}
+            {d.ran && d.during == null && <circle cx={L + i * cw + cw / 2} cy={y(0) + 6} r={2} fill={C.info} />}
+            {(i % 3 === (log.length - 1) % 3) && <text x={L + i * cw + cw / 2} y={H - 2} textAnchor="middle" fontSize="8" fill={C.fg3}>{dm(d.d)}</text>}
+          </g>
+        ))}
+      </svg>
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10.5px] text-fg-3">
+        <span className="flex items-center gap-1"><i className="size-2 rounded-sm" style={{ background: C.load }} />ranní test</span>
+        <span className="flex items-center gap-1"><i className="size-2 rounded-full" style={{ background: C.info }} />bolest při běhu</span>
+        <span className="flex items-center gap-1"><i className="h-0 w-3 border-t border-dashed" style={{ borderColor: C.alert }} />hranice 5/10</span>
+      </div>
+      <p className="mt-1.5 min-h-[16px] text-[11.5px] text-fg-2" data-testid="tendon-pick">
+        {p ? (
+          <>
+            <span>{dm(p.d)}</span>
+            <span>{p.test != null ? ` · test ${p.test}/10` : " · bez testu"}</span>
+            {p.ran && <span>{p.during != null ? ` · běh ${p.during}/10` : " · běh bez hodnocení"}</span>}
+          </>
+        ) : <span className="text-fg-3">Klepněte na den pro hodnoty.</span>}
+      </p>
+    </div>
+  )
+}
+
+function TendonItem({ it, rid, onCard }: { it: any; rid?: string; onCard: (c: any) => void }) {
+  const [edit, setEdit] = useState(!it.done)
+  const [pain, setPain] = useState<number | null>(it.pain ?? null)
+  const [stiff, setStiff] = useState<number | null>(it.stiffness ?? null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(false)
+  const save = async () => {
+    if (pain == null || !rid) return
+    setBusy(true); setErr(false)
+    try { onCard(await api.tendonCheck(rid, { site: it.site, side: it.side, pain, stiffness: stiff })); setEdit(false) }
+    catch { setErr(true) }
+    finally { setBusy(false) }
+  }
+  const st = TENDON_STATE[it.state] || TENDON_STATE.base
+  const painCol = (v: number) => (v > 5 ? C.alert : v >= 3 ? C.watch : C.ok)
+  return (
+    <Panel>
+      <div className="flex items-baseline justify-between gap-2" data-testid={`tendon-${it.site}-${it.side || "x"}`}>
+        <p className="text-[15px] font-bold text-fg">{it.name}</p>
+        {it.side && <span className="text-[12px] text-fg-3">{SIDE_WORD[it.side]}</span>}
+      </div>
+      {edit ? (
+        <div data-no-tap>
+          <div className="mt-2 flex gap-3">
+            <div className="w-[96px] shrink-0 self-start overflow-hidden rounded-[12px] bg-white/[.04]"><ExerciseFigure id={it.figure} /></div>
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-fg">{it.testName}</p>
+              <ol className="mt-1 list-decimal space-y-1 pl-4 text-[12.5px] leading-[18px] text-fg-2">
+                {(it.how || []).map((h: string, i: number) => <li key={i}>{h}</li>)}
+              </ol>
+            </div>
+          </div>
+          <p className="mt-3 text-[12px] font-semibold text-fg-2">Bolest během testu</p>
+          <div className="mt-1.5 grid grid-cols-11 gap-1" role="radiogroup" aria-label="Bolest během testu">
+            {Array.from({ length: 11 }, (_, v) => (
+              <button key={v} type="button" role="radio" aria-checked={pain === v} onClick={() => setPain(v)} data-testid={`tendon-pain-${v}`}
+                className="t-num grid h-9 place-items-center rounded-[9px] text-[13px] font-bold"
+                style={pain === v ? { background: painCol(v), color: C.ink } : { background: "rgb(255 255 255 / .06)", color: C.fg }}>{v}</button>
+            ))}
+          </div>
+          <div className="mt-1 flex justify-between text-[10.5px] text-fg-3"><span>žádná</span><span>nejhorší</span></div>
+          <p className="mt-3 text-[12px] font-semibold text-fg-2">Ranní ztuhlost šlachy</p>
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+            {["žádná", "do 15 min", "déle"].map((l, v) => (
+              <button key={l} type="button" onClick={() => setStiff(stiff === v ? null : v)} aria-pressed={stiff === v}
+                className={`rounded-[10px] px-2 py-2 text-[12.5px] font-semibold ${stiff === v ? "bg-accent text-ink" : "bg-white/[.06] text-fg"}`}>{l}</button>
+            ))}
+          </div>
+          <button type="button" onClick={save} disabled={pain == null || busy || !rid} data-testid="tendon-save"
+            className="mt-3 w-full rounded-full bg-accent px-3 py-2.5 text-[13px] font-bold text-ink disabled:opacity-50">
+            {busy ? "Ukládám…" : "Uložit test"}
+          </button>
+          {err && <p className="mt-2 text-[12px] text-alert">Uložení se nepovedlo, zkuste to znovu.</p>}
+        </div>
+      ) : (
+        <>
+          <div className="mt-2 rounded-[12px] px-3 py-2.5" style={{ background: `${st.col}1f` }} data-testid="tendon-verdict">
+            <p className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: st.col }}>
+              {it.state === "red" ? <TriangleAlert className="size-4" aria-hidden /> : it.state === "green" ? <Check className="size-4" aria-hidden /> : <Info className="size-4" aria-hidden />}
+              {st.label}
+            </p>
+            <p className="mt-1 text-[12.5px] leading-[18px] text-fg-soft">{it.text}</p>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <Tile label="Dnešní test" value={`${it.pain}/10`} col={painCol(it.pain)} />
+            <Tile label="Před během" value={it.baseline != null ? `${it.baseline}/10` : "—"} sub={it.baselineDate ? dm(it.baselineDate) : undefined} />
+            <Tile label="Při běhu" value={it.during != null ? `${it.during}/10` : "—"} sub={it.ran ? "včera" : "včera bez běhu"} />
+          </div>
+          <TendonLog log={it.log || []} />
+          <button type="button" onClick={() => setEdit(true)} className="mt-2 text-[12px] font-semibold text-accent" data-testid="tendon-edit">Opravit dnešní odpověď</button>
+        </>
+      )}
+    </Panel>
+  )
+}
+
+function TendonCard({ t, rid, onSaved }: { t: any; rid?: string; onSaved: () => void }) {
+  const [card, setCard] = useState(t)
+  const onCard = (c: any) => { setCard(c); onSaved() }
+  const items: any[] = card?.items || []
+  return (
+    <div data-testid="tendon-card">
+      <Lbl>Ranní test šlachy</Lbl>
+      <Big>{items.every((x) => x.done) ? "Jak šlacha snesla zátěž" : "Krátký test, než vyrazíte"}</Big>
+      <Sub>Šlacha byla v posledních dnech bolavá. Stejný test každé ráno ukáže, jestli se po zátěži uklidnila: bolest smí být nejvýš 5/10 a do rána má odeznít.</Sub>
+      {items.map((it) => <TendonItem key={`${it.site}-${it.side}-${it.done ? "d" : "n"}`} it={it} rid={rid} onCard={onCard} />)}
+      <p className="mt-3 text-[11px] leading-4 text-fg-3">Model sledování bolesti (Silbernagel et al., 2007), test zátěží šlachy (Malliaras et al., 2015). Výsledek rovnou upraví dnešní doporučení.</p>
+    </div>
+  )
+}
+
+// ---- suggestion #10: what the day held, and what it does to this runner's night ----------
+const OUT_LABEL: [string, string][] = [["hrv", "HRV"], ["rhr", "Klidový tep"], ["sleep", "Spánek"]]
+const effVal = (k: string, v: number) =>
+  k === "hrv" ? `${v > 0 ? "+" : v < 0 ? "−" : ""}${num(Math.abs(v), 0)} %` : k === "rhr" ? `${v > 0 ? "+" : v < 0 ? "−" : ""}${num(Math.abs(v), 1)} tepu/min` : `${v > 0 ? "+" : v < 0 ? "−" : ""}${num(Math.abs(v), 0)} min`
+const effBad = (k: string, v: number) => (k === "rhr" ? v > 0 : v < 0)
+
+function EffectChips({ eff }: { eff: any }) {
+  return (
+    <div className="mt-1 flex flex-wrap gap-1.5">
+      {OUT_LABEL.map(([k, l]) => {
+        const e = eff?.[k]
+        if (!e || e.status === "collecting") return null
+        const clear = e.status === "clear"
+        return (
+          <span key={k} className="rounded-full px-2 py-0.5 text-[11.5px] font-semibold"
+            style={clear ? { background: `${effBad(k, e.value) ? C.watch : C.ok}24`, color: effBad(k, e.value) ? C.watchSoft : C.ok } : { background: "rgb(255 255 255 / .06)", color: C.fg3 }}>
+            <span>{l}</span>{clear ? " " : ": "}<span className="t-num">{clear ? effVal(k, e.value) : e.status === "none" ? "beze změny" : "nejasné"}</span>
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+function HrvForest({ rows }: { rows: any[] }) {
+  // the HRV effect of each tag with its 95 % interval; the band around zero is the smallest
+  // worthwhile change (half of the night-to-night SD) — an interval inside it = no effect
+  const W = 300, rowH = 24, L = 112, R = 8, T = 14
+  const H = T + rows.length * rowH + 4
+  const ext = Math.max(10, ...rows.flatMap((x) => [Math.abs(x.effects.hrv.lo), Math.abs(x.effects.hrv.hi)]))
+  const dom = Math.ceil(ext / 5) * 5
+  const x = (v: number) => L + ((v + dom) / (2 * dom)) * (W - L - R)
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full" role="img" aria-label="Vliv štítků na HRV" data-testid="hrv-forest">
+      {[-dom, 0, dom].map((v) => (
+        <g key={v}>
+          <line x1={x(v)} x2={x(v)} y1={T - 4} y2={H} stroke={v === 0 ? "rgb(255 255 255 / .25)" : "rgb(255 255 255 / .07)"} />
+          <text x={x(v)} y={9} textAnchor={v > 0 ? "end" : v < 0 ? "start" : "middle"} fontSize="8.5" fill={C.fg3}>{v === 0 ? "0" : `${v > 0 ? "+" : "−"}${Math.abs(v)} %`}</text>
+        </g>
+      ))}
+      {rows.map((r, i) => {
+        const e = r.effects.hrv, cy = T + i * rowH + rowH / 2
+        const col = e.status === "clear" ? (e.value < 0 ? C.watch : C.ok) : C.fg3
+        return (
+          <g key={r.key}>
+            <text x={0} y={cy + 3.5} fontSize="10" fill={C.fg2}>{r.label}</text>
+            <line x1={x(e.lo)} x2={x(e.hi)} y1={cy} y2={cy} stroke={col} strokeWidth={2} strokeLinecap="round" />
+            <circle cx={x(e.value)} cy={cy} r={4.5} fill={col} stroke={C.panel} strokeWidth={2} />
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+function DayTags({ d, rid }: { d: any; rid?: string }) {
+  const [data, setData] = useState(d)
+  const [sel, setSel] = useState<string[]>(d.tags || [])
+  const [answered, setAnswered] = useState<boolean>(d.tags != null)
+  const [dirty, setDirty] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(false)
+  const toggle = (k: string) => {
+    setDirty(true)
+    setSel((cur) => {
+      if (cur.includes(k)) return cur.filter((x) => x !== k)
+      const other = k === "alcohol" ? "alcohol_more" : k === "alcohol_more" ? "alcohol" : null
+      return [...cur.filter((x) => x !== other), k]
+    })
+  }
+  const save = async (tags: string[]) => {
+    if (!rid) return
+    setBusy(true); setErr(false)
+    try { const x = await api.saveDayTags(rid, { tags }); setData(x); setSel(x.tags || []); setAnswered(true); setDirty(false) }
+    catch { setErr(true) }
+    finally { setBusy(false) }
+  }
+  const ins: any[] = data.insights || []
+  const ready = ins.filter((x) => x.status !== "collecting" && x.effects?.hrv && x.effects.hrv.status !== "collecting")
+  const collecting = ins.filter((x) => x.status === "collecting" && x.n > 0)
+  return (
+    <div data-testid="day-tags">
+      <Lbl>Co dnes bylo</Lbl>
+      <Big>Co vám hýbe nocí?</Big>
+      <Sub>Označte, co dnes bylo. Po pár týdnech uvidíte, co z toho u vás opravdu mění HRV, klidový tep a spánek.</Sub>
+      <div className="mt-4 flex flex-wrap gap-2" data-no-tap>
+        {(data.options || []).map((o: any) => {
+          const on = sel.includes(o.key)
+          return (
+            <button key={o.key} type="button" onClick={() => toggle(o.key)} aria-pressed={on} data-testid={`tag-${o.key}`}
+              className={`rounded-full px-3 py-2 text-[13px] font-semibold transition ${on ? "bg-accent text-ink" : "bg-white/[.07] text-fg"}`}>{o.label}</button>
+          )
+        })}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button type="button" disabled={busy} onClick={() => save([])} data-testid="tags-none"
+          className={`rounded-full border px-3 py-2.5 text-[13px] font-bold disabled:opacity-60 ${answered && !sel.length && !dirty ? "border-accent text-accent" : "border-white/20 text-fg"}`}>
+          Nic z toho
+        </button>
+        <button type="button" disabled={busy || !sel.length || (answered && !dirty)} onClick={() => save(sel)} data-testid="tags-save"
+          className="rounded-full bg-accent px-3 py-2.5 text-[13px] font-bold text-ink disabled:opacity-50">
+          {answered && !dirty && sel.length ? "Uloženo" : "Uložit"}
+        </button>
+      </div>
+      <p className="mt-2 text-[11.5px] leading-4 text-fg-3" data-testid="tags-status">
+        {err ? "Uložení se nepovedlo, zkuste to znovu." : answered && !dirty ? (sel.length ? "Dnešní večer je zapsaný." : "Zapsáno: dnes nic z toho. I takový večer je potřeba pro srovnání.") : "Večer bez odpovědi se do srovnání nepočítá."}
+      </p>
+      <Panel>
+        <Lbl>{`Vaše data · ${data.answered} zapsaných večerů`}</Lbl>
+        {ready.length ? (
+          <>
+            <p className="mt-2 text-[12px] leading-[17px] text-fg-2">Vliv na HRV další noci proti vašemu průměru, s 95% intervalem a po odečtení vlivu tréninku toho dne.</p>
+            <HrvForest rows={ready.slice(0, 6)} />
+            <ul className="mt-2 space-y-2.5">
+              {ready.map((x) => (
+                <li key={x.key}>
+                  <p className="text-[13px] font-semibold text-fg"><span>{x.label}</span><span className="font-normal text-fg-3">{` · ${x.n} nocí`}</span></p>
+                  <EffectChips eff={x.effects} />
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="mt-2 text-[12.5px] leading-[18px] text-fg-2">Ke každému štítku je potřeba aspoň 5 večerů s ním a 10 bez něj. Pak se tu objeví, jak u vás působí.</p>
+        )}
+        {collecting.length > 0 && (
+          <ul className="mt-3 space-y-1.5">
+            {collecting.map((x) => (
+              <li key={x.key} className="flex items-center gap-2 text-[12px] text-fg-2">
+                <span className="w-[112px] shrink-0 truncate">{x.label}</span>
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10"><b className="block h-full rounded-full bg-load" style={{ width: `${Math.min(100, (x.n / 5) * 100)}%` }} /></span>
+                <span className="t-num w-9 text-right text-fg-3">{`${Math.min(x.n, 5)}/5`}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+      <p className="mt-3 text-[11px] leading-4 text-fg-3">Alkohol snižuje noční HRV podle množství (Pietilä et al., 2018); tady jde o to, jak je to právě u vás.</p>
+    </div>
+  )
+}
+
+function LastNightTags({ x }: { x: any }) {
+  const now = x.now || {}
+  return (
+    <Panel>
+      <Lbl>Včerejší večer</Lbl>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {x.items.map((it: any) => <span key={it.key} className="rounded-full bg-white/[.08] px-2.5 py-1 text-[12px] font-semibold text-fg">{it.label}</span>)}
+      </div>
+      {(now.hrv != null || now.rhr != null || now.sleep != null) && (
+        <p className="mt-2 text-[12.5px] leading-[18px] text-fg-2">
+          <span>Dnešní noc proti průměru 14 nocí před ní:</span>
+          {now.hrv != null && <span className="t-num">{` HRV ${effVal("hrv", now.hrv)}`}</span>}
+          {now.rhr != null && <span className="t-num">{` · tep ${effVal("rhr", now.rhr)}`}</span>}
+          {now.sleep != null && <span className="t-num">{` · spánek ${effVal("sleep", now.sleep)}`}</span>}
+        </p>
+      )}
+      {x.items.map((it: any) => (
+        <div key={it.key} className="mt-2">
+          {it.status === "clear" ? (
+            <>
+              <p className="text-[12px] text-fg-3"><span>{it.label}</span><span>: u vás obvykle</span><span>{` (${it.n} nocí)`}</span></p>
+              <EffectChips eff={it.effects} />
+            </>
+          ) : (
+            <p className="text-[12px] text-fg-3">
+              <span>{it.label}</span><span>{": "}</span>
+              <span>{it.status === "collecting" ? `zatím ${Math.min(it.n, 5)} z 5 večerů potřebných pro srovnání` : it.status === "none" ? "u vás bez znatelného vlivu na noc" : "vliv zatím nejasný"}</span>
+            </p>
+          )}
+        </div>
+      ))}
+    </Panel>
+  )
+}
+
 // ---- evening ------------------------------------------------------------------------------
-const TYPE_COL: Record<string, string> = { "dlouhý": C.load, "kvalitní": C.alert, "lehký": C.info, volno: C.fg4, "lehce / volno": C.fg4 }
 
 function eveningCards(r: any, c: Ctx): Card[] {
   const v = r.dayView, ld = r.load || {}, w = r.week || {}, rw = r.restOfWeek || {}, t = r.tonight || {}, tm = r.tomorrow || {}
@@ -729,13 +1365,14 @@ function eveningCards(r: any, c: Ctx): Card[] {
         <Big>{r.greeting}</Big>
         <div className="mt-4 grid grid-cols-3 gap-2">
           <Tile label="Energie teď" value={r.energyNow ?? "—"} col={goodCol(r.energyNow)} sub="ze 100" />
-          <Tile label="Zátěž dne" value={ld.total != null ? num(ld.total, 0) : "—"} sub="j.z." />
+          <Tile label="Zátěž dne" value={ld.total != null ? num(ld.total, 0) : "—"} sub="bodů zátěže" />
           <Tile label="Na noc" value={`${num(t.target)} h`} sub={`do postele ${t.bed}`} />
         </div>
         {note(c, "intro")}
       </div>
     ),
   }]
+  const tot = Math.max(1, (ld.train || 0) + (ld.nt || 0), ld.usualNt || 0)
   cards.push({
     key: "day", title: "Váš den", body: (
       <>
@@ -767,15 +1404,10 @@ function eveningCards(r: any, c: Ctx): Card[] {
             ) : null}
           </>
         ) : <Sub>Celodenní tep z hodinek zatím nedorazil. Po synchronizaci se průběh doplní.</Sub>}
-      </>
-    ),
-  })
-  const tot = Math.max(1, (ld.train || 0) + (ld.nt || 0), ld.usualNt || 0)
-  cards.push({
-    key: "load", title: "Zátěž dne", body: (
-      <>
-        <Lbl>Celková zátěž dne</Lbl>
-        <Big>{ld.total != null ? `${num(ld.total, 0)} j.z.` : "—"}</Big>
+        {/* UX audit F22 — the day's load is part of the day (it was a card of its own) */}
+        <Panel>
+          <div className="flex items-baseline justify-between gap-2"><Lbl>Zátěž dne</Lbl><b className="text-[13px] tabular-nums text-fg">{ld.total != null ? `${num(ld.total, 0)} bodů` : "—"}</b></div>
+        </Panel>
         {note(c, "load")}
         <Panel>
           <div className="flex h-5 overflow-hidden rounded-full bg-white/[.06]" data-testid="load-split">
@@ -802,12 +1434,16 @@ function eveningCards(r: any, c: Ctx): Card[] {
       </>
     ),
   })
+  const days: any[] = w.days || []
+  const planned: Record<string, any> = Object.fromEntries((rw.days || []).map((x: any) => [x.date, x]))
+  const maxKm = Math.max(10, ...days.map((x) => Math.max(x.km || 0, planned[x.date]?.km || 0)))
   const eff: any[] = tm.effects || []
   cards.push({
     key: "tomorrow", title: "Co ovlivní zítřek", body: (
       <>
         <Lbl>Zítřek</Lbl>
-        <Big>{tm.plan ? `${tm.plan.wd}: ${tm.plan.type}${tm.plan.km ? ` ≈ ${num(tm.plan.km)} km` : ""}` : "Co ovlivní zítřek"}</Big>
+        {/* owner request 2026-10-06: the same plan as the rest of the week and the Monday sheet */}
+        <Big>{tm.plan ? `${tm.plan.wd}: ${tm.plan.text || tm.plan.label}` : "Co ovlivní zítřek"}</Big>
         {note(c, "tomorrow")}
         <Panel>
           <ul className="space-y-2.5" data-testid="tomorrow-effects">
@@ -820,59 +1456,44 @@ function eveningCards(r: any, c: Ctx): Card[] {
           </ul>
           <p className="mt-3 text-[11px] leading-4 text-fg-3">↓ zítřejší připravenost a kapacitu spíš sníží · ↑ spíš pomůže · → plán. Ráno to přesně ukáže noc.</p>
         </Panel>
-      </>
-    ),
-  })
-  const days: any[] = w.days || []
-  const planned: Record<string, any> = Object.fromEntries((rw.days || []).map((x: any) => [x.date, x]))
-  const maxKm = Math.max(10, ...days.map((x) => Math.max(x.km || 0, planned[x.date]?.km || 0)))
-  cards.push({
-    key: "week", title: "Týden", body: (
-      <>
-        <Lbl>Tento týden</Lbl>
-        <Big>{w.budget ? `${num(w.done || 0)} z ${num(w.budget, 0)} km` : `${num(w.done || 0)} km`}</Big>
+        {/* UX audit F22 — the rest of the week belongs to "what comes next" (it was a card of its own) */}
         {note(c, "week")}
         <Panel>
+          <div className="mb-2 flex items-baseline justify-between gap-2"><Lbl>Tento týden</Lbl><b className="text-[13px] tabular-nums text-fg">{w.budget ? `${num(w.done || 0)} z ${num(w.budget, 0)} km` : `${num(w.done || 0)} km`}</b></div>
           <Bars max={maxKm} items={days.map((x) => {
             const pl = planned[x.date]
             return x.past || x.today ? { label: x.wd, v: x.km || (x.other?.length ? 0.01 : null), col: x.today ? C.accent : C.info, on: x.today }
-              : { label: x.wd, v: pl?.km ?? null, col: TYPE_COL[pl?.type] || C.fg4, hatch: true }
+              : { label: x.wd, v: pl?.km ?? null, col: PLAN_COL[pl?.type] || C.fg4, hatch: true }
           })} />
           <p className="mt-2 text-[11px] text-fg-3">Plné: odběhnuto · šrafované: návrh na zbytek týdne.</p>
         </Panel>
         <Panel>
           <Lbl>Zbytek týdne</Lbl>
           {rw.note && <p className="mt-1 text-[13px] text-fg-2">{rw.note}</p>}
-          <div className="mt-1 divide-y divide-white/[.06]">
-            {(rw.days || []).map((x: any) => (
-              <div key={x.date} className="flex items-center justify-between py-2 text-[13px]">
-                <span className="flex items-center gap-2"><b className="w-6 text-fg-2">{x.wd}</b><i className="size-2 rounded-full" style={{ background: TYPE_COL[x.type] || C.fg4 }} /><span className="text-fg">{x.type}</span></span>
-                <span className="tabular-nums text-fg-2">{x.km ? `≈ ${num(x.km)} km` : ""}</span>
-              </div>
-            ))}
-          </div>
+          {rw.days?.length ? (
+            <>
+              <p className="mt-1 text-[11px] text-fg-3">Plán týdne přepočítaný podle toho, co už máte odběhnuto. Klepnutím na den zobrazíte tep, tempo a čas.</p>
+              <ul className="mt-1 divide-y divide-white/[.06]" data-no-tap data-testid="rest-of-week">{rw.days.map((d: any) => <PlanDay key={d.date} d={d} />)}</ul>
+            </>
+          ) : null}
         </Panel>
       </>
     ),
   })
+  if (r.mobility) cards.push({ key: "mobility", title: "Mobilita", body: <Mobility m={r.mobility} text={c.notes.mobility} onProgram={c.onProgram} /> })
+  if (r.dayTags) cards.push({ key: "tags", title: "Co dnes bylo", body: <DayTags d={r.dayTags} rid={c.rid} /> })
   cards.push({
     key: "tonight", title: "Na noc", body: (
       <>
-        <Lbl>Dnešní noc</Lbl>
-        <Big>{`${hm((t.target || 8) * 60)} spánku`}</Big>
-        {note(c, "tonight")}
-        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Bed className="mx-auto size-5 text-load" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.bed}</p><p className="text-[10.5px] text-fg-3">do postele</p></div>
-          <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Sun className="mx-auto size-5 text-watch" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.wake}</p><p className="text-[10.5px] text-fg-3">{t.wakeFromWatch ? "obvyklé vstávání" : "vstávání"}</p></div>
-          <div className="rounded-[14px] bg-white/[.05] px-2 py-3"><Coffee className="mx-auto size-5 text-fg-2" aria-hidden /><p className="t-num mt-1 text-[22px]">{t.caffeine}</p><p className="text-[10.5px] text-fg-3">poslední káva</p></div>
-        </div>
+        <Tonight t={t} date={r.date} text={note(c, "tonight")} extra={
         <Panel>
           <ul className="space-y-1.5 text-[13px] leading-5 text-fg-soft">
             <li className="flex gap-2"><span className="text-load">›</span><span>Sportovcům se doporučuje 7–9 hodin spánku, při náročném tréninku spíš víc (Walsh et al., 2021).</span></li>
+            <li className="flex gap-2"><span className="text-load">›</span><span>Pravidelný čas usínání a vstávání souvisel se zdravím víc než samotná délka spánku (Windred et al., 2024).</span></li>
             <li className="flex gap-2"><span className="text-load">›</span><span>Kofein ještě 6 hodin před spaním zkracuje a zhoršuje spánek (Drake et al., 2013).</span></li>
             <li className="flex gap-2"><span className="text-load">›</span><span>Hodinu před spaním ztlumit světlo a obrazovky, v ložnici chladno a tma.</span></li>
           </ul>
-        </Panel>
+        </Panel>} />
       </>
     ),
   })
@@ -930,9 +1551,11 @@ export function ReportProvider({ children }: { children: ReactNode }) {
   const { me, boot, viewing, touring, refresh } = useApp()
   const rid = (viewing || touring) ? undefined : (me?.runner_id as string | undefined)
   const { available, open: ask } = useAssistant()
+  const navigate = useNavigate()
   const [now, setNow] = useState(() => new Date())
   const [rep, setRep] = useState<{ kind: Kind; day: string; data: any } | null>(null)
   const [show, setShow] = useState(false)
+  const [bump, setBump] = useState(0)                 // an answer in the report (a tendon test) → the report again
   const stamp = boot?.assessment?.computed_at          // a sync recomputes it → the night may have arrived
   // re-check the window every minute and whenever the app comes back to the front
   useEffect(() => {
@@ -968,7 +1591,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
       if (!wasSeen(seenKey(rid, day, kind))) { setShow(true); markSeen(seenKey(rid, day, kind)) }
     }).catch(() => alive && setRep(null))
     return () => { alive = false }
-  }, [rid, kind, day, stamp])
+  }, [rid, kind, day, stamp, bump])
   // the model-written sentences come after the report (validated on the server; the rule-based ones meanwhile)
   const [ai, setAi] = useState<{ key: string; notes: Record<string, string>; source: string } | null>(null)
   const repKey = rep ? `${rep.kind}:${rep.day}:${rep.data?.generatedAt}` : ""
@@ -980,8 +1603,23 @@ export function ReportProvider({ children }: { children: ReactNode }) {
   }, [rid, repKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const value = useMemo<ReportApi>(() => ({ kind: rep ? rep.kind : null, open: () => setShow(true) }), [rep])
   const onAsk = (q: string) => { setShow(false); setTimeout(() => ask(q), 50) }
+  // owner request 2026-10-05: a programme from the report — saved among the runner's
+  // programmes (the same one twice is the same), optionally opened in Péče right away
+  const onProgram = async (key: string, go: boolean) => {
+    if (!rid) return false
+    let prog: any = null
+    try { prog = await api.startSelfProgram(rid, { template: key }) } catch { return false }
+    if (go) {
+      // railway#201 — the programme's exercises fold until the session starts; from the report it has started
+      try { if (prog?.id) localStorage.setItem(`dl-session-open:${prog.id}:${new Date().toLocaleDateString("sv-SE")}`, "1") } catch { /* private mode */ }
+      setShow(false)
+      navigate(`/app/messages?sub=program&prog=${key}`)
+      setTimeout(() => window.dispatchEvent(new CustomEvent(CARE_SUB_EVENT, { detail: "program" })), 80)
+    }
+    return true
+  }
   const aiNow = ai && ai.key === repKey ? ai : null
-  const ctx = rep ? { onAsk, hasAssistant: available, notes: { ...(rep.data?.notes || {}), ...(aiNow?.notes || {}) },
+  const ctx = rep ? { onAsk, onProgram, rid, onRefresh: () => { setBump((x) => x + 1); refresh().catch(() => {}) }, hasAssistant: available, notes: { ...(rep.data?.notes || {}), ...(aiNow?.notes || {}) },
     ai: aiNow ? aiNow.source === "ai" : !rep.data?.aiPending, pending: !!rep.data?.aiPending && !aiNow } : null
   const cards = show && rep && ctx ? (rep.kind === "morning" ? morningCards(rep.data, ctx) : eveningCards(rep.data, ctx)) : null
   return (

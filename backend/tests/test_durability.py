@@ -40,7 +40,7 @@ def test_programme_starts_with_session_a_and_phase_doses(client, monkeypatch):
         assert [ph["key"] for ph in d["phases"]] == DU.PHASE_KEYS and d["phases"][-1]["to"] == 26
 
 
-def test_finish_counts_the_load_and_progresses_then_alternates(client, db_session, monkeypatch):
+def test_finish_rates_the_watch_recording_and_progresses_then_alternates(client, db_session, monkeypatch):
     _pin(monkeypatch, date(2026, 10, 5))                         # Monday
     if True:
         rid, p = _start(client, "dur2@test.cz")
@@ -48,17 +48,36 @@ def test_finish_counts_the_load_and_progresses_then_alternates(client, db_sessio
         p = client.post(f"/api/runners/{rid}/self-programs/{p['id']}/finish", json={"feel": "easy"}).json()
         d = p["durability"]
         assert d["doneToday"] and d["blocked"] and d["note"].startswith("Příště o něco víc")
-        acts = db_session.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.sport == "strength").all()
-        assert len(acts) == 1 and acts[0].strength_type == "heavy" and acts[0].duration_min >= 30
-        fb = db_session.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == acts[0].id).one()
-        assert fb.rpe == DU.FEEL["easy"]
-        # re-rating the same day doesn't progress twice nor log a second session
-        p = client.post(f"/api/runners/{rid}/self-programs/{p['id']}/finish", json={"feel": "hard"}).json()
+        # feedback #204 — no activity of the app's own: the rating waits for the watch's recording
+        assert not p["sessionLinked"]
+        assert db_session.query(models.Activity).filter(models.Activity.runner_id == rid).count() == 0
         prog = db_session.get(models.SelfProgram, p["id"])
         db_session.refresh(prog)
+        rate = prog.state["history"][-1]["rate"]
+        assert rate["rpe"] == DU.FEEL["easy"] and rate["type"] == "heavy" and rate["minutes"] >= 30
+        # re-rating the same day doesn't progress twice
+        p = client.post(f"/api/runners/{rid}/self-programs/{p['id']}/finish", json={"feel": "hard"}).json()
+        db_session.refresh(prog)
         assert prog.state["levels"]["A"] == 0 and len(prog.state["history"]) == 1
-        assert db_session.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.sport == "strength").count() == 1
         assert p["next"]["session"] == "B" and p["next"]["date"] == "2026-10-07"
+        # the watch's strength workout of that day syncs later: it takes the session's rating
+        w = models.Activity(runner_id=rid, provider="garmin", external_id="str1", sport="strength",
+                            started_at="2026-10-05", duration_min=62)
+        db_session.add(w)
+        db_session.commit()
+        assert DU.link_sessions(db_session, rid)
+        db_session.commit()
+        fb = db_session.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == w.id).one()
+        db_session.refresh(w)
+        assert fb.rpe == DU.FEEL["hard"] and w.strength_type == "heavy"
+        db_session.refresh(prog)
+        assert prog.state["history"][-1]["activityId"] == w.id
+        assert db_session.query(models.Activity).filter(models.Activity.runner_id == rid).count() == 1
+        # re-rating once linked rates the same recording again
+        p = client.post(f"/api/runners/{rid}/self-programs/{p['id']}/finish", json={"feel": "ok"}).json()
+        assert p["sessionLinked"]
+        db_session.expire_all()
+        assert db_session.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == w.id).one().rpe == DU.FEEL["ok"]
     _pin(monkeypatch, date(2026, 10, 6))                         # 24 h later: too soon
     if True:
         d = client.get(f"/api/runners/{rid}/self-programs").json()["active"]["durability"]
@@ -139,3 +158,94 @@ def test_a_demanding_day_gets_b_instead_of_a(client, db_session):
         pick = DU.choose(db_session, rid, None, {"history": [{"date": "2026-10-05", "session": "A"},
                                                              {"date": "2026-10-07", "session": "B"}]}, date(2026, 10, 10))
         assert pick["blocked"] and "2 z 2" in pick["blocked"]
+
+
+# ---------------------------------------------------------------- owner request 2026-10-06
+def test_an_exercise_added_to_the_template_later_can_be_logged(client, db_session, monkeypatch):
+    """A programme started before pelvic_drop joined session B couldn't log it (422), so the
+    session never ended."""
+    _pin(monkeypatch, date(2026, 10, 5))
+    rid, p = _start(client, "dur10@test.cz")
+    prog = db_session.get(models.SelfProgram, p["id"])
+    prog.exercises = [x for x in prog.exercises if x != "pelvic_drop"]
+    db_session.commit()
+    r = client.patch(f"/api/runners/{rid}/self-programs/{p['id']}/log", json={"exercise": "pelvic_drop", "done": True})
+    assert r.status_code == 200
+    db_session.refresh(prog)
+    assert "pelvic_drop" in prog.exercises
+    assert client.patch(f"/api/runners/{rid}/self-programs/{p['id']}/log", json={"exercise": "nordic", "done": True}).status_code == 422
+
+
+def test_ending_a_session_early(client, db_session, monkeypatch):
+    _pin(monkeypatch, date(2026, 10, 5))
+    rid, p = _start(client, "dur11@test.cz")
+    prog = db_session.get(models.SelfProgram, p["id"])
+    prog.state = {**prog.state, "levels": {"A": 2, "B": 0}}
+    db_session.commit()
+    p = client.get(f"/api/runners/{rid}/self-programs").json()["active"]
+    plan = p["durability"]["plan"]
+    url = f"/api/runners/{rid}/self-programs/{p['id']}/finish"
+    assert client.post(url, json={"feel": "ok"}).status_code == 422                # nothing done yet
+    for x in plan[:3]:
+        client.patch(f"/api/runners/{rid}/self-programs/{p['id']}/log", json={"exercise": x["id"], "done": True})
+    p = client.post(url, json={"feel": "hard", "easier": True, "sets": {plan[3]["id"]: 1}}).json()
+    d = p["durability"]
+    total = sum(x["sets"] for x in plan)
+    done = sum(x["sets"] for x in plan[:3]) + 1
+    assert d["doneToday"] and d["partialToday"] and d["completionToday"] == round(done / total, 2)
+    assert d["easierNext"] and "nebyl celý a byl těžký" in d["note"] and "lehčí verze" in d["noteNext"]
+    db_session.refresh(prog)
+    assert prog.state["levels"]["A"] == 1 and prog.state["easier"] is True
+    rate = prog.state["history"][-1]["rate"]
+    assert rate["minutes"] < DU.estimate_min("A", plan) and "hotovo" in rate["note"]
+    # the next session is the lighter version: one set less, the bottom of the range
+    _pin(monkeypatch, date(2026, 10, 7))
+    p = client.get(f"/api/runners/{rid}/self-programs").json()["active"]
+    d = p["durability"]
+    assert d["session"] == "B" and d["light"]
+    week = DU.week_of(prog.started_on, date(2026, 10, 7))
+    assert [x["sets"] for x in d["plan"]] == [x["sets"] for x in DU.session_plan("B", week, 0, True)]
+    for x in d["plan"]:
+        client.patch(f"/api/runners/{rid}/self-programs/{p['id']}/log", json={"exercise": x["id"], "done": True})
+    p = client.post(f"/api/runners/{rid}/self-programs/{p['id']}/finish", json={"feel": "ok"}).json()
+    db_session.refresh(prog)
+    assert prog.state["easier"] is False and prog.state["history"][-1].get("light") and not p["durability"]["partialToday"]
+
+
+def test_a_partial_session_never_goes_up():
+    st = {"levels": {"A": 1, "B": 0}, "steps": {"A": 0, "B": 0}, "history": []}
+    st = DU.progress(st, "A", "easy", 6, partial=True, completion=0.6)
+    assert st["levels"]["A"] == 1 and "nebyl celý" in st["note"] and st["history"][-1]["partial"]
+    st = DU.progress(st, "A", "ok", 6, partial=True, completion=0.8, easier=True)
+    assert st["levels"]["A"] == 1 and st["easier"] and "lehčí verze" in st["noteNext"]
+    st = DU.progress(st, "A", "pain", 6, partial=True, completion=0.3)
+    assert st["levels"]["A"] == 0 and not st["easier"]
+
+
+def test_sessions_saved_as_activities_before_are_tidied_up(client, db_session, monkeypatch):
+    """Feedback #204: an app-made "Posilování · …" activity from an earlier version goes; its
+    rating moves onto the watch's recording of that day."""
+    _pin(monkeypatch, date(2026, 10, 5))
+    rid, p = _start(client, "dur12@test.cz")
+    old = models.Activity(runner_id=rid, provider="manual", sport="strength", started_at="2026-10-03", duration_min=40,
+                          title="Posilování · A · Síla (těžší)", strength_type="heavy", strength_focus="lower")
+    w = models.Activity(runner_id=rid, provider="garmin", external_id="str2", sport="strength", started_at="2026-10-03", duration_min=75)
+    hand = models.Activity(runner_id=rid, provider="manual", sport="cycling", started_at="2026-10-02", duration_min=60, title="Kolo")
+    db_session.add_all([old, w, hand])
+    db_session.flush()
+    db_session.add(models.ActivityFeedback(activity_id=old.id, runner_id=rid, submitted_at="2026-10-03", rpe=8, pain_points=[],
+                                           note="Runner's must-have A: těžké"))
+    # the detail backfill's tombstone for a hand-logged session (Postgres enforces this foreign key)
+    db_session.add(models.ActivityStream(activity_id=old.id, runner_id=rid, segments_json=None, gps=False, quality_json={"failed": True},
+                                         created_at="2026-10-04"))
+    old_id = old.id
+    prog = db_session.get(models.SelfProgram, p["id"])
+    prog.state = {**prog.state, "history": [{"date": "2026-10-03", "session": "A", "feel": "hard", "activityId": old.id}]}
+    db_session.commit()
+    client.get(f"/api/runners/{rid}/self-programs")                # the read tidies up
+    db_session.expire_all()
+    left = {a.title or a.sport for a in db_session.query(models.Activity).filter(models.Activity.runner_id == rid)}
+    assert left == {"strength", "Kolo"}                              # the runner's own hand-logged ride stays
+    fb = db_session.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == w.id).one()
+    assert fb.rpe == 8 and "Runner's must-have" in fb.note
+    assert db_session.query(models.ActivityStream).filter(models.ActivityStream.activity_id == old_id).count() == 0

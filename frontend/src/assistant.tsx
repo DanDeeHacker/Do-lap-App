@@ -17,7 +17,7 @@ type Msg = { id: number; threadId?: string; role: "user" | "assistant"; text: st
 type Status = { name: string; access: { enabled: boolean; reason: string | null; needsConsent: boolean }; limit: number; used: number; visibleDays: number; disclaimer: string; llm: boolean; admin: boolean; suggestions?: string[]; history?: Msg[] }
 type Ctx = { kind: string; id?: string | number }
 
-const LINK_PATH: Record<string, string> = { Dnes: "/app/today", "Trénink": "/app/training", "Deník": "/app/post", Pohyb: "/app/mechanics", "Zátěž": "/app/load", "Péče": "/app/messages", Data: "/data" }
+const LINK_PATH: Record<string, string> = { Dnes: "/app/today", "Trénink": "/app/training", "Deník": "/app/post", Pohyb: "/app/mechanics", Mechanika: "/app/mechanics", "Zátěž": "/app/load", "Péče": "/app/messages", Data: "/data" }
 const STRENGTH_TONE: Record<string, string> = { "silné": "text-ok", "střední": "text-watch", "slabé": "text-fg-2" }
 const STEPS = ["Čtu vaše data…", "Hledám v odborných zdrojích…", "Píšu odpověď…", "Kontroluji odpověď…"]
 
@@ -27,7 +27,7 @@ const AssistantCtx = createContext<AssistantApi>({ available: false, status: nul
 
 // The tab the assistant is opened from decides its summary and the default subject
 // of a question (backend assistant/service.TAB_SUMMARY, selector.TAB_INTENTS).
-const TAB_NAME: Record<string, string> = { today: "Dnes", training: "Trénink", post: "Deník", mechanics: "Pohyb", load: "Zátěž", messages: "Péče" }
+const TAB_NAME: Record<string, string> = { today: "Dnes", training: "Trénink", post: "Deník", mechanics: "Mechanika", load: "Zátěž", messages: "Péče" }
 const tabOf = (path: string) => { const t = path.split("/")[2] || "today"; return TAB_NAME[t] ? t : "today" }
 export const useAssistant = () => useContext(AssistantCtx)
 

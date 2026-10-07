@@ -755,6 +755,39 @@ class Race(Base):
     target_pace_s_km = Column(Integer)              # planned pace, seconds per km
 
 
+class TendonCheck(Base):
+    """Suggestion #7 (owner request 2026-10-05): the morning load test of a painful tendon,
+    the 24-hour response of the pain-monitoring model (Silbernagel et al., 2007): the same
+    test every morning (10 single-leg heel raises for the Achilles tendon, 5 slow single-leg
+    squats for the patellar tendon), pain 0–10 and morning stiffness. One row per tendon,
+    side and morning (a second answer the same morning replaces the first)."""
+    __tablename__ = "tendon_checks"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    date = Column(String, index=True, nullable=False)      # the morning, YYYY-MM-DD
+    site = Column(String, nullable=False)                   # achilles | patellar
+    side = Column(String, default="")                       # L | P | "" (both / not given)
+    test = Column(String)                                   # heel_raise | sl_squat
+    pain = Column(Integer, nullable=False)                  # 0–10 during the test
+    stiffness = Column(Integer)                             # 0 none, 1 under 15 min, 2 longer
+    submitted_at = Column(String)
+    __table_args__ = (UniqueConstraint("runner_id", "date", "site", "side", name="uq_tendon_check"),)
+
+
+class DayTag(Base):
+    """Suggestion #10 (owner request 2026-10-05): what the day and evening held — alcohol,
+    a late meal, stress, travel … (metrics/day_tags.py). One row per runner and day; an
+    empty list is an answer too ("nothing of it", a control night). The night after day D
+    is the DailyMetric dated D + 1."""
+    __tablename__ = "day_tags"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    date = Column(String, index=True, nullable=False)
+    tags = Column(JSON, default=list)
+    updated_at = Column(String)
+    __table_args__ = (UniqueConstraint("runner_id", "date", name="uq_day_tag"),)
+
+
 class CoachText(Base):
     """One generated AI text — daily summary, daily training commentary or weekly
     summary (metrics/coach_texts.py). Every generation is kept with the exact facts

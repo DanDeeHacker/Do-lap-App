@@ -20,7 +20,7 @@ WORDS = (8, 300)
 _CITE = re.compile(r"\[(\d{1,2})\]")
 # "aplikace nedoporučuje běhat přes bolest", "běh zastavte" warn against it
 _NEGATED_MORE = re.compile(r"\b(nedoporuč\w*|nesmí\w*|zastav\w*|vynech\w*|přeruš\w*)", re.I)
-_APP_LINK = re.compile(r"\[(Dnes|Trénink|Deník|Pohyb|Zátěž|Péče|Data)\]")
+_APP_LINK = re.compile(r"\[(Dnes|Trénink|Deník|Mechanika|Pohyb|Zátěž|Péče|Data)\]")   # Pohyb = the tab's old name
 _RESEARCH = re.compile(r"\b(studi\w*|výzkum\w*|meta-?analýz\w*|přehled\w* studií|autoři|v randomizovan\w*)\b", re.I)
 _LATER = re.compile(
     r"\b(pondělí|úterý|středu|středa|čtvrtek|pátek|sobotu|sobota|neděli|neděle|zítra|pozítří|příští\w*|později|až\b|"

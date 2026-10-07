@@ -15,6 +15,13 @@ load goes up ("load step") and the reps start again at the bottom (double
 progression). Easy → up a level; just right twice in a row → up; hard twice in a
 row → down; pain → down at once.
 
+A session ended before every set was ticked (owner request 2026-10-06) never goes up:
+not finished and hard (or painful) → down a level at once, not finished otherwise →
+the same doses again. The runner can also ask for an easier next session: the next
+session (A or B) is then the lighter version — one set less and the bottom of the
+range, like a deload — and the flag is used up by it. The session's load counts the
+part that was done (the share of the sets ticked).
+
 The 26 weeks in five phases: basics → strength and volume → heavy strength →
 reactive strength → maintenance and re-test. After the basics every 4th week (or the running cycle's
 recovery week, taper or graded return) is a deload: one set less, the bottom of the
@@ -260,14 +267,19 @@ def choose(db, rid: str, a: dict | None, state: dict, today: date) -> dict:
     if session == "A":
         why = "Na řadě je silová session A a den ji unese."
     elif due == "A":
-        why = f"Místo A dnes lehčí B: {', '.join(reasons)}. Silová A přijde příště."
+        # UX audit F13 — " · " between the reasons, so the English translation takes them one by one
+        why = f"Místo A dnes lehčí B: {' · '.join(reasons)}. Silová A přijde příště."
     else:
         why = "Na řadě je B, po minulé A se střídají."
     return {"session": session, "due": due, "why": why, "reasons": reasons, "blocked": blocked}
 
 
-def progress(state: dict, session: str, feel: str, week: int) -> dict:
-    """Moves the session's level (and load steps) by how the end of the session felt."""
+def progress(state: dict, session: str, feel: str, week: int, partial: bool = False,
+             completion: float | None = None, easier: bool = False, light: bool = False) -> dict:
+    """Moves the session's level (and load steps) by how the end of the session felt.
+    `partial` = ended before every set was done (`completion` = the share of the sets),
+    `easier` = the runner wants the next session lighter, `light` = today's session was
+    the lighter version already."""
     lv = dict(state.get("levels") or {"A": 0, "B": 0})
     steps = dict(state.get("steps") or {"A": 0, "B": 0})
     hist = list(state.get("history") or [])
@@ -278,13 +290,22 @@ def progress(state: dict, session: str, feel: str, week: int) -> dict:
     cur = lv.get(session, 0)
     same_prev = prev and prev.get("phase") == ph and prev.get("level") == cur
     note = None
-    if feel == "easy":
+    if partial:
+        up = False
+    elif feel == "easy":
         up = True
     elif feel == "ok":
         up = bool(same_prev and prev.get("feel") == "ok")
     else:
         up = False
-    if up:
+    if partial:
+        if feel in ("hard", "pain"):
+            lv[session] = max(0, cur - 1)
+            note = ("Příště méně opakování. Bolest při cviku do 5 z 10 je v pořádku, do rána musí odeznít."
+                    if feel == "pain" else "Trénink nebyl celý a byl těžký: příště méně opakování.")
+        else:
+            note = "Trénink nebyl celý, proto se příště nepřidává: stejné dávky."
+    elif up:
         if cur >= 2:
             lv[session], steps[session] = 0, steps.get(session, 0) + 1
             note = "Příště přidejte zátěž a začněte znovu na spodní hranici opakování."
@@ -297,8 +318,20 @@ def progress(state: dict, session: str, feel: str, week: int) -> dict:
                 if feel == "pain" else "Dvakrát po sobě těžké: příště méně opakování.")
     else:
         note = "Příště stejně, ať se tělo přizpůsobí."
-    hist.append({"date": E.today_date().isoformat(), "session": session, "feel": feel, "level": cur, "phase": ph, "week": week})
-    return {**state, "levels": lv, "steps": steps, "history": hist[-120:], "note": note}
+    # a sentence of its own (the page translates whole sentences)
+    note_next = "Příští trénink bude lehčí verze: o sérii méně a opakování na spodní hranici." if easier else None
+    entry = {"date": E.today_date().isoformat(), "session": session, "feel": feel, "level": cur, "phase": ph, "week": week}
+    if partial:
+        entry["partial"] = True
+        entry["completion"] = round(completion, 2) if completion is not None else None
+    if light:
+        entry["light"] = True
+    if easier:
+        entry["easier"] = True
+    hist.append(entry)
+    # the easier-next flag is used up by today's session and set again only when asked
+    return {**state, "levels": lv, "steps": steps, "history": hist[-120:], "note": note, "noteNext": note_next,
+            "easier": bool(easier)}
 
 
 def is_deload(week: int, a: dict | None) -> bool:
@@ -311,3 +344,74 @@ def is_deload(week: int, a: dict | None) -> bool:
     if mode in ("build",):
         return False
     return week % 4 == 0 and week < 25
+
+
+# ---------------------------------------------------------------- the session and the watch
+# Feedback #204 — a programme session is not an activity of its own: only the watch's
+# recording is (a hand-made "Posilování · B" next to the watch's strength workout was a
+# duplicate in the load). The rating (how it felt → session RPE) waits in the programme's
+# history and goes onto that day's strength recording from the watch once it syncs.
+PROGRAM_TITLE = "Posilování · "
+LINK_DAYS = 14
+
+
+def _watch_strength(db, rid: str, day: str, minutes: float | None, taken: set):
+    """That day's imported strength activity closest in length, not rated by another session."""
+    cands = [a for a in db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.sport == "strength",
+                                                         models.Activity.started_at == day)
+             if a.provider != "manual" and a.id not in taken]
+    if not cands:
+        return None
+    return min(cands, key=lambda a: abs((a.duration_min or 0) - (minutes or 0)))
+
+
+def rate_activity(db, rid: str, act, rate: dict) -> None:
+    """The session's rating (session RPE and a note) on a watch recording."""
+    act.strength_focus = act.strength_focus or rate.get("focus")
+    act.strength_type = act.strength_type or rate.get("type")
+    fb = db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == act.id).first()
+    if fb is None:
+        fb = models.ActivityFeedback(activity_id=act.id, runner_id=rid, submitted_at=act.started_at, pain_points=[])
+        db.add(fb)
+    fb.rpe = rate.get("rpe")
+    fb.note = rate.get("note")
+    if rate.get("niggle"):
+        fb.niggle = True
+
+
+def link_sessions(db, rid: str, today: date | None = None) -> bool:
+    """Ties the programme sessions to the watch: an app-made activity is removed (its rating
+    kept), and a session of the last two weeks without a recording rates that day's strength
+    workout from the watch once there is one. Returns whether anything changed."""
+    today = today or E.today_date()
+    lo = (today - timedelta(days=LINK_DAYS)).isoformat()
+    changed = False
+    for p in db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.template == "durability").all():
+        st = dict(p.state or {})
+        hist = [dict(h) for h in (st.get("history") or [])]
+        taken = {h.get("activityId") for h in hist if h.get("activityId")}
+        dirty = False
+        for h in hist:
+            aid = h.get("activityId")
+            act = db.query(models.Activity).filter(models.Activity.id == aid).first() if aid else None
+            if act is not None and act.provider == "manual" and (act.title or "").startswith(PROGRAM_TITLE):
+                fb = db.query(models.ActivityFeedback).filter(models.ActivityFeedback.activity_id == act.id).first()
+                h["rate"] = h.get("rate") or {"rpe": fb.rpe if fb else FEEL.get(h.get("feel"), 6), "note": fb.note if fb else None,
+                                              "niggle": bool(fb and fb.niggle), "focus": act.strength_focus,
+                                              "type": act.strength_type, "minutes": act.duration_min}
+                E.delete_activity(db, act)
+                taken.discard(aid)
+                h["activityId"], act, dirty = None, None, True
+            if act is None and h.get("rate") and (h.get("date") or "") >= lo:
+                w = _watch_strength(db, rid, h["date"], (h["rate"] or {}).get("minutes"), taken)
+                if w is not None:
+                    rate_activity(db, rid, w, h["rate"])
+                    h["activityId"] = w.id
+                    taken.add(w.id)
+                    dirty = True
+        if dirty:
+            p.state = {**st, "history": hist}
+            changed = True
+    if changed:
+        db.flush()
+    return changed

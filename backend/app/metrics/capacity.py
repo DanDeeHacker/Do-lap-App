@@ -71,13 +71,13 @@ CHANNELS = {
                 "floor_s": 50.0, "floor_w": 150.0},
     "ascent": {"label": "Stoupání", "unit": "m", "dec": 0, "w": 0.5, "grade": "C",
                "floor_s": 50.0, "floor_w": 150.0},
-    "systemic": {"label": "Celková zátěž", "unit": "j.z.", "dec": 0, "w": 0.7, "grade": "B",
+    "systemic": {"label": "Celková zátěž", "unit": "bodů", "dec": 0, "w": 0.7, "grade": "B",
                  "floor_s": 30.0, "floor_w": 100.0},
     # Strength sessions (session RPE × minutes × body-region weight). Its own local
     # load with its own capacity, so a sudden first plyometric block shows up; low
     # weight because only indirect evidence supports it (grade C). Floors = one
     # 30-min session at RPE 4 / two a week (working assumptions).
-    "strength": {"label": "Silová zátěž", "unit": "sRPE·min", "dec": 0, "w": 0.5, "grade": "C",
+    "strength": {"label": "Silová zátěž", "unit": "bodů", "dec": 0, "w": 0.5, "grade": "C",
                  "floor_s": 120.0, "floor_w": 240.0},
     # v0.12.0 — high-speed running (≥ 1.10 × critical speed, speed.py): spikes in it
     # preceded hamstring injuries (Duhig et al., 2016), regular exposure protected (Malone
@@ -222,6 +222,37 @@ def residual_week(daily, days, rates, ch):
         nominal = nominal * (1 - k_ref) + k_ref * x
     w, w_nom = 7 * level, 7 * nominal
     return min(w, w_nom * RESIDUAL_CAP) if ch in CARDIO else w
+
+
+def absorbed_room(daily, days, rates, ch, t_iso, ceil_res):
+    """Owner request 2026-10-06 — the room under the weekly ceiling from the same absorbed
+    load the weekly score uses (residual_week), in today's units (km, min, m) so that it
+    adds up: `absorbedPast` = what is still unabsorbed this morning of every earlier day
+    (a run six nights ago ≈ 30 % of it on the 3.5-night half-life), `absorbed` = that plus
+    today's sessions at full weight, `absorbedMax` = the ceiling where the weekly score
+    starts, `absorbedLeft` = how much more today can take. The plain 7-day sum let a long
+    run count fully for six days and vanish overnight on the seventh."""
+    k_ref = _k(HALF_CARDIO_REF if ch in CARDIO else HALF_MSK)
+    level = nominal = 0.0
+    for d in days:
+        if d >= t_iso:                        # this morning: the night's absorption, today's load not yet
+            level *= 1 - rates[d]
+            nominal *= 1 - k_ref
+            break
+        x = daily.get(d, 0.0)
+        level = level * (1 - rates[d]) + k_ref * x
+        nominal = nominal * (1 - k_ref) + k_ref * x
+    today = daily.get(t_iso, 0.0)
+    unit = 7 * k_ref                          # weekly-equivalent residual per unit of today's load
+    resid = 7 * (level + k_ref * today)
+    x_max = (ceil_res / 7 - level) / k_ref
+    past = level / k_ref
+    if ch in CARDIO:                          # residual_week's cap on what poor nights may keep
+        resid = min(resid, RESIDUAL_CAP * 7 * (nominal + k_ref * today))
+        x_max = max(x_max, (ceil_res / (7 * RESIDUAL_CAP) - nominal) / k_ref)
+        past = min(past, RESIDUAL_CAP * nominal / k_ref)
+    return {"absorbed": resid / unit, "absorbedPast": past, "absorbedMax": ceil_res / unit,
+            "absorbedLeft": max(0.0, x_max - today), "absorbK": k_ref}
 
 
 def absorbed_left(rates, since, today_iso, days):
@@ -1635,7 +1666,8 @@ def body_state(data, rid, day: str) -> dict:
         kind, site = "painMorning", mw.get("site")
         for ch in RUN_CH:
             factor[ch] = 0.0
-        reasons.append(f"ráno po běhu víc bolesti ({mw.get('morning')}/10) než během něj, dnes bez běhu")
+        reasons.append(f"ranní test šlachy {mw.get('morning')}/10 ({site}), dnes bez běhu" if mw.get("source") == "tendonTest"
+                       else f"ráno po běhu víc bolesti ({mw.get('morning')}/10) než během něj, dnes bez běhu")
     elif live:
         ep = live[0]
         site, lvl = ep["label"], ep["level"]
@@ -1829,6 +1861,11 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             week = {"now": _fmt(now_w, ch), "residual": _fmt(resid_w, ch), "cap": _fmt(capw, ch), "ratio": round(rw, 2),
                     "capPeak": _fmt(cap_peak, ch) if cap_peak is not None else None,
                     "ceiling": _fmt(ceil_w, ch), "left": _fmt(max(0.0, ceil_w - now_w), ch)}
+            # the room left under the same ceiling the weekly score uses (in its units), as the
+            # absorbed load in today's units — the guidance's 7-day limit and the week's plan
+            ab = absorbed_room(daily, absorb_days, rates, ch, t_iso,
+                               (cap_peak or capw) * wk_ready_c * wk_bfac * (1 + mw_c * wk_hold))
+            week.update({k: (round(v, 4) if k == "absorbK" else _fmt(v, ch)) for k, v in ab.items()})
             if capw != cap_base:
                 week["capBase"] = _fmt(cap_base, ch)
         # railway#113 — who carries the unabsorbed 7-day load (the same split as the history)

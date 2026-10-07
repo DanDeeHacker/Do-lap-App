@@ -17,7 +17,9 @@ SYSTEM = (
     "rozdělená po listech. Ke KAŽDÉMU listu napiš 2–3 krátké věty česky, tykání ne, vykej: nejdřív stručně zhodnoť, "
     "co fakta říkají (dobře / pozor), pak dej jeden konkrétní, proveditelný tip, jak se zlepšit nebo na co si dát pozor. "
     "Používej jen čísla, která jsou ve faktech (nic nepočítej, nezaokrouhluj jinak). Žádné diagnózy, žádné léky, "
-    "nikdy nedoporučuj běhat přes bolest a nenavrhuj náročnější trénink, než je dnešní doporučení. Bez nadpisů a odkazů. "
+    "nikdy nedoporučuj běhat přes bolest a nenavrhuj náročnější trénink, než je dnešní doporučení. "
+    "Zítřek a zbytek týdne popisuj jen podle 'zitra_plan' a 'navrh' (stejný plán je ve všech listech); "
+    "'dnes_doporuceno' je dnešek, ne zítřek; kde list plán nemá, o dalším tréninku nepiš. Bez nadpisů a odkazů. "
     "Odpověz POUZE platným JSON objektem {\"klíč listu\": \"text\"} se stejnými klíči, jaké dostaneš."
 )
 
@@ -56,19 +58,25 @@ def _facts_evening(r: dict) -> dict:
     t = r.get("tomorrow") or {}
     tn = r.get("tonight") or {}
     wk = r.get("week") or {}
+    # owner request 2026-10-06: one plan for every card — today's recommendation as today's,
+    # tomorrow and the rest of the week from the week planner (daily_report._rest_of_week)
+    tp = (t.get("plan") or {}).get("text")
+    lp = ld.get("plan") or {}
+    today = {"dnes_doporuceno": lp.get("label"), **({"dnes_uz_hotovo": lp["afterDone"].get("text")} if lp.get("afterDone") else {})}
     return {
-        "intro": {"energie_ted": r.get("energyNow"), "zatez_dne": ld.get("total"), "tyden_km": wk.get("done"), "tyden_cil_km": wk.get("budget")},
+        "intro": {"energie_ted": r.get("energyNow"), "zatez_dne": ld.get("total"), "tyden_km": wk.get("done"),
+                  "tyden_cil_km": wk.get("budget"), **today, "zitra_plan": tp},
         "day": {"vstavani": v.get("wake") and f"{int(v['wake']) // 60}:{int(v['wake']) % 60:02d}",
                 "treninky": [x.get("title") for x in v.get("activities") or []], "aktivni_pohyb_min": v.get("activeMin"),
                 "zvyseny_tep_v_klidu_min": v.get("highMin"), "mirne_zvyseny_min": v.get("mildMin"), "klid_min": v.get("calmMin"),
                 "kroky": v.get("steps"), "energie_ted": r.get("energyNow")},
         "load": {"zatez_celkem": ld.get("total"), "trenink": ld.get("train"), "mimo_trenink": ld.get("nt"),
-                 "mimo_trenink_obvykle": ld.get("usualNt"), "dnes_zbyva": ld.get("left"), "doporuceni": (ld.get("plan") or {}).get("label")},
-        "tomorrow": {"vlivy": [e["text"] for e in t.get("effects") or []], "zitra_plan": t.get("plan")},
+                 "mimo_trenink_obvykle": ld.get("usualNt"), "dnes_zbyva": ld.get("left"), **today, "zitra_plan": tp},
+        "tomorrow": {"vlivy": [e["text"] for e in t.get("effects") or []], "zitra_plan": tp},
         "week": {"km": wk.get("done"), "cil_km": wk.get("budget"), "zbyva_km": wk.get("left"),
-                 "navrh": [f"{d['wd']} {d['type']}" for d in (r.get("restOfWeek") or {}).get("days") or []]},
+                 "navrh": [f"{d['wd']} {d['text']}" for d in (r.get("restOfWeek") or {}).get("days") or []]},
         "tonight": {"spanek_cil_h": tn.get("target"), "do_postele": tn.get("bed"), "vstavani": tn.get("wake"),
-                    "posledni_kava": tn.get("caffeine"), "zitra_narocne": tn.get("hardTomorrow")},
+                    "posledni_kava": tn.get("caffeine"), "zitra_narocne": tn.get("hardTomorrow"), "zitra_plan": tp},
     }
 
 
@@ -113,10 +121,14 @@ def generate(db, rid: str, r: dict) -> dict:
                                 temperature=0.3, max_tokens=900, timeout=60, model=llm.ASSISTANT_MODEL,
                                 base_url=llm.ASSISTANT_BASE_URL, api_key=llm.ASSISTANT_API_KEY)
         today_type = ((r.get("plan") or {}).get("type") or ((r.get("load") or {}).get("plan") or {}).get("type"))
+        ad = ((r.get("load") or {}).get("plan") or {}).get("afterDone") or {}
+        plans = {"tomorrow": ((r.get("tomorrow") or {}).get("plan") or {}).get("type") if r.get("kind") == "evening" else None,
+                 "today": ad.get("type") or today_type}
         for card, text in _parse(txt).items():
             if card not in f:
                 continue
-            res = V.validate("report_card", text, {**f[card], "rok": int(r["date"][:4]), "today": {"type": today_type}})
+            res = V.validate("report_card", text, {**f[card], "rok": int(r["date"][:4]), "today": {"type": today_type},
+                                                   "plans": plans})
             if res["ok"]:
                 out[card] = text
             else:

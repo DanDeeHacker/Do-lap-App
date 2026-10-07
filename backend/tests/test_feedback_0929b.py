@@ -24,7 +24,7 @@ def test_core_and_drill_programs_are_cited_and_marked_as_practice_where_unproven
     # performance programs are never recommended by pain
     assert not {"core", "drills"} & set(PL.programs_for_regions(["Achillova šlacha", "Hýždě (gluteus)", "Lýtko (gastrocnemius)"]))
     for p in PL.PROGRAMS:
-        assert p["physio"].startswith("https://www.physio-pedia.com/") and p["group"] in ("pain", "performance")
+        assert p["physio"].startswith("https://www.physio-pedia.com/") and p["group"] in ("pain", "performance", "mobility")
 
 
 def test_library_links_each_exercise_to_its_programs_physiopedia_pages():

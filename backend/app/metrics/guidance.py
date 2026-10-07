@@ -27,8 +27,11 @@ Rules, in order:
      A target never exceeds the capacity ceiling the Zátěž tab shows (weekly
      capacity × the week's readiness × (1 + margin)), so following the plan
      can't itself create a load exceedance.
-  3. Today's allowance = the tightest of: what's left of this week's target, the
-     rolling 7-day ceiling minus the last 6 days, the per-run ceiling
+  3. Today's allowance = the tightest of: what's left of this week's target (the
+     calendar week from Monday), the room under the weekly ceiling of the last days'
+     absorbed load (owner request 2026-10-06: every earlier day counts with what is
+     still unabsorbed of it, the same load and ceiling as the weekly score — not a plain
+     7-day sum that drops a long run all at once on day 8), the per-run ceiling
      (capacity.ceilingToday, scaled by today's readiness) and what's left of the
      overall load (Celková zátěž = HR × time, all sports) turned into km / Z4+
      minutes. `limitedBy` names the binding one. With the week's target met but
@@ -644,12 +647,19 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         done6 = sum(daily[c].get((today - timedelta(days=k)).isoformat(), 0.0) for k in range(1, 7))
         done_today = daily[c].get(t_iso, 0.0)
         left_week = None if target is None else max(0.0, target - done_week)
-        left7 = None if ceil7 is None else max(0.0, ceil7 - done6 - done_today)
+        # owner request 2026-10-06: the room from the absorbed load (capacity.absorbed_room);
+        # the plain 7-day sum only without it
+        ab_left = wcap.get("absorbedLeft")
+        left7 = None if ceil7 is None else (ab_left if ab_left is not None else max(0.0, ceil7 - done6 - done_today))
         ceil_run = info.get("ceilingToday") if (c != "systemic" and not (novice and c != "volume")) else None
         limits = {k: v for k, v in (("week", left_week), ("7d", left7), ("run", ceil_run)) if v is not None}
         lim = min(limits, key=limits.get) if limits else None
         week[c] = {"label": info.get("label", C.CHANNELS[c]["label"]), "unit": info.get("unit", C.CHANNELS[c]["unit"]),
                    "capacity": wcap.get("cap"), "ceiling7": ceil7, "done7": done6 + done_today, "left7": left7,
+                   "absorbed": wcap.get("absorbed") if ceil7 is not None else None,
+                   "absorbedPast": wcap.get("absorbedPast") if ceil7 is not None else None,
+                   "absorbedMax": wcap.get("absorbedMax") if ceil7 is not None else None,
+                   "absorbK": wcap.get("absorbK") if ceil7 is not None else None,
                    "budget": target, "done": done_week, "doneToday": done_today, "left": left_week,
                    "ceilingRun": ceil_run, "todayMax": limits[lim] if lim else None, "limitedBy": lim,
                    "dist": _rolling7_dist(daily[c], today, first_day)}
@@ -767,7 +777,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     pain_why = (f"Bolest {pain}/10" if pain >= 3 else
                 "Bolest omezila běh" if (func and not func["severe"]) else
                 "Po akutním přetížení" if acute_mod else
-                f"Bolest roste týden od týdne ({_cz(ptrend['before'])} → {_cz(ptrend['now'])}/10)" if ptrend else
+                (f"Ranní test šlachy se týden od týdne zhoršuje ({_cz(ptrend['before'])} → {_cz(ptrend['now'])}/10)"
+                 if ptrend.get("source") == "tendonTest" else
+                 f"Bolest roste týden od týdne ({_cz(ptrend['before'])} → {_cz(ptrend['now'])}/10)") if ptrend else
                 f"Včerejší běh bolel {y_run_pain}/10, ráno je klid" if settled_after_run else
                 f"Opakovaná bolest ({recurring['site']}, {recurring['days']}× za 28 dní; uvolní se po: {need})"
                 if rec_active else "")
@@ -925,6 +937,14 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                     "text": f"Bolest {pain}/10{f' · {pain_site}' if pain_site else ''} a zároveň engine doporučuje "
                             f"fyzioterapeuta ({'do 48 hodin' if decision == 'physio_48h' else 'do 7 dnů'}). "
                             "Kombinace bolesti a rizikového stavu je důvod běh vynechat a nechat to posoudit."}
+    elif morning and morning.get("source") == "tendonTest":
+        base = (f", před během {morning['baseline']}/10" if morning.get("baseline") is not None and morning.get("runDate") else "")
+        override = {"kind": "pain_monitor",
+                    "title": ("Šlacha se do rána neuklidnila — dnes neběhat" if morning.get("runDate") and morning["morning"] <= 5
+                              else "Ranní test šlachy nad 5/10 — dnes neběhat"),
+                    "text": f"{morning['site']}: ranní test ({morning['test']}) {morning['morning']}/10{base}. Bolest šlachy má "
+                            "do rána odeznít a nepřekročit 5/10; když ne, byla zátěž moc. Dnes bez běhu, kolo nebo plavání "
+                            "jen bez bolesti, další běh kratší a volnější. Když se to zopakuje, k fyzioterapeutovi."}
     elif morning:
         override = {"kind": "pain_monitor", "title": "Bolest je ráno horší než při běhu — dnes neběhat",
                     "text": f"{morning['site'] or 'Bolest'}: ráno {morning['morning']}/10, při včerejším běhu "
@@ -1027,7 +1047,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         # say which limit is binding: the calendar week, the rolling 7 days, the
         # all-sport load or mechanics (the assistant repeats this sentence)
         block("kvalitní", {
-            "7d": "Za posledních 7 dní máte minuty v Z4+ na hranici kapacity, tvrdý trénink počká pár dní.",
+            "7d": "Nevstřebané minuty v Z4+ z posledních dní jsou na hranici kapacity, tvrdý trénink počká pár dní.",
             "systemic": "Celková zátěž ze všech sportů za posledních 7 dní nenechává místo na tvrdý trénink.",
             "mechanics": "Mechanika se odchyluje od normy, dnešní strop minut v Z4+ na kvalitní trénink nestačí.",
             "run": "Dnešní strop minut v Z4+ na kvalitní trénink nestačí.",
@@ -1038,7 +1058,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         block("dlouhý", f"Strop na jeden běh je dnes {_cz(vol_max)} km — na dlouhý běh nezbývá.")
     if days_to_race is not None and 0 < days_to_race <= 7:
         block("dlouhý", "Týden před závodem — bez dlouhého běhu.")
-    no_room = {"week": "Týdenní cíl objemu je splněný.", "7d": "Posledních 7 dní jste na stropu týdenní kapacity.",
+    no_room = {"week": "Týdenní cíl objemu je splněný.", "7d": "Nevstřebaná zátěž z posledních dní je na stropu týdenní kapacity.",
                "systemic": "Celková zátěž (tep × čas) je na stropu.", "run": "Na dnešek už nezbývá objem."}
     if vw["left"] is not None and vw["left"] < 0.5 * base_km:
         for k in ("lehký", "dlouhý", "kvalitní"):
@@ -1173,7 +1193,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if typ == "volno" and not override and vol_max is not None and vol_max < MIN_RUN_KM:
         lim = vw["limitedBy"]
         if lim == "week":
-            reasons.append(f"Týdenní cíl je splněný ({_cz(vw['done'])} z {_cz(vw['budget'])} km) — dnes volno.")
+            reasons.append(f"Týdenní cíl je splněný (od pondělí {_cz(vw['done'])} z {_cz(vw['budget'])} km) — dnes volno.")
+        elif lim == "7d" and vw.get("absorbedMax") is not None:
+            reasons.append(f"Nevstřebaná zátěž z posledních dní {_cz(vw['absorbed'])} km je na stropu týdenní kapacity "
+                           f"({_cz(vw['absorbedMax'])} km), dnes volno. Starší běhy se počítají jen zčásti, jak tělo zátěž vstřebává.")
         elif lim == "7d":
             reasons.append(f"Posledních 7 dní {_cz(vw['done7'])} km — na stropu vaší týdenní kapacity "
                            f"({_cz(vw['ceiling7'])} km), dnes volno.")
@@ -1184,7 +1207,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     parts = cap["readiness"].get("parts") or {}
     after = cap["readiness"].get("afterSession") or {}
     day_bits = [b for b in (
-        after.get("nt") and f"pohyb mimo trénink nad obvyklý den (+{after['nt']['excess']} j.z.)",
+        after.get("nt") and f"pohyb mimo trénink nad obvyklý den (+{after['nt']['excess']} bodů zátěže)",
         after.get("stress") and f"{after['stress']['min']} min zvýšeného tepu v klidu") if b]
     if after.get("dayDrop") and day_bits:
         reasons.append(f"Den mimo trénink ({', '.join(day_bits)}) ubral připravenosti {after['dayDrop']} "

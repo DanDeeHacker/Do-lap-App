@@ -35,14 +35,15 @@ QUAD_HISTORY_DAYS = 183
 # Bump when the history *shape/window* logic changes. The code fingerprint below
 # also turns the key over whenever the engine sources change, so a deploy that
 # alters scoring without an ENGINE_VERSION bump can't serve an outdated history.
-HISTORY_VERSION = "h10"
+HISTORY_VERSION = "h11"
 
 
 # v0.9.0 — modules that never change a replayed day (texts, coach, the sandbox, the
 # signal sources, today's guidance): editing them no longer throws away every cached
 # history. A denylist, so a new scoring module is fingerprinted by default.
 NON_SCORING = frozenset({"ai_brief.py", "coach_facts.py", "coach_texts.py", "coach_validate.py", "sig_doc.py",
-                         "signal_sources.py", "sensitivity.py", "validation.py", "geo_sample.py", "guidance.py"})
+                         "signal_sources.py", "sensitivity.py", "validation.py", "geo_sample.py", "guidance.py",
+                         "day_tags.py"})
 
 
 def _code_fingerprint() -> str:
@@ -94,6 +95,7 @@ def load_inputs(db: DBSession, rid: str):
         ("chk", sorted(rows(data.checkins), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), False),
         ("fb", sorted(rows(data.feedback), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), False),
         ("inj", sorted(rows(data.injuries), key=lambda x: x.get("submitted_at") or ""), lambda x: _kd(x.get("submitted_at")), False),
+        ("tnd", sorted(rows(data.tendon_checks), key=lambda x: x.get("date") or ""), lambda x: _kd(x.get("date")), False),
     ]
     return {
         "rdata": dict(vars(data.runner)),
@@ -160,11 +162,13 @@ def _quad_row(av: dict) -> dict:
     renders the same rings, verdict and drivers as today."""
     pr = av.get("painRecurring")
     rd = av.get("readiness") or (av.get("capacity") or {}).get("readiness") or {}
-    rs = rd.get("score")
+    # UX audit F02 — a day without a night from the watch (and nothing lowering readiness)
+    # has no readiness: the trend leaves a gap instead of drawing 100 %
+    rs = rd.get("score") if rd.get("known", True) else None
     return {"date": av["_cut"], "quadrant": av["quadrant"], "overall": av["overall"],
             "tier": av["tier"], "mech": av["mech"], "load": av["load"], "symp": av["symp"],
             # railway#194: the morning's readiness (after the night, before the day lowered it) for the trend
-            "readiness": rs, "readinessMorning": rd.get("morningScore") if rd.get("morningScore") is not None else rs,
+            "readiness": rs, "readinessMorning": (rd.get("morningScore") if rd.get("morningScore") is not None else rs) if rs is not None else None,
             "painRecurring": {"site": pr.get("site"), "days": pr.get("days")} if pr else None,
             "signals": [{"id": s.get("id"), "name": s["name"], "pts": s["pts"], "grade": s["grade"], "val": s.get("val")}
                         for s in (av.get("signals") or [])[:5]]}

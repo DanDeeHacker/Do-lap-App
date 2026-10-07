@@ -8,6 +8,8 @@ What must hold:
 • the physio referral is mentioned whenever the engine makes one;
 • the commentary names today's recommended session and doesn't push a harder
   one on a rest / easy day;
+• a report card says of tomorrow (or of "the planned" session) only what the week's
+  plan says (owner request 2026-10-06: the cards named different sessions);
 • no diagnosis, no medication advice, no running through pain, no promises;
 • Czech prose of a sensible length, no links or headings.
 """
@@ -35,6 +37,42 @@ HARDER = {
     "regenerace": [r"\binterval", r"\btempov\w* (běh|úsek)", r"\bkvalitn\w* trénink", r"\bdlouh\w* běh"],
     "lehký": [r"\binterval", r"\btempov\w* (běh|úsek)", r"\bkvalitn\w* trénink", r"\bdlouh\w* běh"],
 }
+# report cards: a session named for tomorrow, or as "the planned" one, must be the plan's
+PLAN_SESSION = {
+    "volno": r"\bvoln[oa]\b|\bden (bez běhu|odpočinku)\b",
+    "regenerace": r"\bregenera\w* běh",
+    "lehký": r"\blehk\w* běh",
+    "dlouhý": r"\bdlouh\w* běh",
+    "kvalitní": r"\binterval|\btempov\w* (běh|úsek|trénink)|\bkvalitn\w* trénink|\btvrd\w* trénink",
+}
+NO_RUN = ("volno", "kolo", "plavání", "posilování")
+_TOMORROW = re.compile(r"\bzítr|\bzítř", re.I)
+_PLANNED = re.compile(r"\bplánovan|\bnaplánovan", re.I)
+_CLAUSE = re.compile(r"[,;:]|\s[–—]\s|\s(?:a|ale|než|zatímco|pak|potom)\s", re.I)
+_NEG_CLAUSE = re.compile(r"\b(žádn\w*|bez|ne|nikoli|místo)\b", re.I)
+
+
+def _plan_conflict(text: str, plans: dict) -> str | None:
+    """The first clause that names another session for tomorrow (or "the planned" one) than
+    the plan has — None when all agree. A race tomorrow and negated clauses are left alone."""
+    tmr, today = plans.get("tomorrow"), plans.get("today")
+    for sent in _sentences(text):
+        for c in _CLAUSE.split(sent):
+            about_tmr, planned = bool(_TOMORROW.search(c)), bool(_PLANNED.search(c))
+            if not (about_tmr or planned) or _NEG_CLAUSE.search(c):
+                continue
+            named = {k for k, rx in PLAN_SESSION.items() if re.search(rx, c, re.I)}
+            if not named:
+                continue
+            ok = {t for t in ((tmr,) if about_tmr else (tmr, today)) if t}
+            if not ok or "závod" in ok:
+                continue
+            fits = {("volno" if t in NO_RUN else t) for t in ok}
+            if not named & fits:
+                return c.strip()[:160]
+    return None
+
+
 # a sentence that negates or looks back ("žádné intervaly", "po včerejším dlouhém běhu") is fine
 _EXEMPT = re.compile(
     r"\b(ne|nedělejte|neběhejte|nezařazujte|nezkoušejte|vynech\w*|žádn\w*|bez|místo|odlož\w*|počkejte|nechte|"
@@ -152,6 +190,10 @@ def validate(kind: str, text: str, facts: dict) -> dict:
             if hit:
                 issues.append({"code": "contradicts_recommendation", "detail": s.strip()[:160]})
                 break
+    if kind == "report_card" and facts.get("plans"):
+        bad_plan = _plan_conflict(text, facts["plans"])
+        if bad_plan:
+            issues.append({"code": "plan_mismatch", "detail": bad_plan})
     for s in _sentences(text):   # "běžte i přes bolest" — but "neběhejte přes bolest" is exactly right
         if (_THROUGH_PAIN.search(s) and _RUN_VERB.search(s) and not _NEGATED.search(s)):
             issues.append({"code": "run_through_pain", "detail": s.strip()[:160]})

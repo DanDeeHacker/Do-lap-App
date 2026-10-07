@@ -1,6 +1,6 @@
 """Morning / evening report (owner request 2026-10-03)."""
 import json
-from datetime import date
+from datetime import date, timedelta
 
 import garmin_live as GL
 from app import models
@@ -106,25 +106,74 @@ def test_morning_and_evening_reports(client, db_session):
     assert len(e["week"]["days"]) == 7 and sum(d["today"] for d in e["week"]["days"]) == 1
     t = e["tonight"]
     assert 7.0 <= t["target"] <= 9.5 and t["bed"] and t["wakeFromWatch"]
-    # bed + fall asleep + target = wake
-    bm, wm = DR._min_of(t["bed"]), DR._min_of(t["wake"])
-    assert (wm - bm) % 1440 == round(t["target"] * 60) + DR.FALL_ASLEEP_MIN
+    # the ideal bedtime + fall asleep + target = wake; tonight's bed is it, or a step towards it
+    im, wm, bm = DR._min_of(t["ideal"]), DR._min_of(t["wake"]), DR._min_of(t["bed"])
+    assert abs((wm - im) % 1440 - (round(t["target"] * 60) + DR.FALL_ASLEEP_MIN)) <= 2
+    assert t["mode"] != "ideal" or min((bm - im) % 1440, (im - bm) % 1440) <= 5
+    # a hard or long run tomorrow by the week's plan → half an hour more sleep
+    assert t["hardTomorrow"] == ((e["tomorrow"]["plan"] or {}).get("type") in ("kvalitní", "dlouhý", "závod")
+                                 if e["tomorrow"]["plan"] else t["hardTomorrow"])
     assert "do postele kolem" in e["summary"]
     assert client.get(f"/api/runners/{rid}/report?kind=noon").status_code == 422
 
 
-def test_rest_of_week_split():
-    a = {"guidance": {"pattern": {"runDays": [1, 3, 5, 6], "longDay": 6, "hardDays": [3]}},
-         "capacity": {"channels": {"volume": {"ceilingSession": 18.0}}}}
-    wk = {"left": 30.0}
-    out = DR._rest_of_week(a, date(2026, 9, 28), wk)                 # Monday
-    days = {d["wd"]: d for d in out["days"]}
-    assert days["ne"]["type"] == "dlouhý" and days["ne"]["km"] <= 18.0
-    assert days["čt"]["type"] == "kvalitní" and days["st"]["type"] == "volno"
-    assert abs(sum(d["km"] or 0 for d in out["days"]) - 30.0) < 0.3
-    done = DR._rest_of_week(a, date(2026, 9, 28), {"left": 0.0})
-    assert "splněný" in done["note"]
-    assert DR._rest_of_week(a, date(2026, 10, 4), wk)["days"] == []    # Sunday: the week ends
+def test_rest_of_week_is_the_week_plan():
+    """Owner request 2026-10-06: the evening's tomorrow and rest of the week come from the
+    Monday sheet's planner (week_plan.py) — a simpler split here put all the week's
+    kilometres on the usual hard day while the plan and the AI notes said otherwise."""
+    from app.metrics import week_plan as WP
+    from .test_week_plan import MON, _a
+    a = _a(type="lehký")
+    plan = WP.build(a, MON, None)
+    out = DR._rest_of_week(plan, MON, {"left": 40.0})
+    want = [d for d in plan["days"] if d["date"] > MON.isoformat()]
+    assert [d["date"] for d in out["days"]] == [d["date"] for d in want] and len(want) == 6
+    for d, w in zip(out["days"], want):
+        assert d["items"] == w["items"]
+        run = next((it for it in w["items"] if it["kind"] == "run" and not it["optional"]), None)
+        if run:
+            assert d["type"] == run["type"] and d["km"] == run["km"]["hi"] and d["text"].startswith(run["label"])
+        elif all(it["kind"] == "rest" for it in w["items"]):
+            assert d["type"] == "volno" and d["km"] is None
+    ceil = a["guidance"]["planCtx"]["ceilRun"]["volume"]
+    assert all((d["km"] or 0) <= ceil for d in out["days"])          # never the week's rest on one day
+    # tomorrow is the plan's next day, word for word
+    t = DR._tomorrow(a, None, {}, MON, None, out, {"target": 8.0}, False)
+    assert t["plan"]["type"] == out["days"][0]["type"] and t["plan"]["text"] == out["days"][0]["text"]
+    assert any(e["text"].startswith("Zítra podle plánu týdne: ") for e in t["effects"])
+    # Sunday: the week ends; no plan: no made-up days; the week's target met
+    assert DR._rest_of_week(plan, MON + timedelta(days=6), {"left": 10.0})["days"] == []
+    assert DR._rest_of_week(None, MON, {"left": 10.0})["days"] == []
+    assert "splněný" in DR._rest_of_week(plan, MON, {"left": 0.0})["note"]
+
+
+def test_every_evening_card_names_the_same_plan():
+    from app.metrics import coach_validate as V
+    from app.metrics import report_ai as RA
+    tmr = {"type": "volno", "label": "Volno", "km": None, "wd": "st", "text": "Volno"}
+    r = {"kind": "evening", "date": "2026-10-06", "energyNow": 62, "dayView": {},
+         "load": {"total": 180, "train": 120, "nt": 60, "plan": {"type": "lehký", "label": "Lehký běh",
+                                                                 "afterDone": {"type": "volno", "text": "Dnes už máte hotovo."}}},
+         "week": {"done": 22.4, "budget": 40}, "tonight": {"target": 8.0},
+         "tomorrow": {"effects": [], "plan": tmr},
+         "restOfWeek": {"days": [{"wd": "st", "text": "Volno"}, {"wd": "čt", "text": "Lehký běh 6–7,5 km"}]}}
+    f = RA.facts(r)
+    for card in ("intro", "load", "tomorrow", "tonight"):
+        assert f[card]["zitra_plan"] == "Volno"
+    assert f["week"]["navrh"] == ["st Volno", "čt Lehký běh 6–7,5 km"]
+    assert f["intro"]["dnes_doporuceno"] == "Lehký běh" and "doporuceni" not in f["load"]
+    # a note naming another session for tomorrow (or "the planned" run once today's is done) falls back to the rules
+    plans = {"tomorrow": "volno", "today": "volno"}
+    bad = "Energie teď 62 ze 100, den byl vyrovnaný. Vyspěte se a připravte se na plánovaný lehký běh."
+    assert any(i["code"] == "plan_mismatch" for i in V.validate("report_card", bad, {**f["intro"], "plans": plans})["issues"])
+    bad2 = "Zátěž dne 180 bodů. Zítra vás čeká dlouhý běh, tak večer odpočívejte."
+    assert any(i["code"] == "plan_mismatch" for i in V.validate("report_card", bad2, {**f["load"], "plans": plans})["issues"])
+    ok = "Dnes jste měli lehký běh, zítra je v plánu volno. Večer zpomalte a jděte spát včas."
+    assert V.validate("report_card", ok, {**f["intro"], "plans": plans})["ok"]
+    assert V.validate("report_card", "Zítra lehký běh 6–7,5 km, dnes večer klid a dost spánku.",
+                      {"zitra_plan": "Lehký běh 6–7,5 km", "plans": {"tomorrow": "lehký"}})["ok"]
+    # the rule-based texts say the same: intro, tomorrow
+    assert "Zítra podle plánu: volno." in DR._summary_evening(None, {"total": 0}, {}, {"target": 8.0, "bed": "22:15"}, tmr)
 
 
 def test_report_cards_get_validated_ai_notes_or_keep_the_rules(client, db_session, monkeypatch):

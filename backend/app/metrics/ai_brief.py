@@ -182,7 +182,7 @@ def _compute(db: DBSession, rid: str, intent: str = "summary") -> dict:
     if intent in ("summary", "change", "all"):
         items = []
         ratio_txt = f" (poměr ×{L.get('ratio')})" if L.get("valid") else " — chronická zátěž je zatím nízká, poměr se nepočítá"
-        items.append(f"Tréninková zátěž za 7 dní {L.get('acute')} proti chronickému průměru {L.get('chronic')} j.z./týden (vč. jiného sportu){ratio_txt}.")
+        items.append(f"Tréninková zátěž za 7 dní {L.get('acute')} proti chronickému průměru {L.get('chronic')} bodů zátěže za týden (vč. jiného sportu){ratio_txt}.")
         tv = a.get("tavr")
         if tv:
             items.append(f"Vertikální poměr {tv['baseMean']} % → {tv['recMean']} % ve srovnatelných podmínkách, "

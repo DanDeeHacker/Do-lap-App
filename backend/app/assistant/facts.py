@@ -13,7 +13,10 @@ from ..metrics import guidance as G
 PART_LABEL = {"hrv": "HRV pod normou", "rhr": "klidový tep nad normou", "sleep": "kratší spánek než obvykle (3 noci)",
               "sleepQuality": "víc bdění v noci než obvykle (efektivita spánku, 3 noci)",
               "soreness": "svalová bolest z check-inu", "fatigue": "únava z check-inu", "stress": "stres mimo trénink",
-              "dayStress": "zvýšený tep v klidu včera"}
+              "dayStress": "zvýšený tep v klidu včera", "sleepSelf": "horší noc podle check-inu",
+              # UX audit F14 — parts added after the morning; an unknown key is left out, never printed
+              "session": "dnešní trénink", "dayLoad": "pohyb mimo trénink nad obvyklý den",
+              "dayStressNow": "zvýšený tep v klidu dnes"}
 MECH_IDS = {"tavr", "gct", "cad", "vosc", "bal", "dec", "gaitcv", "stiffness"}
 CH_LABEL = {"volume": "objem", "intensity": "intenzita", "descent": "klesání", "ascent": "stoupání",
             "systemic": "celková zátěž", "strength": "silová zátěž"}
@@ -86,7 +89,7 @@ def _today_extra(a) -> dict:
     return out
 
 
-LIMITED_BY = {"week": "zbytek týdenního cíle", "7d": "součet posledních 7 dní proti kapacitě",
+LIMITED_BY = {"week": "zbytek týdenního cíle (kalendářní týden od pondělí)", "7d": "nevstřebaná zátěž posledních dní proti týdenní kapacitě",
               "run": "strop jednoho běhu", "systemic": "celková zátěž ze všech sportů",
               "mechanics": "mechanika nad vaším prahem"}
 
@@ -104,12 +107,12 @@ def _why_today_max(a, today) -> None:
         c = chans.get(key) or {}
         u = row.get("unit") or ""
         parts = [f"{row.get('label')} ({u}): týdenní cíl {row.get('weekTarget')}",
-                 f"tento týden hotovo {row.get('doneThisWeek')}", f"do konce týdne zbývá {row.get('leftThisWeek')}"]
+                 f"tento týden (od pondělí) hotovo {row.get('doneThisWeek')}", f"do neděle zbývá {row.get('leftThisWeek')}"]
         if row.get("todayMax") not in (None, "", "–"):
             why = LIMITED_BY.get(c.get("limitedBy"))
             parts.append(f"dnešní strop {row.get('todayMax')}" + (f" (určuje ho {why})" if why else ""))
         if c.get("left7") is not None:
-            parts.append(f"v klouzavých 7 dnech zbývá {G._cz(c['left7'], 1 if key == 'volume' else 0)}")
+            parts.append(f"pod stropem nevstřebané zátěže zbývá {G._cz(c['left7'], 1 if key == 'volume' else 0)}")
         lines.append(", ".join(parts) + ".")
     today["weekBudget"] = lines
 
@@ -117,7 +120,7 @@ def _why_today_max(a, today) -> None:
 def _readiness(a) -> dict:
     out = F._recovery(a)
     cr = a.get("readiness") or (a.get("capacity") or {}).get("readiness") or {}
-    parts = {PART_LABEL.get(k, k): f"{round(v * 100)} %" for k, v in (cr.get("parts") or {}).items() if v and v > 0.05}
+    parts = {PART_LABEL[k]: f"{round(v * 100)} %" for k, v in (cr.get("parts") or {}).items() if v and v > 0.05 and k in PART_LABEL}
     if parts:
         out["whatLowersReadiness"] = parts
     hab = (cr.get("inputs") or {}).get("sleepHabit")

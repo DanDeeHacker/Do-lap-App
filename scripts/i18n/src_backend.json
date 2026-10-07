@@ -40,6 +40,7 @@
   "files": [
    "content.py",
    "metrics/engine.py",
+   "metrics/tendon.py",
    "programs_library.py",
    "seed.py",
    "tutorial_demo.py"
@@ -600,7 +601,8 @@
  {
   "t": "hýžď",
   "files": [
-   "content.py"
+   "content.py",
+   "metrics/mobility.py"
   ]
  },
  {
@@ -627,6 +629,7 @@
    "content.py",
    "metrics/engine.py",
    "metrics/guidance.py",
+   "metrics/mobility.py",
    "seed.py"
   ]
  },
@@ -642,6 +645,7 @@
    "content.py",
    "metrics/engine.py",
    "metrics/guidance.py",
+   "metrics/mobility.py",
    "programs_library.py"
   ]
  },
@@ -741,6 +745,7 @@
    "content.py",
    "metrics/engine.py",
    "metrics/guidance.py",
+   "metrics/mobility.py",
    "programs_library.py"
   ]
  },
@@ -1049,6 +1054,18 @@
   ]
  },
  {
+  "t": "Posilování ·",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Příští trénink bude lehčí verze: o sérii méně a opakování na spodní hranici.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
   "t": "Příště méně opakování. Bolest při cviku do 5 z 10 je v pořádku, do rána musí odeznít.",
   "files": [
    "durability.py"
@@ -1098,6 +1115,18 @@
  },
  {
   "t": "Tento týden máte {} z {} tréninků hotové.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Trénink nebyl celý a byl těžký: příště méně opakování.",
+  "files": [
+   "durability.py"
+  ]
+ },
+ {
+  "t": "Trénink nebyl celý, proto se příště nepřidává: stejné dávky.",
   "files": [
    "durability.py"
   ]
@@ -1222,7 +1251,9 @@
   "files": [
    "durability.py",
    "metrics/capacity.py",
+   "metrics/daily_report.py",
    "metrics/guidance.py",
+   "metrics/mobility.py",
    "metrics/week_plan.py",
    "outcomes.py"
   ]
@@ -1309,6 +1340,7 @@
   "t": "závod",
   "files": [
    "durability.py",
+   "metrics/daily_report.py",
    "metrics/engine.py",
    "metrics/guidance.py",
    "metrics/week_plan.py"
@@ -1717,7 +1749,7 @@
   ]
  },
  {
-  "t": "Tréninková zátěž za 7 dní {} proti chronickému průměru {} j.z./týden (vč. jiného sportu){}.",
+  "t": "Tréninková zátěž za 7 dní {} proti chronickému průměru {} bodů zátěže za týden (vč. jiného sportu){}.",
   "files": [
    "metrics/ai_brief.py"
   ]
@@ -1975,6 +2007,13 @@
   ]
  },
  {
+  "t": "bodů",
+  "files": [
+   "metrics/capacity.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "bolest {} ({}) nad hranicí sledování bolesti, kapacita ×{}",
   "files": [
    "metrics/capacity.py"
@@ -2056,8 +2095,11 @@
   "t": "plavání",
   "files": [
    "metrics/capacity.py",
+   "metrics/daily_report.py",
    "metrics/engine.py",
-   "metrics/signal_sources.py"
+   "metrics/mobility.py",
+   "metrics/signal_sources.py",
+   "mobility_library.py"
   ]
  },
  {
@@ -2077,6 +2119,12 @@
   "files": [
    "metrics/capacity.py",
    "metrics/engine.py"
+  ]
+ },
+ {
+  "t": "ranní test šlachy {}/10 ({}), dnes bez běhu",
+  "files": [
+   "metrics/capacity.py"
   ]
  },
  {
@@ -2546,13 +2594,19 @@
   ]
  },
  {
-  "t": "Celková zátěž dne {} j.z., z toho mimo trénink {}.",
+  "t": "Celková zátěž dne {} bodů, z toho mimo trénink {}.",
   "files": [
    "metrics/daily_report.py"
   ]
  },
  {
   "t": "Celodenní tep z hodinek zatím nedorazil. Po synchronizaci se průběh dne doplní.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Chladná a tmavá ložnice pomůže.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2570,7 +2624,7 @@
   ]
  },
  {
-  "t": "Cíl {} spánku: do postele kolem {}, poslední káva do {}. Chladná a tmavá ložnice pomůže.",
+  "t": "Cíl {} spánku: zítra vstáváte kolem {}, do postele kolem {}, poslední káva do {}.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2672,6 +2726,12 @@
   ]
  },
  {
+  "t": "Ideálně by to bylo {}, obvykle ale usínáte až v {}, proto dnes jen o půl hodiny dřív a další večery postupně.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": "Jak rozložit zbytek týdne?",
   "files": [
    "metrics/daily_report.py"
@@ -2679,6 +2739,12 @@
  },
  {
   "t": "Jak se vyspat lépe, když mi chybí hluboký spánek?",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Každé ráno plán upřesní připravenost.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2750,6 +2816,12 @@
   ]
  },
  {
+  "t": "Plán zbytku týdne zatím nejde sestavit. Každé ráno den určí Trénink.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": "Po včerejším posilování nohou může být intenzivní běh těžší než obvykle.",
   "files": [
    "metrics/daily_report.py"
@@ -2811,7 +2883,7 @@
   ]
  },
  {
-  "t": "Skóre spánku {} ze 100. {} {}",
+  "t": "Skóre spánku {} ze 100.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2847,7 +2919,7 @@
   ]
  },
  {
-  "t": "Týden končí, zítra začíná nový.",
+  "t": "Týden končí, zítra začíná nový. Plán na nový týden přinese pondělní ranní report.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2860,12 +2932,6 @@
  },
  {
   "t": "Týdenní cíl máte splněný. Zbytek týdne lehce, nebo volno.",
-  "files": [
-   "metrics/daily_report.py"
-  ]
- },
- {
-  "t": "Týdenní cíl se zatím neurčil.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2889,9 +2955,23 @@
   ]
  },
  {
+  "t": "Usínání vám kolísá zhruba o {} min, stejný čas každý večer pomůže.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": "Večer si dopřejte klid, ať se tep před spaním zklidní.",
   "files": [
    "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Volno",
+  "files": [
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -2909,7 +2989,8 @@
  {
   "t": "Včera: {}.",
   "files": [
-   "metrics/daily_report.py"
+   "metrics/daily_report.py",
+   "metrics/day_tags.py"
   ]
  },
  {
@@ -2925,19 +3006,13 @@
   ]
  },
  {
-  "t": "Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu. Cíl je horní hranice, ne povinnost.",
+  "t": "Zbylých",
   "files": [
    "metrics/daily_report.py"
   ]
  },
  {
-  "t": "Zbytek týdne rozložte podle návrhu, každé ráno ho upřesní připravenost.",
-  "files": [
-   "metrics/daily_report.py"
-  ]
- },
- {
-  "t": "Zátěž dne {} j.z.",
+  "t": "Zátěž dne {} bodů",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2955,7 +3030,13 @@
   ]
  },
  {
-  "t": "Zítra podle plánu týdne: {}",
+  "t": "Zítra podle plánu týdne: {}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Zítra podle plánu: {}.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -2971,7 +3052,9 @@
   "files": [
    "metrics/daily_report.py",
    "metrics/guidance.py",
-   "metrics/week_plan.py"
+   "metrics/mobility.py",
+   "metrics/week_plan.py",
+   "mobility_library.py"
   ]
  },
  {
@@ -2979,15 +3062,9 @@
   "files": [
    "metrics/daily_report.py",
    "metrics/guidance.py",
-   "metrics/week_plan.py"
-  ]
- },
- {
-  "t": "lehký",
-  "files": [
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/week_plan.py"
+   "metrics/mobility.py",
+   "metrics/week_plan.py",
+   "mobility_library.py"
   ]
  },
  {
@@ -3084,6 +3161,181 @@
   ]
  },
  {
+  "t": "({} nocí).",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Alkohol 3 a víc",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Cestování",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "HRV",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Jak to u vás působí na noc, ukážou další večery.",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Káva odpoledne",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Obrazovka v posteli",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Pozdní jídlo",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Sauna",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Spánek přes den",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Stres",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "U vás bez znatelného vlivu na noc ({} nocí).",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Zatím nejasné, data se rozcházejí ({} nocí). Další večery to upřesní.",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Zatím {} {} s tímto štítkem, potřeba aspoň {}",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "Zatím žádný večer s tímto štítkem.",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "a {} večerů bez něj.",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "delší",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "klidový tep",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "klidový tep o {} {} {}",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "kratší",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "níž",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "spánek",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "spánek o {} min {}",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "tepů",
+  "files": [
+   "metrics/day_tags.py",
+   "metrics/sensitivity.py"
+  ]
+ },
+ {
+  "t": "večer",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "večery",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "večerů",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "výš",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
+  "t": "{}: u vás obvykle {}",
+  "files": [
+   "metrics/day_tags.py"
+  ]
+ },
+ {
   "t": "Délka",
   "files": [
    "metrics/dayload.py"
@@ -3126,6 +3378,13 @@
   ]
  },
  {
+  "t": ", před během {}/10",
+  "files": [
+   "metrics/engine.py",
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": ". Taková kombinace má mnoho možných příčin (zátěž, spánek, stres, výživa, nemoc), proto ji stojí za to probrat s fyzioterapeutem nebo lékařem, místo hledání jedné příčiny (Jeukendrup et al., 2024).",
   "files": [
    "metrics/engine.py"
@@ -3141,30 +3400,6 @@
  },
  {
   "t": "Akutní přetížení po běhu",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
-  "t": "Akutní zátěž {} proti chronické {} j.z./týden. Pozn.: v běžecké kohortě sám poměr 7:28 riziko nepředpovídá — hlavní signál je skok v jednotlivém běhu výše.",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
-  "t": "Baseline je dostatečný.",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
-  "t": "Baseline se zatím buduje — mechanické signály se nezobrazují.",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
-  "t": "Baseline {} ms · {} za posledních 7 dní",
   "files": [
    "metrics/engine.py"
   ]
@@ -3265,12 +3500,6 @@
   ]
  },
  {
-  "t": "Během baseline okna došlo ke změně hodinek — mechanické signály jsou umlčené, dokud se baseline nepostaví znovu na novém zařízení.",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
   "t": "Datum zranění chybí — počítáme ho jako nedávné, doplňte ho v profilu.",
   "files": [
    "metrics/engine.py"
@@ -3315,7 +3544,7 @@
   ]
  },
  {
-  "t": "Fitness (42denní průměr) {} proti aktuální zátěži {} j.z./týden — akutní zátěž předbíhá vybudovanou",
+  "t": "Fitness (42denní průměr) {} proti aktuální zátěži {} bodů zátěže za týden — zátěž předbíhá to, co máte vybudované",
   "files": [
    "metrics/engine.py"
   ]
@@ -3384,7 +3613,7 @@
   ]
  },
  {
-  "t": "Mechanika se {}. {}. skokově změnila v {} metrikách najednou ({}) a bez hlášených obtíží — spíš nové boty, jiný snímač nebo aktualizace hodinek než změna běhu. Baseline se staví znovu od toho dne",
+  "t": "Mechanika se {}. {}. skokově změnila v {} metrikách najednou ({}) a bez hlášených obtíží — spíš nové boty, jiný snímač nebo aktualizace hodinek než změna běhu. Vaše norma se staví znovu od toho dne",
   "files": [
    "metrics/engine.py"
   ]
@@ -3466,6 +3695,12 @@
   ]
  },
  {
+  "t": "Norma techniky je spolehlivá.",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
   "t": "Náhlý pokles zátěže",
   "files": [
    "metrics/engine.py",
@@ -3499,6 +3734,12 @@
   "files": [
    "metrics/engine.py",
    "seed.py"
+  ]
+ },
+ {
+  "t": "Obvykle {} ms · {} za posledních 7 dní",
+  "files": [
+   "metrics/engine.py"
   ]
  },
  {
@@ -3728,7 +3969,7 @@
   ]
  },
  {
-  "t": "Tvrdá práce (vysoký tep) {} vs obvyklých {} j.z./týden. Prudký nárůst intenzity na nízké základně nese vyšší riziko než stejná zátěž volně.",
+  "t": "Tvrdá práce (vysoký tep) {} proti obvyklým {} bodům zátěže za týden. Prudký nárůst intenzity na nízké základně nese vyšší riziko než stejná zátěž volně.",
   "files": [
    "metrics/engine.py"
   ]
@@ -3746,6 +3987,12 @@
   ]
  },
  {
+  "t": "V posledních 12 týdnech se změnily hodinky. Techniku běhu zatím nehodnotíme, dokud se vaše norma nepostaví znovu na nových hodinkách.",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
   "t": "Varovné příznaky u bolesti zad",
   "files": [
    "metrics/engine.py",
@@ -3754,6 +4001,12 @@
  },
  {
   "t": "Vaše hodnocení noci v check-inu.",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
+  "t": "Vaši normu techniky zatím poznáváme, signály techniky se zatím nezobrazují.",
   "files": [
    "metrics/engine.py"
   ]
@@ -3874,6 +4127,12 @@
   ]
  },
  {
+  "t": "Zátěž za posledních 7 dní {} proti obvyklým {} bodům zátěže za týden. Pozn.: v běžecké kohortě sám poměr 7:28 riziko nepředpovídá — hlavní signál je skok v jednotlivém běhu výše.",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
   "t": "bederní",
   "files": [
    "metrics/engine.py",
@@ -3883,7 +4142,9 @@
  {
   "t": "bederní páteř",
   "files": [
-   "metrics/engine.py"
+   "metrics/engine.py",
+   "metrics/mobility.py",
+   "mobility_library.py"
   ]
  },
  {
@@ -3952,7 +4213,9 @@
  {
   "t": "hýždě",
   "files": [
-   "metrics/engine.py"
+   "metrics/engine.py",
+   "metrics/mobility.py",
+   "mobility_library.py"
   ]
  },
  {
@@ -3989,7 +4252,9 @@
   "t": "kotník",
   "files": [
    "metrics/engine.py",
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/mobility.py",
+   "mobility_library.py"
   ]
  },
  {
@@ -4014,19 +4279,23 @@
  {
   "t": "kříž",
   "files": [
-   "metrics/engine.py"
+   "metrics/engine.py",
+   "metrics/mobility.py"
   ]
  },
  {
   "t": "levá",
   "files": [
-   "metrics/engine.py"
+   "metrics/engine.py",
+   "metrics/tendon.py"
   ]
  },
  {
   "t": "lýtko",
   "files": [
-   "metrics/engine.py"
+   "metrics/engine.py",
+   "metrics/mobility.py",
+   "mobility_library.py"
   ]
  },
  {
@@ -4135,7 +4404,8 @@
  {
   "t": "pravá",
   "files": [
-   "metrics/engine.py"
+   "metrics/engine.py",
+   "metrics/tendon.py"
   ]
  },
  {
@@ -4159,7 +4429,9 @@
  {
   "t": "páteř",
   "files": [
-   "metrics/engine.py"
+   "metrics/engine.py",
+   "metrics/mobility.py",
+   "mobility_library.py"
   ]
  },
  {
@@ -4197,6 +4469,7 @@
   "files": [
    "metrics/engine.py",
    "metrics/guidance.py",
+   "metrics/mobility.py",
    "programs_library.py"
   ]
  },
@@ -4277,7 +4550,8 @@
  {
   "t": "záda",
   "files": [
-   "metrics/engine.py"
+   "metrics/engine.py",
+   "metrics/mobility.py"
   ]
  },
  {
@@ -4301,6 +4575,12 @@
   ]
  },
  {
+  "t": "{} bodů/týden",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
   "t": "{} dní / 28",
   "files": [
    "metrics/engine.py",
@@ -4316,12 +4596,6 @@
  },
  {
   "t": "{} h proti obvyklým {} h",
-  "files": [
-   "metrics/engine.py"
-  ]
- },
- {
-  "t": "{} j.z./týd",
   "files": [
    "metrics/engine.py"
   ]
@@ -4357,7 +4631,7 @@
   ]
  },
  {
-  "t": "{} — místo dřívějšího zranění ({}{}) jste označil {}× za {} dní. U dříve zraněného místa stačí jediné označení bez ohledu na intenzitu. Počet označení váhu nezvyšuje, řídí ji průběh bolesti na místě: teď {} % plné váhy (dny bez bolesti ji půlí, třetí ji ukončí). Samotné zranění v anamnéze body nepřidává, jen snižuje toleranci zátěže (×{}).",
+  "t": "{} — místo dřívějšího zranění ({}{}) se v zápisech objevilo {}× za {} dní. U dříve zraněného místa stačí jediné označení bez ohledu na intenzitu. Počet označení váhu nezvyšuje, řídí ji průběh bolesti na místě: teď {} % plné váhy (dny bez bolesti ji půlí, třetí ji ukončí). Samotné zranění v anamnéze body nepřidává, jen snižuje toleranci zátěže (×{}).",
   "files": [
    "metrics/engine.py"
   ]
@@ -4388,6 +4662,18 @@
  },
  {
   "t": "{}/10 · {}× / 14 dní",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
+  "t": "{}: průměr ranních testů za 7 dní {}/10 proti {}/10 týden předtím — bolest nemá z týdne na týden růst (Silbernagel 2007); odlehčit, bez intenzity a dlouhého běhu.",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
+  "t": "{}: ranní test ({}) {}/10{}. Podle modelu sledování bolesti (Silbernagel 2007) má bolest do rána odeznít a nepřekročit 5/10; dnes bez běhu.",
   "files": [
    "metrics/engine.py"
   ]
@@ -4461,6 +4747,12 @@
  },
  {
   "t": "úseky (odchylka v SD):",
+  "files": [
+   "metrics/engine.py"
+  ]
+ },
+ {
+  "t": "Šlacha se do rána neuklidnila",
   "files": [
    "metrics/engine.py"
   ]
@@ -4758,6 +5050,7 @@
   "t": "Dlouhý běh",
   "files": [
    "metrics/guidance.py",
+   "metrics/mobility.py",
    "seed.py",
    "tutorial_demo.py"
   ]
@@ -4917,6 +5210,7 @@
   "t": "Kolo",
   "files": [
    "metrics/guidance.py",
+   "metrics/mobility.py",
    "metrics/week_plan.py",
    "routers/runners.py",
    "tutorial_demo.py"
@@ -4937,7 +5231,8 @@
  {
   "t": "Lehký běh",
   "files": [
-   "metrics/guidance.py"
+   "metrics/guidance.py",
+   "metrics/mobility.py"
   ]
  },
  {
@@ -5007,6 +5302,24 @@
   ]
  },
  {
+  "t": "Nevstřebaná zátěž z posledních dní je na stropu týdenní kapacity.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Nevstřebaná zátěž z posledních dní {} km je na stropu týdenní kapacity ({} km), dnes volno. Starší běhy se počítají jen zčásti, jak tělo zátěž vstřebává.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Nevstřebané minuty v Z4+ z posledních dní jsou na hranici kapacity, tvrdý trénink počká pár dní.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Nová obuv {} ({}) od {}: lýtka, Achillovy šlachy a chodidla si na ni zvykají, proto jsou do {} rezervy na běh užší. Střídejte ji s dosavadní obuví a začněte kratšími běhy",
   "files": [
    "metrics/guidance.py"
@@ -5064,6 +5377,7 @@
   "t": "Plavání",
   "files": [
    "metrics/guidance.py",
+   "metrics/mobility.py",
    "routers/runners.py"
   ]
  },
@@ -5113,6 +5427,7 @@
   "t": "Posilování",
   "files": [
    "metrics/guidance.py",
+   "metrics/mobility.py",
    "metrics/week_plan.py",
    "routers/runners.py",
    "tutorial_demo.py"
@@ -5179,12 +5494,6 @@
   ]
  },
  {
-  "t": "Posledních 7 dní jste na stropu týdenní kapacity.",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
   "t": "Posledních 7 dní {} km — na stropu vaší týdenní kapacity ({} km), dnes volno.",
   "files": [
    "metrics/guidance.py"
@@ -5240,6 +5549,18 @@
  },
  {
   "t": "Příznaky jen nad krkem: nanejvýš krátce a velmi volně, a jen když se při tom cítíte dobře.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Ranní test šlachy nad 5/10 — dnes neběhat",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Ranní test šlachy se týden od týdne zhoršuje ({} → {}/10)",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5305,7 +5626,7 @@
   ]
  },
  {
-  "t": "Týdenní cíl je splněný ({} z {} km) — dnes volno.",
+  "t": "Týdenní cíl je splněný (od pondělí {} z {} km) — dnes volno.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5335,13 +5656,6 @@
   ]
  },
  {
-  "t": "Volno",
-  "files": [
-   "metrics/guidance.py",
-   "metrics/week_plan.py"
-  ]
- },
- {
   "t": "Volno, případně jiný sport bez nárazů (kolo, plavání).",
   "files": [
    "metrics/guidance.py"
@@ -5367,12 +5681,6 @@
  },
  {
   "t": "Za poslední 4 týdny průměrně {} běhu a {} min týdně — při malé běžecké základně stačí ke zranění menší skok, proto jsou rezervy užší",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "Za posledních 7 dní máte minuty v Z4+ na hranici kapacity, tvrdý trénink počká pár dní.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5427,12 +5735,6 @@
  },
  {
   "t": "bez intenzity a dlouhého běhu.",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "bodů",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5512,6 +5814,15 @@
   ]
  },
  {
+  "t": "lehký",
+  "files": [
+   "metrics/guidance.py",
+   "metrics/mobility.py",
+   "metrics/week_plan.py",
+   "mobility_library.py"
+  ]
+ },
+ {
   "t": "lehký běh.",
   "files": [
    "metrics/guidance.py"
@@ -5572,7 +5883,7 @@
   ]
  },
  {
-  "t": "pohyb mimo trénink nad obvyklý den (+{} j.z.)",
+  "t": "pohyb mimo trénink nad obvyklý den (+{} bodů zátěže)",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5772,6 +6083,12 @@
   ]
  },
  {
+  "t": "{}: ranní test ({}) {}/10{}. Bolest šlachy má do rána odeznít a nepřekročit 5/10; když ne, byla zátěž moc. Dnes bez běhu, kolo nebo plavání jen bez bolesti, další běh kratší a volnější. Když se to zopakuje, k fyzioterapeutovi.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "{}: ráno {}/10, při včerejším běhu {}/10. Bolest má do rána odeznít; když je horší, byla zátěž moc. Dnes bez běhu, další běh kratší a volnější — a pokud se to zopakuje, k fyzioterapeutovi.",
   "files": [
    "metrics/guidance.py"
@@ -5820,6 +6137,12 @@
   ]
  },
  {
+  "t": "Šlacha se do rána neuklidnila — dnes neběhat",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "špatně prospaná noc",
   "files": [
    "metrics/guidance.py"
@@ -5847,6 +6170,152 @@
   "t": "Norm",
   "files": [
    "metrics/illness.py"
+  ]
+ },
+ {
+  "t": "Achillova",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "Den bez tréninku",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "Dnes bez tréninku, {} kroků.",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "Dnes bez tréninku.",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "Dnes dlouhý běh, {} km.",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "Dnes lehký běh, {} km.",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "Dnes plavání, {} min.",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "Dnes posilování.",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "Dnes tvrdý trénink.",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "Do plánovaného spánku zbývá málo času, proto zkrácená verze.",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "Tvrdý trénink",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "V klidu, každý cvik jen do mírného tahu, nikdy do bolesti.",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "hrudní páteř",
+  "files": [
+   "metrics/mobility.py",
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "kyčle",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "kyčle (rotace)",
+  "files": [
+   "metrics/mobility.py",
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "přední strana kyčle",
+  "files": [
+   "metrics/mobility.py",
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "přední strana stehna",
+  "files": [
+   "metrics/mobility.py",
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "sedavý",
+  "files": [
+   "metrics/mobility.py",
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "vnitřní strana stehen",
+  "files": [
+   "metrics/mobility.py",
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "vnější strana kyčle",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "zadní strana ramene",
+  "files": [
+   "metrics/mobility.py",
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "zadní strana steh",
+  "files": [
+   "metrics/mobility.py"
+  ]
+ },
+ {
+  "t": "zadní strana stehna",
+  "files": [
+   "metrics/mobility.py",
+   "mobility_library.py"
   ]
  },
  {
@@ -6042,7 +6511,7 @@
   ]
  },
  {
-  "t": "Jsi zkušený běžecký trenér v aplikaci Došlap. Dostaneš fakta z ranního nebo večerního reportu běžce, rozdělená po listech. Ke KAŽDÉMU listu napiš 2–3 krátké věty česky, tykání ne, vykej: nejdřív stručně zhodnoť, co fakta říkají (dobře / pozor), pak dej jeden konkrétní, proveditelný tip, jak se zlepšit nebo na co si dát pozor. Používej jen čísla, která jsou ve faktech (nic nepočítej, nezaokrouhluj jinak). Žádné diagnózy, žádné léky, nikdy nedoporučuj běhat přes bolest a nenavrhuj náročnější trénink, než je dnešní doporučení. Bez nadpisů a odkazů. Odpověz POUZE platným JSON objektem {\"klíč listu\": \"text\"} se stejnými klíči, jaké dostaneš.",
+  "t": "Jsi zkušený běžecký trenér v aplikaci Došlap. Dostaneš fakta z ranního nebo večerního reportu běžce, rozdělená po listech. Ke KAŽDÉMU listu napiš 2–3 krátké věty česky, tykání ne, vykej: nejdřív stručně zhodnoť, co fakta říkají (dobře / pozor), pak dej jeden konkrétní, proveditelný tip, jak se zlepšit nebo na co si dát pozor. Používej jen čísla, která jsou ve faktech (nic nepočítej, nezaokrouhluj jinak). Žádné diagnózy, žádné léky, nikdy nedoporučuj běhat přes bolest a nenavrhuj náročnější trénink, než je dnešní doporučení. Zítřek a zbytek týdne popisuj jen podle 'zitra_plan' a 'navrh' (stejný plán je ve všech listech); 'dnes_doporuceno' je dnešek, ne zítřek; kde list plán nemá, o dalším tréninku nepiš. Bez nadpisů a odkazů. Odpověz POUZE platným JSON objektem {\"klíč listu\": \"text\"} se stejnými klíči, jaké dostaneš.",
   "files": [
    "metrics/report_ai.py"
   ]
@@ -6777,12 +7246,6 @@
   ]
  },
  {
-  "t": "tepů",
-  "files": [
-   "metrics/sensitivity.py"
-  ]
- },
- {
   "t": "{} měs.",
   "files": [
    "metrics/sensitivity.py"
@@ -6909,7 +7372,7 @@
   ]
  },
  {
-  "t": "Dva až tři regenerační týdny obvykle vrátí GCT k baseline. Pokud ne, jde spíš o změnu techniky nebo obuvi.",
+  "t": "Dva až tři regenerační týdny obvykle vrátí GCT k vaší normě. Pokud ne, jde spíš o změnu techniky nebo obuvi.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -7149,7 +7612,7 @@
   ]
  },
  {
-  "t": "Návrat k baseline po dvou až třech dnech.",
+  "t": "Návrat k vaší normě po dvou až třech dnech.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -7329,7 +7792,7 @@
   ]
  },
  {
-  "t": "Rozptyl se vrátí k baseline po pár konzistentních bězích ve srovnatelných podmínkách.",
+  "t": "Rozptyl se vrátí k vaší normě po pár konzistentních bězích ve srovnatelných podmínkách.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -7467,7 +7930,7 @@
   ]
  },
  {
-  "t": "Stupeň C, závisí na kvalitě odhadu spánku z náramku. Práh 85 % je konvence; ideální je sledovat i vlastní baseline. Importuje se jen z novějších Garminů/Apple, u starších dat chybí.",
+  "t": "Stupeň C, závisí na kvalitě odhadu spánku z náramku. Práh 85 % je konvence; ideální je sledovat i vlastní normu. Importuje se jen z novějších Garminů/Apple, u starších dat chybí.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -7563,19 +8026,19 @@
   ]
  },
  {
-  "t": "Týden bez sbíhání nad baseline.",
+  "t": "Týden bez sbíhání nad vaší normou.",
   "files": [
    "metrics/sig_doc.py"
   ]
  },
  {
-  "t": "Týden bez strmého klesání nad baseline.",
+  "t": "Týden bez strmého klesání nad vaší normou.",
   "files": [
    "metrics/sig_doc.py"
   ]
  },
  {
-  "t": "Týden na baseline.",
+  "t": "Týden na vaší normě.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -7665,7 +8128,7 @@
   ]
  },
  {
-  "t": "Zmizí, když se HRV/tep/spánek vrátí k baseline nebo skok odezní.",
+  "t": "Zmizí, když se HRV/tep/spánek vrátí k vaší normě nebo skok odezní.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -8020,7 +8483,7 @@
   ]
  },
  {
-  "t": "Řetězec VO → zatížení → zranění je odvozený, ne prokázaný prospektivně. Hodnoty se navíc liší mezi zařízeními, takže při výměně hodinek je nutné baseline resetovat.",
+  "t": "Řetězec VO → zatížení → zranění je odvozený, ne prokázaný prospektivně. Hodnoty se navíc liší mezi zařízeními, takže při výměně hodinek je nutné postavit normu znovu.",
   "files": [
    "metrics/sig_doc.py"
   ]
@@ -8191,6 +8654,114 @@
   "t": "únava {}/10",
   "files": [
    "metrics/signal_sources.py"
+  ]
+ },
+ {
+  "t": "10 výponů na jedné noze",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "5 pomalých dřepů na jedné noze",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Desetkrát pomalu nahoru na špičku a zpět dolů na celou plosku.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Držte zátěž, nepřidávejte: bolest při včerejším běhu byla {}/10, nad hranicí 5/10. Další běh stejný nebo o kus lehčí.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Držte zátěž, nepřidávejte: ranní test se týden od týdne zhoršuje ({} → {}/10). Další běh stejný nebo o kus lehčí.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Držte zátěž, nepřidávejte: test {}/10, o bod horší než před během ({}/10). Další běh stejný nebo o kus lehčí.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Ohodnoťte nejhorší bolest pod čéškou během testu: 0 žádná, 10 nejhorší představitelná.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Ohodnoťte nejhorší bolest ve šlaše během testu: 0 žádná, 10 nejhorší představitelná.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Patelární šlacha",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Pětkrát pomalu do dřepu, koleno nad špičkou, jen tak hluboko, jak to jde, a zpět.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Stoupněte si na nohu s bolavou šlachou a rukou se lehce přidržte opěradla.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Stoupněte si na nohu s bolavou šlachou, druhou pokrčte a rukou se lehce přidržte zdi.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Test {}/10 je nad hranicí 5/10. Dnes bez běhu, kolo nebo plavání jen tehdy, když při nich šlacha nebolí. Pokud to tak zůstane i zítra, k fyzioterapeutovi.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Test {}/10, minule {}/10. Včera bez běhu, takže jen pro srovnání; rozhodne ranní test po příštím běhu.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Výchozí hodnota je uložená. Po dalším běhu ji ráno porovnáme, test dělejte vždy stejně a ve stejnou dobu.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "{}: ranní test ({}) ještě chybí. Ukáže, jestli se šlacha po zátěži uklidnila.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Šlacha se do rána neuklidnila: test {}/10, před během {}/10. Zátěž byla moc. Dnes bez běhu, další běh kratší a volnější.",
+  "files": [
+   "metrics/tendon.py"
+  ]
+ },
+ {
+  "t": "Šlacha zátěž snesla: test {}/10, před během {}/10. Můžete pokračovat podle plánu.",
+  "files": [
+   "metrics/tendon.py"
   ]
  },
  {
@@ -8410,6 +8981,12 @@
   ]
  },
  {
+  "t": "Nevstřebaná zátěž z posledních dní ani jeden den nepřesáhne strop týdenní kapacity: starší běhy se počítají jen zčásti, jak je tělo vstřebává.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Návrat po zranění · {}. týden ze 3",
   "files": [
    "metrics/week_plan.py"
@@ -8500,7 +9077,7 @@
   ]
  },
  {
-  "t": "Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu nebo 7 dní. Cíl je horní hranice, ne povinnost.",
+  "t": "Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu nebo týdenní kapacity. Cíl je horní hranice, ne povinnost.",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -8590,6 +9167,1492 @@
   ]
  },
  {
+  "t": "1 min každá noha",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "10 opakování každá noha",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "10 opakování na každou stranu",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "10 opakování po 3 s",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "10 pomalých opakování",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "2 × 20 s každá strana",
+  "files": [
+   "mobility_library.py",
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "2 × 30 s každá noha",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "2 × 30 s každá strana",
+  "files": [
+   "mobility_library.py",
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "6 opakování každá strana",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "8 opakování každá strana",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "8 opakování na každou stranu",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Bradu zasuňte rovně dozadu, hlava se nesklání ani nezaklání.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Brnění v ruce, pak loket snižte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Celá páteř od kříže po hrudník.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Chodidla a lýtka po mnoha krocích, kyčle a kříž, nohy nahoru a pomalý dech.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Chodidlo, prsty, hybnost kotníku a obě části lýtka.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Chvíli vydržte a dýchejte do horní části zad.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Chyťte levé stehno a pomalu ho přitáhněte k hrudníku, až ucítíte tah v pravé hýždi.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Druhou rukou ji chyťte nad loktem a přitáhněte ji přes hrudník.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Dýchejte do břicha.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Dýchejte plynule s pohybem.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Dýchejte pomalu a nechte dech roztahovat záda.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Dětská pozice",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Dětská pozice s úklonem",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Hlava a ramena zůstávají uvolněně na zemi.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Horní nohu pokrčte a chyťte ji rukou za kotník nebo za nohavici.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Horní paži zvedněte a obloukem ji otevřete na druhou stranu, hlava se otáčí s ní.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Houpání místo klidné výdrže.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Hýždě posuňte tak blízko ke zdi, jak je to příjemné, kolena mohou být mírně pokrčená.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Jděte jen do mírného tahu v chodidle a pod prsty a vydržte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Jednu nohu dejte dozadu, koleno propnuté, pata celá na zemi a špička míří dopředu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Jemně se pohupujte ze strany na stranu, jako byste masírovali kříž o podložku.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Když se koleno zdi dotkne snadno, posuňte chodidlo o kousek dál.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Klekněte si a prsty nohou opřete o podložku, paty míří nahoru.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Klekněte si na jedno koleno, pod něj dejte polštář, druhá noha je vpředu s chodidlem na zemi.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Klekněte si na všechny čtyři, dlaně pod rameny a kolena pod kyčlemi.",
+  "files": [
+   "mobility_library.py",
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Klekněte si na všechny čtyři.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Klekněte si s prsty nohou opřenými o zem a pomalu se posaďte k patám, až ucítíte tah v chodidle.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Klekněte si, kolena dejte od sebe na šířku boků a palce nohou k sobě.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Kolena k hrudníku",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Kolena nechte volně klesnout do stran.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Kolena se zvedají a pánev se otáčí s hrudníkem.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Kolena zůstávají u sebe na zemi, otáčí se hrudník.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Koleno horní nohy odjíždí dopředu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Koleno ke zdi (hybnost kotníku)",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Koleno padá dovnitř.",
+  "files": [
+   "mobility_library.py",
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Kotník pravé nohy položte na levé koleno, jako číslo 4.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Kočka a kráva",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Krátce všechno podstatné od páteře po lýtka, na závěr pomalý dech.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Kulatá záda.",
+  "files": [
+   "mobility_library.py",
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Kyčle 90/90",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Kývání hlavou dolů.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na bok, hlavu opřete o spodní ruku.",
+  "files": [
+   "mobility_library.py",
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na bok, kolena pokrčte do pravého úhlu a paže natáhněte před sebe dlaněmi k sobě.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na záda a kolem chodidla jedné nohy dejte ručník nebo pásek.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na záda a obě kolena přitáhněte rukama k hrudníku.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na záda a paže dejte do stran.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na záda, kolena pokrčte a chodidla dejte na zem.",
+  "files": [
+   "mobility_library.py",
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na záda, kolena pokrčte nebo nohy opřete o postel. Jednu ruku dejte na břicho.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Lehněte si na záda, kolena pokrčte, chodidla u sebe na zemi a paže dejte do stran.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Levé rameno nechte klesnout dolů, až ucítíte tah na levé straně krku.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Ležte a klidně dýchejte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Loket nad úrovní ramene.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Lýtka, přední strana kyčle, zadní strana stehna a hýždě, na závěr pomalý dech.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Masáž chodidla míčkem",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mobilita po dlouhém běhu",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mobilita po kole",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mobilita po lehkém běhu",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mobilita po plavání",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mobilita po sedavém nebo klidném dni",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mobilita po tvrdém tréninku",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mobilita: celé tělo",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mobilita: chodidla, kotníky a lýtka",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mobilita: kyčle a hýždě",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mobilita: ramena, hrudník a krk",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mobilita: záda a páteř",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Motýlek vsedě",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Mravenčení v nohou, pak nohy spusťte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Na citlivých místech chvíli zůstaňte a dýchejte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Na všech čtyřech provlékněte jednu ruku pod tělem na druhou stranu a opřete se ramenem o zem.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Na všech čtyřech střídavě vyhrbte záda ke stropu a pomalu je prohněte, s dechem.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Nadechujte se nosem 4 sekundy, břicho se zvedá pod rukou.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Napjatá ramena u uší.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Napjatá ramena.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Napjatá zadní strana stehen, kolena povolte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Nataženou paži přitáhněte druhou rukou přes hrudník, rameno držte dole.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Nohu s mírně povoleným kolenem zvedněte nahoru, druhá noha leží natažená na zemi.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Nohy na zdi",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Nádech do hrudníku a ramen.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Obě kolena pokrčte a váhu přeneste na zadní nohu, pata zůstává na zemi.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Obě ruce přesuňte po zemi doprava.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Opřete se o zeď a nohy dejte do mírného výkroku, zadní chodidlo kratší krok za předním.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Opřete se rukama o zeď, zadní noha propnutá s patou na zemi, přední pokrčená. Boky jemně posuňte ke zdi.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Opřete se rukama za tělem a obě kolena pomalu sklopte na jednu stranu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Otevírání knihy vleže na boku",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Otáčení trupu za paží.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pata se odlepuje od země.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pata zadní nohy se zvedá ze země.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Paže položte volně podél těla a zavřete oči.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Plynule překlopte kolena na druhou stranu a pokračujte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Po hodinách v předklonu: přední strana kyčle a stehna, hrudní páteř, hrudník a krk.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Po intervalech hlavně zklidnění: jemně stehna a kyčle, záda a delší pomalý dech. Zadní strana stehna jen lehce.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Podsaďte pánev, jako byste chtěli zastrčit ocas, a zpevněte hýždi zadní nohy.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pohyb jen v krku a v bedrech, hrudník zůstává ztuhlý.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pokračujte 5 minut. Když se dech zadrhne, chvíli dýchejte volně.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pokrčte přední koleno a tlačte ho nad druhý prst směrem ke zdi, pata se nezvedá.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pomalu paži vraťte zpět. Po sérii vyměňte stranu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pomalu položte a vyměňte nohy.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pomalu posuňte pánev dopředu, až ucítíte tah vpředu v kyčli zadní nohy.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pomalu se posaďte směrem k patám, ruce si můžete opřít před tělo.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pomalu sklopte obě kolena na jednu stranu, jen tak daleko, jak je to příjemné.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pomalu válejte chodidlo od paty k prstům a zpět, s mírným tlakem.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pomalé dýchání vleže",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Posaďte se a pod chodidlo dejte tenisový nebo masážní míček.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Posaďte se bokem ke zdi a při lehnutí na záda zvedněte nohy na zeď.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Posaďte se k patám a předkloňte se, paže natáhněte daleko před sebe.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Posaďte se na zem, chodidla dejte na šířku větší než ramena a kolena pokrčte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Posaďte se zpříma a uvolněte ramena.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Posaďte se zpříma nebo si lehněte na záda.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Posaďte se, spojte chodidla a přitáhněte je k sobě tak blízko, jak je to příjemné.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Postavte se do dveří a předloktí opřete o zárubeň, loket ve výšce ramene.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Postavte se čelem ke zdi a opřete se o ni dlaněmi ve výšce ramen.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Postavte se čelem ke zdi, přední chodidlo asi na šířku dlaně od ní.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Povolte, krátce si odpočiňte a opakujte.",
+  "files": [
+   "mobility_library.py",
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Pravidelné protahování zvětšuje rozsah pohybu (Behm et al., 2016), zraněním při běhu ani svalové bolesti po tréninku ale nepředchází (Lauersen et al., 2014; Herbert et al., 2011). Večerní mobilita je proto pro uvolnění, pohyblivost a lepší usínání: pomalé dýchání kolem 6 dechů za minutu zvyšuje variabilitu tepu (Laborde et al., 2022) a čtyři měsíce protahování zlepšily spánek lidí s nespavostí stejně jako posilování (D'Aurea et al., 2019).",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pravou nohu zvedněte a přetáhněte ji přes tělo doleva, levou rukou ji můžete přidržet.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pravou ruku provlékněte pod tělem doleva, až se pravé rameno a spánek opřou o zem.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pro běžce po dni bez tréninku a hodně sezení: kyčle, páteř, kotníky a krk, ať se zítra běží volněji.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Prohnutí v bedrech místo podsazení pánve.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Prohnutí v bedrech.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Protahování",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Protahování lýtka mírně zvětšuje rozsah pohybu v kotníku (Radford et al., 2006).",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Protažení hlubokého lýtka u zdi",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Protažení hrudníku ve dveřích",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Protažení hýždě vleže (čtyřka)",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Protažení lýtka u zdi",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Protažení prstů v kleku",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Protažení přední strany kyčle v kleku",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Protažení přední strany stehna vleže na boku",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Protažení vnější strany kyčle vleže",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Protažení zadní strany stehna vleže s ručníkem",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Provlékání jehly",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Prudké dosednutí celou vahou.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Prudké stáčení do bolesti v kříži.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Pánev ujíždí do strany.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Předloktí opřete o zárubeň s loktem v úrovni ramene a pomalu vykročte dopředu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Přední a zadní noha mají v kolenou zhruba pravý úhel.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Přední a zadní strana ramen, hrudník, horní část zad a krk.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Přední koleno daleko před špičkou.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Přední koleno pokrčte a boky pomalu posuňte ke zdi, až ucítíte mírný tah v lýtku zadní nohy.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Přední strana kyčle, rotace kyčlí, hýždě, vnější a vnitřní strana.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Přední, zadní, vnitřní a vnější strana stehna.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Překlápění kolen vleže",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Při bolesti úponu Achillovy šlachy na patě protahujte jen do velmi mírného tahu, nebo cvik vynechte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Přitahování paže přes hrudník zlepšilo za 4 týdny vnitřní rotaci ramene u lidí se ztuhlou zadní stranou ramene víc než bez cvičení (McClure et al., 2007).",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Přitažení paže přes hrudník",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Přitáhněte patu k hýždi, kolena držte u sebe a pánev mírně podsaďte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Ramena zůstávají na zemi, tah ucítíte ve vnější straně pravé kyčle a stehna.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Ramena, široký zádový sval, hrudník a hrudní páteř, krk.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Rameno držte dole, tah ucítíte vzadu na rameni. Vydržte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Ruku vytáhněte zpět a otevřete ji ke stropu. Po sérii vyměňte strany.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Ručníkem nohu přitáhněte jen do mírného tahu v zadní straně stehna a vydržte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Rychlé házení koleny ze strany na stranu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Rychlé přejíždění bez zastavení.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Rychlé tempo.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "S nádechem záda pomalu prohněte a pohled zvedněte mírně dopředu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "S rovnými zády se mírně předkloňte z kyčlí, až ucítíte tah ve vnitřní straně stehen.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "S výdechem vyhrbte záda ke stropu a hlavu sklopte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Stejně jako u lýtka u zdi, jen zadní koleno pokrčte, až ucítíte tah níž, nad patou.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tah do bolesti v Achillově šlaše.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tah ucítíte níž v lýtku, nad patou. Vydržte a dýchejte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tah ucítíte v hrudníku a na přední straně ramene. Vydržte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tah ucítíte v levém boku a pod levou lopatkou. Vydržte a dýchejte do boku.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tahání do bolesti pod kolenem.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tahání hlavy rukou.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tahání kolen silou do bolesti.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tlak do ostré bolesti.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tlak do ramene, které bolí.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tlačení dechu silou.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tlačení do bolesti v koleni.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tlačení do bolesti v kolenou, podložte je polštářem.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tlačení do bolesti v kyčli nebo koleni.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Tlačení koleny dolů rukama silou.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Ukloňte hlavu uchem k pravému rameni, pohled zůstává dopředu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "V dětské pozici přesuňte obě ruce na jednu stranu, až ucítíte tah v boku a pod lopatkou na straně opačné.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "V kleku na jednom koleni podsaďte pánev a jemně ji posuňte dopředu, až ucítíte tah vpředu v kyčli zadní nohy.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "V mírném výkroku čelem ke zdi tlačte přední koleno ke zdi, pata zůstává na zemi. Plynule tam a zpět.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vleže na boku chyťte horní nohu za kotník a přitáhněte patu k hýždi. Kolena u sebe, pánev mírně podsazená.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vleže na boku s pokrčenými koleny otevřete horní paži obloukem na druhou stranu a pohledem ji sledujte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vleže na zádech dýchejte nosem do břicha: nádech 4 sekundy, výdech 6 sekund, zhruba 6 dechů za minutu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vleže na zádech opřete natažené nohy o zeď, hýždě co nejblíž ke zdi. Ležte a klidně dýchejte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vleže na zádech položte kotník jedné nohy na koleno druhé a přitáhněte si spodní stehno k hrudníku.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vleže na zádech přetáhněte propnutou nohu přes tělo k zemi na opačné straně. Ramena zůstávají na zemi.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vleže na zádech přitáhněte obě kolena k hrudníku a jemně se pohupujte ze strany na stranu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vleže na zádech s pokrčenými koleny je pomalu sklápějte z jedné strany na druhou, ramena zůstávají na zemi.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vleže na zádech zvedněte propnutou nohu s ručníkem kolem chodidla, až ucítíte mírný tah. Druhá noha leží.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vraťte je doprostřed a sklopte na druhou stranu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vraťte ruce doprostřed a vyměňte strany.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vraťte se zpět a pohyb plynule opakujte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vsedě nebo ve stoji pomalu válejte chodidlo po tenisovém míčku od paty k prstům. Tlak jen příjemný.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vsedě nebo vleže zasuňte bradu rovně dozadu, jako byste dělali dvojitou bradu, a krátce vydržte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vsedě s oběma koleny pokrčenými do pravého úhlu pomalu překlápějte kolena z jedné strany na druhou.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vsedě spojte chodidla, kolena nechte padat do stran a s rovnými zády se mírně předkloňte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vsedě uklonte hlavu k rameni a opačné rameno nechte klesnout dolů. Jemně, bez tlaku rukou.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vydechujte pomalu 6 sekund, nosem nebo sešpulenými rty.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vydržte 3 sekundy a povolte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vydržte a dýchejte.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vydržte a klidně dýchejte, pak vyměňte nohy.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vydržte a vyměňte strany.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vydržte v mírném tahu a vyměňte strany.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vydržte, dýchejte a vyměňte strany.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vydržte, hlava a ramena zůstávají na zemi. Vyměňte strany.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vykročte jednou nohou dopředu a hrudník pomalu posuňte skrz dveře.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vyměňte nohy.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Vyměňte strany.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Válení míčkem nebo válcem mírně snižuje pocit svalové bolesti (Wiewelhove et al., 2019).",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Výběr cviků pro tento typ dne a dávkování jsou pracovní předpoklad. Protahujte jen do mírného tahu, nikdy do bolesti.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Výdrž přes bolest v palci.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zasunutí brady",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zatínání čelistí.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zaujměte dětskou pozici s pažemi nataženými před sebou.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Ze sedu na patách se předkloňte a natáhněte paže před sebe na zem. Čelo opřete a dýchejte do zad.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zvednutá pata.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zvednuté rameno k uchu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zvedněte jednu paži před sebe do výšky ramen.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zvedání hlavy a ramen.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zvedání hlavy.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zvedání pánve nebo druhé nohy ze země.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zvedání pánve z pat.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zvedání ramen ze země.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Zvedání ramen.",
+  "files": [
+   "mobility_library.py",
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "Zvedání ramene k uchu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "dech a zklidnění",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "hrudní páteř a ramena",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "krk a šíje",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "lýtko a Achillova šlacha",
+  "files": [
+   "mobility_library.py",
+   "programs_library.py"
+  ]
+ },
+ {
+  "t": "prsní svaly a přední strana ramen",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "před spaním",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "uvolnění nohou",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "vnější strana kyčle a stehna",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "záda a ramena",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Úklon hlavy",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Čelo opřete o podložku a uvolněte ramena.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Švih místo pomalého pohybu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Švih paží místo pomalého pohybu.",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
+  "t": "široký zádový sval a bok",
+  "files": [
+   "mobility_library.py"
+  ]
+ },
+ {
   "t": "2 × 10 každá strana",
   "files": [
    "programs_library.py"
@@ -8603,18 +10666,6 @@
  },
  {
   "t": "2 × 15 každá noha",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
-  "t": "2 × 20 s každá strana",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
-  "t": "2 × 30 s každá strana",
   "files": [
    "programs_library.py"
   ]
@@ -9034,12 +11085,6 @@
   ]
  },
  {
-  "t": "Klekněte si na všechny čtyři, dlaně pod rameny a kolena pod kyčlemi.",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
   "t": "Klesněte svisle dolů, trup lehce nakloněný dopředu, s činkami v rukou.",
   "files": [
    "programs_library.py"
@@ -9136,12 +11181,6 @@
   ]
  },
  {
-  "t": "Koleno padá dovnitř.",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
   "t": "Koleno stojné nohy míří nad druhý a třetí prst, pánev zůstává rovně.",
   "files": [
    "programs_library.py"
@@ -9184,12 +11223,6 @@
   ]
  },
  {
-  "t": "Kulatá záda.",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
   "t": "Kývání trupem ze strany na stranu.",
   "files": [
    "programs_library.py"
@@ -9209,12 +11242,6 @@
  },
  {
   "t": "Lehněte si na bok vedle lavice, loket dejte pod rameno.",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
-  "t": "Lehněte si na bok, hlavu opřete o spodní ruku.",
   "files": [
    "programs_library.py"
   ]
@@ -9251,12 +11278,6 @@
  },
  {
   "t": "Lehněte si na záda, jednu nohu pokrčte a druhou nechte nataženou, ruce dejte pod bedra.",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
-  "t": "Lehněte si na záda, kolena pokrčte a chodidla dejte na zem.",
   "files": [
    "programs_library.py"
   ]
@@ -9821,12 +11842,6 @@
  },
  {
   "t": "Povolená guma mezi kroky.",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
-  "t": "Povolte, krátce si odpočiňte a opakujte.",
   "files": [
    "programs_library.py"
   ]
@@ -11026,12 +13041,6 @@
   ]
  },
  {
-  "t": "Zvedání ramen.",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
   "t": "Zvedání špiček",
   "files": [
    "programs_library.py"
@@ -11142,12 +13151,6 @@
  },
  {
   "t": "kyčel a koleno, kontrola",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
-  "t": "lýtko a Achillova šlacha",
   "files": [
    "programs_library.py"
   ]
@@ -11979,6 +13982,12 @@
   ]
  },
  {
+  "t": "Neznámá šlacha",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
   "t": "Neznámý sport",
   "files": [
    "routers/runners.py"
@@ -12093,6 +14102,18 @@
   ]
  },
  {
+  "t": "Štítky jen pro dnešek nebo včerejšek",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": ", hotovo {} % sérií",
+  "files": [
+   "routers/self_programs.py"
+  ]
+ },
+ {
   "t": "Cvik v programu není",
   "files": [
    "routers/self_programs.py"
@@ -12117,12 +14138,6 @@
   ]
  },
  {
-  "t": "Posilování · {}",
-  "files": [
-   "routers/self_programs.py"
-  ]
- },
- {
   "t": "Vlastní trénink",
   "files": [
    "routers/self_programs.py"
@@ -12130,6 +14145,12 @@
  },
  {
   "t": "Vyberte aspoň jeden cvik",
+  "files": [
+   "routers/self_programs.py"
+  ]
+ },
+ {
+  "t": "Zatím není odcvičená žádná série",
   "files": [
    "routers/self_programs.py"
   ]

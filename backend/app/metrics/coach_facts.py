@@ -95,7 +95,11 @@ def _pain(a: dict):
     pm = a.get("painMonitor") or {}
     if pm.get("morningWorse"):
         m = pm["morningWorse"]
-        out["morningWorseThanDuringRun"] = {"site": m["site"], "morning": m["morning"], "duringRun": m["during"]}
+        if m.get("source") == "tendonTest":
+            out["tendonMorningTestNotSettled"] = {"site": m["site"], "test": m["test"], "testPain": m["morning"],
+                                                  "beforeRun": m.get("baseline"), "noRunningToday": True}
+        else:
+            out["morningWorseThanDuringRun"] = {"site": m["site"], "morning": m["morning"], "duringRun": m["during"]}
     if pm.get("trend"):
         out["weeklyPainRising"] = {"last7": G._cz(pm["trend"]["now"], 1), "previous7": G._cz(pm["trend"]["before"], 1)}
     return out or None

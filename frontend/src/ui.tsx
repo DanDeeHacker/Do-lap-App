@@ -14,8 +14,8 @@ export function Label({ children }: { children: ReactNode }) {
   return <p className="t-label">{children}</p>
 }
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`group card p-4 transition duration-200 md:p-5 ${className}`}>{children}</section>
+export function Card({ children, className = "", ...data }: { children: ReactNode; className?: string } & { [k: `data-${string}`]: string | undefined }) {
+  return <section {...data} className={`group card p-4 transition duration-200 md:p-5 ${className}`}>{children}</section>
 }
 
 /* ---------- Button ---------- */
@@ -101,6 +101,11 @@ export function InfoDot({ text, label, className = "", variant = "info", wide = 
         >
           {label && <b className="mb-1 block text-[13px] font-bold text-fg">{label}</b>}
           {text}
+          {/* UX audit F07 — every "?" leads to the glossary (glossary.tsx listens for the event) */}
+          {variant === "info" && document.body.dataset.glossary === "1" && (
+            <button type="button" onClick={() => { setOpen(false); window.dispatchEvent(new Event("doslap:glossary")) }}
+              className="mt-2 block text-[11.5px] font-bold text-accent hover:underline" data-testid="glossary-link">Slovníček pojmů →</button>
+          )}
         </span>,
         document.body,
       )}
@@ -211,7 +216,7 @@ export function FactorBar({ label, value, pts, impact, pct, tone = "info", grade
         {grade && <span className="grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-extrabold" style={{ background: `${col}26`, color: col }}>{grade}</span>}
         <span className="min-w-0 flex-1 truncate text-[13px] text-fg">{label}</span>
         {value != null && <span className="tabular-nums text-[12px] text-fg-2">{value}</span>}
-        {impact != null ? <b className="whitespace-nowrap tabular-nums text-[12px]" style={{ color: col }} title="o kolik procentních bodů snižuje celkové Skóre">{fmtImpact(impact)}</b>
+        {impact != null ? <b className="whitespace-nowrap tabular-nums text-[12px]" style={{ color: col }} title="o kolik bodů snižuje skóre dne">{fmtImpact(impact)}</b>
           : pts != null && <b className="tabular-nums text-[12px]" style={{ color: col }}>+{pts}</b>}
       </div>
       <div className={`mt-1.5 h-1.5 rounded-full bg-white/[.08] ${grade ? "ml-7" : ""}`}>
@@ -412,7 +417,8 @@ export function AxisLineChart({
   band,
   zone = false,
 }: {
-  points: { t: string; v: number }[]
+  /** v = null: a day without data — the line breaks there (UX audit F02) */
+  points: { t: string; v: number | null }[]
   yMin?: number
   yMax?: number
   threshold?: number
@@ -428,14 +434,15 @@ export function AxisLineChart({
 }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
-  if (!points || points.length < 2) return <p className="mt-2 text-xs text-fg-3">Zatím málo dat pro trend v čase.</p>
+  const known = (points || []).filter((p) => p.v != null) as { t: string; v: number }[]
+  if (!points || points.length < 2 || known.length < 2) return <p className="mt-2 text-xs text-fg-3">Zatím málo dat pro trend v čase.</p>
   const W = 320
   const H = height
   const padL = 32
   const padR = 10
   const padT = 12
   const padB = 22
-  const vs = points.map((p) => p.v)
+  const vs = known.map((p) => p.v)
   let mn = yMin ?? Math.min(...vs, ...(band ? [band.lo] : []))
   let mx = yMax ?? Math.max(...vs, ...(band ? [band.hi] : []))
   if (band && yMin == null && yMax == null) {
@@ -450,8 +457,13 @@ export function AxisLineChart({
   const x = (i: number) => padL + (i / (points.length - 1)) * (W - padL - padR)
   const y = (v: number) => padT + (1 - (v - mn) / (mx - mn)) * (H - padT - padB)
   const nf = (v: number) => (dec > 0 ? v.toFixed(dec).replace(".", ",") : String(Math.round(v)))
-  const line = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(" ")
-  const area = `M${x(0).toFixed(1)} ${(H - padB).toFixed(1)} ` + points.map((p, i) => `L${x(i).toFixed(1)} ${y(p.v).toFixed(1)}`).join(" ") + ` L${x(points.length - 1).toFixed(1)} ${(H - padB).toFixed(1)} Z`
+  // contiguous runs of known values; a missing day breaks the line and the fill
+  const segs: number[][] = []
+  points.forEach((p, i) => { if (p.v == null) return; const last = segs.at(-1); if (last && last.at(-1) === i - 1) last.push(i); else segs.push([i]) })
+  const line = segs.map((sg) => sg.map((i, k) => `${k ? "L" : "M"}${x(i).toFixed(1)} ${y(points[i].v!).toFixed(1)}`).join(" ")).join(" ")
+  const area = segs.filter((sg) => sg.length > 1).map((sg) => `M${x(sg[0]).toFixed(1)} ${(H - padB).toFixed(1)} ` + sg.map((i) => `L${x(i).toFixed(1)} ${y(points[i].v!).toFixed(1)}`).join(" ") + ` L${x(sg.at(-1)!).toFixed(1)} ${(H - padB).toFixed(1)} Z`).join(" ")
+  const lastI = segs.at(-1)!.at(-1)!
+  const lastV = points[lastI].v!
   const ticks = [mx, (mx + mn) / 2, mn]
   const xi = [0, Math.floor((points.length - 1) / 2), points.length - 1]
   const fmt = (d: string) => new Date(d.length <= 10 ? d + "T00:00:00" : d).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })
@@ -510,12 +522,12 @@ export function AxisLineChart({
         <span key={i} className="t-axis pointer-events-none absolute whitespace-nowrap leading-none" style={{ top: ((H - 12) / H) * height, left: `${(x(idx) / W) * 100}%`, transform: i === 0 ? "none" : i === xi.length - 1 ? "translateX(-100%)" : "translateX(-50%)" }}>{fmt(points[idx].t)}</span>
       ))}
       {/* endpoint + scrub dots as HTML so they stay round */}
-      <i className="pointer-events-none absolute size-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${(x(points.length - 1) / W) * 100}%`, top: (y(points.at(-1)!.v) / H) * height, background: color }} />
-      {act != null && (
-        <i className="pointer-events-none absolute size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${aPct}%`, top: (y(points[act].v) / H) * height, background: color, boxShadow: `0 0 0 2px ${C.panel}` }} />
+      <i className="pointer-events-none absolute size-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${(x(lastI) / W) * 100}%`, top: (y(lastV) / H) * height, background: color }} />
+      {act != null && points[act].v != null && (
+        <i className="pointer-events-none absolute size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${aPct}%`, top: (y(points[act].v!) / H) * height, background: color, boxShadow: `0 0 0 2px ${C.panel}` }} />
       )}
       {act == null && (
-        <span className="pointer-events-none absolute -translate-x-full -translate-y-full whitespace-nowrap pb-1 pr-1 text-[11px] font-bold leading-none tabular-nums" style={{ left: `${(x(points.length - 1) / W) * 100}%`, top: (y(points.at(-1)!.v) / H) * height, color }}>{nf(points.at(-1)!.v)}{unit}</span>
+        <span className="pointer-events-none absolute -translate-x-full -translate-y-full whitespace-nowrap pb-1 pr-1 text-[11px] font-bold leading-none tabular-nums" style={{ left: `${(x(lastI) / W) * 100}%`, top: (y(lastV) / H) * height, color }}>{nf(lastV)}{unit}</span>
       )}
       {band?.label && (
         <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-fg-3">
@@ -530,7 +542,7 @@ export function AxisLineChart({
           )}
         </p>
       )}
-      {act != null && <ChartTip value={<>{nf(points[act].v)}{unit}</>} sub={fmt(points[act].t)} color={color} leftPct={aPct} top={-6} />}
+      {act != null && <ChartTip value={points[act].v != null ? <>{nf(points[act].v!)}{unit}</> : "bez dat"} sub={fmt(points[act].t)} color={color} leftPct={aPct} top={-6} />}
     </div>
   )
 }

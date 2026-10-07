@@ -109,21 +109,28 @@ function viaNumbers(s: string): string | null {
   return en ? fill(en, vals.map(numbersEn)) : null
 }
 
+// UX audit F13 — of all the templates that match, the most specific one wins (the most
+// literal text), and a placeholder never swallows a sentence end: "Spali jste {}." used to
+// take "6 h 24 min, o 54 min méně než obvykle" whole and leave half of the note in Czech.
+const SENT_END = /(?<!\b(?:Mgr|MUDr|PhDr|Ing|Bc|Dr|MgA))[.!?]\s+[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ][a-zà-ž]/   // a title ("Mgr. Tereza") is no sentence end
 function viaTemplates(s: string, depth: number): string | null {
   const words = s.toLowerCase().split(/[^a-zà-ž]+/).filter((w) => w.length >= 3)
   const seen = new Set<number>()
+  let best: { t: (typeof rxTpl)[number]; m: RegExpMatchArray; lit: number } | null = null
   for (const w of words) {
     for (const i of byWord.get(w) || []) {
       if (seen.has(i)) continue
       seen.add(i)
       const t = rxTpl[i]
       const m = s.match(t.rx)
-      if (!m) continue
-      const vals = m.slice(1).map((v) => translate(v, depth + 1))
-      return fill(t.en, vals)
+      if (!m || m.slice(1).some((v) => SENT_END.test(v))) continue
+      const lit = t.key.replace(/\{\}/g, "").length
+      if (!best || lit > best.lit) best = { t, m, lit }
     }
   }
-  return null
+  if (!best) return null
+  const vals = best.m.slice(1).map((v) => translate(v, depth + 1))
+  return fill(best.t.en, vals)
 }
 
 function translateCore(s: string, depth: number): string | null {
@@ -134,18 +141,21 @@ function translateCore(s: string, depth: number): string | null {
   if (depth < 3) {
     const t = viaTemplates(s, depth)
     if (t != null) return t
-    // a list joined with " · " or ", " (labels, chips), then whole sentences
+    // whole sentences first (UX audit F13: a ": " inside the first sentence split a note in
+    // two and left its first half Czech), then a list joined with " · " and the like
+    const sents = s.split(/(?<=[.!?])(?<!\b(?:Mgr|MUDr|PhDr|Ing|Bc|Dr|MgA)\.)\s+(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ])/)
+    if (sents.length > 1) {
+      const tr = sents.map((p) => translateCore(p, depth + 1))
+      if (tr.some((x) => x != null)) return sents.map((p, k) => tr[k] ?? numbersEn(p)).join(" ")
+    }
     for (const sep of [" · ", " – ", " — ", ": "]) {
       if (s.includes(sep)) {
-        const parts = s.split(sep)
+        // "Název: věta" — only the first colon is a label; the rest may hold one of its own
+        const at = s.indexOf(sep)
+        const parts = sep === ": " ? [s.slice(0, at), s.slice(at + sep.length)] : s.split(sep)
         const tr = parts.map((p) => translateCore(p.trim(), depth + 1))
         if (tr.some((x) => x != null)) return parts.map((p, k) => tr[k] ?? numbersEn(p.trim())).join(sep)
       }
-    }
-    const sents = s.split(/(?<=[.!?])\s+(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ])/)
-    if (sents.length > 1) {
-      const tr = sents.map((p) => translateCore(p, depth + 1))
-      if (tr.some((x) => x != null)) return sents.map((p, k) => tr[k] ?? p).join(" ")
     }
   }
   return null

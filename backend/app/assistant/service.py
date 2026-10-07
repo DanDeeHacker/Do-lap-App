@@ -2,7 +2,7 @@
 
   gate (fixed safety replies) → selector (intent, data slices, topics) →
   facts (engine output) + knowledge search (cards → summaries → full texts,
-  app guide) → model (prompt assistant.v2) → validator → answer, or one retry,
+  app guide) → model (prompt assistant.v3) → validator → answer, or one retry,
   or a deterministic answer built from the same facts and cards.
 
 The engine stays the source of truth: the model only explains and plans inside
@@ -27,7 +27,7 @@ from . import selector as SEL
 from . import validate as VAL
 
 log = logging.getLogger("dosslap.assistant")
-PROMPT_VERSION = "assistant.v2"
+PROMPT_VERSION = "assistant.v3"   # v3: the Pohyb tab is called Mechanika (UX audit F08)
 PROMPT = (Path(__file__).resolve().parent.parent / "prompts" / f"{PROMPT_VERSION}.md").read_text(encoding="utf-8")
 NAME = "Physio AI Assistant"
 VISIBLE_DAYS = 7          # the runner sees a week of conversation (product decision 2026-09-28)
@@ -345,7 +345,7 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
     clean, links = VAL.strip_links(text)
     clean = E.cz_text(clean)          # Czech decimal comma, whatever the model copied from the facts
     if source == "fallback":
-        app_links = {"today": "Dnes", "training": "Trénink", "post": "Deník", "mechanics": "Pohyb", "load": "Zátěž",
+        app_links = {"today": "Dnes", "training": "Trénink", "post": "Deník", "mechanics": "Mechanika", "load": "Zátěž",
                      "messages": "Péče", "data": "Data"}
         first = (guide[0]["app"] if sel["wantGuide"] and guide else
                  next((s.get("app") for s in sources if s["kind"] == "card" and s.get("app")), None))
