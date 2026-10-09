@@ -104,7 +104,8 @@
  {
   "t": "ukázka",
   "files": [
-   "admin.tsx"
+   "admin.tsx",
+   "landing.tsx"
   ],
   "kind": "jsx"
  },
@@ -203,6 +204,16 @@
   "t": "Co tu změnit, co nefunguje, co chybí…",
   "files": [
    "annotate.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Enter",
+  "files": [
+   "annotate.tsx",
+   "assistant.tsx",
+   "care.tsx",
+   "tabs.tsx"
   ],
   "kind": "str"
  },
@@ -810,14 +821,8 @@
  {
   "t": "Aplikace",
   "files": [
-   "App.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Aplikace pro běžce: zátěž, zotavení a technika běhu, vždy proti vaší vlastní normě, ne proti průměru ostatních.",
-  "files": [
-   "App.tsx"
+   "App.tsx",
+   "landing.tsx"
   ],
   "kind": "jsx"
  },
@@ -921,13 +926,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Bezpečný přístup",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "block h-1 rounded-full {} {}",
   "files": [
    "App.tsx"
@@ -943,6 +941,13 @@
    "rundetail.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "bolest {}/10",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Bolest je ráno horší než při běhu",
@@ -1095,14 +1100,6 @@
   "t": "Co bolest dělá",
   "files": [
    "App.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Co Došlap umí",
-  "files": [
-   "App.tsx",
-   "landing.tsx"
   ],
   "kind": "jsx"
  },
@@ -1362,17 +1359,6 @@
   "t": "E-mail",
   "files": [
    "App.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Enter",
-  "files": [
-   "App.tsx",
-   "annotate.tsx",
-   "assistant.tsx",
-   "care.tsx",
-   "tabs.tsx"
   ],
   "kind": "str"
  },
@@ -1965,13 +1951,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Nemáte účet? Registrovat se",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Nesedí",
   "files": [
    "App.tsx"
@@ -2026,13 +2005,6 @@
  },
  {
   "t": "Nižší než obvykle",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Nová registrace",
   "files": [
    "App.tsx"
   ],
@@ -2394,6 +2366,13 @@
   "kind": "str"
  },
  {
+  "t": "Přihlášení nebo registrace",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Přihlášení selhalo",
   "files": [
    "App.tsx"
@@ -2410,9 +2389,17 @@
  {
   "t": "Přihlásit se",
   "files": [
+   "App.tsx",
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přihlaste se e-mailem a heslem.",
+  "files": [
    "App.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Přihlašuji…",
@@ -2481,13 +2468,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Přístup pro běžce",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Příznaky",
   "files": [
    "App.tsx",
@@ -2548,13 +2528,6 @@
   "kind": "str"
  },
  {
-  "t": "radial-gradient(circle at 85% 12%, {}1a, transparent 22rem), radial-gradient(circle at 10% 90%, {}14, transparent 20rem)",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "ráno",
   "files": [
    "App.tsx",
@@ -2564,9 +2537,10 @@
   "kind": "jsx"
  },
  {
-  "t": "Registrovat se",
+  "t": "Registrace",
   "files": [
-   "App.tsx"
+   "App.tsx",
+   "landing.tsx"
   ],
   "kind": "str"
  },
@@ -2586,13 +2560,6 @@
   "kind": "tpl"
  },
  {
-  "t": "relative min-h-screen flex-col p-5 md:flex md:p-8 {}",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "rgb(255 255 255 / .03)",
   "files": [
    "App.tsx"
@@ -2603,6 +2570,7 @@
   "t": "rgb(255 255 255 / .07)",
   "files": [
    "App.tsx",
+   "landing.tsx",
    "report.tsx",
    "rundetail.tsx"
   ],
@@ -2612,6 +2580,7 @@
   "t": "rgb(255 255 255 / .08)",
   "files": [
    "App.tsx",
+   "landing.tsx",
    "rundetail.tsx",
    "tabs.tsx",
    "training.tsx"
@@ -2650,6 +2619,13 @@
  },
  {
   "t": "rounded-full px-3.5 py-1.5 text-[13px] font-bold transition {}",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "rounded-full py-2 text-[13px] font-extrabold transition {}",
   "files": [
    "App.tsx"
   ],
@@ -2827,6 +2803,7 @@
   "files": [
    "App.tsx",
    "enginelab.tsx",
+   "landing.tsx",
    "lib.ts"
   ],
   "kind": "str"
@@ -3129,14 +3106,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Už máte účet? Přihlásit se",
-  "files": [
-   "App.tsx",
-   "landing.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "v normě",
   "files": [
    "App.tsx",
@@ -3172,6 +3141,13 @@
   "files": [
    "App.tsx",
    "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vítejte zpět",
+  "files": [
+   "App.tsx"
   ],
   "kind": "str"
  },
@@ -3243,6 +3219,14 @@
   "kind": "str"
  },
  {
+  "t": "Vytvořte si účet",
+  "files": [
+   "App.tsx",
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Vývoj stavu · 6 měsíců",
   "files": [
    "App.tsx"
@@ -3294,6 +3278,13 @@
  },
  {
   "t": "za posledních 7 dní žádný check-in",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zabere to minutu, pak vás provede průvodce.",
   "files": [
    "App.tsx"
   ],
@@ -3542,13 +3533,6 @@
    "App.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "Změny ve vaší zátěži a mechanice vidíte včas.",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "Zobrazit vývoj stavu za 6 měsíců",
@@ -4441,6 +4425,7 @@
   "t": "Běh",
   "files": [
    "capacity.tsx",
+   "landing.tsx",
    "profile.tsx",
    "report.tsx",
    "tabs.tsx"
@@ -6883,8 +6868,7 @@
  {
   "t": "Bez hodinek",
   "files": [
-   "datapage.tsx",
-   "landing.tsx"
+   "datapage.tsx"
   ],
   "kind": "jsx"
  },
@@ -8865,7 +8849,8 @@
  {
   "t": "Vaše norma",
   "files": [
-   "glossary.tsx"
+   "glossary.tsx",
+   "landing.tsx"
   ],
   "kind": "str"
  },
@@ -8877,7 +8862,28 @@
   "kind": "str"
  },
  {
+  "t": "-45% 0px -50% 0px",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": ". Data ÚZIS za rok 2019.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "· ukázka je bez registrace, na běžci s vymyšlenými daty",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "[1] Seiler (2010) · nenahrazuje fyzioterapeuta",
   "files": [
    "landing.tsx"
   ],
@@ -8905,6 +8911,27 @@
   "kind": "tpl"
  },
  {
+  "t": "0 0 0 8px {}14, 0 0 40px {}40",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "0 0 26px {}22",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "0 0 60px {}44",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "0px 0px -6% 0px",
   "files": [
    "landing.tsx"
@@ -8912,7 +8939,70 @@
   "kind": "str"
  },
  {
+  "t": "148 tep/min",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "172 kr.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "248 ms",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "5:28 /km",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "56 ms",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "7 h 12",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "7 h 12 min",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "7 h 40 min",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "8,42 km",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "AI asistent",
   "files": [
    "landing.tsx"
   ],
@@ -8947,6 +9037,13 @@
   "kind": "str"
  },
  {
+  "t": "Běh rozdělený na srovnatelné úseky podle terénu",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Běhy čekající na zápis",
   "files": [
    "landing.tsx"
@@ -8954,7 +9051,7 @@
   "kind": "str"
  },
  {
-  "t": "Běhy, spánek a tepová data z iPhonu a Apple Watch.",
+  "t": "běhy, spánek, tep",
   "files": [
    "landing.tsx"
   ],
@@ -8997,13 +9094,6 @@
   "kind": "str"
  },
  {
-  "t": "Bolest označená přímo na mapě těla",
-  "files": [
-   "landing.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "bolest, ztuhlost a únava z deníku",
   "files": [
    "landing.tsx"
@@ -9016,6 +9106,13 @@
    "landing.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "btn btn-sm whitespace-nowrap px-3 {}",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "calc({}% - {}px)",
@@ -9076,11 +9173,11 @@
   "kind": "str"
  },
  {
-  "t": "Co najdete v aplikaci",
+  "t": "Co dělá AI asistent?",
   "files": [
    "landing.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Co nejvíc tvoří dnešní skóre",
@@ -9090,11 +9187,11 @@
   "kind": "str"
  },
  {
-  "t": "Co říká vaše tělo?",
+  "t": "Co v aplikaci dostanete",
   "files": [
    "landing.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "Čt · intervaly",
@@ -9125,7 +9222,7 @@
   "kind": "str"
  },
  {
-  "t": "Data",
+  "t": "Data z hodinek a krátký deník skládá každý den do jednoho srozumitelného stavu proti vaší vlastní normě. Řekne vám, kolik toho dnes unesete, a když je čas zpomalit nebo zajít za fyzioterapeutem, vysvětlí proč.",
   "files": [
    "landing.tsx"
   ],
@@ -9133,13 +9230,6 @@
  },
  {
   "t": "Denní check-in přímo z obrazovky",
-  "files": [
-   "landing.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Denní check-in za pár vteřin: bolest, ztuhlost, únava",
   "files": [
    "landing.tsx"
   ],
@@ -9167,28 +9257,35 @@
   "kind": "str"
  },
  {
-  "t": "Došlap není zdravotnický prostředek a nestanovuje diagnózu. Ukazuje změny proti vaší vlastní normě a vysvětluje, co je tvoří. Rozhodnutí zůstává na vás a na odbornících.",
+  "t": "Dnešní stav",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dnešní stav a limity",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "doporučení na dnes",
   "files": [
    "landing.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Došlap propojuje běžce a fyzioterapeuty. Každý den skládá data z hodinek a krátký deník do jednoho srozumitelného stavu. Když je čas zpomalit nebo zajít za odborníkem, řekne vám to a vysvětlí proč.",
+  "t": "Došlap — nahoru",
   "files": [
    "landing.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
-  "t": "Došlap si z vašich běhů složí osobní normu. Každý den pak sleduje, jak daleko se od ní vzdalujete ve třech osách, a ukáže nejen výsledek, ale i to, co ho tvoří.",
-  "files": [
-   "landing.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Drift techniky bývá časný znak únavy, který ještě necítíte",
+  "t": "Došlap není zdravotnický prostředek a nestanovuje diagnózu. Ukazuje změny proti vaší normě; rozhodnutí zůstává na vás a na odbornících.",
   "files": [
    "landing.tsx"
   ],
@@ -9209,7 +9306,7 @@
   "kind": "str"
  },
  {
-  "t": "fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 transition-all duration-300 md:bottom-6 md:justify-end md:px-8 {}",
+  "t": "fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-300 {}",
   "files": [
    "landing.tsx"
   ],
@@ -9223,11 +9320,25 @@
   "kind": "str"
  },
  {
+  "t": "Funguje s hodinkami i bez nich",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Funguje s tím, co už nosíte.",
   "files": [
    "landing.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Fyzioterapeut je uvidí až ve chvíli, kdy potvrdíte zájem o péči a on převezme váš případ.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Fyzioterapeut na dosah",
@@ -9244,7 +9355,28 @@
   "kind": "str"
  },
  {
+  "t": "Fyzioterapeut, když je potřeba",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "fyzioterapeutů na 100 000 obyvatel Česka, v Německu je jich téměř třikrát víc",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Fyzioterapie",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Garmin i s historií, Apple Health exportem z iPhonu. Bez hodinek zapisujete běhy ručně.",
   "files": [
    "landing.tsx"
   ],
@@ -9258,14 +9390,21 @@
   "kind": "tpl"
  },
  {
-  "t": "grid transition-all duration-500 {}",
+  "t": "Hecksteden et al., 2017",
   "files": [
    "landing.tsx"
   ],
-  "kind": "tpl"
+  "kind": "str"
  },
  {
-  "t": "Hecksteden et al., 2017",
+  "t": "Hodinky",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Hodinky měří",
   "files": [
    "landing.tsx"
   ],
@@ -9279,7 +9418,7 @@
   "kind": "str"
  },
  {
-  "t": "Hodnoty v telefonu a v interaktivní ukázce jsou ilustrační. © Došlap",
+  "t": "Hodnoty v hodinkách, v telefonu a v interaktivních ukázkách jsou ilustrační. © Došlap",
   "files": [
    "landing.tsx"
   ],
@@ -9291,6 +9430,13 @@
    "landing.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Hotovo · první stav je připravený",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Hrot24, 2021",
@@ -9307,6 +9453,13 @@
   "kind": "jsx"
  },
  {
+  "t": "i bez hodinek",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Jak dlouho trvá, než mi Došlap porozumí?",
   "files": [
    "landing.tsx"
@@ -9319,7 +9472,7 @@
    "landing.tsx",
    "tabs.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Jak to vypadá dnes a jak s Došlapem",
@@ -9330,6 +9483,13 @@
  },
  {
   "t": "Jednat",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jméno, e-mail a heslo. Zabere to minutu.",
   "files": [
    "landing.tsx"
   ],
@@ -9365,6 +9525,20 @@
   "kind": "jsx"
  },
  {
+  "t": "Každé pravidlo má v dokumentaci zdroj a sílu důkazů. Kde stavíme na vlastním předpokladu, říkáme to otevřeně a s daty ho budeme kalibrovat.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Každý běh zařadíme podle povrchu, sklonu a tempa. Pomalý výklus tak nevypadá jako změna techniky a kopcovitý trail jako skok v zátěži.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Kdo uvidí moje data?",
   "files": [
    "landing.tsx"
@@ -9380,6 +9554,13 @@
  },
  {
   "t": "Když se něco změní, napíšete. Fyzioterapeut může plán upravit dřív než na další kontrole.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Když se signály sčítají, Došlap doporučí konzultaci. Fyzioterapeut uvidí vaše data, až když o péči sami požádáte.",
   "files": [
    "landing.tsx"
   ],
@@ -9447,12 +9628,18 @@
   "kind": "str"
  },
  {
-  "t": "Krok",
+  "t": "kopcovitý",
   "files": [
-   "landing.tsx",
-   "tabs.tsx"
+   "landing.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
+ },
+ {
+  "t": "Krok {} z {}",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Kvadrant stavu",
@@ -9469,6 +9656,27 @@
   "kind": "str"
  },
  {
+  "t": "lehké tempo",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Lehký běh 6–8 km",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Lesní běh · 6,8 km",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Lýtko po intervalech ztuhlé, mám zítra běžet?",
   "files": [
    "landing.tsx"
@@ -9477,6 +9685,55 @@
  },
  {
   "t": "Lýtko ztuhlé",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "M {} {} L 50 50",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "M 20 66 C 18 {}, 30 {}, 47 {}",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "M0 14 L18 14 L22 9 L26 18 L30 3 L34 20 L38 14 L58 14 L62 10 L66 17 L70 4 L74 19 L78 14 L100 14",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "M200 262 C 160 310, 60 300, 82 380",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "M318 150 C 316 220, 240 215, 200 262",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "M70 70 C 180 30, 320 60, 318 150",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "M82 380 C 100 450, 250 480, 318 448",
   "files": [
    "landing.tsx"
   ],
@@ -9497,7 +9754,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Mění se vaše technika?",
+  "t": "Mechanika, zátěž, příznaky a připravenost, vždy proti vaší vlastní normě z posledních týdnů, ne proti průměru ostatních.",
   "files": [
    "landing.tsx"
   ],
@@ -9562,6 +9819,13 @@
   "kind": "str"
  },
  {
+  "t": "Načítám historii · 182 dní",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "nad kapacitou",
   "files": [
    "landing.tsx"
@@ -9590,7 +9854,21 @@
   "kind": "str"
  },
  {
+  "t": "Nenahrazuje fyzioterapeuta",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Nenahrazuje. Pomáhá vám poznat, kdy je čas zpomalit nebo se poradit s odborníkem, a fyzioterapeutovi dává data a kontext pro jeho práci.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Není to diagnóza",
   "files": [
    "landing.tsx"
   ],
@@ -9632,13 +9910,6 @@
   "kind": "str"
  },
  {
-  "t": "Objem, intenzita, stoupání a klesání proti vaší kapacitě",
-  "files": [
-   "landing.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Objem, intenzita, stoupání a klesání, každý kanál proti vaší kapacitě, doplněné o spánek, HRV a klidový tep.",
   "files": [
    "landing.tsx"
@@ -9646,14 +9917,21 @@
   "kind": "str"
  },
  {
-  "t": "opakovaně Achilovka",
+  "t": "Od zápěstí k rozhodnutí",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odpovědi z vašich dat",
   "files": [
    "landing.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Opakující se obtíže mají větší váhu než jednorázové",
+  "t": "opakovaně Achilovka",
   "files": [
    "landing.tsx"
   ],
@@ -9668,6 +9946,35 @@
  },
  {
   "t": "Osobní referenční rozsahy",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Otázky",
+  "files": [
+   "landing.tsx",
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Otevře se z každé záložky",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Otevřít menu",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Otevřít ukázku",
   "files": [
    "landing.tsx"
   ],
@@ -9709,6 +10016,20 @@
   "kind": "str"
  },
  {
+  "t": "Porovnání s vaší normou",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "porovnáno s 37 podobnými běhy, ne se všemi",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Postaveno na výzkumu sportovní medicíny.",
   "files": [
    "landing.tsx"
@@ -9730,11 +10051,53 @@
   "kind": "str"
  },
  {
-  "t": "Přihlášení nebo export z Garmin Connect. Načte i historii, takže norma se skládá od prvního dne.",
+  "t": "Před třemi dny jste běželi úsilí blízké závodu. Dejte si ještě den bez intenzity, lehký běh 6–8 km sedí.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Připojení",
   "files": [
    "landing.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Připojte hodinky jednou a data budou přitékat sama. Načte se i historie, takže vaše norma se skládá od prvního dne. Bez hodinek začnete deníkem.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Připojte hodinky, nebo začněte deníkem",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Připojuji Garmin…",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "připravujeme",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pro běžce a jejich fyzioterapeuty",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Pro fyzioterapeuty připravujeme vlastní rozhraní: kalendář a rezervace, digitální registraci klientů, tvorbu programů, databázi cviků a přehled dat klientů. Je zatím ve vývoji.",
@@ -9749,6 +10112,13 @@
    "landing.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Proč dnes nemám dělat intervaly?",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Proč vznikl Došlap",
@@ -9786,21 +10156,63 @@
   "kind": "str"
  },
  {
-  "t": "Prudké skoky oproti posledním týdnům",
+  "t": "Projděte si celou aplikaci na ukázkovém běžci",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "propojení i historie",
   "files": [
    "landing.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "radial-gradient(circle at 20% 0%, {}14, transparent 30rem), radial-gradient(circle at 90% 30%, {}12, transparent 26rem)",
+  "t": "Průvodce vás provede aplikací a první stav uvidíte hned po načtení dat.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Průvodce vás provede prvními kroky",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Půl roku běhů, deník, program od fyzioterapeuta i AI asistent. Bez registrace, jen pro čtení, s průvodcem.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "radial-gradient(circle at 100% 0%, {}1a, transparent 18rem)",
   "files": [
    "landing.tsx"
   ],
   "kind": "tpl"
  },
  {
-  "t": "radial-gradient(circle at 50% 0%, {}26, transparent 24rem)",
+  "t": "radial-gradient(circle at 15% 0%, {}22, transparent 26rem)",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "radial-gradient(circle, {}12, transparent 60%)",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "radial-gradient(circle, {}14, transparent 60%)",
   "files": [
    "landing.tsx"
   ],
@@ -9808,6 +10220,20 @@
  },
  {
   "t": "Ranní přehled za deset vteřin",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Ráno se podívejte na svůj stav",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Ráno víte, v jakém jste stavu a kolik toho dnes unesete: typ tréninku, kilometry, tep, tempo i převýšení.",
   "files": [
    "landing.tsx"
   ],
@@ -9829,6 +10255,13 @@
  },
  {
   "t": "relative flex w-full items-center gap-3 rounded-2xl px-1 py-2.5 text-left transition {}",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "relative rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors {}",
   "files": [
    "landing.tsx"
   ],
@@ -9863,6 +10296,14 @@
   "kind": "str"
  },
  {
+  "t": "rgb(255 255 255 / .05)",
+  "files": [
+   "landing.tsx",
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "rgb(255 255 255 / .06)",
   "files": [
    "landing.tsx",
@@ -9871,7 +10312,29 @@
   "kind": "str"
  },
  {
+  "t": "rgb(255 255 255 / .12)",
+  "files": [
+   "landing.tsx",
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "rgb(255 255 255 / .14)",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "rgb(255 255 255 / .15)",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "rgb(255 255 255 / .18)",
   "files": [
    "landing.tsx"
   ],
@@ -9891,6 +10354,13 @@
    "ui.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "rounded-2xl border p-2.5 text-center backdrop-blur {}",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "rounded-full border px-3 py-1.5 text-[12.5px] font-bold transition {}",
@@ -9928,7 +10398,21 @@
   "kind": "str"
  },
  {
-  "t": "Šest pohledů na jedno tělo.",
+  "t": "scrollujte dál",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Sekce stránky",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Šest pohledů na jedno tělo a asistent, který je vysvětlí.",
   "files": [
    "landing.tsx"
   ],
@@ -9936,6 +10420,13 @@
  },
  {
   "t": "Signály seřazené podle vlivu",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Skládám vaši osobní normu",
   "files": [
    "landing.tsx"
   ],
@@ -9995,13 +10486,6 @@
   "kind": "str"
  },
  {
-  "t": "Spánek, HRV a klidový tep jako ranní regenerace",
-  "files": [
-   "landing.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Spojité modely místo prahů",
   "files": [
    "landing.tsx"
@@ -10016,14 +10500,14 @@
   "kind": "str"
  },
  {
-  "t": "Srovnání na rovině, v kopcích a v tempu",
+  "t": "Srovnatelné běhy",
   "files": [
    "landing.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Srovnání ve stejném tempu a terénu, ne napříč všemi běhy",
+  "t": "Srovnáváme srovnatelné",
   "files": [
    "landing.tsx"
   ],
@@ -10044,7 +10528,7 @@
   "kind": "str"
  },
  {
-  "t": "Strukturovaný deník běhů, bolestí a únavy stačí k základnímu vyhodnocení.",
+  "t": "Suunto a Coros",
   "files": [
    "landing.tsx"
   ],
@@ -10065,6 +10549,30 @@
   "kind": "str"
  },
  {
+  "t": "Tep",
+  "files": [
+   "landing.tsx",
+   "report.tsx",
+   "rundetail.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "tep 132–149 · tempo 5:17–6:12 /km · klesání max 31 m",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Tep, HRV, spánek a běžecká dynamika přitečou z Garminu nebo Apple Health i s historií. Bez hodinek stačí krátký deník.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Thornton et al., 2019",
   "files": [
    "landing.tsx"
@@ -10079,14 +10587,14 @@
   "kind": "str"
  },
  {
-  "t": "Tři osy, jeden srozumitelný stav. Porovnáváme vás s vámi, ne s průměrem.",
+  "t": "Týdenní kapacita po kanálech",
   "files": [
    "landing.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
-  "t": "Týdenní kapacita po kanálech",
+  "t": "U každého čísla vidíte, co ho tvoří, jak silné jsou důkazy a kolik bodů to stojí.",
   "files": [
    "landing.tsx"
   ],
@@ -10098,13 +10606,6 @@
    "landing.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "Ukázka je bez registrace, na běžci s vymyšlenými daty.",
-  "files": [
-   "landing.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "ukázková data",
@@ -10121,18 +10622,25 @@
   "kind": "str"
  },
  {
-  "t": "Unesete to, co běháte?",
+  "t": "Út · 10 km klus",
   "files": [
    "landing.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Út · 10 km klus",
+  "t": "Už mám účet",
   "files": [
    "landing.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
+ },
+ {
+  "t": "Už máte účet?",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "ÚZIS podle Hrot24, 2021",
@@ -10163,6 +10671,20 @@
   "kind": "jsx"
  },
  {
+  "t": "Vaše data vidíte jen vy, dokud nepožádáte o péči",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vaše data vidíte vy",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Vaše zkušenost jako nejcennější data",
   "files": [
    "landing.tsx"
@@ -10185,13 +10707,6 @@
   "kind": "str"
  },
  {
-  "t": "Vertikální poměr, kontakt se zemí, kadence a vertikální oscilace",
-  "files": [
-   "landing.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Vidí kilometry a tempo, ale ne to, jak je jeho tělo snáší. Signál přichází, až když už bolí.",
   "files": [
    "landing.tsx"
@@ -10204,6 +10719,13 @@
    "landing.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Vidím skok v klesání. Tento týden zkraťte dlouhý běh a ve čtvrtek se podíváme na techniku.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Vidím v datech skok v objemu. Dejte si zítra volno a zkuste cvik 3 z programu.",
@@ -10234,7 +10756,21 @@
   "kind": "str"
  },
  {
+  "t": "Vysvětlí skóre, limity i doporučení",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Vysvětlitelné skóre",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vysvětluje vaše skóre, limity a doporučení z čísel, která spočítala aplikace, a z odborné literatury, kterou cituje. Když by odpověď odporovala výpočtu, dostanete odpověď sestavenou podle pevných pravidel.",
   "files": [
    "landing.tsx"
   ],
@@ -10246,6 +10782,13 @@
    "landing.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Vyzkoušet",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Z jednorázové prohlídky se stane průběžný vztah.",
@@ -10267,6 +10810,13 @@
    "landing.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Začněte",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Začněte vidět, co se děje pod kilometry.",
@@ -10304,11 +10854,25 @@
   "kind": "str"
  },
  {
+  "t": "Zavřít menu",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Zdroje čísel",
   "files": [
    "landing.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Zeptejte se, proč vám aplikace dnes nedoporučuje intervaly. Asistent odpoví z vašich dat a z odborné literatury a uvede zdroj.",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Zjednodušená ukázka. Skutečný výpočet pracuje s vaší osobní normou, desítkami signálů a hysterezí, aby stav zbytečně nepřeskakoval.",
@@ -10319,6 +10883,13 @@
  },
  {
   "t": "Znovu od začátku",
+  "files": [
+   "landing.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zóna 2",
   "files": [
    "landing.tsx"
   ],
@@ -14004,13 +14575,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Otázky",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Označte, co dnes bylo. Po pár týdnech uvidíte, co z toho u vás opravdu mění HRV, klidový tep a spánek.",
   "files": [
    "report.tsx"
@@ -14285,20 +14849,6 @@
   "kind": "str"
  },
  {
-  "t": "rgb(255 255 255 / .05)",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "rgb(255 255 255 / .12)",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "rgb(255 255 255 / .25)",
   "files": [
    "report.tsx"
@@ -14403,15 +14953,6 @@
  },
  {
   "t": "Tempo",
-  "files": [
-   "report.tsx",
-   "rundetail.tsx",
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Tep",
   "files": [
    "report.tsx",
    "rundetail.tsx",
@@ -17475,6 +18016,13 @@
   "kind": "str"
  },
  {
+  "t": "Krok",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Kruhový",
   "files": [
    "tabs.tsx"
@@ -19799,20 +20347,6 @@
   "kind": "tpl"
  },
  {
-  "t": "mechanika nad prahem",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "mechanika nad prahem (−20 %)",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Na běh dnes kapacita nezbývá.",
   "files": [
    "training.tsx"
@@ -19968,6 +20502,13 @@
  },
  {
   "t": "odchylka mechaniky",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "odchylka mechaniky (−20 %)",
   "files": [
    "training.tsx"
   ],

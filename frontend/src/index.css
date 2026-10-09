@@ -165,15 +165,37 @@ html, body { overflow-x:clip; }
 }
 
 /* ---- Landing page (/auth, "Co Došlap umí") ---- */
-.reveal { opacity:0; transform:translateY(28px); transition:opacity .75s var(--ease-sheet), transform .75s var(--ease-sheet); }
-.reveal.in { opacity:1; transform:none; }
+.reveal { opacity:0; transform:translateY(28px); filter:blur(6px); transition:opacity .8s var(--ease-sheet), transform .8s var(--ease-sheet), filter .8s var(--ease-sheet); }
+.reveal.in { opacity:1; transform:none; filter:none; }
+/* Landing page (2026-10): the watch → data → phone story. Parallax uses the individual
+   translate/rotate properties, so it never fights Tailwind's scale on the same element. */
+@keyframes streamFlow { from { stroke-dashoffset:100; } to { stroke-dashoffset:0; } }
+.stream-flow { stroke-dasharray:9 91; animation:streamFlow 2.2s linear infinite; }
+@keyframes watchBeat { 0%,100% { transform:scale(1); } 14% { transform:scale(1.24); } 28% { transform:scale(.95); } 42% { transform:scale(1.1); } }
+.watch-beat { animation:watchBeat 1.05s ease-in-out infinite; transform-origin:center; }
+@keyframes watchEcg { from { stroke-dashoffset:100; } to { stroke-dashoffset:0; } }
+.watch-ecg { stroke-dasharray:62 38; animation:watchEcg 1.6s linear infinite; }
+@keyframes chipBob { 0%,100% { translate:0 0; } 50% { translate:0 -5px; } }
+.stream-chip { animation:chipBob 4.2s ease-in-out infinite; }
+@keyframes flowIn { from { opacity:0; transform:translateY(14px); filter:blur(4px); } }
+@keyframes hubOrbit { to { transform:rotate(360deg); } }
+.hub-orbit { transform-origin:50px 50px; animation:hubOrbit 40s linear infinite; }
+.hero-copy { translate:0 calc(var(--hp, 0) * 46px); opacity:calc(1 - var(--hp, 0) * .7); }
+.hero-watch { translate:0 calc(var(--hp, 0) * -90px); rotate:calc(var(--hp, 0) * -9deg); }
+.hero-phone { translate:0 calc(var(--hp, 0) * 40px); }
+.landing-aurora { translate:0 calc(var(--landing-sy, 0) * -45vh); }
+.landing-aurora-2 { translate:0 calc(var(--landing-sy, 0) * 35vh); }
 @keyframes cueBounce { 0%,100% { transform:translateY(0); } 50% { transform:translateY(7px); } }
 .cue-bounce { animation:cueBounce 1.6s ease-in-out infinite; }
 @keyframes barGrow { from { transform:scaleY(0); } }
 @keyframes drawLine { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
 @keyframes tabProgress { from { transform:scaleX(0); } to { transform:scaleX(1); } }
 @media (prefers-reduced-motion: reduce) {
-  .reveal { transform:none; transition:opacity .3s; }
+  .reveal { transform:none; filter:none; transition:opacity .3s; }
+  .stream-flow, .watch-beat, .watch-ecg, .stream-chip, .hub-orbit { animation:none !important; }
+  .stream-flow { stroke-dasharray:none; opacity:.55; }
+  .hero-copy, .hero-watch, .hero-phone, .landing-aurora, .landing-aurora-2 { translate:none; rotate:none; opacity:1; }
+  .animate-\[flowIn_\.45s_cubic-bezier\(\.22\,1\,\.36\,1\)_both\] { animation:none !important; }
   .cue-bounce { animation:none; }
 }
 

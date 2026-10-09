@@ -36,7 +36,7 @@ import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C, badCol, goodCol } from "@/tokens"
 import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, Users, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, NotebookPen, LogOut, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail, Wordmark } from "@/shell"
-import { Landing, scrollToLanding } from "@/landing"
+import { Landing } from "@/landing"
 import { LangSwitch } from "@/i18n/LangSwitch"
 import { getLang } from "@/i18n/lang"
 import { FirstSteps, useDataStage } from "@/firstday"
@@ -1520,20 +1520,27 @@ function RunnerPage() {
 function DataPage() {
   return <DataView />
 }
-function Auth() {
+// Sign-in / sign-up form, used in the dialog the landing page opens and inline in its
+// last section. Runner-only sign-in; a successful sign-in marks the device as returning,
+// so the landing page then puts "Přihlásit se" first.
+const RETURNING_KEY = "dl-returning"
+function AuthForm({ initialMode = "register", onDemo, demoBusy = false, autoFocus = false, testid }: {
+  initialMode?: "login" | "register"; onDemo?: () => void; demoBusy?: boolean; autoFocus?: boolean; testid?: string
+}) {
   const nav = useNavigate()
   const { reloadMe } = useApp()
-  const role = "runner" // runner-only sign-in
-  // New visitors land on sign-up; they can switch to sign-in via the toggle.
-  const [mode, setMode] = useState<"login" | "register">("register")
-  // UX audit F03 — on a phone the first screen says what Došlap does; the form opens on tap
-  // (a desktop shows both side by side)
-  const [formOpen, setFormOpen] = useState(false)
+  const role = "runner"
+  const [mode, setMode] = useState<"login" | "register">(initialMode)
+  useEffect(() => setMode(initialMode), [initialMode])
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const first = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (autoFocus) setTimeout(() => first.current?.focus({ preventScroll: true }), 60)
+  }, [autoFocus, mode])
 
   const submit = async () => {
     setErr(null)
@@ -1551,6 +1558,7 @@ function Auth() {
         await api.authRegister({ email, password, name: name || email, role, lang: getLang() })
       }
       await api.authSignIn(email, password, role)
+      try { localStorage.setItem(RETURNING_KEY, "1") } catch { /* private mode */ }
       const me = await reloadMe()
       nav(roleHome(me?.role || role))
     } catch (e) {
@@ -1559,145 +1567,101 @@ function Auth() {
       setBusy(false)
     }
   }
+  const input = "mt-3 w-full rounded-xl border px-3.5 py-3 text-sm"
+  return (
+    <form className="card p-5 md:p-6" data-testid={testid} onSubmit={(e) => { e.preventDefault(); void submit() }}>
+      <div className="grid grid-cols-2 rounded-full border border-white/10 bg-white/[.04] p-1" role="tablist" aria-label="Přihlášení nebo registrace">
+        {([["register", "Registrace"], ["login", "Přihlášení"]] as const).map(([m, t]) => (
+          <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => { setMode(m); setErr(null) }}
+            className={`rounded-full py-2 text-[13px] font-extrabold transition ${mode === m ? "bg-accent text-ink" : "text-fg-2 hover:text-fg"}`}>{t}</button>
+        ))}
+      </div>
+      <p className="mt-4 font-serif text-[22px] leading-tight">{mode === "login" ? "Vítejte zpět" : "Vytvořte si účet"}</p>
+      <p className="mt-1 text-[12.5px] text-fg-2">{mode === "login" ? "Přihlaste se e-mailem a heslem." : "Zabere to minutu, pak vás provede průvodce."}</p>
+      {mode === "register" && (
+        <input ref={first} className={`${input} mt-4`} aria-label="Jméno" autoComplete="name" placeholder="Jméno" value={name} onChange={(e) => setName(e.target.value)} />
+      )}
+      <input ref={mode === "login" ? first : undefined} className={`${input} ${mode === "login" ? "mt-4" : ""}`} aria-label="E-mail" type="email" autoComplete="email"
+        placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <input type="password" className={input} aria-label="Heslo" autoComplete={mode === "login" ? "current-password" : "new-password"}
+        placeholder="Heslo" value={password} onChange={(e) => setPassword(e.target.value)} />
+      {mode === "register" && <p className="mt-2 text-[11px] text-fg-2">Heslo alespoň 8 znaků.</p>}
+      {err && <p role="alert" className="mt-3 text-[13px] font-bold text-alert">{err}</p>}
+      <button type="submit" disabled={busy} className="btn btn-primary mt-5 w-full py-3 text-sm">
+        {busy ? "Přihlašuji…" : mode === "login" ? "Přihlásit se" : "Vytvořit účet"}
+      </button>
+      {onDemo && (
+        <>
+          <button type="button" onClick={onDemo} disabled={demoBusy} data-testid="try-demo" className="btn btn-outline mt-3 w-full gap-2 py-3 text-sm">
+            <Play className="size-4" aria-hidden />{demoBusy ? "Otevírám ukázku…" : "Vyzkoušet ukázku"}
+          </button>
+          <p className="mt-2 text-center text-[11px] text-fg-3">Bez registrace, na ukázkovém běžci s vymyšlenými daty.</p>
+        </>
+      )}
+    </form>
+  )
+}
+
+function AuthDialog({ mode, onClose, onDemo, demoBusy }: { mode: "login" | "register"; onClose: () => void; onDemo: () => void; demoBusy: boolean }) {
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    window.addEventListener("keydown", key)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => { window.removeEventListener("keydown", key); document.body.style.overflow = prev }
+  }, [onClose])
+  return (
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/65 backdrop-blur-sm md:items-center md:p-6"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }} role="dialog" aria-modal="true" aria-label={mode === "login" ? "Přihlášení" : "Registrace"} data-testid="auth-dialog">
+      <div className="max-h-[94dvh] w-full max-w-md animate-[sheetUp_.35s_cubic-bezier(.22,1,.36,1)] overflow-y-auto rounded-t-[28px] border border-white/10 bg-bg p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl md:animate-[fadeIn_.25s_ease-out] md:rounded-[28px] md:p-5">
+        <div className="mb-3 flex items-center justify-between px-1">
+          <span className="flex items-center gap-2 text-base font-extrabold tracking-[-.04em]"><Mark size={26} /><Wordmark /></span>
+          <span className="flex items-center gap-2">
+            <LangSwitch />
+            <button type="button" onClick={onClose} aria-label="Zavřít" className="grid size-9 place-items-center rounded-full border border-white/15 text-fg-2 hover:text-fg"><X className="size-4" aria-hidden /></button>
+          </span>
+        </div>
+        <AuthForm initialMode={mode} onDemo={onDemo} demoBusy={demoBusy} autoFocus testid="dialog-form" />
+      </div>
+    </div>
+  )
+}
+
+function Auth() {
+  const nav = useNavigate()
+  const { reloadMe } = useApp()
+  // /auth#prihlaseni (or #login) opens the sign-in dialog straight away, #registrace the sign-up
+  const [dialog, setDialog] = useState<null | "login" | "register">(() => {
+    const h = typeof location !== "undefined" ? location.hash.toLowerCase() : ""
+    return h === "#prihlaseni" || h === "#login" ? "login" : h === "#registrace" ? "register" : null
+  })
+  const returning = useMemo(() => { try { return localStorage.getItem(RETURNING_KEY) === "1" } catch { return false } }, [])
+  const closeDialog = useCallback(() => setDialog(null), [])
 
   // "Vyzkoušet ukázku": a read-only guest session on the tutorial runner; the
   // getting-started tour starts by itself (onboarding.tsx) and exiting logs out.
   const [demoBusy, setDemoBusy] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
   const tryDemo = async () => {
-    setErr(null)
+    setNotice(null)
     setDemoBusy(true)
     try {
       await api.authGuest()
       const me = await reloadMe()
       if (me?.guest) nav("/app/today")
     } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Ukázku se nepodařilo otevřít")
+      setNotice(e instanceof ApiError ? e.message : "Ukázku se nepodařilo otevřít")
     } finally {
       setDemoBusy(false)
     }
   }
 
-  // Landing-page CTAs bring the visitor back up to the sign-up form.
-  const nameRef = useRef<HTMLInputElement>(null)
-  const openForm = (m: "login" | "register") => {
-    setMode(m)
-    setErr(null)
-    setFormOpen(true)
-    window.scrollTo({ top: 0, behavior: formOpen ? "smooth" : "auto" })
-    if (m === "register") setTimeout(() => nameRef.current?.focus({ preventScroll: true }), formOpen ? 650 : 50)
-  }
-  const toRegister = () => openForm("register")
-
   return (
-    <div className="motion-shell min-h-screen bg-bg">
-    {!formOpen && (
-      <div className="flex items-center justify-between gap-3 px-5 pt-[calc(1.25rem+env(safe-area-inset-top))] md:hidden" data-testid="landing-top">
-        <span className="flex items-center gap-2.5 text-lg font-extrabold tracking-[-.04em]"><Mark /><Wordmark /></span>
-        <span className="flex items-center gap-2">
-          <LangSwitch />
-          <button type="button" onClick={() => openForm("login")} className="btn btn-outline btn-sm" data-testid="top-login">Přihlásit se</button>
-        </span>
-      </div>
-    )}
-    <div className={`relative min-h-screen flex-col p-5 md:flex md:p-8 ${formOpen ? "flex" : "hidden"}`}>
-    <div className="flex-1 md:grid md:grid-cols-2 md:gap-8">
-      <aside className="card relative hidden overflow-hidden p-10 text-fg md:flex md:flex-col" style={{ backgroundImage: `radial-gradient(circle at 85% 12%, ${C.accent}1a, transparent 22rem), radial-gradient(circle at 10% 90%, ${C.info}14, transparent 20rem)` }}>
-        <div className="flex items-center gap-2.5 text-lg font-extrabold tracking-[-.04em]">
-          <Mark />
-          <Wordmark />
-        </div>
-        <div className="my-auto">
-          <Label>Bezpečný přístup</Label>
-          <h1 className="mt-4 max-w-md font-serif text-5xl leading-[1.02] tracking-[-.02em]">
-            Změny ve vaší zátěži a mechanice vidíte včas.
-          </h1>
-          <p className="mt-5 max-w-md text-sm leading-6 text-fg-soft">
-            Aplikace pro běžce: zátěž, zotavení a technika běhu, vždy proti
-            vaší vlastní normě, ne proti průměru ostatních.
-          </p>
-        </div>
-      </aside>
-      <section className="mx-auto flex w-full max-w-md flex-col justify-center py-8">
-        <span className="mb-10 flex items-center justify-between gap-2.5 text-lg font-extrabold tracking-[-.04em] md:hidden">
-          <span className="flex items-center gap-2.5"><Mark /><Wordmark /></span>
-          <button type="button" onClick={() => setFormOpen(false)} className="inline-flex items-center gap-1 text-[13px] font-bold tracking-normal text-fg-2 hover:text-accent" data-testid="form-back"><ChevronLeft className="size-4" aria-hidden />Co Došlap umí</button>
-        </span>
-        <Label>Přístup pro běžce</Label>
-        <h1 className="mt-1 font-serif text-[34px] tracking-[-.03em] md:text-4xl">
-          {mode === "login" ? "Přihlášení" : "Nová registrace"}
-        </h1>
-        <Card className="mt-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-serif text-xl">
-              {mode === "login" ? "Přihlásit se" : "Registrovat se"}
-            </p>
-            <LangSwitch />
-          </div>
-          {mode === "register" && (
-            <input
-              ref={nameRef}
-              className="mt-5 w-full rounded-xl border px-3.5 py-3 text-sm"
-              aria-label="Jméno"
-              autoComplete="name"
-              placeholder="Jméno"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          )}
-          <input
-            className="mt-3 w-full rounded-xl border px-3.5 py-3 text-sm"
-            aria-label="E-mail"
-            type="email"
-            autoComplete="email"
-            placeholder="E-mail"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input
-            type="password"
-            className="mt-3 w-full rounded-xl border px-3.5 py-3 text-sm"
-            aria-label="Heslo"
-            autoComplete={mode === "login" ? "current-password" : "new-password"}
-            placeholder="Heslo"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && submit()}
-          />
-          {mode === "register" && <p className="mt-2 text-[11px] text-fg-2">Heslo alespoň 8 znaků.</p>}
-          {err && <p role="alert" className="mt-3 text-[13px] font-bold text-alert">{err}</p>}
-          <button
-            onClick={submit}
-            disabled={busy}
-            className="btn btn-primary mt-5 w-full py-3 text-sm"
-          >
-            {busy ? "Přihlašuji…" : mode === "login" ? "Přihlásit se" : "Vytvořit účet"}
-          </button>
-          <button
-            onClick={() => {
-              setMode(mode === "login" ? "register" : "login")
-              setErr(null)
-            }}
-            className="mt-3 w-full text-center text-[13px] font-bold text-fg-2 hover:text-accent"
-          >
-            {mode === "login" ? "Nemáte účet? Registrovat se" : "Už máte účet? Přihlásit se"}
-          </button>
-        </Card>
-        <button onClick={tryDemo} disabled={demoBusy} data-testid="try-demo"
-          className="btn btn-outline mt-4 w-full gap-2 py-3 text-sm">
-          <Play className="size-4" aria-hidden />{demoBusy ? "Otevírám ukázku…" : "Vyzkoušet ukázku"}
-        </button>
-        <p className="mt-2 text-center text-[11px] text-fg-3">Bez registrace, na ukázkovém běžci s vymyšlenými daty.</p>
-      </section>
-    </div>
-      <button onClick={scrollToLanding} aria-controls="co-doslap-umi" data-testid="scroll-cue"
-        className="group mx-auto mt-6 flex flex-col items-center gap-1.5 rounded-2xl px-4 py-2 text-fg-2 hover:text-accent">
-        <span className="text-[13px] font-extrabold tracking-wide">Co Došlap umí</span>
-        <span className="cue-bounce grid size-9 place-items-center rounded-full border border-white/15 bg-white/5 group-hover:border-accent">
-          <ChevronDown className="size-5" aria-hidden />
-        </span>
-      </button>
-    </div>
-      <Landing onCta={toRegister} onDemo={tryDemo} demoBusy={demoBusy} onLogin={() => openForm("login")} />
+    <div className="motion-shell min-h-screen overflow-x-clip bg-bg">
+      <Landing onRegister={() => setDialog("register")} onLogin={() => setDialog("login")} onDemo={tryDemo} demoBusy={demoBusy}
+        returning={returning} notice={notice}
+        authSlot={<AuthForm initialMode={returning ? "login" : "register"} onDemo={tryDemo} demoBusy={demoBusy} testid="inline-form" />} />
+      {dialog && <AuthDialog mode={dialog} onClose={closeDialog} onDemo={tryDemo} demoBusy={demoBusy} />}
     </div>
   )
 }
