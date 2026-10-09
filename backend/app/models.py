@@ -86,6 +86,7 @@ class Runner(Base):
     # "v2" sensitive (per-run, robust noise scale) or "v3" capacity (v2 mechanics +
     # load scored against the runner's own capacity). Toggled in the app.
     engine_mode = Column(String, default="v1")
+    engine_mode_before_v3 = Column(String)   # set once by the v3 migration (main._migrate), for a rollback
     # Getting-started checklist for accounts registered since 27. 9. 2026 (None = older
     # account, no checklist): {"active": true, "dismissed": bool, "tutorialDone": bool}.
     onboarding_json = Column(JSON)

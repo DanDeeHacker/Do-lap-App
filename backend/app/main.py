@@ -71,6 +71,13 @@ def _migrate(engine):
     for col in ("deep_min", "rem_min", "light_min", "awake_min"):
         add("daily_metrics", col, f"{col} FLOAT")
     add("runners", "engine_mode", "engine_mode VARCHAR", "UPDATE runners SET engine_mode = 'v1' WHERE engine_mode IS NULL")
+    # One-time move of the accounts from before v3 (27. 9. 2026) onto the Kapacitní engine:
+    # the Trénink tab exists only with v3, and since feedback #182 the engine choice is for
+    # the owners only, so those runners could never get it. Runs once, when the column is
+    # added; the previous mode is kept for a rollback and owners can still switch afterwards.
+    add("runners", "engine_mode_before_v3", "engine_mode_before_v3 VARCHAR",
+        "UPDATE runners SET engine_mode_before_v3 = engine_mode, engine_mode = 'v3' "
+        "WHERE engine_mode IS NULL OR engine_mode <> 'v3'")
     # activity_streams may pre-date these two columns on a Postgres provisioned at Phase 4.
     add("activity_streams", "segments_json", "segments_json JSON")
     add("activity_streams", "surface_json", "surface_json JSON")
