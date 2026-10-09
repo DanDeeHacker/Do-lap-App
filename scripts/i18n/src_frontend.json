@@ -531,7 +531,8 @@
  {
   "t": "POST",
   "files": [
-   "api.ts"
+   "api.ts",
+   "crash.tsx"
   ],
   "kind": "str"
  },
@@ -6576,6 +6577,41 @@
    "care.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Aplikaci se nepodařilo zobrazit",
+  "files": [
+   "crash.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Na Dnes",
+  "files": [
+   "crash.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Načíst znovu",
+  "files": [
+   "crash.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Něco se pokazilo při zobrazení. Chyba se nám automaticky odeslala, ostatní části aplikace fungují dál.",
+  "files": [
+   "crash.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Tuhle část se nepodařilo zobrazit",
+  "files": [
+   "crash.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "– bez klíče v této instanci",

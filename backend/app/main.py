@@ -22,8 +22,8 @@ from .db import Base, SessionLocal, engine
 from .deps import is_owner, tutorial_demo_runner_id
 from .metrics import engine as E
 from .routers import (
-    admin, ai, annotations, auth, booking, coach, conclusions, employers, integrations, partners, physios, programs, rtr,
-    runners, self_programs, shoes, simulate, triage, assistant,
+    admin, ai, annotations, auth, booking, client_errors, coach, conclusions, employers, integrations, partners, physios,
+    programs, rtr, runners, self_programs, shoes, simulate, triage, assistant,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -439,6 +439,7 @@ app.include_router(coach.router)
 app.include_router(assistant.router)
 app.include_router(self_programs.router)
 app.include_router(admin.router)
+app.include_router(client_errors.router)
 
 
 @app.get("/api/health")

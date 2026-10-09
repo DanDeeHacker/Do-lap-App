@@ -27,6 +27,7 @@ import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
 import { CapacityMini, ReadinessFactors, afterLine, readinessCol, readinessPct } from "@/capacity"
 import { Training } from "@/training"
+import { RouteError, TabBoundary, installCrashReporting } from "@/crash"
 import { AssistantProvider, CoachFab, WhyButton } from "@/assistant"
 import { AdminPage, ViewAsBanner } from "@/admin"
 import { RunDetail } from "@/rundetail"
@@ -282,10 +283,10 @@ function Layout() {
             <ViewAsBanner />
             {rail ? (
               <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_280px] xl:gap-7">
-                <div className="min-w-0"><Outlet /></div>
+                <div className="min-w-0"><TabBoundary key={pathname}><Outlet /></TabBoundary></div>
                 <StatRail />
               </div>
-            ) : <Outlet />}
+            ) : <TabBoundary key={pathname}><Outlet /></TabBoundary>}
           </main>
         </div>
         <AtlasBubble />
@@ -2142,9 +2143,10 @@ const DevGallery = import.meta.env.DEV ? lazy(() => import("@/dev/Gallery")) : n
 const router = createBrowserRouter([
   ...(DevGallery ? [{ path: "/ui", Component: () => <Suspense fallback={null}><DevGallery /></Suspense> }] : []),
   { path: "/", Component: () => <Navigate to="/app/today" replace /> },
-  { path: "/auth", Component: Auth },
+  { path: "/auth", Component: Auth, ErrorBoundary: RouteError },
   {
     Component: Layout,
+    ErrorBoundary: RouteError,
     children: [
       { path: "/app/:tab", Component: RunnerPage },
       { path: "/app/post/:aid", Component: RunDetail },
@@ -2155,6 +2157,8 @@ const router = createBrowserRouter([
     ],
   },
 ])
+installCrashReporting()
+
 export default function App() {
   useDynamicReveal()
   return (
