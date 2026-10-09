@@ -940,7 +940,8 @@
  {
   "t": "Neplatný požadavek (cross-origin)",
   "files": [
-   "deps.py"
+   "deps.py",
+   "routers/client_errors.py"
   ]
  },
  {
@@ -3945,8 +3946,7 @@
   "t": "Tempo",
   "files": [
    "metrics/engine.py",
-   "seed.py",
-   "tutorial_demo.py"
+   "seed.py"
   ]
  },
  {
@@ -17100,6 +17100,12 @@
  },
  {
   "t": "Spal jsem špatně, tep vyšší než normálně.",
+  "files": [
+   "tutorial_demo.py"
+  ]
+ },
+ {
+  "t": "Tempový běh",
   "files": [
    "tutorial_demo.py"
   ]

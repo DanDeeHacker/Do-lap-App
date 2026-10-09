@@ -31,7 +31,7 @@ from .content import lib_for
 from .metrics import engine as E
 
 TUTORIAL_RID = "run_tutorial"
-BUILD_VERSION = 2
+BUILD_VERSION = 3
 _lock = threading.Lock()
 
 DAYS = 182
@@ -190,13 +190,13 @@ def _activities(rnd: random.Random, today) -> list[dict]:
         cad = b_cad - (3 if surface == "trail" else 0) - (pace - 320) * 0.03 + rnd.gauss(0, 1.2) - prog * 0.8
         hr = {"easy": 142, "recovery": 136, "long": 148, "tempo": 168, "intervals": 160, "trail": 147}[kind] + rnd.gauss(0, 2.5)
         rpe = {"easy": 3, "recovery": 2, "long": 5, "tempo": 7, "intervals": 8, "trail": 4}[kind] + (1 if steep else 0)
-        title = {"easy": "Ranní klus", "recovery": "Rozklusání", "long": "Dlouhý běh", "tempo": "Tempo",
+        title = {"easy": "Ranní klus", "recovery": "Rozklusání", "long": "Dlouhý běh", "tempo": "Tempový běh",
                  "intervals": "Intervaly 6× 1 km", "trail": "Lesní běh"}[kind]
         if surface == "treadmill":
             title = "Pás"
         drift = 1.06 if kind == "long" else 1.035
         out.append({
-            "started_at": E.iso_date(day), "start_time": ["06:40", "07:10", "17:45", "18:20"][rnd.randrange(4)] if wd < 5 else "08:30",
+            "started_at": E.iso_date(day), "start_time": _start(title, rnd.randrange(4), wd),
             "title": title, "sport": "running", "distance_km": dist, "duration_min": round(dist * pace / 60, 1),
             "pace_s_km": round(pace), "avg_hr": round(hr), "surface": surface, "ascent_m": asc, "descent_m": dsc,
             "temp_c": round(12 + 9 * math.sin((day.timetuple().tm_yday - 100) / 365 * 2 * math.pi) + rnd.gauss(0, 3)),
@@ -209,6 +209,13 @@ def _activities(rnd: random.Random, today) -> list[dict]:
             "elevation_profile": _synth_elevation_profile(rnd.random, dist, asc, dsc, surface),
         })
     return out
+
+
+def _start(title, k, wd) -> str:
+    """Weekday runs at one of four usual times; a "Ranní klus" (morning jog) always in the morning."""
+    if wd >= 5:
+        return "08:30"
+    return ["06:40", "07:10", "06:40", "07:10"][k] if title == "Ranní klus" else ["06:40", "07:10", "17:45", "18:20"][k]
 
 
 def _strength(day, minutes, focus, typ, rpe) -> dict:

@@ -1184,7 +1184,7 @@ function SegmentTimeline({ rid, aid }: { rid: string; aid: number }) {
     <>
       <p className="mt-1.5 text-[11px] leading-5 text-fg-2">
         {run.nSeg} úseků · {run.nTested} testů · {run.sigCount
-          ? <b className="text-alert-soft">{run.sigCount} {run.sigCount === 1 ? "významná odchylka" : run.sigCount < 5 ? "významné odchylky" : "významných odchylek"} v {sigSegs} {sigSegs === 1 ? "úseku" : "úsecích"}</b>
+          ? <b className="text-alert-soft">{`${run.sigCount} ${run.sigCount === 1 ? "významná odchylka" : run.sigCount < 5 ? "významné odchylky" : "významných odchylek"} v ${sigSegs} ${sigSegs === 1 ? "úseku" : "úsecích"}`}</b>
           : <b className="text-info">bez významných odchylek</b>}
         <span className="text-fg-3"> · norma k datu běhu: {data.baseline.runs} běhů ({fmtD(data.baseline.from)} – {fmtD(data.baseline.to)})</span>
       </p>

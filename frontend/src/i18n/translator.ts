@@ -50,6 +50,8 @@ const CZ_DAYS: Record<string, string> = {
 
 function numbersEn(s: string): string {
   return s
+    // út 13. 10. → Tue 13. 10. (a short weekday only right before a date)
+    .replace(/(^|[^a-zà-ž])(po|út|st|čt|pá|so|ne)(?=\s\d{1,2}\.\s?\d{1,2}\.)/gi, (_m, pre, w) => pre + CZ_DAYS[w.toLowerCase()])
     // 2. 10. 2026 / 2. 10. → 2 Oct 2026 / 2 Oct
     .replace(/\b(\d{1,2})\.\s?(\d{1,2})\.(?:\s?(\d{4}))?(?!\d)/g, (m, d, mo, y) => {
       const k = +mo - 1
@@ -59,9 +61,9 @@ function numbersEn(s: string): string {
     // 2. října 2026 → 2 October 2026
     .replace(/\b(\d{1,2})\.\s(ledna|února|března|dubna|května|června|července|srpna|září|října|listopadu|prosince)(\s\d{4})?/g,
       (_m, d, mo, y) => `${+d} ${MONTHS_LONG[CZ_MONTH_GEN[mo]]}${y || ""}`)
-    // 7,4 → 7.4 ; 1 234 → 1,234
-    .replace(/(\d)[   ](\d{3})(?!\d)/g, "$1,$2")
+    // 7,4 → 7.4 ; 1 234 → 1,234 — decimals first, or the new thousands comma turned into a point ("1.190 Kč")
     .replace(/(\d),(\d)/g, "$1.$2")
+    .replace(/(\d)[   ](\d{3})(?!\d)/g, "$1,$2")
 }
 
 function weekdaysEn(s: string): string {
@@ -123,7 +125,8 @@ function viaTemplates(s: string, depth: number): string | null {
       seen.add(i)
       const t = rxTpl[i]
       const m = s.match(t.rx)
-      if (!m || m.slice(1).some((v) => SENT_END.test(v))) continue
+      // …nor a list separator: "nejvýš {}" must not take "nejvýš · dnešní limit dává …" whole
+      if (!m || m.slice(1).some((v) => SENT_END.test(v) || /^[·–—]\s/.test(v.trim() + " "))) continue
       const lit = t.key.replace(/\{\}/g, "").length
       if (!best || lit > best.lit) best = { t, m, lit }
     }

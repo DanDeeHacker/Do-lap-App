@@ -1979,7 +1979,7 @@ function AtlasBubble() {
               <div className="nest p-4">
                 <div className="flex items-center justify-between">
                   <p className="t-label">Kde to bolí</p>
-                  <span className="text-[11px] text-fg-3">bolest {pain}/10</span>
+                  <span className="text-[11px] text-fg-3">{`bolest ${pain}/10`}</span>
                 </div>
                 <p className="mt-1 text-[12px] text-fg-3">Klepněte na místa, která bolí — můžete vybrat víc.</p>
                 <div className="mt-3"><MuscleAnatomy multi onSelect={setPoints} /></div>

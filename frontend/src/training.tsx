@@ -28,7 +28,7 @@ const MODE: Record<string, [string, string]> = {
 const CYCLE_PCT = [90, 100, 110, 55]
 const LIMIT: Record<string, string> = {
   week: "cíl týdne v cyklu (od pondělí)", "7d": "týdenní kapacita (nevstřebaná zátěž posledních dní)", run: "strop jednoho běhu",
-  systemic: "celková zátěž", mechanics: "mechanika nad prahem",
+  systemic: "celková zátěž", mechanics: "odchylka mechaniky",
 }
 const CH_ICON: Record<string, string> = { volume: "Objem", intensity: "Intenzita", descent: "Klesání", ascent: "Stoupání", systemic: "Celková zátěž" }
 const TYPE_ICON: Record<string, LucideIcon> = { volno: Sofa, regenerace: Leaf, "lehký": Footprints, "dlouhý": Route, "kvalitní": Zap, "závod": Flag, kolo: Bike, voda: Waves, "posilování": Dumbbell }
@@ -189,7 +189,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     if (vol.left != null) limits.push([vol.left, "zbytek cíle týdne od pondělí"])
     // railway: the binding limit of today may be Celková zátěž (its km equivalent) or the mechanics cut
     if (vol.sysKm != null) limits.push([vol.sysKm, "zbytek celkové zátěže (≈ km lehkého běhu)"])
-    if (vol.limitedBy === "mechanics" && vol.todayMax != null) limits.push([vol.todayMax, "mechanika nad prahem (−20 %)"])
+    if (vol.limitedBy === "mechanics" && vol.todayMax != null) limits.push([vol.todayMax, "odchylka mechaniky (−20 %)"])
     const week = Math.min(...limits.map((x) => x[0]))
     const todayCaps = [capVol?.ceilingToday, vol.todayMax].filter((v) => v != null) as number[]
     return { limits, today: todayCaps.length ? Math.min(week, ...todayCaps) : null }
