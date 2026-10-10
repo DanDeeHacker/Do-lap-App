@@ -8,6 +8,7 @@ import { METRIC_INFO as MI } from "@/metricinfo"
 import { fmtD, fmtImpact, paceStr, toImpact } from "@/lib"
 import { C, goodCol } from "@/tokens"
 import { Waterfall, type WStep } from "@/waterfall"
+import { AbsorbedChart, DEC } from "@/outlook"
 import { BodyLoadMap } from "@/components/MuscleAnatomy"
 import { useApp } from "@/store"
 
@@ -280,9 +281,26 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
         <div className="origin-top animate-[careReveal_.28s_ease-out] pt-2">
           {c.known && wk && (
             <div className="mb-3 grid gap-1 text-[12px] text-fg-2" data-testid="channel-numbers">
-              <p><span>Týdenní kapacita: </span><b className="text-fg">{num(wk.cap)}</b>{" "}<span>{c.unit}</span></p>
+              {/* owner feedback 2026-10-10 — which numbers are 7-day sums and which the absorbed load,
+                  so the capacity (a 7-day sum) and the absorbed ceiling (lower) don't read as a contradiction */}
+              <p><span>Týdenní kapacita (součet 7 dní): </span><b className="text-fg">{num(wk.cap)}</b>{" "}<span>{c.unit}</span></p>
+              {wk.inputs && (
+                <p className="text-[11px] leading-4 text-fg-3" data-testid="capacity-basis">
+                  {`vyšší z: průměr 4 týdnů ${num(wk.inputs.avg4)} · 0,9 × nejlepší týden ${num(wk.inputs.best)} · minimum ${num(wk.inputs.floor)}`}
+                </p>
+              )}
+              {wk.inputs && (
+                <p><span>Týdenní strop (součet 7 dní): </span><b className="text-fg">{num(wk.ceiling)}</b>{" "}<span>{c.unit}</span>
+                  {" "}<span className="text-[11px] text-fg-3">{`= kapacita × připravenost týdne ${num(Math.round(wk.inputs.ready * 100) / 100)}`}</span>
+                  {wk.inputs.body < 0.999 && <span className="text-[11px] text-fg-3">{` × tělo ${num(Math.round(wk.inputs.body * 100) / 100)}`}</span>}
+                  <span className="text-[11px] text-fg-3">{` × (1 + ${Math.round(wk.inputs.margin * 100)} % rezerva)`}</span></p>
+              )}
               <p><span>Za posledních 7 dní: </span><b className="text-fg">{num(wk.now)}</b>{" "}<span>{c.unit}</span></p>
-              {wk.absorbedMax != null && <p><span>Z toho ještě nevstřebáno: </span><b className="text-fg">{num(wk.absorbed)}</b><span>{` z ${num(wk.absorbedMax)}`}</span>{" "}<span>{c.unit}</span></p>}
+              {wk.absorbedMax != null && <p><span>Nevstřebáno: </span><b className="text-fg">{num(wk.absorbed)}</b><span>{` · strop nevstřebané zátěže ${num(wk.absorbedMax)} · zbývá ${num(wk.absorbedLeft)}`}</span>{" "}<span>{c.unit}</span></p>}
+              {wk.absorbedMax != null && (
+                <p className="text-[11px] leading-4 text-fg-3">Hlídá se nevstřebaná zátěž: starší dny se v ní počítají jen zčásti, jak je tělo vstřebává. Strop nevstřebané zátěže je týž týdenní strop převedený na tuto stupnici, proto je nižší než součet 7 dní.</p>
+              )}
+              {wk.series?.length > 0 && wk.absorbedMax != null && <div className="mt-2"><AbsorbedChart w={wk} unit={c.unit} d={DEC[id] ?? 0} /></div>}
               {/* feedback #181 — the week's target from Trénink, when it is lower than the ceiling;
                   UX audit F13 — label and number in their own nodes (the translator matches whole nodes) */}
               {target && target.budget < wk.ceiling - 0.05 && (

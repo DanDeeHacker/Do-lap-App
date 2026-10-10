@@ -237,7 +237,8 @@ def hr_bounds(db, rid: str) -> tuple:
     """(HR max, resting HR) the engine uses (the stored assessment), else safe defaults."""
     row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()
     cap = ((row.detail_json or {}).get("capacity") or {}) if row is not None else {}
-    hm, hr = cap.get("hrMax"), cap.get("hrRest")
+    hx = cap.get("hrExact") or ()
+    hm, hr = (hx[0], hx[1]) if len(hx) == 2 else (cap.get("hrMax"), cap.get("hrRest"))
     if not hm:
         r = db.query(models.Runner).filter(models.Runner.id == rid).first()
         hm = getattr(r, "hr_max", None) or 190

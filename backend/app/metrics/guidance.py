@@ -49,6 +49,7 @@ from datetime import date, timedelta
 from . import capacity as C
 from . import data as D
 from . import engine as E
+from . import outlook as O
 from . import speed as SP
 from . import weather as W
 
@@ -68,6 +69,7 @@ CROSS_TYPES = ("kolo", "voda", "posilování")
 #    blunts intensive running for 24–48 h (Doma et al., 2017) → lower Z4+ caps, no quality.
 CYCLE_Z2 = (0.60, 0.70)          # HRR band for an easy ride
 CROSS_MIN, KOLO_MAX, VODA_MAX = 20, 90, 45
+EXTRA_RIDE_MAX = 60     # the optional ride over a met weekly target stays shorter (working assumption)
 STRENGTH_TARGET, STRENGTH_TARGET_RACE = 2, 1
 STRENGTH_CARRY = {0: 0.5, 1: 0.5, 2: 0.75}   # Z4+ cap factor by days since a heavy lower-body session (working assumption)
 WD = ("pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota", "neděle")
@@ -150,6 +152,19 @@ def _dm(iso: str) -> str:
 def _cz(v, dec=1):
     """A number for a Czech sentence (decimal comma)."""
     return "—" if v is None else f"{round(v, dec):.{dec}f}".replace(".", ",") if dec else str(round(v))
+
+
+def sys_txt(w: dict, gscore=None) -> str:
+    """Why Celková zátěž leaves nothing more today — its weekly TARGET (the plan) or the
+    safety room under the weekly ceiling (owner feedback 2026-10-10: a met plan read as
+    "na stropu")."""
+    if w.get("bound") == "plan":
+        room = w.get("safeMax")
+        return (f"Týdenní cíl celkové zátěže je splněný (od pondělí {_cz(w.get('done'), 0)} z {_cz(w.get('budget'), 0)} bodů)"
+                + (f" — do bezpečnostního stropu zbývá {_cz(room, 0)} bodů" if room else "")
+                + (f", navíc nad cíl ale jen při připravenosti aspoň {READY_EXTRA_EASY} %." if (room and gscore is not None
+                                                                                          and gscore < READY_EXTRA_EASY) else "."))
+    return "Nevstřebaná celková zátěž (tep × čas ze všech aktivit) je na stropu týdenní kapacity."
 
 
 def _ill_what(sig) -> str:
@@ -494,7 +509,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     t_iso = today.isoformat()
     db = D.of(db, rid)                           # the runner's snapshot (data.py): no queries below
     tb = E.trimp_b(db.runner)                    # Banister b: 1.92 men / 1.67 women
-    hrmax, rhr = cap.get("hrMax") or 185, cap.get("hrRest") or 50
+    # the unrounded bounds capacity used: the rounded ones moved Celková zátěž by ~0.5 %, so
+    # the week from Monday could read more than the 7-day sum it is part of
+    hrmax, rhr = C.hr_exact(cap)
     sessions = C.run_exposures(db, rid, hrmax, rhr)
     runs = [s for s in sessions if s["run"] and s["date"] <= t_iso]
     hist = [s for s in runs if 0 < (today - _d(s["date"])).days <= 56]
@@ -641,6 +658,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         target = None if ref is None else ref * factor
         if novice and c != "volume":          # plan C1: only volume plans / limits the first 6 weeks
             target, ceil7 = None, None
+        capped = target is not None and ceil7 is not None and target > ceil7
         if target is not None and ceil7 is not None:
             target = min(target, ceil7)       # the plan never schedules a load exceedance
         done_week = sum(daily[c].get((ws + timedelta(days=k)).isoformat(), 0.0) for k in range((today - ws).days + 1))
@@ -653,8 +671,17 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         left7 = None if ceil7 is None else (ab_left if ab_left is not None else max(0.0, ceil7 - done6 - done_today))
         ceil_run = info.get("ceilingToday") if (c != "systemic" and not (novice and c != "volume")) else None
         limits = {k: v for k, v in (("week", left_week), ("7d", left7), ("run", ceil_run)) if v is not None}
-        lim = min(limits, key=limits.get) if limits else None
+        # on a tie (both used up) the safety limit is the one named — the plan alone would
+        # offer the optional easy run
+        lim = min(limits, key=lambda k: (limits[k], k == "week")) if limits else None
+        safe = [v for v in (left7, ceil_run) if v is not None]
         week[c] = {"label": info.get("label", C.CHANNELS[c]["label"]), "unit": info.get("unit", C.CHANNELS[c]["unit"]),
+                   # owner feedback 2026-10-10: the plan (this calendar week's target) and the safety
+                   # limits (absorbed load under the weekly ceiling, the per-run ceiling) read apart —
+                   # `bound` says which of the two sets today's max, `safeMax` = the safety limits alone
+                   "bound": None if lim is None else "plan" if lim == "week" else "safety",
+                   "safeMax": min(safe) if safe else None,
+                   "plan": {"ref": _r(ref, C.CHANNELS[c]["dec"]), "factor": round(factor, 3), "capped": capped},
                    "capacity": wcap.get("cap"), "ceiling7": ceil7, "done7": done6 + done_today, "left7": left7,
                    "absorbed": wcap.get("absorbed") if ceil7 is not None else None,
                    "absorbedPast": wcap.get("absorbedPast") if ceil7 is not None else None,
@@ -665,34 +692,56 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                    "dist": _rolling7_dist(daily[c], today, first_day)}
     # Celková zátěž (HR × time, all sports) is volume × intensity in one number —
     # what's left of it also bounds today's kilometres and hard minutes
-    sys_left = week["systemic"]["todayMax"]
+    sysw = week["systemic"]
+    sys_left, sys_safe = sysw["todayMax"], sysw["safeMax"]
     easy_rate = [s["exp"]["systemic"] / s["km"] for s in hist
                  if s["km"] and s["exp"].get("systemic") and (s["exp"].get("intensity") or 0) < 5]
     per_km = E.median(easy_rate) if len(easy_rate) >= 3 else None
+    z4pm = z4_trimp_per_min(tb)
     km_by_sys = sys_left / per_km if (sys_left is not None and per_km) else None
-    for c, cap_c in (() if novice else (("volume", km_by_sys), ("intensity", None if sys_left is None else sys_left / z4_trimp_per_min(tb)))):
+    km_by_sys_safe = sys_safe / per_km if (sys_safe is not None and per_km) else None
+    vol_safe_sys = False
+    for c, cap_c, cap_s in (() if novice else (("volume", km_by_sys, km_by_sys_safe),
+                                               ("intensity", None if sys_left is None else sys_left / z4pm,
+                                                None if sys_safe is None else sys_safe / z4pm))):
+        week[c]["sysCap"] = cap_c             # Celková zátěž's room in this channel's units (the limits ladder)
         if cap_c is not None and (week[c]["todayMax"] is None or cap_c < week[c]["todayMax"]):
-            week[c]["todayMax"], week[c]["limitedBy"] = cap_c, "systemic"
+            # the bound follows what set Celková zátěž's own limit (its weekly target or its safety room)
+            week[c]["todayMax"], week[c]["limitedBy"], week[c]["bound"] = cap_c, "systemic", sysw["bound"]
+        if cap_s is not None and (week[c]["safeMax"] is None or cap_s < week[c]["safeMax"]):
+            week[c]["safeMax"] = cap_s
+            vol_safe_sys = vol_safe_sys or c == "volume"
     week["volume"]["sysKm"] = None if novice else km_by_sys
     # the hills ride on the kilometres: with Celková zátěž cutting today's km, the
     # descent / ascent follow at the runner's hilliest usual metres per km (p90)
     vw0 = week["volume"]
-    if not novice and vw0["limitedBy"] == "systemic" and vw0["todayMax"] is not None:
-        for c in ("descent", "ascent"):
-            rates = sorted(s["exp"][c] / s["km"] for s in hist if s["km"] and s["exp"].get(c) is not None)
-            if not rates:
-                continue
-            cap_c = vw0["todayMax"] * rates[min(len(rates) - 1, int(0.9 * len(rates)))]
-            if week[c]["todayMax"] is None or cap_c < week[c]["todayMax"]:
-                week[c]["todayMax"], week[c]["limitedBy"] = cap_c, "systemic"
+    hill_p90 = {}
+    for c in ("descent", "ascent"):
+        rates = sorted(s["exp"][c] / s["km"] for s in hist if s["km"] and s["exp"].get(c) is not None)
+        if rates:
+            hill_p90[c] = rates[min(len(rates) - 1, int(0.9 * len(rates)))]
+    if not novice:
+        for c, p90 in hill_p90.items():
+            if vw0["limitedBy"] == "systemic" and vw0["todayMax"] is not None:
+                cap_c = vw0["todayMax"] * p90
+                week[c]["sysCap"] = cap_c
+                if week[c]["todayMax"] is None or cap_c < week[c]["todayMax"]:
+                    week[c]["todayMax"], week[c]["limitedBy"], week[c]["bound"] = cap_c, "systemic", vw0["bound"]
+            if vol_safe_sys and vw0["safeMax"] is not None:
+                cap_s = vw0["safeMax"] * p90
+                if week[c]["safeMax"] is None or cap_s < week[c]["safeMax"]:
+                    week[c]["safeMax"] = cap_s
     if drift:                                 # mechanics over its threshold: keep today well inside capacity
         for c, f in DRIFT_CUT.items():
             if week[c]["todayMax"] is not None:
                 week[c]["todayMax"] *= f
-                week[c]["limitedBy"] = "mechanics"
+                week[c]["limitedBy"], week[c]["bound"] = "mechanics", "safety"
+            if week[c]["safeMax"] is not None:
+                week[c]["safeMax"] *= f
     for c, wc in week.items():
         dec = C.CHANNELS[c]["dec"]
-        for k in ("capacity", "ceiling7", "done7", "left7", "budget", "done", "doneToday", "left", "todayMax", "sysKm"):
+        for k in ("capacity", "ceiling7", "done7", "left7", "budget", "done", "doneToday", "left", "todayMax", "sysKm",
+                  "safeMax", "sysCap"):
             if k in wc:
                 wc[k] = _r(wc[k], dec)
         if wc.get("dist"):
@@ -784,14 +833,13 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                 f"Opakovaná bolest ({recurring['site']}, {recurring['days']}× za 28 dní; uvolní se po: {need})"
                 if rec_active else "")
     km_scale = (0.7 if pain_mod else 1.0) * max(gready, 0.75) * (0.9 if new_block else 1.0)
-    # weekly target reached but the 7-day ceiling still has room: a short easy run
-    # stays available (not the default) — a rested body may move, the plan isn't risk
+    # weekly target reached but the safety limits still have room: a short easy run
+    # stays available (not the default) — a rested body may move, the plan isn't risk.
+    # Owner feedback 2026-10-10: also when it's Celková zátěž's weekly target that is met
+    # (the plan, not the absorbed load) — before, that read as a safety ceiling.
     vw = week["volume"]
-    sys7 = week["systemic"]["left7"]           # safety only — the week's plan targets don't bound this extra run
-    km_by_sys7 = sys7 / per_km if (sys7 is not None and per_km) else None
-    easy_room = [x for x in (vw["left7"], vw["ceilingRun"], km_by_sys7) if x is not None]
-    easy_room = min(easy_room) if easy_room else None
-    extra_easy = (vw["limitedBy"] == "week" and (vol_max or 0) < MIN_RUN_KM and easy_room is not None
+    easy_room = vw["safeMax"]                  # safety only — the week's plan targets don't bound this extra run
+    extra_easy = (vw["bound"] == "plan" and (vol_max or 0) < MIN_RUN_KM and easy_room is not None
                   and easy_room >= MIN_RUN_KM and gscore >= READY_EXTRA_EASY and not pain_mod and pain < 3)
 
     def cap_km(x):
@@ -804,12 +852,16 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         lo = min(lo, hi)
         mid_pace = ((pace[0] + pace[1]) / 2) if pace else easy_pace
         dur = (round(lo * mid_pace / 60), round(hi * mid_pace / 60)) if mid_pace else None
-        d_max = None if desc_max is None else desc_max * dfac * (0.5 if (pain_mod or drift) else 1.0)
+        # the optional run over the week's target (vmax) keeps to the safety room of the hills
+        # too — the plan's 0 m left would otherwise forbid any descent at all
+        d_room = week["descent"]["safeMax"] if vmax is not None else desc_max
+        a_room = week["ascent"]["safeMax"] if vmax is not None else asc_max
+        d_max = None if d_room is None else d_room * dfac * (0.5 if (pain_mod or drift) else 1.0)
         return {"label": TYPE_LABEL[kind], "km": {"lo": _r(lo), "hi": _r(hi), "max": _r(vol_max if vmax is None else vmax)},
                 "durationMin": dur, "hr": hr, "hrZones": {"regenerace": "Z1–Z2", "lehký": "Z2", "dlouhý": "Z2",
                                                           "kvalitní": "Z4–Z5 v úsecích, jinak Z1–Z2"}[kind],
                 "pace": pace, "z4Max": _r(z4max, 0), "z4Target": z4t, "descentMax": _r(d_max, 0),
-                "ascentMax": _r(None if asc_max is None else asc_max * dfac, 0),
+                "ascentMax": _r(None if a_room is None else a_room * dfac, 0),
                 "terrain": terrain or ("rovina nebo měkký povrch" if (pain_mod or drift) else "libovolný, do stropu klesání"),
                 "notes": notes or [], "allowed": True, "why": None}
 
@@ -821,7 +873,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     types["regenerace"] = mk("regenerace", 0.5 * base_km * km_scale, 0.75 * base_km * km_scale, z4max=0, dfac=0.5,
                              terrain="rovina nebo měkký povrch", vmax=extra_cap,
                              notes=["Velmi volně, konverzační tempo — cílem je prokrvit, ne trénovat."]
-                             + (["Nad rámec týdenního cíle — jen pokud máte chuť; pod 7denním stropem nic nezhorší."]
+                             + (["Nad rámec týdenního cíle — jen pokud máte chuť; vejde se pod bezpečnostní strop "
+                                 "(nevstřebaná zátěž i strop jednoho běhu)."]
                                 if extra_easy else []))
     types["lehký"] = mk("lehký", 0.85 * base_km * km_scale, 1.1 * base_km * km_scale,
                         z4max=min(5, int_max) if int_max is not None else 5, dfac=0.8)
@@ -855,26 +908,43 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     hm_c = sport_hr.get("cycling", hrmax - 8)
     hr_c = (round(rhr + CYCLE_Z2[0] * (hm_c - rhr)), round(rhr + CYCLE_Z2[1] * (hm_c - rhr)))
     per_min_c = E._trimp(1.0, rhr + sum(CYCLE_Z2) / 2 * (hm_c - rhr), hm_c, rhr, tb)
-    kolo_hi = KOLO_MAX if sys_left is None else min(KOLO_MAX, sys_left / per_min_c)
+    sys_plan_met = sysw["bound"] == "plan" and sys_safe is not None
+
+    def cross_hi(per_min, cap_max, extra_max):
+        """(minutes, optional) — the session's length from what's left of Celková zátěž; with
+        only its weekly TARGET met (owner feedback 2026-10-10) a shorter optional session
+        inside the safety room on a well-recovered day, like the optional easy run."""
+        hi = cap_max if sys_left is None else min(cap_max, sys_left / per_min)
+        if sys_left is None or hi >= CROSS_MIN or not sys_plan_met or gscore < READY_EXTRA_EASY:
+            return hi, False
+        hi2 = min(extra_max, sys_safe / per_min)
+        return (hi2, True) if hi2 >= CROSS_MIN else (hi, False)
+    kolo_hi, kolo_extra = cross_hi(per_min_c, KOLO_MAX, EXTRA_RIDE_MAX)
+    extra_note = ["Nad rámec týdenního cíle celkové zátěže — jen pokud máte chuť; vejde se pod bezpečnostní strop."]
     types["kolo"] = xmk("kolo", max(CROSS_MIN, 0.6 * kolo_hi), max(CROSS_MIN, kolo_hi), hr=hr_c, zones="Z2 na kole",
                         sport="cycling",
-                        notes=["Tepové pásmo je z maxima pro kolo, které bývá o 6–10 tepů nižší než při běhu.",
-                               "Běžecké kilometry se nepočítají, zátěž jde jen do celkové zátěže."])
-    voda_hi = VODA_MAX if sys_left is None else min(VODA_MAX, sys_left / (4 * k_srpe))
+                        notes=(extra_note if kolo_extra else [])
+                        + ["Tepové pásmo je z maxima pro kolo, které bývá o 6–10 tepů nižší než při běhu.",
+                           "Běžecké kilometry se nepočítají, zátěž jde jen do celkové zátěže."])
+    voda_hi, voda_extra = cross_hi(4 * k_srpe, VODA_MAX, VODA_MAX)
     types["voda"] = xmk("voda", max(CROSS_MIN, 0.66 * voda_hi), max(CROSS_MIN, voda_hi), rpe="3–4 z 10",
                         zones="podle pocitu", sport="swimming",
-                        notes=["Plynulé plavání ve stálém tempu, klidně s přestávkami na okraji bazénu.",
-                               "Tep ve vodě bývá nižší, řiďte se pocitem námahy. Jen pokud při tom nic nebolí."])
+                        notes=(extra_note if voda_extra else [])
+                        + ["Plynulé plavání ve stálém tempu, klidně s přestávkami na okraji bazénu.",
+                           "Tep ve vodě bývá nižší, řiďte se pocitem námahy. Jen pokud při tom nic nebolí."])
+    types["kolo"]["optional"], types["voda"]["optional"] = kolo_extra, voda_extra
+    types["regenerace"]["optional"] = extra_easy
     types["posilování"] = xmk("posilování", 30, 45, rpe="6–7 z 10", zones=None, sport="strength",
                               notes=["Po tvrdém běhu až s odstupem aspoň 3 hodin, před tvrdým během aspoň 24 hodin."])
     # railway#196 — the exercises come from the Runner's must-have programme (Péče → Program),
     # not a generic list; Trénink links there, the assistant gets the pointer
     types["posilování"]["program"] = {"key": "durability",
                                       "note": "Cviky podle programu Runner's must-have v Péči (2× týdně, session A síla a B odolnost)."}
+    sys_full = sys_txt(sysw, gscore)
     if sys_left is not None and kolo_hi < CROSS_MIN:
-        types["kolo"]["allowed"], types["kolo"]["why"] = False, "Celková zátěž (tep × čas) je dnes na stropu."
+        types["kolo"]["allowed"], types["kolo"]["why"] = False, sys_full
     if sys_left is not None and voda_hi < CROSS_MIN:
-        types["voda"]["allowed"], types["voda"]["why"] = False, "Celková zátěž (tep × čas) je dnes na stropu."
+        types["voda"]["allowed"], types["voda"]["why"] = False, sys_full
     # strength: this calendar week, the race phase, spacing before an intensive run
     ws_iso = week_start(today).isoformat()
     s_target = STRENGTH_TARGET_RACE if (days_to_race is not None and 0 < days_to_race <= 14) else STRENGTH_TARGET
@@ -1048,7 +1118,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         # all-sport load or mechanics (the assistant repeats this sentence)
         block("kvalitní", {
             "7d": "Nevstřebané minuty v Z4+ z posledních dní jsou na hranici kapacity, tvrdý trénink počká pár dní.",
-            "systemic": "Celková zátěž ze všech sportů za posledních 7 dní nenechává místo na tvrdý trénink.",
+            "systemic": ("Týdenní cíl celkové zátěže je splněný — tvrdý trénink se do plánu tohoto týdne nevejde."
+                         if week["intensity"].get("bound") == "plan" else
+                         "Nevstřebaná celková zátěž ze všech sportů nenechává místo na tvrdý trénink."),
             "mechanics": "Mechanika se odchyluje od normy, dnešní strop minut v Z4+ na kvalitní trénink nestačí.",
             "run": "Dnešní strop minut v Z4+ na kvalitní trénink nestačí.",
         }.get(week["intensity"].get("limitedBy"), "Na tento týden už nezbývá rozpočet intenzity (min v Z4+)."))
@@ -1059,7 +1131,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if days_to_race is not None and 0 < days_to_race <= 7:
         block("dlouhý", "Týden před závodem — bez dlouhého běhu.")
     no_room = {"week": "Týdenní cíl objemu je splněný.", "7d": "Nevstřebaná zátěž z posledních dní je na stropu týdenní kapacity.",
-               "systemic": "Celková zátěž (tep × čas) je na stropu.", "run": "Na dnešek už nezbývá objem."}
+               "systemic": ("Týdenní cíl celkové zátěže je splněný." if vw["bound"] == "plan" else
+                            "Nevstřebaná celková zátěž (tep × čas) je na stropu týdenní kapacity."),
+               "run": "Na dnešek už nezbývá objem."}
     if vw["left"] is not None and vw["left"] < 0.5 * base_km:
         for k in ("lehký", "dlouhý", "kvalitní"):
             block(k, "Týdenní cíl objemu je splněný.")
@@ -1122,7 +1196,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     run_blocked = vol_max is not None and vol_max < MIN_RUN_KM and not extra_easy
     ride_day = (not pat["runDays"]) or wd in pat["runDays"]
     if (typ == "volno" and not override and not race_rest and run_blocked and ride_day
-            and gscore >= READY_EASY_ONLY and types["kolo"]["allowed"] and vw["limitedBy"] != "systemic"):
+            and gscore >= READY_EASY_ONLY and types["kolo"]["allowed"] and not kolo_extra and vw["limitedBy"] != "systemic"):
         typ = "kolo"                      # running tissues are at their limit, the aerobic side isn't
     # v0.8.5: a rest day because of pain → the non-running option that spares the painful
     # spot (deep-water running keeps aerobic fitness for 4–6 weeks: Wilber et al., 1996;
@@ -1200,8 +1274,14 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         elif lim == "7d":
             reasons.append(f"Posledních 7 dní {_cz(vw['done7'])} km — na stropu vaší týdenní kapacity "
                            f"({_cz(vw['ceiling7'])} km), dnes volno.")
+        elif lim == "systemic" and vw["bound"] == "plan":
+            sw = week["systemic"]
+            reasons.append(f"Týdenní cíl celkové zátěže (tep × čas ze všech aktivit) je splněný — od pondělí "
+                           f"{_cz(sw['done'], 0)} z {_cz(sw['budget'], 0)} bodů, dnes volno. Je to plán týdne, ne strop: "
+                           + (f"do bezpečnostního stropu zbývá {_cz(sw['safeMax'], 0)} bodů." if sw.get("safeMax")
+                              else "bezpečnostní strop je také vyčerpaný."))
         elif lim == "systemic":
-            reasons.append("Celková zátěž (tep × čas ze všech aktivit) je na stropu týdenní kapacity — dnes volno.")
+            reasons.append("Nevstřebaná celková zátěž (tep × čas ze všech aktivit) je na stropu týdenní kapacity — dnes volno.")
         else:
             reasons.append("Na dnešek už nezbývá objem — dnes volno, případně jiný sport bez nárazů.")
     parts = cap["readiness"].get("parts") or {}
@@ -1230,9 +1310,14 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                        "normě) — dnešní stropy jsou úměrně nižší"
                        + (", bez tvrdého tréninku a dlouhého běhu." if rscore < READY_QUALITY else "."))
     elif typ == "volno" and not override and gscore >= READY_EXTRA_EASY:
-        reasons.append(f"Připravenost {rscore} % — tělo je zregenerované, volno je kvůli týdennímu plánu, "
-                       "ne kvůli únavě." + (f" Pokud máte chuť, krátký regenerační běh do {_cz(extra_cap)} km nic nezhorší."
-                                            if extra_easy else ""))
+        opt = [x for x in (f"krátký regenerační běh do {_cz(extra_cap)} km" if extra_easy else None,
+                           f"lehké kolo do {types['kolo']['durationMin'][1]} min"
+                           if (kolo_extra and types["kolo"]["allowed"]) else None) if x]
+        reasons.append(f"Připravenost {rscore} % — tělo je zregenerované, "
+                       + ("volno je kvůli zátěži z posledních dní, kterou tělo ještě vstřebává."
+                          if (vw["bound"] == "safety" and vol_max is not None and vol_max < MIN_RUN_KM) else
+                          "volno je kvůli týdennímu plánu, ne kvůli únavě.")
+                       + (f" Pokud máte chuť, {' nebo '.join(opt)} nic nezhorší." if opt else ""))
     if gscore < rscore:
         reasons.append(f"Dnešní check-in ({ci_note}) doporučení snižuje, jako by připravenost byla {gscore} % místo {rscore} %"
                        + (", proto bez tvrdého tréninku a dlouhého běhu" if gscore < READY_QUALITY <= rscore else "")
@@ -1321,6 +1406,68 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         done = {c: week[c]["doneToday"] for c in CHS}
         done["runs"] = len(today_runs)
 
+    # ---- owner feedback 2026-10-10: this calendar week day by day, by sport (the plan's
+    # running total) — the same daily loads as `done`, split by where they came from
+    nt_days = C.nontraining_daily(db, rid)
+    week_days = []
+    for k in range(7):
+        d = (ws + timedelta(days=k)).isoformat()
+        by = {c: {} for c in (*CHS, "systemic")}
+        if d <= t_iso:
+            for s in sessions:
+                if s["date"] != d:
+                    continue
+                src = "run" if s["run"] else s.get("sport") if s.get("sport") in ("cycling", "swimming", "strength") else "other"
+                for c in by:
+                    v = s["exp"].get(c)
+                    if not v or (c in ("volume", "descent", "ascent") and not s["run"]) \
+                            or (c == "intensity" and not (s["run"] or s.get("sport") in C.CROSS_CARDIO)):
+                        continue
+                    by[c][src] = by[c].get(src, 0.0) + v
+            if nt_days.get(d):
+                by["systemic"]["daily"] = nt_days[d]
+        week_days.append({"date": d, "by": {c: {s: _r(v, C.CHANNELS[c]["dec"]) for s, v in b.items()} for c, b in by.items()}})
+
+    # ---- owner feedback 2026-10-10: the outlook for tomorrow (outlook.py)
+    def next_target(c):
+        wc = week[c]
+        if novice and c != "volume":
+            return None
+        t = wc["budget"]
+        if pos_now and mode in ("build", "recovery"):
+            f2 = CYCLE[1] * CYCLE[3] if pos_now == 4 else CYCLE[pos_now % 4 + 1]
+            ref_c = (reference(c) if cyc else None) or ((ch.get(c) or {}).get("week") or {}).get("cap")
+            t = None if ref_c is None else ref_c * f2
+        return t if (t is None or wc["ceiling7"] is None) else min(t, wc["ceiling7"])
+    all_rate = [s["exp"]["systemic"] / s["km"] for s in hist if s["km"] and s["exp"].get("systemic")]
+
+    def med_rate(c):
+        xs = [s["exp"][c] / s["km"] for s in hist if s["km"] and s["exp"].get(c) is not None]
+        return E.median(xs) if xs else None
+    conv = {"perKm": None if novice else per_km, "runPerKm": per_km or (E.median(all_rate) if all_rate else None),
+            "z4PerMin": z4pm, "easyPerMin": (per_km * 60 / easy_pace) if (per_km and easy_pace) else None,
+            "perMinRide": per_min_c, "perMinSwim": 4 * k_srpe,
+            "descPerKm": med_rate("descent"), "ascPerKm": med_rate("ascent"),
+            "hillP90": None if novice else hill_p90}
+    presets = [{"key": "none", "kind": None, "act": {}}]
+    rec_t = types.get(typ) or {}
+    if typ in ("regenerace", "lehký", "dlouhý", "kvalitní") and rec_t.get("allowed") and not after_done:
+        presets.append({"key": "rec", "kind": typ,
+                        "act": {"runKm": (rec_t.get("km") or {}).get("hi") or 0.0,
+                                "z4": ((rec_t.get("z4Target") or {}).get("hi") or 0) if typ == "kvalitní" else 0}})
+    elif typ in ("kolo", "voda") and rec_t.get("allowed") and not after_done:
+        presets.append({"key": "rec", "kind": typ,
+                        "act": {("rideMin" if typ == "kolo" else "swimMin"): (rec_t.get("durationMin") or (0, 0))[1]}})
+    if extra_easy and types["regenerace"]["allowed"]:
+        presets.append({"key": "extra", "kind": "regenerace", "act": {"runKm": types["regenerace"]["km"]["hi"] or 0.0}})
+    if typ != "kolo" and types["kolo"]["allowed"]:
+        presets.append({"key": "kolo", "kind": "kolo", "act": {"rideMin": types["kolo"]["durationMin"][1]}})
+    today_hard = any(is_hard(s) for s in cardio if s["date"] == t_iso)
+    outlook = O.build(cap=cap, week=week, today=today, plan_next={c: next_target(c) for c in week},
+                      conv=conv, novice=novice, drift=drift, presets=presets, min_run=MIN_RUN_KM, base_km=base_km,
+                      last_hard_age=0 if today_hard else days_since_hard, hard_gap=HARD_GAP_DAYS,
+                      ready_quality=READY_QUALITY)
+
     # ---- what the week's plan (Monday morning report, week_plan.py) needs from today's context
     longest30 = max((s["km"] or 0 for s in runs if 0 < (today - _d(s["date"])).days <= 30), default=0)
     plan_ctx = {
@@ -1354,7 +1501,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         "pain": pain or 0, "readiness": ready, "readinessScore": rscore, "checkinReadiness": gscore if gscore < rscore else None,
         "types": types,
         "axes": {"load": load, "mech": a.get("mech") or 0, "threshold": E.QUAD_THRESHOLD},
-        "week": {"channels": week, "mode": mode, "progression": round(factor, 3), "cycle": cycle,
+        "outlook": outlook,
+        "week": {"channels": week, "mode": mode, "progression": round(factor, 3), "cycle": cycle, "days": week_days,
+                 "start": ws.isoformat(),
                  "novice": {"days": hist_days, "until": (today + timedelta(days=NOVICE_DAYS - hist_days)).isoformat()} if novice else None},
         "pattern": {**pat, "runDayNames": [WD[w] for w in pat["runDays"]],
                     "longDayName": WD[pat["longDay"]] if pat["longDay"] is not None else None,

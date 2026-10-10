@@ -16,6 +16,7 @@ import { readinessCol } from "@/capacity"
 import { EarlyNote, NoData, useDataStage } from "@/firstday"
 import { fmtD, leadReasons, paceStr } from "@/lib"
 import { C } from "@/tokens"
+import { BoundTag, TomorrowCard, WeekLoadCard, limitText } from "@/outlook"
 import { Bike, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Waves, X, Zap, type LucideIcon } from "lucide-react"
 
 const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"]
@@ -26,10 +27,6 @@ const MODE: Record<string, [string, string]> = {
   return: ["Návrat po zranění", C.watch],
 }
 const CYCLE_PCT = [90, 100, 110, 55]
-const LIMIT: Record<string, string> = {
-  week: "cíl týdne v cyklu (od pondělí)", "7d": "týdenní kapacita (nevstřebaná zátěž posledních dní)", run: "strop jednoho běhu",
-  systemic: "celková zátěž", mechanics: "odchylka mechaniky",
-}
 const CH_ICON: Record<string, string> = { volume: "Objem", intensity: "Intenzita", descent: "Klesání", ascent: "Stoupání", systemic: "Celková zátěž" }
 const TYPE_ICON: Record<string, LucideIcon> = { volno: Sofa, regenerace: Leaf, "lehký": Footprints, "dlouhý": Route, "kvalitní": Zap, "závod": Flag, kolo: Bike, voda: Waves, "posilování": Dumbbell }
 
@@ -165,6 +162,42 @@ function UsageBar({ label, used, total, unit, d, note, col }: { label: string; u
     </div>
   )
 }
+// owner feedback 2026-10-10 — every limit of the channel on one scale, each tagged as the
+// week's plan or a safety limit; the binding one (today's max) highlighted
+function LimitLadder({ c, id, d, sysBound }: { c: any; id: string; d: number; sysBound?: string | null }) {
+  const L: { key: string; v: number; label: string; bound: string }[] = []
+  if (c.left != null) L.push({ key: "week", v: c.left, label: "zbytek cíle týdne (od pondělí)", bound: "plan" })
+  if (c.left7 != null) L.push({ key: "7d", v: c.left7, label: c.absorbedMax != null ? `pod týdenním stropem · nevstřebáno ${num(c.absorbed, d)} z ${num(c.absorbedMax, d)}` : "pod týdenním stropem (7 dní)", bound: "safety" })
+  if (c.ceilingRun != null) L.push({ key: "run", v: c.ceilingRun, label: "strop jednoho běhu", bound: "safety" })
+  if (id !== "systemic" && c.sysCap != null) L.push({ key: "systemic", v: c.sysCap, label: sysBound === "plan" ? "zbytek cíle celkové zátěže (přepočet)" : "celková zátěž pod stropem (přepočet)", bound: sysBound || "safety" })
+  if (c.limitedBy === "mechanics" && c.todayMax != null) L.push({ key: "mechanics", v: c.todayMax, label: "odchylka mechaniky", bound: "safety" })
+  if (L.length < 2) return null
+  const scale = Math.max(...L.map((x) => x.v), 0.1)
+  return (
+    <div className="rounded-[14px] border border-white/[.07] bg-white/[.02] p-3" data-testid={`limit-ladder-${id}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-[12px] font-semibold text-fg-2">Limity na dnešek</span>
+        <span className="tabular-nums text-[12px] text-fg-3">{"dnes nejvýš "}<b className="text-[14px] text-fg">{num(c.todayMax, d)}</b>{" "}{c.unit}</span>
+      </div>
+      <div className="mt-2 space-y-1.5">
+        {L.map((x) => {
+          const on = x.key === c.limitedBy
+          return (
+            <div key={x.key} className="grid grid-cols-[1fr_auto] items-center gap-x-2 text-[11px]">
+              <span className={`flex flex-wrap items-center gap-1.5 ${on ? "font-semibold text-watch" : "text-fg-3"}`}><span>{x.label}</span><BoundTag bound={x.bound} />{on && <span>· omezuje</span>}</span>
+              <span className={`tabular-nums ${on ? "font-bold text-watch" : "text-fg-2"}`}>{num(x.v, d)}</span>
+              <div className="col-span-2 h-1.5 rounded-full bg-white/[.06]">
+                <i className="block h-full rounded-full" style={{ width: `${Math.max(2, (x.v / scale) * 100)}%`, background: on ? C.watch : x.bound === "plan" ? `${C.info}99` : "rgb(181 211 202 / .45)" }} />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <p className="mt-2 text-[11px] leading-4 text-fg-3">Platí nejnižší z limitů. Plán říká, kolik je rozumné tento týden udělat; bezpečnostní limity, kolik tělo podle vašich dat unese.</p>
+    </div>
+  )
+}
+
 function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
   const wk = g.week || {}
   const cyc = wk.cycle || {}
@@ -216,7 +249,16 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     const col = spent ? C.watch : id === "systemic" ? C.load : ratio == null ? C.fg3 : ratio > 1 ? C.alert : ratio > 0.85 ? C.watch : C.ok
     const value = id === "systemic" ? (c.todayMax != null ? `${num(c.todayMax, 0)}` : "—") : c.todayMax != null ? `max ${num(c.todayMax, d)}` : "—"
     const isOpen = !!open[id]
-    const limit = c.limitedBy ? <span className="text-[11px] font-semibold leading-4 text-watch">omezuje: {LIMIT[c.limitedBy] || c.limitedBy}</span> : null
+    // owner feedback 2026-10-10 — the binding limit says whether it is the week's plan or a safety
+    // limit; with only the plan met, what the safety limits alone would allow
+    const limit = c.limitedBy ? (
+      <span className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold leading-4 text-watch">
+        <span>{`omezuje: ${limitText(c.limitedBy, c.bound)}`}</span><BoundTag bound={c.bound} />
+        {c.bound === "plan" && c.safeMax != null && c.safeMax > (c.todayMax ?? 0) + 0.05 && (
+          <span className="font-normal text-fg-3">{`bezpečnostně až ${num(c.safeMax, d)} ${c.unit}`}</span>
+        )}
+      </span>
+    ) : null
     const weekNote = c.budget != null
       ? <span className="inline-flex items-center gap-1 tabular-nums text-[11px] text-fg-3"><CeilSw /><span>{`od pondělí ${num(c.done ?? 0, d)} z ${num(c.budget, d)}`}</span><span>{c.unit}</span></span>
       : c.ceilingRun != null ? <span className="tabular-nums text-[11px] text-fg-3">{`jeden běh nejvýš ${num(c.ceilingRun, d)} ${c.unit}`}</span> : null
@@ -225,6 +267,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
         <UsageBar label={`Tento týden od pondělí${cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden cyklu, ${pct} %)` : ""}`} used={c.done} total={c.budget} unit={c.unit} d={d} />
         {c.ceilingRun != null && <UsageBar label="Jeden běh · dnes max" used={c.todayMax} total={c.ceilingRun} unit={c.unit} d={d} col={C.info} />}
         {c.doneToday ? <p className="text-[11px] text-fg-3">z toho dnes {num(c.doneToday, d)} {c.unit}</p> : null}
+        <LimitLadder c={c} id={id} d={d} sysBound={wk.channels?.systemic?.bound} />
         {id === "volume" && safe && <SafeRunLimits limits={safe.limits} today={safe.today} week={vol} />}
         {/* railway#122 — the week's place in the 4-week cycle belongs to the volume */}
         {id === "volume" && cycle}
@@ -274,8 +317,13 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
       {status && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
       {restDay && !showAll ? (
         <div className="nest mt-4 px-3.5 py-3" data-testid="rest-day">
-          <p className="text-[13.5px] leading-5 text-fg"><b>Dnes už bez běhu.</b>{restBy && LIMIT[restBy] ? <span className="text-fg-2">{` Omezuje: ${LIMIT[restBy]}.`}</span> : null}</p>
-          <p className="mt-1 text-[12px] leading-5 text-fg-3">Kapacita se ráno přepočítá podle noci a toho, co jste odběhli.</p>
+          <p className="text-[13.5px] leading-5 text-fg"><b>Dnes už bez běhu.</b>{restBy ? <span className="text-fg-2">{` Omezuje: ${limitText(restBy, vol.bound)}.`}</span> : null}{" "}<BoundTag bound={vol.bound} /></p>
+          {vol.bound === "plan" && g.types?.regenerace?.optional && g.types.regenerace.allowed ? (
+            <p className="mt-1 text-[12px] leading-5 text-fg-2" data-testid="rest-optional">{`Je to cíl týdne, ne bezpečnostní strop: pokud máte chuť, krátký regenerační běh do ${num(g.types.regenerace.km?.hi)} km${g.types?.kolo?.optional && g.types.kolo.allowed ? ` nebo lehké kolo do ${g.types.kolo.durationMin?.[1]} min` : ""} nic nezhorší.`}</p>
+          ) : vol.bound === "plan" && vol.safeMax != null && vol.safeMax >= 2 ? (
+            <p className="mt-1 text-[12px] leading-5 text-fg-2">{`Je to cíl týdne, ne bezpečnostní strop (ten by dovolil ${num(vol.safeMax)} km) — běh navíc jen při připravenosti aspoň 80 % a bez bolesti.`}</p>
+          ) : null}
+          <p className="mt-1 text-[12px] leading-5 text-fg-3">{g.outlook?.restRun ? `Nejbližší běh podle výhledu: ${new Date(g.outlook.restRun.date + "T12:00:00").toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" })} · ≈ ${num(g.outlook.restRun.km)} km. ` : ""}Kapacita se ráno přepočítá podle noci a toho, co jste odběhli.</p>
           <button type="button" onClick={() => setShowAll(true)} className="mt-2 text-[12px] font-bold text-accent hover:underline">Zobrazit kanály</button>
         </div>
       ) : (
@@ -800,7 +848,7 @@ function SessionDetail({ g, a, kind }: { g: any; a: any; kind: string }) {
 // takes (planned, or its upper limit) against what today leaves, and what limits it
 const LIMIT_CS: Record<string, string> = { week: "cíl týdne od pondělí", "7d": "strop týdenní kapacity", run: "strop jednoho běhu",
   systemic: "celková zátěž", mechanics: "odchylka mechaniky" }
-function FitRow({ label, use, left, unit, d = 0, by, note, testid }: { label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; note?: string; testid?: string }) {
+function FitRow({ label, use, left, unit, d = 0, by, bound, note, testid }: { label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; bound?: string | null; note?: string; testid?: string }) {
   const top = Math.max(use || 0, left || 0, 1e-6)
   const over = use != null && left != null && use > left + 0.05
   return (
@@ -816,7 +864,7 @@ function FitRow({ label, use, left, unit, d = 0, by, note, testid }: { label: st
         {left != null && <i className="absolute inset-y-0 left-0 rounded-full bg-white/[.10]" style={{ width: `${(left / top) * 100}%` }} />}
         {use != null && <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(2, (Math.min(use, top) / top) * 100)}%`, background: over ? C.alert : C.ok }} />}
       </div>
-      {(by || note) && <p className="mt-0.5 text-[11px] leading-4 text-fg-3">{[note, by ? `dnešní limit dává ${LIMIT_CS[by] || by}` : null].filter(Boolean).join(" · ")}</p>}
+      {(by || note) && <p className="mt-0.5 text-[11px] leading-4 text-fg-3">{[note, by ? `dnešní limit dává ${by === "systemic" || by === "week" ? limitText(by, bound) : LIMIT_CS[by] || by}` : null].filter(Boolean).join(" · ")}</p>}
     </div>
   )
 }
@@ -827,30 +875,36 @@ function CapacityFit({ g, kind }: { g: any; kind: string }) {
   const x = g.planCtx || {}
   if (!t || !ch.systemic) return null
   const mid = (r?: number[] | null) => (r ? r[1] : null)
-  const rows: { key: string; label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; note?: string }[] = []
-  const sys = ch.systemic
+  const rows: { key: string; label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; bound?: string | null; note?: string }[] = []
+  // owner feedback 2026-10-10 — an optional session over a met weekly target is measured
+  // against the safety limits alone (the plan has nothing left by definition)
+  const opt = !!t.optional
+  const room = (c: any) => (c ? (opt ? c.safeMax ?? c.todayMax : c.todayMax) ?? null : null)
+  const sysRaw = ch.systemic
+  const sys = opt ? { ...sysRaw, todayMax: room(sysRaw), limitedBy: null } : sysRaw
   if (!t.cross) {
     const km = t.km?.hi ?? null
     const z4 = kind === "kvalitní" ? t.z4Target?.hi ?? null : t.z4Max ?? null
-    rows.push({ key: "volume", label: "Objem běhu", use: km, left: ch.volume?.todayMax ?? null, unit: "km", d: 1, by: ch.volume?.limitedBy })
-    rows.push({ key: "intensity", label: "Tvrdá práce (Z4+)", use: z4, left: ch.intensity?.todayMax ?? null, unit: "min", by: ch.intensity?.limitedBy,
+    rows.push({ key: "volume", label: "Objem běhu", use: km, left: room(ch.volume), unit: "km", d: 1, by: opt ? null : ch.volume?.limitedBy, bound: ch.volume?.bound })
+    rows.push({ key: "intensity", label: "Tvrdá práce (Z4+)", use: z4, left: room(ch.intensity), unit: "min", by: opt ? null : ch.intensity?.limitedBy, bound: ch.intensity?.bound,
       note: kind === "kvalitní" ? "tvrdé úseky" : "nejvýš, cílem je je nemít" })
-    if (t.descentMax != null) rows.push({ key: "descent", label: "Klesání", use: t.descentMax, left: ch.descent?.todayMax ?? null, unit: "m", by: ch.descent?.limitedBy, note: "nejvýš" })
+    if (t.descentMax != null) rows.push({ key: "descent", label: "Klesání", use: t.descentMax, left: room(ch.descent), unit: "m", by: opt ? null : ch.descent?.limitedBy, bound: ch.descent?.bound, note: "nejvýš" })
     if (km != null && x.perKm) rows.push({ key: "systemic", label: "Celková zátěž", use: km * x.perKm + (z4 || 0) * (kind === "kvalitní" ? (x.z4PerMin || 0) * 0.5 : 0),
-      left: sys.todayMax ?? null, unit: "bodů", by: sys.limitedBy, note: "body zátěže = tep × čas, odhad z vašich lehkých běhů" })
+      left: sys.todayMax ?? null, unit: "bodů", by: sys.limitedBy, bound: sys.bound, note: "body zátěže = tep × čas, odhad z vašich lehkých běhů" })
   } else {
     const min = mid(t.durationMin)
     const perMin = kind === "kolo" ? x.perMinRide : kind === "voda" ? 4 * (x.kSrpe || 0) : 6.5 * (x.kSrpe || 0)
     rows.push({ key: "systemic", label: "Celková zátěž", use: min != null && perMin ? min * perMin : null, left: sys.todayMax ?? null, unit: "bodů",
-      by: sys.limitedBy, note: kind === "kolo" ? `${min} min v Z2 na kole` : kind === "voda" ? `${min} min plavání v klidném tempu` : `${min} min posilování` })
-    rows.push({ key: "volume", label: "Objem běhu", use: 0, left: ch.volume?.todayMax ?? null, unit: "km", d: 1, note: "běžecké kilometry se nepočítají" })
-    if (kind !== "posilování") rows.push({ key: "intensity", label: "Tvrdá práce (Z4+)", use: 0, left: ch.intensity?.todayMax ?? null, unit: "min",
+      by: sys.limitedBy, bound: sys.bound, note: kind === "kolo" ? `${min} min v Z2 na kole` : kind === "voda" ? `${min} min plavání v klidném tempu` : `${min} min posilování` })
+    rows.push({ key: "volume", label: "Objem běhu", use: 0, left: room(ch.volume), unit: "km", d: 1, note: "běžecké kilometry se nepočítají" })
+    if (kind !== "posilování") rows.push({ key: "intensity", label: "Tvrdá práce (Z4+)", use: 0, left: room(ch.intensity), unit: "min",
       note: kind === "kolo" ? "v Z2 žádné, tvrdé úseky by se počítaly" : "v klidném tempu žádné" })
   }
   const over = rows.find((r) => r.use != null && r.left != null && r.use > r.left + 0.05)
   const binding = rows.find((r) => r.use != null && r.left != null && r.use > 0 && r.use >= 0.9 * r.left)
-  const noRun = !t.cross && (ch.volume?.todayMax ?? 1) < 0.5
+  const noRun = !t.cross && !opt && (ch.volume?.todayMax ?? 1) < 0.5
   const summary = over ? `Dnes by přesáhla limit — ${over.label.toLowerCase()}: zbývá ${num(over.left, over.d ?? 0)} ${over.unit}`
+    : opt ? "Nad rámec cíle týdne — vejde se pod bezpečnostní limity (nevstřebaná zátěž a strop jednoho běhu)."
     : noRun ? "Na běh dnes kapacita nezbývá."
     : binding ? `Velikost určuje ${binding.label.toLowerCase()}: tato aktivita využije, co dnes zbývá.`
     : t.cross ? "Zatíží srdce a plíce, běžecké kapacity šetří a do dnešních limitů se vejde."
@@ -920,6 +974,7 @@ function badgeOf(g: any, k: string) {
   if (k === g.type) return ["doporučeno", "bg-accent/15 text-accent"] as const
   if (k === "posilování" && g.strength?.suggestToday) return ["vhodný den", "bg-ok/15 text-ok"] as const
   if (!g.types[k].allowed) return ["nedoporučeno", "bg-alert/15 text-alert-soft"] as const
+  if (g.types[k].optional) return ["volitelně", "bg-info/15 text-info"] as const
   return null
 }
 function tileLine(t: any) {
@@ -1115,6 +1170,9 @@ export function Training() {
           then the day outside training (#210) */}
       <section className="card mt-4 p-4 md:p-6"><ReadinessTrend a={a} hist={quadHist} below={<DayReadiness d={day.d} />} /></section>
       <TodayCapacity g={g} cycle={<WeekPanel g={g} embedded />} />
+      {/* owner feedback 2026-10-10 — the week's running total by sport, and tomorrow */}
+      <WeekLoadCard g={g} cap={a.capacity} />
+      <TomorrowCard g={g} />
       <DayToday d={day.d} err={day.err} />
       <RacesCard outlook={a.races} g={g} cap={a.capacity} />
 

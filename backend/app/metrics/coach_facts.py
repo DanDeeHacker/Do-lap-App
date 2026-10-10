@@ -253,7 +253,7 @@ def weekly_facts(db, rid: str, a: dict, week_start: date) -> dict:
     z4 = None
     if cap.get("hrMax") and runs:
         ids = {x.id for x in runs}
-        z4 = round(sum((s["exp"].get("intensity") or 0) for s in C.run_exposures(db, rid, cap["hrMax"], cap.get("hrRest"))
+        z4 = round(sum((s["exp"].get("intensity") or 0) for s in C.run_exposures(db, rid, *C.hr_exact(cap))
                        if s["id"] in ids))
     dm = {d.date: d for d in db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid).all()}
 

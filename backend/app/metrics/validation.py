@@ -114,7 +114,10 @@ def _warned(a: dict) -> bool:
     if g.get("override"):
         return True
     vol = ((g.get("week") or {}).get("channels") or {}).get("volume") or {}
-    return g.get("type") in ("volno", "regenerace") and vol.get("limitedBy") not in ("week", None)
+    # a met weekly TARGET is the plan, not a warning — also when it is Celková zátěž's target
+    # that cuts the kilometres (`bound`, owner feedback 2026-10-10; older rows lack it)
+    bound = vol.get("bound", None if vol.get("limitedBy") in ("week", None) else "safety")
+    return g.get("type") in ("volno", "regenerace") and bound == "safety"
 
 
 def _day_row(day: date, a: dict) -> dict:

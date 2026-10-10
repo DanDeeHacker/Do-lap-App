@@ -251,8 +251,36 @@ def absorbed_room(daily, days, rates, ch, t_iso, ceil_res):
         resid = min(resid, RESIDUAL_CAP * 7 * (nominal + k_ref * today))
         x_max = max(x_max, (ceil_res / (7 * RESIDUAL_CAP) - nominal) / k_ref)
         past = min(past, RESIDUAL_CAP * nominal / k_ref)
+    # this morning's two terms apart (the cardio channels keep the smaller of the two):
+    # the tomorrow outlook (guidance.outlook) carries them through one more night
     return {"absorbed": resid / unit, "absorbedPast": past, "absorbedMax": ceil_res / unit,
-            "absorbedLeft": max(0.0, x_max - today), "absorbK": k_ref}
+            "absorbedLeft": max(0.0, x_max - today), "absorbK": k_ref,
+            "absorbedLevel": level / k_ref, "absorbedNominal": nominal / k_ref}
+
+
+def absorbed_series(daily, days, rates, ch, t_iso, back=14, ahead=3):
+    """The unabsorbed load (absorbed_room's `absorbed`, today's units) at the end of each
+    of the last `back` days, then `ahead` days of rest at the nominal nightly share — the
+    Zátěž chart of how the load fades. [{date, v, rest}]"""
+    k_ref = _k(HALF_CARDIO_REF if ch in CARDIO else HALF_MSK)
+    level = nominal = 0.0
+    out = []
+    first = (_d(t_iso) - timedelta(days=back - 1)).isoformat()
+    for d in days:
+        if d > t_iso:
+            break
+        x = daily.get(d, 0.0)
+        level = level * (1 - rates[d]) + k_ref * x
+        nominal = nominal * (1 - k_ref) + k_ref * x
+        if d >= first:
+            v = min(level, RESIDUAL_CAP * nominal) if ch in CARDIO else level
+            out.append({"date": d, "v": v / k_ref, "rest": False})
+    for n in range(1, ahead + 1):
+        level *= 1 - k_ref
+        nominal *= 1 - k_ref
+        v = min(level, RESIDUAL_CAP * nominal) if ch in CARDIO else level
+        out.append({"date": (_d(t_iso) + timedelta(days=n)).isoformat(), "v": v / k_ref, "rest": True})
+    return out
 
 
 def absorbed_left(rates, since, today_iso, days):
@@ -427,6 +455,15 @@ def nontraining_daily(db, rid) -> dict:
         if v > usual:
             out[d] = round(v - usual, 1)
     return out
+
+
+def hr_exact(cap: dict, default=(185, 50)) -> tuple:
+    """(HR max, resting HR) a capacity block was computed with — unrounded when present
+    (`hrExact`), so recomputed exposures match it exactly; the shown values otherwise."""
+    hx = cap.get("hrExact") or ()
+    if len(hx) == 2 and hx[0] and hx[1]:
+        return hx[0], hx[1]
+    return cap.get("hrMax") or default[0], cap.get("hrRest") or default[1]
 
 
 def run_exposures(db, rid, hrmax, rhr):
@@ -638,12 +675,13 @@ def _daily_sums(sessions, ch):
     return out
 
 
-def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch):
+def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch, detail: dict | None = None):
     """max(average week of the 4 weeks before the current 7-day window,
     0.9 × best pain-free 7-day window of the 6 weeks before it, decayed by BREAK_DECAY
     per week beyond its 2nd week, so after a break an old peak can't carry the capacity). A window more
     than JUMP_RATIO × the average week before it is a spike, not demonstrated
-    tolerance, and is left out (plan B1)."""
+    tolerance, and is left out (plan B1). `detail` (a dict) receives the three
+    candidates and which one won — the Zátěž tab shows how the capacity came about."""
     ref = _d(ref_day)
     known = (ref - _d(first_day)).days          # days of history before today
     if known < 27:
@@ -663,7 +701,11 @@ def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch):
             if before > 0 and w > JUMP_RATIO * before:
                 continue
         best = max(best, w * BREAK_DECAY ** max(0.0, (back - 14) / 7))
-    return max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"])
+    out = max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"])
+    if detail is not None:
+        detail.update({"avg4": chronic, "best": 0.9 * best, "floor": CHANNELS[ch]["floor_w"],
+                       "basis": "avg4" if out == chronic else "best" if out == 0.9 * best else "floor"})
+    return out
 
 
 # v0.10.1 — the weekly score compares the unabsorbed load (residual_week, an EWMA in
@@ -1830,7 +1872,8 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         if ch == "systemic":                 # the day outside training counts in the all-sport load
             for d, v in nt_days.items():
                 daily[d] = daily.get(d, 0.0) + v
-        capw = weekly_capacity(daily, t_iso, first_day, pain, ch)
+        cap_how: dict = {}
+        capw = weekly_capacity(daily, t_iso, first_day, pain, ch, cap_how)
         rtr_cap = _rtr_week_cap(daily, b_today["rtr"], ch) if capw is not None else None
         cap_base = capw
         if rtr_cap is not None and rtr_cap < capw:
@@ -1868,6 +1911,15 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             week.update({k: (round(v, 4) if k == "absorbK" else _fmt(v, ch)) for k, v in ab.items()})
             if capw != cap_base:
                 week["capBase"] = _fmt(cap_base, ch)
+            # how the ceiling comes about (the Zátěž tab's inputs) and what tomorrow's
+            # week readiness drops (the outlook: the 7-day mean loses today − 6)
+            week["inputs"] = {"avg4": _fmt(cap_how.get("avg4"), ch), "best": _fmt(cap_how.get("best"), ch),
+                              "floor": _fmt(cap_how.get("floor"), ch), "basis": cap_how.get("basis"),
+                              "rtr": _fmt(rtr_cap, ch) if (rtr_cap is not None and rtr_cap < cap_base) else None,
+                              "ready": round(wk_ready_c, 3), "body": round(wk_bfac, 3), "margin": round(mw_c * wk_hold, 3),
+                              "readyDrop": round(channel_readiness(ready.get(recent_days[6], (1.0, {}, 100)), ch), 3)}
+            week["series"] = [{"date": p["date"], "v": _fmt(p["v"], ch), "rest": p["rest"]}
+                              for p in absorbed_series(daily, absorb_days, rates, ch, t_iso)]
         # railway#113 — who carries the unabsorbed 7-day load (the same split as the history)
         contrib = [(s["exp"][ch] * absorbed_left(rates, s["date"], t_iso, absorb_days), s) for s in pool
                    if s["exp"].get(ch) and absorb_days[0] <= s["date"] <= t_iso]
@@ -1989,6 +2041,9 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         "zones": hr_zones(hrmax, rhr, getattr(runner, "threshold_hr", None) if runner else None),
         "zoneBasis": "lthr" if (runner is not None and getattr(runner, "threshold_hr", None)
                                 and rhr < runner.threshold_hr < hrmax) else "hrr", "hrMax": E.rnd(hrmax), "hrRest": E.rnd(rhr),
+        # the unrounded bounds the loads above were computed with: the guidance recomputes
+        # the same exposures and must not drift by the rounding (±0.5 bpm ≈ ±0.5 % of the load)
+        "hrExact": [hrmax, rhr],
         "hrMaxMeasured": bool(runner and runner.hr_max),
         "relativeEffort": relative_effort(sessions, t_iso),
     }

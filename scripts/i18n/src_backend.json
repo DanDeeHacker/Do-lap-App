@@ -4825,6 +4825,12 @@
   ]
  },
  {
+  "t": ", navíc nad cíl ale jen při připravenosti aspoň {} %.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": ", proto bez tvrdého tréninku a dlouhého běhu",
   "files": [
    "metrics/guidance.py"
@@ -4994,30 +5000,6 @@
  },
  {
   "t": "Běžecký objem je na dnešek vyčerpaný, ale celková zátěž má rezervu — kolo zatíží srdce a plíce bez nárazů do nohou.",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "Celková zátěž (tep × čas ze všech aktivit) je na stropu týdenní kapacity — dnes volno.",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "Celková zátěž (tep × čas) je dnes na stropu.",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "Celková zátěž (tep × čas) je na stropu.",
-  "files": [
-   "metrics/guidance.py"
-  ]
- },
- {
-  "t": "Celková zátěž ze všech sportů za posledních 7 dní nenechává místo na tvrdý trénink.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5290,13 +5272,43 @@
   ]
  },
  {
-  "t": "Nad rámec týdenního cíle — jen pokud máte chuť; pod 7denním stropem nic nezhorší.",
+  "t": "Nad rámec týdenního cíle celkové zátěže — jen pokud máte chuť; vejde se pod bezpečnostní strop.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Nad rámec týdenního cíle — jen pokud máte chuť; vejde se pod bezpečnostní strop (nevstřebaná zátěž i strop jednoho běhu).",
   "files": [
    "metrics/guidance.py"
   ]
  },
  {
   "t": "Nejvýš {} % týdenního rozpočtu objemu; stejnoměrně, v Z2.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Nevstřebaná celková zátěž (tep × čas ze všech aktivit) je na stropu týdenní kapacity — dnes volno.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Nevstřebaná celková zátěž (tep × čas ze všech aktivit) je na stropu týdenní kapacity.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Nevstřebaná celková zátěž (tep × čas) je na stropu týdenní kapacity.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Nevstřebaná celková zátěž ze všech sportů nenechává místo na tvrdý trénink.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5418,7 +5430,7 @@
   ]
  },
  {
-  "t": "Pokud máte chuť, krátký regenerační běh do {} km nic nezhorší.",
+  "t": "Pokud máte chuť, {} nic nezhorší.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5536,7 +5548,7 @@
   ]
  },
  {
-  "t": "Připravenost {} % — tělo je zregenerované, volno je kvůli týdennímu plánu, ne kvůli únavě.",
+  "t": "Připravenost {} % — tělo je zregenerované,",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5621,6 +5633,30 @@
  },
  {
   "t": "Týden před závodem — bez dlouhého běhu.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Týdenní cíl celkové zátěže (tep × čas ze všech aktivit) je splněný — od pondělí {} z {} bodů, dnes volno. Je to plán týdne, ne strop:",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Týdenní cíl celkové zátěže je splněný (od pondělí {} z {} bodů)",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Týdenní cíl celkové zátěže je splněný — tvrdý trénink se do plánu tohoto týdne nevejde.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Týdenní cíl celkové zátěže je splněný.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5740,6 +5776,12 @@
   ]
  },
  {
+  "t": "bezpečnostní strop je také vyčerpaný.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "byl to tvrdý trénink",
   "files": [
    "metrics/guidance.py"
@@ -5783,6 +5825,12 @@
   ]
  },
  {
+  "t": "do bezpečnostního stropu zbývá {} bodů.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "dvě noci po sobě",
   "files": [
    "metrics/guidance.py"
@@ -5802,6 +5850,12 @@
   ]
  },
  {
+  "t": "krátký regenerační běh do {} km",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "kulháte",
   "files": [
    "metrics/guidance.py"
@@ -5809,6 +5863,12 @@
  },
  {
   "t": "kvadricepsová",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "lehké kolo do {} min",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5976,6 +6036,18 @@
  },
  {
   "t": "ve čtvrtek",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "volno je kvůli týdennímu plánu, ne kvůli únavě.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "volno je kvůli zátěži z posledních dní, kterou tělo ještě vstřebává.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -6149,6 +6221,12 @@
   ]
  },
  {
+  "t": "— do bezpečnostního stropu zbývá {} bodů",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "— dvakrát týdně zlepšuje běžeckou ekonomiku.",
   "files": [
    "metrics/guidance.py"
@@ -6316,6 +6394,24 @@
   "files": [
    "metrics/mobility.py",
    "mobility_library.py"
+  ]
+ },
+ {
+  "t": "Jako dnešní noc",
+  "files": [
+   "metrics/outlook.py"
+  ]
+ },
+ {
+  "t": "Noc v normě",
+  "files": [
+   "metrics/outlook.py"
+  ]
+ },
+ {
+  "t": "Slabší noc",
+  "files": [
+   "metrics/outlook.py"
   ]
  },
  {

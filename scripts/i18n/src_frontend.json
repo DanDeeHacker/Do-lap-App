@@ -1039,6 +1039,7 @@
    "App.tsx",
    "capacity.tsx",
    "daytoday.tsx",
+   "outlook.tsx",
    "report.tsx",
    "tabs.tsx",
    "training.tsx"
@@ -1294,6 +1295,7 @@
   "t": "dobrá",
   "files": [
    "App.tsx",
+   "outlook.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -2066,7 +2068,8 @@
   "t": "od pondělí",
   "files": [
    "App.tsx",
-   "capacity.tsx"
+   "capacity.tsx",
+   "outlook.tsx"
   ],
   "kind": "jsx"
  },
@@ -4244,6 +4247,13 @@
   "kind": "tpl"
  },
  {
+  "t": "· strop nevstřebané zátěže {} · zbývá {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· za 7 dní {}",
   "files": [
    "capacity.tsx"
@@ -4297,6 +4307,7 @@
   "t": "{} min",
   "files": [
    "capacity.tsx",
+   "outlook.tsx",
    "report.tsx",
    "rundetail.tsx",
    "tabs.tsx",
@@ -4345,6 +4356,27 @@
   "files": [
    "capacity.tsx",
    "tabs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "× (1 + {} % rezerva)",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "× tělo {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "= kapacita × připravenost týdne {}",
+  "files": [
+   "capacity.tsx"
   ],
   "kind": "tpl"
  },
@@ -4416,6 +4448,7 @@
   "t": "běh",
   "files": [
    "capacity.tsx",
+   "outlook.tsx",
    "report.tsx",
    "tabs.tsx"
   ],
@@ -4426,6 +4459,7 @@
   "files": [
    "capacity.tsx",
    "landing.tsx",
+   "outlook.tsx",
    "profile.tsx",
    "report.tsx",
    "tabs.tsx"
@@ -4722,6 +4756,13 @@
   "kind": "str"
  },
  {
+  "t": "Hlídá se nevstřebaná zátěž: starší dny se v ní počítají jen zčásti, jak je tělo vstřebává. Strop nevstřebané zátěže je týž týdenní strop převedený na tuto stupnici, proto je nižší než součet 7 dní.",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "hluboký + REM {}{}, jen pro informaci",
   "files": [
    "capacity.tsx"
@@ -4804,7 +4845,8 @@
  {
   "t": "jiný sport",
   "files": [
-   "capacity.tsx"
+   "capacity.tsx",
+   "outlook.tsx"
   ],
   "kind": "str"
  },
@@ -4895,6 +4937,7 @@
   "t": "Kolo",
   "files": [
    "capacity.tsx",
+   "outlook.tsx",
    "report.tsx",
    "tabs.tsx"
   ],
@@ -5063,6 +5106,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Nevstřebáno:",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "nižší",
   "files": [
    "capacity.tsx",
@@ -5169,6 +5219,7 @@
   "t": "Plavání",
   "files": [
    "capacity.tsx",
+   "outlook.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -5212,6 +5263,7 @@
   "t": "posilování",
   "files": [
    "capacity.tsx",
+   "outlook.tsx",
    "report.tsx",
    "training.tsx"
   ],
@@ -5472,12 +5524,13 @@
   "t": "Týdenní kapacita",
   "files": [
    "capacity.tsx",
-   "onboarding.tsx"
+   "onboarding.tsx",
+   "outlook.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Týdenní kapacita:",
+  "t": "Týdenní kapacita (součet 7 dní):",
   "files": [
    "capacity.tsx"
   ],
@@ -5489,6 +5542,13 @@
    "capacity.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Týdenní strop (součet 7 dní):",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Týdenní strop je naplněný",
@@ -5569,21 +5629,15 @@
   "kind": "str"
  },
  {
-  "t": "z {}",
+  "t": "vyšší z: průměr 4 týdnů {} · 0,9 × nejlepší týden {} · minimum {}",
   "files": [
-   "capacity.tsx"
+   "capacity.tsx",
+   "outlook.tsx"
   ],
   "kind": "tpl"
  },
  {
   "t": "z nejnáročnějšího zbývá",
-  "files": [
-   "capacity.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Z toho ještě nevstřebáno:",
   "files": [
    "capacity.tsx"
   ],
@@ -9577,6 +9631,7 @@
   "t": "Klesání",
   "files": [
    "landing.tsx",
+   "outlook.tsx",
    "report.tsx",
    "rundetail.tsx",
    "tabs.tsx",
@@ -11022,7 +11077,7 @@
   "kind": "str"
  },
  {
-  "t": "Dnešní kapacita = kolik si dnes můžete dovolit, aby: (1) nevstřebaná zátěž z posledních dní nepřekročila vaši týdenní kapacitu — tu samou, kterou ukazuje Zátěž (kapacita + 15 % rezerva, podle připravenosti v týdnu); starší dny se počítají jen zčásti, podle toho, kolik z nich tělo už vstřebalo, (2) tento týden (od pondělí do neděle) zůstal v cíli podle cyklu (90 / 100 / 110 / 55 %), (3) žádný jednotlivý běh nepřesáhl kapacitu jednoho běhu, (4) celková zátěž (tep × čas ze všech aktivit) zůstala pod stropem. Platí nejpřísnější z nich — u každého kanálu je vidět, který. Když je mechanika nad prahem 25, dnešek se dál zmenšuje (objem −20 %, intenzita a klesání na polovinu); když je nad prahem zátěž, přichází odlehčovací týden. Tak obě osy zůstanou pod prahem.",
+  "t": "Dnešní kapacita = kolik si dnes můžete dovolit. Hlídají ji dva druhy limitů. PLÁN: tento týden (od pondělí do neděle) zůstane v cíli podle cyklu (90 / 100 / 110 / 55 %). BEZPEČNOST: (1) nevstřebaná zátěž z posledních dní nepřekročí vaši týdenní kapacitu — tu samou, kterou ukazuje Zátěž (kapacita + 15 % rezerva, podle připravenosti v týdnu); starší dny se počítají jen zčásti, podle toho, kolik z nich tělo už vstřebalo, (2) žádný jednotlivý běh nepřesáhne kapacitu jednoho běhu. Celková zátěž (tep × čas ze všech aktivit, i pohyb mimo trénink nad obvyklý den) má svůj cíl i strop a přepočítá se na kilometry a minuty v Z4+. Platí nejpřísnější limit — u každého kanálu je vidět který a štítek říká, jestli jde o plán, nebo o bezpečnost. Když je splněný jen plán a bezpečnostní limity mají rezervu, zůstává při připravenosti aspoň 80 % volitelný krátký regenerační běh nebo lehké kolo. Když je mechanika nad prahem 25, dnešek se dál zmenšuje (objem −20 %, intenzita a klesání na polovinu); když je nad prahem zátěž, přichází odlehčovací týden.",
   "files": [
    "metricinfo.ts"
   ],
@@ -11086,6 +11141,20 @@
  },
  {
   "t": "Kolik z vaší zátěže tvoří tvrdé/rychlé běhy za 7 dní vůči vaší normě. Nárůst tvrdých tréninků zvedá riziko víc než kilometry navíc v lehkém tempu. Interpretujte podle toho, kolik intenzity obvykle snesete.",
+  "files": [
+   "metricinfo.ts"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kolik zátěže bude zítra k dispozici podle toho, co ještě dnes uděláte a jak se vyspíte. Počítá se stejnými pravidly jako dnešní kapacita: dnešní zátěž se přes noc vstřebá jen zčásti (svaly, šlachy a kosti na pevný poločas 3,5 noci, srdce a plíce podle připravenosti ráno: při dobré noci rychleji, při slabší pomaleji), týdenní strop se posune s průměrnou připraveností za 7 dní a strop jednoho běhu se zítřejší připraveností. Cíl týdne se sníží o to, co dnes uděláte; když je zítra pondělí, platí cíl dalšího týdne v cyklu. Je to odhad — ráno ho upřesní skutečná noc z hodinek, nová bolest nebo check-in.",
+  "files": [
+   "metricinfo.ts"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kumulativní zátěž kalendářního týdne (od pondělí) po dnech, rozdělená podle toho, odkud přišla: běh, jiný sport, posilování a pohyb mimo trénink nad váš obvyklý den (ten se počítá jen do celkové zátěže). Čárkovaná čára je cíl týdne podle cyklu, čárkovaný úsek nad dneškem je, kolik dnes ještě smíte. Šrafovaný úsek nad ním se ukáže, když je splněný jen plán: tolik by ještě dovolily bezpečnostní limity. Pod grafem je rozepsané, z čeho vychází cíl týdne (plán) a týdenní strop (bezpečnost) — vaše prokázaná týdenní kapacita, připravenost v týdnu a rezerva.",
   "files": [
    "metricinfo.ts"
   ],
@@ -12570,6 +12639,914 @@
   "kind": "str"
  },
  {
+  "t": "· {} min Z4+",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· bez tréninku",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "· dnes",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· dnes ještě nejvýš",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· návrat po zranění: nejvýš {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· nový týden",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· od pondělí",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "(nový týden)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "{} km{}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}: od pondělí {} {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "× (1 + rezerva)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "× bolest a stav těla",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "× připravenost týdne",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "= cíl týdne",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "= týdenní strop",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "0,9 × nejlepší týden (6 týdnů)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "1.5px dashed {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "1.5px solid {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "14 dní a 3 dny volna dopředu",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "bez cyklu",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez dlouhého běhu",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez kvalitního tréninku",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Bez zátěže v tomto kanálu.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "bezpečnost",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bezpečnostně až {} km",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Bezpečnostní limit: kolik tělo podle vašich dat unese",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bezpečnostní limity by dovolily {} {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "block w-full border-[1.5px] border-dashed {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Celková",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Celková zátěž",
+  "files": [
+   "outlook.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "cíl {}",
+  "files": [
+   "outlook.tsx",
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "cíl příštího týdne v cyklu",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "cíl týdne",
+  "files": [
+   "outlook.tsx",
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Cíl týdne (plán)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "cíl týdne celkové zátěže (od pondělí)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "cíl týdne v cyklu (od pondělí)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Co ještě dnes",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "čt",
+  "files": [
+   "outlook.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Den",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Dlouhý běh",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "dlouhý běh možný",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "dnes ještě",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "dnes ještě nejvýš",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Dnes už nic dalšího",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "dnešní maximum",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "dnešní strop",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Doporučené: {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Hlídá se nevstřebaná zátěž: starší dny se počítají jen zčásti, jak je tělo vstřebává. Proto má vlastní strop, nižší než součet 7 dní.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Intenzita",
+  "files": [
+   "outlook.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jaká bude noc",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "jako dnes · {} %",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Je to plán týdne, ne strop — bezpečnostní limity by dovolily až {} km, pokud bude připravenost aspoň 80 %.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Ještě nenastal.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kanál",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kolo v Z2",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kvalitní trénink",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "kvalitní trénink možný",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "ladění před závodem",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Lehký běh",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Mezi tvrdými tréninky aspoň 48 hodin.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "mimo trénink",
+  "files": [
+   "outlook.tsx",
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "minimum aplikace",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "mt-[2px] block w-full {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Na kvalitní trénink zítra nezbude dost kilometrů.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Na tvrdé minuty (aspoň 10 min v Z4+) zítra nezbude prostor.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Na tvrdý trénink je potřeba připravenost aspoň {} %.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "nad cíl týdne, jen v rámci bezpečnostních limitů",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "navíc jen volitelně",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "návrat po zranění",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nejbližší den s prostorem na běh: {} · ≈ {} km{}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "nejvíc za posledních 30 dní bez bolesti + 10 %, podle dnešní připravenosti",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nevstřebaná celková zátěž (týdenní strop)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nevstřebaná zátěž",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nevstřebaná zátěž · {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "nevstřebáno / strop nevstřebané zátěže",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nevstřebáno na konci dne",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Noc",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Objem",
+  "files": [
+   "outlook.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "od pondělí hotovo",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "odchylka mechaniky",
+  "files": [
+   "outlook.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "odhad bez dalšího tréninku",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odhad podle stejných pravidel jako dnešní kapacita: co dnes ještě přidáte, se přes noc vstřebá jen zčásti (svaly a šlachy asi o pětinu za noc, srdce a plíce podle toho, jak se vyspíte), cíl týdne se sníží o to, co dnes uděláte, a v pondělí začne nový. Ráno ho upřesní skutečná noc z hodinek.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "odlehčení (zvýšená zátěž)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "odlehčovací týden",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "omezený týdenním stropem — plán nikdy nenaplánuje víc, než tělo unese",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "omezuje: {}",
+  "files": [
+   "outlook.tsx",
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "pá",
+  "files": [
+   "outlook.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán říká, kolik je rozumné tento týden udělat. Splněný cíl neznamená přetížení.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Plán týdne: kolik je naplánováno, ne kolik tělo unese",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plavání v klidném tempu",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pro tento kanál se týdenní cíl zatím nestanovuje.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "průměr 4 týdnů",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "průměr posledních 7 dní",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Referenční týden",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Regenerační běh",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "repeating-linear-gradient(135deg, {}33 0 3px, transparent 3px 7px)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "repeating-linear-gradient(135deg, {}55 0 3px, transparent 3px 7px)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "rounded-full border px-3 py-1.5 text-left text-[12px] font-semibold transition {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Skrýt, z čeho cíl a strop vychází",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "slabší · {} %",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Stoupání",
+  "files": [
+   "outlook.tsx",
+   "report.tsx",
+   "rundetail.tsx",
+   "tabs.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "strop {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "strop jednoho běhu",
+  "files": [
+   "outlook.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "strop jednoho běhu dnes",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "T12:00:00",
+  "files": [
+   "outlook.tsx",
+   "report.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tento týden zatím žádná zátěž v tomto kanálu.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "týden cyklu",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Týden od pondělí",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Týdenní kapacitu teprve poznáváme (stačí 4 týdny dat).",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Týdenní strop (bezpečnost)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "týdenní strop (nevstřebaná zátěž posledních dní)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "út",
+  "files": [
+   "outlook.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "ve stejných jednotkách jako součet 7 dní",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vlastní…",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Volitelný regenerační běh",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Výhled na zítra",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Z čeho cíl a strop vychází",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "z cíle",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "z toho tvrdě (Z4+)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Z4+",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "za posledních 7 dní",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zbývá do neděle",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zbývá pod stropem",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zítra",
+  "files": [
+   "outlook.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zítra běh do",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zítra bez běhu",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": ": užší rezervy na běh",
   "files": [
    "profile.tsx"
@@ -13865,13 +14842,6 @@
   "kind": "tpl"
  },
  {
-  "t": "cíl týdne",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Cíl: vaše norma {}",
   "files": [
    "report.tsx"
@@ -14340,13 +15310,6 @@
    "report.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "mimo trénink",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "mimo trénink {}",
@@ -14932,24 +15895,6 @@
    "report.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Stoupání",
-  "files": [
-   "report.tsx",
-   "rundetail.tsx",
-   "tabs.tsx",
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "T12:00:00",
-  "files": [
-   "report.tsx",
-   "training.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Tempo",
@@ -15940,13 +16885,6 @@
   "kind": "tpl"
  },
  {
-  "t": "čt",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "cviků",
   "files": [
    "selfprograms.tsx"
@@ -16259,13 +17197,6 @@
  },
  {
   "t": "Odškrtávat půjde v den tréninku — tělo potřebuje mezi tréninky čas.",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "pá",
   "files": [
    "selfprograms.tsx"
   ],
@@ -16590,13 +17521,6 @@
   "kind": "str"
  },
  {
-  "t": "út",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Váš program",
   "files": [
    "selfprograms.tsx"
@@ -16686,13 +17610,6 @@
    "selfprograms.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "zítra",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Změnit hodnocení",
@@ -19913,6 +20830,13 @@
   "kind": "str"
  },
  {
+  "t": "bezpečnostně až {} {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "body zátěže = tep × čas, odhad z vašich lehkých běhů",
   "files": [
    "training.tsx"
@@ -19948,7 +20872,7 @@
   "kind": "str"
  },
  {
-  "t": "Celková zátěž",
+  "t": "celková zátěž pod stropem (přepočet)",
   "files": [
    "training.tsx"
   ],
@@ -19960,13 +20884,6 @@
    "training.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "cíl {}",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "Cíl = {} % referenčního týdne ({} km{}).",
@@ -20002,13 +20919,6 @@
    "training.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "cíl týdne v cyklu (od pondělí)",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Cítíte se po zranění v pořádku?",
@@ -20116,6 +21026,13 @@
   "kind": "jsx"
  },
  {
+  "t": "dnes nejvýš",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Dnes už bez běhu.",
   "files": [
    "training.tsx"
@@ -20186,18 +21103,18 @@
   "kind": "jsx"
  },
  {
-  "t": "flex flex-wrap items-center gap-x-3 gap-y-1 py-3 {}",
+  "t": "flex flex-wrap items-center gap-1.5 {}",
   "files": [
    "training.tsx"
   ],
   "kind": "tpl"
  },
  {
-  "t": "Intenzita",
+  "t": "flex flex-wrap items-center gap-x-3 gap-y-1 py-3 {}",
   "files": [
    "training.tsx"
   ],
-  "kind": "str"
+  "kind": "tpl"
  },
  {
   "t": "Jak se počítá cíl",
@@ -20222,6 +21139,20 @@
  },
  {
   "t": "Jako tréninkový závod by překročil strop jednoho běhu o {} km (×{}). Zvažte kratší trať.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Je to cíl týdne, ne bezpečnostní strop (ten by dovolil {} km) — běh navíc jen při připravenosti aspoň 80 % a bez bolesti.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Je to cíl týdne, ne bezpečnostní strop: pokud máte chuť, krátký regenerační běh do {} km{} nic nezhorší.",
   "files": [
    "training.tsx"
   ],
@@ -20312,6 +21243,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Limity na dnešek",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Limity níže ukazují, co ještě dnes zbývá.",
   "files": [
    "training.tsx"
@@ -20355,6 +21293,13 @@
  },
  {
   "t": "Na odhad tempa zatím chybí běhy s tepem.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nad rámec cíle týdne — vejde se pod bezpečnostní limity (nevstřebaná zátěž a strop jednoho běhu).",
   "files": [
    "training.tsx"
   ],
@@ -20410,11 +21355,25 @@
   "kind": "tpl"
  },
  {
+  "t": "nebo lehké kolo do {} min",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "nedoporučeno",
   "files": [
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Nejbližší běh podle výhledu: {} · ≈ {} km.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Nejdelší bezpečný běh",
@@ -20439,13 +21398,6 @@
  },
  {
   "t": "nepočítají se",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Objem",
   "files": [
    "training.tsx"
   ],
@@ -20499,13 +21451,6 @@
    "training.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "odchylka mechaniky",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "odchylka mechaniky (−20 %)",
@@ -20585,6 +21530,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Platí nejnižší z limitů. Plán říká, kolik je rozumné tento týden udělat; bezpečnostní limity, kolik tělo podle vašich dat unese.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Platí vždy nižší z limitů.",
   "files": [
    "training.tsx"
@@ -20597,6 +21549,20 @@
    "training.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "pod týdenním stropem · nevstřebáno {} z {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "pod týdenním stropem (7 dní)",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "podle dnešní kapacity",
@@ -20928,13 +21894,6 @@
   "kind": "tpl"
  },
  {
-  "t": "strop jednoho běhu",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "svižně, bez krajnosti",
   "files": [
    "training.tsx"
@@ -21089,13 +22048,6 @@
   "kind": "jsx"
  },
  {
-  "t": "týdenní kapacita (nevstřebaná zátěž posledních dní)",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Týdny návratu po zranění",
   "files": [
    "training.tsx"
@@ -21167,6 +22119,13 @@
  },
  {
   "t": "vhodný den",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "volitelně",
   "files": [
    "training.tsx"
   ],
@@ -21321,6 +22280,20 @@
  },
  {
   "t": "zbytek celkové zátěže (≈ km lehkého běhu)",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zbytek cíle celkové zátěže (přepočet)",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zbytek cíle týdne (od pondělí)",
   "files": [
    "training.tsx"
   ],

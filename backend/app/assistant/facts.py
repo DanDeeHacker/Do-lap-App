@@ -110,7 +110,12 @@ def _why_today_max(a, today) -> None:
                  f"tento týden (od pondělí) hotovo {row.get('doneThisWeek')}", f"do neděle zbývá {row.get('leftThisWeek')}"]
         if row.get("todayMax") not in (None, "", "–"):
             why = LIMITED_BY.get(c.get("limitedBy"))
+            if why and c.get("limitedBy") == "systemic" and c.get("bound"):
+                why += " — její " + ("týdenní cíl (plán, ne bezpečnostní strop)" if c["bound"] == "plan"
+                                     else "nevstřebaná zátěž pod týdenním stropem")
             parts.append(f"dnešní strop {row.get('todayMax')}" + (f" (určuje ho {why})" if why else ""))
+        if c.get("bound") == "plan" and c.get("safeMax") is not None:
+            parts.append(f"bez týdenního cíle by bezpečnostní limity dovolily {G._cz(c['safeMax'], 1 if key == 'volume' else 0)}")
         if c.get("left7") is not None:
             parts.append(f"pod stropem nevstřebané zátěže zbývá {G._cz(c['left7'], 1 if key == 'volume' else 0)}")
         lines.append(", ".join(parts) + ".")
@@ -201,6 +206,36 @@ def _mechanics(a) -> dict:
                         for s in sig[:4]]}
 
 
+def _tomorrow(a) -> list | None:
+    """Owner feedback 2026-10-10 — the outlook for tomorrow (guidance.outlook) as plain sentences:
+    after nothing more today / the recommended session, a night like the last one or a weaker one."""
+    ol = (a.get("guidance") or {}).get("outlook") or {}
+    grid, presets = ol.get("grid") or {}, ol.get("presets") or []
+    nights = {n["key"]: n for n in ol.get("nights") or []}
+    lines = []
+    for p in presets:
+        if p["key"] not in ("none", "rec", "extra"):
+            continue
+        act = p.get("act") or {}
+        what = ("dnes už nic dalšího" if p["key"] == "none" else
+                f"dnes ještě {G.TYPE_LABEL.get(p.get('kind'), p.get('kind') or '').lower()} "
+                + (f"{G._cz(act.get('runKm'))} km" if act.get("runKm") else f"{act.get('rideMin') or act.get('swimMin') or 0} min"))
+        for nk in ("today", "weak"):
+            v = (grid.get(p["key"]) or {}).get(nk)
+            if not v:
+                continue
+            vol = v["ch"].get("volume") or {}
+            lim = LIMITED_BY.get(vol.get("lim"))
+            lines.append(f"Když {what} a noc {'jako dnešní' if nk == 'today' else 'slabší'} ({nights.get(nk, {}).get('score')} %): zítra "
+                         + (f"běh nejvýš {G._cz(vol['max'])} km" if v["run"] and vol.get("max") is not None else "bez běhu")
+                         + (f" (určuje {lim}, {'plán týdne' if vol.get('bound') == 'plan' else 'bezpečnostní limit'})" if lim else "")
+                         + f", kvalitní trénink {'ano' if v['quality'] else 'ne'}.")
+    rr = ol.get("restRun")
+    if rr and grid.get("none", {}).get("today", {}).get("run") is False:
+        lines.append(f"Bez dalšího tréninku je nejbližší den s prostorem na běh {G._dm(rr['date'])} (≈ {G._cz(rr['km'])} km).")
+    return lines or None
+
+
 def build(db, rid: str, a: dict, sel: dict) -> dict:
     """The facts packet for one question."""
     out = _state(db, rid, a)
@@ -208,6 +243,8 @@ def build(db, rid: str, a: dict, sel: dict) -> dict:
     if "today" in sl or "types" in sl or "strength" in sl or "heat" in sl:
         out["today"] = F._today(a)
         _why_today_max(a, out["today"])
+        if isinstance(out["today"], dict):
+            out["today"]["tomorrow"] = _tomorrow(a)
         out.update(_today_extra(a))
     if "types" in sl or "strength" in sl:
         out["sessionTypes"] = _types(a)
