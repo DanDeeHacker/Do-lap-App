@@ -193,5 +193,10 @@
 "dobrá": "good",
 "= kapacita × připravenost týdne {}": "= capacity × week readiness {0}",
 "× (1 + {} % rezerva)": "× (1 + {0} % margin)",
-"×": "×"
+"×": "×",
+"tabulka": "table",
+"graf": "chart",
+"rovina / dráha": "flat or track",
+"tvrdé úseky ne z kopce": "hard segments not downhill",
+"rovina / dráha — tvrdé úseky ne z kopce": "flat or track — hard segments not downhill"
 }
