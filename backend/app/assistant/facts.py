@@ -3,12 +3,13 @@ question's intent (selector.py). Same privacy rule as the Phase 1 packets
 (coach_facts.py): derived values only — no name, e-mail, place, coordinates,
 activity titles or free-text notes leave the server. Numbers are Czech-formatted
 so the model copies them instead of recomputing."""
-from datetime import date
+from datetime import date, timedelta
 
 from .. import models
 from ..metrics import coach_facts as F
 from ..metrics import engine as E
 from ..metrics import guidance as G
+from ..metrics import outlook as O
 
 PART_LABEL = {"hrv": "HRV pod normou", "rhr": "klidový tep nad normou", "sleep": "kratší spánek než obvykle (3 noci)",
               "sleepQuality": "víc bdění v noci než obvykle (efektivita spánku, 3 noci)",
@@ -236,6 +237,128 @@ def _tomorrow(a) -> list | None:
     return lines or None
 
 
+# ------------------------------------------------------------------ options and their consequences
+# Owner request 2026-10-12: the assistant explains what the data and the engine imply for the
+# next activities — for every option today: whether it fits and how big, what limits it, what it
+# takes from today's limits and what it leaves for tomorrow (outlook.py, the same estimate as
+# "Výhled na zítra" on Trénink); the week's plan (week_plan.py, as on Trénink and in the reports).
+RUN_KINDS = ("regenerace", "lehký", "dlouhý", "kvalitní")
+
+
+def _act_of(kind: str, t: dict) -> dict | None:
+    """What-if inputs for outlook.load_of: the option at its upper size."""
+    if kind in RUN_KINDS:
+        return {"runKm": (t.get("km") or {}).get("hi") or 0.0,
+                "z4": ((t.get("z4Target") or {}).get("hi") or 0) if kind == "kvalitní" else 0}
+    if kind in ("kolo", "voda") and t.get("durationMin"):
+        return {("rideMin" if kind == "kolo" else "swimMin"): t["durationMin"][1]}
+    if kind == "volno":
+        return {}
+    return None
+
+
+def _verdict_text(v: dict) -> str:
+    vol = v["ch"].get("volume") or {}
+    lim = LIMITED_BY.get(vol.get("lim"))
+    if not v["run"]:
+        run = "zítra bez běhu" + (f" (nestačí {lim})" if lim else "")
+    elif vol.get("max") is None:
+        run = "zítra běh bez omezení objemu"
+    else:
+        run = f"zítra běh nejvýš {G._cz(vol['max'])} km" + (
+            f" (určuje {lim}, {'plán týdne' if vol.get('bound') == 'plan' else 'bezpečnostní limit'})" if lim else "")
+    return run + (", kvalitní trénink možný" if v["quality"] else ", bez kvalitního tréninku") + (
+        ", dlouhý běh možný" if v["long"] and v["run"] else "")
+
+
+def _options(a) -> dict | None:
+    """One sentence per activity, most to least suitable today (the engine's order), and how
+    to read them. After a session today (guidance.afterDone) the rest of the day is what the
+    engine says it is: the other runs are a second run the app doesn't recommend."""
+    g = a.get("guidance") or {}
+    types = g.get("types") or {}
+    if not types:
+        return None
+    ol = g.get("outlook") or None
+    chs = (g.get("week") or {}).get("channels") or {}
+    vol_max = (chs.get("volume") or {}).get("todayMax")
+    sys_max = (chs.get("systemic") or {}).get("todayMax")
+    order = [k for k in (g.get("rank") or []) if k in types] or list(types)
+    ad = g.get("afterDone") or {}
+    out = []
+    for k in order:
+        t = types[k]
+        label = t.get("label") or k
+        tag = (" (doporučení na dnešek)" if k == g.get("type") else " (volitelně, nad rámec cíle týdne)" if t.get("optional")
+               else " (navíc k dnešnímu tréninku)" if ad and k in ("kolo", "voda", "posilování") else "")
+        if ad and k in RUN_KINDS and k != ad.get("type"):
+            out.append(f"{label}: dnes už ne — dnešní trénink je hotový a zbytek dne aplikace doporučuje "
+                       f"{'volno' if ad.get('type') == 'volno' else G.TYPE_LABEL.get(ad.get('type'), '').lower()}.")
+            continue
+        if not t.get("allowed"):
+            out.append(f"{label}: dnes ne — {F.cz_text(t.get('why') or 'aplikace ho dnes nedoporučuje').rstrip('.')}.")
+            continue
+        bits = []
+        km = t.get("km") if isinstance(t.get("km"), dict) else {}
+        if k in RUN_KINDS and (km.get("hi") or 0) > 0:
+            bits.append(f"{G._cz(km.get('lo'))}–{G._cz(km.get('hi'))} km"
+                        + (f" z dnešního stropu {G._cz(vol_max)} km" if vol_max is not None else ""))
+            if k == "kvalitní" and t.get("z4Target"):
+                bits.append(f"{t['z4Target']['lo']}–{t['z4Target']['hi']} min v Z4+")
+        elif t.get("durationMin") and t.get("cross"):
+            bits.append(f"{t['durationMin'][0]}–{t['durationMin'][1]} min")
+            if k in ("kolo", "voda"):
+                bits.append("běžecké kilometry, klesání a šlachy šetří, počítá se jen do celkové zátěže")
+        act = _act_of(k, t)
+        if ol and act is not None and ol.get("channels"):
+            try:
+                x = O.load_of(ol, act)
+                if k in ("kolo", "voda") and sys_max is not None:
+                    bits.append(f"celková zátěž ≈ {G._cz(x['systemic'], 0)} z dnešních {G._cz(sys_max, 0)} bodů")
+                bits.append(_verdict_text(O.verdict(ol, {"x": x}, "today")))
+            except (KeyError, TypeError, ValueError, StopIteration):
+                pass
+        if k == "posilování" and t.get("notes"):
+            bits.append(F.cz_text(t["notes"][0]).rstrip("."))
+        out.append(f"{label}{tag}: " + ("; ".join(bits) if bits else "dnes jde") + ".")
+    if not out:
+        return None
+    res = {"howToRead": "Možnosti od nejvhodnější. „Zítra …“ je odhad dnešních pravidel pro noc jako dnešní, "
+                        "když dnes uděláte tu možnost v horní velikosti; ráno ho upřesní noční data.",
+           "list": out}
+    if ad.get("text"):
+        res["doneToday"] = F.cz_text(ad["text"])
+    return res
+
+
+def _week_plan(db, rid, a) -> dict | None:
+    """This week's plan — the same planner as Trénink, the Monday sheet and the evening report."""
+    from ..metrics import daily_report as DR
+    today = E.today_date()
+    try:
+        plan = DR._week_plan(a, db, rid, today)
+    except Exception:                              # the answer stands without the plan rather than fail
+        return None
+    if not plan:
+        return None
+    if plan.get("override"):
+        return {"override": F.cz_text(plan["override"]), "notes": [F.cz_text(n) for n in plan.get("notes") or []]}
+    rest = DR._rest_of_week(plan, today, {"left": ((((a.get("guidance") or {}).get("week") or {}).get("channels") or {})
+                                                   .get("volume") or {}).get("left")})
+    days = [f"{d['wd']} {d['text']}" for d in rest.get("days") or []]
+    t = plan.get("totals") or {}
+    out = {"restOfWeek": days or None,
+           "tomorrow": next((f"{d['wd']} {d['text']}" for d in rest.get("days") or []
+                             if d["date"] == (today + timedelta(days=1)).isoformat()), None),
+           "weekKmPlanned": G._cz(t.get("km")) if t.get("km") is not None else None,
+           "weekKmTarget": G._cz(t.get("kmBudget")) if t.get("kmBudget") is not None else None,
+           "hardSessions": f"{t.get('hard')} z nejvýš {t.get('hardCap')}" if t.get("hardCap") else None,
+           "notes": [F.cz_text(n) for n in plan.get("notes") or []] or None}
+    if today.weekday() == 6:
+        out["tomorrow"] = "zítra začíná nový týden, plán přinese pondělní ranní report"
+    return {k: v for k, v in out.items() if v not in (None, [], "")}
+
+
 def build(db, rid: str, a: dict, sel: dict) -> dict:
     """The facts packet for one question."""
     out = _state(db, rid, a)
@@ -248,6 +371,10 @@ def build(db, rid: str, a: dict, sel: dict) -> dict:
         out.update(_today_extra(a))
     if "types" in sl or "strength" in sl:
         out["sessionTypes"] = _types(a)
+    if "options" in sl:
+        out["options"] = _options(a)
+    if "weekplan" in sl:
+        out["weekPlan"] = _week_plan(db, rid, a)
     if "readiness" in sl:
         out["readiness"] = _readiness(a)
     if "load" in sl:

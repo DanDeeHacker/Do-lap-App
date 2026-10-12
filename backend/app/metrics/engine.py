@@ -3532,9 +3532,10 @@ def _assess(db, rid: str) -> dict:
         if L["valid"] and L["hiAcute"] >= 60 and L["hiRatio"] is not None and L["hiRatio"] > 1.5:
             p = rnd(clamp((L["hiRatio"] - 1.5) * 20, 0, 20))
             load_score += p
-            push("hi_load", "Skok ve vysoké intenzitě", "B", p, f"×{L['hiRatio']}",
-                 f"Tvrdá práce (vysoký tep) {L['hiAcute']} proti obvyklým {L['hiChronic']} bodům zátěže za týden. "
-                 "Prudký nárůst intenzity na nízké základně nese vyšší riziko než stejná zátěž volně.")
+            if p:   # just over the threshold rounds to 0 points: not a signal (as the 7:28 one above)
+                push("hi_load", "Skok ve vysoké intenzitě", "B", p, f"×{L['hiRatio']}",
+                     f"Tvrdá práce (vysoký tep) {L['hiAcute']} proti obvyklým {L['hiChronic']} bodům zátěže za týden. "
+                     "Prudký nárůst intenzity na nízké základně nese vyšší riziko než stejná zátěž volně.")
 
         # v0.5 — load creep: slow, persistent acute rise the spike thresholds miss
         if L["valid"] and L["ratio"] is not None and L["ratio"] < 1.3 and L["loadCreep"] is not None and L["loadCreep"] >= 1.15:
