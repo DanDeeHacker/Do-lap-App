@@ -5504,6 +5504,30 @@
   ]
  },
  {
+  "t": "doběhnout: 0,6 × klesání trati za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "doběhnout: 0,6 × klesání závodu za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "doběhnout: 0,6 × stoupání trati za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "doběhnout: 0,6 × stoupání závodu za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "dřívější zranění",
   "files": [
    "metrics/goal_plan.py"

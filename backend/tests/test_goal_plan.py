@@ -40,7 +40,9 @@ def test_requirements_follow_the_studies():
 def test_trail_turns_climb_into_requirements():
     tr = G.requirements(_race(30, "2027-06-01", ascentM=1500))
     assert G.is_trail(_race(30, "2027-06-01", ascentM=1500))
-    assert tr["long"]["need"] == 21 and tr["descentRun"]["need"] == 900 and tr["descentWeek"]["need"] == 1500
+    assert tr["long"]["need"] == 21 and tr["descentRun"]["need"] == 900 and tr["descentWeek"]["need"] == 900   # finish: 0.6 × H
+    tt = G.requirements(_race(30, "2027-06-01", ascentM=1500, aim="time"))
+    assert tt["descentWeek"]["need"] == 1500 and tt["ascentWeek"]["need"] == 1500                             # a target time: × 1
     assert tr["descSessions"]["need"] == 10
     flat = 30 + 7.92 * 1.5                                               # Scarf: climb as flat km
     assert tr["week"]["need"] >= max(45.0, G._interp(flat, 0, 0)) - 0.01

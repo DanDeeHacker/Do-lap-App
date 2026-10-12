@@ -23,7 +23,8 @@ numbers show an association, not a sure effect):
              Mohseni 2019: > 40 miles ≈ 64 km/week → fewer race injuries
   trail      peak week ≈ 1.5 × D but at least the road requirement of the flat-equivalent
              distance (Scarf 2007: 7.92 m of flat per metre of climb), longest run ≈ 0.7 × D
-             (at most 50 km), climb and descent per run ≈ 0.6 × H and per week ≈ H, and ≥ 10
+             (at most 50 km), climb and descent per run ≈ 0.6 × H and per week ≈ H for a target
+             time, ≈ 0.6 × H to finish (owner decision 2026-10-12: walking the climbs), and ≥ 10
              descent sessions at least 7 days apart (Marqueste 2008: weekly bouts protected,
              4-day ones didn't; Bontemps 2025: quadriceps soreness fell only after 10 sessions).
              The multipliers are working assumptions.
@@ -66,6 +67,7 @@ COUNT_FROM_KM = 35.0            # road races from this distance count the long r
 MARATHON_FLOOR = 30.0           # never a marathon plan peaking under this (Rasmussen 2013)
 TRAIL_M_PER_KM = 15.0           # climb per km from which a race is a trail
 TRAIL_WEEK, TRAIL_LONG, TRAIL_RUN_CLIMB = 1.5, 0.7, 0.6
+WEEK_CLIMB = {"finish": 0.6, "time": 1.0}   # the week's climb and descent, × the course's (working assumption)
 TRAIL_LONG_MAX = 50.0           # working assumption
 DESC_SESSIONS = 10              # Bontemps 2025
 DESC_SESSION_MIN = 150.0        # m of descent that make a descent session …
@@ -183,11 +185,13 @@ def requirements(goal: dict) -> dict:
             if up > 0:
                 out["ascentRun"] = {"need": TRAIL_RUN_CLIMB * up, "why": "0,6 × stoupání závodu v jednom běhu",
                                     "sources": [], "assumption": True}
-                out["ascentWeek"] = {"need": up, "why": "stoupání závodu za týden", "sources": [], "assumption": True}
+                out["ascentWeek"] = {"need": WEEK_CLIMB[aim_k] * up, "sources": [], "assumption": True,
+                                     "why": "stoupání závodu za týden" if aim else "doběhnout: 0,6 × stoupání závodu za týden"}
             if down > 0:
                 out["descentRun"] = {"need": TRAIL_RUN_CLIMB * down, "why": "0,6 × klesání závodu v jednom běhu",
                                      "sources": [], "assumption": True}
-                out["descentWeek"] = {"need": down, "why": "klesání závodu za týden", "sources": [], "assumption": True}
+                out["descentWeek"] = {"need": WEEK_CLIMB[aim_k] * down, "sources": [], "assumption": True,
+                                      "why": "klesání závodu za týden" if aim else "doběhnout: 0,6 × klesání závodu za týden"}
                 out["descSessions"] = {"need": DESC_SESSIONS, "why": "aspoň 10 seběhů, nejvýš jeden za 7 dní",
                                        "sources": SRC["descent"]}
         else:
@@ -201,9 +205,11 @@ def requirements(goal: dict) -> dict:
                 out["longCount"] = {"need": n, "km": thr, "why": f"dlouhé běhy aspoň {_cz(thr)} km",
                                     "sources": SRC["count"]}
             if up > 0:
-                out["ascentWeek"] = {"need": up, "why": "stoupání trati za týden", "sources": [], "assumption": True}
+                out["ascentWeek"] = {"need": WEEK_CLIMB[aim_k] * up, "sources": [], "assumption": True,
+                                     "why": "stoupání trati za týden" if aim else "doběhnout: 0,6 × stoupání trati za týden"}
             if down > 0:
-                out["descentWeek"] = {"need": down, "why": "klesání trati za týden", "sources": [], "assumption": True}
+                out["descentWeek"] = {"need": WEEK_CLIMB[aim_k] * down, "sources": [], "assumption": True,
+                                      "why": "klesání trati za týden" if aim else "doběhnout: 0,6 × klesání trati za týden"}
     lg = (out.get("long") or {}).get("need")
     if lg and out.get("week") and lg / LONG_SHARE > out["week"]["need"]:
         out["week"]["base"] = out["week"]["need"]

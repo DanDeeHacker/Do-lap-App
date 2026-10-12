@@ -141,5 +141,9 @@
  "dřívější zranění": "a past injury",
  "návrat po pauze": "a return after a break",
  "první rok běhání": "first year of running",
- "přechod na nové boty": "a switch to new shoes"
+ "přechod na nové boty": "a switch to new shoes",
+ "doběhnout: 0,6 × stoupání závodu za týden": "finish: 0.6 × the race's climb per week",
+ "doběhnout: 0,6 × klesání závodu za týden": "finish: 0.6 × the race's descent per week",
+ "doběhnout: 0,6 × stoupání trati za týden": "finish: 0.6 × the course's climb per week",
+ "doběhnout: 0,6 × klesání trati za týden": "finish: 0.6 × the course's descent per week"
 }
