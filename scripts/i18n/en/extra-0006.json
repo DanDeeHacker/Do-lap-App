@@ -133,5 +133,13 @@
  "Riziková cesta (váš souhlas): Trénink počítá s rezervou týdne zhruba 25 % místo 15 % a u jednoho běhu 15 % místo 10 %, proto je zbývající prostor vyšší než tento strop.": "Risk path (your consent): Training works with a weekly margin of about 25% instead of 15% and 15% instead of 10% for a single run, so the room left is higher than this ceiling.",
  "Plán k cíli · {}, {}. týden z {}": "Goal plan · {0}, week {1} of {2}",
  "Plán k cíli · {}, {}. týden z {} · odlehčovací týden": "Goal plan · {0}, week {1} of {2} · recovery week",
- "· odlehčovací týden": "· recovery week"
+ "· odlehčovací týden": "· recovery week",
+ "Týdenní rezerva je u vás teď {} % místo 15 %": "Your weekly margin is now {0}% instead of 15%",
+ "Týdenní rezerva je u vás teď {} % místo 15 %, proto kapacita v projekci roste pomaleji.": "Your weekly margin is now {0}% instead of 15%, so capacity grows more slowly in the projection.",
+ "Týdenní rezerva je u vás teď {} % místo 15 % ({}), proto kapacita v projekci roste pomaleji.": "Your weekly margin is now {0}% instead of 15% ({1}), so capacity grows more slowly in the projection.",
+ ", proto kapacita v projekci roste pomaleji.": ", so capacity grows more slowly in the projection.",
+ "dřívější zranění": "a past injury",
+ "návrat po pauze": "a return after a break",
+ "první rok běhání": "first year of running",
+ "přechod na nové boty": "a switch to new shoes"
 }

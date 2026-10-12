@@ -266,23 +266,34 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
         "long30": l30, "down30": d30, "up30": u30,
         "marginWeek": float(m.get("runWeek") or C.MARGIN_WEEK), "marginRun": float(m.get("runSession") or C.MARGIN_SESSION),
         "experience": m.get("experience"), "everHalf": ever_half,
+        "marginWhy": [t for t, on in (("první rok běhání", m.get("experience")), ("dřívější zranění", (m.get("frailty") or 1.0) > 1.0),
+                                      ("návrat po pauze", m.get("underconditioned")),
+                                      ("přechod na nové boty", ((((a or {}).get("capacity") or {}).get("shoes") or {}).get("factor") or 1.0) < 1.0))
+                      if on],
         "everMarathon": ever_long >= 40.0 or any((x.distance_km or 0) >= 40.0 for x in past),
         "limited": g.get("override") or (g.get("mode") == "return"),
     }
 
 
 # ------------------------------------------------------------------ projection
-def _cap(hist: list) -> float:
+def _cap(hist: list, planned: list | None = None) -> float:
     """capacity.weekly_capacity on calendar weeks: max(average of the last 4 weeks, 0.9 ×
     the best of the last 6, decayed beyond its 2nd week, a spike over 1.3 × its 4 weeks
-    before left out)."""
-    chronic = sum(hist[-4:]) / 4
+    before left out). `planned` marks the projection's own recovery weeks: a planned recovery
+    week is not a loss of capacity, so the average is taken over the last 4 loaded weeks —
+    with it in the average a narrowed weekly margin (under ~11 %) made the projection shrink
+    week after week (owner report 2026-10-12: a trail goal "not within 2 years")."""
+    planned = planned or [False] * len(hist)
+    loaded = [w for w, p in zip(hist, planned) if not p]
+    chronic = sum(loaded[-4:]) / 4 if len(loaded) >= 4 else sum(hist[-4:]) / 4
     best = 0.0
     n = len(hist)
     for k in range(1, 7):
         if n - k < 0:
             break
         w = hist[n - k]
+        if planned[n - k]:
+            continue
         prior = hist[max(0, n - k - 4):n - k]
         if len(prior) >= 2:
             before = sum(prior) / len(prior)
@@ -307,6 +318,7 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
     mw = st["marginWeek"] * path.get("weekX", 1.0)
     mr = st["marginRun"] * path.get("runX", 1.0)
     hist = [max(v, 0.0) for v in hist_w]
+    planned = [False] * len(hist)
     runs = [run0] * 4
     out_w, out_r = [], []
     for n in range(1, HORIZON + 1):
@@ -317,7 +329,7 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
             w = last * path["deload"]
             r = min(runs[-1], max(w * (share if floor_run == 0.0 else 1.0), 0.0)) if need_run is not None else 0.0
         else:
-            ceil = max(_cap(hist) * (1 + mw), floor_w)
+            ceil = max(_cap(hist, planned) * (1 + mw), floor_w)
             ref = max(max(hist[-2:]), floor_w)        # after a recovery week the rise counts from the week before it
             w = min(ceil, ref * (1 + path["rise"]), max(avg4 * ACWR_MAX, floor_w))
             if need_w is not None:
@@ -330,6 +342,7 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
                 else:
                     r = min(r, w)
         hist.append(w)
+        planned.append(deload_week(n, st))
         runs.append(r)
         out_w.append(w)
         out_r.append(r)
@@ -578,9 +591,11 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     if st.get("limited"):
         out["notes"].append({"key": "limited", "text": "Teď máte omezení tréninku (bolest, zranění nebo návrat po něm). Projekce počítá "
                              "s tím, že trénink půjde bez přerušení, takže skutečný termín bude nejspíš později.", "sources": []})
-    if st.get("experience"):
-        out["notes"].append({"key": "experience", "text": "Jste v prvním roce pravidelného běhání, proto kapacita roste pomaleji "
-                             "(užší rezerva týdne).", "sources": []})
+    if st["marginWeek"] < C.MARGIN_WEEK - 0.001:
+        why = st.get("marginWhy") or []
+        out["notes"].append({"key": "margin", "sources": [],
+                             "text": f"Týdenní rezerva je u vás teď {_cz(st['marginWeek'] * 100)} % místo 15 %"
+                                     + (f" ({' · '.join(why)})" if why else "") + ", proto kapacita v projekci roste pomaleji."})
     if alternatives and v != "ok":
         out["alternatives"] = _alternatives(goal, st, out, risk, taper, weeks)
     return out

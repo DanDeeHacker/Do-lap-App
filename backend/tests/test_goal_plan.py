@@ -253,3 +253,21 @@ def test_a_goal_this_week_is_the_race_week_of_the_taper():
     st = {**_st(), "start": "2026-10-12"}
     plan = G.evaluate(_race(21.1, "2026-10-18"), st)["plan"]
     assert len(plan) == 1 and plan[0]["race"] and plan[0]["factor"] == G.TAPER[2][-1]
+
+
+def test_a_narrow_margin_grows_slower_but_never_shrinks():
+    """Owner report 2026-10-12: with a weekly margin under ~11 % the planned recovery weeks pulled
+    the projected capacity down week after week, so a trail goal was "not within 2 years"."""
+    for mw in (0.15, 0.10, 0.06):
+        st = {**_st(km=30.0, long=21.0, climb=250.0), "marginWeek": mw, "marginWhy": ["dřívější zranění"]}
+        req = G.requirements(_race(33.3, "2026-11-28", ascentM=1300))
+        p = G.project(req, st, G.SAFE, 1, until=60)
+        loaded = [r["km"] for r in p["rows"] if not r["deload"]]
+        assert all(b >= a - 0.11 for a, b in zip(loaded, loaded[1:])), mw      # the build weeks never go down
+        assert p["firstMet"]["week"] is not None, mw                             # 55 km a week is reached
+        asc = [r["ascent"] for r in p["rows"] if not r["deload"]]
+        assert all(b >= a - 0.6 for a, b in zip(asc, asc[1:])), mw
+    r = G.evaluate(_race(33.3, "2026-11-28", ascentM=1300), {**_st(km=30.0, long=21.0, climb=250.0), "marginWeek": 0.06,
+                                                             "marginWhy": ["dřívější zranění"]})
+    assert any(n["key"] == "margin" and "6 % místo 15 %" in n["text"] and "dřívější zranění" in n["text"] for n in r["notes"])
+    assert "do 2 let" not in r["text"]

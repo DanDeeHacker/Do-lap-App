@@ -5234,12 +5234,6 @@
   ]
  },
  {
-  "t": "Jste v prvním roce pravidelného běhání, proto kapacita roste pomaleji (užší rezerva týdne).",
-  "files": [
-   "metrics/goal_plan.py"
-  ]
- },
- {
   "t": "Klesání v jednom běhu",
   "files": [
    "metrics/goal_plan.py"
@@ -5420,6 +5414,12 @@
   ]
  },
  {
+  "t": "Týdenní rezerva je u vás teď {} % místo 15 %",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Těsné",
   "files": [
    "metrics/goal_plan.py"
@@ -5504,6 +5504,12 @@
   ]
  },
  {
+  "t": "dřívější zranění",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "klesání trati za týden",
   "files": [
    "metrics/goal_plan.py"
@@ -5522,7 +5528,25 @@
   ]
  },
  {
+  "t": "návrat po pauze",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "omezení tréninku",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "první rok běhání",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "přechod na nové boty",
   "files": [
    "metrics/goal_plan.py"
   ]
