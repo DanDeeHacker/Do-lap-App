@@ -27,7 +27,9 @@ numbers show an association, not a sure effect):
              time, ≈ 0.6 × H to finish (owner decision 2026-10-12: walking the climbs), and ≥ 10
              descent sessions at least 7 days apart (Marqueste 2008: weekly bouts protected,
              4-day ones didn't; Bontemps 2025: quadriceps soreness fell only after 10 sessions).
-             The multipliers are working assumptions.
+             The multipliers are working assumptions. Ultras (where 1.5 × D or 0.7 × D would go
+             past it): the week at most 70 km to finish / 90 km for a time, the long run 35 / 45 km,
+             one run's climb the race's climb per km over the long run (see ULTRA_WEEK).
 The lower number is the "finish" goal, the upper one a target time; distances in between
 are interpolated. The long run may be up to 50 % of the week (owner decision; no study looks
 at the share as such — the per-run ceiling over the longest run of 30 days stays the safety
@@ -68,7 +70,14 @@ MARATHON_FLOOR = 30.0           # never a marathon plan peaking under this (Rasm
 TRAIL_M_PER_KM = 15.0           # climb per km from which a race is a trail
 TRAIL_WEEK, TRAIL_LONG, TRAIL_RUN_CLIMB = 1.5, 0.7, 0.6
 WEEK_CLIMB = {"finish": 0.6, "time": 1.0}   # the week's climb and descent, × the course's (working assumption)
-TRAIL_LONG_MAX = 50.0           # working assumption
+# ultra (owner report 2026-10-12: 101 km / 5 500 m asked for 152 km a week and a 50 km long run): the
+# linear multipliers stop at what ultra runners actually train — the ULTRA cohort's median 3 347 km a
+# year ≈ 64 km a week (Hoffman & Krishnan 2014), an elite ultra-trail runner's season average 87 km
+# a week (Jaén-Carrillo et al. 2024), recreational 24-h runners' longest run ~60 km for the most
+# distance (Knechtle et al. 2011). Finish / target time; working assumptions on those anchors.
+ULTRA_WEEK = {"finish": 70.0, "time": 90.0}
+ULTRA_LONG = {"finish": 35.0, "time": 45.0}
+TRAIL_LONG_MAX = ULTRA_LONG["time"]
 DESC_SESSIONS = 10              # Bontemps 2025
 DESC_SESSION_MIN = 150.0        # m of descent that make a descent session …
 DESC_SESSION_SHARE = 0.3        # … or this share of the per-run requirement, whichever is more
@@ -95,6 +104,7 @@ SRC = {
     "long": ["fokkema-et-al-2020", "toresdahl-et-al-2021", "yamaguchi-et-al-2022"],
     "count": ["doherty-et-al-2019", "toresdahl-et-al-2021"],
     "trail": ["soppelsa-et-al-2025"],
+    "ultra": ["hoffman-and-krishnan-2014", "jaen-carrillo-et-al-2024", "knechtle-et-al-2011"],
     "descent": ["marqueste-et-al-2008", "bontemps-et-al-2025", "mchugh-2003"],
     "taper": ["bosquet-et-al-2007", "wang-et-al-2023", "smyth-and-lawlor-2021"],
     "reserve": ["toresdahl-et-al-2022"],
@@ -177,19 +187,29 @@ def requirements(goal: dict) -> dict:
         down = float(goal.get("descentM") if goal.get("descentM") is not None else up)
         if is_trail(goal):
             flat = km + SCARF_M * up / 1000.0
-            w = max(TRAIL_WEEK * km, _interp(flat, 0, aim))
-            lg = min(TRAIL_LONG * km, TRAIL_LONG_MAX)
-            out["week"] = {"need": w, "why": f"trail: 1,5 × délka, aspoň jako silnice o {_cz(flat)} km "
-                                             f"(stoupání převedené na rovinu)", "sources": SRC["trail"], "assumption": True}
-            out["long"] = {"need": lg, "why": "trail: 0,7 × délka (pracovní předpoklad)", "sources": [], "assumption": True}
+            road = _interp(flat, 0, aim)
+            w = max(min(TRAIL_WEEK * km, ULTRA_WEEK[aim_k]), road)
+            lg = min(TRAIL_LONG * km, ULTRA_LONG[aim_k])
+            capped_w, capped_l = TRAIL_WEEK * km > ULTRA_WEEK[aim_k], TRAIL_LONG * km > ULTRA_LONG[aim_k]
+            out["week"] = {"need": w, "sources": SRC["ultra"] if capped_w else SRC["trail"], "assumption": True,
+                           "why": (f"ultra: nejvýš {_cz(ULTRA_WEEK[aim_k])} km ({'cílový čas' if aim else 'doběhnout'}), "
+                                   f"aspoň jako maraton" if capped_w else
+                                   f"trail: 1,5 × délka, aspoň jako silnice o {_cz(min(flat, 42.2))} km (stoupání převedené na rovinu)")}
+            out["long"] = {"need": lg, "sources": SRC["ultra"] if capped_l else [], "assumption": True,
+                           "why": (f"ultra: nejvýš {_cz(ULTRA_LONG[aim_k])} km, delší úseky závodu chůzí nebo dva dlouhé dny po sobě"
+                                   if capped_l else "trail: 0,7 × délka (pracovní předpoklad)")}
+            # one run's climb: the race's climb per km over the long run, at most 0.6 × the race's
+            per_run = lambda h: min(TRAIL_RUN_CLIMB * h, h / km * lg) if km else TRAIL_RUN_CLIMB * h
             if up > 0:
-                out["ascentRun"] = {"need": TRAIL_RUN_CLIMB * up, "why": "0,6 × stoupání závodu v jednom běhu",
-                                    "sources": [], "assumption": True}
+                out["ascentRun"] = {"need": per_run(up), "sources": [], "assumption": True,
+                                    "why": "0,6 × stoupání závodu v jednom běhu" if per_run(up) >= TRAIL_RUN_CLIMB * up - 0.5
+                                    else "stoupání trati na délku dlouhého běhu"}
                 out["ascentWeek"] = {"need": WEEK_CLIMB[aim_k] * up, "sources": [], "assumption": True,
                                      "why": "stoupání závodu za týden" if aim else "doběhnout: 0,6 × stoupání závodu za týden"}
             if down > 0:
-                out["descentRun"] = {"need": TRAIL_RUN_CLIMB * down, "why": "0,6 × klesání závodu v jednom běhu",
-                                     "sources": [], "assumption": True}
+                out["descentRun"] = {"need": per_run(down), "sources": [], "assumption": True,
+                                     "why": "0,6 × klesání závodu v jednom běhu" if per_run(down) >= TRAIL_RUN_CLIMB * down - 0.5
+                                     else "klesání trati na délku dlouhého běhu"}
                 out["descentWeek"] = {"need": WEEK_CLIMB[aim_k] * down, "sources": [], "assumption": True,
                                       "why": "klesání závodu za týden" if aim else "doběhnout: 0,6 × klesání závodu za týden"}
                 out["descSessions"] = {"need": DESC_SESSIONS, "why": "aspoň 10 seběhů, nejvýš jeden za 7 dní",
@@ -541,6 +561,9 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
         out.update(verdict="unknown", verdictLabel=VERDICT["unknown"],
                    text="Na projekci potřebuji aspoň 3 z posledních 6 týdnů s běháním z hodinek. Zatím aplikace neví, z čeho by kapacita rostla.")
         return out
+    # the last 4 completed weeks in the projection's channels (the chart's history)
+    out["history"] = [{"km": _r(w["km"]), "long": _r(w["long"]), "ascent": _r(w["up"]), "descent": _r(w["down"]),
+                       "ascentRun": _r(w["upRun"]), "descentRun": _r(w["downRun"])} for w in st["weeks"][-4:]]
     safe = phased(req, st, SAFE, weeks, taper)
     risk = phased(req, st, RISK, weeks, taper)
     v = _fit(safe["readyWeek"], taper, weeks)

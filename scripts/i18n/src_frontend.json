@@ -2983,6 +2983,7 @@
   "files": [
    "App.tsx",
    "coach.tsx",
+   "goal.tsx",
    "training.tsx"
   ],
   "kind": "jsx"
@@ -8045,6 +8046,7 @@
   "files": [
    "coach.tsx",
    "coachview.tsx",
+   "goal.tsx",
    "outlook.tsx",
    "report.tsx",
    "training.tsx"
@@ -8154,7 +8156,8 @@
  {
   "t": "Týden",
   "files": [
-   "coach.tsx"
+   "coach.tsx",
+   "goal.tsx"
   ],
   "kind": "str"
  },
@@ -11241,6 +11244,20 @@
   "kind": "jsx"
  },
  {
+  "t": ", před laděním.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": ", závod je v týdnu {}.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· {} % vrcholu",
   "files": [
    "goal.tsx"
@@ -11283,6 +11300,13 @@
   "kind": "tpl"
  },
  {
+  "t": "· ladění",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "· mezicíl 21 km",
   "files": [
    "goal.tsx"
@@ -11297,25 +11321,11 @@
   "kind": "str"
  },
  {
-  "t": "· připraveni za {} týd.",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "· reálně od",
   "files": [
    "goal.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "· šedě ladění {} týd.",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "· tento týden",
@@ -11326,18 +11336,18 @@
   "kind": "str"
  },
  {
-  "t": "· úzké hrdlo",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "· za",
   "files": [
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "· závod",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "(tabulka {} km)",
@@ -11369,13 +11379,6 @@
  },
  {
   "t": "{} mt-2 block max-w-[200px]",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{}: bezpečná{} cesta proti požadavku {} {}",
   "files": [
    "goal.tsx"
   ],
@@ -11419,11 +11422,11 @@
   "kind": "str"
  },
  {
-  "t": "a riziková",
+  "t": "bezpečná cesta",
   "files": [
    "goal.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "bezpečně",
@@ -11433,7 +11436,42 @@
   "kind": "jsx"
  },
  {
+  "t": "Bezpečně",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Bezpečně dosáhnete {} {} v týdnu {} (od {})",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Bezpečně se {} {} do 2 let nedosáhne; v týdnu závodu {}.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "bezpečně týden {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Bolest od 3/10, nemoc nebo připravenost pod 65 % dva dny po sobě vrátí plán na bezpečnou cestu.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Čára ukazuje, kolik týdně zvládnete, když poroste jen tak rychle, jak dovolí vaše limity v aplikaci. Čárkovaná vodorovná čára je požadavek cíle, svislá týden závodu, šedé pole ladění. Prstem po grafu uvidíte hodnoty týdne.",
   "files": [
    "goal.tsx"
   ],
@@ -11450,14 +11488,6 @@
   "t": "Chystáte se na závod nebo máte vlastní cíl v kilometrech? Aplikace spočítá, jestli ho stihnete zdravě, sestaví k němu plán, a když to nejde, řekne reálný termín.",
   "files": [
    "goal.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "cíl",
-  "files": [
-   "goal.tsx",
-   "outlook.tsx"
   ],
   "kind": "jsx"
  },
@@ -11534,6 +11564,13 @@
  },
  {
   "t": "Co cíl vyžaduje",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Co graf ukazuje",
   "files": [
    "goal.tsx"
   ],
@@ -11628,6 +11665,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Graf",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "jako stoupání",
   "files": [
    "goal.tsx"
@@ -11656,7 +11700,57 @@
   "kind": "str"
  },
  {
+  "t": "km v jednom běhu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "km za týden",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "ladění",
+  "files": [
+   "goal.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Ladění",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "m klesání v jednom běhu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "m klesání za týden",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "m stoupání v jednom běhu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "m stoupání za týden",
   "files": [
    "goal.tsx"
   ],
@@ -11728,7 +11822,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Nejdelší běh týdne",
+  "t": "Nejdelší běh",
   "files": [
    "goal.tsx"
   ],
@@ -11763,6 +11857,14 @@
   "kind": "tpl"
  },
  {
+  "t": "odlehčovací týden",
+  "files": [
+   "goal.tsx",
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Plán běží bezpečnou cestou.",
   "files": [
    "goal.tsx"
@@ -11784,6 +11886,13 @@
   "kind": "jsx"
  },
  {
+  "t": "posledních 4 týdny",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Použít",
   "files": [
    "goal.tsx"
@@ -11791,11 +11900,18 @@
   "kind": "jsx"
  },
  {
-  "t": "požadavek",
+  "t": "požadavek {} {}",
   "files": [
    "goal.tsx"
   ],
-  "kind": "jsx"
+  "kind": "tpl"
+ },
+ {
+  "t": "před {} týd.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "předpoklad",
@@ -11897,11 +12013,25 @@
   "kind": "jsx"
  },
  {
-  "t": "rizikově · za",
+  "t": "rizikově",
   "files": [
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Rizikově",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "rizikově týden {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Rozumím vyššímu riziku zranění a souhlasím s rizikovou cestou. Souhlas můžu kdykoli vzít zpět.",
@@ -11960,10 +12090,9 @@
   "kind": "str"
  },
  {
-  "t": "teď",
+  "t": "Tabulka",
   "files": [
-   "goal.tsx",
-   "ui.tsx"
+   "goal.tsx"
   ],
   "kind": "str"
  },
@@ -11994,6 +12123,13 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "týden {} · od {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Týden smí růst rychleji a dlouhý běh o 15 %. Aplikace každý den hlídá bolest, nemoc a připravenost a při potížích plán sama vrátí na bezpečnou cestu.",
@@ -12038,13 +12174,6 @@
   "kind": "jsx"
  },
  {
-  "t": "týdny od tohoto pondělí · propady jsou odlehčovací týdny",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Ukázat méně",
   "files": [
    "goal.tsx"
@@ -12059,11 +12188,25 @@
   "kind": "jsx"
  },
  {
+  "t": "úzké hrdlo",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "v jednom běhu",
   "files": [
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "v týdnu závodu {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "více než 104",
@@ -12106,6 +12249,13 @@
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "závod {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Závod {} km",
@@ -16069,6 +16219,13 @@
   "kind": "str"
  },
  {
+  "t": "cíl",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Cíl {}: {}. týden z {}",
   "files": [
    "outlook.tsx"
@@ -16439,13 +16596,6 @@
  },
  {
   "t": "odlehčení (zvýšená zátěž)",
-  "files": [
-   "outlook.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "odlehčovací týden",
   "files": [
    "outlook.tsx"
   ],
@@ -24578,13 +24728,6 @@
   "kind": "jsx"
  },
  {
-  "t": "ladění",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Ladění před závodem",
   "files": [
    "training.tsx"
@@ -26074,6 +26217,13 @@
    "ui.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "teď",
+  "files": [
+   "ui.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "transform .22s cubic-bezier(.2,.8,.2,1)",

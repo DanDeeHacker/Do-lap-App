@@ -46,7 +46,13 @@ def test_trail_turns_climb_into_requirements():
     assert tr["descSessions"]["need"] == 10
     flat = 30 + 7.92 * 1.5                                               # Scarf: climb as flat km
     assert tr["week"]["need"] >= max(45.0, G._interp(flat, 0, 0)) - 0.01
-    assert G.requirements(_race(100, "2027-08-01", ascentM=5000))["long"]["need"] == G.TRAIL_LONG_MAX
+    # ultra (owner report: 101 km / 5 500 m asked for 152 km a week): capped at what ultra runners train
+    u = G.requirements(_race(101, "2027-08-28", ascentM=5500))
+    assert u["week"]["need"] == 70 and u["long"]["need"] == 35
+    assert abs(u["ascentRun"]["need"] - 5500 / 101 * 35) < 1 and u["ascentWeek"]["need"] == 0.6 * 5500
+    assert "hoffman-and-krishnan-2014" in u["week"]["sources"]
+    ut = G.requirements(_race(101, "2027-08-28", ascentM=5500, aim="time"))
+    assert ut["week"]["need"] == 90 and ut["long"]["need"] == 45
 
 
 def test_taper_is_two_weeks_for_the_marathon():

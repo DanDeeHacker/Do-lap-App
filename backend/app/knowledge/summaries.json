@@ -1,5 +1,5 @@
 {
- "source": "Doslap_Literature_Summary.docx (project doc), 73 sources, 2026-10-12 (goal-planner sources added from Consensus searches and the owner's summaries)",
+ "source": "Doslap_Literature_Summary.docx (project doc), 75 sources, 2026-10-12 (goal-planner sources added from Consensus searches and the owner's summaries)",
  "categories": {
   "A": "Load progression and running injury",
   "B": "Load monitoring concepts and ACWR",
@@ -1697,6 +1697,50 @@
    ],
    "relevance": "Supports descent requirements for short trail goals.",
    "limits": "Men, one race.",
+   "strength": "low"
+  },
+  {
+   "id": "jaen-carrillo-et-al-2024",
+   "cite": "Jaén-Carrillo et al. (2024)",
+   "category": "D",
+   "apa": "Jaén-Carrillo, D., et al. (2024). Reverse periodization in ultratrail: The road to the 2023 World Mountain and Trail Running Championships of an elite female ultrarunner. Current Issues in Sport Science.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/4623a67abeac5fef820a1dc0ee8433b7/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Case study, day-by-day training data of 29 weeks analysed retrospectively",
+    "Population": "One high-level Spanish female ultra-trail runner",
+    "Exposure": "Reverse linear periodization before the 2023 World Mountain and Trail Running Championships",
+    "Outcome": "Training volume, climbing, intensity distribution",
+    "Main result": "On average 8 h 53 min, 87.2 km and 3,755 m of climbing a week; the hardest week 14 h 58 min, 145 km and 7,552 m"
+   },
+   "findings": [
+    "The weekly average was 87.2 km and 3,755 m of altitude gain; the hardest week reached 145 km and 7,552 m.",
+    "About 60% of the training time was running, 17% cross-training and 11% strength training; the longest trail run lasted 4 h 18 min; the taper started 12 days before the championship."
+   ],
+   "relevance": "An upper anchor for the goal planner's ultra caps: even an elite ultra-trail runner averaged under 90 km a week, so a recreational ultra goal is capped at 70 km a week to finish and 90 km for a time.",
+   "limits": "One elite athlete, a conference abstract; descriptive only.",
+   "strength": "low"
+  },
+  {
+   "id": "knechtle-et-al-2011",
+   "cite": "Knechtle et al. (2011)",
+   "category": "D",
+   "apa": "Knechtle, B., et al. (2011). Personal best marathon time and longest training run, not anthropometry, predict performance in recreational 24-hour ultrarunners. Journal of Strength and Conditioning Research.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/157d013ec7075a95aa46dba18b9f371c/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Cross-sectional, bivariate and multivariate analysis",
+    "Population": "63 male recreational ultrarunners in a 24-hour run (146 ± 43 km)",
+    "Exposure": "Anthropometry, weekly kilometres, longest training session, marathon best",
+    "Outcome": "Distance in 24 hours",
+    "Main result": "The longest training session (r = 0.56) and the marathon best time predicted the distance; anthropometry did not"
+   },
+   "findings": [
+    "The longest training session before the race (r = 0.56) and the personal best marathon time (r = −0.58) correlated best with the distance covered.",
+    "To cover the most kilometres the authors suggest a long training run of about 60 km before the race."
+   ],
+   "relevance": "The goal planner's ultra long run (35 km to finish, 45 km for a time) stays below the ~60 km the study links to maximal performance; finishing needs less.",
+   "limits": "Men only, a flat 24-hour run, cross-sectional.",
    "strength": "low"
   }
  ]

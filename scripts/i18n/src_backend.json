@@ -5534,6 +5534,12 @@
   ]
  },
  {
+  "t": "klesání trati na délku dlouhého běhu",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "klesání trati za týden",
   "files": [
    "metrics/goal_plan.py"
@@ -5588,6 +5594,12 @@
   ]
  },
  {
+  "t": "stoupání trati na délku dlouhého běhu",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "stoupání trati za týden",
   "files": [
    "metrics/goal_plan.py"
@@ -5625,6 +5637,18 @@
  },
  {
   "t": "týdnů",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "ultra: nejvýš {} km ({}), aspoň jako maraton",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "ultra: nejvýš {} km, delší úseky závodu chůzí nebo dva dlouhé dny po sobě",
   "files": [
    "metrics/goal_plan.py"
   ]

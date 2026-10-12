@@ -102,63 +102,164 @@ function ReqRow({ r, res }: { r: any; res: any }) {
   )
 }
 
-// the projection of the bottleneck (the requirement met last on the safe path): the safe and the
-// risk path against the requirement, with the goal's week and the taper before it
-const SERIES: Record<string, [string, string, string]> = {
-  week: ["km", "Týdenní objem", "week"], long: ["long", "Nejdelší běh týdne", "long"], longCount: ["long", "Nejdelší běh týdne", "long"],
-  descentWeek: ["descent", "Klesání za týden", "descentWeek"], descentRun: ["descentRun", "Klesání v jednom běhu", "descentRun"],
-  descSessions: ["descentRun", "Klesání v jednom běhu", "descentRun"], ascentWeek: ["ascent", "Stoupání za týden", "ascentWeek"],
-  ascentRun: ["ascentRun", "Stoupání v jednom běhu", "ascentRun"],
+// The projection chart (owner feedback 2026-10-12: clearer and described). One metric at a
+// time — the bottleneck first, the others a tap away; the last 4 weeks as history; the safe
+// path (solid) and the risk path (dashed) through the loaded weeks, the recovery weeks as dots;
+// the requirement, the goal's week with its date and the taper; when each path gets there or
+// where it stands in the goal's week, labelled on the chart; a crosshair readout and a table.
+const SERIES: Record<string, { field: string; label: string; req: string; unit: string; axis: string }> = {
+  week: { field: "km", label: "Týdenní objem", req: "week", unit: "km", axis: "km za týden" },
+  long: { field: "long", label: "Nejdelší běh", req: "long", unit: "km", axis: "km v jednom běhu" },
+  ascentWeek: { field: "ascent", label: "Stoupání za týden", req: "ascentWeek", unit: "m", axis: "m stoupání za týden" },
+  descentWeek: { field: "descent", label: "Klesání za týden", req: "descentWeek", unit: "m", axis: "m klesání za týden" },
+  ascentRun: { field: "ascentRun", label: "Stoupání v jednom běhu", req: "ascentRun", unit: "m", axis: "m stoupání v jednom běhu" },
+  descentRun: { field: "descentRun", label: "Klesání v jednom běhu", req: "descentRun", unit: "m", axis: "m klesání v jednom běhu" },
 }
+const SERIES_OF: Record<string, string> = { longCount: "long", descSessions: "descentRun" }
+const addDays = (iso: string, d: number) => { const t = new Date(iso + "T12:00:00"); t.setDate(t.getDate() + d); return t.toISOString().slice(0, 10) }
+const niceStep = (mx: number) => { const raw = mx / 4, p = 10 ** Math.floor(Math.log10(raw || 1)), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p }
+
 function ProjectionChart({ res }: { res: any }) {
+  const reqs: any[] = res?.requirements || []
+  const keys = Object.keys(SERIES).filter((k) => reqs.some((r) => r.key === k))
+  const bn = res?.safe?.bottleneck || "week"
+  const first = SERIES_OF[bn] || bn
+  const [key, setKey] = useState<string>(keys.includes(first) ? first : keys[0])
+  const [hover, setHover] = useState<number | null>(null)
+  const [table, setTable] = useState(false)
+  const sp = SERIES[key]
   const safe: any[] = res?.safe?.rows || []
   const risk: any[] = res?.risk?.rows || []
-  const bn = res?.safe?.bottleneck || "week"
-  const [field, title, reqKey] = SERIES[bn] || SERIES.week
-  const reqs: any[] = res?.requirements || []
-  const req = reqs.find((r: any) => r.key === reqKey)
-  const need = bn === "longCount" ? reqs.find((r: any) => r.key === "longCount")?.km : bn === "descSessions" ? (req?.need ?? 150) * 0.3 : req?.need
-  if (!safe.length || need == null || safe[0][field] == null) return null
-  const unit = field === "km" || field === "long" ? "km" : "m"
+  const hist: any[] = res?.history || []
+  const req = reqs.find((r) => r.key === sp?.req)
+  if (!sp || !req || !safe.length || safe[0][sp.field] == null) return null
+  const need = req.need as number
   const goalW = res.weeksToGoal as number
-  const N = Math.max(safe.length, Math.min(goalW, 60) + 1, 8)
-  const W = 340, H = 170, pl = 30, pr = 10, pt = 14, pb = 24
-  const val = (r: any) => r[field] ?? 0
-  const ymax = Math.max(need, ...safe.map(val), ...risk.map(val)) * 1.12
-  const x = (w: number) => pl + (w / N) * (W - pl - pr)
-  const y = (v: number) => pt + (1 - v / ymax) * (H - pt - pb)
-  const now0 = req?.now ?? val(safe[0])
-  const line = (rows: any[]) => [`${x(0)},${y(now0)}`, ...rows.map((r, i) => `${x(i + 1)},${y(val(r))}`)].join(" ")
-  const round = ymax > 300 ? 500 : 10
-  const ticks = [0, Math.round(ymax / 2 / round) * round, Math.floor(ymax / round) * round].filter((v, i, a) => v > 0 || i === 0).filter((v, i, a) => a.indexOf(v) === i)
-  const sr = res.safe.readyWeek, rr = res.risk?.readyWeek
   const taper = res.taperWeeks || 0
-  const step = N > 30 ? 8 : N > 14 ? 4 : 2
+  const sr = res.safe?.firstMet?.[key] ?? null, rr = res.risk?.firstMet?.[key] ?? null
+  // weeks shown: to the goal, or to the week the safe path gets there when that is later (≤ 2 years)
+  const N = Math.min(104, Math.max(goalW, sr && sr > goalW ? sr + 1 : 0, 8), Math.max(safe.length, goalW))
+  const H0 = -hist.length + 1                             // history weeks: H0 … 0 (0 = last week)
+  const W = 360, H = 220, pl = 36, pr = 12, pt = 24, pb = 26
+  const val = (r: any) => (r?.[sp.field] ?? null) as number | null
+  const sRows = safe.slice(0, N), rRows = risk.slice(0, N)
+  const ymax0 = Math.max(need, ...sRows.map((r) => val(r) || 0), ...rRows.map((r) => val(r) || 0), ...hist.map((r) => val(r) || 0))
+  const step = niceStep(ymax0 * 1.1)
+  const ymax = Math.ceil((ymax0 * 1.08) / step) * step
+  const x = (w: number) => pl + ((w - H0) / (N - H0)) * (W - pl - pr)
+  const y = (v: number) => pt + (1 - v / ymax) * (H - pt - pb)
+  const pts = (rows: any[], loaded: boolean) => rows.map((r, i) => ({ w: i + 1, v: val(r), d: r.deload }))
+    .filter((p) => p.v != null && (loaded ? !p.d : p.d)).map((p) => `${x(p.w)},${y(p.v as number)}`).join(" ")
+  const ticks = Array.from({ length: Math.round(ymax / step) + 1 }, (_, i) => i * step)
+  const xstep = N > 60 ? 12 : N > 30 ? 8 : N > 14 ? 4 : 2
+  const wdate = (w: number) => addDays(res.start, 7 * (w - 1))       // Monday of plan week w
+  const atGoal = (rows: any[]) => val(rows[Math.min(goalW, rows.length) - 1])
+  const fmt = (v: number | null) => (v == null ? "—" : `${num(v, sp.unit === "km" ? 0 : 0)} ${sp.unit}`)
+  const sGoal = atGoal(safe), rGoal = atGoal(risk)
+  const summary = sr != null
+    ? `Bezpečně dosáhnete ${num(need, 0)} ${sp.unit} v týdnu ${sr} (od ${fmtD(wdate(sr))})` + (sr + taper <= goalW ? ", před laděním." : `, závod je v týdnu ${goalW}.`)
+    : `Bezpečně se ${num(need, 0)} ${sp.unit} do 2 let nedosáhne; v týdnu závodu ${fmt(sGoal)}.`
+  const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect()
+    const px = ((e.clientX - r.left) / r.width) * W
+    const w = Math.round(H0 + ((px - pl) / (W - pl - pr)) * (N - H0))
+    setHover(Math.max(H0, Math.min(N, w)))
+  }
+  const hv = hover == null ? null : hover <= 0 ? { w: hover, h: val(hist[hist.length - 1 + hover]) } : { w: hover, s: val(safe[hover - 1]), r: val(risk[hover - 1]), d: safe[hover - 1]?.deload }
+  const lbl = (xx: number, yy: number, text: string, anchor: "start" | "end" | "middle" = "start", col: string = C.fgSoft) => (
+    <text x={xx} y={yy} textAnchor={anchor} fontSize="10.5" fill={col} stroke={C.raised} strokeWidth="3" paintOrder="stroke">{text}</text>
+  )
   return (
-    <figure className="mt-3" data-testid="goal-chart">
-      <p className="text-[12px] font-semibold text-fg-2">{title}{bn !== "week" ? " · úzké hrdlo" : ""}</p>
-      <svg viewBox={`0 0 ${W} ${H}`} className="mt-1 w-full" role="img"
-        aria-label={`${title}: bezpečná${rr ? " a riziková" : ""} cesta proti požadavku ${num(need, 0)} ${unit}`}>
-        {ticks.map((t) => <g key={t}><line x1={pl} x2={W - pr} y1={y(t)} y2={y(t)} stroke="rgba(255,255,255,.08)" />
-          <text x={pl - 5} y={y(t) + 3.5} textAnchor="end" fontSize="9" fill={C.fg3}>{t}</text></g>)}
-        {goalW <= N && <>
-          {taper > 0 && <rect x={x(goalW - taper)} y={pt} width={x(goalW) - x(goalW - taper)} height={H - pt - pb} fill="rgba(255,255,255,.06)" />}
-          <line x1={x(goalW)} x2={x(goalW)} y1={pt} y2={H - pb} stroke={C.fg2} strokeWidth="1.2" />
-          <text x={x(goalW) - 3} y={pt + 8} textAnchor="end" fontSize="9" fill={C.fg2}>cíl</text>
-        </>}
-        <line x1={pl} x2={W - pr} y1={y(need)} y2={y(need)} stroke={C.fg} strokeWidth="1.2" strokeDasharray="5 4" />
-        <text x={pl + 3} y={y(need) - 4} fontSize="9" fill={C.fg}>požadavek {num(need, 0)} {unit}</text>
-        {risk.length > 0 && <polyline points={line(risk)} fill="none" stroke={C.alert} strokeWidth="1.8" strokeDasharray="2 3" strokeLinejoin="round" />}
-        <polyline points={line(safe)} fill="none" stroke={C.ok} strokeWidth="2.2" strokeLinejoin="round" />
-        {sr && safe[sr - 1] && <circle cx={x(sr)} cy={y(val(safe[sr - 1]))} r="3.5" fill={C.ok} />}
-        {rr && risk[rr - 1] && <circle cx={x(rr)} cy={y(val(risk[rr - 1]))} r="3.5" fill={C.alert} />}
-        {Array.from({ length: Math.floor(N / step) + 1 }, (_, i) => i * step).map((w) =>
-          <text key={w} x={x(w)} y={H - 8} textAnchor="middle" fontSize="9" fill={C.fg3}>{w === 0 ? "teď" : w}</text>)}
-      </svg>
-      <figcaption className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-fg-2">
-        <span><i className="mr-1.5 inline-block h-[3px] w-4 rounded align-middle" style={{ background: C.ok }} />bezpečně{sr ? ` · připraveni za ${sr} týd.` : ""}</span>
-        {rr ? <span><i className="mr-1.5 inline-block h-[3px] w-4 rounded align-middle" style={{ background: C.alert }} />rizikově · za {rr} týd.</span> : null}
-        <span className="text-fg-3">týdny od tohoto pondělí · propady jsou odlehčovací týdny{taper ? ` · šedě ladění ${taper} týd.` : ""}</span>
+    <figure className="mt-4" data-testid="goal-chart">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[13px] font-bold text-fg">{sp.label}{(SERIES_OF[bn] || bn) === key ? <span className="ml-1.5 rounded-full bg-white/[.07] px-2 py-0.5 text-[10px] font-bold text-fg-2">úzké hrdlo</span> : null}</p>
+        <button type="button" onClick={() => setTable((v) => !v)} className="text-[11px] font-semibold text-accent" data-testid="goal-chart-table-toggle">{table ? "Graf" : "Tabulka"}</button>
+      </div>
+      {keys.length > 1 && (
+        <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Co graf ukazuje">
+          {keys.map((k) => (
+            <button key={k} type="button" onClick={() => setKey(k)} aria-pressed={k === key}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${k === key ? "bg-fg text-ink" : "bg-white/[.06] text-fg-2 hover:text-fg"}`}>{SERIES[k].label}</button>
+          ))}
+        </div>
+      )}
+      <p className="mt-2 text-[12px] leading-5 text-fg-soft" data-testid="goal-chart-summary">{summary}</p>
+      {!table ? (
+        <div className="relative mt-2">
+          <p className="text-[10.5px] text-fg-3">{sp.axis}</p>
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full touch-pan-y" role="img" onPointerMove={onMove} onPointerLeave={() => setHover(null)}
+            aria-label={`${sp.label}: ${summary}`}>
+            {ticks.map((t) => <g key={t}><line x1={pl} x2={W - pr} y1={y(t)} y2={y(t)} stroke="rgba(255,255,255,.08)" />
+              <text x={pl - 6} y={y(t) + 3.5} textAnchor="end" fontSize="10" fill={C.fg3}>{t >= 1000 ? `${num(t / 1000, 1)}k` : t}</text></g>)}
+            {/* history band */}
+            {hist.length > 0 && <rect x={x(H0) - 4} y={pt} width={x(0) - x(H0) + 8} height={H - pt - pb} fill="rgba(255,255,255,.035)" />}
+            {/* taper and the goal's week */}
+            {goalW <= N && <>
+              {taper > 0 && <rect x={x(goalW - taper + 0.5)} y={pt} width={x(goalW + 0.5) - x(goalW - taper + 0.5)} height={H - pt - pb} fill="rgba(255,255,255,.07)" />}
+              {taper > 0 && lbl(x(goalW - taper / 2 + 0.5), pt + 11, "ladění", "middle", C.fg3)}
+              <line x1={x(goalW + 0.5)} x2={x(goalW + 0.5)} y1={pt - 8} y2={H - pb} stroke={C.fg2} strokeWidth="1" />
+              {lbl(x(goalW + 0.5), pt - 12, `závod ${fmtD(res.goal?.date)}`, x(goalW) > W * 0.7 ? "end" : "middle", C.fg)}
+            </>}
+            {/* the requirement */}
+            <line x1={pl} x2={W - pr} y1={y(need)} y2={y(need)} stroke={C.fg} strokeWidth="1" strokeDasharray="5 4" />
+            {lbl(pl + 4, y(need) - 5, `požadavek ${num(need, 0)} ${sp.unit}`, "start", C.fg)}
+            {/* history */}
+            {hist.length > 1 && <polyline points={hist.map((r, i) => `${x(H0 + i)},${y(val(r) || 0)}`).join(" ")} fill="none" stroke={C.fg3} strokeWidth="2" strokeLinejoin="round" />}
+            {hist.map((r, i) => <circle key={i} cx={x(H0 + i)} cy={y(val(r) || 0)} r="3" fill={C.fg3} />)}
+            {/* paths: the loaded weeks as lines, the recovery weeks as dots */}
+            {rRows.length > 0 && <polyline points={pts(rRows, true)} fill="none" stroke={C.alert} strokeWidth="2" strokeDasharray="5 4" strokeLinejoin="round" strokeLinecap="round" />}
+            <polyline points={pts(sRows, true)} fill="none" stroke={C.ok} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+            {sRows.map((r, i) => r.deload && val(r) != null ? <circle key={i} cx={x(i + 1)} cy={y(val(r) as number)} r="2.5" fill="none" stroke={C.ok} strokeWidth="1.5" /> : null)}
+            {/* when each path gets there, or where it stands in the goal's week */}
+            {rr != null && rr <= N && <><circle cx={x(rr)} cy={y(val(risk[rr - 1]) || need)} r="4" fill={C.alert} stroke={C.raised} strokeWidth="2" />
+              {lbl(x(rr) + (x(rr) > W * 0.75 ? -6 : 0), y(val(risk[rr - 1]) || need) + 16, `rizikově týden ${rr}`, x(rr) > W * 0.75 ? "end" : "middle", C.fgSoft)}</>}
+            {sr != null && sr <= N && <><circle cx={x(sr)} cy={y(val(safe[sr - 1]) || need)} r="4" fill={C.ok} stroke={C.raised} strokeWidth="2" />
+              {lbl(x(sr) + (x(sr) > W * 0.75 ? -6 : 0), y(val(safe[sr - 1]) || need) - 10, `bezpečně týden ${sr}`, x(sr) > W * 0.75 ? "end" : "middle", C.fgSoft)}</>}
+            {(sr == null || sr > goalW) && goalW <= N && sGoal != null && <><circle cx={x(goalW)} cy={y(sGoal)} r="4" fill={C.ok} stroke={C.raised} strokeWidth="2" />
+              {lbl(x(goalW) + (x(goalW) < W * 0.45 ? 8 : -8), y(sGoal) - 9, `v týdnu závodu ${fmt(sGoal)}`, x(goalW) < W * 0.45 ? "start" : "end", C.fgSoft)}</>}
+            {/* x axis: the Monday of each week */}
+            {Array.from({ length: Math.floor(N / xstep) + 1 }, (_, i) => Math.max(1, i * xstep)).filter((w, i, a) => a.indexOf(w) === i).map((w) => (
+              <g key={w}><line x1={x(w)} x2={x(w)} y1={H - pb} y2={H - pb + 4} stroke={C.fg4} />
+                <text x={x(w)} y={H - pb + 15} textAnchor="middle" fontSize="10" fill={C.fg3}>{w === 1 ? "tento týden" : fmtD(wdate(w))}</text></g>
+            ))}
+            {/* crosshair */}
+            {hover != null && <line x1={x(hover)} x2={x(hover)} y1={pt} y2={H - pb} stroke={C.fg2} strokeWidth="1" />}
+          </svg>
+          {hv && (
+            <div className="pointer-events-none absolute top-6 z-10 rounded-[10px] border border-white/14 bg-raised px-2.5 py-1.5 text-[11px] shadow-[0_10px_28px_rgba(0,0,0,.5)]"
+              style={{ left: `${(x(hv.w) / W) * 100}%`, transform: `translateX(${x(hv.w) > W * 0.6 ? "-105%" : "5%"})` }} data-testid="goal-chart-tip">
+              <span className="block text-fg-3">{hv.w <= 0 ? `před ${1 - hv.w} týd.` : <>{`týden ${hv.w} · od ${fmtD(wdate(hv.w))}`}{hv.d ? <span>{" · odlehčovací"}</span> : null}{hv.w > goalW - taper && hv.w <= goalW ? <span>{" · ladění"}</span> : null}</>}</span>
+              {hv.w <= 0 ? <b className="block tabular-nums text-fg">{fmt(hv.h ?? null)}</b> : <>
+                <span className="flex items-center gap-1.5"><i className="inline-block h-[2px] w-3" style={{ background: C.ok }} /><b className="tabular-nums text-fg">{fmt(hv.s ?? null)}</b><span className="text-fg-3">bezpečně</span></span>
+                {hv.r != null && <span className="flex items-center gap-1.5"><i className="inline-block h-[2px] w-3" style={{ background: C.alert }} /><b className="tabular-nums text-fg">{fmt(hv.r)}</b><span className="text-fg-3">rizikově</span></span>}
+              </>}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="mt-2 max-h-[260px] overflow-y-auto rounded-xl border border-white/[.07]" data-testid="goal-chart-table">
+          <table className="w-full text-[11px] tabular-nums">
+            <thead className="sticky top-0 bg-raised text-fg-3"><tr><th className="px-2 py-1.5 text-left font-semibold">Týden</th><th className="px-2 text-right font-semibold">Bezpečně</th><th className="px-2 text-right font-semibold">Rizikově</th></tr></thead>
+            <tbody>
+              {hist.map((r, i) => <tr key={`h${i}`} className="text-fg-3"><td className="px-2 py-1">{`před ${hist.length - i} týd.`}</td><td className="px-2 text-right" colSpan={2}>{fmt(val(r))}</td></tr>)}
+              {sRows.map((r, i) => (
+                <tr key={i} className={`border-t border-white/[.05] ${i + 1 === goalW ? "text-fg" : "text-fg-soft"}`}>
+                  <td className="px-2 py-1">{`${i + 1}. · ${fmtD(wdate(i + 1))}`}{r.deload ? " · odlehčovací" : ""}{i + 1 === goalW ? " · závod" : ""}</td>
+                  <td className="px-2 text-right">{fmt(val(r))}</td><td className="px-2 text-right">{fmt(val(rRows[i]))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <figcaption className="mt-2 grid gap-1 text-[11px] leading-4 text-fg-2">
+        <span className="flex flex-wrap gap-x-4 gap-y-1">
+          <span><i className="mr-1.5 inline-block h-[2px] w-4 align-middle" style={{ background: C.fg3 }} />posledních 4 týdny</span>
+          <span><i className="mr-1.5 inline-block h-[2px] w-4 align-middle" style={{ background: C.ok }} />bezpečná cesta</span>
+          {rRows.length > 0 && <span><i className="mr-1.5 inline-block w-4 border-t-2 border-dashed align-middle" style={{ borderColor: C.alert }} />riziková cesta</span>}
+          <span><i className="mr-1.5 inline-block size-2 rounded-full border-[1.5px] align-middle" style={{ borderColor: C.ok }} />odlehčovací týden</span>
+        </span>
+        <span className="text-fg-3">Čára ukazuje, kolik týdně zvládnete, když poroste jen tak rychle, jak dovolí vaše limity v aplikaci. Čárkovaná vodorovná čára je požadavek cíle, svislá týden závodu, šedé pole ladění. Prstem po grafu uvidíte hodnoty týdne.</span>
       </figcaption>
     </figure>
   )
