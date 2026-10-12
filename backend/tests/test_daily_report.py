@@ -231,3 +231,20 @@ def test_day_today_for_the_training_tab(client, db_session):
     # someone else's day stays private
     register(client, "other-day@test.cz", "Jiný", "runner")
     assert client.get(f"/api/runners/{rid}/day-today").status_code == 403
+
+
+def test_week_plan_for_the_training_tab(client, db_session):
+    """Trénink layout 2026-10-12: the week card reads the same planner as the Monday sheet."""
+    rid = register(client, "wp1@test.cz", "Eva Běžkyně", "runner").json()["runner_id"]
+    r = db_session.query(models.Runner).filter(models.Runner.id == rid).first()
+    r.engine_mode = "v3"
+    db_session.commit()
+    seed_runs(db_session, rid, days=60)
+    E.recompute_assessment(db_session, rid)
+    p = client.get(f"/api/runners/{rid}/week-plan").json()["plan"]
+    assert len(p["days"]) == 7 and sum(d["today"] for d in p["days"]) == 1
+    today = next(d for d in p["days"] if d["today"])
+    g = E.get_or_refresh_assessment(db_session, rid)["guidance"]
+    assert today["items"] and (g.get("done") or today["items"][0].get("type", today["items"][0]["kind"]) in (g["type"], "rest", "ride", "swim", "race", "done"))
+    register(client, "wp2@test.cz", "Jiný", "runner")                       # signed in as someone else now
+    assert client.get(f"/api/runners/{rid}/week-plan").status_code in (403, 404)

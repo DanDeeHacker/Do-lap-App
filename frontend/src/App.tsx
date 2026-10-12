@@ -19,7 +19,7 @@ import { EDIT_PROFILE_EVENT, OnboardingProvider, TAB_TOURS, useObSummary, useOnb
 import { ProfileSheet } from "@/profile"
 import { useQuadHistory } from "@/history"
 import { clamp, cz, fmtD, fmtImpact, initials, QUAD, roleHome } from "@/lib"
-import { AlertBanner, AxisLineChart, Bars, Button, Chip, FactorBar, Field, InfoDot, Sheet, ToastHost, toneCol, useAsync, useToast } from "@/ui"
+import { AlertBanner, AxisLineChart, Bars, Button, Chip, FactorBar, Field, HowTo, InfoDot, Sheet, ToastHost, toneCol, useAsync, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { Load as LoadTab, LOAD_IDS, MECH_IDS, MechMini, Mechanics, Post, weekTones, WeekToneLegend } from "@/tabs"
 import { Care, InjurySheet, WeeklyCheckButton } from "@/care"
@@ -508,11 +508,10 @@ function ReadinessDetail({ r, fallback }: { r: any; fallback: number | null }) {
       </div>
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="t-label">Připravenost vs. norma</p>
+          <span className="flex items-center gap-1.5"><span className="t-label">Připravenost vs. norma</span><InfoDot label="Připravenost vs. norma" text="Velký bod = průměr, malé tečky = jednotlivé noci, zelené pásmo = vaše obvyklé rozmezí (průměr ± 1 SD nocí 8–56 dní zpět)." /></span>
           <WeeklyCheckButton />
         </div>
         <RecoveryRanges rows={readinessRows(r)} />
-        {readinessRows(r).length > 0 && <p className="mt-3 text-[11px] leading-4 text-fg-3">Velký bod = průměr, malé tečky = jednotlivé noci, zelené pásmo = vaše obvyklé rozmezí (průměr ± 1 SD nocí 8–56 dní zpět).</p>}
       </div>
     </div>
   )
@@ -710,7 +709,7 @@ function QuadrantHistory({ open, history, today, onClose }: { open: boolean; his
                   <StateOverview d={cur} />
                 </div>
               )}
-              <p className="mt-3 text-[11px] leading-4 text-fg-3">Denní přehrání enginu z dat do daného dne, včetně check-inů a hodnocení běhů. Tažením po pásu nebo šipkami vyberete den.</p>
+              <HowTo className="mt-3" text="Denní přehrání enginu z dat do daného dne, včetně check-inů a hodnocení běhů. Tažením po pásu nebo šipkami vyberete den." />
             </div>
         )}
     </BottomSheet>
@@ -1071,7 +1070,7 @@ function SymptomPanel({ signals }: { signals: any[] }) {
                 </li>
               ))}
             </ul>
-            <p className="mt-1.5 text-[11px] leading-4 text-fg-3">Pravidla nepřičítají body — rovnou drží riziko aspoň na dané úrovni, proto je ukazatel příznaků aspoň {rules.some((x) => x.rule === "alert") ? 70 : 40}.</p>
+            <HowTo label="Jak pravidla působí" text={`Pravidla nepřičítají body — rovnou drží riziko aspoň na dané úrovni, proto je ukazatel příznaků aspoň ${rules.some((x) => x.rule === "alert") ? 70 : 40}.`} />
           </>
         )}
         <p className="t-label mt-4 !text-fg-3">Co tvoří skóre příznaků</p>
@@ -1450,7 +1449,7 @@ function SignalSheet({ s, onClose, tone }: { s: any; onClose: () => void; tone: 
           <p className="mt-2 text-[12px] leading-5 text-fg-3">Signál vychází z dlouhodobého trendu, ne z jednotlivých záznamů.</p>
         )}
         {src.length > 0 && !shared && (
-          <p className="mt-3 text-[11px] leading-4 text-fg-3">Tento signál hodnotí vzorec napříč záznamy, ne jejich součet, proto podíl jednotlivých záznamů neuvádíme.</p>
+          <HowTo className="mt-3" label="Proč bez podílů" text="Tento signál hodnotí vzorec napříč záznamy, ne jejich součet, proto podíl jednotlivých záznamů neuvádíme." />
         )}
         {/* railway#132 — how an approximate split was made */}
         {shared && s.shareNote && <p className="mt-3 text-[11px] leading-4 text-fg-3" data-testid="share-note">{s.shareNote}</p>}
@@ -1494,7 +1493,7 @@ function ImpactPyramid({ signals, tone }: { signals: any[]; tone: (g: string) =>
         )
       })}
       <div className="mt-1 flex w-full justify-between text-[10px] font-bold uppercase tracking-[.1em] text-fg-3"><span>↑ největší vliv</span><span>nejmenší ↓</span></div>
-      <p className="w-full text-[10.5px] leading-4 text-fg-3" data-testid="grade-legend">Písmeno = síla důkazů z výzkumu: A silná, B střední, C slabší. Číslo = kolik bodů ubírá ze skóre.</p>
+      <div className="w-full" data-testid="grade-legend"><HowTo className="" label="Písmena a čísla" text="Písmeno = síla důkazů z výzkumu: A silná, B střední, C slabší. Číslo = kolik bodů ubírá ze skóre." /></div>
       {sel && <SignalSheet s={sel} tone={tone} onClose={() => setSel(null)} />}
     </div>
   )

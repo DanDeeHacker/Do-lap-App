@@ -174,6 +174,9 @@ SUGGESTIONS_EN = {
     "Co mám dnes běžet a proč?": "What should I run today and why?",
     "Jak vypadá můj tréninkový týden?": "What does my training week look like?",
     "Kde v aplikaci najdu svou kapacitu?": "Where in the app do I find my capacity?",
+    "Co když dnes místo běhu dám kolo?": "What if I ride a bike today instead of running?",
+    "Co dnešní trénink udělá se zítřkem?": "What will today's training do to tomorrow?",
+    "Jak vypadá zbytek mého týdne?": "What does the rest of my week look like?",
 }
 
 SUMMARY_TITLES_EN = {"Shrnutí dne": "Today's summary", "Dnešní trénink": "Today's training",

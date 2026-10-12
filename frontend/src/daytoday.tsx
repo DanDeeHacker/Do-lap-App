@@ -13,7 +13,7 @@ import { C } from "@/tokens"
 const TRAIN_COL = "#b08a22", NT_COL = "#2c8cc6"
 const num = (v: number | null | undefined, d = 0) => (v == null ? "—" : (Math.round(v * 10 ** d) / 10 ** d).toLocaleString("cs-CZ"))
 const INFO =
-  "Připravenost ráno vychází z noci (HRV, klidový tep, spánek). Během dne ji snižuje dnešní trénink podle náročnosti proti vašim obvyklým dnům a od v0.10.4 i den mimo trénink: pohyb nad váš obvyklý den (nejvýš asi 8 bodů) a zvýšený tep v klidu. Druhý den ráno ji nahradí noční data. Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou; do Celkové zátěže jde jen to, co je nad mediánem vašich posledních 28 dní. Obvyklý den potřebuje aspoň 7 dní celodenního tepu z hodinek."
+  "Připravenost ráno vychází z noci (HRV, klidový tep, spánek). Během dne ji snižuje dnešní trénink podle náročnosti proti vašim obvyklým dnům a od v0.10.4 i den mimo trénink: pohyb nad váš obvyklý den (nejvýš asi 8 bodů) a zvýšený tep v klidu. Druhý den ráno ji nahradí noční data. Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou; do Celkové zátěže jde jen to, co je nad mediánem vašich posledních 28 dní. Obvyklý den potřebuje aspoň 7 dní celodenního tepu z hodinek. Bílá čárka v pruhu Zátěž dne je váš obvyklý den mimo trénink. Body zátěže = tep × čas."
 
 function Tile({ label, value, col }: { label: string; value: string; col?: string }) {
   return (
@@ -75,17 +75,20 @@ export function DayReadiness({ d }: { d: any }) {
 }
 
 /** The day outside training and the day's energy (after today's capacity on Trénink). */
-export function DayToday({ d, err }: { d: any; err?: boolean }) {
-  if (err) return null
-  if (!d) return <section className="card mt-4 p-4 md:p-6"><p className="animate-pulse text-[12px] text-fg-3">Načítám průběh dne…</p></section>
+export function DayToday({ d, err, embedded = false }: { d: any; err?: boolean; embedded?: boolean }) {
+  // Trénink layout 2026-10-12: inside the "Tělo a den" card (embedded), without a card of its own
+  const Wrap = embedded ? "div" : "section"
+  const cls = embedded ? "" : "card mt-4 p-4 md:p-6"
+  if (err) return embedded ? <p className="text-[12px] text-fg-3">Průběh dne se nepodařilo načíst.</p> : null
+  if (!d) return <Wrap className={cls}><p className="animate-pulse text-[12px] text-fg-3">Načítám průběh dne…</p></Wrap>
   const v = d.view, ld = d.load || {}
-  if (!v) return null
+  if (!v) return embedded ? <p className="nest px-3.5 py-3 text-[12px] text-fg-3">Celodenní tep z hodinek za dnešek zatím nedorazil. Po synchronizaci se průběh dne doplní.</p> : null
   const tr = ld.train || 0, nt = ld.nt || 0
   const scale = Math.max(1, tr + nt, tr + (ld.usualNt || 0))
   return (
-    <section className="card mt-4 p-4 md:p-6" data-testid="day-today">
+    <Wrap className={cls} data-testid="day-today">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Dnešní mimotréninková zátěž a energie</span><InfoDot text={INFO} label="Dnešní den" /></span>
+        <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">{embedded ? "Energie a pohyb mimo trénink" : "Dnešní mimotréninková zátěž a energie"}</span><InfoDot text={INFO} label="Dnešní den" /></span>
         {v?.steps ? <span className="text-[11px] text-fg-3">{num(v.steps)} kroků</span> : null}
       </div>
 
@@ -129,10 +132,9 @@ export function DayToday({ d, err }: { d: any; err?: boolean }) {
                 <b className="tabular-nums" style={{ color: (ld.excess || 0) > 0 ? NT_COL : C.fg3 }}>{(ld.excess || 0) > 0 ? `+${num(ld.excess)} bodů` : "0"}</b>
               </li>
             </ul>
-            <p className="mt-2 text-[11px] leading-4 text-fg-3">Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou. Bílá čárka je váš obvyklý den mimo trénink. Body zátěže = tep × čas.</p>
           </div>
         </>
       ) : null}
-    </section>
+    </Wrap>
   )
 }

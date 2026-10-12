@@ -8,7 +8,7 @@ import { useMemo, useRef, useState } from "react"
 import { Link, useParams } from "react-router"
 import { ArrowLeft, Mountain, NotebookPen } from "lucide-react"
 import { useApp } from "@/store"
-import { Button, Card, ChartTip, Chip, Empty, Label } from "@/ui"
+import { Button, Card, ChartTip, Chip, Empty, HowTo, Label } from "@/ui"
 import { FEEL_LABEL, fmtD, paceStr } from "@/lib"
 import { RateSheet } from "@/tabs"
 import { C } from "@/tokens"
@@ -290,7 +290,7 @@ export function RunDetail() {
                   </tbody>
                 </table>
               </div>
-              <p className="mt-2 text-[11px] leading-4 text-fg-3">VR = vertikální poměr (kmitání vůči délce kroku).</p>
+              <HowTo className="mt-2" label="Zkratky" text="VR = vertikální poměr (kmitání vůči délce kroku)." />
             </Card>
           )}
       </div>

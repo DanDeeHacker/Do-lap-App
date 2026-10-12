@@ -27,7 +27,7 @@ from . import selector as SEL
 from . import validate as VAL
 
 log = logging.getLogger("dosslap.assistant")
-PROMPT_VERSION = "assistant.v3"   # v3: the Pohyb tab is called Mechanika (UX audit F08)
+PROMPT_VERSION = "assistant.v4"   # v4 (owner request 2026-10-12): what the data imply for the next activities — options, tomorrow, the week; v3: the Pohyb tab is called Mechanika (UX audit F08)
 PROMPT = (Path(__file__).resolve().parent.parent / "prompts" / f"{PROMPT_VERSION}.md").read_text(encoding="utf-8")
 NAME = "Physio AI Assistant"
 VISIBLE_DAYS = 7          # the runner sees a week of conversation (product decision 2026-09-28)
@@ -204,11 +204,27 @@ def fallback_answer(sel: dict, facts: dict, sources: list[dict], guide: list[dic
         elif today.get("reasons"):
             parts.append(today["reasons"][0])
         typ = (facts.get("sessionTypes") or {}).get(sel.get("askedType") or "")
+        opts = (facts.get("options") or {}).get("list") or []
+        opt_of = lambda label: next((o for o in opts if o.startswith(f"{label}:") or o.startswith(f"{label} (")), None)
         if typ and sel.get("askedType") != today.get("type"):
             if typ.get("whyNot"):
                 parts.append(f"{typ['label']} dnes nedoporučujeme: {typ['whyNot'].rstrip('.')}.")
             elif typ.get("allowed"):
-                parts.append(f"{typ['label']} dnes jde" + (f", {typ['km']}." if typ.get("km") else "."))
+                o = opt_of(typ["label"])
+                parts.append(f"Co to znamená dál: {o}" if o else f"{typ['label']} dnes jde" + (f", {typ['km']}." if typ.get("km") else "."))
+        elif "options" in (sel.get("intents") or []) and opts:
+            # owner request 2026-10-12: the options and what each leaves for tomorrow
+            rec = opt_of(today.get("label") or "")
+            alt = next((o for o in opts if o is not rec and "dnes ne" not in o.split(":", 1)[1][:9]), None)
+            picked = [x for x in (rec, alt) if x]
+            if picked:
+                parts.append("Co to znamená dál: " + " ".join(picked))
+        wp = facts.get("weekPlan") or {}
+        ints = set(sel.get("intents") or [])
+        if wp.get("restOfWeek") and ("plan" in ints or re.search(r"týd|tyd", sel.get("question") or "")):
+            parts.append("Plán zbytku týdne: " + ", ".join(wp["restOfWeek"]) + ".")
+        elif "options" in ints and wp.get("tomorrow"):
+            parts.append(f"Podle plánu týdne zítra: {wp['tomorrow']}.")
     ref = facts.get("referral") or {}
     if ref.get("physio"):
         parts.append(f"Aplikace doporučuje fyzioterapeuta: {ref.get('text')}.")
@@ -372,8 +388,8 @@ def ask(db, runner, question: str, context: dict | None = None, thread_id: str |
 TAB_SUMMARY = {
     "today": ("Shrnutí dne", "Shrň mi stručně můj dnešní stav: skóre, připravenost, zátěž, mechaniku a příznaky, "
                              "a co z toho plyne pro dnešní trénink."),
-    "training": ("Dnešní trénink", "Shrň mi stručně dnešní doporučený trénink: proč právě tento, jeho mantinely "
-                                   "a jak ho pojmout."),
+    "training": ("Dnešní trénink", "Shrň mi stručně dnešní doporučený trénink: proč právě tento, jeho mantinely, "
+                                   "jak ho pojmout a co z toho plyne pro zítřek a zbytek týdne."),
     "load": ("Zátěž a kapacita", "Shrň mi stručně moji zátěž a kapacitu: kde jsem proti své kapacitě, co ji teď "
                                  "nejvíc ovlivňuje a na co si dát pozor."),
     "mechanics": ("Běžecká mechanika", "Shrň mi stručně, jak se moje běžecká mechanika drží proti mé normě a co z toho plyne."),
@@ -438,5 +454,11 @@ def suggestions(a: dict) -> list[str]:
         out.append("Jak dnes běhat v horku?")
     if (g.get("strength") or {}).get("lastAge") in (None,) or ((g.get("strength") or {}).get("lastAge") or 0) >= 21:
         out.append("Jak zařadit posilování do týdne?")
-    out += ["Co mám dnes běžet a proč?", "Jak vypadá můj tréninkový týden?", "Kde v aplikaci najdu svou kapacitu?"]
+    # owner request 2026-10-12: questions about what follows for the next activities
+    typ = g.get("type")
+    if typ in ("regenerace", "lehký", "dlouhý", "kvalitní") and (types.get("kolo") or {}).get("allowed"):
+        out.append("Co když dnes místo běhu dám kolo?")
+    if g.get("outlook"):
+        out.append("Co dnešní trénink udělá se zítřkem?")
+    out += ["Co mám dnes běžet a proč?", "Jak vypadá zbytek mého týdne?", "Kde v aplikaci najdu svou kapacitu?"]
     return list(dict.fromkeys(out))[:3]

@@ -6,8 +6,8 @@ safety section). Extends the Phase 1 validator (metrics/coach_validate.py):
 • citations — every [n] points to a retrieved source, and a research sentence
   carries one;
 • engine consistency — no harder session than today's recommendation (unless the
-  sentence declines it or talks about a later day), an active physio referral or
-  safety warning is mentioned;
+  sentence declines it, talks about a later day, or the engine allows that option
+  today), an active physio referral or safety warning is mentioned;
 • quotation length — no run of 20 or more words copied from a full-text passage;
 • the Phase 1 bans (diagnosis, medication, running through pain, promises, links).
 """
@@ -35,7 +35,7 @@ def tidy(text: str) -> str:
     t = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: m.group(1) or m.group(2), text or "")
     t = re.sub(r"^\s*(?:1\.\s*)?Odpověď\s*:\s*", "", t)
     t = re.sub(r"(?m)^\s*[-*]\s+", "• ", t)
-    t = re.sub(r"(?m)^\s*\d\.\s+(?=(Ve vašich datech|Co říká výzkum|Co s tím))", "", t)
+    t = re.sub(r"(?m)^\s*\d\.\s+(?=(Ve vašich datech|Co to znamená dál|Co říká výzkum|Co s tím))", "", t)
     return t.strip()
 
 
@@ -70,9 +70,9 @@ def repair(text: str, issues: list[dict]) -> str | None:
     lines = [l for l in out]
     res = []
     for k, l in enumerate(lines):
-        if re.fullmatch(r"\s*(Ve vašich datech|Co říká výzkum|Co s tím)\s*:\s*", l):
+        if re.fullmatch(r"\s*(Ve vašich datech|Co to znamená dál|Co říká výzkum|Co s tím)\s*:\s*", l):
             nxt = next((x for x in lines[k + 1:] if x.strip()), "")
-            if not nxt or re.match(r"\s*(Ve vašich datech|Co říká výzkum|Co s tím)\s*:", nxt):
+            if not nxt or re.match(r"\s*(Ve vašich datech|Co to znamená dál|Co říká výzkum|Co s tím)\s*:", nxt):
                 continue
         res.append(l)
     fixed = re.sub(r"\n{3,}", "\n\n", "\n".join(res)).strip()
@@ -88,6 +88,19 @@ def strip_links(text: str) -> tuple[str, list[str]]:
 
 def _ngrams(words: list[str], n: int) -> set:
     return {" ".join(words[i:i + n]) for i in range(max(0, len(words) - n + 1))}
+
+
+# owner request 2026-10-12 — the answer may describe an option the engine allows today (with
+# what it costs), even when it is harder than the recommendation; a blocked one stays blocked
+_HIT_TYPE = [(re.compile(r"interval|tempov|kvalitn", re.I), ("kvalitní",)), (re.compile(r"dlouh", re.I), ("dlouhý",))]
+
+
+def _allowed_alternative(sentence: str, hit: str, facts: dict) -> bool:
+    types = facts.get("sessionTypes") or {}
+    if not types:
+        return False
+    kinds = next((k for rx, k in _HIT_TYPE if rx.search(hit)), ("regenerace", "lehký", "dlouhý", "kvalitní"))
+    return any((types.get(k) or {}).get("allowed") for k in kinds)
 
 
 def validate(text: str, facts: dict, sources: list[dict]) -> dict:
@@ -114,7 +127,7 @@ def validate(text: str, facts: dict, sources: list[dict]) -> dict:
     if cited - have:
         issues.append({"code": "unknown_citation", "detail": ", ".join(f"[{x}]" for x in sorted(cited - have))})
     # the template's section labels ("Co říká výzkum:") are headings, not claims
-    unlabelled = re.sub(r"(Ve vašich datech|Co říká výzkum|Co s tím)\s*:", " ", text)
+    unlabelled = re.sub(r"(Ve vašich datech|Co to znamená dál|Co říká výzkum|Co s tím)\s*:", " ", text)
     for s in V._sentences(unlabelled):
         if _RESEARCH.search(s) and not _CITE.search(s) and not re.search(r"nemám ověřený zdroj", s, re.I):
             issues.append({"code": "uncited_research", "detail": s.strip()[:160]})
@@ -129,6 +142,8 @@ def validate(text: str, facts: dict, sources: list[dict]) -> dict:
             if _DECLINE.search(s) or _LATER.search(s) or V._EXEMPT.search(s):
                 continue
             hit = next((p for p in V.HARDER[rec] if re.search(p, s, re.I)), None)
+            if hit and _allowed_alternative(s, hit, facts):
+                continue
             if hit:
                 issues.append({"code": "contradicts_recommendation", "detail": s.strip()[:160]})
                 break

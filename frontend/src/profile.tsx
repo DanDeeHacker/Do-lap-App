@@ -7,7 +7,7 @@ import { createPortal } from "react-dom"
 import { Camera, Check, Footprints, Plus, Trash2 } from "lucide-react"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { Field, Sheet, useAsync, useToast } from "@/ui"
+import { Field, HowTo, Sheet, useAsync, useToast } from "@/ui"
 import { fmtD } from "@/lib"
 import { C } from "@/tokens"
 
@@ -75,11 +75,9 @@ function CycleFields({ c, set }: { c: Cycle; set: (c: Cycle) => void }) {
             <Field label="Obvyklá délka cyklu (dny)"><input className={inp} inputMode="numeric" value={c.length} onChange={(e) => set({ ...c, length: Number(e.target.value.replace(/\D/g, "")) || 0 })} /></Field>
           </div>
           <div className="mt-3"><Toggle on={c.hormonal} onClick={() => set({ ...c, hormonal: !c.hormonal })} label="Užívám hormonální antikoncepci" /></div>
-          <p className="mt-2 text-[11.5px] leading-[17px] text-fg-3">
-            {c.hormonal
+          <HowTo className="mt-2" label="Proč se ptáme" text={c.hormonal
               ? "S hormonální antikoncepcí se cyklus na tepu a HRV projevuje málo, připravenost proto zůstává bez úprav."
-              : "V druhé polovině cyklu bývá HRV nižší a klidový tep o pár úderů vyšší. Aplikace je pak porovná s vaší normou ze stejné fáze, aby to nevypadalo jako horší zotavení. Začátek další menstruace zapíšete v denním check-inu."}
-          </p>
+              : "V druhé polovině cyklu bývá HRV nižší a klidový tep o pár úderů vyšší. Aplikace je pak porovná s vaší normou ze stejné fáze, aby to nevypadalo jako horší zotavení. Začátek další menstruace zapíšete v denním check-inu."} />
         </div>
       )}
     </div>
@@ -145,7 +143,7 @@ export function ProfileGate({ missing, onDone }: { missing: string[]; onDone: ()
             </Choice>
           ))}
         </div>
-        <p className="mt-1.5 text-[11.5px] leading-[17px] text-fg-3">V prvním roce pravidelného běhání se běžci zraňují zhruba dvakrát častěji, proto jim aplikace nechává menší rezervy nad zvládnutou zátěží.</p>
+        <HowTo label="Proč se ptáme" text="V prvním roce pravidelného běhání se běžci zraňují zhruba dvakrát častěji, proto jim aplikace nechává menší rezervy nad zvládnutou zátěží." />
         <p className="mt-4 text-[13px] font-bold text-fg-soft">Běžecké zranění za posledních 12 měsíců?</p>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <Choice on={injured === "no"} onClick={() => setInjured("no")} testid="gate-injury-no">Ne</Choice>

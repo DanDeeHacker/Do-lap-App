@@ -7,7 +7,7 @@
 //    evaluated here from the engine's coefficients (backend metrics/outlook.py, `evaluate`
 //    is the reference this file mirrors; its `grid` holds the precomputed presets).
 import { useState, type ReactNode } from "react"
-import { InfoDot, Label, Segmented } from "@/ui"
+import { HowTo, InfoDot, Label, Segmented } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { C } from "@/tokens"
 
@@ -232,7 +232,7 @@ function WeekInputs({ c, capW, g, unit, d, ch }: { c: any; capW: any; g: any; un
             <Row label="= cíl týdne" value={`${num(c.budget, d)} ${unit}`} strong sub={plan.capped ? "omezený týdenním stropem — plán nikdy nenaplánuje víc, než tělo unese" : undefined} />
             <Row label="od pondělí hotovo" value={`${num(c.done, d)} ${unit}`} />
             <Row label="zbývá do neděle" value={`${num(c.left, d)} ${unit}`} strong />
-            <p className="mt-1 text-[11px] leading-4 text-fg-3">Plán říká, kolik je rozumné tento týden udělat. Splněný cíl neznamená přetížení.</p>
+            <HowTo label="Co je cíl týdne" text="Plán říká, kolik je rozumné tento týden udělat. Splněný cíl neznamená přetížení." />
           </div>
         ) : <p className="mt-1.5 text-fg-3">Pro tento kanál se týdenní cíl zatím nestanovuje.</p>}
       </div>
@@ -536,9 +536,7 @@ export function TomorrowCard({ g }: { g: any }) {
           )
         })}
       </div>
-      <p className="mt-3 text-[11px] leading-4 text-fg-3">
-        Odhad podle stejných pravidel jako dnešní kapacita: co dnes ještě přidáte, se přes noc vstřebá jen zčásti (svaly a šlachy asi o pětinu za noc, srdce a plíce podle toho, jak se vyspíte), cíl týdne se sníží o to, co dnes uděláte, a v pondělí začne nový. Ráno ho upřesní skutečná noc z hodinek.
-      </p>
+      <HowTo className="mt-3" label="Jak se výhled počítá" text="Odhad podle stejných pravidel jako dnešní kapacita: co dnes ještě přidáte, se přes noc vstřebá jen zčásti (svaly a šlachy asi o pětinu za noc, srdce a plíce podle toho, jak se vyspíte), cíl týdne se sníží o to, co dnes uděláte, a v pondělí začne nový. Ráno ho upřesní skutečná noc z hodinek." />
     </section>
   )
 }

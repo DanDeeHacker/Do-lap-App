@@ -23,6 +23,11 @@ INTENTS = {
     "strength": r"posil\w*|silov\w*|cvik\w*|\bkolo\b|\bkole\b|plav\w*|jiny sport|cross",
     "heat": r"horko|horku|vedr\w*|tepl[oe]|horc\w*|\bhydrat\w*|\bpit\b|pitny",
     "mechanics": r"techni\w*|kadenc\w*|\bkrok\w*|drift|mechanik\w*|kontakt\w*|vertikal\w*|oscil\w*|vyvazen\w*|dopad\w*",
+    # owner request 2026-10-12: what follows from the data for the next activities and the options
+    "options": r"co kdyz|kdybych|\bkdyz (dnes |ted |misto toho )?(dam|pujdu|zabehnu|odbehnu|vynecham|pridam|zkusim)|\bmisto\b|radsi|"
+               r"jin\w* (moznost|aktivit|sport|trenink)|alternativ\w*|co se stane|jak (to|se to|mi to) (ovlivni|projevi)|dopad\w*|"
+               r"dusled\w*|\bzitr\w*|pozitr\w*|zbyt\w* (\w+ )?tydn\w*|(muj|meho|tento|tenhle) tyden|tydenni plan|plan (na )?tyden|dalsi (dny|dny v tydnu|trenink|beh)|co dal\b|co pak|"
+               r"kolik (jeste|muzu|smim)|moznost\w*|vyhled\w*|co (muzu|smim) (dnes |jeste )?(delat|dat)",
     "app": r"kde (najdu|je|se|mam)|jak (zapnu|vypnu|pripojim|nastavim|zadam|zapisu|smazu|vyradim)|zalozk\w*|aplikac\w*|garmin|"
            r"apple|synchron\w*|check.?in|kvadrant\w*|co znamena|co je to|jak funguje|asistent",
 }
@@ -41,12 +46,13 @@ TOPICS = {
     "strength": ["strength", "cross_training"],
     "heat": ["heat", "hydration"],
     "mechanics": ["mechanics", "technique", "cadence"],
+    "options": ["planning"],
     "app": [],
 }
 SLICES = {
     "today": ["today", "types"], "readiness": ["readiness"], "load": ["load"], "pain": ["pain"],
-    "run": ["runs"], "plan": ["plan", "load"], "strength": ["strength", "types"], "heat": ["heat", "runs"],
-    "mechanics": ["mechanics"], "app": [],
+    "run": ["runs"], "plan": ["plan", "load", "weekplan"], "strength": ["strength", "types", "options"], "heat": ["heat", "runs"],
+    "mechanics": ["mechanics"], "options": ["today", "types", "options", "weekplan"], "app": [],
 }
 _PAIN_SUB = [
     (re.compile(r"holen\w*|chodid\w*|nart\w*|\bpat[ayu]\b|metatar\w*|kost\w*"), ["bone", "shin", "foot"]),
@@ -61,7 +67,7 @@ CONTEXT_KINDS = ("guidance", "type", "signal", "readiness", "run", "summary", "c
 # A question asked from a tab is about that tab unless it names its own subject.
 TAB_INTENTS = {
     "today": ["today", "readiness", "load", "mechanics", "pain"],
-    "training": ["today", "plan"],
+    "training": ["today", "plan", "options"],
     "load": ["load", "readiness"],
     "mechanics": ["mechanics"],
     "post": ["run", "pain"],
@@ -104,7 +110,7 @@ def classify(question: str, context: dict | None = None) -> dict:
         intents = ["today", "readiness", "load"]
     # a specific subject (heat, pain, strength …) decides the evidence; "today"
     # only adds the day's data, not its generic intensity topics
-    specific = {"pain", "heat", "strength", "mechanics", "plan", "run"} & set(intents)
+    specific = {"pain", "heat", "strength", "mechanics", "plan", "run", "options"} & set(intents)
     topics = []
     for i in intents:
         if not (specific and i == "today"):
@@ -136,7 +142,9 @@ def classify(question: str, context: dict | None = None) -> dict:
         if ctx and ctx.get("kind") == "run" and ctx.get("id"):
             run_pick = f"id:{ctx['id']}"
     asked_type = str(ctx["id"]) if ctx and ctx.get("kind") == "type" and ctx.get("id") else None
-    if asked_type is None and "today" in intents:
+    if asked_type is None and ("today" in intents or "options" in intents):
         asked_type = next((k for rx, k in _TYPE_RX if rx.search(t)), None)
-    return {"intents": intents, "topics": list(dict.fromkeys(topics)), "slices": slices, "signals": signals,
+    if asked_type is not None:                 # a question about one activity gets every option and its consequences
+        slices = list(dict.fromkeys(slices + ["today", "types", "options", "weekplan"]))
+    return {"intents": intents, "topics": list(dict.fromkeys(topics)), "slices": slices, "signals": signals, "question": t,
             "wantGuide": "app" in intents, "runDay": run_day, "runPick": run_pick, "context": ctx, "askedType": asked_type}
