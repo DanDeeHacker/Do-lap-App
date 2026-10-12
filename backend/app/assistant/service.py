@@ -27,7 +27,7 @@ from . import selector as SEL
 from . import validate as VAL
 
 log = logging.getLogger("dosslap.assistant")
-PROMPT_VERSION = "assistant.v4"   # v4 (owner request 2026-10-12): what the data imply for the next activities — options, tomorrow, the week; v3: the Pohyb tab is called Mechanika (UX audit F08)
+PROMPT_VERSION = "assistant.v5"   # v5 (owner request 2026-10-12): the goal and its plan (facts.goal); v4 (owner request 2026-10-12): what the data imply for the next activities — options, tomorrow, the week; v3: the Pohyb tab is called Mechanika (UX audit F08)
 PROMPT = (Path(__file__).resolve().parent.parent / "prompts" / f"{PROMPT_VERSION}.md").read_text(encoding="utf-8")
 NAME = "Physio AI Assistant"
 VISIBLE_DAYS = 7          # the runner sees a week of conversation (product decision 2026-09-28)
@@ -225,6 +225,14 @@ def fallback_answer(sel: dict, facts: dict, sources: list[dict], guide: list[dic
             parts.append("Plán zbytku týdne: " + ", ".join(wp["restOfWeek"]) + ".")
         elif "options" in ints and wp.get("tomorrow"):
             parts.append(f"Podle plánu týdne zítra: {wp['tomorrow']}.")
+    gl = facts.get("goal") or {}
+    if gl and "goal" in (sel.get("intents") or []):
+        # Trénink k cíli: the verdict, this week of the plan and the real date
+        parts.append(f"Cíl {gl.get('name')} ({gl.get('date')}): {(gl.get('planStatus') or gl.get('verdict') or '').lower()}. {gl.get('text') or ''}".strip())
+        tw = gl.get("thisWeek") or {}
+        if tw.get("km"):
+            parts.append(f"Tento týden plánu ({tw.get('phase')}, {tw.get('week')}): {tw['km']} km"
+                         + (f", dlouhý běh {tw['longRunKm']} km." if tw.get("longRunKm") else "."))
     ref = facts.get("referral") or {}
     if ref.get("physio"):
         parts.append(f"Aplikace doporučuje fyzioterapeuta: {ref.get('text')}.")

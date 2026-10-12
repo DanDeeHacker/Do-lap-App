@@ -115,6 +115,8 @@ def _migrate(engine):
     add("settings", "rail_cards", "rail_cards JSON")
     add("races", "ascent_m", "ascent_m FLOAT")
     add("races", "target_pace_s_km", "target_pace_s_km INTEGER")
+    add("goals", "risk_ended_at", "risk_ended_at VARCHAR")
+    add("goals", "risk_end_reason", "risk_end_reason VARCHAR")
     # v0.9.0 — the calibration record: the day's recommendation and a post-run flag
     add("engine_daily_snapshots", "guidance_json", "guidance_json JSON")
     add("engine_daily_snapshots", "post_session", "post_session BOOLEAN")

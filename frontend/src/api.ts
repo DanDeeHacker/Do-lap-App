@@ -125,6 +125,7 @@ export const api = {
   goalPreview: (id: string, body: any) => call("POST", `/api/runners/${id}/goal/preview`, body),
   saveGoal: (id: string, body: any) => call("PUT", `/api/runners/${id}/goal`, body),
   cancelGoal: (id: string) => call("DELETE", `/api/runners/${id}/goal`),
+  goalPath: (id: string, body: { path: "safe" | "risk"; consent: boolean }) => call("PUT", `/api/runners/${id}/goal/path`, body),
   selfPrograms: (id: string) => call("GET", `/api/runners/${id}/self-programs`),
   startSelfProgram: (id: string, body: { template?: string; name?: string; exercises?: string[] }) => call("POST", `/api/runners/${id}/self-programs`, body),
   logSelfProgram: (id: string, pid: number, exercise: string, done: boolean) => call("PATCH", `/api/runners/${id}/self-programs/${pid}/log`, { exercise, done }),

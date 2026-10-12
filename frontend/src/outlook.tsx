@@ -206,7 +206,7 @@ function Row({ label, value, sub, strong }: { label: ReactNode; value: ReactNode
 }
 
 const BASIS: Record<string, string> = { avg4: "průměr 4 týdnů", best: "0,9 × nejlepší týden (6 týdnů)", floor: "minimum aplikace" }
-const MODE_TXT: Record<string, string> = { build: "týden cyklu", recovery: "odlehčovací týden", deload: "odlehčení (zvýšená zátěž)", taper: "ladění před závodem", return: "návrat po zranění", learning: "bez cyklu" }
+const MODE_TXT: Record<string, string> = { build: "týden cyklu", recovery: "odlehčovací týden", deload: "odlehčení (zvýšená zátěž)", taper: "ladění před závodem", return: "návrat po zranění", learning: "bez cyklu", goal: "plán k cíli" }
 
 // the plan and the safety ceiling side by side, with the numbers each is made of
 function WeekInputs({ c, capW, g, unit, d, ch }: { c: any; capW: any; g: any; unit: string; d: number; ch: Ch }) {
@@ -444,6 +444,9 @@ export function TomorrowCard({ g }: { g: any }) {
         <span className="flex items-center gap-1.5"><Label>Výhled na zítra</Label><InfoDot text={MI.tomorrow} label="Výhled na zítra" /></span>
         <span className="text-[12px] text-fg-2">{tomorrow}{newWeek ? " · nový týden" : ""}</span>
       </div>
+      {g.goal?.week && (
+        <p className="mt-1.5 text-[12px] text-fg-3" data-testid="tomorrow-goal">{`Cíl ${g.goal.name}: ${g.goal.week.i}. týden z ${g.goal.weeks}`}{newWeek && g.goal.next?.km ? <span>{` · příští týden ${num(g.goal.next.km, 0)} km`}</span> : null}</p>
+      )}
       <p className="mt-3 text-[12px] font-semibold text-fg-3">Co ještě dnes</p>
       <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label="Co ještě dnes">
         {[...presets.map((p) => [p.key, presetLabel(p)] as const), ["custom", "Vlastní…"] as const].map(([k, l]) => (

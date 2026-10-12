@@ -5,6 +5,7 @@
 // Advice only — the daily recommendation and the week's plan don't follow the goal yet.
 import { useEffect, useState } from "react"
 import { api } from "@/api"
+import { useApp } from "@/store"
 import { Button, Card, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
 import { fmtD } from "@/lib"
 import { num } from "@/outlook"
@@ -157,7 +158,7 @@ function ProjectionChart({ res }: { res: any }) {
       <figcaption className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-fg-2">
         <span><i className="mr-1.5 inline-block h-[3px] w-4 rounded align-middle" style={{ background: C.ok }} />bezpečně{sr ? ` · připraveni za ${sr} týd.` : ""}</span>
         {rr ? <span><i className="mr-1.5 inline-block h-[3px] w-4 rounded align-middle" style={{ background: C.alert }} />rizikově · za {rr} týd.</span> : null}
-        <span className="text-fg-3">týdny od příštího pondělí · propady jsou odlehčovací týdny{taper ? ` · šedě ladění ${taper} týd.` : ""}</span>
+        <span className="text-fg-3">týdny od tohoto pondělí · propady jsou odlehčovací týdny{taper ? ` · šedě ladění ${taper} týd.` : ""}</span>
       </figcaption>
     </figure>
   )
@@ -240,12 +241,13 @@ function GoalSetup({ rid, races, initial, onClose, onSaved }: { rid: string; rac
     catch (e: any) { toast({ title: e?.message || "Cíl se nepodařilo uložit" }) }
     finally { setBusy(false) }
   }
+  const blocked = res?.verdict === "no" && !res?.riskPossible
   const pickRace = (x: any) => set({ raceId: x.id, name: x.name || "", date: x.date, km: strNum(x.km), ascent: strNum(x.ascentM) })
   const footer = (
     <div className="flex items-center justify-between gap-2">
       {step > 0 ? <Button size="sm" variant="outline" icon={ChevronLeft} onClick={() => setStep(step - 1)}>Zpět</Button> : <span />}
       {step < 2 ? <Button size="sm" disabled={!valid || busy} busy={busy} onClick={next} data-testid="goal-next">Další<ChevronRight className="size-4" aria-hidden /></Button>
-        : <Button size="sm" disabled={busy} busy={busy} onClick={save} data-testid="goal-save">Uložit cíl</Button>}
+        : <Button size="sm" disabled={busy || blocked} busy={busy} onClick={save} data-testid="goal-save">Uložit cíl</Button>}
     </div>
   )
   return (
@@ -319,7 +321,10 @@ function GoalSetup({ rid, races, initial, onClose, onSaved }: { rid: string; rac
         {step === 2 && res && (
           <div className="mt-4">
             <Verdict res={res} onApply={apply} />
-            <p className="mt-4 text-[11px] leading-5 text-fg-3">Zatím jen výpočet: denní doporučení a plán týdne se podle cíle nemění. Plán k cíli přijde v další etapě.</p>
+            {res.targetTime && <p className="nest mt-4 p-3.5 text-[12px] leading-5 text-fg-soft" data-testid="goal-target-time">{res.targetTime.text}</p>}
+            {blocked && <p className="mt-4 text-[12px] leading-5 text-alert" data-testid="goal-blocked">Tento cíl v termínu nestihne ani riziková cesta, proto ho aplikace neuloží. Použijte pozdější termín nebo menší cíl.</p>}
+            {res?.plan?.length > 0 && !blocked && <><p className="mt-4 t-label !text-fg-3">Plán po týdnech</p><PlanList plan={res.plan} today={res.start} /></>}
+            <p className="mt-4 text-[11px] leading-5 text-fg-3">Po uložení se týdenní cíl na Tréninku a v plánu týdne řídí tímto plánem. Rizikovou cestu můžete zvolit v detailu cíle, jen s výslovným souhlasem.</p>
           </div>
         )}
       </div>
@@ -327,7 +332,94 @@ function GoalSetup({ rid, races, initial, onClose, onSaved }: { rid: string; rac
   )
 }
 
-function GoalDetail({ data, onClose, onEdit, onCancel, busy }: { data: any; onClose: () => void; onEdit: () => void; onCancel: () => void; busy: boolean }) {
+const PHASE: Record<string, [string, string]> = {
+  base: ["Základ", C.info], build: ["Rozvoj", C.ok], specific: ["Specifická příprava", C.accent], taper: ["Ladění", C.watch],
+}
+const SCOL: Record<string, string> = { ok: C.ok, tight: C.watch, no: C.alert }
+
+// stage 2 — the plan towards the goal, week by week (backend goal_plan.plan_weeks)
+function PlanList({ plan, today }: { plan: any[]; today: string }) {
+  const [all, setAll] = useState(false)
+  if (!plan?.length) return null
+  const cur = plan.findIndex((w) => w.start <= today && today < (plan[plan.indexOf(w) + 1]?.start ?? "9999"))
+  const from = all ? 0 : Math.max(0, cur - 1)
+  const shown = all ? plan : plan.slice(from, from + 6)
+  return (
+    <div data-testid="goal-plan">
+      <ul className="mt-2 divide-y divide-white/[.06]">
+        {shown.map((w) => {
+          const [pl, pc] = PHASE[w.phase] || PHASE.base
+          const on = w.i === cur + 1
+          return (
+            <li key={w.i} className={`flex items-center gap-3 py-2 text-[12px] ${on ? "rounded-lg bg-white/[.05] px-2" : ""}`} data-testid="goal-plan-week">
+              <span className="w-[52px] shrink-0 tabular-nums text-fg-3">{`${w.i}. týd.`}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-fg">{w.race ? "Týden závodu" : `${num(w.km, 0)} km`}{w.long ? ` · dlouhý ${num(w.long, 0)} km` : ""}{w.descentRun ? ` · ↓ ${num(w.descentRun, 0)} m` : ""}</span>
+                <span className="block text-[11px] text-fg-3"><span className="tabular-nums">{fmtD(w.start)}</span>
+                  {w.deload ? " · odlehčovací" : ""}{w.taper ? ` · ${num((w.factor ?? 0) * 100, 0)} % vrcholu` : ""}{w.milestone === "half" ? " · mezicíl 21 km" : ""}{on ? " · tento týden" : ""}</span>
+              </span>
+              <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${pc}1f`, color: pc }}>{pl}</span>
+            </li>
+          )
+        })}
+      </ul>
+      {plan.length > 6 && <button type="button" className="mt-1 text-[12px] font-semibold text-accent" onClick={() => setAll((v) => !v)}>{all ? "Ukázat méně" : `Celý plán (${plan.length} týdnů)`}</button>}
+    </div>
+  )
+}
+
+// stage 3 — the risk path: only with an explicit consent, revocable, ended by the daily watch
+function RiskPanel({ rid, goal, res, onChange }: { rid: string; goal: any; res: any; onChange: (d: any) => void }) {
+  const toast = useToast()
+  const { refresh } = useApp()
+  const [ask, setAsk] = useState(false)
+  const [ok, setOk] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const set = async (path: "safe" | "risk") => {
+    setBusy(true)
+    try { onChange(await api.goalPath(rid, { path, consent: path === "risk" ? ok : false })); setAsk(false); refresh()
+      toast({ title: path === "risk" ? "Riziková cesta zapnutá" : "Zpět na bezpečné cestě" }) }
+    catch (e: any) { toast({ title: e?.message || "Změna se nepodařila" }) }
+    finally { setBusy(false) }
+  }
+  const risk = res?.risk
+  if (res?.path === "risk") {
+    return (
+      <div className="nest mt-4 p-3.5" style={{ borderColor: `${C.alert}55` }} data-testid="goal-risk-on">
+        <p className="text-[13px] font-bold text-alert">Riziková cesta</p>
+        <p className="mt-1 text-[12px] leading-5 text-fg-soft">{`Souhlas jste dali ${fmtD(goal.riskConsentAt)}.`} Týden smí růst rychleji a dlouhý běh o 15 %. Aplikace každý den hlídá bolest, nemoc a připravenost a při potížích plán sama vrátí na bezpečnou cestu.</p>
+        <Button size="sm" variant="outline" className="mt-2" disabled={busy} onClick={() => set("safe")} data-testid="goal-risk-off">Vrátit na bezpečnou cestu</Button>
+      </div>
+    )
+  }
+  return (
+    <div className="mt-4">
+      {goal.riskEndedAt && <p className="mb-2 text-[12px] leading-5 text-fg-3">{`Riziková cesta skončila ${fmtD(goal.riskEndedAt)}${goal.riskEndReason ? ` (${goal.riskEndReason})` : ""}.`} Plán běží bezpečnou cestou.</p>}
+      {res?.riskPossible && res?.verdict !== "ok" && (!ask ? (
+        <Button size="sm" variant="outline" onClick={() => setAsk(true)} data-testid="goal-risk-ask">Zvolit rizikovou cestu</Button>
+      ) : (
+        <div className="nest p-3.5" style={{ borderColor: `${C.alert}55` }} data-testid="goal-risk-consent">
+          <p className="flex items-center gap-1.5 text-[13px] font-bold text-alert">Riziková cesta: co to znamená <Sources ids={["damsted-et-al-2019", "nielsen-et-al-2014", "toresdahl-et-al-2022"]} info={res.sourceInfo} /></p>
+          <ul className="mt-2 grid gap-1.5 text-[12px] leading-5 text-fg-soft">
+            <li>{`Připraveni budete za ${risk?.readyWeek} týdnů místo ${res.safe?.readyWeek ?? "více než 104"}.`}</li>
+            <li>Týdenní objem smí růst až o 20 % a týdenní strop má rezervu 25 % místo 15 %. Při nárůstu týdne o 20–60 % se během 3 týdnů zranilo o 23 procentních bodů víc běžců.</li>
+            <li>Dlouhý běh smí být o 15 % delší než nejdelší za 30 dní (místo 10 %). Už nárůst o 10–30 % zvyšoval riziko zranění zhruba 1,6×.</li>
+            <li>Nikdy: týden nad 1,5× průměru 4 týdnů, běh přes bolest, trénink při nemoci, dva vynechané odlehčovací týdny.</li>
+            <li>Bolest od 3/10, nemoc nebo připravenost pod 65 % dva dny po sobě vrátí plán na bezpečnou cestu.</li>
+          </ul>
+          <label className="mt-3 flex items-start gap-2 text-[12px] text-fg"><input type="checkbox" className="mt-0.5" checked={ok} onChange={(e) => setOk(e.target.checked)} data-testid="goal-risk-check" />
+            Rozumím vyššímu riziku zranění a souhlasím s rizikovou cestou. Souhlas můžu kdykoli vzít zpět.</label>
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" disabled={!ok || busy} onClick={() => set("risk")} data-testid="goal-risk-confirm">Souhlasím</Button>
+            <Button size="sm" variant="outline" onClick={() => setAsk(false)}>Zpět</Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy }: { rid: string; data: any; gg?: any; onClose: () => void; onEdit: () => void; onCancel: () => void; onChange: (d: any) => void; busy: boolean }) {
   const { goal, result: res } = data
   const footer = (
     <div className="flex items-center justify-between gap-2">
@@ -335,6 +427,7 @@ function GoalDetail({ data, onClose, onEdit, onCancel, busy }: { data: any; onCl
       <Button size="sm" onClick={onEdit}>Změnit cíl</Button>
     </div>
   )
+  const scol = SCOL[res?.status] || C.fg3
   return (
     <Sheet open onClose={onClose} footer={footer}>
       <div data-testid="goal-detail">
@@ -345,17 +438,34 @@ function GoalDetail({ data, onClose, onEdit, onCancel, busy }: { data: any; onCl
             <p className="text-[12px] text-fg-3">{fmtD(goal.date)} · za {res?.weeksToGoal} týd.{goal.km ? ` · ${num(goal.km)} km` : ""}{goal.ascentM ? ` · ↑ ${num(goal.ascentM, 0)} m` : ""}{goal.kind === "race" ? ` · ${goal.aim === "time" ? "cílový čas" : "doběhnout"}` : ""}</p>
           </div>
         </div>
-        <div className="mt-4"><Verdict res={res} /></div>
+        {res?.statusLabel && <p className="mt-3 flex items-center gap-2 text-[12px] text-fg-2">Stav plánu
+          <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${scol}1f`, color: scol }} data-testid="goal-status">{res.statusLabel}</span>
+          {res.path === "risk" && <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${C.alert}1f`, color: C.alert }}>riziková cesta</span>}</p>}
+        <div className="mt-3"><Verdict res={res} /></div>
+        {res?.targetTime && (
+          <div className="nest mt-4 p-3.5" data-testid="goal-target-time">
+            <p className="text-[12px] font-bold text-fg">{`Cílový čas ${res.targetTime.timeText} · tempo ${res.targetTime.paceText}`}</p>
+            <p className="mt-1 text-[12px] leading-5 text-fg-soft">{res.targetTime.text}</p>
+            {res.targetTime.basis && <p className="mt-1 text-[11px] text-fg-3">{`Odhad z běhu ${res.targetTime.basis.title || ""} (${fmtD(res.targetTime.basis.date)}, ${num(res.targetTime.basis.km)} km) Riegelovým vzorcem.`}</p>}
+          </div>
+        )}
+        {gg?.coachCheck && <p className="nest mt-4 p-3.5 text-[12px] leading-5 text-fg-soft" data-testid="goal-coach-check">{gg.coachCheck.text}</p>}
+        <RiskPanel rid={rid} goal={goal} res={res} onChange={onChange} />
+        {res?.plan?.length > 0 && <>
+          <p className="mt-5 t-label !text-fg-3">Plán po týdnech</p>
+          <PlanList plan={res.plan} today={res.computedOn || res.start} />
+        </>}
         <p className="mt-5 t-label !text-fg-3">Co cíl vyžaduje</p>
         <div className="mt-1"><Requirements res={res} /></div>
-        <p className="mt-4 text-[11px] leading-5 text-fg-3">Zatím jen výpočet: denní doporučení a plán týdne se podle cíle nemění. Projekce se přepočítá každý den z vašich dat.</p>
+        <p className="mt-4 text-[11px] leading-5 text-fg-3">Týdenní cíl na Tréninku a v plánu týdne se řídí tímto plánem. Denní doporučení dál hlídá připravenost, bolest a bezpečnostní limity, takže konkrétní den může vyjít méně. Plán se přepočítá každý týden z toho, co jste opravdu odběhli.</p>
       </div>
     </Sheet>
   )
 }
 
-export function GoalCard({ rid }: { rid: string }) {
+export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
   const toast = useToast()
+  const { refresh } = useApp()
   const [data, setData] = useState<any>(null)
   const [mode, setMode] = useState<"" | "setup" | "detail">("")
   const [busy, setBusy] = useState(false)
@@ -368,26 +478,36 @@ export function GoalCard({ rid }: { rid: string }) {
   const { goal, result: res } = data
   const cancel = async () => {
     setBusy(true)
-    try { setData(await api.cancelGoal(rid)); setMode(""); toast({ title: "Cíl zrušen" }) } finally { setBusy(false) }
+    try { setData(await api.cancelGoal(rid)); setMode(""); refresh(); toast({ title: "Cíl zrušen" }) } finally { setBusy(false) }
   }
   const reqs = (res?.requirements || []).filter((r: any) => r.unit !== "×").slice(0, 2)
   const cnt = (res?.requirements || []).find((r: any) => r.key === "longCount")
+  const wk = gg?.week || (res?.plan || [])[0]
+  const chip = res?.statusLabel ? { verdict: res.status, verdictLabel: res.statusLabel } : res
   return (
     <Card className="mt-4" data-testid="goal-card">
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5"><Label>Cíl</Label>
-          <InfoDot label="Trénink k cíli" text="Zvolte závod nebo vlastní cíl. Aplikace z vašich dat spočítá, jak rychle mohou kapacity bezpečně růst, a řekne, jestli cíl stihnete zdravě, nebo kdy je reálný termín. Zatím jen výpočet, denní doporučení se podle cíle nemění." /></span>
-        {goal && <VerdictChip res={res} />}
+          <InfoDot label="Trénink k cíli" text="Zvolte závod nebo vlastní cíl. Aplikace z vašich dat spočítá, jak rychle mohou kapacity bezpečně růst, řekne, jestli cíl stihnete zdravě, a sestaví k němu plán po týdnech. Týdenní cíl se pak řídí tímto plánem, denní doporučení dál hlídá připravenost, bolest a limity." /></span>
+        {goal && <span className="flex items-center gap-1.5">{res?.path === "risk" && <span className="rounded-full px-2 py-1 text-[10px] font-bold" style={{ background: `${C.alert}1f`, color: C.alert }}>riziková cesta</span>}<VerdictChip res={chip} /></span>}
       </div>
       {!goal ? (
         <>
-          <p className="mt-2 text-sm text-fg-2">Chystáte se na závod nebo máte vlastní cíl v kilometrech? Aplikace spočítá, jestli ho stihnete zdravě, a když ne, řekne reálný termín.</p>
+          <p className="mt-2 text-sm text-fg-2">Chystáte se na závod nebo máte vlastní cíl v kilometrech? Aplikace spočítá, jestli ho stihnete zdravě, sestaví k němu plán, a když to nejde, řekne reálný termín.</p>
           <Button size="sm" className="mt-3" icon={Target} onClick={() => setMode("setup")} data-testid="goal-start">Nastavit cíl</Button>
         </>
       ) : (
         <button type="button" className="mt-2 block w-full text-left" onClick={() => setMode("detail")} data-testid="goal-open">
           <b className="flex items-center gap-1.5 text-[15px] text-fg">{goalTitle(goal)}<ChevronRight className="size-4 text-fg-3" aria-hidden /></b>
           <span className="block text-[12px] text-fg-2"><span className="tabular-nums">{fmtD(goal.date)}</span> · za {res?.weeksToGoal} týd.{res?.realDate && res.verdict !== "ok" ? <> · reálně od <b className="text-fg">{fmtD(res.realDate)}</b></> : null}</span>
+          {wk && (
+            <span className="nest mt-2.5 block px-3 py-2" data-testid="goal-week">
+              <span className="block text-[11px] font-bold uppercase tracking-wide" style={{ color: (PHASE[wk.phase] || PHASE.base)[1] }}>{`${(PHASE[wk.phase] || PHASE.base)[0]} · ${wk.i}. týden z ${gg?.weeks || res?.plan?.length}`}</span>
+              <span className="mt-0.5 block text-[13px] text-fg">{wk.race ? "Týden závodu" : <>Tento týden <b>{num(gg?.budgetKm ?? wk.km, 0)} km</b></>}{wk.long ? <>, dlouhý běh <b>{num(wk.long, 0)} km</b></> : null}{wk.deload ? " · odlehčovací" : ""}</span>
+              {wk.milestone === "half" && <span className="mt-0.5 block text-[12px] text-accent">Mezicíl: běh na 21 km, nebo B‑závod na půlmaraton.</span>}
+              {gg?.runs && <span className="mt-0.5 block text-[11px] text-fg-3">{`${gg.runs} běhy týdně (první maraton)`}</span>}
+            </span>
+          )}
           {res?.verdict !== "unknown" && reqs.length > 0 && (
             <span className="mt-2.5 grid gap-2">
               {reqs.map((r: any) => {
@@ -404,11 +524,13 @@ export function GoalCard({ rid }: { rid: string }) {
             </span>
           )}
           <span className="mt-2 block text-[12px] leading-5 text-fg-soft">{res?.text}</span>
+          {gg?.coachCheck && !gg.coachCheck.ok && <span className="mt-1 block text-[12px] text-watch">{gg.coachCheck.text}</span>}
+          {gg?.riskEnded && <span className="mt-1 block text-[12px] text-watch">{`Riziková cesta skončila (${gg.riskEnded.reason}), plán pokračuje bezpečnou cestou.`}</span>}
         </button>
       )}
       {mode === "setup" && <GoalSetup rid={rid} races={data.races || []} initial={formOf(goal)} onClose={() => setMode("")}
-        onSaved={(d) => { setData(d); setMode("detail") }} />}
-      {mode === "detail" && goal && <GoalDetail data={data} busy={busy} onClose={() => setMode("")} onEdit={() => setMode("setup")} onCancel={cancel} />}
+        onSaved={(d) => { setData(d); setMode("detail"); refresh() }} />}
+      {mode === "detail" && goal && <GoalDetail rid={rid} data={data} gg={gg} busy={busy} onClose={() => setMode("")} onEdit={() => setMode("setup")} onCancel={cancel} onChange={setData} />}
     </Card>
   )
 }

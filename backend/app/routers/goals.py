@@ -31,6 +31,11 @@ class FreeIn(BaseModel):
     climb_scope: Literal["week", "run"] = "week"
 
 
+class PathIn(BaseModel):
+    path: Literal["safe", "risk"]
+    consent: bool = False
+
+
 class GoalIn(BaseModel):
     kind: Literal["race", "free"] = "race"
     race_id: int | None = None
@@ -90,6 +95,18 @@ def _answer(db: DBSession, rid: str, goal: dict) -> dict:
     st = GP.runner_state(db, rid, a)
     out = GP.evaluate(goal, st)
     out["computedOn"] = st["today"]
+    if goal.get("aim") == "time" and goal.get("targetTimeS") and goal.get("km"):   # stage 4: the target time
+        pred, basis = None, None
+        try:
+            from ..metrics import race_plan as RP
+            runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
+            rp = RP.build(db, rid, runner, {"id": None, "date": goal["date"], "km": goal["km"], "ascentM": goal.get("ascentM"),
+                                            "priority": "A", "daysTo": out.get("weeksToGoal", 0) * 7}, a)
+            full = next((x for x in rp["levels"] if x["id"] == "naplno"), {})
+            pred, basis = full.get("time"), full.get("basis")
+        except Exception:
+            pass
+        out["targetTime"] = GP.target_time(goal, pred, basis)
     ids = set(out.get("sources") or []) | {s for n in out.get("notes") or [] for s in n.get("sources") or []}
     ids |= {s for x in out.get("alternatives") or [] for s in x.get("sources") or []}
     out["sourceInfo"] = {i: {"cite": K.summary_by_id()[i]["cite"], "url": K.summary_by_id()[i].get("url")}
@@ -114,10 +131,15 @@ def get_goal(rid: str, user: models.User = Depends(get_current_user), db: DBSess
     out = {"goal": None, "result": None, "races": _races(db, rid)}
     if g is None:
         return out
+    if (g.date or "")[:10] < E.today_date().isoformat():          # the goal's day is behind: done
+        if user.runner_id == rid:
+            g.status, g.updated_at = "done", _now()
+            db.commit()
+        return out
     race = db.query(models.Race).filter(models.Race.id == g.race_id).first() if g.race_id else None
     goal = GP.goal_dict(g, race)
     res = g.projection_json or {}
-    if res.get("computedOn") != E.today_date().isoformat():
+    if res.get("computedOn") != E.today_date().isoformat() or res.get("path") != (g.path or "safe"):
         res = _answer(db, rid, goal)
         if user.runner_id == rid:
             g.projection_json = res
@@ -137,6 +159,8 @@ def save_goal(rid: str, body: GoalIn, user: models.User = Depends(get_current_us
     ensure_runner_self(user, rid)
     goal = _goal_of(db, rid, body)
     res = _answer(db, rid, goal)
+    if res.get("verdict") == "no" and not res.get("riskPossible"):
+        raise HTTPException(422, "Tento cíl nestihne v termínu ani riziková cesta. Zvolte pozdější termín nebo menší cíl.")
     now = _now()
     for old in db.query(models.Goal).filter(models.Goal.runner_id == rid, models.Goal.status == "active"):
         old.status, old.updated_at = "cancelled", now
@@ -148,7 +172,33 @@ def save_goal(rid: str, body: GoalIn, user: models.User = Depends(get_current_us
     db.add(g)
     db.commit()
     db.refresh(g)
+    E.recompute_assessment(db, rid, data_changed=False)       # the week's target follows the goal's plan
     return {"goal": GP.goal_dict(g), "result": res, "races": _races(db, rid)}
+
+
+@router.put("/api/runners/{rid}/goal/path", dependencies=[Depends(verify_csrf)])
+def set_path(rid: str, body: PathIn, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Stage 3 — the risk path only with an explicit consent (stored with its date) and only when
+    it reaches the date; back to the safe path any time."""
+    ensure_runner_self(user, rid)
+    g = or_404(_active(db, rid), "Cíl nenalezen")
+    now = _now()
+    if body.path == "risk":
+        if not body.consent:
+            raise HTTPException(422, "Riziková cesta potřebuje váš výslovný souhlas")
+        res = _answer(db, rid, GP.goal_dict(g))
+        if not res.get("riskPossible"):
+            raise HTTPException(422, "Riziková cesta by termín nestihla")
+        g.path, g.risk_consent_at, g.risk_ended_at, g.risk_end_reason = "risk", now, None, None
+    else:
+        if g.path == "risk":
+            g.risk_ended_at, g.risk_end_reason = now, "vaše volba"
+        g.path = "safe"
+    g.updated_at = now
+    g.projection_json = None
+    db.commit()
+    E.recompute_assessment(db, rid, data_changed=False)
+    return get_goal(rid, user, db)
 
 
 @router.delete("/api/runners/{rid}/goal", dependencies=[Depends(verify_csrf)])
@@ -158,4 +208,5 @@ def cancel_goal(rid: str, user: models.User = Depends(get_current_user), db: DBS
     if g is not None:
         g.status, g.updated_at = "cancelled", _now()
         db.commit()
+        E.recompute_assessment(db, rid, data_changed=False)
     return {"goal": None, "result": None, "races": _races(db, rid)}

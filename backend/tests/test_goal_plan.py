@@ -121,3 +121,123 @@ def test_goal_api(client, db_session):
     assert db_session.query(models.Goal).filter(models.Goal.runner_id == rid, models.Goal.status == "active").count() == 1
     assert client.delete(f"/api/runners/{rid}/goal").json()["goal"] is None
     assert client.get(f"/api/runners/{rid}/goal").json()["goal"] is None
+
+
+# ------------------------------------------------------------------ stage 2: the plan towards the goal
+def test_plan_weeks_phases_taper_and_milestone():
+    st = {**_st(), "start": "2026-10-12", "cyclePos": 2}
+    r = G.evaluate(_race(42.2, "2027-05-02"), st)
+    plan = r["plan"]
+    assert len(plan) == r["weeksToGoal"] and plan[0]["start"] == "2026-10-12"
+    phases = [w["phase"] for w in plan]
+    assert phases[-2:] == ["taper", "taper"] and plan[-1]["race"]                     # 2 weeks for the marathon
+    order = ["base", "build", "specific", "taper"]
+    assert [order.index(p) for p in phases] == sorted(order.index(p) for p in phases)  # phases never go back
+    assert [w["factor"] for w in plan[-2:]] == G.TAPER["M"]
+    peak = max(w["km"] for w in plan[-6:-2] if not w["deload"])
+    assert abs(plan[-1]["km"] - 0.40 * peak) < 0.2
+    assert all(w["deload"] == ((2 - 1 + w["i"] - 1) % 4 == 3) for w in plan if w["phase"] != "taper")   # the app's cycle goes on
+    assert sum(1 for w in plan if w.get("milestone") == "half") == 1                   # first marathon, no half yet
+    assert all(w.get("runs") == 3 for w in plan)
+    for w in plan:
+        if w["phase"] in ("base", "build") and w.get("long"):
+            assert w["long"] <= max(0.3 * w["km"], 12.0) + 0.11                        # 30 % before the specific phase
+        if w["phase"] == "specific" and w.get("long"):
+            assert w["long"] <= 0.5 * w["km"] + 0.11
+    assert G.taper_factors(_race(10, "2027-01-01")) == [0.55]
+    assert G.taper_factors(_race(21.1, "2027-01-01")) == [0.65, 0.45]
+
+
+def _goal_runner(client, db_session, email):
+    rid, r = _runner(client, db_session, email)
+    day = (E.today_date() + timedelta(days=7 * 26)).isoformat()
+    res = client.put(f"/api/runners/{rid}/goal", json={"kind": "race", "name": "Maraton", "date": day, "km": 42.2})
+    assert res.status_code == 200, res.text
+    return rid, res.json()
+
+
+def test_guidance_follows_the_goal_plan(client, db_session):
+    rid, saved = _goal_runner(client, db_session, "goal2@test.cz")
+    a = E.get_or_refresh_assessment(db_session, rid)
+    g = a["guidance"]
+    assert g["week"]["mode"] in ("goal", "deload")
+    go = g["goal"]
+    assert go and go["week"]["i"] == 1 and go["weeks"] == len(saved["result"]["plan"])
+    if g["week"]["mode"] == "goal":
+        v = g["week"]["channels"]["volume"]
+        assert v["budget"] <= go["week"]["km"] + 0.11                    # never over the plan …
+        assert v["ceiling7"] is None or v["budget"] <= v["ceiling7"] + 0.11   # … nor over the weekly ceiling
+        assert any("Plán k cíli" in x for x in g["reasons"])
+    assert client.delete(f"/api/runners/{rid}/goal").status_code == 200
+    assert (E.get_or_refresh_assessment(db_session, rid)["guidance"]["week"]["mode"]) != "goal"
+
+
+def test_a_goal_not_even_the_risk_path_reaches_is_refused(client, db_session):
+    rid, _r = _runner(client, db_session, "goal3@test.cz")
+    day = (E.today_date() + timedelta(days=21)).isoformat()
+    res = client.put(f"/api/runners/{rid}/goal", json={"kind": "race", "date": day, "km": 42.2, "aim": "time"})
+    assert res.status_code == 422 and "riziková cesta" in res.json()["detail"]
+
+
+# ------------------------------------------------------------------ stage 3: the risk path
+def test_risk_path_needs_consent_widens_the_limits_and_ends_on_pain(client, db_session):
+    from app import models
+    rid, saved = _goal_runner(client, db_session, "goal4@test.cz")
+    assert client.put(f"/api/runners/{rid}/goal/path", json={"path": "risk"}).status_code == 422   # no consent
+    safe = E.get_or_refresh_assessment(db_session, rid)["guidance"]
+    if not saved["result"].get("riskPossible"):
+        return
+    r = client.put(f"/api/runners/{rid}/goal/path", json={"path": "risk", "consent": True})
+    assert r.status_code == 200 and r.json()["goal"]["path"] == "risk"
+    g = E.get_or_refresh_assessment(db_session, rid)["guidance"]
+    assert g["goal"]["path"] == "risk"
+    sv, rv = safe["week"]["channels"]["volume"], g["week"]["channels"]["volume"]
+    if sv.get("ceilingRun") and rv.get("ceilingRun") and g["week"]["mode"] == "goal":
+        assert rv["ceilingRun"] > sv["ceilingRun"]                          # +15 % instead of +10 % per run
+    row = db_session.query(models.Goal).filter(models.Goal.runner_id == rid, models.Goal.status == "active").first()
+    assert row.risk_consent_at
+    db_session.add(models.Checkin(runner_id=rid, submitted_at=E.now_iso(), pain_score=4, pain_points=[{"region": "koleno"}]))
+    db_session.commit()
+    a = E.recompute_assessment(db_session, rid)
+    db_session.refresh(row)
+    assert row.path == "safe" and "bolest" in (row.risk_end_reason or "")
+    assert a["guidance"]["goal"]["path"] == "safe"
+    assert G.risk_end_reason({"guidance": {"pain": 0, "planCtx": {}},
+                              "capacity": {"readiness": {"known": True, "score": 60, "yesterday": {"known": True, "score": 62}}}})
+
+
+# ------------------------------------------------------------------ stage 4: assistant, reports, coach, target time
+def test_assistant_and_reports_know_the_goal(client, db_session):
+    from app.assistant import facts as FA, selector as SEL, service as S
+    from app.metrics import daily_report as DR
+    rid, _saved = _goal_runner(client, db_session, "goal5@test.cz")
+    sel = SEL.classify("Stihnu ten maraton v termínu?")
+    assert "goal" in sel["intents"] and "goal" in sel["slices"]
+    a = E.get_or_refresh_assessment(db_session, rid)
+    f = FA.build(db_session, rid, a, sel)
+    gl = f["goal"]
+    assert gl["verdict"] and gl["thisWeek"]["km"] and any("Toresdahl et al. (2021)" in r for r in gl["requirements"])
+    txt = S.fallback_answer(sel, f, [], [])
+    assert "Cíl" in txt and "Tento týden plánu" in txt
+    m = DR.build(db_session, rid, "morning")
+    assert m["goal"] and "Do cíle" in m["goal"]["text"]
+    assert DR.build(db_session, rid, "evening")["goal"]
+
+
+def test_target_time_and_the_coach_check(client, db_session):
+    t = G.target_time({"aim": "time", "km": 42.2, "targetTimeS": 4 * 3600}, 4 * 3600 * 1.1, None)
+    assert t["paceText"] == "5:41 /km" and t["gapPct"] == 10.0 and "ambiciózní" in t["text"]
+    assert G.target_time({"aim": "finish", "km": 42.2, "targetTimeS": 4 * 3600}, None, None) is None
+    from app import models
+    rid, _saved = _goal_runner(client, db_session, "goal6@test.cz")
+    client.put(f"/api/runners/{rid}/plan/mode", json={"on": True})
+    d = (E.today_date() + timedelta(days=3)).isoformat()
+    db_session.add(models.PlannedSession(runner_id=rid, date=d, seq=0, kind="long", title="Dlouhý", km=18, source="manual"))
+    db_session.commit()
+    g = E.recompute_assessment(db_session, rid)["guidance"]
+    assert g["week"]["mode"] == "coach"
+    cc = g["goal"]["coachCheck"]
+    assert cc and not cc["ok"] and "nejdelší běh v plánu 18" in cc["text"]
+    r = client.put(f"/api/runners/{rid}/goal", json={"kind": "race", "date": (E.today_date() + timedelta(days=200)).isoformat(),
+                                                     "km": 21.1, "aim": "time", "target_time_s": 6000})
+    assert r.json()["result"]["targetTime"]["paceText"]

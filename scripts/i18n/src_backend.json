@@ -2961,6 +2961,12 @@
   ]
  },
  {
+  "t": ", dlouhý běh {} km.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": ", z toho mimo trénink {}.",
   "files": [
    "metrics/daily_report.py"
@@ -3058,6 +3064,12 @@
  },
  {
   "t": "Dnešní limity jsou vyčerpané, zbytek dne odpočívejte.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Do cíle ({}) {}, {}.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -3183,6 +3195,12 @@
   ]
  },
  {
+  "t": "Nejdelší běh zatím {} z {} km.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": "Nic dnes zítřek výrazně nezhorší.",
   "files": [
    "metrics/daily_report.py"
@@ -3293,6 +3311,30 @@
  },
  {
   "t": "Spánkový dluh {}: dnešní noc rozhodne, jak zítra vstanete.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Stav plánu: {}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Tento týden je mezicíl: běh na 21 km.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Tento týden je závod.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Tento týden podle plánu {} km",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -5150,7 +5192,25 @@
   ]
  },
  {
+  "t": "Cíl je ambiciózní, zvažte i cíl doběhnout.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Cíl zatím nemá žádný požadavek. Zadejte aspoň jedno číslo.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Cílový čas {} znamená průměrné tempo {} /km.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Dlouhé běhy aspoň {} km ({}×)",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5198,7 +5258,19 @@
   ]
  },
  {
+  "t": "Ladění",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Ladění {} před závodem: objem dolů o 40–60 %, intenzita a počet běhů zůstanou.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Na cestě",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5223,6 +5295,18 @@
  },
  {
   "t": "Nereálné",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Podle dnešní formy je cíl v dosahu: odhad {}.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Podle dnešní formy odhad {}, o {} % pomaleji.",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5276,6 +5360,12 @@
   ]
  },
  {
+  "t": "Rozvoj",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Run",
   "files": [
    "metrics/goal_plan.py"
@@ -5288,6 +5378,18 @@
   ]
  },
  {
+  "t": "Seběhy ({}×)",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Specifická příprava",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Stoupání v jednom běhu",
   "files": [
    "metrics/goal_plan.py"
@@ -5295,6 +5397,12 @@
  },
  {
   "t": "Stoupání za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Takový rozdíl může příprava překlenout.",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5324,13 +5432,37 @@
   ]
  },
  {
+  "t": "V ohrožení",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Ve specifické fázi patří do dlouhých běhů úseky v cílovém tempu, ostatní běhy zůstávají lehké.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Week",
   "files": [
    "metrics/goal_plan.py"
   ]
  },
  {
+  "t": "Zaostává",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Zatím nelze spočítat",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Základ",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5390,6 +5522,18 @@
   ]
  },
  {
+  "t": "omezení tréninku",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "připravenost pod 65 % dva dny po sobě",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "stihnete bezpečně za {}",
   "files": [
    "metrics/goal_plan.py"
@@ -5438,19 +5582,19 @@
   ]
  },
  {
+  "t": "vlastní cíl",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "váš cíl",
   "files": [
    "metrics/goal_plan.py"
   ]
  },
  {
-  "t": "{}× dlouhý běh aspoň {} km",
-  "files": [
-   "metrics/goal_plan.py"
-  ]
- },
- {
-  "t": "{}× seběh",
+  "t": "závod {} km",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5474,7 +5618,25 @@
   ]
  },
  {
+  "t": "(odlehčovací týden)",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "(ve specifické fázi až 50 % týdne)",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": ", bez tvrdého tréninku a dlouhého běhu.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": ", dlouhý běh {} km",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5540,6 +5702,12 @@
   ]
  },
  {
+  "t": ". Probrat s trenérem.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": ". Řiďte se i plánem návratu od fyzioterapeuta.",
   "files": [
    "metrics/guidance.py"
@@ -5553,6 +5721,12 @@
  },
  {
   "t": ": 24–48 hodin po něm bývá horší výkon v intenzitě, strop minut v Z4+ je dnes nižší.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "; stejnoměrně, v Z2.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -5840,6 +6014,12 @@
   ]
  },
  {
+  "t": "Jedete rizikovou cestou (váš souhlas): týdenní a dlouhý běh mají širší rezervu. Bolest, nemoc nebo připravenost pod 65 % dva dny po sobě vrátí plán na bezpečnou cestu.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Jen pokud při jízdě nic nebolí.",
   "files": [
    "metrics/guidance.py"
@@ -5878,6 +6058,12 @@
  },
  {
   "t": "Kvalitní trénink",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Ladění před cílem ({}): {} % vrcholového týdne, intenzita a počet běhů zůstávají.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -6069,6 +6255,36 @@
   ]
  },
  {
+  "t": "Plán k cíli ({}): {}, {}. týden z {} — cíl týdne {} km",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Plán k cíli: dlouhý běh tento týden {} km",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Plán trenéra dosahuje požadavků cíle.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Plán trenéra zatím nedosahuje požadavků cíle:",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Plán trenéra zatím nemá tréninky dopředu, cíl ho bude kontrolovat, až přibudou.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Po akutním přetížení",
   "files": [
    "metrics/guidance.py"
@@ -6243,6 +6459,12 @@
   ]
  },
  {
+  "t": "Riziková cesta skončila ({}), plán pokračuje bezpečnou cestou.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Rozklus a výklus v Z1–Z2; tvrdé úseky v Z4–Z5 do stropu minut.",
   "files": [
    "metrics/guidance.py"
@@ -6262,6 +6484,12 @@
  },
  {
   "t": "Tento týden (od pondělí) {} z cíle {} km.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Tento týden je mezicíl: běh na 21 km, nebo B‑závod na půlmaraton.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -6563,6 +6791,18 @@
   ]
  },
  {
+  "t": "nejdelší běh v plánu {} km z {} km",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "nejvyšší týden v plánu {} km z {} km",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "nižší HRV",
   "files": [
    "metrics/guidance.py"
@@ -6722,6 +6962,12 @@
  },
  {
   "t": "včera",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "změna stavu",
   "files": [
    "metrics/guidance.py"
   ]
@@ -14509,6 +14755,12 @@
   ]
  },
  {
+  "t": "Cíl nenalezen",
+  "files": [
+   "routers/goals.py"
+  ]
+ },
+ {
   "t": "Datum cíle musí být v budoucnosti",
   "files": [
    "routers/goals.py"
@@ -14520,6 +14772,24 @@
    "routers/goals.py",
    "routers/plan.py",
    "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Riziková cesta by termín nestihla",
+  "files": [
+   "routers/goals.py"
+  ]
+ },
+ {
+  "t": "Riziková cesta potřebuje váš výslovný souhlas",
+  "files": [
+   "routers/goals.py"
+  ]
+ },
+ {
+  "t": "Tento cíl nestihne v termínu ani riziková cesta. Zvolte pozdější termín nebo menší cíl.",
+  "files": [
+   "routers/goals.py"
   ]
  },
  {
@@ -14539,6 +14809,12 @@
   "files": [
    "routers/goals.py",
    "routers/runners.py"
+  ]
+ },
+ {
+  "t": "vaše volba",
+  "files": [
+   "routers/goals.py"
   ]
  },
  {

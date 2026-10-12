@@ -233,6 +233,8 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
 
     # ---- run days: the runner's own pattern
     n_runs = int(round(pat.get("runsPerWeek") or 0)) or 3
+    if x.get("goalRuns"):                          # a first marathon (Trénink k cíli): 3 runs, a 4th only when needed
+        n_runs = x["goalRuns"]
     usual = set(pat.get("runDays") or []) or set(DEFAULT_RUN_DAYS[min(7, max(1, n_runs))])
     before = sum(1 for d in days if d < today and pvol.get(d.isoformat()))
     allowed = max(0, max(n_runs, before + int(today_run or bool(g.get("done")))) - before - int(today_run or bool(g.get("done"))))
@@ -282,6 +284,8 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     long_done = typ == "dlouhý" or any((pvol.get(d.isoformat()) or 0) >= 1.25 * easy for d in days if d < today)
     long_day = None
     L = min(ceil, max(1.2 * easy, LONG_SHARE * budget))
+    if x.get("goalLong"):                          # the goal's plan sets the long run (≤ 50 % in its specific phase)
+        L = min(ceil, max(1.2 * easy, x["goalLong"]))
     if x.get("novice") and x.get("longest30"):
         L = min(L, NOVICE_LONG * x["longest30"])
     if not long_done and len(run_days) + before + int(today_run) >= 3 and L >= 1.2 * easy:

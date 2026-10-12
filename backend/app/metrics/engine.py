@@ -4203,6 +4203,19 @@ def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> 
             _engine_ctx.priors = data.priors
             try:
                 a["guidance"] = cz_deep(G.build_guidance(data, rid, a, r))
+                # Trénink k cíli, stage 3: the risk path ends on pain, illness or low readiness —
+                # the goal goes back to the safe path and today is recomputed on it
+                if ((a["guidance"] or {}).get("goal") or {}).get("path") == "risk":
+                    from . import goal_plan as GP
+                    why = GP.risk_end_reason(a)
+                    if why:
+                        g_row = (db.query(models.Goal).filter(models.Goal.runner_id == rid, models.Goal.status == "active")
+                                 .order_by(models.Goal.id.desc()).first())
+                        if g_row is not None and g_row.path == "risk":
+                            g_row.path, g_row.risk_ended_at, g_row.risk_end_reason = "safe", now_iso(), why
+                            db.flush()
+                            data = D.load_runner_data(db, rid)
+                            a["guidance"] = cz_deep(G.build_guidance(data, rid, a, r))
             finally:
                 _engine_ctx.priors = None
     row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()

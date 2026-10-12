@@ -50,6 +50,7 @@ from . import capacity as C
 from . import data as D
 from . import engine as E
 from . import coach_plan as CP
+from . import goal_plan as GP
 from . import outlook as O
 from . import speed as SP
 from . import weather as W
@@ -101,6 +102,7 @@ READY_EASY_ONLY = 45    # below this readiness score the default is a regenerati
 READY_EXTRA_EASY = 80   # the optional easy run after the week's target needs a well-recovered day
 DRIFT_CUT = {"volume": 0.8, "intensity": 0.5, "descent": 0.5}   # mechanics above threshold → less today
 LONG_SHARE = 0.30       # a long run ≤ 30 % of the weekly volume budget
+GOAL_RISK_CH = ("volume", "descent", "ascent")   # the channels the goal's risk path widens
 Z4_SESSION_MAX = 45     # a quality session's hard minutes are capped here whatever the capacity says
 MIN_RUN_KM = 2.0        # below this there's no meaningful run left today → volno
 NOVICE_DAYS = 42        # plan C1: the first 6 weeks of data run on generic rules…
@@ -661,10 +663,31 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     rtr_skipped = bool(rtr and ov.get("noReturn") and ov.get("noReturn") == rtr.get("injuryAt"))
     if rtr_skipped:                             # feedback #190 — the runner chose the normal cycle
         rtr = None
+    # ---- Trénink k cíli (owner request 2026-10-12, goal_plan.py): the plan towards the active goal
+    # sets the week's target in place of the cycle; the safety limits, the graded return and
+    # the forced recovery week on an elevated load stay above it
+    g_row = next((x for x in reversed(db.goals) if x.status == "active" and (x.date or "")[:10] >= t_iso), None)
+    goal_res = goal_wk = goal_next = None
+    if g_row is not None:
+        try:
+            gst = GP.runner_state(db, rid, a, today, cycle_pos=(cyc or {}).get("pos"))
+            goal_res = GP.evaluate({**GP.goal_dict(g_row), "path": g_row.path or "safe"}, gst, alternatives=False)
+            gweeks = {w["start"]: w for w in goal_res.get("plan") or []}
+            goal_wk = gweeks.get(ws.isoformat())
+            goal_next = gweeks.get((ws + timedelta(days=7)).isoformat())
+        except Exception:                      # a goal must never take the day's recommendation down
+            goal_res = goal_wk = goal_next = None
+    if goal_wk is not None and not goal_wk.get("km"):
+        goal_wk = None
+    risk_on = bool(goal_wk) and (goal_res or {}).get("path") == "risk"
     if coach_on:
         mode, factor = "coach", 1.0
     elif rtr:
         mode, factor = "return", rtr["factor"]
+    elif goal_wk is not None and load >= 25 and not goal_wk.get("deload") and not goal_wk.get("taper"):
+        mode, factor = "deload", CYCLE[4]          # elevated load: recovery first, the goal's plan waits a week
+    elif goal_wk is not None:
+        mode, factor = "goal", 1.0
     elif days_to_race is not None and 0 < days_to_race <= 14:
         mode, factor = "taper", (0.50 if days_to_race <= 7 else 0.70)
     elif novice:                                # no cycle yet: last week + 10 %
@@ -701,6 +724,34 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         vals = w[lo:lo + 4]
         return sum(vals) / len(vals) if vals else None
 
+    def goal_ref(c):
+        return reference(c) or ((ch.get(c) or {}).get("week") or {}).get("cap")
+
+    def goal_target(c, gw):
+        """The goal plan's week in channel c: its km, its climbing (real metres → the descent
+        channel's weighted metres), the rest scaled like the km against the reference week;
+        a taper keeps the hard minutes (Bosquet 2007)."""
+        if not gw:
+            return None
+        if c == "volume":
+            return gw["km"]
+        if c in ("descent", "ascent") and gw.get(c) is not None:
+            return gw[c] * (CP.ECC if c == "descent" else 1.0)
+        rv, rc = goal_ref("volume"), goal_ref(c)
+        if rc is None:
+            return None
+        f = gw["km"] / rv if rv else 1.0
+        if c == "intensity":
+            f = 1.0 if gw.get("taper") else min(1.1, max(0.55, f))
+        return rc * f
+
+    def goal_risk_k():
+        """The risk path's ceilings against the safe ones: weekly margin 25 % instead of 15 %, a
+        run +15 % instead of +10 % (both narrowed for the runner as the safe ones are)."""
+        mw = (cap.get("margins") or {}).get("runWeek") or C.MARGIN_WEEK
+        ms = (cap.get("margins") or {}).get("runSession") or C.MARGIN_SESSION
+        return (1 + mw * GP.RISK["weekX"]) / (1 + mw), (1 + ms * GP.RISK["runX"]) / (1 + ms)
+
     first_day = _d(min((s["date"] for s in sessions if s["date"] <= t_iso), default=t_iso))
     week = {}
     for c in (*CHS, "systemic"):
@@ -710,6 +761,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         if mode == "coach":                   # the coach's plan as written, even over the ceiling (the
             ref = None                        # safety limits below still bound every day)
             target = coach_week[c] if coach_week else None
+        elif mode == "goal":
+            ref = goal_ref(c)
+            target = goal_target(c, goal_wk)
         else:
             ref = reference(c)
             if ref is None:
@@ -718,6 +772,14 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         if novice and c != "volume":          # plan C1: only volume plans / limits the first 6 weeks
             target, ceil7 = None, None
         capped = target is not None and ceil7 is not None and target > ceil7
+        if risk_on and c in GOAL_RISK_CH:     # the risk path (consent): the weekly and the per-run margin widened
+            kw, kr = goal_risk_k()
+            if ceil7 is not None:
+                if wcap.get("absorbedLeft") is not None:
+                    wcap = {**wcap, "absorbedLeft": wcap["absorbedLeft"] + ceil7 * (kw - 1)}
+                ceil7 = ceil7 * kw
+        if mode == "goal" and target is not None and past[c][:4] and sum(past[c][:4]) > 0:
+            target = min(target, GP.ACWR_MAX * sum(past[c][:4]) / 4)   # never 1.5 × the 4 weeks before (Toresdahl 2022)
         if target is not None and ceil7 is not None and mode != "coach":
             target = min(target, ceil7)       # the plan never schedules a load exceedance
         done_week = sum(daily[c].get((ws + timedelta(days=k)).isoformat(), 0.0) for k in range((today - ws).days + 1))
@@ -729,6 +791,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         ab_left = wcap.get("absorbedLeft")
         left7 = None if ceil7 is None else (ab_left if ab_left is not None else max(0.0, ceil7 - done6 - done_today))
         ceil_run = info.get("ceilingToday") if (c != "systemic" and not (novice and c != "volume")) else None
+        if risk_on and c in GOAL_RISK_CH and ceil_run is not None:
+            ceil_run = ceil_run * goal_risk_k()[1]
         limits = {k: v for k, v in (("week", left_week), ("7d", left7), ("run", ceil_run)) if v is not None}
         # on a tie (both used up) the safety limit is the one named — the plan alone would
         # offer the optional easy run
@@ -740,7 +804,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                    # `bound` says which of the two sets today's max, `safeMax` = the safety limits alone
                    "bound": None if lim is None else "plan" if lim == "week" else "safety",
                    "safeMax": min(safe) if safe else None,
-                   "plan": {"ref": _r(ref, C.CHANNELS[c]["dec"]), "factor": round(factor, 3), "capped": capped},
+                   "plan": {"ref": _r(ref, C.CHANNELS[c]["dec"]), "capped": capped,
+                            "factor": round((target / ref) if (mode == "goal" and target is not None and ref) else factor, 3)},
                    "capacity": wcap.get("cap"), "ceiling7": ceil7, "done7": done6 + done_today, "left7": left7,
                    "absorbed": wcap.get("absorbed") if ceil7 is not None else None,
                    "absorbedPast": wcap.get("absorbedPast") if ceil7 is not None else None,
@@ -935,6 +1000,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     types["lehký"] = mk("lehký", 0.85 * base_km * km_scale, 1.1 * base_km * km_scale,
                         z4max=min(5, int_max) if int_max is not None else 5, dfac=0.8)
     long_target = max(base_km * 1.2, LONG_SHARE * (week["volume"]["budget"] or 0))
+    goal_long = (goal_wk or {}).get("long") if mode == "goal" else None
+    if goal_long:                                # the goal's plan sets the long run (≤ 50 % of the week in its specific phase)
+        long_target = max(base_km * 1.2, goal_long)
     if novice:                                   # plan C1: ≤ 10 % over the longest run of the last 30 days
         longest30 = max((s["km"] or 0 for s in runs if 0 < (today - _d(s["date"])).days <= 30), default=0)
         if longest30:
@@ -942,7 +1010,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     long_target = cap_km(long_target * (1.0 if not pain_mod else 0.7))
     types["dlouhý"] = mk("dlouhý", 0.85 * long_target, long_target,
                          z4max=min(10, int_max) if int_max is not None else 10,
-                         notes=[f"Nejvýš {round(LONG_SHARE * 100)} % týdenního rozpočtu objemu; stejnoměrně, v Z2."])
+                         notes=[(f"Plán k cíli: dlouhý běh tento týden {_cz(goal_long)} km"
+                                 + (" (ve specifické fázi až 50 % týdne)" if goal_wk.get("phase") == "specific" else "")
+                                 + "; stejnoměrně, v Z2.") if goal_long else
+                                f"Nejvýš {round(LONG_SHARE * 100)} % týdenního rozpočtu objemu; stejnoměrně, v Z2."])
     z4hi = None if int_max is None else min(int_max, Z4_SESSION_MAX) * (0.5 if drift else 1.0)
     if novice and (z4hi is None or z4hi < NOVICE_Z4):
         z4hi = NOVICE_Z4 * (0.5 if drift else 1.0)          # plan C1: intensity doesn't block the first 6 weeks
@@ -1414,6 +1485,25 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                         + (f" ({_cz(vw['budget'])} km)" if vw.get("budget") else "") + ", vlastní cyklus aplikace je vypnutý.")
                        if coach_week else
                        "Režim trenéra: na tento týden zatím není zadaný plán, platí jen bezpečnostní limity.")
+    elif mode == "goal":
+        gname = goal_res["goal"].get("name") or GP.goal_name(goal_res["goal"])
+        if goal_wk.get("taper"):
+            reasons.append(f"Ladění před cílem ({gname}): {round(goal_wk['factor'] * 100)} % vrcholového týdne, "
+                           "intenzita a počet běhů zůstávají.")
+        else:
+            reasons.append(f"Plán k cíli ({gname}): {GP.PHASE[goal_wk['phase']].lower()}, {goal_wk['i']}. týden z "
+                           f"{len(goal_res['plan'])} — cíl týdne {_cz(goal_wk['km'])} km"
+                           + (f", dlouhý běh {_cz(goal_wk['long'])} km" if goal_wk.get("long") else "")
+                           + (" (odlehčovací týden)" if goal_wk.get("deload") else "") + ".")
+        if goal_wk.get("milestone") == "half":
+            reasons.append("Tento týden je mezicíl: běh na 21 km, nebo B‑závod na půlmaraton.")
+        re_ = goal_res["goal"].get("riskEndedAt")
+        if not risk_on and re_ and 0 <= (today - _d(re_)).days <= 7:
+            reasons.append(f"Riziková cesta skončila ({goal_res['goal'].get('riskEndReason') or 'změna stavu'}), "
+                           "plán pokračuje bezpečnou cestou.")
+        if risk_on:
+            reasons.append("Jedete rizikovou cestou (váš souhlas): týdenní a dlouhý běh mají širší rezervu. Bolest, "
+                           "nemoc nebo připravenost pod 65 % dva dny po sobě vrátí plán na bezpečnou cestu.")
     elif mode == "return":
         reasons.append(f"Návrat po zranění ({rtr['site']}): {rtr['week']}. týden ze 3 — cíl {round(factor * 100)} % "
                        f"průměrného týdne před zraněním" + (f", bez intenzity do {_dm(rtr['noQualityUntil'])}" if rtr["noQuality"] else "")
@@ -1494,6 +1584,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
             return None
         if mode == "coach":
             return coach_next[c] if coach_next else None
+        if mode == "goal":
+            t = goal_target(c, goal_next)
+            return t if (t is None or wc["ceiling7"] is None) else min(t, wc["ceiling7"])
         t = wc["budget"]
         if pos_now and mode in ("build", "recovery"):
             f2 = CYCLE[1] * CYCLE[3] if pos_now == 4 else CYCLE[pos_now % 4 + 1]
@@ -1541,6 +1634,48 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                       last_hard_age=0 if today_hard else days_since_hard, hard_gap=HARD_GAP_DAYS,
                       ready_quality=READY_QUALITY)
 
+    # ---- Trénink k cíli: a first marathon builds on 3 runs a week, a 4th only when the two runs
+    # besides the long one would each be over 1.5 × the usual easy run (Toresdahl 2021)
+    goal_runs = None
+    if mode == "goal" and goal_wk.get("runs"):
+        rest_km = (goal_wk["km"] or 0) - (goal_wk.get("long") or 0)
+        goal_runs = 4 if rest_km / 2 > 1.5 * (easy_km or 6.0) else 3
+    # coach mode: the plan is the coach's, the goal only checks whether it gets there (the planned
+    # weeks against the goal's peak week and longest run)
+    coach_check = None
+    if coach_on and goal_res is not None:
+        need = {r["key"]: r["need"] for r in goal_res.get("requirements") or []}
+        wk_sum, longest = {}, 0.0
+        for r_ in plan_rows:
+            d_ = str(r_["date"])[:10]
+            if d_ >= ws.isoformat() and r_.get("km") and r_["kind"] in CP.RUN:
+                k_ = week_start(_d(d_)).isoformat()
+                wk_sum[k_] = wk_sum.get(k_, 0.0) + r_["km"]
+                longest = max(longest, r_["km"])
+        peak = max(wk_sum.values(), default=0.0)
+        miss = []
+        if need.get("week") and peak < need["week"] - 0.5:
+            miss.append(f"nejvyšší týden v plánu {_cz(peak)} km z {_cz(need['week'])} km")
+        if need.get("long") and longest < need["long"] - 0.5:
+            miss.append(f"nejdelší běh v plánu {_cz(longest)} km z {_cz(need['long'])} km")
+        coach_check = {"ok": not miss, "peakKm": _r(peak), "longestKm": _r(longest),
+                       "text": ("Plán trenéra zatím nedosahuje požadavků cíle: " + "; ".join(miss) + ". Probrat s trenérem."
+                                if miss else "Plán trenéra dosahuje požadavků cíle.") if wk_sum else
+                               "Plán trenéra zatím nemá tréninky dopředu, cíl ho bude kontrolovat, až přibudou."}
+    goal_out = None
+    if goal_res is not None:
+        goal_out = {"name": goal_res["goal"].get("name") or GP.goal_name(goal_res["goal"]), "date": goal_res["goal"]["date"],
+                    "active": mode == "goal", "mode": mode, "path": goal_res.get("path"),
+                    "status": goal_res.get("status"), "statusLabel": goal_res.get("statusLabel"),
+                    "weeks": len(goal_res.get("plan") or []), "week": goal_wk, "next": goal_next, "runs": goal_runs,
+                    "weeksToGoal": goal_res.get("weeksToGoal"), "coachCheck": coach_check,
+                    # this week's target as Trénink sets it: the plan's km under the safety ceilings
+                    "budgetKm": week["volume"]["budget"] if mode == "goal" else None,
+                    "progress": [{k: r.get(k) for k in ("key", "label", "now", "need", "unit")}
+                                 for r in goal_res.get("requirements") or [] if r["key"] in ("week", "long")],
+                    "riskEnded": ({"at": goal_res["goal"]["riskEndedAt"], "reason": goal_res["goal"].get("riskEndReason")}
+                                  if goal_res["goal"].get("riskEndedAt") and goal_res.get("path") == "safe" else None)}
+
     # ---- what the week's plan (Monday morning report, week_plan.py) needs from today's context
     longest30 = max((s["km"] or 0 for s in runs if 0 < (today - _d(s["date"])).days <= 30), default=0)
     plan_ctx = {
@@ -1562,7 +1697,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         "kSrpe": _r(k_srpe, 3), "rideHr": list(hr_c),
         "rides8w": sum(1 for s in sessions if s.get("sport") == "cycling" and 0 <= (today - _d(s["date"])).days <= 56),
         "longest30": _r(longest30), "easyKm": _r(easy_km), "easyPace": _r(easy_pace, 0),
-        "ceilRun": {c: (ch.get(c) or {}).get("ceilingSession") for c in CHS},
+        "ceilRun": {c: ((ch.get(c) or {}).get("ceilingSession") * (goal_risk_k()[1] if (risk_on and c in GOAL_RISK_CH) else 1.0)
+                        if (ch.get(c) or {}).get("ceilingSession") is not None else None) for c in CHS},
+        "goalLong": _r(goal_long) if goal_long else None, "goalRuns": goal_runs, "goalPhase": (goal_wk or {}).get("phase") if mode == "goal" else None,
         "noSpeedWeeks": bool(nsw) and not novice,
         "kolo": not ((xt or {}).get("kolo") == "avoid" or (override or {}).get("kind") == "red_flag"),
         "koloNote": ((xt or {}).get("koloNotes") or [None])[0],
@@ -1676,4 +1813,5 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                      "carry": carry},
         "zones": cap.get("zones"), "hrSource": "fit" if fit else "fallback",
         "planCtx": plan_ctx, "coach": coach_out,
+        "goal": goal_out,
     }

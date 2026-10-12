@@ -27,8 +27,9 @@ const CROSS = ["kolo", "voda", "posilování"]
 const MODE: Record<string, [string, string]> = {
   build: ["Budovací týden", C.ok], recovery: ["Odlehčovací týden", C.watch], deload: ["Odlehčovací · zvýšená zátěž", C.alert],
   taper: ["Ladění před závodem", C.accent], learning: ["Nastavuji cyklus", C.fg2], hold: ["Udržení", C.watch],
-  return: ["Návrat po zranění", C.watch],
+  return: ["Návrat po zranění", C.watch], goal: ["Plán k cíli", C.accent],
 }
+const PHASE: Record<string, string> = { base: "základ", build: "rozvoj", specific: "specifická příprava", taper: "ladění" }
 const CYCLE_PCT = [90, 100, 110, 55]
 const CH_ICON: Record<string, string> = { volume: "Objem", intensity: "Intenzita", descent: "Klesání", ascent: "Stoupání", systemic: "Celková zátěž" }
 const TYPE_ICON: Record<string, LucideIcon> = { volno: Sofa, regenerace: Leaf, "lehký": Footprints, "dlouhý": Route, "kvalitní": Zap, "závod": Flag, kolo: Bike, voda: Waves, "posilování": Dumbbell }
@@ -430,7 +431,7 @@ function WeekPanel({ g, embedded = false }: { g: any; embedded?: boolean }) {
     }
   }
   // before a race the taper decides; with elevated load only a recovery week can be picked
-  const locked = wk.mode === "taper" || wk.mode === "return" || !!wk.novice
+  const locked = wk.mode === "taper" || wk.mode === "return" || wk.mode === "goal" || !!wk.novice
   const allowed = (p: number) => !locked && (wk.mode !== "deload" || p === 4)
   const [modeLabel, modeCol] = MODE[wk.mode] || MODE.build
   const pct = Math.round((wk.progression ?? 1) * 100)
@@ -440,6 +441,7 @@ function WeekPanel({ g, embedded = false }: { g: any; embedded?: boolean }) {
       : wk.mode === "recovery" ? "4. týden cyklu: 55 % vrcholového týdne — tělo vstřebá předchozí tři týdny zátěže."
         : wk.mode === "deload" ? "Zátěž je zvýšená, proto odlehčovací týden hned: 55 % minulého týdne."
           : wk.mode === "taper" ? `Ladění před závodem: ${pct} % referenčního týdne.`
+          : wk.mode === "goal" && g.goal?.week ? `Plán k cíli (${g.goal.name}): ${PHASE[g.goal.week.phase] || ""}, ${g.goal.week.i}. týden z ${g.goal.weeks}. Cíl týdne určuje plán k cíli, čtyřtýdenní cyklus aplikace v něm pokračuje odlehčovacími týdny.`
             : wk.mode === "return" ? `Návrat po zranění: ${pct} % průměrného týdne před zraněním (${num(cyc.refKm)} km) — 50 → 75 → 90 % během tří týdnů.`
               : wk.novice ? `Prvních 6 týdnů (do ${fmtD(wk.novice.until)}): cíl = minulý týden + 10 %, dlouhý běh nejvýš o 10 % delší než nejdelší za 30 dní. Cyklus a osobní kapacitu nastavíme potom.`
             : "Cyklus nastavíme, až budou aspoň 4 týdny dat — do té doby je cílem vaše týdenní kapacita."
@@ -473,7 +475,7 @@ function WeekPanel({ g, embedded = false }: { g: any; embedded?: boolean }) {
             <div key={n} className="relative">
             <button role="radio" aria-checked={on} disabled={busy || on || !allowed(n)}
               onClick={() => setAsk(n)}
-              title={locked ? (wk.novice ? "Prvních 6 týdnů běží bez cyklu." : wk.mode === "return" ? "Návrat po zranění řídí týden sám." : "Před závodem řídí týden ladění formy.") : !allowed(n) ? "Zátěž je zvýšená — nejdřív odlehčovací týden." : on ? "Aktuální týden cyklu" : "Přepnout tento týden"}
+              title={locked ? (wk.novice ? "Prvních 6 týdnů běží bez cyklu." : wk.mode === "return" ? "Návrat po zranění řídí týden sám." : wk.mode === "goal" ? "Týden řídí plán k cíli." : "Před závodem řídí týden ladění formy.") : !allowed(n) ? "Zátěž je zvýšená — nejdřív odlehčovací týden." : on ? "Aktuální týden cyklu" : "Přepnout tento týden"}
               className={`w-full rounded-[11px] px-1.5 py-2 text-center text-[12px] font-bold leading-tight transition disabled:cursor-not-allowed ${on ? "!cursor-default bg-fg text-ink" : allowed(n) ? "text-fg-soft hover:bg-white/[.08]" : "text-fg-4"}`}>
               {n}. týden<span className="block text-[11px] font-medium opacity-80">{p} %</span>
             </button>
@@ -1242,6 +1244,7 @@ function WeekCard({ g, plan }: { g: any; plan: any }) {
       <p className="mt-1 text-[12.5px] text-fg-2">
         <span style={{ color: modeCol }}>{modeLabel}</span>
         {cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` · ${cyc.pos}. týden cyklu, ${Math.round((wk.progression ?? 1) * 100)} % referenčního týdne` : ""}
+        {wk.mode === "goal" && g.goal?.week ? ` · ${PHASE[g.goal.week.phase] || ""}, ${g.goal.week.i}. týden z ${g.goal.weeks}` : ""}{wk.mode === "goal" && g.goal?.week?.deload ? ", odlehčovací" : ""}
       </p>
       {plan === undefined ? <p className="mt-3 animate-pulse text-[12px] text-fg-3">Načítám plán týdne…</p>
         : !plan ? <p className="nest mt-3 px-3.5 py-3 text-[12.5px] leading-5 text-fg-3">Plán týdne zatím nejde sestavit. Každé ráno den určí Trénink.</p>
@@ -1423,7 +1426,7 @@ export function Training() {
             <>
               <TodayHero g={g} a={a} plan={plan} stage={stage} />
               <ActivityRow g={g} onPick={setSel} />
-              {rid && !touring && <GoalCard rid={rid} />}
+              {rid && !touring && <GoalCard rid={rid} gg={g.goal} />}
               <WeekCard g={g} plan={plan} />
             </>
           )}
@@ -1435,7 +1438,7 @@ export function Training() {
           <TomorrowCard g={g} />
           <WeekLoadCard g={g} cap={a.capacity} />
           {coach && <CoachProgress rid={rid!} />}
-          {coach && <GoalCard rid={rid!} />}
+          {coach && <GoalCard rid={rid!} gg={g.goal} />}
           <BodyCard a={a} hist={quadHist} day={day} />
           <RacesCard outlook={a.races} g={g} cap={a.capacity} />
         </div>

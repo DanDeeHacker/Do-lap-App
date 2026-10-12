@@ -50,6 +50,7 @@ class RunnerData:
     shoes: tuple = ()           # Shoe (v0.12.0)
     tendon_checks: tuple = ()   # TendonCheck (morning tendon load tests, suggestion #7)
     planned: tuple = ()         # PlannedSession (Plán od trenéra), by date
+    goals: tuple = ()           # Goal (Trénink k cíli), by id
     prev_quadrant: str | None = None
     priors: dict | None = None  # population priors (reference.py), fixed for the snapshot
 
@@ -133,6 +134,7 @@ def load_runner_data(db, rid: str, priors: bool = True) -> RunnerData:
         tendon_checks=_load(db, models.TendonCheck, rid, models.TendonCheck.date.asc(), models.TendonCheck.id.asc()),
         planned=_load(db, models.PlannedSession, rid, models.PlannedSession.date.asc(), models.PlannedSession.seq.asc(),
                       models.PlannedSession.id.asc()),
+        goals=_load(db, models.Goal, rid, models.Goal.id.asc()),
         prev_quadrant=prev[0] if prev else None,
         priors=load_priors(runner) if priors else None,
     )

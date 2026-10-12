@@ -255,6 +255,30 @@ def _week(a, db, rid, today):
             "cycle": ((g.get("week") or {}).get("cycle") or {}).get("pos")}
 
 
+def goal_note(a) -> dict | None:
+    """Trénink k cíli: one short note for the reports and the outlook — weeks to the goal, the
+    phase, this week of the plan and how far the longest run and the peak week are."""
+    from . import goal_plan as GP
+    gg = ((a or {}).get("guidance") or {}).get("goal") or {}
+    w = gg.get("week")
+    if not gg or not w:
+        return None
+    left = max(1, (gg.get("weeksToGoal") or gg.get("weeks") or 1) - w["i"] + 1)
+    parts = [f"Do cíle ({gg['name']}) {GP._weeks_cz(left)}, {GP.PHASE.get(w['phase'], w['phase']).lower()}."]
+    if w.get("race"):
+        parts.append("Tento týden je závod.")
+    elif gg.get("active"):
+        parts.append(f"Tento týden podle plánu {_cz(w['km'], 0)} km" + (f", dlouhý běh {_cz(w['long'], 0)} km." if w.get("long") else "."))
+    for r in gg.get("progress") or []:
+        if r["key"] == "long" and r.get("now") is not None and r.get("need") and r["now"] < r["need"]:
+            parts.append(f"Nejdelší běh zatím {_cz(r['now'], 0)} z {_cz(r['need'], 0)} km.")
+    if gg.get("statusLabel"):
+        parts.append(f"Stav plánu: {gg['statusLabel'].lower()}.")
+    if w.get("milestone") == "half":
+        parts.append("Tento týden je mezicíl: běh na 21 km.")
+    return {"text": " ".join(parts), "status": gg.get("status"), "path": gg.get("path")}
+
+
 KIND_TYPE = {"rest": "volno", "ride": "kolo", "swim": "plavání", "strength": "posilování", "race": "závod"}
 
 
@@ -692,6 +716,7 @@ def build(db, rid: str, kind: str) -> dict:
         r["tendon"] = TD.card(D.load_runner_data(db, rid, priors=False), today)
         r["tagsLastNight"] = DT.last_night(db, rid, today)
         r["watch"] = _watchouts(a, rec, night, plan)
+        r["goal"] = goal_note(a)
         r["summary"] = _summary_morning(night, rec, plan)
         r["notes"] = _notes_morning(r)
         return r
@@ -732,7 +757,7 @@ def build(db, rid: str, kind: str) -> dict:
                          for c in ("volume", "intensity", "descent", "systemic") if ch.get(c)],
             "plan": {"type": g.get("type"), "label": g.get("typeLabel"), "afterDone": g.get("afterDone")}}
     r = {**base, "day": day, "dayView": view, "load": load, "week": week, "weekLoads": _week_loads(a, db, rid, today),
-         "restOfWeek": rest, "tonight": tonight, "recovery": rec, "questions": EVENING_Q}
+         "restOfWeek": rest, "tonight": tonight, "recovery": rec, "questions": EVENING_Q, "goal": goal_note(a)}
     # owner request 2026-10-05: bedtime mobility picked by the day's activities
     r["mobility"] = MOB.evening(db, rid, a, today, acts, tonight.get("bed"), now_min, (view or {}).get("steps"))
     r["tomorrow"] = _tomorrow(a, view, dm, today, night, rest, tonight, hard_tomorrow)

@@ -784,6 +784,8 @@ class Goal(Base):
     free_json = Column(JSON)                        # {weeklyKm, longKm, climbM, climbScope: week|run}
     path = Column(String, default="safe")           # safe | risk (stage 3, with consent)
     risk_consent_at = Column(String)
+    risk_ended_at = Column(String)                  # back on the safe path (the runner or the daily watch)
+    risk_end_reason = Column(String)
     status = Column(String, default="active")       # active | done | cancelled
     projection_json = Column(JSON)                  # the last feasibility answer
     created_at = Column(String)

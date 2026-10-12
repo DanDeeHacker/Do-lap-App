@@ -658,6 +658,7 @@
    "App.tsx",
    "coach.tsx",
    "coachview.tsx",
+   "goal.tsx",
    "outlook.tsx",
    "profile.tsx",
    "report.tsx",
@@ -2990,6 +2991,7 @@
   "t": "Tento týden",
   "files": [
    "App.tsx",
+   "goal.tsx",
    "report.tsx",
    "selfprograms.tsx",
    "shell.tsx",
@@ -8518,6 +8520,7 @@
   "files": [
    "coach.tsx",
    "datapage.tsx",
+   "goal.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -11231,7 +11234,28 @@
   "kind": "str"
  },
  {
+  "t": ", dlouhý běh",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "· {} % vrcholu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· ↑ {} m",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· ↓ {} m",
   "files": [
    "goal.tsx"
   ],
@@ -11250,6 +11274,27 @@
    "goal.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "· dlouhý {} km",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· mezicíl 21 km",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· odlehčovací",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "· připraveni za {} týd.",
@@ -11273,6 +11318,14 @@
   "kind": "tpl"
  },
  {
+  "t": "· tento týden",
+  "files": [
+   "goal.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "· úzké hrdlo",
   "files": [
    "goal.tsx"
@@ -11294,6 +11347,20 @@
   "kind": "tpl"
  },
  {
+  "t": "{} · {}. týden z {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} běhy týdně (první maraton)",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} flex items-center gap-1.5",
   "files": [
    "goal.tsx"
@@ -11309,6 +11376,13 @@
  },
  {
   "t": "{}: bezpečná{} cesta proti požadavku {} {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}. týd.",
   "files": [
    "goal.tsx"
   ],
@@ -11359,7 +11433,21 @@
   "kind": "jsx"
  },
  {
-  "t": "Chystáte se na závod nebo máte vlastní cíl v kilometrech? Aplikace spočítá, jestli ho stihnete zdravě, a když ne, řekne reálný termín.",
+  "t": "Bolest od 3/10, nemoc nebo připravenost pod 65 % dva dny po sobě vrátí plán na bezpečnou cestu.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Celý plán ({} týdnů)",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Chystáte se na závod nebo máte vlastní cíl v kilometrech? Aplikace spočítá, jestli ho stihnete zdravě, sestaví k němu plán, a když to nejde, řekne reálný termín.",
   "files": [
    "goal.tsx"
   ],
@@ -11376,7 +11464,8 @@
  {
   "t": "Cíl",
   "files": [
-   "goal.tsx"
+   "goal.tsx",
+   "report.tsx"
   ],
   "kind": "jsx"
  },
@@ -11437,6 +11526,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Cílový čas {} · tempo {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Co cíl vyžaduje",
   "files": [
    "goal.tsx"
@@ -11472,6 +11568,13 @@
   "files": [
    "goal.tsx",
    "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Dlouhý běh smí být o 15 % delší než nejdelší za 30 dní (místo 10 %). Už nárůst o 10–30 % zvyšoval riziko zranění zhruba 1,6×.",
+  "files": [
+   "goal.tsx"
   ],
   "kind": "jsx"
  },
@@ -11518,6 +11621,13 @@
   "kind": "tpl"
  },
  {
+  "t": "flex items-center gap-3 py-2 text-[12px] {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "jako stoupání",
   "files": [
    "goal.tsx"
@@ -11546,11 +11656,25 @@
   "kind": "str"
  },
  {
+  "t": "Ladění",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Maraton",
   "files": [
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Mezicíl: běh na 21 km, nebo B‑závod na půlmaraton.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Možnosti",
@@ -11618,7 +11742,42 @@
   "kind": "jsx"
  },
  {
+  "t": "Nikdy: týden nad 1,5× průměru 4 týdnů, běh přes bolest, trénink při nemoci, dva vynechané odlehčovací týdny.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Observační studie: ukazují souvislost, ne jistý účinek.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odhad z běhu {} ({}, {} km) Riegelovým vzorcem.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Plán běží bezpečnou cestou.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Plán po týdnech",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Po uložení se týdenní cíl na Tréninku a v plánu týdne řídí tímto plánem. Rizikovou cestu můžete zvolit v detailu cíle, jen s výslovným souhlasem.",
   "files": [
    "goal.tsx"
   ],
@@ -11660,6 +11819,13 @@
   "kind": "str"
  },
  {
+  "t": "Připraveni budete za {} týdnů místo {}.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Pro cílový čas aplikace počítá s vyšším objemem a delšími dlouhými běhy (horní čísla tabulky). Tempa k cílovému času přijdou v další etapě.",
   "files": [
    "goal.tsx"
@@ -11689,7 +11855,91 @@
   "kind": "jsx"
  },
  {
+  "t": "riziková cesta",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Riziková cesta",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Riziková cesta skončila ({}), plán pokračuje bezpečnou cestou.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Riziková cesta skončila {}{}.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Riziková cesta zapnutá",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Riziková cesta: co to znamená",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "rizikově · za",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Rozumím vyššímu riziku zranění a souhlasím s rizikovou cestou. Souhlas můžu kdykoli vzít zpět.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Rozvoj",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Souhlas jste dali {}.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Souhlasím",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Specifická příprava",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Stav plánu",
   "files": [
    "goal.tsx"
   ],
@@ -11718,6 +11968,13 @@
   "kind": "str"
  },
  {
+  "t": "Tento cíl v termínu nestihne ani riziková cesta, proto ho aplikace neuloží. Použijte pozdější termín nebo menší cíl.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Tohle musíte do data cíle zvládnout. Čísla vycházejí ze studií rekreačních běžců (ⓘ u každého řádku), kde studie chybí, je to označený předpoklad.",
   "files": [
    "goal.tsx"
@@ -11739,6 +11996,27 @@
   "kind": "jsx"
  },
  {
+  "t": "Týden smí růst rychleji a dlouhý běh o 15 %. Aplikace každý den hlídá bolest, nemoc a připravenost a při potížích plán sama vrátí na bezpečnou cestu.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Týden závodu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Týdenní cíl na Tréninku a v plánu týdne se řídí tímto plánem. Denní doporučení dál hlídá připravenost, bolest a bezpečnostní limity, takže konkrétní den může vyjít méně. Plán se přepočítá každý týden z toho, co jste opravdu odběhli.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Týdenní objem",
   "files": [
    "goal.tsx"
@@ -11753,11 +12031,25 @@
   "kind": "jsx"
  },
  {
-  "t": "týdny od příštího pondělí · propady jsou odlehčovací týdny",
+  "t": "Týdenní objem smí růst až o 20 % a týdenní strop má rezervu 25 % místo 15 %. Při nárůstu týdne o 20–60 % se během 3 týdnů zranilo o 23 procentních bodů víc běžců.",
   "files": [
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "týdny od tohoto pondělí · propady jsou odlehčovací týdny",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ukázat méně",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Uložit cíl",
@@ -11774,11 +12066,25 @@
   "kind": "str"
  },
  {
+  "t": "více než 104",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Vlastní cíl",
   "files": [
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Vrátit na bezpečnou cestu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Vyplňte jedno nebo víc čísel.",
@@ -11795,18 +12101,11 @@
   "kind": "str"
  },
  {
-  "t": "Zatím jen výpočet: denní doporučení a plán týdne se podle cíle nemění. Plán k cíli přijde v další etapě.",
+  "t": "Základ",
   "files": [
    "goal.tsx"
   ],
-  "kind": "jsx"
- },
- {
-  "t": "Zatím jen výpočet: denní doporučení a plán týdne se podle cíle nemění. Projekce se přepočítá každý den z vašich dat.",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Závod {} km",
@@ -11844,6 +12143,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Zpět na bezpečné cestě",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Zrušit cíl",
   "files": [
    "goal.tsx"
@@ -11851,7 +12157,14 @@
   "kind": "jsx"
  },
  {
-  "t": "Zvolte závod nebo vlastní cíl. Aplikace z vašich dat spočítá, jak rychle mohou kapacity bezpečně růst, a řekne, jestli cíl stihnete zdravě, nebo kdy je reálný termín. Zatím jen výpočet, denní doporučení se podle cíle nemění.",
+  "t": "Zvolit rizikovou cestu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zvolte závod nebo vlastní cíl. Aplikace z vašich dat spočítá, jak rychle mohou kapacity bezpečně růst, řekne, jestli cíl stihnete zdravě, a sestaví k němu plán po týdnech. Týdenní cíl se pak řídí tímto plánem, denní doporučení dál hlídá připravenost, bolest a limity.",
   "files": [
    "goal.tsx"
   ],
@@ -15595,6 +15908,13 @@
   "kind": "str"
  },
  {
+  "t": "· příští týden {} km",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "(nový týden)",
   "files": [
    "outlook.tsx"
@@ -15747,6 +16067,13 @@
    "outlook.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Cíl {}: {}. týden z {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "cíl příštího týdne v cyklu",
@@ -16149,6 +16476,13 @@
  },
  {
   "t": "plán",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán k cíli",
   "files": [
    "outlook.tsx"
   ],
@@ -19599,13 +19933,6 @@
    "selfprograms.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "· tento týden",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "· zbývá {} {}",
@@ -23453,6 +23780,13 @@
   "kind": "str"
  },
  {
+  "t": ", odlehčovací",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": ", týden od {}",
   "files": [
    "training.tsx"
@@ -23482,6 +23816,13 @@
  },
  {
   "t": "· {} min v Z4+",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· {}, {}. týden z {}",
   "files": [
    "training.tsx"
   ],
@@ -24230,6 +24571,13 @@
   "kind": "jsx"
  },
  {
+  "t": "ladění",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Ladění před závodem",
   "files": [
    "training.tsx"
@@ -24543,6 +24891,20 @@
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Plán k cíli",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán k cíli ({}): {}, {}. týden z {}. Cíl týdne určuje plán k cíli, čtyřtýdenní cyklus aplikace v něm pokračuje odlehčovacími týdny.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Plán se ukáže po prvních datech",
@@ -24909,6 +25271,13 @@
   "kind": "str"
  },
  {
+  "t": "specifická příprava",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Stoupání přesahuje strop jednoho běhu ×{}.",
   "files": [
    "training.tsx"
@@ -25126,6 +25495,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Týden řídí plán k cíli.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Týdenní cíl a cyklus",
   "files": [
    "training.tsx"
@@ -25306,6 +25682,13 @@
    "training.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "základ",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Zapsat do deníku",

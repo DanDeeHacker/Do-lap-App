@@ -533,6 +533,7 @@ function morningCards(r: any, c: Ctx): Card[] {
             </ul>
           ) : <p className="mt-1.5 text-[13px] text-fg-2">Nic zvláštního k hlídání.</p>}
         </Panel>
+        {r.goal && <GoalPanel goal={r.goal} />}
         {(p.notes?.length || p.reasons?.length) ? <WhyPlan type={p.type} reasons={p.reasons || []} notes={p.notes || []} /> : null}
         {p.strength && (
           <Panel>
@@ -547,6 +548,20 @@ function morningCards(r: any, c: Ctx): Card[] {
   if (r.weekPlan) cards.push({ key: "weekPlan", title: "Plán týdne", body: <WeekPlan p={r.weekPlan} text={c.notes.weekPlan} /> })
   if (c.hasAssistant) cards.push({ key: "ask", title: "Otázky", body: <><Big>Chcete vědět víc?</Big><Sub>Asistent odpoví z vašich dat a citované literatury.</Sub><Questions qs={r.questions || []} onAsk={c.onAsk} /></> })
   return cards
+}
+
+// Trénink k cíli — one note on the goal: weeks to it, the phase, this week of its plan (backend daily_report.goal_note)
+const GOAL_COL: Record<string, string> = { ok: C.ok, tight: C.watch, no: C.alert }
+function GoalPanel({ goal }: { goal: any }) {
+  return (
+    <Panel>
+      <Lbl>Cíl</Lbl>
+      <p className="mt-1.5 text-[13px] leading-5 text-fg-soft" data-testid="report-goal">
+        <span className="mr-1.5 inline-block size-2 rounded-full align-middle" style={{ background: GOAL_COL[goal.status] || C.fg3 }} aria-hidden />
+        {goal.text}
+      </p>
+    </Panel>
+  )
 }
 
 // ---- the week's plan (Monday morning, backend metrics/week_plan.py) ---------------------------
@@ -1482,6 +1497,7 @@ function eveningCards(r: any, c: Ctx): Card[] {
           })} />
           <HowTo className="mt-2" label="Jak číst graf" text="Plné sloupce: odběhnuto · šrafované: návrh na zbytek týdne." />
         </Panel>
+        {r.goal && <GoalPanel goal={r.goal} />}
         <Panel>
           <LblQ info="Plán týdne přepočítaný podle toho, co už máte odběhnuto. Klepnutím na den zobrazíte tep, tempo a čas.">Zbytek týdne</LblQ>
           {rw.note && <p className="mt-1 text-[13px] text-fg-2">{rw.note}</p>}

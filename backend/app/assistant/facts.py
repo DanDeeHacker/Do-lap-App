@@ -394,6 +394,43 @@ def _week_plan(db, rid, a) -> dict | None:
     return {k: v for k, v in out.items() if v not in (None, [], "")}
 
 
+def _goal(db, rid, a) -> dict | None:
+    """Trénink k cíli: the active goal, its verdict and real date, this week of its plan, what it
+    requires (with the studies behind each number) and the options — goal_plan.py's own answer."""
+    from ..metrics import goal_plan as GP
+    from .knowledge import summary_by_id
+    row = (db.query(models.Goal).filter(models.Goal.runner_id == rid, models.Goal.status == "active")
+           .order_by(models.Goal.id.desc()).first())
+    if row is None or (row.date or "")[:10] < E.today_date().isoformat():
+        return None
+    try:
+        res = GP.evaluate(GP.goal_dict(row), GP.runner_state(db, rid, a))
+    except Exception:                              # the answer stands without the goal rather than fail
+        return None
+    gg = (a.get("guidance") or {}).get("goal") or {}
+    wk = gg.get("week") or next(iter(res.get("plan") or []), None)
+    cite = lambda ids: [summary_by_id()[i]["cite"] for i in ids or [] if i in summary_by_id()]
+    out = {"name": row.name or GP.goal_name(GP.goal_dict(row)), "date": F.cz_text(GP._dcz(GP._d(row.date))),
+           "weeksToGoal": res.get("weeksToGoal"), "verdict": res.get("verdictLabel"), "planStatus": res.get("statusLabel"),
+           "text": res.get("text"), "realDate": F.cz_text(GP._dcz(GP._d(res["realDate"]))) if res.get("realDate") else None,
+           "path": "riziková cesta (se souhlasem)" if res.get("path") == "risk" else "bezpečná cesta",
+           "riskPathPossible": res.get("riskPossible"),
+           "planFollowedThisWeek": bool(gg.get("active")),
+           "thisWeek": ({"phase": GP.PHASE.get(wk.get("phase"), wk.get("phase")), "week": f"{wk['i']}. z {len(res.get('plan') or [])}",
+                         "km": G._cz(wk.get("km")), "longRunKm": G._cz(wk.get("long")) if wk.get("long") else None,
+                         "recoveryWeek": bool(wk.get("deload")), "taper": bool(wk.get("taper")),
+                         "milestone": "běh na 21 km nebo B‑závod na půlmaraton" if wk.get("milestone") == "half" else None}
+                        if wk else None),
+           "requirements": [f"{r['label']}: {G._cz(r['need'])} {r['unit']}" + (f" (běhy ≥ {G._cz(r['km'])} km)" if r.get("km") else "")
+                            + (f", teď {G._cz(r['now'])}" if r.get("now") is not None and r["unit"] != "×" else "")
+                            + f" — {r['why']}" + (f" [{', '.join(cite(r.get('sources')))}]" if r.get("sources") else "")
+                            + (" (pracovní předpoklad)" if r.get("assumption") else "")
+                            for r in res.get("requirements") or []],
+           "notes": [n["text"] for n in res.get("notes") or []] or None,
+           "options": [x["text"] for x in res.get("alternatives") or []] or None}
+    return {k: v for k, v in out.items() if v not in (None, [], "")}
+
+
 def build(db, rid: str, a: dict, sel: dict) -> dict:
     """The facts packet for one question."""
     out = _state(db, rid, a)
@@ -424,6 +461,8 @@ def build(db, rid: str, a: dict, sel: dict) -> dict:
         out["runs"] = _runs(db, rid, a, sel)
     if "plan" in sl:
         out["plan"] = _plan(a)
+    if "goal" in sl:
+        out["goal"] = _goal(db, rid, a)
     if "mechanics" in sl:
         out["mechanics"] = _mechanics(a)
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()

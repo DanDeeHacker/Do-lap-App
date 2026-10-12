@@ -28,6 +28,9 @@ INTENTS = {
                r"jin\w* (moznost|aktivit|sport|trenink)|alternativ\w*|co se stane|jak (to|se to|mi to) (ovlivni|projevi)|dopad\w*|"
                r"dusled\w*|\bzitr\w*|pozitr\w*|zbyt\w* (\w+ )?tydn\w*|(muj|meho|tento|tenhle) tyden|tydenni plan|plan (na )?tyden|dalsi (dny|dny v tydnu|trenink|beh)|co dal\b|co pak|"
                r"kolik (jeste|muzu|smim)|moznost\w*|vyhled\w*|co (muzu|smim) (dnes |jeste )?(delat|dat)",
+    # Trénink k cíli (owner request 2026-10-12): the goal, its plan, the verdict and the real date
+    "goal": r"\bcil\b|\bcile\b|\bcilem\b|\bcili\b|cilov\w* (zavod|cas)|stihn\w*|realn\w* (termin|datum)|plan k cili|"
+            r"rizikov\w* cest\w*|na (maraton|pulmaraton|zavod) (pripraven|stihnu|zvladnu)|kolik tydnu do",
     "app": r"kde (najdu|je|se|mam)|jak (zapnu|vypnu|pripojim|nastavim|zadam|zapisu|smazu|vyradim)|zalozk\w*|aplikac\w*|garmin|"
            r"apple|synchron\w*|check.?in|kvadrant\w*|co znamena|co je to|jak funguje|asistent",
 }
@@ -47,12 +50,14 @@ TOPICS = {
     "heat": ["heat", "hydration"],
     "mechanics": ["mechanics", "technique", "cadence"],
     "options": ["planning"],
+    "goal": ["planning", "race", "progression", "taper"],
     "app": [],
 }
 SLICES = {
     "today": ["today", "types"], "readiness": ["readiness"], "load": ["load"], "pain": ["pain"],
-    "run": ["runs"], "plan": ["plan", "load", "weekplan"], "strength": ["strength", "types", "options"], "heat": ["heat", "runs"],
+    "run": ["runs"], "plan": ["plan", "load", "weekplan", "goal"], "strength": ["strength", "types", "options"], "heat": ["heat", "runs"],
     "mechanics": ["mechanics"], "options": ["today", "types", "options", "weekplan"], "app": [],
+    "goal": ["goal", "plan", "weekplan"],
 }
 _PAIN_SUB = [
     (re.compile(r"holen\w*|chodid\w*|nart\w*|\bpat[ayu]\b|metatar\w*|kost\w*"), ["bone", "shin", "foot"]),
@@ -110,7 +115,7 @@ def classify(question: str, context: dict | None = None) -> dict:
         intents = ["today", "readiness", "load"]
     # a specific subject (heat, pain, strength …) decides the evidence; "today"
     # only adds the day's data, not its generic intensity topics
-    specific = {"pain", "heat", "strength", "mechanics", "plan", "run", "options"} & set(intents)
+    specific = {"pain", "heat", "strength", "mechanics", "plan", "run", "options", "goal"} & set(intents)
     topics = []
     for i in intents:
         if not (specific and i == "today"):
