@@ -67,7 +67,9 @@ def _terms(c, gw: dict, cw: dict, night: dict) -> list | None:
 
 def build(*, cap: dict, week: dict, today: date, plan_next: dict, conv: dict, novice: bool, drift: bool,
           presets: list, min_run: float, base_km: float, last_hard_age: int | None, hard_gap: int,
-          ready_quality: int) -> dict:
+          ready_quality: int, widen: dict | None = None) -> dict:
+    """`widen` = {channel: (weekly, per-run)} — the goal's risk path (Trénink k cíli, with consent)
+    widens the ceilings the same way for tomorrow as Trénink does for today."""
     chs = cap.get("channels") or {}
     nights = night_scenarios(cap)
     to_monday = 7 - today.weekday()                  # days from today to next Monday (1–7)
@@ -77,10 +79,12 @@ def build(*, cap: dict, week: dict, today: date, plan_next: dict, conv: dict, no
         cw = info.get("week") or {}
         rf = info.get("readinessFactor") or 1.0
         ceil_run = info.get("ceilingToday") if (c != "systemic" and not (novice and c != "volume")) else None
+        kw, kr = (widen or {}).get(c, (1.0, 1.0))
         by = {}
         for n in nights:
-            by[n["key"]] = {"terms": _terms(c, gw, cw, n),
-                            "run": None if ceil_run is None else ceil_run / rf * n["factor"][c]}
+            terms = _terms(c, gw, cw, n)
+            by[n["key"]] = {"terms": [[t[0] * kw, *t[1:]] for t in terms] if terms else terms,
+                            "run": None if ceil_run is None else ceil_run / rf * n["factor"][c] * kr}
         left = None if gw.get("budget") is None else max(0.0, gw["budget"] - (gw.get("done") or 0.0))
         channels[c] = {"unit": gw.get("unit"), "dec": C.CHANNELS[c]["dec"], "planLeft": left,
                        "planNext": plan_next.get(c), "byNight": by}

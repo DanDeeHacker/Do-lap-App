@@ -1632,7 +1632,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     outlook = O.build(cap=cap, week=week, today=today, plan_next={c: next_target(c) for c in week},
                       conv=conv, novice=novice, drift=drift, presets=presets, min_run=MIN_RUN_KM, base_km=base_km,
                       last_hard_age=0 if today_hard else days_since_hard, hard_gap=HARD_GAP_DAYS,
-                      ready_quality=READY_QUALITY)
+                      ready_quality=READY_QUALITY, widen={c: goal_risk_k() for c in GOAL_RISK_CH} if risk_on else None)
 
     # ---- Trénink k cíli: a first marathon builds on 3 runs a week, a 4th only when the two runs
     # besides the long one would each be over 1.5 × the usual easy run (Toresdahl 2021)

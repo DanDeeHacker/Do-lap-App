@@ -163,6 +163,10 @@ def test_guidance_follows_the_goal_plan(client, db_session):
     assert g["week"]["mode"] in ("goal", "deload")
     go = g["goal"]
     assert go and go["week"]["i"] == 1 and go["weeks"] == len(saved["result"]["plan"])
+    from app.metrics import week_plan as WP
+    wp = WP.build(a, E.today_date())
+    if g["week"]["mode"] == "goal" and wp:
+        assert wp["headline"].startswith("Plán k cíli")
     if g["week"]["mode"] == "goal":
         v = g["week"]["channels"]["volume"]
         assert v["budget"] <= go["week"]["km"] + 0.11                    # never over the plan …
@@ -194,6 +198,8 @@ def test_risk_path_needs_consent_widens_the_limits_and_ends_on_pain(client, db_s
     sv, rv = safe["week"]["channels"]["volume"], g["week"]["channels"]["volume"]
     if sv.get("ceilingRun") and rv.get("ceilingRun") and g["week"]["mode"] == "goal":
         assert rv["ceilingRun"] > sv["ceilingRun"]                          # +15 % instead of +10 % per run
+        so, ro = safe["outlook"]["channels"]["volume"]["byNight"]["good"], g["outlook"]["channels"]["volume"]["byNight"]["good"]
+        assert ro["run"] > so["run"]                                        # tomorrow's outlook widened the same way
     row = db_session.query(models.Goal).filter(models.Goal.runner_id == rid, models.Goal.status == "active").first()
     assert row.risk_consent_at
     db_session.add(models.Checkin(runner_id=rid, submitted_at=E.now_iso(), pain_score=4, pain_points=[{"region": "koleno"}]))
@@ -241,3 +247,9 @@ def test_target_time_and_the_coach_check(client, db_session):
     r = client.put(f"/api/runners/{rid}/goal", json={"kind": "race", "date": (E.today_date() + timedelta(days=200)).isoformat(),
                                                      "km": 21.1, "aim": "time", "target_time_s": 6000})
     assert r.json()["result"]["targetTime"]["paceText"]
+
+
+def test_a_goal_this_week_is_the_race_week_of_the_taper():
+    st = {**_st(), "start": "2026-10-12"}
+    plan = G.evaluate(_race(21.1, "2026-10-18"), st)["plan"]
+    assert len(plan) == 1 and plan[0]["race"] and plan[0]["factor"] == G.TAPER[2][-1]

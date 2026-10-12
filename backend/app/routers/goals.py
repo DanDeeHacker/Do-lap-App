@@ -6,7 +6,7 @@ POST   /api/runners/{rid}/goal/preview   the answer for a goal being entered, no
 PUT    /api/runners/{rid}/goal           store it as the active goal (the previous one is cancelled)
 DELETE /api/runners/{rid}/goal           cancel the active goal
 """
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException

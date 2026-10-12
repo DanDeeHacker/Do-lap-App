@@ -453,7 +453,7 @@ def plan_weeks(goal: dict, st: dict, proj: dict, weeks: int) -> list:
             if peak is None:
                 prev = [x for x in out[-4:] if not x.get("deload")] or out[-4:] or [{"km": rows[0]["km"], "long": rows[0]["long"]}]
                 peak = {"km": max(x.get("km") or 0 for x in prev), "long": max(x.get("long") or 0 for x in prev)}
-            j = i - build
+            j = len(tf) - (weeks - i)               # counted from the goal's week, also when fewer weeks are left than the taper
             f = tf[j - 1]
             w.update({"phase": "taper", "taper": j, "factor": f, "km": _r(peak["km"] * f),
                       "long": _r(min(peak["long"], (req.get("long") or {}).get("need") or peak["long"]) * TAPER_LONG) if j < len(tf) else None,

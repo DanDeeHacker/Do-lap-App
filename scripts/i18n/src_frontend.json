@@ -16608,6 +16608,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Riziková cesta (váš souhlas): Trénink počítá s rezervou týdne zhruba 25 % místo 15 % a u jednoho běhu 15 % místo 10 %, proto je zbývající prostor vyšší než tento strop.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "rounded-[12px] border px-2 py-1.5 text-center transition {}",
   "files": [
    "outlook.tsx"

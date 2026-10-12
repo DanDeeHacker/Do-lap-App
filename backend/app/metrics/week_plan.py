@@ -148,6 +148,11 @@ def _headline(g) -> str:
         return "Ladění formy před závodem"
     if mode == "return":
         return f"Návrat po zranění · {cyc.get('returnWeek')}. týden ze 3"
+    gw = (g.get("goal") or {}).get("week") or {}
+    if mode == "goal" and gw:
+        from .goal_plan import PHASE
+        return (f"Plán k cíli · {PHASE.get(gw.get('phase'), '').lower()}, {gw['i']}. týden z {(g.get('goal') or {}).get('weeks')}"
+                + (" · odlehčovací týden" if gw.get("deload") else ""))
     if w.get("novice"):
         return "Prvních 6 týdnů · opatrné navyšování"
     return "Cyklus nastavíme po 4 týdnech dat · cílem je vaše kapacita"
@@ -308,6 +313,9 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         nq = min(x.get("hardCap") or 2, max(1, round(pat.get("hardPerWeek") or 0)), max(1, (total_runs - 1) // 2))
         if (g.get("week") or {}).get("mode") in ("taper", "recovery", "return"):
             nq = min(nq, 1)
+        gw = (g.get("goal") or {}).get("week") or {}
+        if (g.get("week") or {}).get("mode") == "goal" and (gw.get("deload") or gw.get("taper") or gw.get("phase") == "base"):
+            nq = min(nq, 1)                    # the goal's base phase, recovery and taper weeks: one hard session at most
     nq = max(0, nq - hard_done)
     anchors = {d for d in (_d(x["lastHard"]) if x.get("lastHard") else None, long_day) if d}
     anchors |= {_d(h) for h in x.get("hardThisWeek") or []} | set(races)

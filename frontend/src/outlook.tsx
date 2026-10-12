@@ -245,6 +245,7 @@ function WeekInputs({ c, capW, g, unit, d, ch }: { c: any; capW: any; g: any; un
             <Row label="× připravenost týdne" value={num(inp.ready, 2)} sub="průměr posledních 7 dní" />
             {inp.body != null && inp.body < 0.999 && <Row label="× bolest a stav těla" value={num(inp.body, 2)} />}
             <Row label="× (1 + rezerva)" value={`+${num(inp.margin * 100, 0)} %`} />
+            {g.goal?.path === "risk" && mode === "goal" && <p className="my-1 text-[11px] leading-4 text-alert" data-testid="risk-ceiling-note">Riziková cesta (váš souhlas): Trénink počítá s rezervou týdne zhruba 25 % místo 15 % a u jednoho běhu 15 % místo 10 %, proto je zbývající prostor vyšší než tento strop.</p>}
             <Row label="= týdenní strop" value={`${num(capW.ceiling, d)} ${unit}`} strong sub="ve stejných jednotkách jako součet 7 dní" />
             <Row label="za posledních 7 dní" value={`${num(capW.now, d)} ${unit}`} />
             {capW.absorbedMax != null && (

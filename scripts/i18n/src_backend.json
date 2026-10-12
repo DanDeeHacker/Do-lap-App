@@ -10027,6 +10027,12 @@
   ]
  },
  {
+  "t": "Plán k cíli · {}, {}. týden z {}",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Podle ranního doporučení",
   "files": [
    "metrics/week_plan.py"
@@ -10184,6 +10190,12 @@
  },
  {
   "t": "{}× posilování",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "· odlehčovací týden",
   "files": [
    "metrics/week_plan.py"
   ]
