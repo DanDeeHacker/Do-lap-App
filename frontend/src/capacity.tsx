@@ -3,7 +3,7 @@
 // stays the first thing on the page).
 import { useState, type ReactNode } from "react"
 import { ChevronDown } from "lucide-react"
-import { InfoDot, Label } from "@/ui"
+import { HowTo, InfoDot, Label } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { fmtD, fmtImpact, paceStr, toImpact } from "@/lib"
 import { C, goodCol } from "@/tokens"
@@ -206,9 +206,7 @@ export function ReadinessFactors({ r }: { r: any }) {
           {cyc.next ? ` Další menstruace kolem ${fmtD(cyc.next)}.` : ""}
         </p>
       )}
-      <p className="mt-3 border-t border-white/[.07] pt-2.5 text-[11px] leading-4 text-fg-3">
-        Zelená zvyšuje, červená snižuje. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí. Kvalita spánku (efektivita za 3 noci) stojí nejvýš 20 bodů a bez potvrzení od HRV nebo tepu 10; fáze spánku z hodinek se nepočítají.
-      </p>
+      <HowTo className="mt-3 border-t border-white/[.07] pt-2" text="Zelená zvyšuje, červená snižuje. Nejsilnější signál se počítá celý, druhý z poloviny a třetí ze čtvrtiny, protože se signály často překrývají. Obvyklá hodnota je průměr vašich nocí 8–56 dní zpět a běžné kolísání do ±0,5 SD nic nestojí. Kvalita spánku (efektivita za 3 noci) stojí nejvýš 20 bodů a bez potvrzení od HRV nebo tepu 10; fáze spánku z hodinek se nepočítají." />
     </div>
   )
 }
@@ -283,12 +281,8 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
             <div className="mb-3 grid gap-1 text-[12px] text-fg-2" data-testid="channel-numbers">
               {/* owner feedback 2026-10-10 — which numbers are 7-day sums and which the absorbed load,
                   so the capacity (a 7-day sum) and the absorbed ceiling (lower) don't read as a contradiction */}
-              <p><span>Týdenní kapacita (součet 7 dní): </span><b className="text-fg">{num(wk.cap)}</b>{" "}<span>{c.unit}</span></p>
-              {wk.inputs && (
-                <p className="text-[11px] leading-4 text-fg-3" data-testid="capacity-basis">
-                  {`vyšší z: průměr 4 týdnů ${num(wk.inputs.avg4)} · 0,9 × nejlepší týden ${num(wk.inputs.best)} · minimum ${num(wk.inputs.floor)}`}
-                </p>
-              )}
+              <p className="flex flex-wrap items-center gap-x-1"><span>Týdenní kapacita (součet 7 dní): </span><b className="text-fg">{num(wk.cap)}</b>{" "}<span>{c.unit}</span>
+                {wk.inputs && <span data-testid="capacity-basis"><InfoDot label="Týdenní kapacita" text={`Vyšší z: průměr 4 týdnů ${num(wk.inputs.avg4)} · 0,9 × nejlepší týden ${num(wk.inputs.best)} · minimum ${num(wk.inputs.floor)}.`} /></span>}</p>
               {wk.inputs && (
                 <p><span>Týdenní strop (součet 7 dní): </span><b className="text-fg">{num(wk.ceiling)}</b>{" "}<span>{c.unit}</span>
                   {" "}<span className="text-[11px] text-fg-3">{`= kapacita × připravenost týdne ${num(Math.round(wk.inputs.ready * 100) / 100)}`}</span>
@@ -296,10 +290,9 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
                   <span className="text-[11px] text-fg-3">{` × (1 + ${Math.round(wk.inputs.margin * 100)} % rezerva)`}</span></p>
               )}
               <p><span>Za posledních 7 dní: </span><b className="text-fg">{num(wk.now)}</b>{" "}<span>{c.unit}</span></p>
-              {wk.absorbedMax != null && <p><span>Nevstřebáno: </span><b className="text-fg">{num(wk.absorbed)}</b><span>{` · strop nevstřebané zátěže ${num(wk.absorbedMax)} · zbývá ${num(wk.absorbedLeft)}`}</span>{" "}<span>{c.unit}</span></p>}
-              {wk.absorbedMax != null && (
-                <p className="text-[11px] leading-4 text-fg-3">Hlídá se nevstřebaná zátěž: starší dny se v ní počítají jen zčásti, jak je tělo vstřebává. Strop nevstřebané zátěže je týž týdenní strop převedený na tuto stupnici, proto je nižší než součet 7 dní.</p>
-              )}
+              {/* feedback #212 — the explanation behind a "?" */}
+              {wk.absorbedMax != null && <p><span>Nevstřebáno: </span><b className="text-fg">{num(wk.absorbed)}</b><span>{` · strop nevstřebané zátěže ${num(wk.absorbedMax)} · zbývá ${num(wk.absorbedLeft)}`}</span>{" "}<span>{c.unit}</span>
+                {" "}<InfoDot label="Nevstřebaná zátěž" text="Hlídá se nevstřebaná zátěž: starší dny se v ní počítají jen zčásti, jak je tělo vstřebává. Strop nevstřebané zátěže je týž týdenní strop převedený na tuto stupnici, proto je nižší než součet 7 dní." /></p>}
               {wk.series?.length > 0 && wk.absorbedMax != null && <div className="mt-2"><AbsorbedChart w={wk} unit={c.unit} d={DEC[id] ?? 0} /></div>}
               {/* feedback #181 — the week's target from Trénink, when it is lower than the ceiling;
                   UX audit F13 — label and number in their own nodes (the translator matches whole nodes) */}
@@ -333,7 +326,7 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
           {c.known && id !== "systemic" && c.week7?.length > 0 && (
             <div className="mt-4"><ActivityWaterfall c={c} target={target && target.budget < (wk?.ceiling ?? Infinity) - 0.05 ? target.budget : null} id={id} /></div>
           )}
-          {c.known && CH_NOTE[id] && <p className="mt-2 text-[11px] leading-4 text-fg-3">{CH_NOTE[id]}</p>}
+          {c.known && CH_NOTE[id] && <HowTo label="Jak se kanál počítá" text={CH_NOTE[id]} />}
           {extra && <div className="mt-4">{extra}</div>}
         </div>
       )}
@@ -379,7 +372,7 @@ function ActivityWaterfall({ c, target, id }: { c: any; target?: number | null; 
         )}
       </div>
       <Waterfall steps={steps} hi={Math.max(tot, wk?.ceiling || 0, target || 0) * 1.04} testid={id === "systemic" ? "systemic-waterfall" : `waterfall-${id}`} />
-      {id === "systemic" && <p className="mt-2 text-[11px] text-fg-3">Body zátěže = tep × čas, u posilování a plavání náročnost × minuty.</p>}
+      {id === "systemic" && <HowTo label="Body zátěže" text="Body zátěže = tep × čas, u posilování a plavání náročnost × minuty." />}
     </div>
   )
 }
@@ -580,15 +573,12 @@ function CriticalSpeed({ cs, speed = false }: { cs: any; speed?: boolean }) {
   )
   return (
     <div className="mt-4 border-t border-white/[.07] pt-3" data-testid="critical-speed">
-      <p className="t-label !text-fg-3">Kritická rychlost · z tréninku za 90 dní</p>
+      <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Kritická rychlost · z tréninku za 90 dní</span><InfoDot label="Kritická rychlost" text="Hranice, nad kterou už se běh nedá udržet v rovnovážném stavu (Jones et al., 2019). Minuty nad ní se počítají do Intenzity, i když tep krátké úseky nestihne zachytit. Aspoň 20 minut prahové práce těsně pod ní je tvrdý trénink (48 h odstup)." /></span>
       <div className="mt-2 flex flex-wrap gap-2 text-[12px]">
         <span className="rounded-full bg-white/[.06] px-2.5 py-1 font-bold text-fg">{paceStr(cs.paceSKm)} /km</span>
         <span className="rounded-full bg-white/[.04] px-2.5 py-1 text-fg-2">prahová práce {paceStr(cs.thrPaceSKm)}–{paceStr(cs.paceSKm)} /km</span>
         <span className="rounded-full bg-white/[.04] px-2.5 py-1 text-fg-2">rychlost od {paceStr(cs.speedPaceSKm)} /km</span>
       </div>
-      <p className="mt-2 text-[11.5px] leading-[17px] text-fg-3">
-        Hranice, nad kterou už se běh nedá udržet v rovnovážném stavu (Jones et al., 2019). Minuty nad ní se počítají do Intenzity, i když tep krátké úseky nestihne zachytit. Aspoň 20 minut prahové práce těsně pod ní je tvrdý trénink (48 h odstup).
-      </p>
     </div>
   )
 }
@@ -711,14 +701,16 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
             open={open === id} onToggle={() => setOpen(open === id ? "" : id)} />
         ))}
       </div>
-      {cap.margins?.frailty > 1 && (
-        <p className="mt-3 text-[11px] text-fg-3">Zranění v posledních 12 měsících zmenšuje rezervu nad kapacitou (na běh +{Math.round(cap.margins.session * 100)} %, na týden +{Math.round(cap.margins.week * 100)} %).</p>
-      )}
-      {cap.margins?.experience && (
-        <p className="mt-2 text-[11px] text-fg-3" data-testid="margin-experience">Běháte pravidelně {cap.margins.experience.months < 1 ? "méně než měsíc" : `asi ${cap.margins.experience.months} ${cap.margins.experience.months === 1 ? "měsíc" : cap.margins.experience.months < 5 ? "měsíce" : "měsíců"}`}: v prvním roce se běžci zraňují zhruba dvakrát častěji, proto je rezerva nad kapacitou užší (×{String(cap.margins.experience.factor).replace(".", ",")}; Videbæk et al., 2015).</p>
-      )}
-      {cap.shoes?.transition && (
-        <p className="mt-2 text-[11px] text-fg-3" data-testid="margin-shoes">Nová obuv {cap.shoes.transition.name} od {fmtD(cap.shoes.transition.since)}: do {fmtD(cap.shoes.transition.until)} je rezerva u běžeckých kanálů užší (na týden +{Math.round((cap.margins.runWeek ?? cap.margins.week) * 100)} %), než si lýtka, šlachy a chodidla zvyknou.</p>
+      {/* feedback #212 — why the reserve is narrower: one line, the reasons behind a "?" */}
+      {(cap.margins?.frailty > 1 || cap.margins?.experience || cap.shoes?.transition) && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-fg-3" data-testid="margin-notes">
+          <span>{`Rezerva nad kapacitou je užší: ${[cap.margins?.frailty > 1 && "zranění", cap.margins?.experience && "krátká praxe", cap.shoes?.transition && "nová obuv"].filter(Boolean).join(", ")}`}</span>
+          <InfoDot label="Užší rezerva" wide text={<span className="grid gap-1.5">
+            {cap.margins?.frailty > 1 && <span>{`Zranění v posledních 12 měsících zmenšuje rezervu nad kapacitou (na běh +${Math.round(cap.margins.session * 100)} %, na týden +${Math.round(cap.margins.week * 100)} %).`}</span>}
+            {cap.margins?.experience && <span data-testid="margin-experience">{`Běháte pravidelně ${cap.margins.experience.months < 1 ? "méně než měsíc" : `asi ${cap.margins.experience.months} ${cap.margins.experience.months === 1 ? "měsíc" : cap.margins.experience.months < 5 ? "měsíce" : "měsíců"}`}: v prvním roce se běžci zraňují zhruba dvakrát častěji, proto je rezerva nad kapacitou užší (×${String(cap.margins.experience.factor).replace(".", ",")}; Videbæk et al., 2015).`}</span>}
+            {cap.shoes?.transition && <span data-testid="margin-shoes">{`Nová obuv ${cap.shoes.transition.name} od ${fmtD(cap.shoes.transition.since)}: do ${fmtD(cap.shoes.transition.until)} je rezerva u běžeckých kanálů užší (na týden +${Math.round((cap.margins.runWeek ?? cap.margins.week) * 100)} %), než si lýtka, šlachy a chodidla zvyknou.`}</span>}
+          </span>} />
+        </p>
       )}
     </section>
   )

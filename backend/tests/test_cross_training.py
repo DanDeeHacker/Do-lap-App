@@ -123,3 +123,22 @@ def test_capacity_pool_keeps_running_channels_running_only(client, db_session):
     hm, rhr = 190, 50
     ride = [s for s in C.run_exposures(db_session, rid, hm, rhr) if s["sport"] == "cycling"][0]
     assert ride["exp"]["systemic"] and "volume" not in ride["exp"] and not ride["run"]
+
+
+def test_ride_load_per_minute_comes_from_own_easy_rides(client, db_session):
+    """Feedback #211: with ≥ 3 easy rides in 8 weeks the ride's Celková zátěž per minute is the
+    runner's own (median of those rides), like the easy runs' per km; before that the Z2 band."""
+    rid, r = _runner(client, db_session, "xt9@test.cz", days=100)
+    before = _guide(db_session, rid, r)["planCtx"]["perMinRide"]
+    for k, hr in zip((3, 6, 9, 12), (112, 116, 118, 121)):
+        db_session.add(models.Activity(runner_id=rid, provider="manual", started_at=E.day_ago(k), sport="cycling",
+                                       title="Kolo", duration_min=60, avg_hr=hr))
+    db_session.commit()
+    g = _guide(db_session, rid, r)
+    from app.metrics import data as D
+    with E.engine_pinned("v3"):
+        hrmax, rhr = C.hr_exact(E.assess(db_session, rid)["capacity"])
+    rides = [s for s in C.run_exposures(D.of(db_session, rid), rid, hrmax, rhr) if s["sport"] == "cycling"]
+    own = E.median([s["exp"]["systemic"] / s["durationMin"] for s in rides])
+    assert len(rides) == 4 and abs(g["planCtx"]["perMinRide"] - round(own, 3)) < 1e-3
+    assert g["planCtx"]["perMinRide"] != before

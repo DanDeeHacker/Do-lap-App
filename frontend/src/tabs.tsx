@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { useQuadHistory } from "@/history"
-import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, FactorBar, toneCol, type Tone, Field, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
+import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, FactorBar, toneCol, type Tone, Field, HowTo, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
 import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Ship, TriangleAlert, Waves, type LucideIcon } from "lucide-react"
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
@@ -203,8 +203,7 @@ export function Post() {
                 </div>
                 {ciSum.top.length > 0 && (
                   <div className="mt-4">
-                    <Label>Nejčastější místo v check-inech</Label>
-                    <p className="mt-1 text-[11px] text-fg-3">Za posledních 30 dní napříč denními i týdenními check-iny.</p>
+                    <span className="flex items-center gap-1.5"><Label>Nejčastější místo v check-inech</Label><InfoDot label="Nejčastější místo" text="Za posledních 30 dní napříč denními i týdenními check-iny." /></span>
                     <div className="mt-2 space-y-1.5">
                       {ciSum.top.slice(0, 4).map(([region, count]) => (
                         <div key={region} className="flex items-center gap-2 text-[12px]">
@@ -219,7 +218,7 @@ export function Post() {
                 {/* railway#134 — every check-in opens as a detail of their summary */}
                 <button type="button" onClick={() => setCiOpen((v) => !v)} aria-expanded={ciOpen} data-testid="checkins-toggle"
                   className="nest mt-4 flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left transition hover:border-white/20">
-                  <span className="t-label">Check-iny (denní a týdenní)</span>
+                  <span className="flex items-center gap-1.5"><span className="t-label">Check-iny (denní a týdenní)</span><InfoDot label="Check-iny" text="Denní pocit a bolest a týdenní kontrola (OSTRC), mimo konkrétní běh. Přidáte je tlačítkem Check-in." /></span>
                   <span className="flex items-center gap-2 text-[12px] text-fg-3">{Math.min(10, checkinItems.length)}<ChevronDown className={`size-4 transition ${ciOpen ? "rotate-180 text-accent" : ""}`} aria-hidden /></span>
                 </button>
                 {ciOpen && (
@@ -238,7 +237,6 @@ export function Post() {
                         )
                       })}
                     </div>
-                    <p className="mt-2 text-[11px] leading-4 text-fg-3">Denní pocit a bolest a týdenní kontrola (OSTRC), mimo konkrétní běh. Přidáte je tlačítkem Check-in.</p>
                   </div>
                 )}
               </div>
@@ -338,8 +336,7 @@ export function Post() {
                 {ciBlock}
                 {Object.keys(ov.painMap).length > 0 && (
                   <div className="mt-4 border-t border-white/[.08] pt-4">
-                    <Label>Kde to nejčastěji bolí</Label>
-                    <p className="mt-1 text-[12px] leading-5 text-fg-3">Podle zápisů za posledních 30 dní — čím výraznější místo, tím častěji se v zápisech objevuje jako bolestivé.</p>
+                    <span className="flex items-center gap-1.5"><Label>Kde to nejčastěji bolí</Label><InfoDot label="Kde to bolí" text="Podle zápisů za posledních 30 dní — čím výraznější místo, tím častěji se v zápisech objevuje jako bolestivé." /></span>
                     <div className="mt-3"><PainHeatmap counts={ov.painSided} /></div>
                     <div className="mt-4 space-y-1.5" data-tour="journal-sites">
                       {ov.topSites.slice(0, 5).map(([region, count]) => {
@@ -1271,7 +1268,7 @@ function SegmentTimeline({ rid, aid }: { rid: string; aid: number }) {
           )}
         </div>
       )}
-      <p className="mt-2 text-[11px] leading-4 text-fg-3">Klepněte do pásu na libovolné místo běhu. „vs“ = hodnota, kterou vaše norma čeká přesně pro takový úsek; procenta = rozdíl proti ní.</p>
+      <HowTo text="Klepněte do pásu na libovolné místo běhu. „vs“ = hodnota, kterou vaše norma čeká přesně pro takový úsek; procenta = rozdíl proti ní." />
     </>,
   )
 }
@@ -1393,7 +1390,7 @@ export function MechMini({ a, acts }: { a: any; acts: any[] }) {
   if (!ms.length) return null
   return (
     <div className="mt-4 border-t border-white/10 pt-4" data-testid="mech-mini">
-      <p className="t-label !text-fg-3">Metriky běhu · proti vaší normě</p>
+      <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Metriky běhu · proti vaší normě</span><InfoDot label="Metriky běhu" text="Zelený pás = vaše obvyklé rozmezí, tečka = poslední běhy." /></span>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         {ms.map((m) => {
           const st = normStatus(m, sigIds)
@@ -1415,7 +1412,6 @@ export function MechMini({ a, acts }: { a: any; acts: any[] }) {
           )
         })}
       </div>
-      <p className="mt-2 text-[11px] text-fg-3">zelený pás = vaše obvyklé rozmezí, tečka = poslední běhy</p>
     </div>
   )
 }
@@ -1496,7 +1492,7 @@ export function Mechanics() {
           <div className="nest p-4 md:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <Label>Mechanická stabilita — trend</Label>
-              <span className="text-[12px] text-fg-3">skóre mechaniky 0–100</span>
+              <span className="flex items-center gap-1.5 text-[12px] text-fg-3">skóre mechaniky 0–100<InfoDot label="Trend mechaniky" text="Skóre mechaniky po dnech. Nad prahem 25 je technika mimo vaši normu." /></span>
             </div>
             <div className="mt-2 flex items-end gap-2">
               <b className="t-num text-[40px] leading-none" style={{ color: drift ? C.alert : C.fg }}>{a.mech}</b>
@@ -1509,7 +1505,6 @@ export function Mechanics() {
             ) : (
               <p className="mt-3 text-sm text-fg-3">Na trend v čase je zatím málo historie.</p>
             )}
-            <p className="mt-1 text-[11px] text-fg-3">skóre mechaniky po dnech · nad prahem 25 = technika mimo vaši normu</p>
           </div>
         </div>
       </section>
@@ -1662,7 +1657,7 @@ export function Load() {
         <div className="nest mt-5 p-4 md:p-5">
           <div className="flex items-center justify-between">
             <Label>Skóre zátěže — trend</Label>
-            <span className="text-[12px] text-fg-3">0–100</span>
+            <span className="flex items-center gap-1.5 text-[12px] text-fg-3">0–100<InfoDot label="Trend zátěže" text="Skóre zátěže po dnech. Po běhu se vstřebává noc po noci, nad prahem 25 je zátěž zvýšená." /></span>
           </div>
           <div className="mt-2 flex items-end gap-2">
             <b className="t-num text-[40px] leading-none" style={{ color: loadHot ? C.alert : C.load }}>{a.load}</b>
@@ -1675,7 +1670,6 @@ export function Load() {
           ) : (
             <p className="mt-3 text-sm text-fg-3">Na trend je zatím málo historie.</p>
           )}
-          <p className="mt-1 text-[11px] text-fg-3">skóre zátěže po dnech · po běhu se vstřebává noc po noci · nad prahem 25 = zvýšená</p>
         </div>
         <div className="mt-5">
           <div>
@@ -1703,9 +1697,8 @@ export function Load() {
                 <WeekToneLegend />
               </div>
               <div>
-                <Label>Denní objem běhu, 28 dní</Label>
+                <span className="flex items-center gap-1.5"><Label>Denní objem běhu, 28 dní</Label><InfoDot label="Denní objem" text="Posledních 7 dní je obarvených podle poměru 7 : 28 (posledních 7 dní proti průměru 4 týdnů)." /></span>
                 <Bars vals={L.daily || []} tones={(L.daily || []).map((_: number, i: number, arr: number[]) => (i >= arr.length - 7 ? (L.valid && L.ratio != null ? (ratioTone(L.ratio) === "ok" ? "info" : ratioTone(L.ratio)) : "info") : "muted"))} />
-                <p className="mt-2 text-[11px] text-fg-3">barevně posledních 7 dní podle poměru 7 : 28</p>
               </div>
             </div>
           ),
@@ -1812,7 +1805,7 @@ function RecoveryDetail({ rcv, sleepEff }: { rcv: any; sleepEff: any }) {
           </div>
         )
       })}
-      <p className="text-[11px] leading-4 text-fg-3">Po nocích za 2 měsíce, pás je vaše obvyklé rozmezí za 4 týdny. Připravenost z nich skládá hodnotu dne spolu s check-inem a dnešním tréninkem.</p>
+      <HowTo className="" text="Po nocích za 2 měsíce, pás je vaše obvyklé rozmezí za 4 týdny. Připravenost z nich skládá hodnotu dne spolu s check-inem a dnešním tréninkem." />
     </div>
   )
 }
@@ -1848,11 +1841,12 @@ function SleepQuality({ s }: { s: any }) {
           <p className="mt-1 text-[11px] text-fg-3">poslední noc: hluboký {ln.deepMin} min · REM {ln.remMin} min · lehký {ln.lightMin} min{ln.awakeMin ? ` · vzhůru ${ln.awakeMin} min` : ""}</p>
         </div>
       )}
-      <p className="mt-2 text-[11px] leading-4 text-fg-3">
-        {s.restNow == null ? "Fáze spánku se načtou při další synchronizaci s Garminem. " : ""}
-        {effLow ? "Víc bdění než obvykle — připravenost to sníží mírně, víc jen když to potvrdí HRV nebo klidový tep. " : ""}
-        Fáze spánku jsou jen pro informaci, do připravenosti se nepočítají.
-      </p>
+      {(s.restNow == null || effLow) && (
+        <p className="mt-2 text-[11px] leading-4 text-fg-3">
+          {s.restNow == null ? "Fáze spánku se načtou při další synchronizaci s Garminem. " : ""}
+          {effLow ? "Víc bdění než obvykle — připravenost to sníží mírně, víc jen když to potvrdí HRV nebo klidový tep." : ""}
+        </p>
+      )}
       {(s.history || []).length >= 7 && <SleepHistory h={s.history} />}
     </div>
   )
@@ -1957,7 +1951,7 @@ function SleepHistory({ h }: { h: any[] }) {
           </div>
         )}
       </div>
-      <p className="mt-1 text-[11px] text-fg-3">tenká čára jednotlivé noci · plná průměr 7 nocí</p>
+      <HowTo label="Jak číst graf" text="Tenká čára jsou jednotlivé noci, plná čára průměr 7 nocí." />
     </div>
   )
 }
@@ -2164,10 +2158,7 @@ function LoadRunPanel({ x, imp, todayIso }: { x: any; imp: (pts: number) => stri
         </div>
       )
     })}
-    <p className="border-t border-white/[.07] pt-2.5 text-[11px] leading-4 text-fg-3">
-      Bílá čárka = strop (kapacita + rezerva, podle připravenosti). Šedě ostatní aktivity 7 dní do tohoto dne.
-      {x.run ? "" : x.sport === "strength" ? " Posilování ovlivňuje celkovou a silovou zátěž." : " Jiný sport ovlivňuje jen celkovou zátěž."}
-    </p>
+    <HowTo className="border-t border-white/[.07] pt-2" label="Jak číst graf" text={`Bílá čárka = strop (kapacita + rezerva, podle připravenosti). Šedě ostatní aktivity 7 dní do tohoto dne.${x.run ? "" : x.sport === "strength" ? " Posilování ovlivňuje celkovou a silovou zátěž." : " Jiný sport ovlivňuje jen celkovou zátěž."}`} />
   </div>
   )
 }

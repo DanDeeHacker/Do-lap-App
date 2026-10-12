@@ -13,7 +13,7 @@ import { C } from "@/tokens"
 const TRAIN_COL = "#b08a22", NT_COL = "#2c8cc6"
 const num = (v: number | null | undefined, d = 0) => (v == null ? "—" : (Math.round(v * 10 ** d) / 10 ** d).toLocaleString("cs-CZ"))
 const INFO =
-  "Připravenost ráno vychází z noci (HRV, klidový tep, spánek). Během dne ji snižuje dnešní trénink podle náročnosti proti vašim obvyklým dnům a od v0.10.4 i den mimo trénink: pohyb nad váš obvyklý den (nejvýš asi 8 bodů) a zvýšený tep v klidu. Druhý den ráno ji nahradí noční data. Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou; do Celkové zátěže jde jen to, co je nad mediánem vašich posledních 28 dní. Obvyklý den potřebuje aspoň 7 dní celodenního tepu z hodinek."
+  "Připravenost ráno vychází z noci (HRV, klidový tep, spánek). Během dne ji snižuje dnešní trénink podle náročnosti proti vašim obvyklým dnům a od v0.10.4 i den mimo trénink: pohyb nad váš obvyklý den (nejvýš asi 8 bodů) a zvýšený tep v klidu. Druhý den ráno ji nahradí noční data. Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou; do Celkové zátěže jde jen to, co je nad mediánem vašich posledních 28 dní. Obvyklý den potřebuje aspoň 7 dní celodenního tepu z hodinek. Bílá čárka v pruhu Zátěž dne je váš obvyklý den mimo trénink. Body zátěže = tep × čas."
 
 function Tile({ label, value, col }: { label: string; value: string; col?: string }) {
   return (
@@ -132,7 +132,6 @@ export function DayToday({ d, err, embedded = false }: { d: any; err?: boolean; 
                 <b className="tabular-nums" style={{ color: (ld.excess || 0) > 0 ? NT_COL : C.fg3 }}>{(ld.excess || 0) > 0 ? `+${num(ld.excess)} bodů` : "0"}</b>
               </li>
             </ul>
-            <p className="mt-2 text-[11px] leading-4 text-fg-3">Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou. Bílá čárka je váš obvyklý den mimo trénink. Body zátěže = tep × čas.</p>
           </div>
         </>
       ) : null}

@@ -908,6 +908,14 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     hm_c = sport_hr.get("cycling", hrmax - 8)
     hr_c = (round(rhr + CYCLE_Z2[0] * (hm_c - rhr)), round(rhr + CYCLE_Z2[1] * (hm_c - rhr)))
     per_min_c = E._trimp(1.0, rhr + sum(CYCLE_Z2) / 2 * (hm_c - rhr), hm_c, rhr, tb)
+    # feedback #211: the runner's own easy rides of 8 weeks (≥ 3) set the load per minute, as
+    # their easy runs set it per km; the middle of the Z2 band only without them
+    ride_rate = [s["exp"]["systemic"] / s["durationMin"] for s in sessions
+                 if not s["run"] and s["sport"] == "cycling" and (s.get("durationMin") or 0) >= CROSS_MIN
+                 and s["exp"].get("systemic") and (s["exp"].get("intensity") or 0) < 5
+                 and 0 < (today - _d(s["date"])).days <= 56]
+    if len(ride_rate) >= 3:
+        per_min_c = E.median(ride_rate)
     sys_plan_met = sysw["bound"] == "plan" and sys_safe is not None
 
     def cross_hi(per_min, cap_max, extra_max):

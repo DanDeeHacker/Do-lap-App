@@ -41,6 +41,16 @@ export function Button({
 // elsewhere closes). The bubble is portaled to <body> and fixed-positioned next
 // to the icon, clamped to the viewport, so it's never clipped by a card's
 // overflow/transform and never dumped off-screen at the bottom.
+/** Feedback #212 — a chart's or a block's explanation behind a "?" instead of a paragraph under it
+ *  (use an InfoDot next to the heading where there is one). */
+export function HowTo({ text, label = "Jak to číst", className = "mt-1.5" }: { text: ReactNode; label?: string; className?: string }) {
+  return (
+    <div className={`flex justify-end ${className}`}>
+      <span className="flex items-center gap-1 text-[11px] text-fg-3">{label}<InfoDot text={text} label={label} /></span>
+    </div>
+  )
+}
+
 export function InfoDot({ text, label, className = "", variant = "info", wide = false }: { text: ReactNode; label?: string; className?: string; variant?: "info" | "alert" | "watch" | "onLight"; wide?: boolean }) {
   const [open, setOpen] = useState(false)
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -95,9 +105,10 @@ export function InfoDot({ text, label, className = "", variant = "info", wide = 
         <span
           ref={tipRef}
           role="tooltip"
+          data-no-tap
           onClick={(e) => e.stopPropagation()}
           style={{ position: "fixed", left: pos.left, top: pos.top, width: pos.width, transform: pos.below ? undefined : "translateY(-100%)" }}
-          className="z-[130] animate-[infoPop_.14s_ease-out] rounded-xl border border-white/14 bg-raised p-3 text-left text-[12px] font-normal normal-case leading-[1.5] tracking-normal text-fg-soft shadow-[0_16px_44px_rgba(0,0,0,.55)]"
+          className="z-[260] animate-[infoPop_.14s_ease-out] rounded-xl border border-white/14 bg-raised p-3 text-left text-[12px] font-normal normal-case leading-[1.5] tracking-normal text-fg-soft shadow-[0_16px_44px_rgba(0,0,0,.55)]"
         >
           {label && <b className="mb-1 block text-[13px] font-bold text-fg">{label}</b>}
           {text}

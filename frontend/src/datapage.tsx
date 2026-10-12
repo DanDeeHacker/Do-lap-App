@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { Button, Card, Chip, Field, Label, ListRow, Switch, useAsync, useToast } from "@/ui"
+import { Button, Card, Chip, Field, HowTo, Label, ListRow, Switch, useAsync, useToast } from "@/ui"
 import { ArrowRight, Copy, Database, Download, Eye, Map as MapIcon, Mountain, Pencil, Power, RefreshCw, Smartphone, Sunrise, Unplug, Upload, Watch } from "lucide-react"
 import { fmtD, initials } from "@/lib"
 import { ASSISTANT_REFRESH_EVENT, KnowledgeAdminCard } from "@/assistant"
@@ -299,8 +299,7 @@ export function DataView() {
                       <p className="t-label !text-accent">Garmin připojen</p>
                       <p className="mt-1 text-sm text-fg">Ranní synchronizace {gStatus.auto_sync ? <b className="text-accent">zapnutá</b> : <b>vypnutá</b>} · poslední: {gStatus.last_sync_at ? fmtD(gStatus.last_sync_at) : "—"}</p>
                       {gStatus.last_error && <p className="mt-1 text-xs text-alert">{gStatus.last_error}</p>}
-                      <p className="mt-1 text-[11px] text-fg-2">Detailní data (trať, výškový profil, mechanika po sekundách) nových běhů se stahují automaticky s každou synchronizací; tlačítko „Detailní data“ doplní starší historii.</p>
-                      <p className="mt-1 text-[11px] text-fg-3">Uložen je jen přístupový <b>token</b> (šifrovaný{gStatus.encrypted ? "" : " – bez klíče v této instanci"}), ne heslo. Token lze zrušit i v účtu Garmin.</p>
+                      <HowTo className="mt-1 justify-start" label="Co se stahuje a ukládá" text={`Detailní data (trať, výškový profil, mechanika po sekundách) nových běhů se stahují automaticky s každou synchronizací; tlačítko „Detailní data“ doplní starší historii. Uložen je jen přístupový token (šifrovaný${gStatus.encrypted ? "" : " – bez klíče v této instanci"}), ne heslo. Token lze zrušit i v účtu Garmin.`} />
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-white/[.08] pt-3">

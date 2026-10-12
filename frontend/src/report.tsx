@@ -14,6 +14,7 @@ import { Bed, Bike, Bookmark, BookmarkCheck, Check, ChevronRight, Coffee, Dumbbe
 import { useNavigate } from "react-router"
 import { CARE_SUB_EVENT } from "@/onboarding"
 import { leadReasons } from "@/lib"
+import { HowTo, InfoDot } from "@/ui"
 
 const STAGE_COL: Record<string, string> = { deep: "#4c6ef5", light: "#74c0fc", rem: "#c084fc", awake: C.watch }
 const STAGE_LABEL: Record<string, string> = { deep: "Hluboký", light: "Lehký", rem: "REM", awake: "Bdění" }
@@ -202,6 +203,10 @@ const Big = ({ children }: { children: ReactNode }) => <p className="font-serif 
 const Sub = ({ children }: { children: ReactNode }) => <p className="mt-2 text-[14px] leading-6 text-fg-soft">{children}</p>
 const Panel = ({ children, className = "" }: { children: ReactNode; className?: string }) => <div className={`mt-4 rounded-[18px] border border-white/[.08] bg-white/[.04] p-3.5 ${className}`}>{children}</div>
 const Lbl = ({ children }: { children: ReactNode }) => <p className="text-[11px] font-bold uppercase tracking-[.12em] text-fg-3">{children}</p>
+// feedback #212 — a card's explanation behind a "?" next to its label, not a paragraph under it
+const LblQ = ({ children, info }: { children: string; info: ReactNode }) => (
+  <div className="flex items-center gap-1.5"><Lbl>{children}</Lbl><InfoDot text={info} label={children} /></div>
+)
 
 function Questions({ qs, onAsk }: { qs: string[]; onAsk: (q: string) => void }) {
   return (
@@ -484,9 +489,8 @@ function morningCards(r: any, c: Ctx): Card[] {
         </Panel>
         {rn.carry?.length ? (
           <Panel className="space-y-2.5">
-            <Lbl>Co se ještě vstřebává</Lbl>
+            <LblQ info="Zbytek zátěže proti týdenní kapacitě. Vstřebává se noc po noci, rychleji po dobrém spánku.">Co se ještě vstřebává</LblQ>
             {rn.carry.map((x: any) => <VsNorm key={x.ch} label={x.label} v={x.residual} unit={x.unit} col={x.share > 0.6 ? C.watch : C.info} max={x.cap} norm={null} />)}
-            <p className="text-[11px] leading-4 text-fg-3">Zbytek zátěže proti týdenní kapacitě. Vstřebává se noc po noci, rychleji po dobrém spánku.</p>
           </Panel>
         ) : null}
       </>
@@ -704,8 +708,7 @@ function WeekPlan({ p, text }: { p: any; text?: string }) {
       <Panel><WeekStrip days={days} /></Panel>
       <AiNote text={text} ai={false} pending={false} />
       <Panel>
-        <Lbl>Den po dni</Lbl>
-        <p className="mt-1 text-[11px] text-fg-3">Klepnutím na den zobrazíte tep, tempo, čas a převýšení.</p>
+        <LblQ info="Klepnutím na den zobrazíte tep, tempo, čas a převýšení.">Den po dni</LblQ>
         <ul className="mt-1 divide-y divide-white/[.06]" data-no-tap>{days.map((d) => <PlanDay key={d.date} d={d} />)}</ul>
       </Panel>
       {t && (
@@ -793,8 +796,7 @@ function Mobility({ m, text, onProgram }: { m: any; text?: string; onProgram: (k
       </div>
       <AiNote text={text} ai={false} pending={false} />
       <Panel>
-        <Lbl>Cviky</Lbl>
-        <p className="mt-1 text-[11px] text-fg-3">Klepnutím na cvik zobrazíte provedení, kroužkem ho odškrtnete.</p>
+        <LblQ info="Klepnutím na cvik zobrazíte provedení, kroužkem ho odškrtnete.">Cviky</LblQ>
         <ul className="mt-1 divide-y divide-white/[.06]" data-no-tap>
           {m.exercises.map((x: any, i: number) => (
             <MobilityEx key={x.id} x={x} i={i} done={done.includes(x.id)}
@@ -812,9 +814,7 @@ function Mobility({ m, text, onProgram }: { m: any; text?: string; onProgram: (k
           {saved ? <><BookmarkCheck className="size-4 text-accent" aria-hidden />Uloženo</> : <><Bookmark className="size-4" aria-hidden />Uložit na později</>}
         </button>
       </div>
-      <p className="mt-2 text-[11px] leading-4 text-fg-3">
-        {saved ? `Program ${m.program.name} máte v Péči mezi svými programy, s časovačem výdrží.` : "Uložený program najdete v Péči mezi svými programy, s časovačem výdrží."}
-      </p>
+      {saved && <p className="mt-2 text-[11px] leading-4 text-fg-3">{`Program ${m.program.name} máte v Péči mezi svými programy, s časovačem výdrží.`}</p>}
     </div>
   )
 }
@@ -1170,7 +1170,7 @@ function TendonCard({ t, rid, onSaved }: { t: any; rid?: string; onSaved: () => 
       <Big>{items.every((x) => x.done) ? "Jak šlacha snesla zátěž" : "Krátký test, než vyrazíte"}</Big>
       <Sub>Šlacha byla v posledních dnech bolavá. Stejný test každé ráno ukáže, jestli se po zátěži uklidnila: bolest smí být nejvýš 5/10 a do rána má odeznít.</Sub>
       {items.map((it) => <TendonItem key={`${it.site}-${it.side}-${it.done ? "d" : "n"}`} it={it} rid={rid} onCard={onCard} />)}
-      <p className="mt-3 text-[11px] leading-4 text-fg-3">Model sledování bolesti (Silbernagel et al., 2007), test zátěží šlachy (Malliaras et al., 2015). Výsledek rovnou upraví dnešní doporučení.</p>
+      <HowTo className="mt-3" label="Z čeho test vychází" text="Model sledování bolesti (Silbernagel et al., 2007), test zátěží šlachy (Malliaras et al., 2015). Výsledek rovnou upraví dnešní doporučení." />
     </div>
   )
 }
@@ -1312,7 +1312,7 @@ function DayTags({ d, rid }: { d: any; rid?: string }) {
           </ul>
         )}
       </Panel>
-      <p className="mt-3 text-[11px] leading-4 text-fg-3">Alkohol snižuje noční HRV podle množství (Pietilä et al., 2018); tady jde o to, jak je to právě u vás.</p>
+      <HowTo className="mt-3" label="Proč štítky" text="Alkohol snižuje noční HRV podle množství (Pietilä et al., 2018); tady jde o to, jak je to právě u vás." />
     </div>
   )
 }
@@ -1418,7 +1418,7 @@ function eveningCards(r: any, c: Ctx): Card[] {
             <span className="flex items-center gap-1.5 text-fg-2"><i className="size-2.5 rounded-sm" style={{ background: "#b08a22" }} />trénink <b className="text-fg">{num(ld.train || 0, 0)}</b></span>
             <span className="flex items-center gap-1.5 text-fg-2"><i className="size-2.5 rounded-sm" style={{ background: "#2c8cc6" }} />mimo trénink <b className="text-fg">{num(ld.nt || 0, 0)}</b>{ld.usualNt != null ? <span className="text-fg-3">{` (obvykle ${num(ld.usualNt, 0)})`}</span> : null}</span>
           </div>
-          <p className="mt-2 text-[11px] leading-4 text-fg-3">Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou. Do Celkové zátěže jde jen to, co je nad vaším obvyklým dnem.</p>
+          <HowTo className="mt-2" label="Jak se počítá" text="Mimo trénink se počítá chůze a pohyb s tepem nad 25 % tepové rezervy, poloviční vahou. Do Celkové zátěže jde jen to, co je nad vaším obvyklým dnem." />
         </Panel>
         {ld.channels?.length ? (
           <Panel className="space-y-2">
@@ -1454,7 +1454,7 @@ function eveningCards(r: any, c: Ctx): Card[] {
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[11px] leading-4 text-fg-3">↓ zítřejší připravenost a kapacitu spíš sníží · ↑ spíš pomůže · → plán. Ráno to přesně ukáže noc.</p>
+          <HowTo className="mt-3" label="Jak číst šipky" text="↓ zítřejší připravenost a kapacitu spíš sníží · ↑ spíš pomůže · → plán. Ráno to přesně ukáže noc." />
         </Panel>
         {/* UX audit F22 — the rest of the week belongs to "what comes next" (it was a card of its own) */}
         {note(c, "week")}
@@ -1465,14 +1465,13 @@ function eveningCards(r: any, c: Ctx): Card[] {
             return x.past || x.today ? { label: x.wd, v: x.km || (x.other?.length ? 0.01 : null), col: x.today ? C.accent : C.info, on: x.today }
               : { label: x.wd, v: pl?.km ?? null, col: PLAN_COL[pl?.type] || C.fg4, hatch: true }
           })} />
-          <p className="mt-2 text-[11px] text-fg-3">Plné: odběhnuto · šrafované: návrh na zbytek týdne.</p>
+          <HowTo className="mt-2" label="Jak číst graf" text="Plné sloupce: odběhnuto · šrafované: návrh na zbytek týdne." />
         </Panel>
         <Panel>
-          <Lbl>Zbytek týdne</Lbl>
+          <LblQ info="Plán týdne přepočítaný podle toho, co už máte odběhnuto. Klepnutím na den zobrazíte tep, tempo a čas.">Zbytek týdne</LblQ>
           {rw.note && <p className="mt-1 text-[13px] text-fg-2">{rw.note}</p>}
           {rw.days?.length ? (
             <>
-              <p className="mt-1 text-[11px] text-fg-3">Plán týdne přepočítaný podle toho, co už máte odběhnuto. Klepnutím na den zobrazíte tep, tempo a čas.</p>
               <ul className="mt-1 divide-y divide-white/[.06]" data-no-tap data-testid="rest-of-week">{rw.days.map((d: any) => <PlanDay key={d.date} d={d} />)}</ul>
             </>
           ) : null}

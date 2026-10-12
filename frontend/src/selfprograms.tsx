@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { Button, Card, Chip, Label, Segmented, Sheet, useToast } from "@/ui"
+import { Button, Card, Chip, HowTo, Label, Segmented, Sheet, useToast } from "@/ui"
 import { BookOpen, Check, ChevronDown, ChevronRight, Dumbbell, ExternalLink, Flag, Info, Moon, MoreHorizontal, Pause, PersonStanding, Play, Plus, RotateCcw, Sparkles, Timer, TriangleAlert } from "lucide-react"
 import { fmtD, plural } from "@/lib"
 import { ExerciseFigure, ExerciseThumb, hasFigure } from "@/exfigure"
@@ -410,7 +410,7 @@ export function ExerciseSheet({ id, ex, onClose }: { id: string; ex: Ex; onClose
             </ul>
           </div>
         )}
-        <p className="mt-3 text-[11px] leading-4 text-fg-3">Text a ilustrace jsou vlastní. Cvik je pro mírné obtíže a nenahrazuje vyšetření.</p>
+        <HowTo className="mt-3" label="O cviku" text="Text a ilustrace jsou vlastní. Cvik je pro mírné obtíže a nenahrazuje vyšetření." />
       </div>
     </Sheet>
   )
@@ -769,13 +769,13 @@ export function SelfPrograms() {
         {tab === "pain" && (
           <div data-testid="pain-programs">
             <div className="mt-1 divide-y divide-white/[.07]">{painProgs.map((p) => row(p, false))}</div>
-            <p className="mt-2 text-[11px] leading-4 text-fg-3">Programy vycházejí z publikovaných postupů, u každého je zdroj. Na odbornou revizi fyzioterapeutem Došlapu zatím čekají a nenahrazují vyšetření.</p>
+            <HowTo className="mt-2" label="Odkud programy jsou" text="Programy vycházejí z publikovaných postupů, u každého je zdroj. Na odbornou revizi fyzioterapeutem Došlapu zatím čekají a nenahrazují vyšetření." />
           </div>
         )}
         {tab === "performance" && (
           <div data-testid="perf-programs">
             <div className="mt-1 divide-y divide-white/[.07]">{perfProgs.map((p) => row(p, false))}</div>
-            <p className="mt-2 text-[11px] leading-4 text-fg-3">Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe.</p>
+            <HowTo className="mt-2" label="Odkud programy jsou" text="Doplněk k běhání. U každého programu je uvedeno, co je doložené a co vychází z trenérské praxe." />
           </div>
         )}
         {tab === "mobility" && (

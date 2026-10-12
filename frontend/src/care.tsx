@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { AlertBanner, Button, Card, Chip, Field, Label, ListRow, Segmented, Sheet, Slider, useAsync, useToast } from "@/ui"
+import { AlertBanner, Button, Card, Chip, Field, HowTo, Label, ListRow, Segmented, Sheet, Slider, useAsync, useToast } from "@/ui"
 import { CalendarDays, CalendarClock, Send, Star, UserRound } from "lucide-react"
 import { fmtSlot, fmtDT, initials, czk } from "@/lib"
 import { Head, Program } from "@/tabs"
@@ -289,7 +289,7 @@ export function InjurySheet({ rid, onClose, onDone, initialRegions = [], initial
     <Sheet open onClose={onClose}>
       <h2 className="font-serif text-2xl">Nahlásit obtíže (OSTRC)</h2>
       {intro && <p className="mt-1 text-[13px] leading-5 text-fg-2">{intro}</p>}
-      <p className="mt-1 text-[11px] leading-4 text-fg-3">Obtíže s dopadem na trénink se zapíšou do historie zranění v profilu (datum a strana). Po označení „zahojené" vás aplikace vrátí k běhu postupně: 50 → 75 → 90 % běžného týdne, první 2 týdny bez intenzity.</p>
+      <HowTo className="mt-1" label="Co se stane po nahlášení" text={'Obtíže s dopadem na trénink se zapíšou do historie zranění v profilu (datum a strana). Po označení „zahojené" vás aplikace vrátí k běhu postupně: 50 → 75 → 90 % běžného týdne, první 2 týdny bez intenzity.'} />
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="grid gap-3">
           {OSTRC.map(([name, label, opts]) => (
@@ -374,7 +374,7 @@ function HealedSheet({ rid, site, onClose, onDone, onPhysio }: { rid: string; si
               setDone(true); onDone()
             })} className="btn btn-primary mt-4 w-full py-3 text-sm disabled:opacity-50">Potvrdit, že je zahojené</button>
             <button onClick={onPhysio} className="mt-2 w-full text-center text-[12px] font-bold text-fg-3 underline underline-offset-2 hover:text-fg-2">Chci to probrat s fyzioterapeutem</button>
-            <p className="mt-3 text-[11px] leading-4 text-fg-3">Jde o sebehodnocení podle kritérií, která se při návratu k běhu běžně používají, ne o vyšetření. U bolesti kosti se návrat řídí úplnou absencí bolesti (Warden et al., 2014).</p>
+            <HowTo className="mt-3" label="O hodnocení" text="Jde o sebehodnocení podle kritérií, která se při návratu k běhu běžně používají, ne o vyšetření. U bolesti kosti se návrat řídí úplnou absencí bolesti (Warden et al., 2014)." />
           </>
         ) : (
           <>

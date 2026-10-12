@@ -11,7 +11,7 @@ import { useQuadHistory } from "@/history"
 import { ReadinessTrend } from "@/tabs"
 import { DayReadiness, DayToday, useDayToday } from "@/daytoday"
 import { PlanDay, WeekStrip, itemSummary } from "@/report"
-import { AlertBanner, Button, Card, Chip, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
+import { AlertBanner, Button, Card, Chip, HowTo, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { readinessCol } from "@/capacity"
 import { EarlyNote, NoData, useDataStage } from "@/firstday"
@@ -114,7 +114,7 @@ function SafeRunLimits({ limits, today, week }: { limits: [number, string][]; to
   return (
     <div className="rounded-[14px] border border-white/[.07] bg-white/[.02] p-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-        <span className="flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold text-fg-2"><MoveDiagonal className="size-3.5 text-info" aria-hidden />Nejdelší bezpečný běh</span>
+        <span className="flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold text-fg-2" data-testid="safe-run-why"><MoveDiagonal className="size-3.5 text-info" aria-hidden />Nejdelší bezpečný běh<InfoDot label="Nejdelší bezpečný běh" wide text={`Kapacita jednoho běhu je nejdelší běh za posledních 30 dní, který proběhl bez bolesti (starší se počítají méně), plus 10 % rezerva. Nevychází z objemu týdnů, říká jen, jak dlouhý jeden běh tělo zvládá.${week?.budget != null ? ` Cíl týdne od pondělí je ${num(week.budget)} km, odběhnuto ${num(week.done ?? 0)} km, takže delší běh než ${num(week.left ?? 0)} km by cíl překročil.` : ""} Platí vždy nižší z limitů.`} /></span>
         <span className="whitespace-nowrap tabular-nums text-[12px] text-fg-3">
           {today != null ? <>dnes <b className="text-[15px] text-fg">≈ {num(today)} km</b> · </> : null}do neděle <b className="text-fg">≈ {num(bind[0])} km</b>
         </span>
@@ -133,11 +133,7 @@ function SafeRunLimits({ limits, today, week }: { limits: [number, string][]; to
           )
         })}
       </div>
-      {/* feedback #189 — what the single-run capacity is and why the shorter limit wins */}
-      <p className="mt-2.5 text-[11px] leading-4 text-fg-3" data-testid="safe-run-why">
-        Kapacita jednoho běhu je nejdelší běh za posledních 30 dní, který proběhl bez bolesti (starší se počítají méně), plus 10 % rezerva.
-        Nevychází z objemu týdnů, říká jen, jak dlouhý jeden běh tělo zvládá.{week?.budget != null ? ` Cíl týdne od pondělí je ${num(week.budget)} km, odběhnuto ${num(week.done ?? 0)} km, takže delší běh než ${num(week.left ?? 0)} km by cíl překročil.` : ""} Platí vždy nižší z limitů.
-      </p>
+
     </div>
   )
 }
@@ -177,7 +173,7 @@ function LimitLadder({ c, id, d, sysBound }: { c: any; id: string; d: number; sy
   return (
     <div className="rounded-[14px] border border-white/[.07] bg-white/[.02] p-3" data-testid={`limit-ladder-${id}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-[12px] font-semibold text-fg-2">Limity na dnešek</span>
+        <span className="flex items-center gap-1.5 text-[12px] font-semibold text-fg-2">Limity na dnešek<InfoDot label="Limity na dnešek" text="Platí nejnižší z limitů. Plán říká, kolik je rozumné tento týden udělat; bezpečnostní limity, kolik tělo podle vašich dat unese." /></span>
         <span className="tabular-nums text-[12px] text-fg-3">{"dnes nejvýš "}<b className="text-[14px] text-fg">{num(c.todayMax, d)}</b>{" "}{c.unit}</span>
       </div>
       <div className="mt-2 space-y-1.5">
@@ -194,7 +190,6 @@ function LimitLadder({ c, id, d, sysBound }: { c: any; id: string; d: number; sy
           )
         })}
       </div>
-      <p className="mt-2 text-[11px] leading-4 text-fg-3">Platí nejnižší z limitů. Plán říká, kolik je rozumné tento týden udělat; bezpečnostní limity, kolik tělo podle vašich dat unese.</p>
     </div>
   )
 }
@@ -585,10 +580,7 @@ function RacePlan({ rid, race, inWeek }: { rid: string; race: any; inWeek: boole
             )
           })}
         </div>
-        <p className="mt-2 text-[11px] leading-4 text-fg-3">
-          {plan.paceKnown ? "Předpoklad podle vaší aktuální formy. " : "Na odhad tempa zatím chybí běhy s tepem. "}
-          Kterou možnost zvolit, aplikace doporučí v týdnu závodu podle kapacity a připravenosti v tu dobu. Klepnutím zobrazíte strategii.
-        </p>
+        <HowTo className="mt-2" label="Jak vybrat" text={`${plan.paceKnown ? "Předpoklad podle vaší aktuální formy. " : "Na odhad tempa zatím chybí běhy s tepem. "}Kterou možnost zvolit, aplikace doporučí v týdnu závodu podle kapacity a připravenosti v tu dobu. Klepnutím zobrazíte strategii.`} />
       </div>
     )
   }
@@ -789,9 +781,8 @@ function RacesCard({ outlook, g, cap }: { outlook: any; g?: any; cap?: any }) {
             <input className={inp} inputMode="decimal" value={f.km} onChange={(e) => setF({ ...f, km: e.target.value })} />
             <span className="mt-1.5 flex flex-wrap gap-1">{DIST.map(([v, l]) => <button key={v} type="button" onClick={() => setF({ ...f, km: v })} aria-pressed={f.km === v} className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${f.km === v ? "bg-fg text-ink" : "bg-white/[.06] text-fg-2 hover:text-fg"}`}>{l}</button>)}</span>
           </label>
-          <div className="text-[12px] font-semibold text-fg-2">Priorita
+          <div className="text-[12px] font-semibold text-fg-2"><span className="inline-flex items-center gap-1.5">Priorita<InfoDot label="Priorita závodu" text="A = hlavní cíl, 2 týdny před ním ladění formy. B = naplno, bez ladění. C = jako trénink." /></span>
             <Segmented className="mt-1" size="sm" ariaLabel="Priorita závodu" options={Object.entries(PRIO).map(([k, [l]]) => [k, l] as const)} value={f.priority} onChange={(k) => setF({ ...f, priority: k })} />
-            <p className="mt-1.5 text-[11px] font-normal leading-4 text-fg-3">A = hlavní cíl, 2 týdny před ním ladění formy. B = naplno, bez ladění. C = jako trénink.</p>
           </div>
           <div className="flex gap-2 sm:col-span-2">
             <Button size="sm" disabled={busy || !f.date} onClick={save}>Uložit</Button>
@@ -888,6 +879,16 @@ function FitRow({ label, use, left, unit, d = 0, by, bound, note, week, testid }
   )
 }
 
+// feedback #211 — why a ride can add more Celková zátěž than a run: per minute it is about the
+// same or less, it is just longer (sized to what Celková zátěž leaves today)
+function perMinNote(kind: string, x: any): string {
+  if (kind !== "kolo" && kind !== "voda") return ""
+  const own = kind === "kolo" ? x.perMinRide : 4 * (x.kSrpe || 0)
+  const run = x.perKm && x.easyPace ? x.perKm / (x.easyPace / 60) : null
+  if (!own || !run) return ""
+  return ` Za minutu ≈ ${num(own, 1)} bodu zátěže, lehký běh ≈ ${num(run, 1)}. Celkem může vyjít víc než běh, protože je delší: délku určuje, kolik celkové zátěže dnes zbývá, a šlachy ani klouby to nezatěžuje.`
+}
+
 type FitR = { key: string; label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; bound?: string | null; note?: string; week?: string | null }
 // what an activity takes from today's capacities, channel by channel, and the sentence on it
 function fitRows(g: any, kind: string, withAscent = false): { rows: FitR[]; summary: string } | null {
@@ -912,7 +913,7 @@ function fitRows(g: any, kind: string, withAscent = false): { rows: FitR[]; summ
     if (t.descentMax != null) rows.push({ key: "descent", label: "Klesání", use: t.descentMax, left: room(ch.descent), unit: "m", by: opt ? null : ch.descent?.limitedBy, bound: ch.descent?.bound, note: "nejvýš" })
     if (withAscent && t.ascentMax != null) rows.push({ key: "ascent", label: "Stoupání", use: t.ascentMax, left: room(ch.ascent), unit: "m", by: opt ? null : ch.ascent?.limitedBy, bound: ch.ascent?.bound, note: "nejvýš" })
     if (km != null && x.perKm) rows.push({ key: "systemic", label: "Celková zátěž", use: km * x.perKm + (z4 || 0) * (kind === "kvalitní" ? (x.z4PerMin || 0) * 0.5 : 0),
-      left: sys.todayMax ?? null, unit: "bodů", by: sys.limitedBy, bound: sys.bound, note: "body zátěže = tep × čas, odhad z vašich lehkých běhů" })
+      left: sys.todayMax ?? null, unit: "bodů", by: sys.limitedBy, bound: sys.bound })
   } else {
     const min = mid(t.durationMin)
     const perMin = kind === "kolo" ? x.perMinRide : kind === "voda" ? 4 * (x.kSrpe || 0) : 6.5 * (x.kSrpe || 0)
@@ -929,7 +930,7 @@ function fitRows(g: any, kind: string, withAscent = false): { rows: FitR[]; summ
     : opt ? "Nad rámec cíle týdne — vejde se pod bezpečnostní limity (nevstřebaná zátěž a strop jednoho běhu)."
     : noRun ? "Na běh dnes kapacita nezbývá."
     : binding ? `Velikost určuje ${binding.label.toLowerCase()}: tato aktivita využije, co dnes zbývá.`
-    : t.cross ? "Zatíží srdce a plíce, běžecké kapacity šetří a do dnešních limitů se vejde."
+    : t.cross ? `Zatíží srdce a plíce, běžecké kapacity šetří a do dnešních limitů se vejde.${perMinNote(kind, x)}`
     : "Vejde se do všech dnešních limitů s rezervou."
   return { rows, summary }
 }
@@ -945,7 +946,7 @@ function CapacityFit({ g, kind }: { g: any; kind: string }) {
       <div className="mt-2.5 grid gap-3">
         {rows.map(({ key, ...r }) => <FitRow key={key} testid={`fit-${key}`} {...r} />)}
       </div>
-      <p className="mt-2 text-[11px] leading-4 text-fg-3">Zelená = tato aktivita, šedá = co dnes zbývá do limitu (cíl týdne od pondělí, strop týdenní kapacity a jednoho běhu, celková zátěž).</p>
+      <HowTo className="mt-2" label="Jak číst pruhy" text="Zelená = tato aktivita, šedá = co dnes zbývá do limitu (cíl týdne od pondělí, strop týdenní kapacity a jednoho běhu, celková zátěž). Body zátěže = tep × čas, odhad z vašich lehkých běhů." />
     </div>
   )
 }
