@@ -20,6 +20,7 @@ import { C } from "@/tokens"
 import { BoundTag, TomorrowCard, WeekLoadCard, limitText } from "@/outlook"
 import { Bike, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Users, Waves, X, Zap, type LucideIcon } from "lucide-react"
 import { CoachProgress, CoachSection } from "@/coach"
+import { GoalCard } from "@/goal"
 
 const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"]
 const CROSS = ["kolo", "voda", "posilování"]
@@ -1362,6 +1363,7 @@ export function Training() {
         <NoData kicker="Trénink" title="Plán se ukáže po prvních datech">
           Denní doporučení stojí na tom, co prokazatelně zvládáte: na vašich bězích a nocích z hodinek. Bez nich by rozsahy kilometrů a tepu byly jen odhad, proto je zatím neukazujeme. Závody si ale můžete zadat už teď.
         </NoData>
+        {rid && !touring && <GoalCard rid={rid} />}
         {g && <RacesCard outlook={a.races} g={g} cap={a.capacity} />}
       </>
     )
@@ -1421,6 +1423,7 @@ export function Training() {
             <>
               <TodayHero g={g} a={a} plan={plan} stage={stage} />
               <ActivityRow g={g} onPick={setSel} />
+              {rid && !touring && <GoalCard rid={rid} />}
               <WeekCard g={g} plan={plan} />
             </>
           )}
@@ -1432,6 +1435,7 @@ export function Training() {
           <TomorrowCard g={g} />
           <WeekLoadCard g={g} cap={a.capacity} />
           {coach && <CoachProgress rid={rid!} />}
+          {coach && <GoalCard rid={rid!} />}
           <BodyCard a={a} hist={quadHist} day={day} />
           <RacesCard outlook={a.races} g={g} cap={a.capacity} />
         </div>

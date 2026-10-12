@@ -4760,7 +4760,8 @@
  {
   "t": "půlmaraton",
   "files": [
-   "metrics/engine.py"
+   "metrics/engine.py",
+   "metrics/goal_plan.py"
   ]
  },
  {
@@ -5122,6 +5123,342 @@
   "files": [
    "metrics/geo_sample.py",
    "plan_import.py"
+  ]
+ },
+ {
+  "t": "0,6 × klesání závodu v jednom běhu",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "0,6 × stoupání závodu v jednom běhu",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Ani riziková cesta by termín nestihla, takže ji aplikace nenabídne.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Cíl doběhnout místo cílového času: {}.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Cíl zatím nemá žádný požadavek. Zadejte aspoň jedno číslo.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Do {} to bezpečně nestihnete.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Do {} to stihnete bezpečně i s rezervou {} týdnů na nemoc a horší týdny.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Do {} to stihnete jen bez výpadku: připraveni budete za {} z {}, rezerva na nemoc a horší týdny chybí.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Jste v prvním roce pravidelného běhání, proto kapacita roste pomaleji (užší rezerva týdne).",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Klesání v jednom běhu",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Klesání za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Kratší trať ve stejném termínu ({}): {}.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Ladění {} před závodem: objem dolů o 40–60 %, intenzita a počet běhů zůstanou.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Na projekci potřebuji aspoň 3 z posledních 6 týdnů s běháním z hodinek. Zatím aplikace neví, z čeho by kapacita rostla.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Na trailu počítat se střídáním běhu a chůze v kopcích a cíl brát jako doběhnutí.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Nejdelší běh",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Nereálné",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Posunout termín na {} nebo později, nebo plánovaný závod běžet jako trénink.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Počet dlouhých běhů",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Připraveni budete zhruba za {}, pak {} ladění.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Připraveni budete zhruba za {}.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Půlmaraton ještě v historii nemáte. Plán k cíli do přípravy vloží běh na 21 km nebo nabídne B‑závod na půlmaraton: běžci s půlmaratonem za sebou se při přípravě na první maraton zranili méně často (OR 0,40).",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Reálné",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Reálný termín je od {}.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Riziková cesta (přijde v další etapě, jen s výslovným souhlasem): připraveni za {}. Týden by rostl až o 20 % a dlouhý běh o 15 %. Při nárůstu týdne o 20–60 % se během 3 týdnů zranilo o 23 procentních bodů víc běžců.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Run",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Seběhy",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Stoupání v jednom běhu",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Stoupání za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Teď máte omezení tréninku (bolest, zranění nebo návrat po něm). Projekce počítá s tím, že trénink půjde bez přerušení, takže skutečný termín bude nejspíš později.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Týdenní objem ve vrcholu",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Těsné",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "U prvního maratonu bude plán stavět na 3 bězích týdně a čtvrtý přidá jen tehdy, když se objem jinak nedá postavit. Kdo běhal aspoň 4× týdně, zranil se o 36 % častěji. Další aerobní trénink nabídne jako kolo.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Week",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Zatím nelze spočítat",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "aby dlouhý běh {} km byl nejvýš 50 % týdne",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "aspoň 10 seběhů, nejvýš jeden za 7 dní",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "bezpečně nestihnete do 2 let",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "cílový čas",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "dlouhé běhy aspoň {} km",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "doběhnout",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "klesání trati za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "klesání závodu za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "nejdelší běh v přípravě",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "stihnete bezpečně za {}",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "stoupání trati za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "stoupání závodu za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "trail: 0,7 × délka (pracovní předpoklad)",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "trail: 1,5 × délka, aspoň jako silnice o {} km (stoupání převedené na rovinu)",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "týdny",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "týdnů",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "váš cíl",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "{}× dlouhý běh aspoň {} km",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "{}× seběh",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "· aby dlouhý běh {} km byl nejvýš 50 % týdne",
+  "files": [
+   "metrics/goal_plan.py"
   ]
  },
  {
@@ -14166,6 +14503,45 @@
   ]
  },
  {
+  "t": "Cíl může být nejvýš 2 roky dopředu",
+  "files": [
+   "routers/goals.py"
+  ]
+ },
+ {
+  "t": "Datum cíle musí být v budoucnosti",
+  "files": [
+   "routers/goals.py"
+  ]
+ },
+ {
+  "t": "Neplatné datum",
+  "files": [
+   "routers/goals.py",
+   "routers/plan.py",
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Zadejte aspoň jedno číslo cíle",
+  "files": [
+   "routers/goals.py"
+  ]
+ },
+ {
+  "t": "Zadejte délku závodu",
+  "files": [
+   "routers/goals.py"
+  ]
+ },
+ {
+  "t": "Závod nenalezen",
+  "files": [
+   "routers/goals.py",
+   "routers/runners.py"
+  ]
+ },
+ {
   "t": "Garmin není připojen pro automatickou synchronizaci — připojte ho nejdřív na stránce Data.",
   "files": [
    "routers/integrations.py"
@@ -14309,13 +14685,6 @@
   "t": "Kalendář není připojený.",
   "files": [
    "routers/plan.py"
-  ]
- },
- {
-  "t": "Neplatné datum",
-  "files": [
-   "routers/plan.py",
-   "routers/runners.py"
   ]
  },
  {
@@ -14713,12 +15082,6 @@
  },
  {
   "t": "Zkontrolujte rok narození",
-  "files": [
-   "routers/runners.py"
-  ]
- },
- {
-  "t": "Závod nenalezen",
   "files": [
    "routers/runners.py"
   ]

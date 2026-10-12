@@ -120,6 +120,11 @@ export const api = {
   deleteRace: (id: string, raceId: number | string) => call("DELETE", `/api/runners/${id}/races/${raceId}`),
   updateRace: (id: string, raceId: number | string, body: Record<string, any>) => call("PATCH", `/api/runners/${id}/races/${raceId}`, body),
   racePlan: (id: string, raceId: number | string) => call("GET", `/api/runners/${id}/races/${raceId}/plan`),
+  // Trénink k cíli, stage 1 — the goal and its feasibility (backend routers/goals.py)
+  goal: (id: string) => call("GET", `/api/runners/${id}/goal`),
+  goalPreview: (id: string, body: any) => call("POST", `/api/runners/${id}/goal/preview`, body),
+  saveGoal: (id: string, body: any) => call("PUT", `/api/runners/${id}/goal`, body),
+  cancelGoal: (id: string) => call("DELETE", `/api/runners/${id}/goal`),
   selfPrograms: (id: string) => call("GET", `/api/runners/${id}/self-programs`),
   startSelfProgram: (id: string, body: { template?: string; name?: string; exercises?: string[] }) => call("POST", `/api/runners/${id}/self-programs`, body),
   logSelfProgram: (id: string, pid: number, exercise: string, done: boolean) => call("PATCH", `/api/runners/${id}/self-programs/${pid}/log`, { exercise, done }),

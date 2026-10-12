@@ -1,5 +1,5 @@
 {
- "source": "Doslap_Literature_Summary.docx (project doc), 56 sources, 2026-10-02",
+ "source": "Doslap_Literature_Summary.docx (project doc), 73 sources, 2026-10-12 (goal-planner sources added from Consensus searches and the owner's summaries)",
  "categories": {
   "A": "Load progression and running injury",
   "B": "Load monitoring concepts and ACWR",
@@ -1323,6 +1323,381 @@
    "relevance": "Supports weighting the calf and Achilles tendon most for faster running at recreational paces (all well below 7 m/s, i.e. 2:23 min/km), and the hamstrings and hip flexors only for sprint-like efforts. Used in the body map on the Load tab.",
    "limits": "Nine trained athletes on a running track, steady-state running only and a modelling approach; it describes muscle function, not injury risk, and recreational paces cover only the lowest speed studied. Evidence strength for the card: low (mechanistic).",
    "strength": "low (mechanistic)."
+  },
+  {
+   "id": "fokkema-et-al-2020",
+   "cite": "Fokkema et al. (2020)",
+   "category": "A",
+   "apa": "Fokkema, T., et al. (2020). Training for a (half-)marathon: Training volume and longest endurance run related to performance and running injuries. Scandinavian Journal of Medicine & Science in Sports.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/39b995c065575674a1eb0e1c8851682a/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Cohort of event participants with three questionnaires during preparation and after the race",
+    "Population": "556 half-marathon and 441 marathon recreational runners",
+    "Exposure": "Average weekly training volume and the longest endurance run before the event",
+    "Outcome": "Finish time, decline in pace during the race and running-related injuries",
+    "Main result": "Higher volume and a longer longest run went with faster finish times and were not related to more injuries"
+   },
+   "findings": [
+    "Half marathon: a weekly volume over 32 km and a longest run over 21 km were associated with a faster finish time and less decline in pace.",
+    "Marathon: a weekly volume under 40 km was associated with a slower finish time and over 65 km with a faster one; a longest run under 25 km was associated with a slower finish time.",
+    "No association between these training characteristics and running-related injuries was found."
+   ],
+   "relevance": "Anchors the goal planner's requirements for the half marathon (peak week up to 45 km, longest run 18–21 km) and the marathon (peak week 55–65 km, longest run 29–32 km, under 40 km a week flagged as tight).",
+   "limits": "Observational and self-reported; faster runners train more, so the numbers show an association, not a causal effect.",
+   "strength": "moderate for an association with performance, low for causation"
+  },
+  {
+   "id": "doherty-et-al-2019",
+   "cite": "Doherty et al. (2019)",
+   "category": "D",
+   "apa": "Doherty, C., et al. (2019). An evaluation of the training determinants of marathon performance: A meta-analysis with meta-regression. Journal of Science and Medicine in Sport.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/1fc5d779ce2b54fb8444833c410f9f00/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Systematic review, meta-analysis and meta-regression of observational and interventional studies",
+    "Population": "85 studies, 137 cohorts, 8,945 elite and recreational marathon runners (25% female)",
+    "Exposure": "Weekly distance, runs per week, maximum weekly distance, number of runs of at least 32 km, training pace, longest run, hours per week",
+    "Outcome": "Marathon finish time",
+    "Main result": "Every training variable had a dose-response association with a faster finish; the number of runs of at least 32 km explained the most variance (R² 0.81)"
+   },
+   "findings": [
+    "The number of runs of at least 32 km (R² 0.81) and the maximum weekly distance (R² 0.80) were the strongest predictors of marathon time, ahead of weekly hours (0.78), average weekly distance (0.70), training pace (0.67), runs per week (0.45) and the single longest run (0.38).",
+    "The pooled rate of non-finishers was 7.27% (95% CI 6.09% to 8.65%)."
+   ],
+   "relevance": "Supports counting repeated long runs and the peak week, not only the average week or one longest run, as the goal planner's marathon requirements (a target time: 2 runs of at least 32 km).",
+   "limits": "Meta-regression across cohorts (ecological), mostly observational data; associations, not effects.",
+   "strength": "moderate"
+  },
+  {
+   "id": "yamaguchi-et-al-2022",
+   "cite": "Yamaguchi et al. (2022)",
+   "category": "D",
+   "apa": "Yamaguchi, A., et al. (2022). Interactions between monthly training volume, frequency and running distance per workout on marathon time. European Journal of Applied Physiology.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/b75c7f99775d567fa7e2bef398344d00/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Cross-sectional questionnaire before a marathon",
+    "Population": "587 male recreational runners, 494 finishers (Hokkaido Marathon 2017)",
+    "Exposure": "Monthly volume, frequency, longest and average distance per workout",
+    "Outcome": "Marathon time",
+    "Main result": "Monthly volume was the main predictor, but only when the longest run reached at least 21 km and the average run at least 10 km"
+   },
+   "findings": [
+    "Monthly training volume was the most important predictor of marathon time.",
+    "The association between volume and time was significant only in the subgroups whose longest run was at least 21 km and whose average run was at least 10 km."
+   ],
+   "relevance": "Volume counts for the marathon only together with long enough runs, so the goal planner keeps the longest run as a requirement of its own.",
+   "limits": "Men only, cross-sectional, self-reported.",
+   "strength": "low to moderate"
+  },
+  {
+   "id": "rasmussen-et-al-2013",
+   "cite": "Rasmussen et al. (2013)",
+   "category": "A",
+   "apa": "Rasmussen, C. H., et al. (2013). Weekly running volume and risk of running-related injuries among marathon runners. International Journal of Sports Physical Therapy.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/417f3534f4745b26b0156570fac76c4a/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Retrospective cohort of marathon finishers, web questionnaire",
+    "Population": "662 marathon finishers, 68 injured",
+    "Exposure": "Average weekly volume before the marathon: under 30, 30 to 60, over 60 km",
+    "Outcome": "Running-related injury reducing running for at least 14 days",
+    "Main result": "Under 30 km a week the relative risk of injury was 2.02 compared with 30 to 60 km"
+   },
+   "findings": [
+    "Adjusted for previous injury and previous marathons, runners under 30 km a week had twice the injury risk of runners at 30 to 60 km a week (RR 2.02, 95% CI 1.26 to 3.24).",
+    "Over 60 km a week did not differ from 30 to 60 km (RR 1.13)."
+   ],
+   "relevance": "The goal planner never accepts a marathon goal whose peak week stays under 30 km.",
+   "limits": "Retrospective, finishers only (survivor bias), self-reported volume.",
+   "strength": "low to moderate"
+  },
+  {
+   "id": "mohseni-et-al-2019",
+   "cite": "Mohseni et al. (2019)",
+   "category": "A",
+   "apa": "Mohseni, M., et al. (2019). Factors associated with half- and full-marathon race-related injuries: A 3-year review. Clinical Journal of Sport Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/6c7674bdbf0052cf96d85f1bd24c9767/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Observational cross-sectional study over 3 race years",
+    "Population": "1,043 half marathoners and 624 marathoners",
+    "Exposure": "Demographics and training factors",
+    "Outcome": "Race-related injury during the race or within 2 weeks",
+    "Main result": "Undertraining and inexperience raised race-related injury risk; more than 23 miles (≈ 37 km) a week for the half and 40 miles (≈ 64 km) for the marathon went with fewer injuries"
+   },
+   "findings": [
+    "Race-related injuries were reported by 24% of half marathoners and 30% of marathoners.",
+    "Previous injury, a lower peak weekly mileage and a lower weekly mileage before race training were risk factors in both groups.",
+    "Training loads over 23 miles a week (half) and 40 miles a week (marathon) were associated with a lower injury risk."
+   ],
+   "relevance": "Supports the lower bounds of the goal planner's peak week: 37 km for the half marathon and the upper end of 55 to 65 km for the marathon.",
+   "limits": "Cross-sectional, self-reported, a single event.",
+   "strength": "low to moderate"
+  },
+  {
+   "id": "toresdahl-et-al-2021",
+   "cite": "Toresdahl et al. (2021)",
+   "category": "A",
+   "apa": "Toresdahl, B., et al. (2021). Factors associated with injuries in first-time marathon runners from the New York City marathon. The Physician and Sportsmedicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/94f5388aa0e652d687deac555e6b4798/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Prospective cohort, surveys every 2 weeks over 12 weeks",
+    "Population": "720 first-time marathon runners, 675 completed (New York City Marathon 2017)",
+    "Exposure": "Running experience, runs per week, distance, longest run",
+    "Outcome": "Injuries in training and in the race",
+    "Main result": "A previous half marathon and longer long runs went with fewer injuries; 4 or more runs a week with more"
+   },
+   "findings": [
+    "9.5% had a major injury that prevented starting or finishing the race and 49.2% a minor one.",
+    "Runners who had completed a half marathon were less likely to be injured (OR 0.40).",
+    "Averaging 4 or more runs a week went with more injuries than fewer (RR 1.36).",
+    "The longest training run was inversely associated with race-day injury (OR 0.87 per unit); no runner with a run of at least 18 miles (29 km) had a race-ending injury."
+   ],
+   "relevance": "Basis for the marathon long-run requirement of at least 29 km, the half-marathon milestone before a first marathon and the 3 runs a week a first-time marathoner's plan starts from.",
+   "limits": "Observational; who chooses to run often may differ in other ways.",
+   "strength": "moderate"
+  },
+  {
+   "id": "toresdahl-et-al-2022",
+   "cite": "Toresdahl et al. (2022)",
+   "category": "B",
+   "apa": "Toresdahl, B., et al. (2022). Training patterns associated with injury in New York City Marathon runners. British Journal of Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/554951bc449b5ef68fa34e413db51278/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Prospective cohort over the 16 weeks before the marathon, runs tracked on Strava",
+    "Population": "735 runners, 49,195 training runs",
+    "Exposure": "Weekly distance and the acute:chronic workload ratio (7-day over 28-day distance), thresholds 1.3 and 1.5",
+    "Outcome": "Injury and illness",
+    "Main result": "Each day with ACWR of at least 1.5 raised the odds of injury (OR 1.06)"
+   },
+   "findings": [
+    "40.0% were injured during training and 16.0% during or right after the marathon; 27.2% were ill during training.",
+    "Each day with an ACWR of at least 1.5 was associated with higher odds of a training injury (OR 1.06, 95% CI 1.02 to 1.10)."
+   ],
+   "relevance": "The goal planner never lets a week exceed 1.5 times the average week of the 4 before it, and keeps a reserve of 2 to 3 weeks for illness and bad weeks.",
+   "limits": "Observational; the ACWR has known statistical weaknesses.",
+   "strength": "moderate"
+  },
+  {
+   "id": "abrahamson-et-al-2024",
+   "cite": "Abrahamson et al. (2024)",
+   "category": "A",
+   "apa": "Abrahamson, J., et al. (2024). Using self-reported training characteristics to better understand who is more likely to sustain running-related injuries than others: The Garmin-RUNSAFE Running Health Study. Scandinavian Journal of Medicine & Science in Sports.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/9924cfec5e39594697d7370d2daef9e8/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Prospective cohort over 18 months, data from Garmin Connect and weekly questionnaires",
+    "Population": "7,391 adult runners",
+    "Exposure": "Experience, weekly frequency and distance, structured programme",
+    "Outcome": "Running-related injury per 1,000 km",
+    "Main result": "Fewer than 2 runs a week, under 25 km a week and no structured programme went with more injuries"
+   },
+   "findings": [
+    "The cumulative injury proportion was 57.8% after 1,000 km.",
+    "Runners with a weekly distance under 25 km, fewer than 2 runs a week, under 1 or over 40 years of experience, or without a structured programme were more prone to injury."
+   ],
+   "relevance": "Supports the 25 km lower bound of the goal planner's peak week for a 10 km race.",
+   "limits": "Self-reported baseline exposures.",
+   "strength": "moderate"
+  },
+  {
+   "id": "bosquet-et-al-2007",
+   "cite": "Bosquet et al. (2007)",
+   "category": "D",
+   "apa": "Bosquet, L., et al. (2007). Effects of tapering on performance: A meta-analysis. Medicine and Science in Sports and Exercise.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/e28eb39cfe0452a0ac57e1efb43b4e48/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Meta-analysis",
+    "Population": "27 studies of competitive athletes",
+    "Exposure": "Taper duration, pattern and the decrease in volume, intensity and frequency",
+    "Outcome": "Competition or field performance",
+    "Main result": "A 2-week taper with volume cut exponentially by 41–60% and unchanged intensity and frequency worked best"
+   },
+   "findings": [
+    "A taper of 2 weeks had an overall effect of 0.59 on performance.",
+    "Reducing volume by 41–60% had an effect of 0.72, without changing intensity or frequency."
+   ],
+   "relevance": "The goal planner's taper: 2 weeks for the half and the full marathon, volume down by 40–60%, intensity and the number of runs kept.",
+   "limits": "Competitive athletes, not recreational runners; small studies.",
+   "strength": "moderate"
+  },
+  {
+   "id": "wang-et-al-2023",
+   "cite": "Wang et al. (2023)",
+   "category": "D",
+   "apa": "Wang, Z., et al. (2023). Effects of tapering on performance in endurance athletes: A systematic review and meta-analysis. PLOS ONE.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/9af705b8f35a5b738367d03130a3113b/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Systematic review and meta-analysis",
+    "Population": "14 studies, 174 endurance athletes (runners and cyclists)",
+    "Exposure": "Taper strategies",
+    "Outcome": "Time trial, time to exhaustion, VO2max, economy",
+    "Main result": "Tapering improved time-trial and time-to-exhaustion performance but not VO2max or economy; 41–60% less volume with intensity and frequency kept, up to 21 days"
+   },
+   "findings": [
+    "Time-trial performance improved (SMD −0.45) and time to exhaustion improved (SMD 1.28).",
+    "The 8–14 day taper had the largest effect; overload before the taper added to the gain."
+   ],
+   "relevance": "Confirms the goal planner's 1–2 week taper and the 40–60% cut in volume.",
+   "limits": "Small number of studies.",
+   "strength": "moderate"
+  },
+  {
+   "id": "smyth-and-lawlor-2021",
+   "cite": "Smyth & Lawlor (2021)",
+   "category": "D",
+   "apa": "Smyth, B., & Lawlor, A. (2021). Longer disciplined tapers improve marathon performance for recreational runners. Frontiers in Sports and Active Living.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/2c60de51703957c7a454c386bb0f9259/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Observational analysis of training logs",
+    "Population": "More than 158,000 recreational marathon runners",
+    "Exposure": "Taper duration (1–4 weeks) and discipline (strict versus relaxed)",
+    "Outcome": "Marathon performance",
+    "Main result": "Strict tapers beat relaxed ones; a strict 3-week taper saved a median of 2.6% of finish time compared with a minimal taper"
+   },
+   "findings": [
+    "Strict tapers, with less training every week, were associated with better performance than relaxed ones.",
+    "Longer tapers up to 3 weeks were associated with better performance; 64% of runners used less disciplined tapers."
+   ],
+   "relevance": "Every taper week in the goal planner has less volume than the one before; the owner chose 2 weeks for the marathon, within the meta-analyses.",
+   "limits": "Observational; runners chose their taper.",
+   "strength": "low to moderate"
+  },
+  {
+   "id": "soppelsa-et-al-2025",
+   "cite": "Soppelsa et al. (2025)",
+   "category": "E",
+   "apa": "Soppelsa, D., et al. (2025). Analysis of factors influencing injuries and performance in trail running. Injury.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/54a0eaa667375f33bef6d4522c4dec9a/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Survey with causal Bayesian networks",
+    "Population": "697 trail runners",
+    "Exposure": "Training, anthropometry, lifestyle, recovery",
+    "Outcome": "Injury and performance",
+    "Main result": "Lower weekly volume and lower yearly elevation gain went with more injuries"
+   },
+   "findings": [
+    "The risk of injury was higher with more weight, fewer interval sessions, lower weekly volume and yearly elevation gain, less passive recovery and less sleep."
+   ],
+   "relevance": "Supports volume and climbing requirements for trail goals; the multipliers themselves are working assumptions.",
+   "limits": "Self-selected online survey, cross-sectional.",
+   "strength": "low"
+  },
+  {
+   "id": "marqueste-et-al-2008",
+   "cite": "Marqueste et al. (2008)",
+   "category": "E",
+   "apa": "Marqueste, T., et al. (2008). Comparative MRI analysis of T2 changes associated with single and repeated bouts of downhill running leading to eccentric-induced muscle damage. Journal of Applied Physiology.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/5aefb49f446156538f88d10f4e342eda/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Experimental",
+    "Population": "Exhausting downhill running bouts repeated 4 or 7 days apart",
+    "Exposure": "Spacing of downhill bouts",
+    "Outcome": "Muscle T2 on MRI, creatine kinase, endurance time",
+    "Main result": "Bouts 7 days apart protected the muscle; 4 days apart did not"
+   },
+   "findings": [
+    "With 4 days between bouts the changes did not recover and endurance time fell.",
+    "With 7 days between bouts endurance time was longer and muscle changes reversed: a 'less muscle injury' effect at 1 session a week."
+   ],
+   "relevance": "The goal planner gives a large descent session at most once every 7 days.",
+   "limits": "Small experimental sample; exhausting protocol.",
+   "strength": "low to moderate"
+  },
+  {
+   "id": "bontemps-et-al-2025",
+   "cite": "Bontemps et al. (2025)",
+   "category": "E",
+   "apa": "Bontemps, B., et al. (2025). Muscle soreness but not neuromuscular fatigue responses following downhill running differ according to the number of exercise bouts. European Journal of Sport Science.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/9925906afbb65efb877ffb59432c0986/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Experimental, two blocks of five downhill sessions",
+    "Population": "12 healthy untrained adults",
+    "Exposure": "Number of downhill sessions",
+    "Outcome": "Strength loss, neuromuscular fatigue, perceived soreness",
+    "Main result": "Quadriceps soreness after a standard bout fell after 10 sessions, not after 5"
+   },
+   "findings": [
+    "Quadriceps soreness after the standard bout was lower after 10 sessions than at baseline; after 5 it was not significantly lower.",
+    "Neuromuscular fatigue after the bout did not change with training."
+   ],
+   "relevance": "The goal planner asks for at least 10 descent sessions before the peak of a trail plan.",
+   "limits": "12 untrained adults on a treadmill.",
+   "strength": "low"
+  },
+  {
+   "id": "mchugh-2003",
+   "cite": "McHugh (2003)",
+   "category": "E",
+   "apa": "McHugh, M. P. (2003). Recent advances in the understanding of the repeated bout effect: The protective effect against muscle damage from a single bout of eccentric exercise. Scandinavian Journal of Medicine & Science in Sports.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/8687224053f1598cb6ab1eef71be1a1a/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Narrative review",
+    "Population": "Eccentric exercise studies",
+    "Exposure": "A prior bout of eccentric exercise",
+    "Outcome": "Muscle damage after a later bout",
+    "Main result": "One eccentric bout protects against damage from later bouts (neural, mechanical and cellular adaptations)"
+   },
+   "findings": [
+    "A single bout of eccentric exercise protects against muscle damage from subsequent bouts; the mechanism is not settled."
+   ],
+   "relevance": "The reason the goal planner adds descent gradually and with spacing.",
+   "limits": "Review of mechanisms, not a training trial.",
+   "strength": "moderate for the effect"
+  },
+  {
+   "id": "de-waal-et-al-2024",
+   "cite": "de Waal et al. (2024)",
+   "category": "E",
+   "apa": "de Waal, S. D., et al. (2024). Pacing analysis and comparison of TOP-10 and NOT TOP-10 Ultra Trail Cape Town 100-km finishers. The Journal of Sports Medicine and Physical Fitness.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/298bd19da3705a7f8a3ec5c1377278f0/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Observational analysis of Strava data",
+    "Population": "50 male finishers of a 100 km race with 5,000 m of climbing",
+    "Exposure": "Uphill, level and downhill speed",
+    "Outcome": "Overall performance",
+    "Main result": "Uphill running had the strongest relationship with performance (r = 0.826)"
+   },
+   "findings": [
+    "Uphill running performance was most strongly related to overall performance; level and downhill much less."
+   ],
+   "relevance": "Supports climbing as a requirement for long trail goals.",
+   "limits": "Small, male, one race.",
+   "strength": "low"
+  },
+  {
+   "id": "bettega-et-al-2025",
+   "cite": "Bettega et al. (2025)",
+   "category": "E",
+   "apa": "Bettega, S., et al. (2025). Kinematics and performance on uphill and downhill trail running in elite and well-trained athletes. International Journal of Sports Science & Coaching.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/002e6030ab2e573cb225614889e5b536/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Observational race analysis with video",
+    "Population": "Top 100 male finishers of a 22 km skyrace (± 1,750 m)",
+    "Exposure": "Uphill and downhill sections",
+    "Outcome": "Split times and stride kinematics",
+    "Main result": "Runners spent more time uphill, but differences between runners were larger downhill"
+   },
+   "findings": [
+    "Uphill took 62.5% of race time and predicted overall time most strongly, while time losses between runners were larger on descents (21.6% versus 18.5%).",
+    "The authors call for targeted descent training."
+   ],
+   "relevance": "Supports descent requirements for short trail goals.",
+   "limits": "Men, one race.",
+   "strength": "low"
   }
  ]
 }

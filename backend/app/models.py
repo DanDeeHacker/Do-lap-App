@@ -764,6 +764,32 @@ class Race(Base):
     target_pace_s_km = Column(Integer)              # planned pace, seconds per km
 
 
+class Goal(Base):
+    """Trénink k cíli (owner request 2026-10-12, metrics/goal_plan.py): one active goal per
+    runner — a race (from the calendar or typed in) or a free goal (weekly km, longest run,
+    climb). Stage 1 stores the goal and its last feasibility answer; the plan doesn't change."""
+    __tablename__ = "goals"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    kind = Column(String, default="race")           # race | free
+    race_id = Column(Integer)                       # races.id when picked from the calendar
+    name = Column(String)
+    date = Column(String, nullable=False)           # race day / the free goal's date, YYYY-MM-DD
+    distance_km = Column(Float)
+    ascent_m = Column(Float)
+    descent_m = Column(Float)
+    terrain = Column(String)                        # road | trail | NULL = from the climb per km
+    aim = Column(String, default="finish")          # finish | time
+    target_time_s = Column(Integer)
+    free_json = Column(JSON)                        # {weeklyKm, longKm, climbM, climbScope: week|run}
+    path = Column(String, default="safe")           # safe | risk (stage 3, with consent)
+    risk_consent_at = Column(String)
+    status = Column(String, default="active")       # active | done | cancelled
+    projection_json = Column(JSON)                  # the last feasibility answer
+    created_at = Column(String)
+    updated_at = Column(String)
+
+
 class TendonCheck(Base):
     """Suggestion #7 (owner request 2026-10-05): the morning load test of a painful tendon,
     the 24-hour response of the pain-monitoring model (Silbernagel et al., 2007): the same

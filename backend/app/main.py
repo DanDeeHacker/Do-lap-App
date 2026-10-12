@@ -22,7 +22,7 @@ from .db import Base, SessionLocal, engine
 from .deps import is_owner, tutorial_demo_runner_id
 from .metrics import engine as E
 from .routers import (
-    admin, ai, annotations, auth, booking, client_errors, coach, conclusions, employers, integrations, partners, physios,
+    admin, ai, annotations, auth, booking, client_errors, coach, conclusions, employers, goals, integrations, partners, physios,
     plan, programs, rtr, runners, self_programs, shoes, simulate, triage, assistant,
 )
 
@@ -446,6 +446,7 @@ app.include_router(simulate.router)
 app.include_router(annotations.router)
 app.include_router(coach.router)
 app.include_router(plan.router)
+app.include_router(goals.router)
 app.include_router(assistant.router)
 app.include_router(self_programs.router)
 app.include_router(admin.router)

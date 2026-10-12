@@ -3601,6 +3601,7 @@
   "files": [
    "App.tsx",
    "coach.tsx",
+   "goal.tsx",
    "landing.tsx",
    "onboarding.tsx"
   ],
@@ -4206,6 +4207,7 @@
    "capacity.tsx",
    "coach.tsx",
    "coachview.tsx",
+   "goal.tsx",
    "tabs.tsx"
   ],
   "kind": "tpl"
@@ -7253,7 +7255,8 @@
  {
   "t": "Klesání (m)",
   "files": [
-   "coach.tsx"
+   "coach.tsx",
+   "goal.tsx"
   ],
   "kind": "jsx"
  },
@@ -8007,7 +8010,8 @@
  {
   "t": "Stoupání (m)",
   "files": [
-   "coach.tsx"
+   "coach.tsx",
+   "goal.tsx"
   ],
   "kind": "jsx"
  },
@@ -8433,6 +8437,7 @@
   "t": "Závod",
   "files": [
    "coach.tsx",
+   "goal.tsx",
    "shell.tsx",
    "training.tsx"
   ],
@@ -11222,6 +11227,633 @@
   "t": "Zátěž posledních dní, kterou tělo ještě nevstřebalo. Starší dny se počítají jen zčásti, dnešek celý.",
   "files": [
    "glossary.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· ↑ {} m",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· bezpečně do 2 let ne",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· bezpečně za {} týd.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· připraveni za {} týd.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· reálně od",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "· šedě ladění {} týd.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· úzké hrdlo",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· za",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "(tabulka {} km)",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} flex items-center gap-1.5",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} mt-2 block max-w-[200px]",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}: bezpečná{} cesta proti požadavku {} {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "× dlouhý běh aspoň",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "≥ {} km",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "10 km",
+  "files": [
+   "goal.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "5 km",
+  "files": [
+   "goal.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "a riziková",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bezpečně",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Chystáte se na závod nebo máte vlastní cíl v kilometrech? Aplikace spočítá, jestli ho stihnete zdravě, a když ne, řekne reálný termín.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "cíl",
+  "files": [
+   "goal.tsx",
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Cíl",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Cíl a datum",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Cíl se nepodařilo spočítat",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Cíl se nepodařilo uložit",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Cíl uložen",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Cíl zrušen",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "cílový čas",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Cílový čas",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Cílový čas (h:mm)",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Co cíl vyžaduje",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Co je cílem",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Další",
+  "files": [
+   "goal.tsx",
+   "onboarding.tsx",
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Datum závodu",
+  "files": [
+   "goal.tsx",
+   "profile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Délka (km)",
+  "files": [
+   "goal.tsx",
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Do kdy",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "doběhnout",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Doběhnout",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Doběhnout nebo cílový čas",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Druh cíle",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "jako stoupání",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jde to stihnout?",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Klesání v jednom běhu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Klesání za týden",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Maraton",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Možnosti",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "např. 1200",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "např. 25",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "např. 50",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "např. Pražský maraton",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nastavit cíl",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Název",
+  "files": [
+   "goal.tsx",
+   "selfprograms.tsx",
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nejdelší běh týdne",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nejdelší běh v kuse (km)",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Observační studie: ukazují souvislost, ne jistý účinek.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Použít",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "požadavek",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "předpoklad",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Převýšení nahoru i dolů (m)",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Převýšení za",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pro cílový čas aplikace počítá s vyšším objemem a delšími dlouhými běhy (horní čísla tabulky). Tempa k cílovému času přijdou v další etapě.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "půlmaraton",
+  "files": [
+   "goal.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Půlmaraton",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "reálně od",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "rizikově · za",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Stoupání v jednom běhu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Stoupání za týden",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "teď",
+  "files": [
+   "goal.tsx",
+   "ui.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tohle musíte do data cíle zvládnout. Čísla vycházejí ze studií rekreačních běžců (ⓘ u každého řádku), kde studie chybí, je to označený předpoklad.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Trénink k cíli",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "týd.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Týdenní objem",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Týdenní objem (km)",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "týdny od příštího pondělí · propady jsou odlehčovací týdny",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Uložit cíl",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "v jednom běhu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vlastní cíl",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vyplňte jedno nebo víc čísel.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "za týden",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zatím jen výpočet: denní doporučení a plán týdne se podle cíle nemění. Plán k cíli přijde v další etapě.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zatím jen výpočet: denní doporučení a plán týdne se podle cíle nemění. Projekce se přepočítá každý den z vašich dat.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Závod {} km",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Závod z kalendáře",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zdroje",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "ze 3 ·",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Změnit cíl",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zrušit cíl",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zvolte závod nebo vlastní cíl. Aplikace z vašich dat spočítá, jak rychle mohou kapacity bezpečně růst, a řekne, jestli cíl stihnete zdravě, nebo kdy je reálný termín. Zatím jen výpočet, denní doporučení se podle cíle nemění.",
+  "files": [
+   "goal.tsx"
   ],
   "kind": "str"
  },
@@ -14204,14 +14836,6 @@
   "kind": "str"
  },
  {
-  "t": "Další",
-  "files": [
-   "onboarding.tsx",
-   "report.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Další záložku vám ukáže ikona kompasu nahoře, když na ní budete.",
   "files": [
    "onboarding.tsx"
@@ -15125,13 +15749,6 @@
   "kind": "str"
  },
  {
-  "t": "cíl",
-  "files": [
-   "outlook.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "cíl příštího týdne v cyklu",
   "files": [
    "outlook.tsx"
@@ -16004,13 +16621,6 @@
    "training.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Datum závodu",
-  "files": [
-   "profile.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "doplňte číslo verze",
@@ -19443,14 +20053,6 @@
   "t": "Načítám programy…",
   "files": [
    "selfprograms.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Název",
-  "files": [
-   "selfprograms.tsx",
-   "training.tsx"
   ],
   "kind": "jsx"
  },
@@ -23089,21 +23691,7 @@
   "kind": "tpl"
  },
  {
-  "t": "10 km",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "4. týden cyklu: 55 % vrcholového týdne — tělo vstřebá předchozí tři týdny zátěže.",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "5 km",
   "files": [
    "training.tsx"
   ],
@@ -23318,13 +23906,6 @@
    "training.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "Délka (km)",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "délka × plánované tempo",
@@ -24230,13 +24811,6 @@
   "kind": "str"
  },
  {
-  "t": "půlmaraton",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "relative flex min-h-[68px] w-[152px] shrink-0 snap-start flex-col justify-between gap-1.5 rounded-[14px] border px-3 py-2.5 text-left transition-colors will-change-transform {} {}",
   "files": [
    "training.tsx"
@@ -25110,13 +25684,6 @@
    "ui.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "teď",
-  "files": [
-   "ui.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "transform .22s cubic-bezier(.2,.8,.2,1)",
