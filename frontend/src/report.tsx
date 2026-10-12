@@ -554,7 +554,7 @@ const itemCol = (it: any) => (it.kind === "run" ? PLAN_COL[it.type] || C.info : 
 const dayKm = (d: any) => d.items.reduce((a: number, it: any) => a + (it.kind === "run" ? it.km?.hi || 0 : it.kind === "done" ? it.km || 0 : 0), 0)
 const dm = (iso: string) => { const [, m, dd] = iso.split("-"); return `${+dd}. ${+m}.` }
 
-function itemSummary(it: any): string {
+export function itemSummary(it: any): string {
   if (it.kind === "run") return `${num(it.km?.lo)}–${num(it.km?.hi)} km${it.z4 ? ` · Z4+ ${num(it.z4.lo, 0)}–${num(it.z4.hi, 0)} min` : ""}`
   if (it.kind === "strength") return it.session || ""
   if (it.kind === "ride" || it.kind === "swim") return it.min ? `${it.min[0]}–${it.min[1]} min` : ""
@@ -587,7 +587,7 @@ function ItemDetail({ it }: { it: any }) {
   )
 }
 
-function PlanDay({ d }: { d: any }) {
+export function PlanDay({ d }: { d: any }) {
   const [open, setOpen] = useState(!!d.today)
   const rich = d.items.some((it: any) => it.kind !== "rest" && it.kind !== "done")
   return (
@@ -619,7 +619,7 @@ function PlanDay({ d }: { d: any }) {
   )
 }
 
-function WeekStrip({ days }: { days: any[] }) {
+export function WeekStrip({ days }: { days: any[] }) {
   // the week at a glance: run kilometres per day (hatched = optional), strength and rides under them
   const H = 84
   const max = Math.max(1, ...days.map(dayKm))

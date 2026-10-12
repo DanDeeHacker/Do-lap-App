@@ -4614,7 +4614,8 @@
  {
   "t": "Den mimo trénink",
   "files": [
-   "capacity.tsx"
+   "capacity.tsx",
+   "training.tsx"
   ],
   "kind": "str"
  },
@@ -8040,7 +8041,14 @@
   "files": [
    "daytoday.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
+ },
+ {
+  "t": "Energie a pohyb mimo trénink",
+  "files": [
+   "daytoday.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Klid",
@@ -8154,6 +8162,13 @@
   "files": [
    "daytoday.tsx",
    "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Průběh dne se nepodařilo načíst.",
+  "files": [
+   "daytoday.tsx"
   ],
   "kind": "jsx"
  },
@@ -10354,7 +10369,8 @@
   "t": "rgb(255 255 255 / .05)",
   "files": [
    "landing.tsx",
-   "report.tsx"
+   "report.tsx",
+   "training.tsx"
   ],
   "kind": "str"
  },
@@ -11952,7 +11968,7 @@
   "kind": "str"
  },
  {
-  "t": "Doporučený typ dne s mantinely: vzdálenost, čas, tep, tempo, minuty tvrdé práce a maximum stoupání i klesání. Dlaždicemi pod ním přepnete na jiný typ a limity se přepočítají.",
+  "t": "Doporučený trénink dne: tři hlavní čísla, náplň a hlavní důvod. Tep, tempo, převýšení a terén najdete v Detailu. Dlaždicemi pod kartou se podíváte na jiné možnosti a pod nimi je plán celého týdne.",
   "files": [
    "onboarding.tsx"
   ],
@@ -12613,7 +12629,8 @@
  {
   "t": "zbývá",
   "files": [
-   "onboarding.tsx"
+   "onboarding.tsx",
+   "training.tsx"
   ],
   "kind": "str"
  },
@@ -14548,7 +14565,8 @@
  {
   "t": "{} z {} km",
   "files": [
-   "report.tsx"
+   "report.tsx",
+   "training.tsx"
   ],
   "kind": "tpl"
  },
@@ -15843,7 +15861,8 @@
   "t": "size-4 shrink-0 transition {}",
   "files": [
    "report.tsx",
-   "tabs.tsx"
+   "tabs.tsx",
+   "training.tsx"
   ],
   "kind": "tpl"
  },
@@ -20550,6 +20569,13 @@
   "kind": "jsx"
  },
  {
+  "t": ". Plán běhu je pozastavený, každé ráno ho Trénink znovu posoudí.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": ". týden",
   "files": [
    "training.tsx"
@@ -20558,6 +20584,13 @@
  },
  {
   "t": "· {} min v Z4+",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· {}. týden cyklu, {} % referenčního týdne",
   "files": [
    "training.tsx"
   ],
@@ -20788,13 +20821,6 @@
   "kind": "str"
  },
  {
-  "t": "Aktivity podle dnešní kapacity",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Aktuální týden cyklu",
   "files": [
    "training.tsx"
@@ -20849,6 +20875,13 @@
    "training.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Budíky, týdenní stropy a nejdelší bezpečný běh",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Budovací týden",
@@ -20921,7 +20954,21 @@
   "kind": "tpl"
  },
  {
+  "t": "Čísla níže ukazují, co ještě dnes zbývá.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Cítíte se po zranění v pořádku?",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Cyklus a cíl týdne",
   "files": [
    "training.tsx"
   ],
@@ -20940,6 +20987,13 @@
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Další klíčový den",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Délka",
@@ -21005,7 +21059,28 @@
   "kind": "jsx"
  },
  {
+  "t": "Detail tréninku",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Detail: tep, tempo, převýšení, terén",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "dle tepu",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dnes bez tréninku. Pruhy ukazují, kolik by kapacita ještě dovolila.",
   "files": [
    "training.tsx"
   ],
@@ -21040,11 +21115,11 @@
   "kind": "jsx"
  },
  {
-  "t": "Dnes už máte hotovo:",
+  "t": "Dnes už máte hotovo: {} km{}{}.",
   "files": [
    "training.tsx"
   ],
-  "kind": "jsx"
+  "kind": "tpl"
  },
  {
   "t": "dnešní limit dává {}",
@@ -21094,6 +21169,13 @@
    "training.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "doporučeno na dnešek",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Došlap není zdravotnický prostředek. Doporučení jsou ochranné mantinely z vašich dat, ne léčba ani diagnóza. Při bolesti, která se vrací nebo zhoršuje, se poraďte s fyzioterapeutem.",
@@ -21180,6 +21262,13 @@
   "kind": "str"
  },
  {
+  "t": "Jiné možnosti dnes",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Kapacita jednoho běhu je nejdelší běh za posledních 30 dní, který proběhl bez bolesti (starší se počítají méně), plus 10 % rezerva. Nevychází z objemu týdnů, říká jen, jak dlouhý jeden běh tělo zvládá.",
   "files": [
    "training.tsx"
@@ -21213,6 +21302,13 @@
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "kolik dnes ještě smíte",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "kolik si dnes můžete dovolit",
@@ -21250,13 +21346,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Limity níže ukazují, co ještě dnes zbývá.",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "M{} {} A{} {} 0 0 1 {} {}",
   "files": [
    "training.tsx"
@@ -21285,6 +21374,20 @@
   "kind": "tpl"
  },
  {
+  "t": "Méně",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "mt-4 grid gap-2 {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Na běh dnes kapacita nezbývá.",
   "files": [
    "training.tsx"
@@ -21299,11 +21402,32 @@
   "kind": "str"
  },
  {
+  "t": "na zbytek dne",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Načítám plán týdne…",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Nad rámec cíle týdne — vejde se pod bezpečnostní limity (nevstřebaná zátěž a strop jednoho běhu).",
   "files": [
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Náplň",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Naplno",
@@ -21398,6 +21522,13 @@
  },
  {
   "t": "nepočítají se",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nový týden · plán přinese pondělní ranní report",
   "files": [
    "training.tsx"
   ],
@@ -21516,6 +21647,20 @@
   "kind": "str"
  },
  {
+  "t": "Plán týdne den po dni a cyklus",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán týdne zatím nejde sestavit. Každé ráno den určí Trénink.",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Plánované tempo",
   "files": [
    "training.tsx"
@@ -21587,6 +21732,13 @@
  },
  {
   "t": "podle pocitu, 0 = klid, 10 = maximum",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "podle pocitu, 0–10",
   "files": [
    "training.tsx"
   ],
@@ -21747,13 +21899,6 @@
   "kind": "tpl"
  },
  {
-  "t": "Proč právě tohle?",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Prvních 6 týdnů (do {}): cíl = minulý týden + 10 %, dlouhý běh nejvýš o 10 % delší než nejdelší za 30 dní. Cyklus a osobní kapacitu nastavíme potom.",
   "files": [
    "training.tsx"
@@ -21775,7 +21920,7 @@
   "kind": "str"
  },
  {
-  "t": "relative grid min-h-[112px] w-[128px] shrink-0 snap-start content-between gap-2 rounded-[16px] border p-3 text-left transition-colors will-change-transform {} {}",
+  "t": "relative flex min-h-[68px] w-[152px] shrink-0 snap-start flex-col justify-between gap-1.5 rounded-[14px] border px-3 py-2.5 text-left transition-colors will-change-transform {} {}",
   "files": [
    "training.tsx"
   ],
@@ -21790,6 +21935,13 @@
  },
  {
   "t": "rgb(181 211 202 / .45)",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "rgb(199 255 84 / .35)",
   "files": [
    "training.tsx"
   ],
@@ -21817,14 +21969,14 @@
   "kind": "jsx"
  },
  {
-  "t": "Se závodem týden přesáhne cíl o {} km.",
+  "t": "s rozcvičením",
   "files": [
    "training.tsx"
   ],
-  "kind": "tpl"
+  "kind": "str"
  },
  {
-  "t": "size-6 shrink-0 text-fg-3 transition {}",
+  "t": "Se závodem týden přesáhne cíl o {} km.",
   "files": [
    "training.tsx"
   ],
@@ -21887,6 +22039,13 @@
   "kind": "str"
  },
  {
+  "t": "strop dnes {} km",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "strop dnes {} km — nepřekračovat",
   "files": [
    "training.tsx"
@@ -21899,6 +22058,13 @@
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Tělo a den",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "tělo dnes nehlásí plnou připravenost",
@@ -21957,6 +22123,13 @@
   "kind": "tpl"
  },
  {
+  "t": "tep v úsecích {}–{} tep/min",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "tep/min · {}",
   "files": [
    "training.tsx"
@@ -21999,6 +22172,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Tvrdá práce",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "tvrdá práce ≥ 80 % tepové rezervy",
   "files": [
    "training.tsx"
@@ -22014,6 +22194,13 @@
  },
  {
   "t": "týden {} z {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "týden {} z {} {}",
   "files": [
    "training.tsx"
   ],
@@ -22097,6 +22284,20 @@
   "kind": "str"
  },
  {
+  "t": "v Z4+",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vaše obvyklé dny",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "včetně rozcvičení",
   "files": [
    "training.tsx"
@@ -22150,7 +22351,7 @@
   "files": [
    "training.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "Vzdálenost",
@@ -22315,6 +22516,20 @@
  },
  {
   "t": "Zelená = tato aktivita, šedá = co dnes zbývá do limitu (cíl týdne od pondělí, strop týdenní kapacity a jednoho běhu, celková zátěž).",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zeptat se asistenta",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zítra",
   "files": [
    "training.tsx"
   ],

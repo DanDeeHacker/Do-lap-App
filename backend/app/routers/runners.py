@@ -1156,6 +1156,16 @@ def get_day_today(rid: str, user: models.User = Depends(get_current_user), db: D
     return DR.day_today(db, rid)
 
 
+@router.get("/{rid}/week-plan")
+def get_week_plan(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """This week's plan on Trénink — the same planner as the Monday sheet and the evening
+    report (week_plan.py), so the three never name different sessions. None without data."""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import daily_report as DR
+    a = E.get_or_refresh_assessment(db, rid)
+    return {"plan": DR._week_plan(a, db, rid, E.today_date())}
+
+
 def _report_lang(db, r: dict, request) -> dict:
     """British English card notes when the app asks for it (the rest is translated in the page)."""
     if (request.headers.get("X-Doslap-Lang") or "").lower() != "en":

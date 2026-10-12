@@ -242,7 +242,7 @@ export const TAB_TOURS: Record<string, TourStep[]> = {
   ],
   "/app/training": [
     { route: "/app/training", tab: "Trénink", target: { sel: '[data-tour="training-session"]' }, title: "Dnešní trénink",
-      body: "Doporučený typ dne s mantinely: vzdálenost, čas, tep, tempo, minuty tvrdé práce a maximum stoupání i klesání. Dlaždicemi pod ním přepnete na jiný typ a limity se přepočítají.",
+      body: "Doporučený trénink dne: tři hlavní čísla, náplň a hlavní důvod. Tep, tempo, převýšení a terén najdete v Detailu. Dlaždicemi pod kartou se podíváte na jiné možnosti a pod nimi je plán celého týdne.",
       value: "Víte nejen, co běžet, ale i kde je dnes strop. Tempo a tep jsou spočítané z vašich vlastních běhů." },
     { route: "/app/training", tab: "Trénink", target: { text: "Ranní připravenost" }, title: "Připravenost",
       body: "Připravenost po dnech. Pod grafem otevřete spánek, HRV a klidový tep z hodinek, vždy proti vaší vlastní normě. Dny bez noci z hodinek zůstanou v grafu prázdné.",

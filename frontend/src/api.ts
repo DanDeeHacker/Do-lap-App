@@ -129,6 +129,7 @@ export const api = {
   dayTags: (id: string) => call("GET", `/api/runners/${id}/day-tags`),
   saveDayTags: (id: string, body: { date?: string; tags: string[] }) => call("PUT", `/api/runners/${id}/day-tags`, body),
   dayToday: (id: string) => call("GET", `/api/runners/${id}/day-today`),
+  weekPlan: (id: string) => call("GET", `/api/runners/${id}/week-plan`),
   reportAi: (id: string, kind: "morning" | "evening") => call("POST", `/api/runners/${id}/report/ai?kind=${kind}`, {}),
   finishSelfProgram: (id: string, pid: number, feel: string, extra: { easier?: boolean; sets?: Record<string, number> } = {}) =>
     call("POST", `/api/runners/${id}/self-programs/${pid}/finish`, { feel, ...extra }),

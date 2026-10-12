@@ -10,6 +10,7 @@ import { useApp } from "@/store"
 import { useQuadHistory } from "@/history"
 import { ReadinessTrend } from "@/tabs"
 import { DayReadiness, DayToday, useDayToday } from "@/daytoday"
+import { PlanDay, WeekStrip, itemSummary } from "@/report"
 import { AlertBanner, Button, Card, Chip, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { readinessCol } from "@/capacity"
@@ -198,7 +199,7 @@ function LimitLadder({ c, id, d, sysBound }: { c: any; id: string; d: number; sy
   )
 }
 
-function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
+function TodayCapacity({ g, cycle, embedded = false }: { g: any; cycle?: React.ReactNode; embedded?: boolean }) {
   const wk = g.week || {}
   const cyc = wk.cycle || {}
   const ax = g.axes || {}
@@ -308,13 +309,16 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
   // UX audit F11 — a day without running: one line instead of five gauges that all read "max 0"
   const restDay = (["volume", "intensity", "descent", "ascent"] as const).every((id) => { const c = wk.channels?.[id]; return !c || (c.todayMax != null && c.todayMax <= 0) })
   const restBy = wk.channels?.volume?.limitedBy
+  const Wrap = embedded ? "div" : "section"
   return (
-    <section className="card mt-4 p-4 md:p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><Label>Dnešní kapacita</Label><InfoDot text={MI.todayCapacity} label="Dnešní kapacita" /></span>
-        <span className="text-[12px] text-fg-2">kolik si dnes můžete dovolit</span>
-      </div>
-      {status && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
+    <Wrap className={embedded ? "" : "card mt-4 p-4 md:p-6"} data-testid={embedded ? "capacity-gauges" : undefined}>
+      {!embedded && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5"><Label>Dnešní kapacita</Label><InfoDot text={MI.todayCapacity} label="Dnešní kapacita" /></span>
+          <span className="text-[12px] text-fg-2">kolik si dnes můžete dovolit</span>
+        </div>
+      )}
+      {status && !embedded && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
       {restDay && !showAll ? (
         <div className="nest mt-4 px-3.5 py-3" data-testid="rest-day">
           <p className="text-[13.5px] leading-5 text-fg"><b>Dnes už bez běhu.</b>{restBy ? <span className="text-fg-2">{` Omezuje: ${limitText(restBy, vol.bound)}.`}</span> : null}{" "}<BoundTag bound={vol.bound} /></p>
@@ -332,13 +336,26 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
           {restDay && <button type="button" onClick={() => setShowAll(false)} className="w-fit text-[12px] font-bold text-accent hover:underline" data-testid="hide-channels">Skrýt kanály</button>}
         </div>
       )}
-      {cyc.next && (
-        <p className="mt-3 text-[13px] leading-5 text-fg-2">
-          <b className="text-fg">Příští týden:</b> {`${cyc.next.pos}. týden cyklu (${cyc.next.pct} %) — cíl objemu ≈ ${num(cyc.next.km)} km${cyc.next.pos === 1 ? ", nový cyklus na vyšší úrovni" : ""}.`} Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.
-        </p>
-      )}
-    </section>
+      {cyc.next && !embedded && <NextWeek cyc={cyc} />}
+    </Wrap>
   )
+}
+
+function NextWeek({ cyc }: { cyc: any }) {
+  return (
+    <p className="mt-3 text-[13px] leading-5 text-fg-2">
+      <b className="text-fg">Příští týden:</b> {`${cyc.next.pos}. týden cyklu (${cyc.next.pct} %) — cíl objemu ≈ ${num(cyc.next.km)} km${cyc.next.pos === 1 ? ", nový cyklus na vyšší úrovni" : ""}.`} Kapacita se po každém týdnu přepočítá podle toho, co jste skutečně odběhli.
+    </p>
+  )
+}
+
+// the load / mechanics axis over its threshold: one sentence (shared by the capacity card)
+function capStatus(g: any): { col: string; text: string } | null {
+  const ax = g.axes || {}
+  const th = ax.threshold ?? 25
+  if ((ax.load ?? 0) >= th) return { col: C.alert, text: `Zátěž ${ax.load} je nad prahem ${th} — tento týden odlehčovací, bez tvrdých úseků a dlouhého běhu.` }
+  if ((ax.mech ?? 0) >= th) return { col: C.watch, text: `Mechanika ${ax.mech} je nad prahem ${th} — dnes o 20 % méně objemu, poloviční intenzita a klesání, raději rovina.` }
+  return null
 }
 const CH_ORDER = ["volume", "intensity", "descent", "ascent", "systemic"] as const
 const num = (v: number | null | undefined, d = 1) =>
@@ -788,7 +805,7 @@ function RacesCard({ outlook, g, cap }: { outlook: any; g?: any; cap?: any }) {
 
 // The session content for one activity type: the inline card shows today's
 // recommendation, the carousel opens the same for any other type (railway#119).
-function SessionDetail({ g, a, kind }: { g: any; a: any; kind: string }) {
+function SessionDetail({ g, a, kind, compact = false }: { g: any; a: any; kind: string; compact?: boolean }) {
   // feedback #168 — name the actual reason (pain, readiness), not always "readiness"
   const rdw = (a?.races?.warnings || []).find((w: any) => w.kind === "race_day")
   const raceDayWhy: string | null = rdw ? ((rdw.why || []).join(" a ") || "tělo dnes nehlásí plnou připravenost") : null
@@ -832,12 +849,13 @@ function SessionDetail({ g, a, kind }: { g: any; a: any; kind: string }) {
       ) : (
         <p className="text-[14px] leading-6 text-fg-soft">{kind === "závod" ? (raceDayWhy ? `Den závodu — ale ${raceDayWhy} (viz níže). Běžte s rezervou.` : "Den závodu — žádné limity. Po závodě nechte tělo pár dní regenerovat.") : "Odpočinek. Pokud chcete pohyb, zvolte lehkou chůzi, mobilitu nebo jiný sport bez nárazů a bez bolesti."}</p>
       )}
-      {(run || cross) && t.notes?.length > 0 && (
+      {/* compact = the "Detail" fold of today's card: the notes, the capacity and the programme are in the card itself */}
+      {!compact && (run || cross) && t.notes?.length > 0 && (
         <p className="mt-4 text-[13px] leading-6 text-fg-soft">{t.notes.join(" ")}</p>
       )}
-      {(run || cross) && <CapacityFit g={g} kind={kind} />}
-      {t.program?.key && <ProgramPointer progKey={t.program.key} allowed={t.allowed} />}
-      {cross && (
+      {!compact && (run || cross) && <CapacityFit g={g} kind={kind} />}
+      {!compact && t.program?.key && <ProgramPointer progKey={t.program.key} allowed={t.allowed} />}
+      {!compact && cross && (
         <Link to="/app/post#jiny-sport" className="btn btn-secondary btn-sm mt-4">Zapsat do deníku</Link>
       )}
     </>
@@ -848,7 +866,7 @@ function SessionDetail({ g, a, kind }: { g: any; a: any; kind: string }) {
 // takes (planned, or its upper limit) against what today leaves, and what limits it
 const LIMIT_CS: Record<string, string> = { week: "cíl týdne od pondělí", "7d": "strop týdenní kapacity", run: "strop jednoho běhu",
   systemic: "celková zátěž", mechanics: "odchylka mechaniky" }
-function FitRow({ label, use, left, unit, d = 0, by, bound, note, testid }: { label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; bound?: string | null; note?: string; testid?: string }) {
+function FitRow({ label, use, left, unit, d = 0, by, bound, note, week, testid }: { label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; bound?: string | null; note?: string; week?: string | null; testid?: string }) {
   const top = Math.max(use || 0, left || 0, 1e-6)
   const over = use != null && left != null && use > left + 0.05
   return (
@@ -856,26 +874,29 @@ function FitRow({ label, use, left, unit, d = 0, by, bound, note, testid }: { la
       <div className="flex items-baseline justify-between gap-2 text-[12px]">
         <span className="font-bold text-fg-soft">{label}</span>
         <span className="tabular-nums text-fg-3">
-          <b className={over ? "text-alert" : "text-fg"}>{use == null ? "—" : `${num(use, d)} ${unit}`}</b>
-          {left != null ? ` z ${num(left, d)} ${unit} dnes` : ""}
+          {use == null
+            ? (left != null ? <>zbývá <b className="text-fg">{`${num(left, d)} ${unit}`}</b></> : "—")
+            : <><b className={over ? "text-alert" : "text-fg"}>{`${num(use, d)} ${unit}`}</b>{left != null ? ` z ${num(left, d)} ${unit} dnes` : ""}</>}
         </span>
       </div>
       <div className="relative mt-1 h-2 rounded-full bg-white/[.07]">
         {left != null && <i className="absolute inset-y-0 left-0 rounded-full bg-white/[.10]" style={{ width: `${(left / top) * 100}%` }} />}
         {use != null && <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(2, (Math.min(use, top) / top) * 100)}%`, background: over ? C.alert : C.ok }} />}
       </div>
-      {(by || note) && <p className="mt-0.5 text-[11px] leading-4 text-fg-3">{[note, by ? `dnešní limit dává ${by === "systemic" || by === "week" ? limitText(by, bound) : LIMIT_CS[by] || by}` : null].filter(Boolean).join(" · ")}</p>}
+      {(by || note || week) && <p className="mt-0.5 text-[11px] leading-4 text-fg-3">{[week, note, by ? `dnešní limit dává ${by === "systemic" || by === "week" ? limitText(by, bound) : LIMIT_CS[by] || by}` : null].filter(Boolean).join(" · ")}</p>}
     </div>
   )
 }
 
-function CapacityFit({ g, kind }: { g: any; kind: string }) {
+type FitR = { key: string; label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; bound?: string | null; note?: string; week?: string | null }
+// what an activity takes from today's capacities, channel by channel, and the sentence on it
+function fitRows(g: any, kind: string, withAscent = false): { rows: FitR[]; summary: string } | null {
   const t = g.types[kind]
   const ch = g.week?.channels || {}
   const x = g.planCtx || {}
   if (!t || !ch.systemic) return null
   const mid = (r?: number[] | null) => (r ? r[1] : null)
-  const rows: { key: string; label: string; use: number | null; left: number | null; unit: string; d?: number; by?: string | null; bound?: string | null; note?: string }[] = []
+  const rows: FitR[] = []
   // owner feedback 2026-10-10 — an optional session over a met weekly target is measured
   // against the safety limits alone (the plan has nothing left by definition)
   const opt = !!t.optional
@@ -889,6 +910,7 @@ function CapacityFit({ g, kind }: { g: any; kind: string }) {
     rows.push({ key: "intensity", label: "Tvrdá práce (Z4+)", use: z4, left: room(ch.intensity), unit: "min", by: opt ? null : ch.intensity?.limitedBy, bound: ch.intensity?.bound,
       note: kind === "kvalitní" ? "tvrdé úseky" : "nejvýš, cílem je je nemít" })
     if (t.descentMax != null) rows.push({ key: "descent", label: "Klesání", use: t.descentMax, left: room(ch.descent), unit: "m", by: opt ? null : ch.descent?.limitedBy, bound: ch.descent?.bound, note: "nejvýš" })
+    if (withAscent && t.ascentMax != null) rows.push({ key: "ascent", label: "Stoupání", use: t.ascentMax, left: room(ch.ascent), unit: "m", by: opt ? null : ch.ascent?.limitedBy, bound: ch.ascent?.bound, note: "nejvýš" })
     if (km != null && x.perKm) rows.push({ key: "systemic", label: "Celková zátěž", use: km * x.perKm + (z4 || 0) * (kind === "kvalitní" ? (x.z4PerMin || 0) * 0.5 : 0),
       left: sys.todayMax ?? null, unit: "bodů", by: sys.limitedBy, bound: sys.bound, note: "body zátěže = tep × čas, odhad z vašich lehkých běhů" })
   } else {
@@ -909,6 +931,13 @@ function CapacityFit({ g, kind }: { g: any; kind: string }) {
     : binding ? `Velikost určuje ${binding.label.toLowerCase()}: tato aktivita využije, co dnes zbývá.`
     : t.cross ? "Zatíží srdce a plíce, běžecké kapacity šetří a do dnešních limitů se vejde."
     : "Vejde se do všech dnešních limitů s rezervou."
+  return { rows, summary }
+}
+
+function CapacityFit({ g, kind }: { g: any; kind: string }) {
+  const f = fitRows(g, kind)
+  if (!f) return null
+  const { rows, summary } = f
   return (
     <div className="nest mt-4 p-3.5" data-testid="capacity-fit">
       <p className="t-label !text-fg-3">Podle dnešních kapacit</p>
@@ -1015,19 +1044,313 @@ function useArcScroll(ref: React.RefObject<HTMLDivElement | null>, deps: unknown
   }, deps) // eslint-disable-line react-hooks/exhaustive-deps
 }
 
+// ---------------------------------------------------------------- Trénink layout (owner request 2026-10-12)
+// Three floors instead of one long column of cards: Dnes (what to run today and why, on
+// the first screen), Tento týden (the same plan as the Monday sheet and the evening
+// report), then the detail — today's capacity in one card, readiness and the day in one
+// card, races. On a wide screen the detail is a column of its own.
+
+const dayItemText = (it: any) => {
+  const sum = itemSummary(it)
+  return it.kind === "strength" ? `${it.label} ${(it.sessionKey || "").trim()}`.trim() : `${it.label}${sum ? ` ${sum}` : ""}`
+}
+const dayText = (d: any) => (d?.items || []).map(dayItemText).join(" · ")
+
+function KeyTile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
+  return (
+    <div className="min-w-0 rounded-[14px] px-2.5 py-2.5 md:px-3.5 md:py-3" style={{ background: tone ? `${tone}1f` : "rgb(255 255 255 / .05)" }}>
+      <p className="truncate text-[10.5px] md:text-[11.5px]" style={{ color: tone ? C.alertSoft : C.fg2 }}>{label}</p>
+      <p className="t-num mt-0.5 whitespace-nowrap text-[19px] leading-tight md:text-[24px]" style={{ color: tone ? C.alertSoft : C.fg }}>{value}</p>
+      {sub && <p className="mt-0.5 text-[10.5px] leading-[14px] md:text-[11.5px]" style={{ color: tone ? C.alertSoft : C.fg3 }}>{sub}</p>}
+    </div>
+  )
+}
+
+function TodayHero({ g, a, plan, stage }: { g: any; a: any; plan: any; stage: string }) {
+  const { me, touring } = useApp()
+  const rid = me?.runner_id
+  const [more, setMore] = useState(false)
+  const [detail, setDetail] = useState(false)
+  useEffect(() => { setMore(false); setDetail(false) }, [g.date, g.type])
+  const kind: string = g.type
+  const t = g.types[kind]
+  const Icon = TYPE_ICON[kind] || Footprints
+  const cross = !!t.cross
+  const run = kind !== "volno" && kind !== "závod" && !cross
+  const pat = g.pattern || {}
+  const st = g.strength || {}
+  const [lead, rest] = leadReasons(kind, g.reasons || [])
+  const todayRun = (plan?.days || []).find((d: any) => d.today)?.items?.find((it: any) => it.kind === "run")
+  const tiles: { label: string; value: string; sub?: string; tone?: string }[] = []
+  if (run) {
+    tiles.push({ label: "Vzdálenost", value: `${range(t.km?.lo, t.km?.hi)} km`, sub: t.km?.max != null ? `strop dnes ${num(t.km.max)} km` : "kapacitu poznáváme" })
+    tiles.push({ label: "Čas", value: t.durationMin ? `${range(t.durationMin[0], t.durationMin[1], 0)}′` : "—", sub: "podle vašeho tempa" })
+    if (kind === "kvalitní" && t.z4Target) tiles.push({ label: "Tvrdá práce", value: `${range(t.z4Target.lo, t.z4Target.hi, 0)}′`, sub: "v Z4+", tone: C.alert })
+    else tiles.push({ label: "Tep", value: t.hr ? `${t.hr[0]}–${t.hr[1]}` : "—", sub: t.hrZones || "tep/min" })
+  } else if (cross) {
+    tiles.push({ label: "Délka", value: t.durationMin ? `${range(t.durationMin[0], t.durationMin[1], 0)}′` : "—", sub: kind === "posilování" ? "s rozcvičením" : "souvislá jednotka" })
+    tiles.push(t.hr ? { label: "Tep", value: `${t.hr[0]}–${t.hr[1]}`, sub: t.hrZones || "tep/min" } : { label: "Náročnost", value: t.rpeTarget || "—", sub: "podle pocitu, 0–10" })
+    if (kind === "posilování") tiles.push({ label: "Tento týden", value: `${st.done ?? 0} / ${st.target ?? 2}`, sub: "posilování" })
+  }
+  // what the session holds: the hard session itself (the week planner's), else the type's notes
+  const fill: string | null = kind === "kvalitní" && todayRun?.session ? todayRun.session : (run || cross) && t.notes?.length ? t.notes.join(" ") : null
+  const plain = kind === "závod" ? "Den závodu — žádné limity. Po závodě nechte tělo pár dní regenerovat."
+    : kind === "volno" && !g.override && !g.done ? "Odpočinek. Pokud chcete pohyb, zvolte lehkou chůzi, mobilitu nebo jiný sport bez nárazů a bez bolesti." : null
+  const ov = g.override
+  return (
+    <section className="card mt-4 p-4 md:p-6" data-tour="training-session" data-testid="today-hero"
+      style={{ borderColor: ov ? `${C.alert}66` : "rgb(199 255 84 / .35)" }}>
+      {ov && (
+        <AlertBanner tone="stop" className="mb-4" title={ov.title}
+          action={(ov.kind === "physio" || ov.kind === "function" || ov.kind === "bone_stress") ? <Link to="/app/messages" className="btn btn-primary btn-sm">Objednat fyzioterapeuta</Link>
+            // railway#130 — the way to report the injury healed is always at hand
+            : (ov.kind === "injury" && rid && !touring) ? <Link to="/app/messages?sub=health&healed=1" className={`btn btn-sm ${ov.canResolve ? "btn-primary" : "btn-outline"}`} data-testid="injury-resolve">{ov.canResolve ? "Zranění je zahojené" : "Ohlásit uzdravení"}</Link>
+            : undefined}>
+          {ov.text}
+        </AlertBanner>
+      )}
+      {stage === "early" && !ov && <EarlyNote className="mb-4" />}
+      <div className="flex items-center gap-3">
+        <span className="grid size-11 shrink-0 place-items-center rounded-[13px]" style={{ background: `${PLAN_TONE[kind] || C.accent}24` }}>
+          <Icon className="size-5" style={{ color: PLAN_TONE[kind] || C.accent }} aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h1 className="font-serif text-[27px] leading-tight tracking-[-.02em] md:text-[34px]">{t.label}</h1>
+          <p className="text-[12px] text-fg-3">{g.done ? "na zbytek dne" : "doporučeno na dnešek"}</p>
+        </div>
+      </div>
+      {g.done && (
+        <p className="mt-3 flex items-start gap-2 rounded-[12px] bg-info/10 px-3 py-2 text-[12.5px] leading-[18px] text-fg-soft" data-testid="done-today">
+          <CircleCheck className="mt-px size-4 shrink-0 text-info" aria-hidden />
+          <span><b className="text-fg">{`Dnes už máte hotovo: ${num(g.done.volume)} km${g.done.intensity ? ` · ${num(g.done.intensity, 0)} min v Z4+` : ""}${g.done.descent ? ` · klesání ${num(g.done.descent, 0)} m` : ""}.`}</b>{run || cross ? " Čísla níže ukazují, co ještě dnes zbývá." : ""}</span>
+        </p>
+      )}
+      {!t.allowed && <p className="mt-3 rounded-[12px] bg-alert/10 px-3 py-2 text-[13px] font-bold text-alert-soft">Dnes nedoporučujeme: {t.why}</p>}
+      {tiles.length > 0 && (
+        <div className={`mt-4 grid gap-2 ${tiles.length === 3 ? "grid-cols-3" : "grid-cols-2"}`} data-testid="hero-tiles">
+          {tiles.map((x) => <KeyTile key={x.label} {...x} />)}
+        </div>
+      )}
+      {(fill || plain) && (
+        <div className="nest mt-3 p-3.5" data-testid="hero-fill">
+          {fill ? (
+            <>
+              <p className="t-label !text-fg-3">Náplň</p>
+              <p className="mt-1 text-[14px] leading-5 text-fg">{fill}</p>
+              {kind === "kvalitní" && t.hr && <p className="mt-1 text-[12px] text-fg-3">{`tep v úsecích ${t.hr[0]}–${t.hr[1]} tep/min`}</p>}
+            </>
+          ) : <p className="text-[13.5px] leading-5 text-fg-soft">{plain}</p>}
+        </div>
+      )}
+      {t.program?.key && <ProgramPointer progKey={t.program.key} allowed={t.allowed} />}
+      <div className="mt-3 text-[13px] leading-5" data-testid="why-panel">
+        {lead ? <p className="flex gap-1.5 font-semibold text-fg"><ChevronRight className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden /><span>{lead}</span></p>
+          : <p className="text-fg-2">Vše v normě — běžný tréninkový den.</p>}
+        {more && (
+          <div className="mt-1.5 grid gap-1.5 text-fg-soft" data-testid="reasons">
+            {rest.map((r, i) => <p key={i} className="flex gap-1.5"><ChevronRight className="mt-0.5 size-4 shrink-0 text-fg-3" aria-hidden /><span>{r}</span></p>)}
+            <p className="border-t border-white/10 pt-1.5 text-[11.5px] text-fg-3">
+              {pat.runDayNames?.length ? `Obvykle běháte: ${pat.runDayNames.join(", ")}` : "Pravidelné dny zatím nepoznáváme"}
+              {pat.longDayName ? ` · dlouhý běh ${pat.longDayName}` : ""}
+              {pat.hardDayNames?.length ? ` · tvrdé tréninky: ${pat.hardDayNames.join(", ")}` : ""}
+              {pat.easyKm ? ` · typický lehký běh ${num(pat.easyKm)} km` : ""}
+            </p>
+          </div>
+        )}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {(rest.length > 0 || pat.runDayNames?.length) && (
+            <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more} data-testid="why-toggle" className="text-[12px] font-bold text-accent hover:underline">
+              {more ? "Méně" : rest.length ? `Další důvody (${rest.length})` : "Vaše obvyklé dny"}
+            </button>
+          )}
+          <WhyButton question={`Proč mám dnes ${t.label.toLowerCase()} a jak ho pojmout?`} context={{ kind: "guidance" }} label="Zeptat se asistenta" />
+        </div>
+      </div>
+      {(run || cross) && (
+        <>
+          <button type="button" onClick={() => setDetail((v) => !v)} aria-expanded={detail} data-testid="hero-detail-toggle"
+            className="mt-3 flex w-full items-center justify-between gap-2 border-t border-white/[.08] pt-3 text-left text-[13px] font-bold text-fg-soft hover:text-fg">
+            <span>{run ? "Detail: tep, tempo, převýšení, terén" : "Detail tréninku"}</span>
+            <ChevronDown className={`size-4 shrink-0 transition ${detail ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />
+          </button>
+          {detail && <div className="mt-3 origin-top animate-[careReveal_.28s_ease-out]"><SessionDetail g={g} a={a} kind={kind} compact /></div>}
+        </>
+      )}
+    </section>
+  )
+}
+const PLAN_TONE: Record<string, string> = { "kvalitní": C.alert, "dlouhý": C.load, "lehký": C.info, regenerace: C.ok, volno: C.fg2, "závod": C.accent, kolo: C.watch, voda: C.watch, "posilování": C.self }
+
+// railway#119 — every type in one row, most to least suitable today (engine order); owner
+// comment 2026-10-12: the tiles stay a side-scrolling row, only lower
+function ActivityRow({ g, onPick }: { g: any; onPick: (k: string) => void }) {
+  const carousel = useRef<HTMLDivElement | null>(null)
+  const order: string[] = (g.rank as string[] | undefined)?.filter((k) => g.types[k]) || [...ORDER, ...CROSS].filter((k) => g.types[k])
+  useArcScroll(carousel, [g.date, g.type, order.length])
+  return (
+    <div className="mt-4" data-tour="training-cross">
+      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+        <p className="t-label !text-fg-3">Jiné možnosti dnes</p>
+        <span className="text-[11px] text-fg-3">od nejvhodnější · posuňte</span>
+      </div>
+      <div ref={carousel} className="-mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-5 px-5 pb-3 pt-1 [scrollbar-width:none] md:-mx-0 md:px-0" role="list" aria-label="Aktivity" data-testid="activity-carousel">
+        {order.map((k) => {
+          const t = g.types[k]
+          const Icon = TYPE_ICON[k] || Footprints
+          const b = badgeOf(g, k)
+          const line = tileLine(t)
+          return (
+            <button key={k} role="listitem" onClick={() => onPick(k)} data-testid="activity-tile"
+              className={`relative flex min-h-[68px] w-[152px] shrink-0 snap-start flex-col justify-between gap-1.5 rounded-[14px] border px-3 py-2.5 text-left transition-colors will-change-transform ${k === g.type ? "border-accent/70 bg-accent/[.08]" : "border-white/[.08] bg-white/[.03] hover:border-white/20"} ${t.allowed ? "" : "opacity-70"}`}>
+              <span className="flex items-center gap-2">
+                <Icon className={`size-4 shrink-0 ${k === g.type ? "text-accent" : "text-fg-2"}`} aria-hidden />
+                <span className="truncate text-[12.5px] font-bold leading-tight text-fg-soft">{t.label}</span>
+              </span>
+              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                {line && <span className="text-[10.5px] tabular-nums text-fg-3">{line}</span>}
+                {b && <span className={`w-fit rounded-full px-1.5 py-0.5 text-[9.5px] font-bold leading-none ${b[1]}`}>{b[0]}</span>}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// the week: the same planner as the Monday sheet and the evening report (week_plan.py)
+function WeekCard({ g, plan }: { g: any; plan: any }) {
+  const [open, setOpen] = useState(false)
+  const wk = g.week || {}
+  const vol = wk.channels?.volume || {}
+  const cyc = wk.cycle || {}
+  const [modeLabel, modeCol] = MODE[wk.mode] || MODE.build
+  const days: any[] = plan?.days || []
+  const ti = days.findIndex((d) => d.today)
+  const tomorrow = ti >= 0 ? days[ti + 1] : null
+  const key = days.slice(ti + 2).find((d) => d.items.some((it: any) => it.kind === "run" && !it.optional && (it.type === "kvalitní" || it.type === "dlouhý")) || d.items.some((it: any) => it.kind === "race"))
+  const keyIt = key?.items.find((it: any) => it.kind === "race" || (it.kind === "run" && (it.type === "kvalitní" || it.type === "dlouhý")))
+  return (
+    <section className="card mt-4 p-4 md:p-6" data-testid="week-card">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="flex items-center gap-1.5"><Label>Tento týden</Label><InfoDot text={MI.weekBudget} label="Týdenní cíl a cyklus" /></span>
+        {vol.budget != null && <b className="text-[13px] tabular-nums text-fg">{`${num(vol.done ?? 0)} z ${num(vol.budget, 0)} km`}</b>}
+      </div>
+      <p className="mt-1 text-[12.5px] text-fg-2">
+        <span style={{ color: modeCol }}>{modeLabel}</span>
+        {cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` · ${cyc.pos}. týden cyklu, ${Math.round((wk.progression ?? 1) * 100)} % referenčního týdne` : ""}
+      </p>
+      {plan === undefined ? <p className="mt-3 animate-pulse text-[12px] text-fg-3">Načítám plán týdne…</p>
+        : !plan ? <p className="nest mt-3 px-3.5 py-3 text-[12.5px] leading-5 text-fg-3">Plán týdne zatím nejde sestavit. Každé ráno den určí Trénink.</p>
+        : plan.override ? <p className="nest mt-3 px-3.5 py-3 text-[13px] leading-5 text-fg-soft">{plan.override}. Plán běhu je pozastavený, každé ráno ho Trénink znovu posoudí.</p>
+        : (
+          <>
+            <div className="mt-3"><WeekStrip days={days} /></div>
+            <div className="mt-3 divide-y divide-white/[.07] border-t border-white/[.07] text-[13px]" data-testid="week-next">
+              <p className="flex items-baseline justify-between gap-3 py-2"><span className="text-fg-2">Zítra</span>
+                <b className="text-right text-fg">{tomorrow ? dayText(tomorrow) : "Nový týden · plán přinese pondělní ranní report"}</b></p>
+              {key && keyIt && <p className="flex items-baseline justify-between gap-3 py-2"><span className="text-fg-2">Další klíčový den</span>
+                <b className="text-right text-fg">{`${key.wd} · ${dayItemText(keyIt).replace(/^./, (c) => c.toLowerCase())}`}</b></p>}
+            </div>
+          </>
+        )}
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="week-detail-toggle"
+        className="mt-1 flex w-full items-center justify-between gap-2 border-t border-white/[.07] pt-3 text-left text-[13px] font-bold text-fg-soft hover:text-fg">
+        <span>{plan ? "Plán týdne den po dni a cyklus" : "Cyklus a cíl týdne"}</span>
+        <ChevronDown className={`size-4 shrink-0 transition ${open ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />
+      </button>
+      {open && (
+        <div className="mt-3 grid origin-top animate-[careReveal_.28s_ease-out] gap-3">
+          {plan && !plan.override && days.length > 0 && (
+            <ul className="divide-y divide-white/[.06]" data-no-tap data-testid="week-days">{days.map((d) => <PlanDay key={d.date} d={d} />)}</ul>
+          )}
+          {plan?.notes?.length > 0 && (
+            <ul className="grid gap-1.5 text-[12.5px] leading-5 text-fg-soft">
+              {plan.notes.map((x: string, k: number) => <li key={k} className="flex gap-2"><span className="text-accent">›</span><span>{x}</span></li>)}
+            </ul>
+          )}
+          <WeekPanel g={g} embedded />
+          {cyc.next && <NextWeek cyc={cyc} />}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// today's capacity in one card: what today's session takes per channel against what today
+// leaves; the gauges, the week's ceilings and the safe longest run one tap away
+function CapacityCard({ g }: { g: any }) {
+  const [more, setMore] = useState(false)
+  const wk = g.week || {}
+  const f = fitRows(g, g.type, true)
+  const status = capStatus(g)
+  const rest = g.type === "volno" || g.type === "závod"
+  const weekOf = (key: string) => {
+    const c = wk.channels?.[key]
+    const d = key === "volume" ? 1 : 0
+    return c?.budget != null ? `týden ${num(c.done ?? 0, d)} z ${num(c.budget, d)} ${c.unit}` : null
+  }
+  return (
+    <section className="card mt-4 p-4 md:p-6" data-testid="capacity-card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5"><Label>Dnešní kapacita</Label><InfoDot text={MI.todayCapacity} label="Dnešní kapacita" /></span>
+        <span className="text-[12px] text-fg-2">kolik dnes ještě smíte</span>
+      </div>
+      {status && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
+      {f && (
+        <>
+          <p className="mt-3 rounded-[12px] bg-watch/10 px-3 py-2 text-[12.5px] leading-[18px] text-watch-soft" data-testid="capacity-summary">
+            {rest ? "Dnes bez tréninku. Pruhy ukazují, kolik by kapacita ještě dovolila." : f.summary}
+          </p>
+          <div className="mt-3 grid gap-3">
+            {f.rows.map(({ key, ...r }) => <FitRow key={key} testid={`fit-${key}`} {...r} use={rest ? null : r.use} week={weekOf(key)} />)}
+          </div>
+        </>
+      )}
+      <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more} data-testid="capacity-more"
+        className="mt-3 flex w-full items-center justify-between gap-2 border-t border-white/[.07] pt-3 text-left text-[13px] font-bold text-fg-soft hover:text-fg">
+        <span>Budíky, týdenní stropy a nejdelší bezpečný běh</span>
+        <ChevronDown className={`size-4 shrink-0 transition ${more ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />
+      </button>
+      {(more || !f) && <div className="mt-3 origin-top animate-[careReveal_.28s_ease-out]"><TodayCapacity g={g} embedded /></div>}
+    </section>
+  )
+}
+
+// readiness and the day outside training, one card with a switch
+function BodyCard({ a, hist, day }: { a: any; hist: any; day: { d: any; err: boolean } }) {
+  const [tab, setTab] = useState<"r" | "d">("r")
+  return (
+    <section id="telo" className="card mt-4 scroll-mt-24 p-4 md:p-6" data-testid="body-card">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label>Tělo a den</Label>
+        <Segmented size="sm" ariaLabel="Tělo a den" value={tab} onChange={setTab} options={[["r", "Připravenost"], ["d", "Den mimo trénink"]] as const} />
+      </div>
+      <div className="mt-3">
+        {tab === "r" ? <ReadinessTrend a={a} hist={hist} below={<DayReadiness d={day.d} />} /> : <DayToday d={day.d} err={day.err} embedded />}
+      </div>
+    </section>
+  )
+}
+
 export function Training() {
-  const { boot, me, refresh, touring } = useApp()
+  const { boot, me } = useApp()
   const rid = me?.runner_id
   const a = boot?.assessment
   const quadHist = useQuadHistory(rid)
   const g = a?.guidance
   const [sel, setSel] = useState<string | null>(null)
-  const [why, setWhy] = useState(false)
-  const carousel = useRef<HTMLDivElement | null>(null)
   useEffect(() => { setSel(null) }, [g?.date, g?.type])
-  useArcScroll(carousel, [g?.date, g?.type, a?.engineMode, (g?.rank || []).length])
   const stage = useDataStage()
   const day = useDayToday(stage === "none" ? undefined : rid, a?.computed_at)
+  // undefined = loading, null = no plan yet
+  const [plan, setPlan] = useState<any>(undefined)
+  useEffect(() => {
+    if (!rid || stage === "none" || a?.engineMode !== "v3") return
+    let alive = true
+    api.weekPlan(rid).then((x: any) => alive && setPlan(x?.plan ?? null)).catch(() => alive && setPlan(null))
+    return () => { alive = false }
+  }, [rid, stage, a?.computed_at, a?.engineMode])
   if (!a) return <p className="text-sm text-fg-3">Načítám…</p>
   // UX audit F01 — no plan, limits or readiness before the first run or night
   if (stage === "none")
@@ -1047,106 +1370,45 @@ export function Training() {
       </Card>
     )
   }
-  const rec = g.types[g.type]
   const today = new Date(g.date + "T12:00:00").toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
-  const pat = g.pattern || {}
-  // railway#119 — every type in one carousel, most to least suitable today (engine order)
-  const order: string[] = (g.rank as string[] | undefined)?.filter((k) => g.types[k]) || [...ORDER, ...CROSS].filter((k) => g.types[k])
   const selT = sel ? g.types[sel] : null
   const SelIcon = sel ? TYPE_ICON[sel] || Footprints : Footprints
   const selBadge = sel ? badgeOf(g, sel) : null
+  const rKnown = (a.readiness ?? a.capacity?.readiness)?.known !== false
+  const rp = g.readinessScore ?? Math.round((g.readiness ?? 1) * 100)
+  const rcol = readinessCol(rp)
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <Label>{`Trénink · ${today}`}</Label>
-          {/* railway#120 — an arrow opens the reasons under the heading */}
-          <h1 className="mt-1 font-serif text-[30px] tracking-[-.03em] md:text-4xl">
-            <button type="button" onClick={() => setWhy((v) => !v)} aria-expanded={why} data-testid="why-toggle" className="flex items-center gap-2 text-left">
-              {rec.label}
-              <ChevronDown className={`size-6 shrink-0 text-fg-3 transition ${why ? "rotate-180 text-accent" : ""}`} aria-hidden />
-            </button>
-          </h1>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label>{`Trénink · ${today}`}</Label>
         <div className="flex flex-wrap items-center gap-2">
-          <WhyButton question={`Proč mám dnes ${rec.label.toLowerCase()} a jak ho pojmout?`} context={{ kind: "guidance" }} label="Proč právě tohle?" />
           {g.provisional && <Chip tone="watch">předběžné · čeká na ranní data</Chip>}
-          {(() => {
-            // no night from the watch → no readiness chip (UX audit F02)
-            if ((a.readiness ?? a.capacity?.readiness)?.known === false) return null
-            const rp = g.readinessScore ?? Math.round((g.readiness ?? 1) * 100)
-            const col = readinessCol(rp)
-            return (
-              <span className="flex items-center gap-1.5 rounded-full py-1 pl-3 pr-1.5 text-[12px] font-bold" style={{ background: `${col}1f`, color: col }}>
-                {/* railway#195 — the readiness right now (after today's training and the day so far) */}
-                připravenost teď {rp} %<InfoDot text={MI.readinessTraining} label="Připravenost" />
-              </span>
-            )
-          })()}
+          {/* no night from the watch → no readiness chip (UX audit F02); a tap goes to Tělo a den */}
+          {rKnown && (
+            <span className="flex items-center gap-1 rounded-full py-1 pl-3 pr-1.5 text-[12px] font-bold" style={{ background: `${rcol}1f`, color: rcol }}>
+              <button type="button" onClick={() => document.getElementById("telo")?.scrollIntoView({ behavior: "smooth", block: "start" })} data-testid="readiness-chip">
+                připravenost teď {rp} %
+              </button>
+              <InfoDot text={MI.readinessTraining} label="Připravenost" />
+            </span>
+          )}
         </div>
       </div>
-      {why && (
-        <div className="nest mt-3 origin-top animate-[careReveal_.28s_ease-out] p-3.5 text-[13px] leading-5 text-fg-soft" data-testid="why-panel">
-          {g.reasons?.length ? <ReasonList type={g.type} reasons={g.reasons} /> : "Vše v normě — běžný tréninkový den."}
-          <span className="mt-2 block border-t border-white/10 pt-2 text-[11px] text-fg-3">
-            {pat.runDayNames?.length ? `Obvykle běháte: ${pat.runDayNames.join(", ")}` : "Pravidelné dny zatím nepoznáváme"}
-            {pat.longDayName ? ` · dlouhý běh ${pat.longDayName}` : ""}
-            {pat.hardDayNames?.length ? ` · tvrdé tréninky: ${pat.hardDayNames.join(", ")}` : ""}
-            {pat.easyKm ? ` · typický lehký běh ${num(pat.easyKm)} km` : ""}
-          </span>
+
+      <div className="lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
+        <div className="min-w-0">
+          <TodayHero g={g} a={a} plan={plan} stage={stage} />
+          <ActivityRow g={g} onPick={setSel} />
+          <WeekCard g={g} plan={plan} />
         </div>
-      )}
-
-      {g.override && (
-        <AlertBanner tone="stop" className="mt-5" title={g.override.title}
-          action={(g.override.kind === "physio" || g.override.kind === "function" || g.override.kind === "bone_stress") ? <Link to="/app/messages" className="btn btn-primary btn-sm">Objednat fyzioterapeuta</Link>
-            // railway#130 — the way to report the injury healed is always at hand; the app
-            // only highlights it once the check-ins have been pain-free
-            : (g.override.kind === "injury" && rid && !touring) ? <Link to="/app/messages?sub=health&healed=1" className={`btn btn-sm ${g.override.canResolve ? "btn-primary" : "btn-outline"}`} data-testid="injury-resolve">{g.override.canResolve ? "Zranění je zahojené" : "Ohlásit uzdravení"}</Link>
-            : undefined}>
-          {g.override.text}
-        </AlertBanner>
-      )}
-
-      {g.done && (
-        <AlertBanner tone="info" icon={CircleCheck} className="mt-3"
-          title={<>Dnes už máte hotovo: {num(g.done.volume)} km{g.done.intensity ? ` · ${num(g.done.intensity, 0)} min v Z4+` : ""}{g.done.descent ? ` · klesání ${num(g.done.descent, 0)} m` : ""}.</>}>
-          Limity níže ukazují, co ještě dnes zbývá.
-        </AlertBanner>
-      )}
-
-      {stage === "early" && !g.override && <EarlyNote className="mt-4" />}
-      <section className="card mt-4 p-4 md:p-6" data-tour="training-session">
-        <SessionDetail g={g} a={a} kind={g.type} />
-      </section>
-
-      {/* railway#119 — a swipeable carousel of every activity, ordered for today's capacity */}
-      <div className="mt-4" data-tour="training-cross">
-        <div className="mb-2 flex items-baseline justify-between gap-2">
-          <p className="t-label !text-fg-3">Aktivity podle dnešní kapacity</p>
-          <span className="text-[11px] text-fg-3">od nejvhodnější · posuňte</span>
-        </div>
-        <div ref={carousel} className="-mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-5 px-5 pb-4 pt-1 [scrollbar-width:none] md:-mx-0 md:px-0" role="list" aria-label="Aktivity" data-testid="activity-carousel">
-          {order.map((k, i) => {
-            const t = g.types[k]
-            const Icon = TYPE_ICON[k] || Footprints
-            const b = badgeOf(g, k)
-            const line = tileLine(t)
-            return (
-              <button key={k} role="listitem" onClick={() => setSel(k)} data-testid="activity-tile"
-                className={`relative grid min-h-[112px] w-[128px] shrink-0 snap-start content-between gap-2 rounded-[16px] border p-3 text-left transition-colors will-change-transform ${k === g.type ? "border-accent/70 bg-accent/[.08]" : "border-white/[.08] bg-white/[.03] hover:border-white/20"} ${t.allowed ? "" : "opacity-70"}`}>
-                <span className="flex items-center justify-between">
-                  <Icon className={`size-5 ${k === g.type ? "text-accent" : "text-fg-2"}`} aria-hidden />
-                  <span className="text-[10px] font-bold tabular-nums text-fg-4">{i + 1}.</span>
-                </span>
-                <span className="grid gap-1">
-                  <span className="text-[13px] font-bold leading-tight text-fg-soft">{t.label}</span>
-                  {line && <span className="text-[11px] tabular-nums text-fg-3">{line}</span>}
-                  {b && <span className={`w-fit rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${b[1]}`}>{b[0]}</span>}
-                </span>
-              </button>
-            )
-          })}
+        <div className="min-w-0">
+          <CapacityCard g={g} />
+          {/* owner feedback 2026-10-10 — tomorrow's limits after what is still done today and the
+              night, and the week's running total by sport: detail, after today's capacity */}
+          <TomorrowCard g={g} />
+          <WeekLoadCard g={g} cap={a.capacity} />
+          <BodyCard a={a} hist={quadHist} day={day} />
+          <RacesCard outlook={a.races} g={g} cap={a.capacity} />
         </div>
       </div>
 
@@ -1164,17 +1426,6 @@ export function Training() {
           </div>
         </Sheet>
       )}
-
-      {/* railway#142 — readiness (trend + the nights behind it) right above today's capacity;
-          feedback #207/#208 — readiness through the day under its chart, then today's capacity,
-          then the day outside training (#210) */}
-      <section className="card mt-4 p-4 md:p-6"><ReadinessTrend a={a} hist={quadHist} below={<DayReadiness d={day.d} />} /></section>
-      <TodayCapacity g={g} cycle={<WeekPanel g={g} embedded />} />
-      {/* owner feedback 2026-10-10 — the week's running total by sport, and tomorrow */}
-      <WeekLoadCard g={g} cap={a.capacity} />
-      <TomorrowCard g={g} />
-      <DayToday d={day.d} err={day.err} />
-      <RacesCard outlook={a.races} g={g} cap={a.capacity} />
 
       <p className="mt-4 text-[11px] leading-5 text-fg-3">Došlap není zdravotnický prostředek. Doporučení jsou ochranné mantinely z vašich dat, ne léčba ani diagnóza. Při bolesti, která se vrací nebo zhoršuje, se poraďte s fyzioterapeutem.</p>
     </>
