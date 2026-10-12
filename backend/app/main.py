@@ -23,7 +23,7 @@ from .deps import is_owner, tutorial_demo_runner_id
 from .metrics import engine as E
 from .routers import (
     admin, ai, annotations, auth, booking, client_errors, coach, conclusions, employers, integrations, partners, physios,
-    programs, rtr, runners, self_programs, shoes, simulate, triage, assistant,
+    plan, programs, rtr, runners, self_programs, shoes, simulate, triage, assistant,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -127,6 +127,11 @@ def _migrate(engine):
     add("runners", "weight_kg", "weight_kg FLOAT")
     add("runners", "menstrual_json", "menstrual_json JSON")
     add("daily_metrics", "resp_rate", "resp_rate FLOAT")
+    # Plán od trenéra (2026-10-12)
+    add("runners", "coach_mode", "coach_mode BOOLEAN", "UPDATE runners SET coach_mode = FALSE WHERE coach_mode IS NULL")
+    add("runners", "coach_name", "coach_name VARCHAR")
+    add("runners", "plan_feed_url", "plan_feed_url VARCHAR")
+    add("runners", "plan_feed_status", "plan_feed_status JSON")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.
@@ -175,6 +180,10 @@ async def _garmin_autosync_loop():
             from .metrics.coach_texts import generate_all
             coach = await asyncio.to_thread(generate_all, SessionLocal)
             log.info("AI texts: %s runners", coach.get("runners"))
+            # Plán od trenéra: the calendar links (TrainingPeaks, Final Surge, …) refresh too
+            from .routers.plan import sync_all_feeds
+            feeds = await asyncio.to_thread(sync_all_feeds, SessionLocal)
+            log.info("Plan feeds: %s", feeds)
         except Exception:  # noqa: BLE001
             log.exception("Garmin auto-sync loop failed")
         await asyncio.sleep(60)  # step past the trigger minute so we don't re-fire
@@ -436,6 +445,7 @@ app.include_router(integrations.router)
 app.include_router(simulate.router)
 app.include_router(annotations.router)
 app.include_router(coach.router)
+app.include_router(plan.router)
 app.include_router(assistant.router)
 app.include_router(self_programs.router)
 app.include_router(admin.router)

@@ -7,6 +7,7 @@ from datetime import date
 
 from .. import models
 from ..metrics import coach_facts as F
+from ..metrics import coach_plan as CP
 from ..metrics import engine as E
 from ..metrics import guidance as G
 
@@ -236,10 +237,48 @@ def _tomorrow(a) -> list | None:
     return lines or None
 
 
+def _coach(a) -> list | None:
+    """Plán od trenéra (2026-10-12): the coach's sessions of today and the next days with the
+    app's verdicts, as plain sentences — the coach's plan comes first, the app only suggests."""
+    c = (a.get("guidance") or {}).get("coach") or {}
+    ev = c.get("eval") or {}
+    if not c.get("on"):
+        return None
+    who = f" ({c['name']})" if c.get("name") else ""
+    lines = [f"Běžec trénuje podle plánu trenéra{who}: plán určuje trenér, aplikace hlídá bezpečnostní limity "
+             "a jen doporučuje úpravy, nic neblokuje."]
+    verdict = {"ok": "sedí", "mod": "sedí s úpravou", "no": "dnes raději ne", "rest": "volno"}
+    for d in (ev.get("days") or []):
+        if d["date"] < (ev.get("week") or {}).get("start", "") or not d["sessions"]:
+            continue
+        if d.get("past"):
+            continue
+        for s in d["sessions"][:2]:
+            what = s["label"] + (f" {G._cz(s['km'])} km" if s.get("km") else f" {G._cz(s.get('min'), 0)} min" if s.get("min") else "")
+            when = "dnes" if d.get("today") else G._dm(d["date"])
+            if s.get("status") in ("done", "partial", "more"):
+                lines.append(f"{when}: {what} — odběhnuto.")
+                continue
+            line = f"{when}: {what} — {verdict.get(s.get('verdict'), '—')}"
+            ch = [CP.change_txt(x) for x in ((s.get("fit") or {}).get("changes") or [])]
+            if ch:
+                line += f" (doporučená úprava: {', '.join(ch)})"
+            if s.get("why"):
+                line += f"; důvod: {s['why'][0].rstrip('.')}"
+            lines.append(line + ".")
+        if len(lines) >= 8:
+            break
+    return lines
+
+
 def build(db, rid: str, a: dict, sel: dict) -> dict:
     """The facts packet for one question."""
     out = _state(db, rid, a)
     sl = set(sel.get("slices") or [])
+    if "today" in sl or "types" in sl or "strength" in sl or "heat" in sl or "plan" in sl:
+        coach = _coach(a)
+        if coach:
+            out["coachPlan"] = coach
     if "today" in sl or "types" in sl or "strength" in sl or "heat" in sl:
         out["today"] = F._today(a)
         _why_today_max(a, out["today"])

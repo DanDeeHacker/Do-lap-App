@@ -5,10 +5,14 @@ plain dicts rather than a second Pydantic-typed copy of the same shape."""
 from sqlalchemy import inspect as sa_inspect
 
 
+# secrets that never leave through a generic serializer (the plan router shows them masked)
+PRIVATE = {"plan_feed_url"}
+
+
 def to_dict(obj):
     if obj is None:
         return None
-    return {c.key: getattr(obj, c.key) for c in sa_inspect(obj).mapper.column_attrs}
+    return {c.key: getattr(obj, c.key) for c in sa_inspect(obj).mapper.column_attrs if c.key not in PRIVATE}
 
 
 def to_dicts(objs):

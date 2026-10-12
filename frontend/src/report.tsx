@@ -2,6 +2,7 @@
 // cards — tap the right side (or swipe) for the next card, the left side for the
 // previous one — with a way into the assistant on the last card. The numbers come
 // from backend/app/metrics/daily_report.py; every chart here is drawn in SVG.
+import { VerdictBadge } from "@/coach"
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { api } from "@/api"
@@ -380,7 +381,9 @@ function morningCards(r: any, c: Ctx): Card[] {
         <div className="mt-4 grid grid-cols-3 gap-2">
           <Tile label="Připravenost" value={rec.score != null ? `${rec.score} %` : "—"} col={goodCol(rec.score)} sub={rec.yesterday != null && rec.score != null ? `včera ${rec.yesterday} %` : undefined} />
           <Tile label="Spánek" value={n?.hours != null ? `${num(n.hours)} h` : "—"} sub={last.score != null ? `skóre ${last.score}` : undefined} />
-          <Tile label="Dnes" value={<span className="text-[15px]">{p.label || "—"}</span>} sub={km && km.hi > 0 ? `${num(km.lo)}–${num(km.hi)} km` : undefined} />
+          {p.coach ? (
+            <Tile label="Dnes podle plánu" value={<span className="text-[15px]">{p.coach.sessions?.[0]?.label || "volno"}</span>} sub={p.coach.sessions?.[0]?.km ? `${num(p.coach.sessions[0].km)} km` : undefined} />
+          ) : <Tile label="Dnes" value={<span className="text-[15px]">{p.label || "—"}</span>} sub={km && km.hi > 0 ? `${num(km.lo)}–${num(km.hi)} km` : undefined} />}
         </div>
         {note(c, "intro")}
       </div>
@@ -496,7 +499,19 @@ function morningCards(r: any, c: Ctx): Card[] {
   cards.push({
     key: "plan", title: "Dnešní trénink", body: (
       <>
-        <Lbl>Doporučení na dnešek</Lbl>
+        {p.coach && (
+          <div className="mb-4" data-testid="report-coach">
+            <Lbl>{p.coach.name ? `Plán od trenéra · ${p.coach.name}` : "Plán od trenéra"}</Lbl>
+            <Big>{p.coach.sessions?.length ? p.coach.sessions.map((x: any) => `${x.label}${x.km ? ` ${num(x.km)} km` : x.min ? ` ${num(x.min, 0)} min` : ""}`).join(" + ") : "Dnes nic v plánu"}</Big>
+            {p.coach.sessions?.map((x: any, i: number) => x.verdict && (
+              <div key={i} className="mt-2"><VerdictBadge v={x.verdict} />
+                {x.changes?.length > 0 && <p className="mt-1.5 text-[13px] text-fg-soft">{x.changes.join(" · ")}</p>}
+                {x.why && <p className="mt-1 text-[12px] text-fg-2">{x.why}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+        <Lbl>{p.coach ? "Alternativa Došlapu" : "Doporučení na dnešek"}</Lbl>
         <Big>{p.override || p.label || "—"}</Big>
         {km && km.hi > 0 && <div className="mt-4 grid grid-cols-3 gap-2">
           <Tile label="Kilometry" value={`${num(km.lo)}–${num(km.hi)}`} />

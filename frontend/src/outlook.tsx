@@ -31,10 +31,10 @@ type SrcKey = (typeof SRC)[number]["key"]
 const srcOf = (k: string): SrcKey => (k === "run" ? "run" : k === "strength" ? "strength" : k === "daily" ? "daily" : "sport")
 
 // the binding limit in words — the plan (this calendar week's target) or a safety limit
-export function limitText(lim?: string | null, bound?: string | null, nextWeek = false): string | null {
+export function limitText(lim?: string | null, bound?: string | null, nextWeek = false, coach = false): string | null {
   if (!lim) return null
-  if (lim === "systemic") return bound === "plan" ? "cíl týdne celkové zátěže (od pondělí)" : "nevstřebaná celková zátěž (týdenní strop)"
-  if (lim === "week") return nextWeek ? "cíl příštího týdne v cyklu" : "cíl týdne v cyklu (od pondělí)"
+  if (lim === "systemic") return bound === "plan" ? (coach ? "plán trenéra v celkové zátěži (od pondělí)" : "cíl týdne celkové zátěže (od pondělí)") : "nevstřebaná celková zátěž (týdenní strop)"
+  if (lim === "week") return coach ? (nextWeek ? "plán trenéra na příští týden" : "plán trenéra na tento týden") : nextWeek ? "cíl příštího týdne v cyklu" : "cíl týdne v cyklu (od pondělí)"
   return ({ "7d": "týdenní strop (nevstřebaná zátěž posledních dní)", run: "strop jednoho běhu", mechanics: "odchylka mechaniky" } as Record<string, string>)[lim] || lim
 }
 export function BoundTag({ bound }: { bound?: string | null }) {
@@ -79,7 +79,12 @@ export function WeekLoadCard({ g, cap }: { g: any; cap: any }) {
   const allow = c.todayMax != null && c.todayMax > 0 ? c.todayMax : 0
   const safeExtra = c.bound === "plan" && c.safeMax != null && c.safeMax > allow + 0.05 ? c.safeMax - allow : 0
   const target: number | null = c.budget ?? null
-  const top = Math.max(target || 0, done + allow + safeExtra, ...rows.map((r) => r.total || 0), 0.1) * 1.1
+  // Plán od trenéra: the plan's running total by day (ghost outline behind the bars)
+  const coachMode = wk.mode === "coach"
+  let pc = 0
+  const planCum = coachMode ? days.map((x) => (x.plan ? (pc += x.plan[ch] || 0) : null)) : null
+  const planTop = planCum ? Math.max(0, ...planCum.map((v) => v || 0)) : 0
+  const top = Math.max(target || 0, planTop, done + allow + safeExtra, ...rows.map((r) => r.total || 0), 0.1) * 1.1
   const h = (v: number) => `${(v / top) * 100}%`
   const nothing = rows.every((r) => !r.dayTotal) && !allow
   const hv = hover != null ? rows[hover] : null
@@ -93,12 +98,12 @@ export function WeekLoadCard({ g, cap }: { g: any; cap: any }) {
         options={CHS.filter((k) => wk.channels[k]).map((k) => [k, CH_SHORT[k]] as const)} />
       <p className="mt-3 text-[13px] leading-5 text-fg-2" data-testid="week-load-summary">
         <span>{CH_LABEL[ch]}</span><span>{" · od pondělí "}</span><b className="text-fg">{num(done, d)}</b>
-        {target != null && <><span>{" z cíle "}</span><b className="text-fg">{num(target, d)}</b></>}{" "}<span>{unit}</span>
+        {target != null && <><span>{coachMode ? " z plánu " : " z cíle "}</span><b className="text-fg">{num(target, d)}</b></>}{" "}<span>{unit}</span>
         {c.todayMax != null && <><span>{" · dnes ještě nejvýš "}</span><b className="text-fg">{num(c.todayMax, d)}</b></>}
       </p>
       {c.limitedBy && (
         <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[11.5px] leading-4 text-fg-3">
-          <span>{`omezuje: ${limitText(c.limitedBy, c.bound)}`}</span><BoundTag bound={c.bound} />
+          <span>{`omezuje: ${limitText(c.limitedBy, c.bound, false, wk.mode === "coach")}`}</span><BoundTag bound={c.bound} />
           {safeExtra > 0 && <span>{`bezpečnostní limity by dovolily ${num(c.safeMax, d)} ${unit}`}</span>}
         </p>
       )}
@@ -121,7 +126,7 @@ export function WeekLoadCard({ g, cap }: { g: any; cap: any }) {
             {/* the week's target: one dashed line across, labelled at the right */}
             {target != null && target > 0 && (
               <div className="pointer-events-none absolute inset-x-0 z-10 border-t-[1.5px] border-dashed" style={{ bottom: h(target), borderColor: C.fg2 }} data-testid="week-target">
-                <span className="absolute -top-[17px] right-0 rounded bg-panel px-1 text-[10.5px] font-bold text-fg-2">{`cíl ${num(target, d)}`}</span>
+                <span className="absolute -top-[17px] right-0 rounded bg-panel px-1 text-[10.5px] font-bold text-fg-2">{`${coachMode ? "plán" : "cíl"} ${num(target, d)}`}</span>
               </div>
             )}
             <div className="absolute inset-0 grid grid-cols-7 items-end gap-1.5 border-b border-white/15">
@@ -131,6 +136,9 @@ export function WeekLoadCard({ g, cap }: { g: any; cap: any }) {
                 return (
                   <button key={r.date} type="button" className="group relative flex h-full flex-col justify-end outline-none" onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)} onClick={() => setHover(hover === i ? null : i)}
                     aria-label={`${WD_SHORT[i]}: od pondělí ${r.total != null ? num(r.total, d) : "—"} ${unit}`}>
+                    {planCum && (planCum[i] || 0) > 0 && (
+                      <i className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] rounded-t-[4px] border-[1.5px] border-dashed" style={{ height: h(planCum[i] || 0), borderColor: `${C.info}cc` }} data-testid="week-plan-ghost" />
+                    )}
                     {isT && safeExtra > 0 && (
                       <i className="block w-full rounded-t-[4px] border border-dashed" style={{ height: h(safeExtra), borderColor: `${C.fg3}`, background: `repeating-linear-gradient(135deg, ${C.fg3}33 0 3px, transparent 3px 7px)` }} title="nad cíl týdne, jen v rámci bezpečnostních limitů" />
                     )}
@@ -176,7 +184,8 @@ export function WeekLoadCard({ g, cap }: { g: any; cap: any }) {
         {present.length === 1 && <span className="flex items-center gap-1"><i className="size-2.5 rounded-[3px]" style={{ background: present[0].col }} />{present[0].label}</span>}
         {allow > 0 && <span className="flex items-center gap-1"><i className="size-2.5 rounded-[3px] border border-dashed" style={{ borderColor: C.accent }} />dnes ještě</span>}
         {safeExtra > 0 && <span className="flex items-center gap-1"><i className="size-2.5 rounded-[3px] border border-dashed" style={{ borderColor: C.fg3 }} />navíc jen volitelně</span>}
-        {target != null && <span className="flex items-center gap-1"><i className="h-0 w-3 border-t-[1.5px] border-dashed" style={{ borderColor: C.fg2 }} />cíl týdne</span>}
+        {target != null && <span className="flex items-center gap-1"><i className="h-0 w-3 border-t-[1.5px] border-dashed" style={{ borderColor: C.fg2 }} />{coachMode ? "plán trenéra na týden" : "cíl týdne"}</span>}
+        {planCum && planTop > 0 && <span className="flex items-center gap-1"><i className="size-2.5 rounded-[3px] border border-dashed" style={{ borderColor: C.info }} />plán po dnech</span>}
       </div>
       <button type="button" onClick={() => setInputs((v) => !v)} aria-expanded={inputs} className="mt-3 text-[12px] font-bold text-accent hover:underline" data-testid="week-inputs-toggle">
         {inputs ? "Skrýt, z čeho cíl a strop vychází" : "Z čeho cíl a strop vychází"}
@@ -208,8 +217,15 @@ function WeekInputs({ c, capW, g, unit, d, ch }: { c: any; capW: any; g: any; un
   return (
     <div className="mt-3 grid gap-3 md:grid-cols-2" data-testid="week-inputs">
       <div className="nest p-3 text-[12px]">
-        <p className="flex items-center gap-1.5 font-bold text-fg"><BoundTag bound="plan" /><span>Cíl týdne (plán)</span></p>
-        {c.budget != null ? (
+        <p className="flex items-center gap-1.5 font-bold text-fg"><BoundTag bound="plan" /><span>{mode === "coach" ? "Plán trenéra" : "Cíl týdne (plán)"}</span></p>
+        {mode === "coach" ? (c.budget != null ? (
+          <div className="mt-1.5">
+            <Row label="součet tréninků v plánu" value={`${num(c.budget, d)} ${unit}`} strong />
+            <Row label="od pondělí hotovo" value={`${num(c.done, d)} ${unit}`} />
+            <Row label="zbývá do neděle" value={`${num(c.left, d)} ${unit}`} strong />
+            <p className="mt-1 text-[11px] leading-4 text-fg-3">Cíl týdne je součet plánu trenéra; vlastní cyklus aplikace je vypnutý. Bezpečnost hlídají limity vedle, nezávisle na plánu.</p>
+          </div>
+        ) : <p className="mt-1.5 text-fg-3">Na tento týden zatím není plán — platí jen bezpečnostní limity.</p>) : c.budget != null ? (
           <div className="mt-1.5">
             <Row label="Referenční týden" value={`${num(plan.ref, d)} ${unit}`} />
             <Row label={<><span>{"× "}</span><span>{MODE_TXT[mode] || "cyklus"}</span>{cyc.pos && (mode === "build" || mode === "recovery") ? <span>{` ${cyc.pos}`}</span> : null}</>} value={`${num((plan.factor ?? 1) * 100, 0)} %`} />
@@ -383,6 +399,10 @@ const KIND_LABEL: Record<string, string> = { regenerace: "Regenerační běh", "
 function presetLabel(p: any): ReactNode {
   if (p.key === "none") return "Dnes už nic dalšího"
   const a = p.act || {}
+  if (p.key === "plan") {
+    const size0 = a.runKm ? `${num(a.runKm)} km${a.z4 ? ` · ${num(a.z4, 0)} min Z4+` : ""}` : a.rideMin ? `${num(a.rideMin, 0)} min` : a.swimMin ? `${num(a.swimMin, 0)} min` : ""
+    return <><span>Podle plánu</span>{size0 && <span className="text-fg-3">{` · ${size0}`}</span>}</>
+  }
   const what = p.key === "extra" ? "Volitelný regenerační běh" : p.key === "rec" ? `Doporučené: ${(KIND_LABEL[p.kind] || p.kind || "").toLowerCase()}` : KIND_LABEL[p.kind] || p.kind
   const size = a.runKm ? `${num(a.runKm)} km${a.z4 ? ` · ${num(a.z4, 0)} min Z4+` : ""}` : a.rideMin ? `${num(a.rideMin, 0)} min` : a.swimMin ? `${num(a.swimMin, 0)} min` : ""
   return <><span>{what}</span>{size && <span className="text-fg-3">{` · ${size}`}</span>}</>
@@ -401,7 +421,7 @@ function Slider({ label, value, onChange, max, step, unit }: { label: string; va
 export function TomorrowCard({ g }: { g: any }) {
   const ol = g.outlook
   const presets: any[] = ol?.presets || []
-  const [pk, setPk] = useState<string>("none")
+  const [pk, setPk] = useState<string>(() => (g.outlook?.presets || []).some((p: any) => p.key === "plan") ? "plan" : "none")
   const [night, setNight] = useState<string>("today")
   const [custom, setCustom] = useState<Act>({ runKm: 0, z4: 0, rideMin: 0, swimMin: 0 })
   if (!ol?.channels) return null
@@ -415,6 +435,8 @@ export function TomorrowCard({ g }: { g: any }) {
   const later = !v.run ? nextRunDay(ol, x, night) : null
   const todayCh = g.week?.channels || {}
   const nights: any[] = ol.nights || []
+  const coachMode = g.week?.mode === "coach"
+  const pt = ol.planTomorrow
   const shown = (["volume", "intensity", "descent", "ascent", "systemic"] as const).filter((c) => v.ev[c] && todayCh[c])
   return (
     <section className="card mt-4 p-4 md:p-6" data-testid="tomorrow">
@@ -443,15 +465,36 @@ export function TomorrowCard({ g }: { g: any }) {
       <Segmented size="sm" className="mt-1.5" ariaLabel="Noc" value={night} onChange={setNight}
         options={nights.map((n) => [n.key, n.key === "today" ? `jako dnes · ${n.score} %` : n.key === "good" ? "dobrá" : `slabší · ${n.score} %`] as const)} />
 
+      {pt?.sessions?.length > 0 && (
+        <div className="nest mt-4 p-3.5" data-testid="tomorrow-plan">
+          <p className="text-[12px] font-semibold text-fg-3">Zítra v plánu</p>
+          <p className="mt-0.5 text-[14px] font-bold text-fg">{pt.sessions.map((x: any) => `${x.label}${x.km ? ` ${num(x.km)} km` : x.min ? ` ${num(x.min, 0)} min` : ""}`).join(" + ")}</p>
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            {nights.map((n) => {
+              const r = pt.byNight?.[n.key]
+              const col = r?.verdict === "ok" ? C.ok : r?.verdict === "mod" ? C.watch : r?.verdict === "no" ? C.alert : C.fg3
+              const lbl = r?.verdict === "ok" ? "sedí" : r?.verdict === "mod" ? "s úpravou" : r?.verdict === "no" ? "raději ne" : "volno"
+              return (
+                <button key={n.key} type="button" onClick={() => setNight(n.key)} aria-pressed={night === n.key}
+                  className={`rounded-[12px] border px-2 py-1.5 text-center transition ${night === n.key ? "border-white/30" : "border-white/[.07]"}`} style={{ background: `${col}14` }}>
+                  <span className="block text-[10.5px] text-fg-3">{n.key === "today" ? `noc jako dnes` : n.key === "good" ? "dobrá noc" : "slabší noc"}</span>
+                  <b className="block text-[12px]" style={{ color: col }}>{lbl}</b>
+                </button>
+              )
+            })}
+          </div>
+          {pt.byNight?.[night]?.why?.[0] && <p className="mt-1.5 text-[11.5px] leading-4 text-fg-3">{pt.byNight[night].why[0]}</p>}
+        </div>
+      )}
       <div className="nest mt-4 p-3.5" data-testid="tomorrow-verdict">
         <p className="text-[15px] font-bold leading-6 text-fg">
           {v.run ? <><span>Zítra běh do </span><span className="tabular-nums">{num(vol?.max, 1)}</span><span> km</span></> : <span>Zítra bez běhu</span>}
         </p>
         {!v.run && vol?.lim && (
-          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-fg-2"><span>{`omezuje: ${limitText(vol.lim, vol.bound, newWeek)}`}</span><BoundTag bound={vol.bound} /></p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-fg-2"><span>{`omezuje: ${limitText(vol.lim, vol.bound, newWeek, coachMode)}`}</span><BoundTag bound={vol.bound} /></p>
         )}
         {v.run && vol?.lim && vol.bound === "plan" && vol.safe != null && vol.safe > (vol.max || 0) + 0.5 && (
-          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-fg-2"><span>{`omezuje: ${limitText(vol.lim, vol.bound, newWeek)}`}</span><BoundTag bound={vol.bound} /><span className="text-fg-3">{`bezpečnostně až ${num(vol.safe)} km`}</span></p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-fg-2"><span>{`omezuje: ${limitText(vol.lim, vol.bound, newWeek, coachMode)}`}</span><BoundTag bound={vol.bound} /><span className="text-fg-3">{`bezpečnostně až ${num(vol.safe)} km`}</span></p>
         )}
         {!v.run && vol?.bound === "plan" && vol.safe != null && vol.safe >= ol.minRunKm && (
           <p className="mt-1 text-[12px] text-fg-3">{`Je to plán týdne, ne strop — bezpečnostní limity by dovolily až ${num(vol.safe)} km, pokud bude připravenost aspoň 80 %.`}</p>
@@ -488,7 +531,7 @@ export function TomorrowCard({ g }: { g: any }) {
                 <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(e.max ? 2 : 0, ((e.max || 0) / scale) * 100)}%`, background: (e.max || 0) <= 0 ? C.watch : C.ok }} />
                 {t.todayMax != null && <i className="absolute -inset-y-1 w-0.5 rounded-full bg-fg/80" style={{ left: `calc(${(Math.min(t.todayMax, scale) / scale) * 100}% - 1px)` }} title="dnešní maximum" />}
               </div>
-              {e.lim && <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] leading-4 text-fg-3"><span>{`omezuje: ${limitText(e.lim, e.bound, newWeek)}`}</span><BoundTag bound={e.bound} /></p>}
+              {e.lim && <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] leading-4 text-fg-3"><span>{`omezuje: ${limitText(e.lim, e.bound, newWeek, coachMode)}`}</span><BoundTag bound={e.bound} /></p>}
             </div>
           )
         })}

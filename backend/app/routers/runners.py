@@ -651,6 +651,12 @@ def _access_log(db: DBSession, rid: str, limit: int) -> list[dict]:
         out.append({"id": f"admin-{r.id}", "runner_id": rid, "physio_id": None, "actor_role": "admin", "action": "read",
                     "date": r.date, "resource": r.resource, "access_count": r.access_count, "first_at": r.first_at,
                     "last_at": r.last_at, "physio_name": "Správce aplikace"})
+    for r in (db.query(models.CoachAccessLog).filter(models.CoachAccessLog.runner_id == rid)
+              .order_by(models.CoachAccessLog.last_at.desc()).limit(limit).all()):
+        out.append({"id": f"coach-{r.id}", "runner_id": rid, "physio_id": None, "actor_role": "coach", "action": r.action,
+                    "date": r.date, "resource": "plán" if r.action == "write" else "přehled pro trenéra",
+                    "access_count": r.access_count, "first_at": r.first_at, "last_at": r.last_at,
+                    "physio_name": f"Trenér{f' ({r.coach_name})' if r.coach_name else ''}"})
     out.sort(key=lambda d: d.get("last_at") or "", reverse=True)
     return out[:limit]
 

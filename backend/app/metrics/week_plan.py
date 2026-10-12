@@ -201,6 +201,11 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         out["totals"] = totals
         return out
 
+    # ---- Plán od trenéra (2026-10-12): the coach's week with the app's verdicts, not its own layout
+    coach = g.get("coach") or {}
+    if coach.get("on") and coach.get("eval"):
+        return _coach_week(coach, out, days, today, items, finish)
+
     # ---- a stop: no running plan, only what doesn't hurt
     ov = g.get("override")
     if ov or x.get("ill"):
@@ -613,6 +618,62 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         "strength": len(best or []) + (st.get("done") or 0) + int(bool(st.get("today"))), "strengthTarget": st.get("target"),
         "rides": len(rides), "rideMin": sum(it["min"][1] for d in rides for it in items[d] if it["kind"] == "ride"),
     })
+
+
+COACH_VERDICT = {"ok": "sedí", "mod": "sedí s úpravou", "no": "dnes raději ne"}
+COACH_TYPE = {"easy": "lehký", "recovery": "regenerace", "long": "dlouhý", "quality": "kvalitní", "hills": "kvalitní"}
+
+
+def _coach_week(coach: dict, out: dict, days: list, today: date, items: dict, finish):
+    """The week as the coach planned it: every session with its verdict and the change the
+    app suggests (metrics/coach_plan.py); what was run on the days behind."""
+    from . import coach_plan as CP
+    by = {d["date"]: d for d in coach["eval"].get("days") or []}
+    out["mode"] = "coach"
+    out["headline"] = "Týden podle plánu trenéra" + (f" ({coach['name']})" if coach.get("name") else "")
+    over = (coach["eval"].get("week") or {}).get("overDays") or []
+    if over:
+        out["notes"].append("Nad bezpečnými limity: " + ", ".join(WD_LONG[_d(x).weekday()] for x in over)
+                            + " — u dne je upravená verze, rozhoduje trenér.")
+    if not coach.get("hasWeek"):
+        out["notes"].append("Na tento týden zatím není plán od trenéra — vložte ho v Tréninku. Do té doby platí jen bezpečnostní limity.")
+    for d in days:
+        day = by.get(d.isoformat()) or {}
+        if d < today:
+            continue
+        items[d] = []
+        for s in day.get("sessions") or []:
+            k = s["kind"]
+            note = None
+            if s.get("verdict") in COACH_VERDICT:
+                bits = [CP.change_txt(c) for c in ((s.get("fit") or {}).get("changes") or [])]
+                note = COACH_VERDICT[s["verdict"]] + (f": {', '.join(bits)}" if bits and s["verdict"] == "mod" else "")
+                if s.get("why"):
+                    note += f" — {s['why'][0].rstrip('.')}"
+            if s.get("status") in ("done", "partial", "more"):
+                items[d].append({"kind": "done", "label": "Odběhnuto", "km": (s.get("act") or {}).get("km")})
+            elif k == "rest":
+                items[d].append({"kind": "rest", "label": "Volno", "note": None})
+            elif CP.KINDS[k]["sport"] == "run" and k != "race":
+                km = s.get("km") or 0
+                fit_km = (s.get("fit") or {}).get("km") if s.get("verdict") == "mod" else None
+                items[d].append({"kind": "run", "type": COACH_TYPE.get(k, "lehký"), "label": s.get("title") or s["label"],
+                                 "km": {"lo": _r(fit_km if fit_km is not None and fit_km < km else km), "hi": _r(km)},
+                                 "durationMin": None, "hr": None, "zones": None, "pace": None,
+                                 "z4": {"lo": _r(s.get("z4"), 0), "hi": _r(s.get("z4"), 0)} if s.get("z4") else None,
+                                 "session": s.get("intervals"), "descentMax": None, "ascentMax": None, "optional": False,
+                                 "strides": False, "note": note})
+            elif k == "race":
+                items[d].append({"kind": "race", "label": s.get("title") or s["label"], "km": s.get("km"), "note": note})
+            elif k in ("ride", "swim"):
+                m = s.get("min")
+                items[d].append({"kind": k, "label": s.get("title") or s["label"], "min": [m, m] if m else None,
+                                 "hr": None, "zones": None, "optional": False, "note": note})
+            else:
+                items[d].append({"kind": "rest", "label": s.get("title") or s["label"], "note": note})
+        if not items[d]:
+            items[d].append({"kind": "rest", "label": "Nic v plánu", "note": None})
+    return finish()
 
 
 def note(p: dict | None) -> str | None:

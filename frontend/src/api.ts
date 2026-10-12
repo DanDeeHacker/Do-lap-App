@@ -222,6 +222,27 @@ export const api = {
   // Switch the engine (v1 standard / v2 sensitive / v3 capacity) and recompute.
   setEngine: (rid: string, mode: "v1" | "v2" | "v3") => call("POST", `/api/runners/${rid}/engine`, { mode }),
   runSegments: (rid: string) => call("GET", `/api/runners/${rid}/run-segments`),
+
+  // Plán od trenéra (coach mode, the plan, the import, the calendar link, the coach's overview)
+  plan: (rid: string) => call("GET", `/api/runners/${rid}/plan`),
+  planMode: (rid: string, on: boolean, name?: string | null) => call("PUT", `/api/runners/${rid}/plan/mode`, { on, name }),
+  planAdd: (rid: string, s: any) => call("POST", `/api/runners/${rid}/plan/sessions`, s),
+  planEdit: (rid: string, id: number, s: any) => call("PATCH", `/api/runners/${rid}/plan/sessions/${id}`, s),
+  planDelete: (rid: string, id: number) => call("DELETE", `/api/runners/${rid}/plan/sessions/${id}`),
+  planPair: (rid: string, id: number, activity_id: number | null) => call("POST", `/api/runners/${rid}/plan/sessions/${id}/pair`, { activity_id }),
+  planCopyWeek: (rid: string, source: string, target: string) => call("POST", `/api/runners/${rid}/plan/copy-week`, { source, target }),
+  planImport: (rid: string, body: { text?: string; image?: string; week?: string }) => call("POST", `/api/runners/${rid}/plan/import`, body),
+  planConfirm: (rid: string, sessions: any[], via?: string) => call("POST", `/api/runners/${rid}/plan/confirm`, { sessions, via }),
+  planFeed: (rid: string, url: string) => call("PUT", `/api/runners/${rid}/plan/feed`, { url }),
+  planFeedSync: (rid: string) => call("POST", `/api/runners/${rid}/plan/feed/sync`, {}),
+  planFeedDrop: (rid: string) => call("DELETE", `/api/runners/${rid}/plan/feed`),
+  coachLinkCreate: (rid: string, coach_name: string | null, consent: boolean) => call("POST", `/api/runners/${rid}/plan/coach-link`, { coach_name, consent }),
+  coachLinkRevoke: (rid: string, token: string) => call("DELETE", `/api/runners/${rid}/plan/coach-link/${token}`),
+  coachView: (token: string) => call("GET", `/api/trener/${token}`, undefined, { skipAuthRedirect: true }),
+  coachDay: (token: string, day: string, sessions: any[]) => call("PUT", `/api/trener/${token}/day/${day}`, { sessions }, { skipAuthRedirect: true }),
+  coachClearDay: (token: string, day: string) => call("DELETE", `/api/trener/${token}/day/${day}`, undefined, { skipAuthRedirect: true }),
+  coachCopyWeek: (token: string, source: string, target: string, repeat: number) =>
+    call("POST", `/api/trener/${token}/copy-week`, { source, target, repeat }, { skipAuthRedirect: true }),
 }
 
 export type Me = {

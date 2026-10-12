@@ -205,6 +205,15 @@ def _plan(a, db, rid):
            "terrain": t.get("terrain"), "notes": (t.get("notes") or [])[:3], "reasons": (g.get("reasons") or [])[:6],   # the deciding one is picked in the app (UX audit F09)
            "override": (g.get("override") or {}).get("title"), "afterDone": g.get("afterDone"),
            "strength": None, "readinessScore": g.get("readinessScore")}
+    c = g.get("coach") or {}
+    if c.get("on") and c.get("eval"):                 # Plán od trenéra: the coach's session(s) with the verdict
+        from . import coach_plan as CP
+        out["coach"] = {"name": c.get("name"), "sessions": [
+            {"label": x.get("title") or x["label"], "kind": x["kind"], "km": x.get("km"), "min": x.get("min"),
+             "verdict": x.get("verdict"), "status": x.get("status"),
+             "changes": [CP.change_txt(y) for y in ((x.get("fit") or {}).get("changes") or [])],
+             "why": (x.get("why") or [None])[0]}
+            for x in c["eval"].get("today") or [] if x["kind"] != "rest"]}
     progs = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.active.is_(True)).all()
     prog = next((x for x in progs if x.template == "durability"), progs[0] if progs else None)
     if prog is not None and prog.template == "durability":

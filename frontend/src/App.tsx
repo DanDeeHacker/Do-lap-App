@@ -1,3 +1,4 @@
+import { CoachPage } from "@/coachview"
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ReportIcon, ReportProvider } from "@/report"
 import { createPortal } from "react-dom"
@@ -2108,6 +2109,8 @@ const router = createBrowserRouter([
   ...(DevGallery ? [{ path: "/ui", Component: () => <Suspense fallback={null}><DevGallery /></Suspense> }] : []),
   { path: "/", Component: () => <Navigate to="/app/today" replace /> },
   { path: "/auth", Component: Auth, ErrorBoundary: RouteError },
+  // Plán od trenéra — the coach's overview through the runner's link (no account)
+  { path: "/trener/:token", Component: CoachPage, ErrorBoundary: RouteError },
   {
     Component: Layout,
     ErrorBoundary: RouteError,

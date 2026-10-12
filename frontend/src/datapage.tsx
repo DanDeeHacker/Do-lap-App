@@ -6,6 +6,7 @@ import { Button, Card, Chip, Field, Label, ListRow, Switch, useAsync, useToast }
 import { ArrowRight, Copy, Database, Download, Eye, Map as MapIcon, Mountain, Pencil, Power, RefreshCw, Smartphone, Sunrise, Unplug, Upload, Watch } from "lucide-react"
 import { fmtD, initials } from "@/lib"
 import { ASSISTANT_REFRESH_EVENT, KnowledgeAdminCard } from "@/assistant"
+import { CoachModeCard } from "@/coach"
 
 type Result = { ok?: boolean; loading?: boolean; error?: string; activities?: number; addedDaily?: number; meta?: any; source?: string; mfa?: boolean; mfaToken?: string }
 
@@ -378,6 +379,9 @@ export function DataView() {
         </div>
       </Card>
 
+      {/* Plán od trenéra (owner 2026-10-12) — next to where the watch connects */}
+      {realMe?.guest ? null : <CoachModeCard rid={rid} />}
+
       {/* UX audit F05 — other watches and no watch at all */}
       <Card className="mt-4" data-testid="other-watches">
         <Label>Jiné hodinky nebo bez hodinek</Label>
@@ -393,7 +397,7 @@ export function DataView() {
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
           <Label>Kdo přistupoval k vašim datům</Label>
-          <p className="mt-1 text-[12px] text-fg-3">Transparentnost podle GDPR — zaznamenává se přístup fyzioterapeuta, ne váš vlastní.</p>
+          <p className="mt-1 text-[12px] text-fg-3">Transparentnost podle GDPR — zaznamenává se přístup fyzioterapeuta a trenéra, ne váš vlastní.</p>
           {(boot?.access_log || []).length ? (
             <div className="mt-2 divide-y divide-white/[.07]">{(boot.access_log as any[]).map((x) => (
               <ListRow key={x.id} icon={x.action === "read" ? Eye : Pencil} tone={x.action === "read" ? "muted" : "watch"} title={x.physio_name || "Fyzioterapeut"}

@@ -60,6 +60,7 @@
   "files": [
    "admin.tsx",
    "care.tsx",
+   "coachview.tsx",
    "rundetail.tsx",
    "tabs.tsx",
    "training.tsx"
@@ -373,6 +374,7 @@
   "t": "Smazat",
   "files": [
    "annotate.tsx",
+   "coach.tsx",
    "profile.tsx",
    "tabs.tsx"
   ],
@@ -417,6 +419,7 @@
   "t": "Uložit",
   "files": [
    "annotate.tsx",
+   "coach.tsx",
    "report.tsx",
    "training.tsx"
   ],
@@ -426,6 +429,8 @@
   "t": "Upravit",
   "files": [
    "annotate.tsx",
+   "coach.tsx",
+   "coachview.tsx",
    "shell.tsx"
   ],
   "kind": "jsx"
@@ -470,6 +475,7 @@
   "files": [
    "annotate.tsx",
    "care.tsx",
+   "coach.tsx",
    "profile.tsx",
    "tabs.tsx",
    "training.tsx"
@@ -650,6 +656,9 @@
   "t": "{} km",
   "files": [
    "App.tsx",
+   "coach.tsx",
+   "coachview.tsx",
+   "outlook.tsx",
    "profile.tsx",
    "report.tsx",
    "rundetail.tsx",
@@ -945,7 +954,8 @@
  {
   "t": "bolest {}/10",
   "files": [
-   "App.tsx"
+   "App.tsx",
+   "coachview.tsx"
   ],
   "kind": "tpl"
  },
@@ -1038,6 +1048,7 @@
   "files": [
    "App.tsx",
    "capacity.tsx",
+   "coach.tsx",
    "daytoday.tsx",
    "outlook.tsx",
    "report.tsx",
@@ -1255,6 +1266,7 @@
    "App.tsx",
    "assistant.tsx",
    "capacity.tsx",
+   "coach.tsx",
    "daytoday.tsx",
    "landing.tsx",
    "onboarding.tsx",
@@ -1516,6 +1528,8 @@
   "files": [
    "App.tsx",
    "capacity.tsx",
+   "coach.tsx",
+   "coachview.tsx",
    "glossary.tsx",
    "landing.tsx",
    "report.tsx",
@@ -1926,6 +1940,8 @@
   "files": [
    "App.tsx",
    "annotate.tsx",
+   "coach.tsx",
+   "coachview.tsx",
    "profile.tsx",
    "selfprograms.tsx"
   ],
@@ -2269,6 +2285,7 @@
   "t": "Poznámka",
   "files": [
    "App.tsx",
+   "coach.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -2422,7 +2439,8 @@
   "t": "připravenost",
   "files": [
    "App.tsx",
-   "capacity.tsx"
+   "capacity.tsx",
+   "coach.tsx"
   ],
   "kind": "jsx"
  },
@@ -2431,6 +2449,7 @@
   "files": [
    "App.tsx",
    "capacity.tsx",
+   "coachview.tsx",
    "glossary.tsx",
    "landing.tsx",
    "onboarding.tsx",
@@ -2651,14 +2670,16 @@
  {
   "t": "sedí",
   "files": [
-   "App.tsx"
+   "App.tsx",
+   "outlook.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Sedí",
   "files": [
-   "App.tsx"
+   "App.tsx",
+   "coach.tsx"
   ],
   "kind": "jsx"
  },
@@ -2773,6 +2794,7 @@
   "t": "spánek",
   "files": [
    "App.tsx",
+   "coach.tsx",
    "report.tsx"
   ],
   "kind": "jsx"
@@ -2937,6 +2959,7 @@
   "t": "tento týden",
   "files": [
    "App.tsx",
+   "coach.tsx",
    "training.tsx"
   ],
   "kind": "jsx"
@@ -3555,6 +3578,7 @@
   "t": "Zpět",
   "files": [
    "App.tsx",
+   "coach.tsx",
    "landing.tsx",
    "onboarding.tsx"
   ],
@@ -4179,6 +4203,8 @@
   "t": "· {} km",
   "files": [
    "capacity.tsx",
+   "coach.tsx",
+   "coachview.tsx",
    "tabs.tsx"
   ],
   "kind": "tpl"
@@ -4307,6 +4333,8 @@
   "t": "{} min",
   "files": [
    "capacity.tsx",
+   "coach.tsx",
+   "coachview.tsx",
    "outlook.tsx",
    "report.tsx",
    "rundetail.tsx",
@@ -4862,6 +4890,7 @@
   "t": "Kapacita",
   "files": [
    "capacity.tsx",
+   "coach.tsx",
    "glossary.tsx"
   ],
   "kind": "str"
@@ -4912,6 +4941,7 @@
   "t": "Klidový tep",
   "files": [
    "capacity.tsx",
+   "coachview.tsx",
    "report.tsx",
    "shell.tsx",
    "tabs.tsx"
@@ -4937,6 +4967,7 @@
   "t": "Kolo",
   "files": [
    "capacity.tsx",
+   "coach.tsx",
    "outlook.tsx",
    "report.tsx",
    "tabs.tsx"
@@ -5152,7 +5183,8 @@
  {
   "t": "obvyklé",
   "files": [
-   "capacity.tsx"
+   "capacity.tsx",
+   "coach.tsx"
   ],
   "kind": "str"
  },
@@ -5219,6 +5251,7 @@
   "t": "Plavání",
   "files": [
    "capacity.tsx",
+   "coach.tsx",
    "outlook.tsx",
    "tabs.tsx"
   ],
@@ -5273,6 +5306,7 @@
   "t": "Posilování",
   "files": [
    "capacity.tsx",
+   "coach.tsx",
    "report.tsx",
    "tabs.tsx"
   ],
@@ -5934,7 +5968,9 @@
  {
   "t": "Čt",
   "files": [
-   "care.tsx"
+   "care.tsx",
+   "coach.tsx",
+   "coachview.tsx"
   ],
   "kind": "str"
  },
@@ -6244,7 +6280,9 @@
  {
   "t": "Pá",
   "files": [
-   "care.tsx"
+   "care.tsx",
+   "coach.tsx",
+   "coachview.tsx"
   ],
   "kind": "str"
  },
@@ -6272,7 +6310,9 @@
  {
   "t": "Po",
   "files": [
-   "care.tsx"
+   "care.tsx",
+   "coach.tsx",
+   "coachview.tsx"
   ],
   "kind": "str"
  },
@@ -6394,7 +6434,9 @@
  {
   "t": "St",
   "files": [
-   "care.tsx"
+   "care.tsx",
+   "coach.tsx",
+   "coachview.tsx"
   ],
   "kind": "str"
  },
@@ -6457,7 +6499,9 @@
  {
   "t": "Út",
   "files": [
-   "care.tsx"
+   "care.tsx",
+   "coach.tsx",
+   "coachview.tsx"
   ],
   "kind": "str"
  },
@@ -6614,6 +6658,2248 @@
   "t": "zrušit",
   "files": [
    "care.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "— klepněte na den pro upravenou verzi.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": ". Plán uložíte i tak — u dne uvidíte upravenou verzi.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· {} min",
+  "files": [
+   "coach.tsx",
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· {} min Z4+",
+  "files": [
+   "coach.tsx",
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· obnovuje se samo každé ráno a při otevření",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· předběžně",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "{} tréninků",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} týdně",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} z {} km",
+  "files": [
+   "coach.tsx",
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}–{} km",
+  "files": [
+   "coach.tsx",
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}–{} min",
+  "files": [
+   "coach.tsx",
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}: {} / max {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "≈ {} min v Z4+",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "≈ {} min v Z4+ (dopočteno z úseků)",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "≥ 80 % v Z1–Z2",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "3px solid {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "4:30/km · Z2 · tep do 150",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "6× 1 km v 4:30 · tempo 20 min",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "aktivity 14 dní",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Aplikace trenéra",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez bolesti v deníku",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez tvrdé části",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Bezpečné dny",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Bezpečnost zůstává",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bolest z deníku",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "částečně",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Celková zátěž",
+  "files": [
+   "coach.tsx",
+   "outlook.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Cíl trenéra",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "cíl trenéra: {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Cíl týdne = součet plánu. Bez zadaného plánu platí jen bezpečnostní limity.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "cíl: {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Co režim dělá",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Čtu fotku…",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "čtvrtek",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Délka (min)",
+  "files": [
+   "coach.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "délku",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Den",
+  "files": [
+   "coach.tsx",
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Den volna podle plánu. Pokud trenér něco poslal, přidejte to.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dlouhý běh",
+  "files": [
+   "coach.tsx",
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dnes nic v plánu",
+  "files": [
+   "coach.tsx",
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dnes raději ne",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "dnes se nevejde",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Dnes v plánu · {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Dnes v plánu od trenéra",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "dnešní bezpečné maximum",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dny týdne",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Done",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Došlap navrhuje vlastní trénink",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Final Surge",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "flex flex-col items-center gap-1 rounded-[12px] border px-1 py-2 text-[10.5px] font-bold leading-tight transition {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "flex items-center gap-3 rounded-[14px] border p-2.5 text-left transition hover:border-white/25 {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "flex min-h-[92px] flex-col items-center gap-1 rounded-[14px] border px-0.5 pb-2 pt-1.5 text-center transition {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Fotku přečte bezplatný model a hned ji zahodí — neukládáme ji. Výsledek vždy zkontrolujete.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Fotku se nepodařilo otevřít",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Google Kalendář",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "grid shrink-0 place-items-center rounded-[12px] bg-white/[.06] {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "inset 0 0 0 1.5px {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Intervals.icu",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Intervaly / tempo",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jakýkoli kalendář s odkazem .ics nebo webcal://.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jen pro účet Premium; TrainingPeaks posílá 5 dní zpět a 14 dní dopředu, změny se mohou projevit až do 24 hodin.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jiný (iCal)",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jiný trénink",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jméno trenéra",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Jméno trenéra (nepovinné)",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kalendář",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kalendář odpojen",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kalendář připojen",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kalendář připojen · {} tréninků",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Kalendář se nepodařilo načíst",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kanál",
+  "files": [
+   "coach.tsx",
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kapacita za 12 týdnů",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klesání",
+  "files": [
+   "coach.tsx",
+   "landing.tsx",
+   "outlook.tsx",
+   "report.tsx",
+   "rundetail.tsx",
+   "tabs.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Klesání (m)",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "klesání do",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "klidový tep",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "km v plánu",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kopce",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kopírovat odkaz",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Lehké opravdu lehce",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Lehký běh",
+  "files": [
+   "coach.tsx",
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "limity drží",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "limity přetažené",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Limity zátěže, bolest, nemoc i připravenost hlídáme dál. Nic se neblokuje — jen doporučení a zpráva pro trenéra.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "min v Z4+",
+  "files": [
+   "coach.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "minulý týden",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Minulý týden zkopírován",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Místo toho:",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Na tento den nic v plánu.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Na tento týden zatím není plán",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Na webu TrainingPeaks: Settings → Account → Calendar (Calendar Sync).",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Načíst plán",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Načíst teď",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Načítám plán…",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nad bezpečnými limity:",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nahradí {} dříve zadaných tréninků v těchto dnech.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "naposledy {} {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "např. Petr",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Navíc mimo plán",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "nebo minuty",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nebo přesunout na:",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nebo prohodit s:",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "neděle",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nejvyšší bolest {}/10",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "neodběhnuto",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "nepovinné",
+  "files": [
+   "coach.tsx",
+   "profile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nevejde se do bezpečných limitů:",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nevstřebaná zátěž",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nový trénink",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "o {} {} víc · omezuje {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Objem",
+  "files": [
+   "coach.tsx",
+   "outlook.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "od trenéra",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "odběhnuto",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "odběhnuto za týden",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odkaz je soukromý — uložíme ho jen u vás a nikomu ho neukazujeme. Z kalendáře bereme jen tréninky; den, který upraví trenér v přehledu, zůstane jeho.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odkaz pro trenéra",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odkaz pro trenéra vytvořen",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odkaz zkopírován",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odkaz zrušen — trenér už nic neuvidí",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odkaz, přes který trenér uvidí váš stav a může upravit plán na 6 měsíců dopředu — jeho úprava daného dne přepíše dosavadní plán.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odkud plán vezmeme",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odpojit",
+  "files": [
+   "coach.tsx",
+   "datapage.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "otevřeno {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Párování uloženo",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "pátek",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán",
+  "files": [
+   "coach.tsx",
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán ✓",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán ✓ · limity ✓",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán ✓ · limity ✗",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán ✗",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán ✗ · limity ✓",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán ✗ · limity ✗",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán a limity",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "plán a verdikty",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán od trenéra",
+  "files": [
+   "coach.tsx",
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán od: {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Plán se nepodařilo načíst",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán týdne",
+  "files": [
+   "coach.tsx",
+   "report.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Plán uložen",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán určuje trenér",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán určuje trenér, Došlap hlídá, kolik dnes tělo unese: každý trénink porovná s dnešními bezpečnými limity (nevstřebaná zátěž, strop jednoho běhu, celková zátěž) a s pravidly pro bolest, nemoc, připravenost a odstup tvrdých tréninků. Nic neblokuje — ukáže, o kolik a proč se trénink nevejde, a nabídne upravenou verzi.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán z kalendáře obnoven",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Platí 6 měsíců, kdykoli ho zrušíte.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "platí do {} · každé otevření uvidíte v „Kdo přistupoval k vašim datům“",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "po rovině",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Po: 10 km lehce Út: 2 km rozklus, 6× 1 km v 4:30, 2 km výklus St: volno …",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pokud vám trenér plán sdílí v Google Kalendáři: Nastavení kalendáře → Integrovat kalendář.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "pondělí",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přečteno aplikací.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přečteno modelem a zkontrolováno aplikací.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přečteno z fotky.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přehled pro trenéra",
+  "files": [
+   "coach.tsx",
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "přesunout na:",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přidat",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přidat trénink",
+  "files": [
+   "coach.tsx",
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Připojit",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "příští",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "příští týden",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Proběhlo",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Progres podle trenéra: plán se plní, bezpečné limity drží a týdenní kapacita roste bez skoků. Plán = kolik tréninků a kilometrů z plánu proběhlo. Limity = dny, kdy nevstřebaná zátěž zůstala pod týdenním stropem a žádný běh nepřekročil strop jednoho běhu.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "prohodit s:",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "průměrná připravenost {} %",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Regenerační běh",
+  "files": [
+   "coach.tsx",
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Režim trenéra vypnut",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Režim trenéra zapnut",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "režim trenéra zapnutý",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "rounded-full border px-3 py-1.5 text-[12px] font-bold transition {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "rozhoduje trenér · Došlap nic neblokuje",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ručně",
+  "files": [
+   "coach.tsx",
+   "profile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Runna",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "sám každé ráno",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Sedí s úpravou",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Skrýt, co režim dělá",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "So",
+  "files": [
+   "coach.tsx",
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Souhlasím, že trenér s tímto odkazem uvidí moje zdravotní údaje (připravenost, spánek, HRV, klidový tep, bolest) a tréninky a může upravovat můj plán. Souhlas odvolám zrušením odkazu.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Spárovat s aktivitou",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "splněno",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Stoupání",
+  "files": [
+   "coach.tsx",
+   "outlook.tsx",
+   "report.tsx",
+   "rundetail.tsx",
+   "tabs.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Stoupání (m)",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "stoupání do",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "středa",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "strop jednoho běhu",
+  "files": [
+   "coach.tsx",
+   "outlook.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "T12:00:00",
+  "files": [
+   "coach.tsx",
+   "coachview.tsx",
+   "outlook.tsx",
+   "report.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "tempo nebo tep",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Text, fotka",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "TrainingPeaks",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Trenér: {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Trénink přidán",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Trénink smazán",
+  "files": [
+   "coach.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Trénink ukáže váš plán a u každého tréninku verdikt: sedí, sedí s úpravou, nebo dnes raději ne.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Trénink upraven",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "tréninků",
+  "files": [
+   "coach.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Trénuju podle trenéra",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Tvrdá část",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Tvrdé minuty (Z4+)",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tvrdé v cíli",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "tvrdou část",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Týden",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "týden od {}",
+  "files": [
+   "coach.tsx",
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "týdenní kapacita",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Týdenní kapacita = kolik prokazatelně zvládáte (průměr posledních týdnů, nebo nejlepší týden bez bolesti). Když držíte plán i limity, roste postupně. Sloupce = co jste v týdnu skutečně odběhli.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Typ tréninku",
+  "files": [
+   "coach.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uloženo",
+  "files": [
+   "coach.tsx",
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uložit {} tréninků",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Upravit trénink",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "úseky textem",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "úterý",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "V Intervals.icu najděte v nastavení kalendáře odkaz pro export do kalendáře (iCal / webcal).",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "v limitech",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "v plánu",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "V plánu",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "V Runně: Connected Apps & Devices → Calendar Syncing → Connect Calendar → Other.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "v Tréninku",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "v Tréninku po dnech",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ve Final Surge: Settings → Calendar Sync → Edit Sync → Turn On.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "vejde se do dnešních limitů",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "víc než plán",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vlastní cyklus aplikace se vypne",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vložit plán",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vložit plán týdne",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vložte ji trenérovi do chatu nebo e-mailu.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vložte plán od trenéra — text, fotku nebo kalendář. Do té doby platí jen bezpečnostní limity.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Volno",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vyfotit nebo vybrat obrázek plánu",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "vynecháno",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vypnutím se vrátí doporučení a cyklus aplikace; zadaný plán zůstane uložený.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vytvořit odkaz",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "vzdálenost",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vzdálenost (km)",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "webcal://… nebo https://….ics",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "z importu",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "z kalendáře",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Z4+",
+  "files": [
+   "coach.tsx",
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Z4+ (min)",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Z4+ ± 20 %",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zatím nenačteno",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zatím neotevřeno",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Závod",
+  "files": [
+   "coach.tsx",
+   "shell.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zdroj",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zkontrolujte, co je označené.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zkontrolujte: {}",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Zkopírovat minulý týden",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zkopírujte „Tajnou adresu ve formátu iCal“ a vložte ji sem.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zkopírujte ho a vložte sem.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zkopírujte odkaz kalendáře (iCalendar) a vložte ho sem.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zkopírujte odkaz webcal:// a vložte ho sem.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zkopírujte zobrazený Sync URL a vložte ho sem.",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zkopírujte zprávu z WhatsAppu, e-mailu nebo řádky z tabulky. Každý den na nový řádek (Po, Út … nebo datum).",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Změna se nepodařila",
+  "files": [
+   "coach.tsx",
+   "datapage.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zpráva pro trenéra",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zpráva zkopírována",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zprávu se nepodařilo zkopírovat",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zrušit odkaz",
+  "files": [
+   "coach.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "{} · odkaz platí do {}",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} h",
+  "files": [
+   "coachview.tsx",
+   "report.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} ms",
+  "files": [
+   "coachview.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} tepů/min",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}: {} km",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "+{} m",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "42 dní",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Aktivity",
+  "files": [
+   "coachview.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Aktivity za 14 dní",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "bez bolesti",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Bez bolesti v deníku.",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Běžec má teď režim trenéra vypnutý — plán vidí, ale aplikace ho nevyhodnocuje.",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Běžec vám přístup dal výslovným souhlasem a může ho kdykoli zrušit; každé otevření a úprava se mu zobrazí. Došlap není zdravotnický prostředek — verdikty jsou ochranné mantinely z dat běžce, rozhodujete vy dva.",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Bolest (deník)",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Čárkovaně současná týdenní kapacita {} km (co běžec prokazatelně zvládá). Týden nad ní je nárůst — den po dni ho hlídají verdikty.",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Části přehledu",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Další týdny",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Den uložen — běžec ho uvidí v Tréninku",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Den vyprázdněn",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Do dalších",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Došlap",
+  "files": [
+   "coachview.tsx",
+   "shell.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "flex min-h-[64px] flex-col items-center gap-0.5 rounded-[10px] px-0.5 py-1 text-center transition {} {}",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "flex min-h-[80px] flex-col items-center gap-1 rounded-[12px] border px-0.5 py-1.5 text-center {}",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "klepněte na den · vaše úprava přepíše plán toho dne",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kopírování se nepovedlo",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "kopírovat",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kopírovat",
+  "files": [
+   "coachview.tsx",
+   "datapage.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kopírovat týden",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Málo dat.",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Minulé dny: zelená splněno, žlutá částečně nebo víc, šedá vynecháno. Dnešek a další dny: verdikt Došlapu.",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nepovedlo se",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odebrat",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán dne",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Plán na 6 měsíců",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Plánované km na další týdny",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "posledních 7 dní {} · průměr {}",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Posledních 7 dní a výhled",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přehled",
+  "files": [
+   "coachview.tsx",
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přehled pro trenéra · {}",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Přehled se nepodařilo načíst",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "připravenost {} %",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "pro trenéry",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "repeat({}, minmax(0, 1fr))",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "RPE {}",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Sloupce = naplánované kilometry v týdnu.",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Spánek",
+  "files": [
+   "coachview.tsx",
+   "landing.tsx",
+   "report.tsx",
+   "shell.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "tep {}",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Týden od {}",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "týdnů",
+  "files": [
+   "coachview.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Uložení se nepovedlo",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uložit den",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uložit jako volno",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "upraveno trenérem",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vyprázdnit den",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Žádné aktivity.",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zdraví",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zkopírováno {} tréninků",
+  "files": [
+   "coachview.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Zkopíruje tréninky do následujících týdnů. Dny v cílových týdnech se přepíšou.",
+  "files": [
+   "coachview.tsx"
   ],
   "kind": "jsx"
  },
@@ -7297,13 +9583,6 @@
   "kind": "str"
  },
  {
-  "t": "Kopírovat",
-  "files": [
-   "datapage.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Máte aktuální data",
   "files": [
    "datapage.tsx"
@@ -7423,13 +9702,6 @@
    "datapage.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "Odpojit",
-  "files": [
-   "datapage.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "Ověření selhalo.",
@@ -7708,7 +9980,7 @@
   "kind": "str"
  },
  {
-  "t": "Transparentnost podle GDPR — zaznamenává se přístup fyzioterapeuta, ne váš vlastní.",
+  "t": "Transparentnost podle GDPR — zaznamenává se přístup fyzioterapeuta a trenéra, ne váš vlastní.",
   "files": [
    "datapage.tsx"
   ],
@@ -7957,14 +10229,6 @@
   "t": "Zkopírováno",
   "files": [
    "datapage.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Změna se nepodařila",
-  "files": [
-   "datapage.tsx",
-   "training.tsx"
   ],
   "kind": "str"
  },
@@ -9628,18 +11892,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Klesání",
-  "files": [
-   "landing.tsx",
-   "outlook.tsx",
-   "report.tsx",
-   "rundetail.tsx",
-   "tabs.tsx",
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Klient přichází i s historií, daty z hodinek a průběhem programu, takže práce nezačíná od nuly.",
   "files": [
    "landing.tsx"
@@ -10527,16 +12779,6 @@
   "t": "Souhrn ze sezení",
   "files": [
    "landing.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Spánek",
-  "files": [
-   "landing.tsx",
-   "report.tsx",
-   "shell.tsx",
-   "tabs.tsx"
   ],
   "kind": "str"
  },
@@ -12639,13 +14881,6 @@
   "kind": "str"
  },
  {
-  "t": "· {} min Z4+",
-  "files": [
-   "outlook.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "· bez tréninku",
   "files": [
    "outlook.tsx"
@@ -12842,20 +15077,11 @@
   "kind": "str"
  },
  {
-  "t": "Celková zátěž",
+  "t": "cíl",
   "files": [
-   "outlook.tsx",
-   "training.tsx"
+   "outlook.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "cíl {}",
-  "files": [
-   "outlook.tsx",
-   "training.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "cíl příštího týdne v cyklu",
@@ -12870,14 +15096,14 @@
    "outlook.tsx",
    "report.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Cíl týdne (plán)",
   "files": [
    "outlook.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "cíl týdne celkové zátěže (od pondělí)",
@@ -12885,6 +15111,13 @@
    "outlook.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Cíl týdne je součet plánu trenéra; vlastní cyklus aplikace je vypnutý. Bezpečnost hlídají limity vedle, nezávisle na plánu.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "cíl týdne v cyklu (od pondělí)",
@@ -12905,20 +15138,6 @@
   "files": [
    "outlook.tsx",
    "selfprograms.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Den",
-  "files": [
-   "outlook.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Dlouhý běh",
-  "files": [
-   "outlook.tsx"
   ],
   "kind": "str"
  },
@@ -12963,6 +15182,13 @@
    "outlook.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "dobrá noc",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Doporučené: {}",
@@ -13015,13 +15241,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Kanál",
-  "files": [
-   "outlook.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Kolo v Z2",
   "files": [
    "outlook.tsx"
@@ -13044,13 +15263,6 @@
  },
  {
   "t": "ladění před závodem",
-  "files": [
-   "outlook.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Lehký běh",
   "files": [
    "outlook.tsx"
   ],
@@ -13091,6 +15303,13 @@
    "outlook.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Na tento týden zatím není plán — platí jen bezpečnostní limity.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Na tvrdé minuty (aspoň 10 min v Z4+) zítra nezbude prostor.",
@@ -13184,10 +15403,9 @@
   "kind": "str"
  },
  {
-  "t": "Objem",
+  "t": "noc jako dnes",
   "files": [
-   "outlook.tsx",
-   "training.tsx"
+   "outlook.tsx"
   ],
   "kind": "str"
  },
@@ -13265,11 +15483,53 @@
   "kind": "str"
  },
  {
+  "t": "plán po dnech",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Plán říká, kolik je rozumné tento týden udělat. Splněný cíl neznamená přetížení.",
   "files": [
    "outlook.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Plán trenéra",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán trenéra na příští týden",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán trenéra na tento týden",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán trenéra na týden",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán trenéra v celkové zátěži (od pondělí)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Plán týdne: kolik je naplánováno, ne kolik tělo unese",
@@ -13284,6 +15544,13 @@
    "outlook.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Podle plánu",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Pro tento kanál se týdenní cíl zatím nestanovuje.",
@@ -13307,14 +15574,14 @@
   "kind": "str"
  },
  {
-  "t": "Referenční týden",
+  "t": "raději ne",
   "files": [
    "outlook.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Regenerační běh",
+  "t": "Referenční týden",
   "files": [
    "outlook.tsx"
   ],
@@ -13335,11 +15602,25 @@
   "kind": "tpl"
  },
  {
+  "t": "rounded-[12px] border px-2 py-1.5 text-center transition {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "rounded-full border px-3 py-1.5 text-left text-[12px] font-semibold transition {}",
   "files": [
    "outlook.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "s úpravou",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Skrýt, z čeho cíl a strop vychází",
@@ -13356,13 +15637,16 @@
   "kind": "tpl"
  },
  {
-  "t": "Stoupání",
+  "t": "slabší noc",
   "files": [
-   "outlook.tsx",
-   "report.tsx",
-   "rundetail.tsx",
-   "tabs.tsx",
-   "training.tsx"
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "součet tréninků v plánu",
+  "files": [
+   "outlook.tsx"
   ],
   "kind": "str"
  },
@@ -13374,26 +15658,9 @@
   "kind": "tpl"
  },
  {
-  "t": "strop jednoho běhu",
-  "files": [
-   "outlook.tsx",
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "strop jednoho běhu dnes",
   "files": [
    "outlook.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "T12:00:00",
-  "files": [
-   "outlook.tsx",
-   "report.tsx",
-   "training.tsx"
   ],
   "kind": "str"
  },
@@ -13490,14 +15757,14 @@
   "kind": "str"
  },
  {
-  "t": "z toho tvrdě (Z4+)",
+  "t": "z plánu",
   "files": [
    "outlook.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Z4+",
+  "t": "z toho tvrdě (Z4+)",
   "files": [
    "outlook.tsx"
   ],
@@ -13541,6 +15808,13 @@
  },
  {
   "t": "Zítra bez běhu",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zítra v plánu",
   "files": [
    "outlook.tsx"
   ],
@@ -13940,13 +16214,6 @@
   "kind": "str"
  },
  {
-  "t": "nepovinné",
-  "files": [
-   "profile.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "nest flex items-start gap-3 p-3 {}",
   "files": [
    "profile.tsx"
@@ -14121,13 +16388,6 @@
    "profile.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "Ručně",
-  "files": [
-   "profile.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "S hormonální antikoncepcí se cyklus na tepu a HRV projevuje málo, připravenost proto zůstává bez úprav.",
@@ -14516,14 +16776,6 @@
   "kind": "tpl"
  },
  {
-  "t": "{} h",
-  "files": [
-   "report.tsx",
-   "tabs.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "{} h {} min",
   "files": [
    "report.tsx",
@@ -14546,13 +16798,6 @@
   "kind": "tpl"
  },
  {
-  "t": "{} z {} km",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "{}–{} /km",
   "files": [
    "report.tsx"
@@ -14560,21 +16805,7 @@
   "kind": "tpl"
  },
  {
-  "t": "{}–{} km",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "{}–{} km{}",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{}–{} min",
   "files": [
    "report.tsx"
   ],
@@ -14712,6 +16943,13 @@
    "report.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Alternativa Došlapu",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Asistent odpoví z vašich dat a citované literatury.",
@@ -14957,6 +17195,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Dnes podle plánu",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Dnešní noc",
   "files": [
    "report.tsx"
@@ -15038,7 +17283,7 @@
   "files": [
    "report.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Dřív než v {} do postele nedoporučujeme: obvykle usínáte až v {} a hodinu před tím se usíná nejhůř.",
@@ -15545,11 +17790,11 @@
   "kind": "jsx"
  },
  {
-  "t": "Plán týdne",
+  "t": "Plán od trenéra · {}",
   "files": [
    "report.tsx"
   ],
-  "kind": "str"
+  "kind": "tpl"
  },
  {
   "t": "Plán týdne · {}–{}",
@@ -15957,13 +18202,6 @@
  },
  {
   "t": "Uložení se nepovedlo, zkuste to znovu.",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Uloženo",
   "files": [
    "report.tsx"
   ],
@@ -17437,13 +19675,6 @@
   "kind": "str"
  },
  {
-  "t": "tréninků",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "tréninky",
   "files": [
    "selfprograms.tsx"
@@ -17452,13 +19683,6 @@
  },
  {
   "t": "týden",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "týdnů",
   "files": [
    "selfprograms.tsx"
   ],
@@ -17640,13 +19864,6 @@
   "kind": "str"
  },
  {
-  "t": "Došlap",
-  "files": [
-   "shell.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "drift nad prahem",
   "files": [
    "shell.tsx"
@@ -17717,13 +19934,6 @@
   "kind": "tpl"
  },
  {
-  "t": "Přehled",
-  "files": [
-   "shell.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "translate(0 3)",
   "files": [
    "shell.tsx"
@@ -17758,14 +19968,6 @@
    "shell.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Závod",
-  "files": [
-   "shell.tsx",
-   "training.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Nepodařilo se načíst data",
@@ -18078,13 +20280,6 @@
  },
  {
   "t": "{} mm",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{} ms",
   "files": [
    "tabs.tsx"
   ],
@@ -18555,13 +20750,6 @@
   "kind": "str"
  },
  {
-  "t": "Délka (min)",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Délka kroku",
   "files": [
    "tabs.tsx"
@@ -19022,13 +21210,6 @@
    "tabs.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "min v Z4+",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "minmax(104px,1.1fr) repeat({}, minmax(92px,1fr))",
@@ -19864,13 +22045,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Trénink smazán",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Trénink zapsán",
   "files": [
    "tabs.tsx"
@@ -19956,13 +22130,6 @@
  },
  {
   "t": "Typ posilování",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Typ tréninku",
   "files": [
    "tabs.tsx"
   ],
@@ -20627,6 +22794,13 @@
   "kind": "tpl"
  },
  {
+  "t": "(plán trenéra)",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "{} · tento týden {} z {}",
   "files": [
    "training.tsx"
@@ -20781,13 +22955,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Aktivity",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Aktivity podle dnešní kapacity",
   "files": [
    "training.tsx"
@@ -20800,6 +22967,13 @@
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Alternativa Došlapu: {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "B · naplno bez ladění",
@@ -20886,6 +23060,13 @@
   "kind": "str"
  },
  {
+  "t": "cíl {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Cíl = {} % referenčního týdne ({} km{}).",
   "files": [
    "training.tsx"
@@ -20926,6 +23107,13 @@
    "training.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "co by dnes navrhla aplikace sama",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Cyklus nastavíme, až budou aspoň 4 týdny dat — do té doby je cílem vaše týdenní kapacita.",
@@ -21824,6 +24012,13 @@
   "kind": "tpl"
  },
  {
+  "t": "size-5 shrink-0 text-fg-3 transition {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "size-6 shrink-0 text-fg-3 transition {}",
   "files": [
    "training.tsx"
@@ -21985,6 +24180,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Trénink podle trenéra · {}",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Tréninkově",
   "files": [
    "training.tsx"
@@ -22091,6 +24293,13 @@
  },
  {
   "t": "v Z2 žádné, tvrdé úseky by se počítaly",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Váš plán a limity",
   "files": [
    "training.tsx"
   ],

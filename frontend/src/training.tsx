@@ -17,7 +17,8 @@ import { EarlyNote, NoData, useDataStage } from "@/firstday"
 import { fmtD, leadReasons, paceStr } from "@/lib"
 import { C } from "@/tokens"
 import { BoundTag, TomorrowCard, WeekLoadCard, limitText } from "@/outlook"
-import { Bike, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Waves, X, Zap, type LucideIcon } from "lucide-react"
+import { Bike, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Users, Waves, X, Zap, type LucideIcon } from "lucide-react"
+import { CoachProgress, CoachSection } from "@/coach"
 
 const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"]
 const CROSS = ["kolo", "voda", "posilování"]
@@ -253,7 +254,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
     // limit; with only the plan met, what the safety limits alone would allow
     const limit = c.limitedBy ? (
       <span className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold leading-4 text-watch">
-        <span>{`omezuje: ${limitText(c.limitedBy, c.bound)}`}</span><BoundTag bound={c.bound} />
+        <span>{`omezuje: ${limitText(c.limitedBy, c.bound, false, wk.mode === "coach")}`}</span><BoundTag bound={c.bound} />
         {c.bound === "plan" && c.safeMax != null && c.safeMax > (c.todayMax ?? 0) + 0.05 && (
           <span className="font-normal text-fg-3">{`bezpečnostně až ${num(c.safeMax, d)} ${c.unit}`}</span>
         )}
@@ -264,7 +265,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
       : c.ceilingRun != null ? <span className="tabular-nums text-[11px] text-fg-3">{`jeden běh nejvýš ${num(c.ceilingRun, d)} ${c.unit}`}</span> : null
     const rows = (
       <div className="mt-3 w-full space-y-2.5 border-t border-white/[.07] pt-3 text-left">
-        <UsageBar label={`Tento týden od pondělí${cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden cyklu, ${pct} %)` : ""}`} used={c.done} total={c.budget} unit={c.unit} d={d} />
+        <UsageBar label={`Tento týden od pondělí${wk.mode === "coach" ? " (plán trenéra)" : cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` (${cyc.pos}. týden cyklu, ${pct} %)` : ""}`} used={c.done} total={c.budget} unit={c.unit} d={d} />
         {c.ceilingRun != null && <UsageBar label="Jeden běh · dnes max" used={c.todayMax} total={c.ceilingRun} unit={c.unit} d={d} col={C.info} />}
         {c.doneToday ? <p className="text-[11px] text-fg-3">z toho dnes {num(c.doneToday, d)} {c.unit}</p> : null}
         <LimitLadder c={c} id={id} d={d} sysBound={wk.channels?.systemic?.bound} />
@@ -317,7 +318,7 @@ function TodayCapacity({ g, cycle }: { g: any; cycle?: React.ReactNode }) {
       {status && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
       {restDay && !showAll ? (
         <div className="nest mt-4 px-3.5 py-3" data-testid="rest-day">
-          <p className="text-[13.5px] leading-5 text-fg"><b>Dnes už bez běhu.</b>{restBy ? <span className="text-fg-2">{` Omezuje: ${limitText(restBy, vol.bound)}.`}</span> : null}{" "}<BoundTag bound={vol.bound} /></p>
+          <p className="text-[13.5px] leading-5 text-fg"><b>Dnes už bez běhu.</b>{restBy ? <span className="text-fg-2">{` Omezuje: ${limitText(restBy, vol.bound, false, wk.mode === "coach")}.`}</span> : null}{" "}<BoundTag bound={vol.bound} /></p>
           {vol.bound === "plan" && g.types?.regenerace?.optional && g.types.regenerace.allowed ? (
             <p className="mt-1 text-[12px] leading-5 text-fg-2" data-testid="rest-optional">{`Je to cíl týdne, ne bezpečnostní strop: pokud máte chuť, krátký regenerační běh do ${num(g.types.regenerace.km?.hi)} km${g.types?.kolo?.optional && g.types.kolo.allowed ? ` nebo lehké kolo do ${g.types.kolo.durationMin?.[1]} min` : ""} nic nezhorší.`}</p>
           ) : vol.bound === "plan" && vol.safeMax != null && vol.safeMax >= 2 ? (
@@ -1023,6 +1024,7 @@ export function Training() {
   const g = a?.guidance
   const [sel, setSel] = useState<string | null>(null)
   const [why, setWhy] = useState(false)
+  const [altOpen, setAltOpen] = useState(false)
   const carousel = useRef<HTMLDivElement | null>(null)
   useEffect(() => { setSel(null) }, [g?.date, g?.type])
   useArcScroll(carousel, [g?.date, g?.type, a?.engineMode, (g?.rank || []).length])
@@ -1055,15 +1057,54 @@ export function Training() {
   const selT = sel ? g.types[sel] : null
   const SelIcon = sel ? TYPE_ICON[sel] || Footprints : Footprints
   const selBadge = sel ? badgeOf(g, sel) : null
+  // Plán od trenéra: the coach's plan comes first, the app's own recommendation stays as an alternative
+  const coach = !!g.coach?.on && !!rid && !touring
+  const ownRec = (
+    <>
+      <section className="card mt-4 p-4 md:p-6" data-tour="training-session">
+        <SessionDetail g={g} a={a} kind={g.type} />
+      </section>
+
+      {/* railway#119 — a swipeable carousel of every activity, ordered for today's capacity */}
+      <div className="mt-4" data-tour="training-cross">
+        <div className="mb-2 flex items-baseline justify-between gap-2">
+          <p className="t-label !text-fg-3">Aktivity podle dnešní kapacity</p>
+          <span className="text-[11px] text-fg-3">od nejvhodnější · posuňte</span>
+        </div>
+        <div ref={carousel} className="-mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-5 px-5 pb-4 pt-1 [scrollbar-width:none] md:-mx-0 md:px-0" role="list" aria-label="Aktivity" data-testid="activity-carousel">
+          {order.map((k, i) => {
+            const t = g.types[k]
+            const Icon = TYPE_ICON[k] || Footprints
+            const b = badgeOf(g, k)
+            const line = tileLine(t)
+            return (
+              <button key={k} role="listitem" onClick={() => setSel(k)} data-testid="activity-tile"
+                className={`relative grid min-h-[112px] w-[128px] shrink-0 snap-start content-between gap-2 rounded-[16px] border p-3 text-left transition-colors will-change-transform ${k === g.type ? "border-accent/70 bg-accent/[.08]" : "border-white/[.08] bg-white/[.03] hover:border-white/20"} ${t.allowed ? "" : "opacity-70"}`}>
+                <span className="flex items-center justify-between">
+                  <Icon className={`size-5 ${k === g.type ? "text-accent" : "text-fg-2"}`} aria-hidden />
+                  <span className="text-[10px] font-bold tabular-nums text-fg-4">{i + 1}.</span>
+                </span>
+                <span className="grid gap-1">
+                  <span className="text-[13px] font-bold leading-tight text-fg-soft">{t.label}</span>
+                  {line && <span className="text-[11px] tabular-nums text-fg-3">{line}</span>}
+                  {b && <span className={`w-fit rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${b[1]}`}>{b[0]}</span>}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </>
+  )
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Label>{`Trénink · ${today}`}</Label>
+          <Label>{coach ? `Trénink podle trenéra · ${today}` : `Trénink · ${today}`}</Label>
           {/* railway#120 — an arrow opens the reasons under the heading */}
           <h1 className="mt-1 font-serif text-[30px] tracking-[-.03em] md:text-4xl">
             <button type="button" onClick={() => setWhy((v) => !v)} aria-expanded={why} data-testid="why-toggle" className="flex items-center gap-2 text-left">
-              {rec.label}
+              {coach ? "Váš plán a limity" : rec.label}
               <ChevronDown className={`size-6 shrink-0 text-fg-3 transition ${why ? "rotate-180 text-accent" : ""}`} aria-hidden />
             </button>
           </h1>
@@ -1116,39 +1157,21 @@ export function Training() {
       )}
 
       {stage === "early" && !g.override && <EarlyNote className="mt-4" />}
-      <section className="card mt-4 p-4 md:p-6" data-tour="training-session">
-        <SessionDetail g={g} a={a} kind={g.type} />
-      </section>
-
-      {/* railway#119 — a swipeable carousel of every activity, ordered for today's capacity */}
-      <div className="mt-4" data-tour="training-cross">
-        <div className="mb-2 flex items-baseline justify-between gap-2">
-          <p className="t-label !text-fg-3">Aktivity podle dnešní kapacity</p>
-          <span className="text-[11px] text-fg-3">od nejvhodnější · posuňte</span>
-        </div>
-        <div ref={carousel} className="-mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-5 px-5 pb-4 pt-1 [scrollbar-width:none] md:-mx-0 md:px-0" role="list" aria-label="Aktivity" data-testid="activity-carousel">
-          {order.map((k, i) => {
-            const t = g.types[k]
-            const Icon = TYPE_ICON[k] || Footprints
-            const b = badgeOf(g, k)
-            const line = tileLine(t)
-            return (
-              <button key={k} role="listitem" onClick={() => setSel(k)} data-testid="activity-tile"
-                className={`relative grid min-h-[112px] w-[128px] shrink-0 snap-start content-between gap-2 rounded-[16px] border p-3 text-left transition-colors will-change-transform ${k === g.type ? "border-accent/70 bg-accent/[.08]" : "border-white/[.08] bg-white/[.03] hover:border-white/20"} ${t.allowed ? "" : "opacity-70"}`}>
-                <span className="flex items-center justify-between">
-                  <Icon className={`size-5 ${k === g.type ? "text-accent" : "text-fg-2"}`} aria-hidden />
-                  <span className="text-[10px] font-bold tabular-nums text-fg-4">{i + 1}.</span>
-                </span>
-                <span className="grid gap-1">
-                  <span className="text-[13px] font-bold leading-tight text-fg-soft">{t.label}</span>
-                  {line && <span className="text-[11px] tabular-nums text-fg-3">{line}</span>}
-                  {b && <span className={`w-fit rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${b[1]}`}>{b[0]}</span>}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      {coach ? (
+        <CoachSection rid={rid!}>
+          {/* the app's own recommendation stays as an alternative (owner 2026-10-12) */}
+          <section className="card mt-4 p-4 md:p-5" data-testid="own-alternative">
+            <button type="button" onClick={() => setAltOpen((v) => !v)} aria-expanded={altOpen} className="flex w-full items-center justify-between gap-3 text-left" data-testid="own-alternative-toggle">
+              <span className="flex items-center gap-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-white/[.06]"><Users className="size-4 text-fg-2" aria-hidden /></span>
+                <span><b className="block text-[14px] text-fg">{`Alternativa Došlapu: ${rec.label.toLowerCase()}`}</b><span className="block text-[12px] text-fg-3">co by dnes navrhla aplikace sama</span></span>
+              </span>
+              <ChevronDown className={`size-5 shrink-0 text-fg-3 transition ${altOpen ? "rotate-180 text-accent" : ""}`} aria-hidden />
+            </button>
+          </section>
+          {altOpen && ownRec}
+        </CoachSection>
+      ) : ownRec}
 
       {sel && selT && (
         <Sheet open onClose={() => setSel(null)}>
@@ -1169,10 +1192,11 @@ export function Training() {
           feedback #207/#208 — readiness through the day under its chart, then today's capacity,
           then the day outside training (#210) */}
       <section className="card mt-4 p-4 md:p-6"><ReadinessTrend a={a} hist={quadHist} below={<DayReadiness d={day.d} />} /></section>
-      <TodayCapacity g={g} cycle={<WeekPanel g={g} embedded />} />
+      <TodayCapacity g={g} cycle={coach ? null : <WeekPanel g={g} embedded />} />
       {/* owner feedback 2026-10-10 — the week's running total by sport, and tomorrow */}
       <WeekLoadCard g={g} cap={a.capacity} />
       <TomorrowCard g={g} />
+      {coach && <CoachProgress rid={rid!} />}
       <DayToday d={day.d} err={day.err} />
       <RacesCard outlook={a.races} g={g} cap={a.capacity} />
 

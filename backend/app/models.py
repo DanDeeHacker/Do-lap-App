@@ -105,6 +105,14 @@ class Runner(Base):
     running_since = Column(String)
     weight_kg = Column(Float)
     menstrual_json = Column(JSON)
+    # Plán od trenéra (2026-10-12): the runner trains to a coach's plan (PlannedSession) —
+    # the app's own 4-week cycle steps aside, its safety limits stay. An optional iCal
+    # feed (TrainingPeaks, Final Surge, Intervals.icu, Google Calendar …) refreshes the
+    # plan on its own; plan_feed_status = {"ok", "at", "n", "error"} of the last pull.
+    coach_mode = Column(Boolean, default=False)
+    coach_name = Column(String)
+    plan_feed_url = Column(String)
+    plan_feed_status = Column(JSON)
 
 
 class Integration(Base):
@@ -939,3 +947,61 @@ class Translation(Base):
     src = Column(Text, nullable=False)
     out = Column(Text, nullable=False)
     created_at = Column(String)
+
+
+class PlannedSession(Base):
+    """One session of the coach's plan (Plán od trenéra). `source` says where it came
+    from: manual | text | photo (the import preview the runner confirmed) | ics (the
+    calendar feed, replaced on every pull) | coach (the coach's overview — wins over the
+    others on its date). `activity_id` pins a manual pairing (0 = the runner marked it
+    as not done); without it the pairing is automatic (metrics/coach_plan.py)."""
+    __tablename__ = "planned_sessions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    date = Column(String, index=True, nullable=False)     # ISO date
+    seq = Column(Integer, default=0)                      # order within the day
+    kind = Column(String, nullable=False)                 # coach_plan.KINDS
+    title = Column(String)
+    km = Column(Float)
+    duration_min = Column(Float)
+    z4_min = Column(Float)                                # hard minutes (Z4+), given or estimated
+    intervals = Column(String)                            # "6× 1 km v 4:30" — the hard part as text
+    target = Column(String)                               # the coach's pace / HR target as text
+    ascent_m = Column(Float)
+    descent_m = Column(Float)
+    notes = Column(Text)
+    source = Column(String, default="manual")
+    ext_uid = Column(String)                              # the calendar event's UID (source = ics)
+    activity_id = Column(Integer)
+    created_at = Column(String)
+    updated_at = Column(String)
+
+
+class CoachLink(Base):
+    """The coach's overview link (/trener/<token>): the runner's health trends, days and
+    activities and the plan, which the coach may edit 6 months ahead. Only with the
+    runner's explicit consent; revocable at any time; every open is logged."""
+    __tablename__ = "coach_links"
+    token = Column(String, primary_key=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    coach_name = Column(String)
+    created_at = Column(String, nullable=False)
+    expires_at = Column(String, nullable=False)
+    revoked_at = Column(String)
+    last_seen_at = Column(String)
+
+
+class CoachAccessLog(Base):
+    """Opens and edits through a coach link, deduped per (link, day, action) — shown in the
+    runner's access log next to physios and the admin view."""
+    __tablename__ = "coach_access_log"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    token = Column(String, index=True, nullable=False)
+    coach_name = Column(String)
+    action = Column(String, nullable=False)               # read | write
+    date = Column(String, nullable=False)
+    access_count = Column(Integer, default=1)
+    first_at = Column(String)
+    last_at = Column(String)
+    __table_args__ = (UniqueConstraint("token", "date", "action", name="uq_coach_access_daily"),)
