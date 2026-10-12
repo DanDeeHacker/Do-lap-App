@@ -375,6 +375,14 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
     return out_w, out_r
 
 
+def avg_rise(st: dict, path: dict = SAFE) -> float:
+    """The weekly volume's average growth on this path, recovery weeks included: the peak of the
+    6th 4-week cycle over the peak of the 1st, per week (the chart says why the plan takes the
+    weeks it does — owner feedback 2026-10-12 read them as days). 15 % margin ≈ 4.4 % a week."""
+    w, _ = _channel([1.0] * HIST_WEEKS, 0.3, None, None, path, {**st, "cyclePos": 1})
+    return (max(w[20:24]) / max(w[0:4])) ** (1 / 20) - 1
+
+
 def project(req: dict, st: dict, path: dict, share_from: int = 1, until: int = 0) -> dict:
     """Week rows (1 = this calendar week) and the first week every requirement is met (None if
     not within HORIZON). Rows are kept up to max(until, ready + 2)."""
@@ -549,6 +557,8 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     req = requirements(goal)
     known = sum(1 for w in st["weeks"] if w["runs"]) >= 3
     out = {"goal": goal, "start": st["start"], "weeksToGoal": weeks, "taperWeeks": taper,
+           # the chart says why it takes these weeks
+           "margins": {"week": _r(st["marginWeek"] * 100), "run": _r(st["marginRun"] * 100), "avgRise": _r(avg_rise(st) * 100)},
            "requirements": [], "notes": [], "sources": sorted({s for r in req.values() for s in r.get("sources", [])})}
     for k, r in req.items():
         out["requirements"].append({"key": k, "label": LABEL[k], "unit": UNIT[k], "need": _r(r["need"]),

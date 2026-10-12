@@ -1,0 +1,20 @@
+{
+  "· bezpečně za {} (týden od {})": "· safely in {0} (the week of {1})",
+  "· za {}": "· in {0}",
+  "{} · za {}": "{0} · in {1}",
+  "· za {} týden": "· in {0} week",
+  "· za {} týdny": "· in {0} weeks",
+  "· za {} týdnů": "· in {0} weeks",
+  "za {} týden": "in {0} week",
+  "za {} týdny": "in {0} weeks",
+  "za {} týdnů": "in {0} weeks",
+  "Každý 4. týden je odlehčovací, takže v průměru týden roste zhruba o {} %.": "Every 4th week is a recovery week, so on average the week grows by about {0}%.",
+  "Každý 4. týden je odlehčovací.": "Every 4th week is a recovery week.",
+  "Na ose jsou týdny, u každé značky datum jejich pondělí. Čára ukazuje, kolik zvládnete, když poroste jen tak rychle, jak dovolí vaše limity v aplikaci. Čárkovaná vodorovná čára je požadavek cíle, svislá týden závodu, šedé pole ladění. Prstem po grafu uvidíte hodnoty týdne.": "The axis shows weeks, each mark with the date of its Monday. The line shows what you can manage when it grows only as fast as your limits in the app allow. The dashed horizontal line is the goal's requirement, the vertical one the race week, the grey band the taper. Run your finger over the chart to see a week's values.",
+  "Nejdelší běh smí bezpečně růst nejvýš o {} % za týden.": "The long run may safely grow by at most {0}% a week.",
+  "Nepřesáhne týdenní součet, takže ho brzdí i převýšení za týden.": "It can't exceed the weekly total, so the weekly climb holds it back too.",
+  "poslední 4 týdny": "last 4 weeks",
+  "Převýšení v jednom běhu smí bezpečně růst nejvýš o {} % za týden.": "The climb in a single run may safely grow by at most {0}% a week.",
+  "Smí mít nejvýš 30 % týdenního objemu, ve specifické fázi 50 %, takže ho brzdí i týdenní objem.": "It may be at most 30% of the weekly volume, 50% in the specific phase, so the weekly volume holds it back too.",
+  "Týden smí bezpečně růst nejvýš o {} % nad průměr posledních 4 týdnů, ne nad minulý týden.": "The week may safely grow by at most {0}% over the average of the last 4 weeks, not over last week."
+}

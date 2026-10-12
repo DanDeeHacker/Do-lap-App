@@ -8907,6 +8907,7 @@
   "t": "týdnů",
   "files": [
    "coachview.tsx",
+   "goal.tsx",
    "selfprograms.tsx"
   ],
   "kind": "jsx"
@@ -11286,7 +11287,7 @@
   "kind": "str"
  },
  {
-  "t": "· bezpečně za {} týd.",
+  "t": "· bezpečně za {} (týden od {})",
   "files": [
    "goal.tsx"
   ],
@@ -11336,11 +11337,11 @@
   "kind": "str"
  },
  {
-  "t": "· za",
+  "t": "· za {}",
   "files": [
    "goal.tsx"
   ],
-  "kind": "jsx"
+  "kind": "tpl"
  },
  {
   "t": "· závod",
@@ -11358,6 +11359,13 @@
  },
  {
   "t": "{} · {}. týden z {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} · za {}",
   "files": [
    "goal.tsx"
   ],
@@ -11465,13 +11473,6 @@
  },
  {
   "t": "Bolest od 3/10, nemoc nebo připravenost pod 65 % dva dny po sobě vrátí plán na bezpečnou cestu.",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Čára ukazuje, kolik týdně zvládnete, když poroste jen tak rychle, jak dovolí vaše limity v aplikaci. Čárkovaná vodorovná čára je požadavek cíle, svislá týden závodu, šedé pole ladění. Prstem po grafu uvidíte hodnoty týdne.",
   "files": [
    "goal.tsx"
   ],
@@ -11686,6 +11687,20 @@
   "kind": "str"
  },
  {
+  "t": "Každý 4. týden je odlehčovací, takže v průměru týden roste zhruba o {} %.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Každý 4. týden je odlehčovací.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Klesání v jednom běhu",
   "files": [
    "goal.tsx"
@@ -11778,6 +11793,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Na ose jsou týdny, u každé značky datum jejich pondělí. Čára ukazuje, kolik zvládnete, když poroste jen tak rychle, jak dovolí vaše limity v aplikaci. Čárkovaná vodorovná čára je požadavek cíle, svislá týden závodu, šedé pole ladění. Prstem po grafu uvidíte hodnoty týdne.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "např. 1200",
   "files": [
    "goal.tsx"
@@ -11829,11 +11851,25 @@
   "kind": "str"
  },
  {
+  "t": "Nejdelší běh smí bezpečně růst nejvýš o {} % za týden.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Nejdelší běh v kuse (km)",
   "files": [
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Nepřesáhne týdenní součet, takže ho brzdí i převýšení za týden.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Nikdy: týden nad 1,5× průměru 4 týdnů, běh přes bolest, trénink při nemoci, dva vynechané odlehčovací týdny.",
@@ -11886,7 +11922,7 @@
   "kind": "jsx"
  },
  {
-  "t": "posledních 4 týdny",
+  "t": "poslední 4 týdny",
   "files": [
    "goal.tsx"
   ],
@@ -11926,6 +11962,13 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Převýšení v jednom běhu smí bezpečně růst nejvýš o {} % za týden.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Převýšení za",
@@ -12048,6 +12091,20 @@
   "kind": "str"
  },
  {
+  "t": "Run",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Smí mít nejvýš 30 % týdenního objemu, ve specifické fázi 50 %, takže ho brzdí i týdenní objem.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Souhlas jste dali {}.",
   "files": [
    "goal.tsx"
@@ -12118,14 +12175,22 @@
   "kind": "jsx"
  },
  {
-  "t": "týd.",
+  "t": "týden",
   "files": [
-   "goal.tsx"
+   "goal.tsx",
+   "selfprograms.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "týden {} · od {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Týden smí bezpečně růst nejvýš o {} % nad průměr posledních 4 týdnů, ne nad minulý týden.",
   "files": [
    "goal.tsx"
   ],
@@ -12172,6 +12237,14 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "týdny",
+  "files": [
+   "goal.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Ukázat méně",
@@ -20882,20 +20955,6 @@
  },
  {
   "t": "tréninky",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "týden",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "týdny",
   "files": [
    "selfprograms.tsx"
   ],

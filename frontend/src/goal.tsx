@@ -97,7 +97,7 @@ function ReqRow({ r, res }: { r: any; res: any }) {
         </div>
       )}
       <p className="mt-1 text-[11px] leading-4 text-fg-3">{r.why}{r.base != null ? ` (tabulka ${num(r.base, 0)} km)` : ""}
-        {when ? ` · bezpečně za ${when} týd.` : res?.safe ? " · bezpečně do 2 let ne" : ""}</p>
+        {when ? ` · bezpečně za ${weeksCz(when)} (týden od ${fmtDY(addDays(res.start, 7 * (when - 1)))})` : res?.safe ? " · bezpečně do 2 let ne" : ""}</p>
     </div>
   )
 }
@@ -117,6 +117,9 @@ const SERIES: Record<string, { field: string; label: string; req: string; unit: 
 }
 const SERIES_OF: Record<string, string> = { longCount: "long", descSessions: "descentRun" }
 const addDays = (iso: string, d: number) => { const t = new Date(iso + "T12:00:00"); t.setDate(t.getDate() + d); return t.toISOString().slice(0, 10) }
+// a date with its year (owner feedback 2026-10-12: "20. 3." without a year read as this spring, the weeks as days)
+const fmtDY = (iso?: string) => (iso ? new Date(iso.slice(0, 10) + "T12:00:00").toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" }) : "—")
+const weeksCz = (n: number) => `${n} ${n === 1 ? "týden" : n >= 2 && n <= 4 ? "týdny" : "týdnů"}`
 const niceStep = (mx: number) => { const raw = mx / 4, p = 10 ** Math.floor(Math.log10(raw || 1)), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p }
 
 function ProjectionChart({ res }: { res: any }) {
@@ -140,7 +143,7 @@ function ProjectionChart({ res }: { res: any }) {
   // weeks shown: to the goal, or to the week the safe path gets there when that is later (≤ 2 years)
   const N = Math.min(104, Math.max(goalW, sr && sr > goalW ? sr + 1 : 0, 8), Math.max(safe.length, goalW))
   const H0 = -hist.length + 1                             // history weeks: H0 … 0 (0 = last week)
-  const W = 360, H = 220, pl = 36, pr = 12, pt = 24, pb = 26
+  const W = 360, H = 232, pl = 36, pr = 12, pt = 24, pb = 38
   const val = (r: any) => (r?.[sp.field] ?? null) as number | null
   const sRows = safe.slice(0, N), rRows = risk.slice(0, N)
   const ymax0 = Math.max(need, ...sRows.map((r) => val(r) || 0), ...rRows.map((r) => val(r) || 0), ...hist.map((r) => val(r) || 0))
@@ -153,11 +156,20 @@ function ProjectionChart({ res }: { res: any }) {
   const ticks = Array.from({ length: Math.round(ymax / step) + 1 }, (_, i) => i * step)
   const xstep = N > 60 ? 12 : N > 30 ? 8 : N > 14 ? 4 : 2
   const wdate = (w: number) => addDays(res.start, 7 * (w - 1))       // Monday of plan week w
+  const xt = Array.from({ length: Math.floor((N - 1) / xstep) + 1 }, (_, i) => 1 + i * xstep)   // evenly from this week, so "tento týden" has room
+  // why the safe path takes the weeks it does: the app's own growth limits for this runner
+  const mg = res.margins || {}
+  const perRun = sp.field === "long" || sp.field.endsWith("Run")
+  const why = perRun
+    ? (sp.field === "long"
+      ? [`Nejdelší běh smí bezpečně růst nejvýš o ${num(mg.run ?? 10, 0)} % za týden.`, "Smí mít nejvýš 30 % týdenního objemu, ve specifické fázi 50 %, takže ho brzdí i týdenní objem."]
+      : [`Převýšení v jednom běhu smí bezpečně růst nejvýš o ${num(mg.run ?? 10, 0)} % za týden.`, "Nepřesáhne týdenní součet, takže ho brzdí i převýšení za týden."])
+    : [`Týden smí bezpečně růst nejvýš o ${num(mg.week ?? 15, 0)} % nad průměr posledních 4 týdnů, ne nad minulý týden.`, mg.avgRise != null ? `Každý 4. týden je odlehčovací, takže v průměru týden roste zhruba o ${num(mg.avgRise, 1)} %.` : "Každý 4. týden je odlehčovací."]
   const atGoal = (rows: any[]) => val(rows[Math.min(goalW, rows.length) - 1])
   const fmt = (v: number | null) => (v == null ? "—" : `${num(v, sp.unit === "km" ? 0 : 0)} ${sp.unit}`)
   const sGoal = atGoal(safe), rGoal = atGoal(risk)
   const summary = sr != null
-    ? `Bezpečně dosáhnete ${num(need, 0)} ${sp.unit} v týdnu ${sr} (od ${fmtD(wdate(sr))})` + (sr + taper <= goalW ? ", před laděním." : `, závod je v týdnu ${goalW}.`)
+    ? `Bezpečně dosáhnete ${num(need, 0)} ${sp.unit} v týdnu ${sr} (od ${fmtDY(wdate(sr))})` + (sr + taper <= goalW ? ", před laděním." : `, závod je v týdnu ${goalW}.`)
     : `Bezpečně se ${num(need, 0)} ${sp.unit} do 2 let nedosáhne; v týdnu závodu ${fmt(sGoal)}.`
   const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect()
@@ -198,7 +210,7 @@ function ProjectionChart({ res }: { res: any }) {
               {taper > 0 && <rect x={x(goalW - taper + 0.5)} y={pt} width={x(goalW + 0.5) - x(goalW - taper + 0.5)} height={H - pt - pb} fill="rgba(255,255,255,.07)" />}
               {taper > 0 && lbl(x(goalW - taper / 2 + 0.5), pt + 11, "ladění", "middle", C.fg3)}
               <line x1={x(goalW + 0.5)} x2={x(goalW + 0.5)} y1={pt - 8} y2={H - pb} stroke={C.fg2} strokeWidth="1" />
-              {lbl(x(goalW + 0.5), pt - 12, `závod ${fmtD(res.goal?.date)}`, x(goalW) > W * 0.7 ? "end" : "middle", C.fg)}
+              {lbl(x(goalW + 0.5), pt - 12, `závod ${fmtDY(res.goal?.date)}`, x(goalW) > W * 0.7 ? "end" : "middle", C.fg)}
             </>}
             {/* the requirement */}
             <line x1={pl} x2={W - pr} y1={y(need)} y2={y(need)} stroke={C.fg} strokeWidth="1" strokeDasharray="5 4" />
@@ -217,10 +229,11 @@ function ProjectionChart({ res }: { res: any }) {
               {lbl(x(sr) + (x(sr) > W * 0.75 ? -6 : 0), y(val(safe[sr - 1]) || need) - 10, `bezpečně týden ${sr}`, x(sr) > W * 0.75 ? "end" : "middle", C.fgSoft)}</>}
             {(sr == null || sr > goalW) && goalW <= N && sGoal != null && <><circle cx={x(goalW)} cy={y(sGoal)} r="4" fill={C.ok} stroke={C.raised} strokeWidth="2" />
               {lbl(x(goalW) + (x(goalW) < W * 0.45 ? 8 : -8), y(sGoal) - 9, `v týdnu závodu ${fmt(sGoal)}`, x(goalW) < W * 0.45 ? "start" : "end", C.fgSoft)}</>}
-            {/* x axis: the Monday of each week */}
-            {Array.from({ length: Math.floor(N / xstep) + 1 }, (_, i) => Math.max(1, i * xstep)).filter((w, i, a) => a.indexOf(w) === i).map((w) => (
+            {/* x axis: the Monday of each week, the year under the first tick of each year */}
+            {xt.map((w, i) => (
               <g key={w}><line x1={x(w)} x2={x(w)} y1={H - pb} y2={H - pb + 4} stroke={C.fg4} />
-                <text x={x(w)} y={H - pb + 15} textAnchor="middle" fontSize="10" fill={C.fg3}>{w === 1 ? "tento týden" : fmtD(wdate(w))}</text></g>
+                <text x={x(w)} y={H - pb + 15} textAnchor="middle" fontSize="10" fill={C.fg3}>{w === 1 ? "tento týden" : fmtD(wdate(w))}</text>
+                {(i === 0 || wdate(w).slice(0, 4) !== wdate(xt[i - 1]).slice(0, 4)) && <text x={x(w)} y={H - pb + 28} textAnchor="middle" fontSize="10" fontWeight="700" fill={C.fg2}>{wdate(w).slice(0, 4)}</text>}</g>
             ))}
             {/* crosshair */}
             {hover != null && <line x1={x(hover)} x2={x(hover)} y1={pt} y2={H - pb} stroke={C.fg2} strokeWidth="1" />}
@@ -228,7 +241,7 @@ function ProjectionChart({ res }: { res: any }) {
           {hv && (
             <div className="pointer-events-none absolute top-6 z-10 rounded-[10px] border border-white/14 bg-raised px-2.5 py-1.5 text-[11px] shadow-[0_10px_28px_rgba(0,0,0,.5)]"
               style={{ left: `${(x(hv.w) / W) * 100}%`, transform: `translateX(${x(hv.w) > W * 0.6 ? "-105%" : "5%"})` }} data-testid="goal-chart-tip">
-              <span className="block text-fg-3">{hv.w <= 0 ? `před ${1 - hv.w} týd.` : <>{`týden ${hv.w} · od ${fmtD(wdate(hv.w))}`}{hv.d ? <span>{" · odlehčovací"}</span> : null}{hv.w > goalW - taper && hv.w <= goalW ? <span>{" · ladění"}</span> : null}</>}</span>
+              <span className="block text-fg-3">{hv.w <= 0 ? `před ${1 - hv.w} týd.` : <>{`týden ${hv.w} · od ${fmtDY(wdate(hv.w))}`}{hv.d ? <span>{" · odlehčovací"}</span> : null}{hv.w > goalW - taper && hv.w <= goalW ? <span>{" · ladění"}</span> : null}</>}</span>
               {hv.w <= 0 ? <b className="block tabular-nums text-fg">{fmt(hv.h ?? null)}</b> : <>
                 <span className="flex items-center gap-1.5"><i className="inline-block h-[2px] w-3" style={{ background: C.ok }} /><b className="tabular-nums text-fg">{fmt(hv.s ?? null)}</b><span className="text-fg-3">bezpečně</span></span>
                 {hv.r != null && <span className="flex items-center gap-1.5"><i className="inline-block h-[2px] w-3" style={{ background: C.alert }} /><b className="tabular-nums text-fg">{fmt(hv.r)}</b><span className="text-fg-3">rizikově</span></span>}
@@ -244,7 +257,7 @@ function ProjectionChart({ res }: { res: any }) {
               {hist.map((r, i) => <tr key={`h${i}`} className="text-fg-3"><td className="px-2 py-1">{`před ${hist.length - i} týd.`}</td><td className="px-2 text-right" colSpan={2}>{fmt(val(r))}</td></tr>)}
               {sRows.map((r, i) => (
                 <tr key={i} className={`border-t border-white/[.05] ${i + 1 === goalW ? "text-fg" : "text-fg-soft"}`}>
-                  <td className="px-2 py-1">{`${i + 1}. · ${fmtD(wdate(i + 1))}`}{r.deload ? " · odlehčovací" : ""}{i + 1 === goalW ? " · závod" : ""}</td>
+                  <td className="px-2 py-1">{`${i + 1}. · ${fmtDY(wdate(i + 1))}`}{r.deload ? " · odlehčovací" : ""}{i + 1 === goalW ? " · závod" : ""}</td>
                   <td className="px-2 text-right">{fmt(val(r))}</td><td className="px-2 text-right">{fmt(val(rRows[i]))}</td>
                 </tr>
               ))}
@@ -254,12 +267,13 @@ function ProjectionChart({ res }: { res: any }) {
       )}
       <figcaption className="mt-2 grid gap-1 text-[11px] leading-4 text-fg-2">
         <span className="flex flex-wrap gap-x-4 gap-y-1">
-          <span><i className="mr-1.5 inline-block h-[2px] w-4 align-middle" style={{ background: C.fg3 }} />posledních 4 týdny</span>
+          <span><i className="mr-1.5 inline-block h-[2px] w-4 align-middle" style={{ background: C.fg3 }} />poslední 4 týdny</span>
           <span><i className="mr-1.5 inline-block h-[2px] w-4 align-middle" style={{ background: C.ok }} />bezpečná cesta</span>
           {rRows.length > 0 && <span><i className="mr-1.5 inline-block w-4 border-t-2 border-dashed align-middle" style={{ borderColor: C.alert }} />riziková cesta</span>}
           <span><i className="mr-1.5 inline-block size-2 rounded-full border-[1.5px] align-middle" style={{ borderColor: C.ok }} />odlehčovací týden</span>
         </span>
-        <span className="text-fg-3">Čára ukazuje, kolik týdně zvládnete, když poroste jen tak rychle, jak dovolí vaše limity v aplikaci. Čárkovaná vodorovná čára je požadavek cíle, svislá týden závodu, šedé pole ladění. Prstem po grafu uvidíte hodnoty týdne.</span>
+        <span className="text-fg-3">Na ose jsou týdny, u každé značky datum jejich pondělí. Čára ukazuje, kolik zvládnete, když poroste jen tak rychle, jak dovolí vaše limity v aplikaci. Čárkovaná vodorovná čára je požadavek cíle, svislá týden závodu, šedé pole ladění. Prstem po grafu uvidíte hodnoty týdne.</span>
+        <span className="text-fg-3" data-testid="goal-chart-why">{why.map((t, i) => <span key={i}>{i ? " " : ""}{t}</span>)}</span>
       </figcaption>
     </figure>
   )
@@ -272,7 +286,7 @@ function Verdict({ res, onApply }: { res: any; onApply?: (patch: Partial<Form>) 
     <div data-testid="goal-result">
       <div className="nest p-3.5" style={{ borderColor: `${col}55` }}>
         <div className="flex items-center gap-2"><VerdictChip res={res} />
-          {res.realDate && res.verdict !== "ok" && <span className="text-[12px] text-fg-2">reálně od <b className="text-fg">{fmtD(res.realDate)}</b></span>}
+          {res.realDate && res.verdict !== "ok" && <span className="text-[12px] text-fg-2">reálně od <b className="text-fg">{fmtDY(res.realDate)}</b></span>}
         </div>
         <p className="mt-2 text-[13px] leading-5 text-fg-soft">{res.text}</p>
       </div>
@@ -374,7 +388,7 @@ function GoalSetup({ rid, races, initial, onClose, onSaved }: { rid: string; rac
                     {races.map((x) => (
                       <button key={x.id} type="button" onClick={() => pickRace(x)} aria-pressed={f.raceId === x.id}
                         className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold ${f.raceId === x.id ? "bg-fg text-ink" : "bg-white/[.06] text-fg-2 hover:text-fg"}`}>
-                        <Flag className="size-3.5" aria-hidden />{x.name || "Závod"} · {fmtD(x.date)}{x.km ? ` · ${num(x.km)} km` : ""}
+                        <Flag className="size-3.5" aria-hidden />{x.name || "Závod"} · {fmtDY(x.date)}{x.km ? ` · ${num(x.km)} km` : ""}
                       </button>
                     ))}
                   </div>
@@ -456,7 +470,7 @@ function PlanList({ plan, today }: { plan: any[]; today: string }) {
               <span className="w-[52px] shrink-0 tabular-nums text-fg-3">{`${w.i}. týd.`}</span>
               <span className="min-w-0 flex-1">
                 <span className="block text-fg">{w.race ? "Týden závodu" : `${num(w.km, 0)} km`}{w.long ? ` · dlouhý ${num(w.long, 0)} km` : ""}{w.descentRun ? ` · ↓ ${num(w.descentRun, 0)} m` : ""}</span>
-                <span className="block text-[11px] text-fg-3"><span className="tabular-nums">{fmtD(w.start)}</span>
+                <span className="block text-[11px] text-fg-3"><span className="tabular-nums">{fmtDY(w.start)}</span>
                   {w.deload ? " · odlehčovací" : ""}{w.taper ? ` · ${num((w.factor ?? 0) * 100, 0)} % vrcholu` : ""}{w.milestone === "half" ? " · mezicíl 21 km" : ""}{on ? " · tento týden" : ""}</span>
               </span>
               <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${pc}1f`, color: pc }}>{pl}</span>
@@ -536,7 +550,7 @@ function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy }
           <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-white/[.06]"><Target className="size-5 text-accent" aria-hidden /></span>
           <div className="min-w-0">
             <h2 className="font-serif text-[24px] leading-tight text-fg">{goalTitle(goal)}</h2>
-            <p className="text-[12px] text-fg-3">{fmtD(goal.date)} · za {res?.weeksToGoal} týd.{goal.km ? ` · ${num(goal.km)} km` : ""}{goal.ascentM ? ` · ↑ ${num(goal.ascentM, 0)} m` : ""}{goal.kind === "race" ? ` · ${goal.aim === "time" ? "cílový čas" : "doběhnout"}` : ""}</p>
+            <p className="text-[12px] text-fg-3">{`${fmtDY(goal.date)} · za ${weeksCz(res?.weeksToGoal)}`}{goal.km ? ` · ${num(goal.km)} km` : ""}{goal.ascentM ? ` · ↑ ${num(goal.ascentM, 0)} m` : ""}{goal.kind === "race" ? ` · ${goal.aim === "time" ? "cílový čas" : "doběhnout"}` : ""}</p>
           </div>
         </div>
         {res?.statusLabel && <p className="mt-3 flex items-center gap-2 text-[12px] text-fg-2">Stav plánu
@@ -600,7 +614,7 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
       ) : (
         <button type="button" className="mt-2 block w-full text-left" onClick={() => setMode("detail")} data-testid="goal-open">
           <b className="flex items-center gap-1.5 text-[15px] text-fg">{goalTitle(goal)}<ChevronRight className="size-4 text-fg-3" aria-hidden /></b>
-          <span className="block text-[12px] text-fg-2"><span className="tabular-nums">{fmtD(goal.date)}</span> · za {res?.weeksToGoal} týd.{res?.realDate && res.verdict !== "ok" ? <> · reálně od <b className="text-fg">{fmtD(res.realDate)}</b></> : null}</span>
+          <span className="block text-[12px] text-fg-2"><span className="tabular-nums">{fmtDY(goal.date)}</span>{` · za ${weeksCz(res?.weeksToGoal)}`}{res?.realDate && res.verdict !== "ok" ? <> · reálně od <b className="text-fg">{fmtDY(res.realDate)}</b></> : null}</span>
           {wk && (
             <span className="nest mt-2.5 block px-3 py-2" data-testid="goal-week">
               <span className="block text-[11px] font-bold uppercase tracking-wide" style={{ color: (PHASE[wk.phase] || PHASE.base)[1] }}>{`${(PHASE[wk.phase] || PHASE.base)[0]} · ${wk.i}. týden z ${gg?.weeks || res?.plan?.length}`}</span>
