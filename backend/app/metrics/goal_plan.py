@@ -87,6 +87,12 @@ DESC_SESSION_MIN = 150.0        # m of descent that make a descent session …
 DESC_SESSION_SHARE = 0.3        # … or this share of the per-run requirement, whichever is more
 LONG_SHARE = 0.50               # the long run's share of the week in the goal's specific phase
 LONG_SHARE_BASE = 0.30          # … and before it (guidance.LONG_SHARE)
+# owner feedback 2026-10-13 ("25 km 4 months ago, 4 half marathons, and the plan holds my long run at
+# 18 km for a year"): before the specific phase the long run may come back to the longest run of the
+# last 6 months (up to half the week) — the per-run margin still sets how fast; the 30 % share alone
+# no longer holds a runner below what they have run. 6 months as the protection of a bout lasts
+# (Nosaka 2001) and the former weekly level (Coyle 1984); working assumption.
+LONG_FORMER_DAYS = 182
 SPECIFIC_MIN = 8                # weeks of the specific phase at least …
 SPECIFIC_SLACK = 4              # … and the weeks the long run needs + the reserve and a week to spare
 SPECIFIC_MAX = 12               # the phase labels (and the sessions, #11): the specific phase at most 12 weeks
@@ -279,6 +285,7 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
     wk = [{"km": 0.0, "long": 0.0, "down": 0.0, "up": 0.0, "downRun": 0.0, "upRun": 0.0, "runs": 0}
           for _ in range(HIST_WEEKS)]
     l30, d30, u30, ever_long, ever_half = 0.0, 0.0, 0.0, 0.0, False
+    l_former = 0.0
     for x in runs:
         try:
             dd = _d(x.started_at)
@@ -298,6 +305,8 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
         if km >= 20.5:
             ever_half = True
         age = (mon - dd).days
+        if 0 < age <= LONG_FORMER_DAYS:
+            l_former = max(l_former, km)
         if 0 < age <= C.CAP_MAX_AGE:      # the engine's per-run capacity: 30 days in full, then a 30-day half-life up to 90 days
             f = C._decay(age)
             l30, d30, u30 = max(l30, km * f), max(d30, down * f), max(u30, up * f)
@@ -328,7 +337,7 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
     bsi = EN.BSI_MARGIN if en["bsi"] else 1.0
     return {
         "today": today.isoformat(), "start": mon.isoformat(), "weeks": wk, "cyclePos": cycle_pos,
-        "long30": l30, "down30": d30, "up30": u30,
+        "long30": l30, "down30": d30, "up30": u30, "longFormer": l_former,
         # the days before this Monday (oldest first) for the engine's own weekly capacity
         "days": days, "pain": [(d0 + timedelta(days=i)).isoformat() in pain for i in range(DAYS_HIST)],
         "known": (mon - first).days if first else 0, "eccFac": ecc,
@@ -646,8 +655,9 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
             r = 0.0
             if need_run is not None:
                 r = min(max(max(runs[-4:]), floor_run) * (1 + mr), max(need_run, runs[-1]))
-                if floor_run == 0.0:          # before the specific phase: no growth over 30 %, but no cut below today's long run
-                    r = min(r, w * share if share == LONG_SHARE else max(w * share, min(run0, w * LONG_SHARE)))
+                if floor_run == 0.0:          # before the specific phase: no growth over 30 %, but no cut below today's
+                    back = max(run0, st.get("longFormer") or 0.0)   # long run nor the longest of 6 months (owner feedback)
+                    r = min(r, w * share if share == LONG_SHARE else max(w * share, min(back, w * LONG_SHARE)))
                 else:
                     r = min(r, w)
         if not deload_week(n, st):
@@ -728,7 +738,7 @@ def project(req: dict, st: dict, path: dict, share_from: int = 1, until: int = 0
             "rows": [{k: (_r(v) if isinstance(v, float) else v) for k, v in r.items()} for r in shown]}
 
 
-def phased(req: dict, st: dict, path: dict, weeks: int, taper: int) -> dict:
+def phased(req: dict, st: dict, path: dict, weeks: int, taper: int, free: bool = False) -> dict:
     """The projection with the long-run share of the plan's phases: 50 % only in the specific
     phase — the last weeks before the taper, as many as the long run needs to reach the race
     distance (at least SPECIFIC_MIN) — 30 % before it (owner decision 2026-10-12). Falls back
@@ -738,6 +748,8 @@ def phased(req: dict, st: dict, path: dict, weeks: int, taper: int) -> dict:
     # the earliest the runner can be ready (the plan itself may peak later, just before the race):
     # the good weeks the chance (#6) counts
     p0["earliest"] = p0["readyWeek"]
+    if free:                                   # a free goal has no race to peak for: it grows from week 1
+        return p0
     k = p0["firstMet"].get("long") or p0["readyWeek"] or build
     spec = min(build, max(SPECIFIC_MIN, k + SPECIFIC_SLACK))
     start = max(1, build - spec + 1)
@@ -747,6 +759,10 @@ def phased(req: dict, st: dict, path: dict, weeks: int, taper: int) -> dict:
     if p1["readyWeek"] is None or (p0["readyWeek"] and p0["readyWeek"] <= build < p1["readyWeek"]):
         return p0
     p1["earliest"] = min(x for x in (p0["readyWeek"], p1["readyWeek"]) if x) if (p0["readyWeek"] or p1["readyWeek"]) else None
+    # when each requirement can be met at the earliest (the gauges): the plan's own phases may time
+    # the long run later, just before the race, which read as "it takes that long" (owner feedback)
+    p1["earliestMet"] = {k: min([x for x in (p0["firstMet"].get(k), v) if x] or [None]) if (p0["firstMet"].get(k) or v) else None
+                         for k, v in p1["firstMet"].items()}
     return p1
 
 
@@ -947,8 +963,9 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     rf = st["descFac"]
     out["history"] = [{"km": _r(w["km"]), "long": _r(w["long"]), "ascent": _r(w["up"]), "descent": _r(w["down"] / rf),
                        "ascentRun": _r(w["upRun"]), "descentRun": _r(w["downRun"] / rf)} for w in st["weeks"][-4:]]
-    safe = phased(req, st, SAFE, weeks, taper)
-    risk = phased(req, st, RISK, weeks, taper)
+    free = goal.get("kind") == "free"
+    safe = phased(req, st, SAFE, weeks, taper, free)
+    risk = phased(req, st, RISK, weeks, taper, free)
     rr = risk["readyWeek"]
     se, re_ = safe.get("earliest") or safe["readyWeek"], risk.get("earliest") or rr
     cs, cr = chance_of(se, taper, weeks, st), chance_of(re_, taper, weeks, st, "risk")
@@ -972,7 +989,7 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
         f = FIELD[q["key"]]
         vals = [w.get(f) for w in peak if w.get(f) is not None]
         q["atRace"] = (vals[-1] if q["unit"] == "×" else max(vals)) if vals else None
-        q["metWeek"] = safe["firstMet"].get(q["key"])
+        q["metWeek"] = (safe.get("earliestMet") or safe["firstMet"]).get(q["key"])
     if se:
         real = start + timedelta(days=7 * (se + taper + reserve) - 1)
         out["realDate"] = real.isoformat()

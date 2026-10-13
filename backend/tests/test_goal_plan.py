@@ -757,3 +757,23 @@ def test_backtesting_and_kpis(client, db_session):
     rp = GB.replay_projection(db_session, rid2)
     assert rp and rp["predicted"] > 0 and rp["actual"] > 0 and isinstance(rp["followed"], bool)
     assert client.get("/api/admin/goal-kpis").status_code == 403
+
+
+def test_the_long_run_is_not_held_below_what_the_runner_has_run(client, db_session):
+    """Owner feedback 2026-10-13: 25 km four months ago and four half marathons, yet the plan held the
+    long run at 30 % of the week for a year and reached 30 km only in the last weeks of a 2-year free
+    goal. The longest run of 6 months is a floor for the base phases; a free goal grows from week 1."""
+    st = {**_st(km=24.0, long=10.0), "start": "2026-10-19", "cyclePos": 1, "everHalf": True}
+    free = {"kind": "free", "date": "2028-10-15", "free": {"longKm": 30}}
+    held = G.evaluate(free, st)
+    met = next(q for q in held["requirements"] if q["key"] == "long")["metWeek"]
+    assert met and met < 52                                                  # not a week before the deadline
+    ultra = _race(101, "2028-08-26", ascentM=5500, descentM=5500, terrain="trail")
+    base = [w for w in G.evaluate(ultra, st)["plan"] if w["phase"] in ("base", "build") and not w.get("deload")]
+    with_former = [w for w in G.evaluate(ultra, {**st, "longFormer": 25.0})["plan"]
+                   if w["phase"] in ("base", "build") and not w.get("deload")]
+    assert max(w["long"] for w in with_former) >= 24.9 > max(w["long"] for w in base)
+    assert all(w["long"] <= 0.5 * w["km"] + 0.11 for w in with_former)      # never over half the week
+    rid, _r = _runner(client, db_session, "tolwire@test.cz")
+    tol = E.get_or_refresh_assessment(db_session, rid)["capacity"]["margins"]["tolerance"]
+    assert tol is None or set(tol) == {"n", "painful", "factor", "personal"}   # the rises, not the pain-day map

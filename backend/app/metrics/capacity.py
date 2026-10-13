@@ -1873,8 +1873,8 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         shrink *= exper["factor"]
     shoes = RF.shoe_state(db.shoes, prof, today)
     shrink = max(shrink, SHRINK_MIN)
-    tol = personal_tolerance(sessions, pain, today)
-    k_tol = tol["factor"] if tol else 1.0
+    tol_rise = personal_tolerance(sessions, pain, today)
+    k_tol = tol_rise["factor"] if tol_rise else 1.0
     m_s, m_w = MARGIN_SESSION * shrink * k_tol, MARGIN_WEEK * shrink * k_tol
     # the shoe transition narrows only the running channels' margins
     ch_m = {ch: (max(shrink * shoes["factor"], SHRINK_MIN) / shrink if ch in RUN_CH else 1.0) for ch in CHANNELS}
@@ -2138,7 +2138,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         "score": total, "signals": signals, "channels": channels, "zones7d": zone7,
         "readiness": readiness,
         "margins": {"session": round(m_s, 3), "week": round(m_w, 3), "frailty": round(frailty, 2),
-                    "underconditioned": under, "experience": exper, "tolerance": tol,
+                    "underconditioned": under, "experience": exper, "tolerance": tol_rise,
                     "runSession": round(m_s * ch_m["volume"], 3), "runWeek": round(m_w * ch_m["volume"], 3)},
         "shoes": shoes,
         "criticalSpeed": SP.cs_summary(sessions, {st.activity_id: st.segments_json for st in db.streams if st.segments_json}, t_iso),
