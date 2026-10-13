@@ -277,7 +277,8 @@ function headline(res: any, withChance = true): { title: string; sub: string | n
   if (res?.verdict === "ok") return { title: "Stihnete to bezpečně", sub: `${ch}Bez výpadku připraveni v týdnu ${sr} z ${goalW}.` }
   if (res?.verdict === "tight") return { title: "Těsné: vyjde jen bez větších výpadků", sub: `${ch}Bez výpadku připraveni v týdnu ${sr} z ${goalW}.` }
   if (res?.verdict === "no") return { title: res.feasible ? "Spíš to nestihnete" : "Bezpečně to nestihnete",
-    sub: `${res.feasible ? ch : ""}${res.realDate ? `Reálně od ${fmtDY(res.realDate)}.` : "Ani do 2 let."}` }
+    sub: `${res.feasible ? ch : ""}${res.realDate ? `Reálně od ${fmtDY(res.realDate)}.`
+      : res.longCap ? `Plán staví dlouhý běh nejvýš ${num(res.longCap, 0)} km. Delší běh je závod: pro ultra zvolte Závod.` : "Ani do 2 let."}` }
   return { title: "Zatím to nejde spočítat", sub: res?.text || null }
 }
 
@@ -337,7 +338,9 @@ function Timeline({ res }: { res: any }) {
             <text x={pl} y={y + 9} fontSize="10.5" fill={C.fg3}>{l.label}</text>
             <text x={W - pr} y={y + 9} fontSize="10.5" textAnchor="end" fill={late ? C.alert : C.ok} fontWeight="700">{lab}</text>
             <rect x={pl} y={y + 14} width={W - pl - pr} height="8" rx="4" fill="rgba(255,255,255,.06)" />
-            <rect x={pl} y={y + 14} width={Math.max(4, end - pl)} height="8" rx="4" fill={l.col} opacity={l.dash ? 0.75 : 1} />
+            {/* never ready within 2 years: the bar runs off the chart in the warning colour, never in the "ready" green */}
+            <rect x={pl} y={y + 14} width={Math.max(4, end - pl)} height="8" rx="4" fill={l.ready == null ? C.alert : l.col}
+              opacity={l.ready == null ? 0.35 : l.dash ? 0.75 : 1} data-never={l.ready == null ? "1" : undefined} />
             {l.ready != null && taper > 0 && <rect x={end} y={y + 14} width={Math.max(2, x(l.ready + taper) - end)} height="8" rx="2" fill={l.col} opacity=".35" />}
           </g>
         )

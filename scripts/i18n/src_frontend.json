@@ -12846,6 +12846,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Plán staví dlouhý běh nejvýš {} km. Delší běh je závod: pro ultra zvolte Závod.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Plán teď neroste",
   "files": [
    "goal.tsx"

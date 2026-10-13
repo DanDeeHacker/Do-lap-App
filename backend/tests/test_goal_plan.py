@@ -833,3 +833,25 @@ def test_the_climb_remembers_longer_than_the_volume():
     old = G._days_of([1000.0] * 3 + [100.0] * 9)  # 9 weeks later: halving
     assert G._engine_cap(old, [False] * len(old), len(old), "ascent") < 0.75 * climb
     assert C._decay(42, "descent") == 1.0 and C._decay(42) < 1.0 and C._decay(72, "ascent") == pytest.approx(0.5)
+
+
+def test_a_free_long_run_over_45_km_can_be_met():
+    """Owner report 2026-10-13 (screenshots): a free goal of a 60 km run with 2500 m said "not even in
+    2 years". Its week stops at the ultra week (90 km), and the long run stayed at 50 % of it, 45 km,
+    for ever. Once the week is at that cap the long run may grow to the run the goal asks for; before
+    it, the 50 % rule holds."""
+    goal = {"kind": "free", "date": "2028-10-16", "aim": "finish", "free": {"longKm": 60, "climbM": 2500, "climbScope": "run"}}
+    req = G.requirements(goal)
+    assert req["week"]["need"] == G.ULTRA_WEEK["time"] and G.long_share_of(req) == pytest.approx(60 / 90)
+    r = G.evaluate(goal, {**_st(km=30.0, long=21.0, climb=900.0), "cyclePos": 1}, alternatives=False)
+    long_q = next(q for q in r["requirements"] if q["key"] == "long")
+    assert long_q["metWeek"] is not None and r["verdict"] == "ok"
+    rows = r["safe"]["rows"]
+    assert all(w["long"] <= 0.5 * w["km"] + 0.11 for w in rows if w["km"] < 89.9)     # 50 % until the week is at 90 km
+    assert max(w["long"] for w in rows) == pytest.approx(60.0)
+    assert G.long_share_of(G.requirements(_race(42.2, "2027-05-01"))) == G.LONG_SHARE  # races unchanged
+    assert r["longCap"] is None
+    # over 60 km (two thirds of the 90 km week) the plan doesn't build the run and says why
+    far = G.evaluate({**goal, "free": {"longKm": 100}}, {**_st(km=30.0, long=21.0), "cyclePos": 1}, alternatives=False)
+    assert far["longCap"] == 60 and far["verdict"] == "no"
+    assert G.long_share_of(G.requirements({**goal, "free": {"longKm": 100}})) == pytest.approx(G.LONG_SHARE_MAX)

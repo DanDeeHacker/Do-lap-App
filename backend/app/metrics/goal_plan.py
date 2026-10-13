@@ -87,6 +87,9 @@ DESC_SESSION_MIN = 150.0        # m of descent that make a descent session …
 DESC_SESSION_SHARE = 0.3        # … or this share of the per-run requirement, whichever is more
 LONG_SHARE = 0.50               # the long run's share of the week in the goal's specific phase
 LONG_SHARE_BASE = 0.30          # … and before it (guidance.LONG_SHARE)
+# a free goal's long run once its week is at the ultra week (owner report 2026-10-13): at most two thirds
+# of it, so the longest run the plan builds is 60 km; a longer one is a race (working assumption)
+LONG_SHARE_MAX = 2 / 3
 # owner feedback 2026-10-13 ("25 km 4 months ago, 4 half marathons, and the plan holds my long run at
 # 18 km for a year"): before the specific phase the long run may come back to the longest run of the
 # last 6 months (up to half the week) — the per-run margin still sets how fast; the 30 % share alone
@@ -405,7 +408,7 @@ def margin_schedule(m: dict, shoes: dict | None, mon: date, bsi: float = 1.0) ->
 
 
 # the stored answer (goals.projection_json) is recomputed when the planner changes, not only the next day
-PLAN_VERSION = "2.3"
+PLAN_VERSION = "2.4"
 
 HIKE_SPORTS = ("hiking", "walking")
 HIKE_UP, HIKE_DOWN = 1.0, 0.5         # owner decision 2026-10-13: a hike's climb counts in full, its descent half
@@ -664,12 +667,13 @@ def verdict_of(chance: float) -> str:
 
 def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | None, path: dict,
              st: dict, floor_w: float = 0.0, floor_run: float = 0.0, share_from: int = 1,
-             days: list | None = None, ch: str = "volume"):
+             days: list | None = None, ch: str = "volume", long_share: float = LONG_SHARE):
     """One channel week by week: (weekly totals, per-run maxima), each list from week 1. The weekly
     ceiling is the engine's own weekly capacity (capacity.weekly_capacity_vals) on the history's
     days and the simulated ones before each week × (1 + the weekly margin). The long run (volume,
     floor_run == 0) is at most LONG_SHARE of the week from `share_from` (the specific phase),
-    LONG_SHARE_BASE before it."""
+    LONG_SHARE_BASE before it; `long_share` (long_share_of) only once the week is at the goal's
+    capped need."""
     sched = st.get("marginSched")             # the temporary narrowings end on their own dates (owner's data 2026-10-13)
     mw0 = st["marginWeek"] * path.get("weekX", 1.0)
     mr0 = st["marginRun"] * path.get("runX", 1.0)
@@ -711,7 +715,9 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
                 r = min(max(max(runs[-4:]), floor_run) * (1 + mr), max(need_run, runs[-1]))
                 if floor_run == 0.0:          # before the specific phase: no growth over 30 %, but no cut below today's
                     back = max(run0, st.get("longFormer") or 0.0)   # long run nor the longest of 6 months (owner feedback)
-                    r = min(r, w * share if share == LONG_SHARE else max(w * share, min(back, w * LONG_SHARE)))
+                    if n >= share_from and long_share > share and need_w is not None and w >= need_w - 0.05:
+                        share = long_share            # the week at the goal's cap: only now may the long run pass 50 %
+                    r = min(r, w * share if n >= share_from else max(w * share, min(back, w * LONG_SHARE)))
                 else:
                     r = min(r, w)
         if not deload_week(n, st):
@@ -723,6 +729,25 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
         out_w.append(w)
         out_r.append(r)
     return out_w, out_r
+
+
+def long_share_of(req: dict) -> float:
+    """The long run's share of the week once the week is at the goal's need: LONG_SHARE, or what the
+    goal itself asks when its week was capped (a free goal's long run over 45 km: the week stops at the ultra
+    week, 90 km — owner report 2026-10-13). Before, a 60 km run in a 90 km week could never be met
+    and the verdict said "not even in 2 years" (owner report 2026-10-13)."""
+    need_w = (req.get("week") or {}).get("need")
+    need_l = (req.get("long") or {}).get("need")
+    if need_w and need_l and need_l > LONG_SHARE * need_w + 0.05:
+        return min(need_l / need_w, LONG_SHARE_MAX)
+    return LONG_SHARE
+
+
+def free_long_cap(goal: dict) -> float | None:
+    """The longest run the plan builds for a free goal (60 km), when the goal asks for more."""
+    cap = ULTRA_WEEK["time"] * LONG_SHARE_MAX
+    lg = (goal.get("free") or {}).get("longKm") or 0 if goal.get("kind") == "free" else 0
+    return round(cap) if lg > cap + 0.05 else None
 
 
 def avg_rise(st: dict, path: dict = SAFE) -> float:
@@ -741,7 +766,8 @@ def project(req: dict, st: dict, path: dict, share_from: int = 1, until: int = 0
     need_l = (req.get("long") or {}).get("need")
     sd = st.get("days") or {}
     km_w, long_r = _channel([w["km"] for w in wk], st["long30"],
-                            need_w, need_l if need_l else 0.0, path, st, share_from=share_from, days=sd.get("km"), ch="volume")
+                            need_w, need_l if need_l else 0.0, path, st, share_from=share_from, days=sd.get("km"), ch="volume",
+                            long_share=long_share_of(req))
     rows = [{"km": km_w[i], "long": long_r[i], "deload": deload_week(i + 1, st)} for i in range(HORIZON)]
     for ch, key in (("descent", "down"), ("ascent", "up")):
         nw = (req.get(ch + "Week") or {}).get("need")
@@ -996,6 +1022,7 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     req = requirements(goal)
     known = sum(1 for w in st["weeks"][-6:] if w["runs"]) >= 3
     out = {"goal": goal, "start": st["start"], "weeksToGoal": weeks, "taperWeeks": taper, "planVersion": PLAN_VERSION,
+           "longCap": free_long_cap(goal),
            # the chart says why it takes these weeks
            "margins": {"week": _r(st["marginWeek"] * 100), "run": _r(st["marginRun"] * 100), "avgRise": _r(avg_rise(st) * 100),
                        # the former level the way back heads for, when it is above the last 4 weeks (v0.12.6)
