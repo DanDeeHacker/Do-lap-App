@@ -206,6 +206,8 @@ function Row({ label, value, sub, strong }: { label: ReactNode; value: ReactNode
 }
 
 const BASIS: Record<string, string> = { avg4: "průměr 4 týdnů", best: "0,9 × nejlepší týden (6 týdnů)", floor: "minimum aplikace", former: "dřívější úroveň (cesta zpět nejvýš 1,3× průměru 4 týdnů)" }
+// v0.12.10: the climb keeps its former level 6 weeks in full, without the 1.3× way back (the repeated-bout effect)
+const CLIMB_FORMER = "dřívější úroveň převýšení (6 týdnů naplno, pak slábne)"
 const MODE_TXT: Record<string, string> = { build: "týden cyklu", recovery: "odlehčovací týden", deload: "odlehčení (zvýšená zátěž)", taper: "ladění před závodem", return: "návrat po zranění", learning: "bez cyklu", goal: "plán k cíli" }
 
 // the plan and the safety ceiling side by side, with the numbers each is made of
@@ -241,7 +243,7 @@ function WeekInputs({ c, capW, g, unit, d, ch }: { c: any; capW: any; g: any; un
         {capW && inp ? (
           <div className="mt-1.5">
             <Row label="Týdenní kapacita" value={`${num(capW.cap, d)} ${unit}`}
-              sub={<><span>{`vyšší z: průměr 4 týdnů ${num(inp.avg4, d)} · 0,9 × nejlepší týden ${num(inp.best, d)} · minimum ${num(inp.floor, d)}`}</span>{inp.former ? <span>{` · dřívější úroveň ${num(inp.former, d)}`}</span> : null}{" "}<span>{`→ ${BASIS[inp.basis] || "—"}`}</span>{inp.rtr != null ? <span>{` · návrat po zranění: nejvýš ${num(inp.rtr, d)}`}</span> : null}</>} />
+              sub={<><span>{`vyšší z: průměr 4 týdnů ${num(inp.avg4, d)} · 0,9 × nejlepší týden ${num(inp.best, d)} · minimum ${num(inp.floor, d)}`}</span>{inp.former ? <span>{` · dřívější úroveň ${num(inp.former, d)}`}</span> : null}{" "}<span>{`→ ${(inp.basis === "former" && (ch === "descent" || ch === "ascent") ? CLIMB_FORMER : BASIS[inp.basis]) || "—"}`}</span>{inp.rtr != null ? <span>{` · návrat po zranění: nejvýš ${num(inp.rtr, d)}`}</span> : null}</>} />
             <Row label="× připravenost týdne" value={num(inp.ready, 2)} sub="průměr posledních 7 dní" />
             {inp.body != null && inp.body < 0.999 && <Row label="× bolest a stav těla" value={num(inp.body, 2)} />}
             <Row label="× (1 + rezerva)" value={`+${num(inp.margin * 100, 0)} %`} />

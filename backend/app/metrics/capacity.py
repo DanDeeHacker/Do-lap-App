@@ -599,8 +599,22 @@ def confirmed(day: str, reports: set, pain: set) -> bool:
 
 
 # ------------------------------------------------------------------ capacity
-def _decay(age):
-    return 1.0 if age <= CAP_WINDOW else 0.5 ** ((age - CAP_WINDOW) / CAP_HALF_LIFE)
+# v0.12.10 (owner decision 2026-10-13, checked on the owner's Strava data: 1000–1230 m a week in August, a
+# flat September and the climb's weekly capacity back near its floor, so a 33 km / 1200 m trail 2
+# months out had to start from scratch) — the climb remembers longer. Descents cost the muscles
+# mostly eccentric damage, and one bout protects against the next for weeks: after one downhill run
+# a second one 3 or 6 weeks later caused less soreness and smaller CK and myoglobin rises, 9 weeks
+# later not (Byrnes et al., 1985); after eccentric arm exercise parts of the protection lasted 6
+# months (Nosaka et al., 2001). So in the climb channels a run or a block counts in full for
+# CLIMB_HOLD days (not 30), then halves every 30 days as before, and the former level is not held
+# to 1.3 × the climb's own 4-week average (the running itself still is, in Objem). Working assumption.
+CLIMB_CH = ("descent", "ascent")
+CLIMB_HOLD = 42
+
+
+def _decay(age, ch: str | None = None):
+    hold = CLIMB_HOLD if ch in CLIMB_CH else CAP_WINDOW
+    return 1.0 if age <= hold else 0.5 ** ((age - hold) / CAP_HALF_LIFE)
 
 
 # v0.9.0 — how far back the per-session items have to reach: sessions scored today are
@@ -666,7 +680,7 @@ def _jump_capacity(items, ords, ref: int, ch):
             n30 += 1
         it = items[j]
         if it[2]:
-            v = it[1] * _decay(age)
+            v = it[1] * _decay(age, ch)
             if best is None or v > best:
                 best = v
     if n30 < MIN_PRIOR:
@@ -698,7 +712,7 @@ def session_capacity(items, ref_day: str, ch, discount: bool = True, top_n: int 
                 continue
             if not conf:
                 v *= JUMP_UNCONFIRMED
-        vals.append(v * _decay(age))
+        vals.append(v * _decay(age, ch))
     if n30 < MIN_PRIOR:
         return None
     vals.sort(reverse=True)
@@ -729,17 +743,18 @@ RETURN_ACWR = 1.3
 FORMER_SPAN = 7 + 7 * FORMER_WEEKS            # days back the blocks reach
 
 
-def _former(weeks_at, painful: list, chronic: float) -> float:
+def _former(weeks_at, painful: list, chronic: float, ch: str | None = None) -> float:
     """The former-level term: max over the blocks (FORMER_BLOCK windows of 7 days ending `back`
     days ago, back ≥ 7) of their mean × _decay(back), held to RETURN_ACWR / (1 + MARGIN_WEEK) ×
-    the 4-week average, so the ceiling it gives stays ≤ RETURN_ACWR × that average.
+    the 4-week average, so the ceiling it gives stays ≤ RETURN_ACWR × that average — except in the
+    climb channels (CLIMB_CH: the repeated-bout effect, v0.12.10).
     `weeks_at(back)` = the 7-day value of the window starting `back` days ago."""
     best = 0.0
     for back in range(7, FORMER_SPAN - 7 * FORMER_BLOCK + 1):
         if any(painful[back:back + 7 * FORMER_BLOCK]):
             continue
-        best = max(best, sum(weeks_at(back + 7 * i) for i in range(FORMER_BLOCK)) / FORMER_BLOCK * _decay(back))
-    return min(best, RETURN_ACWR / (1 + MARGIN_WEEK) * chronic)
+        best = max(best, sum(weeks_at(back + 7 * i) for i in range(FORMER_BLOCK)) / FORMER_BLOCK * _decay(back, ch))
+    return best if ch in CLIMB_CH else min(best, RETURN_ACWR / (1 + MARGIN_WEEK) * chronic)
 
 
 # v0.12.7 (owner decision 2026-10-13, plan k cíli 2.0 #1) — a reduced week, 40–70 % of the other
@@ -783,7 +798,7 @@ def weekly_capacity_vals(vals: list, painful: list, known: int, ch, detail: dict
     pre = [0.0]
     for v in vals:
         pre.append(pre[-1] + v)
-    former = _former(lambda b: pre[b + 7] - pre[b], painful, chronic)
+    former = _former(lambda b: pre[b + 7] - pre[b], painful, chronic, ch)
     out = max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"], former)
     if detail is not None:
         detail.update({"avg4": chronic, "best": 0.9 * best, "floor": CHANNELS[ch]["floor_w"], "former": former,
@@ -797,7 +812,7 @@ def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch, de
     0.9 × best pain-free 7-day window of the 6 weeks before it, decayed by BREAK_DECAY
     per week beyond its 2nd week, so after a break an old peak can't carry the capacity,
     the former level (_former: the best 3 weeks in a row of 12, the way back ≤ 1.3 × the
-    4-week average)). A window more than JUMP_RATIO × the average week before it is a spike,
+    4-week average; the climb kept longer and without that limit)). A window more than JUMP_RATIO × the average week before it is a spike,
     not demonstrated tolerance, and is left out (plan B1). `detail` (a dict) receives the
     candidates and which one won — the Zátěž tab shows how the capacity came about."""
     ref = _d(ref_day)
@@ -858,7 +873,7 @@ def weekly_capacity_residual(daily: dict, ref_day: str, first_day: str, pain: se
             if before > 0 and w > JUMP_RATIO * before:
                 continue
         best = max(best, peak(back) * BREAK_DECAY ** max(0.0, (back - 14) / 7))
-    return max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"], _former(peak, painful, chronic))
+    return max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"], _former(peak, painful, chronic, ch))
 
 
 READY_BASE = (8, 56)    # baseline nights: 8–56 days back (a strained stretch doesn't become its own norm)

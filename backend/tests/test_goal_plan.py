@@ -3,6 +3,8 @@ the studies, the week-by-week projection under the app's own limits, the verdict
 real date and the alternatives, and the goal API."""
 from datetime import timedelta
 
+import pytest
+
 from app.metrics import engine as E
 from app.metrics import goal_plan as G
 from app.assistant import knowledge as K
@@ -305,7 +307,8 @@ def test_after_lighter_weeks_the_plan_climbs_back_as_fast_as_the_app_allows():
 
 def test_per_run_capacity_remembers_90_days_like_the_engine(client, db_session):
     """A long, steep run 60 days before Monday still counts half (30-day half-life after 30 days),
-    as in capacity.session_capacity — before, the plan only knew the last 30 days."""
+    as in capacity.session_capacity — before, the plan only knew the last 30 days. Its descent
+    (v0.12.10, the repeated-bout effect) is kept in full for 42 days, so it counts 0.5^(18/30)."""
     from app import models
     from .conftest import register
     rid = register(client, "goalmem@test.cz", "Mem Runner", "runner").json()["runner_id"]
@@ -318,7 +321,8 @@ def test_per_run_capacity_remembers_90_days_like_the_engine(client, db_session):
     st = G.runner_state(db_session, rid, {})
     from app.metrics import capacity as C
     # the descent in the engine's weighted metres (no profile → the default steepness factor)
-    assert abs(st["long30"] - 24.0 * 0.5) < 0.05 and abs(st["down30"] - 900.0 * C.ECC_DEFAULT * 0.5) < 0.5
+    assert abs(st["long30"] - 24.0 * 0.5) < 0.05
+    assert abs(st["down30"] - 900.0 * C.ECC_DEFAULT * 0.5 ** ((60 - C.CLIMB_HOLD) / C.CAP_HALF_LIFE)) < 0.5
 
 
 def test_the_plan_remembers_the_former_level_like_the_engine():
@@ -810,3 +814,22 @@ def test_a_light_spell_does_not_hold_the_plan_below_the_engine():
     avg4 = sum(hist[-4:]) / 4
     assert r["plan"][0]["km"] > G.ACWR_MAX * avg4 + 1
     assert r["planVersion"] == G.PLAN_VERSION
+
+
+def test_the_climb_remembers_longer_than_the_volume():
+    """v0.12.10 (owner decision 2026-10-13, the owner's Strava data): 1000 m of climbing a week in
+    August, a flat September — the plan had to rebuild the climb from its floor. In the climb a
+    3-week block counts in full for 42 days (one downhill run protects against the next 6 weeks
+    later, not 9: Byrnes et al., 1985), then halves every 30 days, and it is not held to 1.3 × the
+    climb's own 4-week average. The running volume keeps its 1.3 × way back."""
+    from app.metrics import capacity as C
+    hist = [1000.0] * 3 + [100.0] * 6            # the block ended 6 weeks before the window
+    days = G._days_of(hist)
+    pain = [False] * len(days)
+    climb = G._engine_cap(days, pain, len(days), "descent")
+    vol = G._engine_cap(days, pain, len(days), "volume")
+    assert climb > 800.0                         # 49 days back: 0.5^(7/30) of the block
+    assert vol == pytest.approx(C.RETURN_ACWR / (1 + C.MARGIN_WEEK) * 100.0)   # the same weeks in km: 1.3 × the average
+    old = G._days_of([1000.0] * 3 + [100.0] * 9)  # 9 weeks later: halving
+    assert G._engine_cap(old, [False] * len(old), len(old), "ascent") < 0.75 * climb
+    assert C._decay(42, "descent") == 1.0 and C._decay(42) < 1.0 and C._decay(72, "ascent") == pytest.approx(0.5)

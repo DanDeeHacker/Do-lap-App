@@ -354,6 +354,19 @@
   "kind": "str"
  },
  {
+  "t": "T12:00:00",
+  "files": [
+   "admin.tsx",
+   "coach.tsx",
+   "coachview.tsx",
+   "goal.tsx",
+   "outlook.tsx",
+   "report.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "ukázka",
   "files": [
    "admin.tsx",
@@ -8339,18 +8352,6 @@
   "files": [
    "coach.tsx",
    "outlook.tsx",
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "T12:00:00",
-  "files": [
-   "coach.tsx",
-   "coachview.tsx",
-   "goal.tsx",
-   "outlook.tsx",
-   "report.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -17715,6 +17716,13 @@
  },
  {
   "t": "dřívější úroveň (cesta zpět nejvýš 1,3× průměru 4 týdnů)",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "dřívější úroveň převýšení (6 týdnů naplno, pak slábne)",
   "files": [
    "outlook.tsx"
   ],

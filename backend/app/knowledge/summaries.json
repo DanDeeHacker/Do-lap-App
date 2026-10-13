@@ -1,5 +1,5 @@
 {
- "source": "Doslap_Literature_Summary.docx (project doc), 102 sources, 2026-10-13 (goal-planner sources added from Consensus searches and the owner's summaries; v0.12.6 former level and descent sessions; plan k cíli 2.0 strength, energy and bone, stages B and C)",
+ "source": "Doslap_Literature_Summary.docx (project doc), 103 sources, 2026-10-13 (goal-planner sources added from Consensus searches and the owner's summaries; v0.12.6 former level and descent sessions; plan k cíli 2.0 strength, energy and bone, stages B and C; v0.12.10 climb memory)",
  "categories": {
   "A": "Load progression and running injury",
   "B": "Load monitoring concepts and ACWR",
@@ -1745,6 +1745,28 @@
    "strength": "low"
   },
   {
+   "id": "byrnes-et-al-1985",
+   "cite": "Byrnes et al. (1985)",
+   "category": "E",
+   "apa": "Byrnes, W. C., Clarkson, P. M., White, J. S., Hsieh, S. S., Frykman, P. N., & Maughan, R. J. (1985). Delayed onset muscle soreness following repeated bouts of downhill running. Journal of Applied Physiology, 59(3), 710–715.",
+   "doi": "10.1152/jappl.1985.59.3.710",
+   "url": "https://doi.org/10.1152/jappl.1985.59.3.710",
+   "facts": {
+    "Design": "Experimental, two 30-minute downhill runs (−10 %) 3, 6 or 9 weeks apart",
+    "Population": "Young men, three groups",
+    "Exposure": "Time between two bouts of downhill running",
+    "Outcome": "Muscle soreness, serum creatine kinase and myoglobin",
+    "Main result": "After 3 and 6 weeks the second run caused less soreness and smaller CK and myoglobin rises; after 9 weeks there was no difference"
+   },
+   "findings": [
+    "One bout of downhill running protected against the muscle damage of the next one for up to 6 weeks.",
+    "With 9 weeks between the runs the protection was gone."
+   ],
+   "relevance": "Since v0.12.10 the engine keeps the climb channels' former level (a run or a 3-week block of descents and climbs) in full for 42 days, then halves it every 30 days, and does not hold it to 1.3 × the climb's own 4-week average.",
+   "limits": "One unaccustomed bout, not a training block; soreness and blood markers, not injuries; small groups.",
+   "strength": "moderate"
+  },
+  {
    "id": "nosaka-et-al-2001",
    "cite": "Nosaka et al. (2001)",
    "category": "E",
@@ -1762,7 +1784,7 @@
     "After a second bout 6 or 9 months later strength recovered faster; at 6 months soreness, swelling, CK and T2 changes were also smaller.",
     "With 12 months between the bouts there was no protective effect."
    ],
-   "relevance": "The goal planner counts the descent sessions of the last 12 weeks towards the 10 a trail goal needs, instead of starting from zero.",
+   "relevance": "The goal planner counts the descent sessions of the last 12 weeks towards the 10 a trail goal needs, instead of starting from zero. Since v0.12.10 it also backs the longer memory of the climb channels (with Byrnes et al., 1985).",
    "limits": "Elbow flexors, not downhill running; small groups.",
    "strength": "moderate"
   },

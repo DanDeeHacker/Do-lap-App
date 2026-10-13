@@ -118,7 +118,7 @@ SRC = {
     "count": ["doherty-et-al-2019", "toresdahl-et-al-2021"],
     "trail": ["soppelsa-et-al-2025"],
     "ultra": ["hoffman-and-krishnan-2014", "jaen-carrillo-et-al-2024", "knechtle-et-al-2011"],
-    "descent": ["marqueste-et-al-2008", "bontemps-et-al-2025", "mchugh-2003", "nosaka-et-al-2001"],
+    "descent": ["marqueste-et-al-2008", "bontemps-et-al-2025", "mchugh-2003", "nosaka-et-al-2001", "byrnes-et-al-1985"],
     "taper": ["bosquet-et-al-2007", "wang-et-al-2023", "smyth-and-lawlor-2021"],
     "reserve": ["toresdahl-et-al-2022"],
     "risk": ["damsted-et-al-2019", "nielsen-et-al-2014", "toresdahl-et-al-2022"],
@@ -307,9 +307,9 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
         age = (mon - dd).days
         if 0 < age <= LONG_FORMER_DAYS:
             l_former = max(l_former, km)
-        if 0 < age <= C.CAP_MAX_AGE:      # the engine's per-run capacity: 30 days in full, then a 30-day half-life up to 90 days
-            f = C._decay(age)
-            l30, d30, u30 = max(l30, km * f), max(d30, down * f), max(u30, up * f)
+        if 0 < age <= C.CAP_MAX_AGE:      # the engine's per-run capacity: 30 days in full (the climb 42), then a 30-day half-life up to 90 days
+            f, fc = C._decay(age), C._decay(age, "descent")
+            l30, d30, u30 = max(l30, km * f), max(d30, down * fc), max(u30, up * fc)
         if lo <= dd < mon:
             w = wk[(dd - lo).days // 7]
             w["km"] += km
@@ -405,7 +405,7 @@ def margin_schedule(m: dict, shoes: dict | None, mon: date, bsi: float = 1.0) ->
 
 
 # the stored answer (goals.projection_json) is recomputed when the planner changes, not only the next day
-PLAN_VERSION = "2.2"
+PLAN_VERSION = "2.3"
 
 HIKE_SPORTS = ("hiking", "walking")
 HIKE_UP, HIKE_DOWN = 1.0, 0.5         # owner decision 2026-10-13: a hike's climb counts in full, its descent half
@@ -438,7 +438,7 @@ def _hike_state(rd, d0: date, lo: date, mon: date, fac: dict, ecc: float) -> dic
             n += 1
         age = (mon - dd).days
         if 0 < age <= C.CAP_MAX_AGE:
-            f = C._decay(age)
+            f = C._decay(age, "ascent")
             u30, d30 = max(u30, up * f), max(d30, down * f)
         if lo <= dd < mon:
             w = weeks[(dd - lo).days // 7]
