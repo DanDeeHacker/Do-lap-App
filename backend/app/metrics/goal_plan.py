@@ -233,12 +233,15 @@ def requirements(goal: dict) -> dict:
                 out["descentWeek"] = {"need": WEEK_CLIMB[aim_k] * down, "sources": [], "assumption": True,
                                       "why": "klesání trati za týden" if aim else "doběhnout: 0,6 × klesání trati za týden"}
     lg = (out.get("long") or {}).get("need")
-    if lg and out.get("week") and lg / LONG_SHARE > out["week"]["need"]:
+    # a free goal's long run never asks for more than an ultra week (owner report 2026-10-13: a 100 km
+    # long run made a 200 km week); a run that long is a race, the note says so
+    share_w = min(lg / LONG_SHARE, ULTRA_WEEK["time"]) if goal.get("kind") == "free" and lg else (lg / LONG_SHARE if lg else 0)
+    if lg and out.get("week") and share_w > out["week"]["need"]:
         out["week"]["base"] = out["week"]["need"]
-        out["week"]["need"] = lg / LONG_SHARE
+        out["week"]["need"] = share_w
         out["week"]["why"] += f" · aby dlouhý běh {_cz(lg)} km byl nejvýš 50 % týdne"
     elif lg and not out.get("week"):
-        out["week"] = {"need": lg / LONG_SHARE, "why": f"aby dlouhý běh {_cz(lg)} km byl nejvýš 50 % týdne",
+        out["week"] = {"need": share_w, "why": f"aby dlouhý běh {_cz(lg)} km byl nejvýš 50 % týdne",
                        "sources": [], "derived": True}
     return out
 
@@ -540,6 +543,8 @@ def plan_weeks(goal: dict, st: dict, proj: dict, weeks: int) -> list:
 LABEL = {"week": "Týdenní objem ve vrcholu", "long": "Nejdelší běh", "longCount": "Počet dlouhých běhů",
          "ascentWeek": "Stoupání za týden", "ascentRun": "Stoupání v jednom běhu",
          "descentWeek": "Klesání za týden", "descentRun": "Klesání v jednom běhu", "descSessions": "Seběhy"}
+FIELD = {"week": "km", "long": "long", "longCount": "longCount", "ascentWeek": "ascent", "ascentRun": "ascentRun",
+         "descentWeek": "descent", "descentRun": "descentRun", "descSessions": "descSessions"}
 UNIT = {"week": "km", "long": "km", "longCount": "×", "ascentWeek": "m", "ascentRun": "m", "descentWeek": "m",
         "descentRun": "m", "descSessions": "×"}
 
@@ -632,6 +637,14 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
         out["plan"] = plan_weeks(goal, st, chosen, weeks)
     reserve = 3 if (safe["readyWeek"] or 0) + taper > RESERVE_LONG_PLAN else 2
     out.update(safe=safe, risk=risk, reserveWeeks=reserve, verdict=v, verdictLabel=VERDICT[v])
+    # the gauges (owner feedback 2026-10-13: pictures, not sentences): the safe path at its peak
+    # before the taper ("na startu") and the week each requirement is met
+    peak = safe["rows"][:max(1, weeks - taper)]
+    for q in out["requirements"]:
+        f = FIELD[q["key"]]
+        vals = [w.get(f) for w in peak if w.get(f) is not None]
+        q["atRace"] = (vals[-1] if q["unit"] == "×" else max(vals)) if vals else None
+        q["metWeek"] = safe["firstMet"].get(q["key"])
     if safe["readyWeek"]:
         real = start + timedelta(days=7 * (safe["readyWeek"] + taper + reserve) - 1)
         out["realDate"] = real.isoformat()
@@ -672,12 +685,16 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     if taper:
         out["notes"].append({"key": "taper", "text": f"Ladění {_weeks_cz(taper)} před závodem: objem dolů o 40–60 %, "
                              "intenzita a počet běhů zůstanou.", "sources": SRC["taper"]})
+    if goal.get("kind") == "free" and ((goal.get("free") or {}).get("longKm") or 0) > TRAIL_LONG_MAX:
+        out["notes"].append({"key": "ultra", "sources": SRC["ultra"],
+                             "text": f"Běh delší než {_cz(TRAIL_LONG_MAX, 0)} km je spíš závod než trénink. Pro přípravu na ultra zvolte Závod: "
+                                     "aplikace pak počítá s dlouhými běhy 35–45 km."})
     if st.get("limited"):
         out["notes"].append({"key": "limited", "text": "Teď máte omezení tréninku (bolest, zranění nebo návrat po něm). Projekce počítá "
                              "s tím, že trénink půjde bez přerušení, takže skutečný termín bude nejspíš později.", "sources": []})
     if st["marginWeek"] < C.MARGIN_WEEK - 0.001:
         why = st.get("marginWhy") or []
-        out["notes"].append({"key": "margin", "sources": [],
+        out["notes"].append({"key": "margin", "sources": [], "pct": _r(st["marginWeek"] * 100), "why": why,
                              "text": f"Týdenní rezerva je u vás teď {_cz(st['marginWeek'] * 100)} % místo 15 %"
                                      + (f" ({' · '.join(why)})" if why else "") + ", proto kapacita v projekci roste pomaleji."})
     if alternatives and v != "ok":
@@ -699,16 +716,21 @@ def _r50(v: float) -> int:
     return int(round(v / 50.0) * 50)
 
 
+def _th(v: float) -> str:
+    """A whole number with a thousands space, as the app shows it (1 350)."""
+    return f"{int(round(v)):,}".replace(",", "\u00a0")
+
+
 def _best_label(g: dict) -> str:
     if g.get("kind") == "free":
         f = g.get("free") or {}
         parts = ([f"týdně {_cz(f['weeklyKm'], 0)} km"] if f.get("weeklyKm") else []) \
             + ([f"dlouhý běh {_cz(f['longKm'], 0)} km"] if f.get("longKm") else []) \
-            + ([f"převýšení {_cz(f['climbM'], 0)} m " + ("za týden" if f.get("climbScope", "week") == "week" else "v jednom běhu")]
+            + ([f"převýšení {_th(f['climbM'])} m " + ("za týden" if f.get("climbScope", "week") == "week" else "v jednom běhu")]
                if f.get("climbM") else [])
         return " · ".join(parts)
     if is_trail(g):
-        return f"trail {_cz(g['km'], 0)} km · ↑ {_cz(g.get('ascentM') or 0, 0)} m"
+        return f"trail {_cz(g['km'], 0)} km · ↑ {_th(g.get('ascentM') or 0)} m"
     return goal_name(g)
 
 
@@ -778,8 +800,14 @@ def best_safe(goal: dict, st: dict, res: dict | None = None) -> dict | None:
             if not up:
                 return None
             prog = [t.format(_cz(dict(up)[k]["now"], 0), _cz(dict(up)[k]["need"], 0)) for k, t in PROGRESS if k in dict(up)][:2]
+            if g.get("kind") == "free":                     # the label shows what the goal really asks (the long run sets the week)
+                need = {q["key"]: q["need"] for q in r["requirements"]}
+                f = g.get("free") or {}
+                g = dict(g, free={**f, **({"weeklyKm": int(round(need["week"]))} if need.get("week") else {})})
             return {"kind": "best", "goal": g, "verdict": r["verdict"], "verdictLabel": r["verdictLabel"],
                     "label": _best_label(g), "readyDate": r.get("readyDate"),
+                    "progress": [{"key": k, "label": LABEL[k], "now": q["now"], "need": q["need"], "unit": q["unit"]}
+                                 for k, q in up if k in ("week", "long", "ascentWeek", "ascentRun", "descentWeek", "descentRun")][:3],
                     "text": f"Nejlepší cíl, který do {_dcz(_d(goal['date']))} stihnete bezpečně i s rezervou: {_best_label(g)}"
                             + (" · doběhnout" if aim != goal.get("aim") else "") + ". "
                             + (f"Je na hraně vašich limitů a posune vás: {' · '.join(prog)}." if prog else

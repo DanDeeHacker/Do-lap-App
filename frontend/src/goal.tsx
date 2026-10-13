@@ -75,33 +75,6 @@ function Sources({ ids, info }: { ids: string[]; info: any }) {
   )
 }
 
-// one requirement: where the runner is now against what the goal needs, and when the safe path gets there
-function ReqRow({ r, res }: { r: any; res: any }) {
-  const now = r.now ?? 0
-  const pct = r.need ? Math.min(100, (now / r.need) * 100) : 0
-  const when = res?.safe?.firstMet?.[r.key]
-  const d = r.unit === "km" ? 1 : 0
-  const isCount = r.unit === "×"
-  return (
-    <div className="py-2.5" data-testid="goal-req">
-      <div className="flex items-baseline justify-between gap-2 text-[12px]">
-        <span className="flex items-center gap-1.5 font-semibold text-fg">{r.label}{r.key === "longCount" && r.km ? ` ≥ ${num(r.km, 0)} km` : ""}
-          <Sources ids={r.sources} info={res?.sourceInfo} />
-          {r.assumption && <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[10px] font-bold text-fg-3">předpoklad</span>}
-        </span>
-        <span className="tabular-nums text-fg-3">{isCount ? <>{now ? <><b className="text-fg">{num(now, 0)}</b> / </> : null}<b className="text-fg">{num(r.need, 0)}×</b></> : <><b className="text-fg">{num(now, d)}</b> / {num(r.need, d)} {r.unit}</>}</span>
-      </div>
-      {!isCount && (
-        <div className="relative mt-1 h-2 rounded-full bg-white/[.08]">
-          <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, background: pct >= 99.5 ? C.ok : C.info }} />
-        </div>
-      )}
-      <p className="mt-1 text-[11px] leading-4 text-fg-3">{r.why}{r.base != null ? ` (tabulka ${num(r.base, 0)} km)` : ""}
-        {when ? ` · bezpečně za ${weeksCz(when)} (týden od ${fmtDY(addDays(res.start, 7 * (when - 1)))})` : res?.safe ? " · bezpečně do 2 let ne" : ""}</p>
-    </div>
-  )
-}
-
 // The projection chart (owner feedback 2026-10-12: clearer and described). One metric at a
 // time — the bottleneck first, the others a tap away; the last 4 weeks as history; the safe
 // path (solid) and the risk path (dashed) through the loaded weeks, the recovery weeks as dots;
@@ -273,8 +246,9 @@ function ProjectionChart({ res }: { res: any }) {
           {rRows.length > 0 && <span><i className="mr-1.5 inline-block w-4 border-t-2 border-dashed align-middle" style={{ borderColor: C.alert }} />riziková cesta</span>}
           <span><i className="mr-1.5 inline-block size-2 rounded-full border-[1.5px] align-middle" style={{ borderColor: C.ok }} />odlehčovací týden</span>
         </span>
-        <span className="text-fg-3">Na ose jsou týdny, u každé značky datum jejich pondělí. Čára ukazuje, kolik zvládnete, když poroste jen tak rychle, jak dovolí vaše limity v aplikaci. Čárkovaná vodorovná čára je požadavek cíle, svislá týden závodu, šedé pole ladění. Prstem po grafu uvidíte hodnoty týdne.</span>
-        <span className="text-fg-3" data-testid="goal-chart-why">{why.map((t, i) => <span key={i}>{i ? " " : ""}{t}</span>)}</span>
+        <details className="text-fg-3"><summary className="cursor-pointer font-semibold text-fg-2">Jak se to počítá</summary>
+        <span className="mt-1 block">Na ose jsou týdny, u každé značky datum jejich pondělí. Čára ukazuje, kolik zvládnete, když poroste jen tak rychle, jak dovolí vaše limity v aplikaci. Čárkovaná vodorovná čára je požadavek cíle, svislá týden závodu, šedé pole ladění. Prstem po grafu uvidíte hodnoty týdne.</span>
+        <span className="mt-1 block" data-testid="goal-chart-why">{why.map((t, i) => <span key={i}>{i ? " " : ""}{t}</span>)}</span></details>
       </figcaption>
     </figure>
   )
@@ -290,61 +264,297 @@ function bestPatch(g: any): Partial<Form> {
     terrain: g.terrain || "", aim: g.aim || "finish", ...(g.aim === "time" ? {} : { target: "" }) }
 }
 
-function Verdict({ res, onApply }: { res: any; onApply?: (patch: Partial<Form>) => void }) {
+// ---- the answer at a glance (owner feedback 2026-10-13: pictures, not sentences) -------------
+function headline(res: any): { title: string; sub: string | null } {
+  const sr = res?.safe?.readyWeek, goalW = res?.weeksToGoal, taper = res?.taperWeeks || 0
+  if (res?.verdict === "ok") {
+    const spare = goalW - taper - sr
+    return { title: "Stihnete to bezpečně", sub: spare > 0 ? `Připraveni v týdnu ${sr} z ${goalW}, rezerva ${weeksCz(spare)}.` : `Připraveni v týdnu ${sr} z ${goalW}.` }
+  }
+  if (res?.verdict === "tight") return { title: "Stihnete to jen bez výpadku", sub: `Připraveni v týdnu ${sr} z ${goalW}, rezerva na nemoc chybí.` }
+  if (res?.verdict === "no") return { title: "Bezpečně to nestihnete", sub: res.realDate ? `Reálně od ${fmtDY(res.realDate)}.` : "Ani do 2 let." }
+  return { title: "Zatím to nejde spočítat", sub: res?.text || null }
+}
+
+// preparation as bars against the race line: a bar ending before the line = in time
+function Timeline({ res }: { res: any }) {
+  const goalW = res.weeksToGoal as number
+  const taper = res.taperWeeks || 0
+  const sr: number | null = res.safe?.readyWeek ?? null
+  const rr: number | null = res.risk?.readyWeek ?? null
+  const showRisk = rr != null && res.verdict !== "ok" && (res.riskPossible || res.path === "risk")
+  const lanes = [{ key: "safe", label: "Bezpečná cesta", ready: sr, col: C.ok, dash: false },
+    ...(showRisk ? [{ key: "risk", label: "Riziková cesta", ready: rr, col: C.alert, dash: true }] : [])]
+  const M = Math.min(106, Math.max(goalW + 3, ...lanes.map((l) => (l.ready ?? 104) + taper + 3), 10))
+  const W = 340, pl = 2, pr = 2, laneH = 30, top = 22
+  const H = top + lanes.length * laneH + 18
+  const x = (w: number) => pl + (Math.min(w, M) / M) * (W - pl - pr)
+  const date = (w: number) => fmtDY(addDays(res.start, 7 * (w - 1)))
+  const gx = x(goalW)
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" role="img" data-testid="goal-timeline"
+      aria-label={`Závod v týdnu ${goalW}; bezpečně připraveni ${sr ? `v týdnu ${sr}` : "ne do 2 let"}`}>
+      {lanes.map((l, i) => {
+        const y = top + i * laneH
+        const end = l.ready != null ? x(l.ready) : x(M)
+        const late = l.ready == null || l.ready + taper > goalW
+        const lab = l.ready != null ? `týden ${l.ready} · ${date(l.ready)}` : "do 2 let ne"
+        return (
+          <g key={l.key}>
+            <text x={pl} y={y + 9} fontSize="10.5" fill={C.fg3}>{l.label}</text>
+            <text x={W - pr} y={y + 9} fontSize="10.5" textAnchor="end" fill={late ? C.alert : C.ok} fontWeight="700">{lab}</text>
+            <rect x={pl} y={y + 14} width={W - pl - pr} height="8" rx="4" fill="rgba(255,255,255,.06)" />
+            <rect x={pl} y={y + 14} width={Math.max(4, end - pl)} height="8" rx="4" fill={l.col} opacity={l.dash ? 0.75 : 1} />
+            {l.ready != null && taper > 0 && <rect x={end} y={y + 14} width={Math.max(2, x(l.ready + taper) - end)} height="8" rx="2" fill={l.col} opacity=".35" />}
+          </g>
+        )
+      })}
+      <line x1={gx} x2={gx} y1={top + 12} y2={H - 14} stroke={C.fg} strokeWidth="1.5" />
+      <text x={gx > W * 0.7 ? gx + 4 : gx} y={top - 8} fontSize="10.5" fontWeight="700" textAnchor={gx > W * 0.7 ? "end" : "middle"} fill={C.fg}>{`⚑ závod ${fmtDY(res.goal?.date)}`}</text>
+      <text x={pl} y={H - 3} fontSize="10" fill={C.fg3}>dnes</text>
+      <text x={W - pr} y={H - 3} fontSize="10" textAnchor="end" fill={C.fg3}>{date(M)}</text>
+    </svg>
+  )
+}
+
+function VerdictHero({ res }: { res: any }) {
   if (!res) return null
   const col = VCOL[res.verdict] || C.fg3
+  const h = headline(res)
   return (
-    <div data-testid="goal-result">
-      <div className="nest p-3.5" style={{ borderColor: `${col}55` }}>
-        <div className="flex items-center gap-2"><VerdictChip res={res} />
-          {res.realDate && res.verdict !== "ok" && <span className="text-[12px] text-fg-2">reálně od <b className="text-fg">{fmtDY(res.realDate)}</b></span>}
+    <div className="nest p-3.5" style={{ borderColor: `${col}55` }} data-testid="goal-result">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[17px] font-bold leading-6" style={{ color: col }} data-testid="goal-headline">{h.title}</p>
+          {h.sub && <p className="mt-0.5 text-[12px] leading-5 text-fg-2">{h.sub}</p>}
         </div>
-        <p className="mt-2 text-[13px] leading-5 text-fg-soft">{res.text}</p>
+        <VerdictChip res={res} />
       </div>
-      <ProjectionChart res={res} />
-      {res.alternatives?.length > 0 && (
-        <div className="mt-4">
-          <p className="t-label !text-fg-3">Možnosti</p>
-          <ul className="mt-1.5 space-y-2">
-            {res.alternatives.map((x: any, i: number) => {
-              const patch: Partial<Form> | null = x.kind === "later" ? { date: x.date } : x.kind === "finish" ? { aim: "finish" }
-                : x.kind === "shorter" ? { km: strNum(x.goal.km), ascent: "", descent: "" } : x.kind === "best" ? bestPatch(x.goal) : null
-              const best = x.kind === "best"
-              return (
-                <li key={i} className={`flex items-start gap-3 rounded-xl p-3 text-[12px] leading-5 text-fg-soft ${best ? "border border-accent/40 bg-accent/[.06]" : "bg-white/[.04]"}`}
-                  data-testid={best ? "goal-alt-best" : "goal-alt"}>
-                  <span className="min-w-0 flex-1">{best && <b className="mb-0.5 block text-[11px] uppercase tracking-wide text-accent">Nejlepší bezpečný cíl</b>}
-                    {x.text}{x.sources ? <> <Sources ids={x.sources} info={res.sourceInfo} /></> : null}</span>
-                  {patch && onApply && <Button size="sm" variant="outline" onClick={() => onApply(patch)}>Použít</Button>}
-                </li>
-              )
-            })}
-          </ul>
+      {res.safe && res.weeksToGoal && <Timeline res={res} />}
+      {res.safe && res.taperWeeks > 0 && <p className="mt-1 text-[10.5px] text-fg-3">Světlejší konec pruhu je ladění před závodem.</p>}
+    </div>
+  )
+}
+
+// what the goal needs: today, where the safe path gets by the start, and the need
+const isMet = (r: any) => r.atRace != null && r.atRace >= r.need - (r.unit === "km" ? 0.05 : 0.5)
+const PAIRS: [string, string, string][] = [["ascentRun", "descentRun", "Stoupání a klesání v jednom běhu"], ["ascentWeek", "descentWeek", "Stoupání a klesání za týden"]]
+function merged(list: any[]): any[] {
+  let out = [...list]
+  for (const [a, d, label] of PAIRS) {
+    const ra = out.find((r) => r.key === a), rd = out.find((r) => r.key === d)
+    if (!ra || !rd || Math.abs(ra.need - rd.need) > 1) continue
+    const lo = (u?: number | null, v?: number | null) => (u == null || v == null ? null : Math.min(u, v))
+    const m = { ...ra, key: `${a}+${d}`, label, now: Math.min(ra.now ?? 0, rd.now ?? 0), atRace: lo(ra.atRace, rd.atRace),
+      metWeek: ra.metWeek == null || rd.metWeek == null ? null : Math.max(ra.metWeek, rd.metWeek) }
+    out = out.flatMap((r) => (r.key === a ? [m] : r.key === d ? [] : [r]))
+  }
+  return out
+}
+function Gauges({ res, title = true }: { res: any; title?: boolean }) {
+  const reqs: any[] = merged(res?.requirements || [])
+  if (!reqs.length) return null
+  const build = (res.weeksToGoal || 0) - (res.taperWeeks || 0)
+  return (
+    <div data-testid="goal-gauges">
+      {title && <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="t-label !text-fg-3">Co cíl potřebuje</p>
+        <span className="flex flex-wrap gap-3 text-[10.5px] text-fg-3">
+          <span><i className="mr-1 inline-block h-2 w-3 rounded-sm align-middle" style={{ background: C.info }} />dnes</span>
+          {res.safe && <span><i className="mr-1 inline-block h-2 w-3 rounded-sm align-middle" style={{ background: `${C.ok}66` }} />na startu</span>}
+          <span><i className="mr-1 inline-block h-3 w-[2px] align-middle" style={{ background: C.fg }} />potřeba</span>
+        </span>
+      </div>}
+      <div className="mt-1 divide-y divide-white/[.06]">
+        {reqs.map((r) => {
+          const count = r.unit === "×"
+          const d = r.unit === "km" ? 0 : 0
+          const now = r.now ?? 0
+          const at = r.atRace
+          const mx = Math.max(r.need, at ?? 0, now) * 1.04 || 1
+          const pct = (v: number) => `${Math.min(100, (v / mx) * 100)}%`
+          const met = isMet(r)
+          const done = now >= r.need - 0.05
+          const inTime = r.metWeek != null && r.metWeek <= build
+          const status = done ? { t: "✓ už teď", c: C.ok } : inTime ? { t: `✓ v týdnu ${r.metWeek}`, c: C.ok }
+            : at != null ? { t: `✕ ke startu chybí ${num(Math.max(0, r.need - at), d)} ${count ? "×" : r.unit}`, c: C.alert }
+              : res.safe ? { t: "✕ do 2 let ne", c: C.alert } : null
+          return (
+            <div key={r.key} className="py-2" data-testid="goal-req">
+              <div className="flex items-baseline justify-between gap-2 text-[12px]">
+                <span className="flex min-w-0 items-center gap-1.5 font-semibold text-fg">{r.label}{r.key === "longCount" && r.km ? ` ≥ ${num(r.km, 0)} km` : ""}
+                  <InfoDot label={r.label} wide text={<>
+                    <span className="block">{r.why}{r.base != null ? ` (tabulka ${num(r.base, 0)} km)` : ""}</span>
+                    {r.assumption && <span className="mt-1 block opacity-80">Pracovní předpoklad, přímou studii nemáme.</span>}
+                    {(r.sources || []).filter((i: string) => res.sourceInfo?.[i]).map((i: string) => <span key={i} className="mt-1 block">{res.sourceInfo[i].url ? <a href={res.sourceInfo[i].url} target="_blank" rel="noreferrer" className="underline">{res.sourceInfo[i].cite}</a> : res.sourceInfo[i].cite}</span>)}
+                  </>} /></span>
+                <span className="whitespace-nowrap tabular-nums text-fg-3"><b className="text-fg">{num(now, d)}</b>{` → ${num(r.need, d)} ${count ? "×" : r.unit}`}</span>
+              </div>
+              <div className="relative mt-1.5 h-2.5 rounded-full bg-white/[.07]">
+                {at != null && <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: pct(at), background: met ? `${C.ok}66` : `${C.alert}55` }} />}
+                <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: pct(now), background: C.info }} />
+                <i className="absolute -inset-y-1 w-[2px] rounded" style={{ left: `calc(${pct(r.need)} - 1px)`, background: C.fg }} />
+              </div>
+              {status && <p className="mt-1 text-[11px] font-semibold" style={{ color: status.c }}>{status.t}</p>}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// the notes: the narrowed margin as numbers, the rest folded away
+function Notes({ res }: { res: any }) {
+  const notes: any[] = res?.notes || []
+  if (!notes.length) return null
+  const m = notes.find((n) => n.key === "margin")
+  const rest = notes.filter((n) => n.key !== "margin")
+  return (
+    <div className="mt-3 grid gap-2">
+      {m && (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-xl bg-watch/[.08] px-3 py-2 text-[12px]" data-testid="goal-note">
+          <b className="text-watch">{`Rezerva růstu ${num(m.pct, 0)} % místo 15 %`}</b>
+          {(m.why || []).map((w: string) => <span key={w} className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] text-fg-2">{w}</span>)}
+          <InfoDot label="Rezerva růstu" text={m.text} />
         </div>
       )}
-    </div>
-  )
-}
-
-function Requirements({ res }: { res: any }) {
-  if (!res) return null
-  return (
-    <div>
-      <div className="divide-y divide-white/[.06]">{(res.requirements || []).map((r: any) => <ReqRow key={r.key} r={r} res={res} />)}</div>
-      {res.notes?.length > 0 && (
-        <ul className="mt-3 space-y-2">
-          {res.notes.map((n: any) => (
-            <li key={n.key} className="rounded-xl bg-white/[.04] p-3 text-[12px] leading-5 text-fg-soft" data-testid="goal-note">
-              {n.text} {n.sources?.length ? <Sources ids={n.sources} info={res.sourceInfo} /> : null}
-            </li>
-          ))}
-        </ul>
+      {rest.length > 0 && (
+        <details className="rounded-xl bg-white/[.04] px-3 py-2 text-[12px] text-fg-soft">
+          <summary className="cursor-pointer font-semibold text-fg-2">{`Na co plán myslí (${rest.length})`}</summary>
+          <ul className="mt-2 grid gap-2">{rest.map((n) => <li key={n.key} data-testid="goal-note">{n.text} {n.sources?.length ? <Sources ids={n.sources} info={res.sourceInfo} /> : null}</li>)}</ul>
+        </details>
       )}
     </div>
   )
 }
 
-const STEPS = ["Cíl a datum", "Co cíl vyžaduje", "Jde to stihnout?"]
+// the options when the goal isn't safe by its date: one card each, the numbers as chips
+function Options({ res, onApply }: { res: any; onApply?: (patch: Partial<Form>) => void }) {
+  const alts: any[] = res?.alternatives || []
+  if (!alts.length) return null
+  const card = "rounded-xl p-3"
+  const use = (patch: Partial<Form> | null) => patch && onApply ? <Button size="sm" variant="outline" onClick={() => onApply(patch)}>Použít</Button> : null
+  return (
+    <div className="mt-4" data-testid="goal-options">
+      <p className="t-label !text-fg-3">Možnosti</p>
+      <div className="mt-1.5 grid gap-2">
+        {alts.map((x, i) => {
+          if (x.kind === "best") return (
+            <div key={i} className={`${card} border border-accent/40 bg-accent/[.06]`} data-testid="goal-alt-best">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-accent">Nejlepší bezpečný cíl</p>
+                  <p className="mt-0.5 text-[15px] font-bold text-fg">{x.label}</p>
+                  <p className="text-[11px] text-fg-3">{`do ${fmtDY(res.goal?.date)} i s rezervou na nemoc`}</p>
+                </div>
+                {use(bestPatch(x.goal))}
+              </div>
+              {x.progress?.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">
+                {x.progress.map((p: any) => <span key={p.key} className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] text-fg-2">{`${p.label} `}<b className="tabular-nums text-fg">{`${num(p.now, 0)} → ${num(p.need, 0)} ${p.unit}`}</b></span>)}
+              </div>}
+            </div>
+          )
+          if (x.kind === "later") return (
+            <div key={i} className={`${card} flex items-center justify-between gap-3 bg-white/[.04]`} data-testid="goal-alt">
+              <div><p className="text-[11px] font-bold uppercase tracking-wide text-fg-3">Pozdější termín</p><p className="text-[15px] font-bold text-fg">{fmtDY(x.date)}</p></div>
+              {use({ date: x.date })}
+            </div>
+          )
+          if (x.kind === "finish" || x.kind === "shorter") return (
+            <div key={i} className={`${card} flex items-center justify-between gap-3 bg-white/[.04]`} data-testid="goal-alt">
+              <div className="min-w-0"><p className="text-[11px] font-bold uppercase tracking-wide text-fg-3">{x.kind === "finish" ? "Cíl doběhnout" : "Kratší trať"}</p>
+                <p className="flex flex-wrap items-center gap-2 text-[14px] font-bold text-fg">{x.kind === "finish" ? goalTitle(res.goal) : goalTitle({ ...x.goal, name: null })}<VerdictChip res={x} /></p></div>
+              {use(x.kind === "finish" ? { aim: "finish" } : { km: strNum(x.goal.km), ascent: "", descent: "" })}
+            </div>
+          )
+          if (x.kind === "risk") return (
+            <div key={i} className={`${card} flex items-center justify-between gap-3 bg-white/[.04]`} data-testid="goal-alt">
+              <div className="min-w-0"><p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-alert">Riziková cesta<InfoDot label="Riziková cesta" wide text={x.text} /></p>
+                <p className="text-[13px] text-fg">{x.possible === false ? "Termín nestihne ani ona." : `Připraveni v týdnu ${x.readyWeek}, jen se souhlasem v detailu cíle.`}</p></div>
+            </div>
+          )
+          return <p key={i} className="px-1 text-[12px] text-fg-3" data-testid="goal-alt">{x.text}</p>
+        })}
+      </div>
+    </div>
+  )
+}
+
+// the target time in three numbers
+function TargetTime({ tt }: { tt: any }) {
+  if (!tt) return null
+  const gap = tt.gapPct as number | undefined
+  return (
+    <div className="nest mt-4 p-3.5" data-testid="goal-target-time">
+      <div className="flex items-center justify-between gap-2"><p className="t-label !text-fg-3">Cílový čas</p><InfoDot label="Cílový čas" wide text={<>{tt.text}{tt.basis ? <span className="mt-1 block opacity-80">{`Odhad z běhu ${tt.basis.title || ""} (${fmtD(tt.basis.date)}, ${num(tt.basis.km)} km) Riegelovým vzorcem.`}</span> : null}</>} /></div>
+      <div className="mt-1.5 grid grid-cols-3 gap-2 text-center">
+        <div><p className="text-[16px] font-bold tabular-nums text-fg">{tt.timeText}</p><p className="text-[10.5px] text-fg-3">cíl</p></div>
+        <div><p className="text-[16px] font-bold tabular-nums text-fg">{tt.paceText}</p><p className="text-[10.5px] text-fg-3">tempo</p></div>
+        <div><p className="text-[16px] font-bold tabular-nums" style={{ color: gap == null ? C.fg3 : gap <= 1 ? C.ok : gap <= 5 ? C.watch : C.alert }}>{tt.predictedText || "—"}</p>
+          <p className="text-[10.5px] text-fg-3">{gap == null ? "dnes neznámé" : gap <= 1 ? "dnes v dosahu" : `dnes o ${num(gap, 0)} % pomaleji`}</p></div>
+      </div>
+    </div>
+  )
+}
+
+// the plan as bars, one a week, coloured by phase; a tap shows the week
+function PlanBars({ plan, today }: { plan: any[]; today: string }) {
+  const cur = Math.max(0, plan.findIndex((w, i) => w.start <= today && today < (plan[i + 1]?.start ?? "9999")))
+  const [sel, setSel] = useState(cur)
+  const [list, setList] = useState(false)
+  if (!plan?.length) return null
+  const W = 340, H = 110, pt = 14, pb = 16
+  const n = plan.length
+  const mx = Math.max(...plan.map((w) => w.km || 0), 1)
+  const bw = (W / n) * 0.78, gap = W / n
+  const xs = (i: number) => i * gap + (gap - bw) / 2
+  const hy = (v: number) => ((v || 0) / mx) * (H - pt - pb)
+  const w = plan[sel] || plan[0]
+  const [pl, pc] = PHASE[w.phase] || PHASE.base
+  const phases = [...new Set(plan.map((p) => p.phase))]
+  const pick = (e: React.PointerEvent<SVGSVGElement>) => {
+    const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect()
+    setSel(Math.max(0, Math.min(n - 1, Math.floor(((e.clientX - r.left) / r.width) * n))))
+  }
+  return (
+    <div data-testid="goal-plan">
+      <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full touch-pan-y" role="img" aria-label={`Plán po týdnech, ${n} týdnů`} onPointerDown={pick} onPointerMove={(e) => e.buttons && pick(e)}>
+        {plan.map((p, i) => {
+          const col = (PHASE[p.phase] || PHASE.base)[1]
+          const h = Math.max(2, hy(p.km))
+          return (
+            <g key={p.i}>
+              <rect x={xs(i)} y={H - pb - h} width={bw} height={h} rx={Math.min(3, bw / 2)} fill={col} opacity={p.deload || p.taper ? 0.45 : 1}
+                stroke={i === sel ? C.fg : "none"} strokeWidth="1.5" />
+              {p.milestone === "half" && <circle cx={xs(i) + bw / 2} cy={H - pb - h - 6} r="2.5" fill={C.accent} />}
+              {p.race && <text x={xs(i) + bw / 2} y={H - pb - h - 4} fontSize="11" textAnchor="middle" fill={C.fg}>⚑</text>}
+            </g>
+          )
+        })}
+        {cur >= 0 && <text x={xs(cur) + bw / 2} y={H - 3} fontSize="9.5" textAnchor={cur < 3 ? "start" : "middle"} fill={C.fg3}>dnes</text>}
+        <text x={W} y={H - 3} fontSize="9.5" textAnchor="end" fill={C.fg3}>závod</text>
+        <text x={0} y={10} fontSize="9.5" fill={C.fg3}>{`${num(mx, 0)} km`}</text>
+      </svg>
+      <div className="mt-1 flex flex-wrap gap-2 text-[10.5px] text-fg-3">
+        {phases.map((ph) => <span key={ph}><i className="mr-1 inline-block size-2 rounded-sm align-middle" style={{ background: (PHASE[ph] || PHASE.base)[1] }} />{(PHASE[ph] || PHASE.base)[0]}</span>)}
+        <span><i className="mr-1 inline-block size-2 rounded-sm align-middle opacity-45" style={{ background: C.fg3 }} />odlehčení</span>
+      </div>
+      <div className="nest mt-2 flex items-center gap-3 px-3 py-2" data-testid="goal-plan-sel">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] text-fg-3">{`${w.i}. týden · od ${fmtDY(w.start)}`}{sel === cur ? " · tento týden" : ""}</span>
+          <span className="block text-[13px] font-semibold text-fg">{w.race ? "Týden závodu" : `${num(w.km, 0)} km`}{w.long ? ` · dlouhý ${num(w.long, 0)} km` : ""}{w.descentRun ? ` · ↓ ${num(w.descentRun, 0)} m` : ""}</span>
+          {(w.deload || w.taper || w.milestone) && <span className="block text-[11px] text-fg-3">{w.deload ? "odlehčovací týden" : w.taper ? `ladění, ${num((w.factor ?? 0) * 100, 0)} % vrcholu` : "mezicíl: běh na 21 km"}</span>}
+        </span>
+        <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${pc}1f`, color: pc }}>{pl}</span>
+      </div>
+      <button type="button" className="mt-1.5 text-[12px] font-semibold text-accent" onClick={() => setList((v) => !v)}>{list ? "Skrýt seznam" : "Seznam týdnů"}</button>
+      {list && <PlanList plan={plan} today={today} />}
+    </div>
+  )
+}
+
+const STEPS = ["Cíl a datum", "Jde to stihnout?", "Plán"]
 
 function GoalSetup({ rid, races, initial, onClose, onSaved }: { rid: string; races: any[]; initial: Form; onClose: () => void; onSaved: (d: any) => void }) {
   const toast = useToast()
@@ -375,7 +585,7 @@ function GoalSetup({ rid, races, initial, onClose, onSaved }: { rid: string; rac
   const footer = (
     <div className="flex items-center justify-between gap-2">
       {step > 0 ? <Button size="sm" variant="outline" icon={ChevronLeft} onClick={() => setStep(step - 1)}>Zpět</Button> : <span />}
-      {step < 2 ? <Button size="sm" disabled={!valid || busy} busy={busy} onClick={next} data-testid="goal-next">Další<ChevronRight className="size-4" aria-hidden /></Button>
+      {step < 2 ? <Button size="sm" disabled={!valid || busy || (step === 1 && blocked)} busy={busy} onClick={next} data-testid="goal-next">Další<ChevronRight className="size-4" aria-hidden /></Button>
         : <Button size="sm" disabled={busy || blocked} busy={busy} onClick={save} data-testid="goal-save">Uložit cíl</Button>}
     </div>
   )
@@ -441,19 +651,23 @@ function GoalSetup({ rid, races, initial, onClose, onSaved }: { rid: string; rac
         )}
 
         {step === 1 && res && (
-          <div className="mt-4">
-            <p className="text-[13px] leading-5 text-fg-soft">Tohle musíte do data cíle zvládnout. Čísla vycházejí ze studií rekreačních běžců (ⓘ u každého řádku), kde studie chybí, je to označený předpoklad.</p>
-            <div className="mt-2"><Requirements res={res} /></div>
+          <div className="mt-4 grid gap-4">
+            <VerdictHero res={res} />
+            <div><Gauges res={res} /><Notes res={res} /></div>
+            <Options res={res} onApply={apply} />
+            {blocked && <p className="text-[12px] leading-5 text-alert" data-testid="goal-blocked">Tento cíl v termínu nestihne ani riziková cesta, proto ho aplikace neuloží. Použijte nejlepší bezpečný cíl nebo pozdější termín.</p>}
           </div>
         )}
 
         {step === 2 && res && (
           <div className="mt-4">
-            <Verdict res={res} onApply={apply} />
-            {res.targetTime && <p className="nest mt-4 p-3.5 text-[12px] leading-5 text-fg-soft" data-testid="goal-target-time">{res.targetTime.text}</p>}
-            {blocked && <p className="mt-4 text-[12px] leading-5 text-alert" data-testid="goal-blocked">Tento cíl v termínu nestihne ani riziková cesta, proto ho aplikace neuloží. Použijte pozdější termín nebo menší cíl.</p>}
-            {res?.plan?.length > 0 && !blocked && <><p className="mt-4 t-label !text-fg-3">Plán po týdnech</p><PlanList plan={res.plan} today={res.start} /></>}
-            <p className="mt-4 text-[11px] leading-5 text-fg-3">Po uložení se týdenní cíl na Tréninku a v plánu týdne řídí tímto plánem. Rizikovou cestu můžete zvolit v detailu cíle, jen s výslovným souhlasem.</p>
+            {res.plan?.length > 0 && <><p className="t-label !text-fg-3">Plán po týdnech</p><PlanBars plan={res.plan} today={res.start} /></>}
+            <TargetTime tt={res.targetTime} />
+            {res.safe && <details className="mt-5" data-testid="goal-growth">
+              <summary className="cursor-pointer t-label !text-fg-3">Jak poroste (graf)</summary>
+              <ProjectionChart res={res} />
+            </details>}
+            <p className="mt-4 text-[11px] leading-5 text-fg-3">Po uložení se týdenní cíl na Tréninku řídí tímto plánem. Rizikovou cestu zvolíte v detailu cíle, jen s výslovným souhlasem.</p>
           </div>
         )}
       </div>
@@ -570,23 +784,20 @@ function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy }
         {res?.statusLabel && <p className="mt-3 flex items-center gap-2 text-[12px] text-fg-2">Stav plánu
           <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${scol}1f`, color: scol }} data-testid="goal-status">{res.statusLabel}</span>
           {res.path === "risk" && <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${C.alert}1f`, color: C.alert }}>riziková cesta</span>}</p>}
-        <div className="mt-3"><Verdict res={res} /></div>
-        {res?.targetTime && (
-          <div className="nest mt-4 p-3.5" data-testid="goal-target-time">
-            <p className="text-[12px] font-bold text-fg">{`Cílový čas ${res.targetTime.timeText} · tempo ${res.targetTime.paceText}`}</p>
-            <p className="mt-1 text-[12px] leading-5 text-fg-soft">{res.targetTime.text}</p>
-            {res.targetTime.basis && <p className="mt-1 text-[11px] text-fg-3">{`Odhad z běhu ${res.targetTime.basis.title || ""} (${fmtD(res.targetTime.basis.date)}, ${num(res.targetTime.basis.km)} km) Riegelovým vzorcem.`}</p>}
-          </div>
-        )}
-        {gg?.coachCheck && <p className="nest mt-4 p-3.5 text-[12px] leading-5 text-fg-soft" data-testid="goal-coach-check">{gg.coachCheck.text}</p>}
-        <RiskPanel rid={rid} goal={goal} res={res} onChange={onChange} />
+        <div className="mt-3"><VerdictHero res={res} /></div>
         {res?.plan?.length > 0 && <>
           <p className="mt-5 t-label !text-fg-3">Plán po týdnech</p>
-          <PlanList plan={res.plan} today={res.computedOn || res.start} />
+          <PlanBars plan={res.plan} today={res.computedOn || res.start} />
         </>}
-        <p className="mt-5 t-label !text-fg-3">Co cíl vyžaduje</p>
-        <div className="mt-1"><Requirements res={res} /></div>
-        <p className="mt-4 text-[11px] leading-5 text-fg-3">Týdenní cíl na Tréninku a v plánu týdne se řídí tímto plánem. Denní doporučení dál hlídá připravenost, bolest a bezpečnostní limity, takže konkrétní den může vyjít méně. Plán se přepočítá každý týden z toho, co jste opravdu odběhli.</p>
+        <div className="mt-5"><Gauges res={res} /><Notes res={res} /></div>
+        <TargetTime tt={res?.targetTime} />
+        {gg?.coachCheck && <p className="nest mt-4 p-3.5 text-[12px] leading-5 text-fg-soft" data-testid="goal-coach-check">{gg.coachCheck.text}</p>}
+        <RiskPanel rid={rid} goal={goal} res={res} onChange={onChange} />
+        {res?.safe && <details className="mt-5" data-testid="goal-growth">
+          <summary className="cursor-pointer t-label !text-fg-3">Jak poroste (graf)</summary>
+          <ProjectionChart res={res} />
+        </details>}
+        <p className="mt-4 text-[11px] leading-5 text-fg-3">Plán se přepočítá každý týden z toho, co jste opravdu odběhli. Denní doporučení dál hlídá připravenost, bolest a limity.</p>
       </div>
     </Sheet>
   )
@@ -652,7 +863,8 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
               {cnt && <span className="text-[11px] text-fg-3">a {num(cnt.need, 0)}× dlouhý běh aspoň {num(cnt.km, 0)} km</span>}
             </span>
           )}
-          <span className="mt-2 block text-[12px] leading-5 text-fg-soft">{res?.text}</span>
+          {res && <span className="mt-2 block text-[12px] font-semibold" style={{ color: VCOL[res.verdict] || C.fg3 }}>{headline(res).title}</span>}
+          {res && headline(res).sub && <span className="block text-[11px] text-fg-3">{headline(res).sub}</span>}
           {gg?.coachCheck && !gg.coachCheck.ok && <span className="mt-1 block text-[12px] text-watch">{gg.coachCheck.text}</span>}
           {gg?.riskEnded && <span className="mt-1 block text-[12px] text-watch">{`Riziková cesta skončila (${gg.riskEnded.reason}), plán pokračuje bezpečnou cestou.`}</span>}
         </button>

@@ -365,3 +365,19 @@ def test_descent_sessions_already_done_count():
     short = G.requirements(_race(5, "2027-03-01", ascentM=200, descentM=200, terrain="trail"))
     assert G._desc_min(short) <= short["descentRun"]["need"]
     assert G.project(short, {**flat, "cyclePos": 1}, G.SAFE, 1, until=30)["readyWeek"] is not None
+
+
+def test_the_answer_carries_what_the_gauges_draw():
+    """Owner feedback 2026-10-13 (pictures, not sentences): each requirement says where the safe path
+    stands at the start and the week it is met; the best goal lists its steps; a free 100 km long run
+    no longer asks for a 200 km week."""
+    st = {**_st(km=20.0, long=10.0, climb=200.0), "start": "2026-10-12", "cyclePos": 1}
+    r = G.evaluate(_race(42.2, "2027-06-27"), st)
+    week = next(q for q in r["requirements"] if q["key"] == "week")
+    assert week["atRace"] is not None and (week["metWeek"] is None or week["metWeek"] >= 1)
+    free = G.evaluate({"kind": "free", "date": "2028-05-13", "free": {"weeklyKm": 30, "longKm": 100, "climbM": 3000, "climbScope": "run"}}, st)
+    assert next(q for q in free["requirements"] if q["key"] == "week")["need"] <= G.ULTRA_WEEK["time"]
+    assert any(n["key"] == "ultra" for n in free["notes"])
+    b = next(a for a in free.get("alternatives") or [] if a["kind"] == "best")
+    need = {q["key"]: q["need"] for q in G.evaluate(b["goal"], st, alternatives=False)["requirements"]}
+    assert b["goal"]["free"]["weeklyKm"] == round(need["week"]) and b["progress"]          # the label says what it asks

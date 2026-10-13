@@ -5186,6 +5186,12 @@
   ]
  },
  {
+  "t": "Běh delší než {} km je spíš závod než trénink. Pro přípravu na ultra zvolte Závod: aplikace pak počítá s dlouhými běhy 35–45 km.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Cíl doběhnout místo cílového času: {}.",
   "files": [
    "metrics/goal_plan.py"
