@@ -356,3 +356,18 @@ def test_readiness_compare_shows_both_sleep_rules(client, db_session):
     assert j["days"] >= 7 and last["day"] == E.day_ago(0)
     assert last["old"] < last["new"]                         # one wakeful night: v0.10 cut much deeper
     assert client.get(f"/api/runners/{rid}/readiness-compare").status_code == 200
+
+
+def test_a_recovery_week_is_left_out_of_the_four_week_average():
+    """v0.12.7: 40 km weeks with one 22 km recovery week (55 %) — the 4-week average stays 40;
+    a full break (8 km, 20 %) still counts."""
+    def daily(dip):
+        out = {_day(k): 40 / 7 for k in range(7, 77)}
+        for k in range(14, 21):
+            out[_day(k)] = dip / 7
+        return out
+    how: dict = {}
+    C.weekly_capacity(daily(22.0), _day(0), _day(76), set(), "volume", how)
+    assert how["avg4"] == pytest.approx(40.0)
+    C.weekly_capacity(daily(8.0), _day(0), _day(76), set(), "volume", how)
+    assert how["avg4"] == pytest.approx((40 * 3 + 8) / 4)

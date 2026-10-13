@@ -59,6 +59,7 @@ from datetime import date, timedelta
 from . import capacity as C
 from . import data as D
 from . import engine as E
+from . import terrain
 from .race_plan import SCARF_M
 
 # distance km → (peak week finish, time), (long run finish, time)
@@ -97,6 +98,8 @@ ACWR_MAX = 1.5                  # Toresdahl 2022
 HORIZON = 104                   # weeks projected at most
 TAPER_SHORT_KM = 12.0
 RESERVE_LONG_PLAN = 16
+DAYS_HIST = C.FORMER_SPAN + 7    # days of history the engine's weekly capacity reaches back
+WEEK_PATTERN = (0.0, 0.2, 0.0, 0.2, 0.0, 0.4, 0.2)   # a simulated week's days (Mon…Sun): long run on Saturday
 HIST_WEEKS = 12                 # completed weeks of history: the former level looks 12 weeks back (capacity._former)
 
 SRC = {
@@ -261,7 +264,16 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
     today = today or E.today_date()
     mon = _monday(today)
     lo = mon - timedelta(days=7 * HIST_WEEKS)
+    d0 = mon - timedelta(days=DAYS_HIST)
     runs = E.acts(db, rid, "load")
+    # the descent in the engine's steepness-weighted units (capacity.run_exposures): each run's own
+    # profile factor, else the runner's median (plan k cíli 2.0 #2)
+    fac = {x.id: C._ecc_factor(x.elevation_profile, (x.id, len(x.elevation_profile or [])))
+           for x in runs if x.elevation_profile}
+    facs = [f for f in fac.values() if f]
+    ecc = E.median(facs) if facs else C.ECC_DEFAULT
+    days = {"km": [0.0] * DAYS_HIST, "up": [0.0] * DAYS_HIST, "down": [0.0] * DAYS_HIST}
+    first = None
     wk = [{"km": 0.0, "long": 0.0, "down": 0.0, "up": 0.0, "downRun": 0.0, "upRun": 0.0, "runs": 0}
           for _ in range(HIST_WEEKS)]
     l30, d30, u30, ever_long, ever_half = 0.0, 0.0, 0.0, 0.0, False
@@ -270,7 +282,16 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
             dd = _d(x.started_at)
         except ValueError:
             continue
-        km, down, up = x.distance_km or 0.0, x.descent_m or 0.0, x.ascent_m or 0.0
+        first = dd if first is None or dd < first else first
+        raw_down = x.descent_m
+        if raw_down is None and x.elevation_profile:
+            raw_down = terrain.descent_weighting(x.elevation_profile)[0]
+        km, down, up = x.distance_km or 0.0, (raw_down or 0.0) * (fac.get(x.id) or ecc), x.ascent_m or 0.0
+        if d0 <= dd < mon:
+            i = (dd - d0).days
+            days["km"][i] += km
+            days["up"][i] += up
+            days["down"][i] += down
         ever_long = max(ever_long, km)
         if km >= 20.5:
             ever_half = True
@@ -295,9 +316,13 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
     g = (a or {}).get("guidance") or {}
     if cycle_pos is None:
         cycle_pos = (((g.get("week") or {}).get("cycle") or {}).get("autoPos"))
+    pain = C.pain_dates(db, rid)
     return {
         "today": today.isoformat(), "start": mon.isoformat(), "weeks": wk, "cyclePos": cycle_pos,
         "long30": l30, "down30": d30, "up30": u30,
+        # the days before this Monday (oldest first) for the engine's own weekly capacity
+        "days": days, "pain": [(d0 + timedelta(days=i)).isoformat() in pain for i in range(DAYS_HIST)],
+        "known": (mon - first).days if first else 0, "eccFac": ecc,
         "marginWeek": float(m.get("runWeek") or C.MARGIN_WEEK), "marginRun": float(m.get("runSession") or C.MARGIN_SESSION),
         "experience": m.get("experience"), "everHalf": ever_half,
         "marginWhy": [t for t, on in (("první rok běhání", m.get("experience")), ("dřívější zranění", (m.get("frailty") or 1.0) > 1.0),
@@ -310,33 +335,34 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
 
 
 # ------------------------------------------------------------------ projection
-def _cap(hist: list, planned: list | None = None) -> float:
-    """capacity.weekly_capacity on calendar weeks: max(average of the last 4 weeks, 0.9 ×
-    the best of the last 6, decayed beyond its 2nd week, a spike over 1.3 × its 4 weeks
-    before left out, the former level: the best 3 weeks in a row of the last 12, decayed like
-    the per-run capacity, held to 1.3 / 1.15 × the 4-week average — capacity._former). `planned` marks the projection's own recovery weeks: a planned recovery
-    week is not a loss of capacity, so the average is taken over the last 4 loaded weeks —
-    with it in the average a narrowed weekly margin (under ~11 %) made the projection shrink
-    week after week (owner report 2026-10-12: a trail goal "not within 2 years")."""
-    planned = planned or [False] * len(hist)
-    loaded = [w for w, p in zip(hist, planned) if not p]
-    chronic = sum(loaded[-4:]) / 4 if len(loaded) >= 4 else sum(hist[-4:]) / 4
-    best = 0.0
-    n = len(hist)
-    for k in range(1, 7):
-        if n - k < 0:
-            break
-        w = hist[n - k]
-        if planned[n - k]:
-            continue
-        prior = hist[max(0, n - k - 4):n - k]
-        if len(prior) >= 2:
-            before = sum(prior) / len(prior)
-            if before > 0 and w > C.JUMP_RATIO * before:
-                continue
-        best = max(best, w * C.BREAK_DECAY ** max(0, k - 2))
-    former = min(former_level(hist), C.RETURN_ACWR / (1 + C.MARGIN_WEEK) * chronic)
-    return max(chronic, 0.9 * best, former)
+def _week_days(w: float, run: float = 0.0) -> list:
+    """A simulated week's 7 days: the long run (or the biggest climb) on Saturday, the rest spread."""
+    if run <= 0 or w <= 0:
+        return [w * f for f in WEEK_PATTERN]
+    rest = max(0.0, w - min(run, w)) / 3
+    return [0.0, rest, 0.0, rest, 0.0, min(run, w), rest]
+
+
+def _days_of(hist: list) -> list:
+    """Days for a weekly history (synthetic states, the tests): each week spread by WEEK_PATTERN."""
+    return [v for w in hist for v in _week_days(w)]
+
+
+def _engine_cap(days: list, pain: list, known: int, ch: str) -> float | None:
+    """capacity.weekly_capacity_vals on the days before a projected week (oldest first): the engine's
+    own weekly capacity, so the plan's ceiling is the one Trénink shows (plan k cíli 2.0 #1)."""
+    span = C.FORMER_SPAN
+    vals = [0.0] * 7 + days[:-span - 1:-1] if len(days) >= span else [0.0] * 7 + days[::-1]
+    pv = [False] * 7 + (pain[:-span - 1:-1] if len(pain) >= span else pain[::-1])
+    vals += [0.0] * (span + 7 - len(vals))
+    pv += [False] * (span + 7 - len(pv))
+    return C.weekly_capacity_vals(vals, pv, known, ch)
+
+
+def _cap(hist: list) -> float:
+    """The engine's weekly capacity for a weekly history (spread over days by WEEK_PATTERN)."""
+    days = _days_of(hist)
+    return _engine_cap(days, [False] * len(days), 7 * len(hist), "volume") or sum(hist[-4:]) / 4
 
 
 def former_level(hist: list) -> float:
@@ -358,14 +384,21 @@ def deload_week(n: int, st: dict) -> bool:
 
 
 def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | None, path: dict,
-             st: dict, floor_w: float = 0.0, floor_run: float = 0.0, share_from: int = 1):
-    """One channel week by week: (weekly totals, per-run maxima), each list from week 1. The
-    long run (volume, floor_run == 0) is at most LONG_SHARE of the week from `share_from` (the
-    specific phase), LONG_SHARE_BASE before it."""
+             st: dict, floor_w: float = 0.0, floor_run: float = 0.0, share_from: int = 1,
+             days: list | None = None, ch: str = "volume"):
+    """One channel week by week: (weekly totals, per-run maxima), each list from week 1. The weekly
+    ceiling is the engine's own weekly capacity (capacity.weekly_capacity_vals) on the history's
+    days and the simulated ones before each week × (1 + the weekly margin). The long run (volume,
+    floor_run == 0) is at most LONG_SHARE of the week from `share_from` (the specific phase),
+    LONG_SHARE_BASE before it."""
     mw = st["marginWeek"] * path.get("weekX", 1.0)
     mr = st["marginRun"] * path.get("runX", 1.0)
     hist = [max(v, 0.0) for v in hist_w]
-    planned = [False] * len(hist)
+    if days is None:
+        dd, pain, known = _days_of(hist), None, 7 * len(hist)
+    else:
+        dd, pain, known = list(days), list(st.get("pain") or [False] * len(days)), st.get("known") or 0
+    pain = pain if pain is not None else [False] * len(dd)
     runs = [run0] * 4
     out_w, out_r = [], []
     for n in range(1, HORIZON + 1):
@@ -376,7 +409,8 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
             w = last * path["deload"]
             r = min(runs[-1], max(w * (share if floor_run == 0.0 else 1.0), 0.0)) if need_run is not None else 0.0
         else:
-            cap = _cap(hist, planned)
+            cap = _engine_cap(dd, pain, known + 7 * (n - 1), ch)
+            cap = cap if cap is not None else sum(hist[-4:]) / 4
             ceil = max(cap * (1 + mw), floor_w)
             # the rise counts from the last 2 weeks (after a recovery week from the week before it), but
             # never from below the capacity the app already credits: after a few lighter weeks the plan
@@ -394,7 +428,8 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
                 else:
                     r = min(r, w)
         hist.append(w)
-        planned.append(deload_week(n, st))
+        dd += _week_days(w, r)
+        pain += [False] * 7
         runs.append(r)
         out_w.append(w)
         out_r.append(r)
@@ -405,7 +440,7 @@ def avg_rise(st: dict, path: dict = SAFE) -> float:
     """The weekly volume's average growth on this path, recovery weeks included: the peak of the
     6th 4-week cycle over the peak of the 1st, per week (the chart says why the plan takes the
     weeks it does — owner feedback 2026-10-12 read them as days). 15 % margin ≈ 4.4 % a week."""
-    w, _ = _channel([1.0] * HIST_WEEKS, 0.3, None, None, path, {**st, "cyclePos": 1})
+    w, _ = _channel([40.0] * HIST_WEEKS, 12.0, None, None, path, {**st, "cyclePos": 1})   # above every floor
     return (max(w[20:24]) / max(w[0:4])) ** (1 / 20) - 1
 
 
@@ -415,8 +450,9 @@ def project(req: dict, st: dict, path: dict, share_from: int = 1, until: int = 0
     wk = st["weeks"]
     need_w = (req.get("week") or {}).get("need")
     need_l = (req.get("long") or {}).get("need")
+    sd = st.get("days") or {}
     km_w, long_r = _channel([w["km"] for w in wk], st["long30"],
-                            need_w, need_l if need_l else 0.0, path, st, share_from=share_from)
+                            need_w, need_l if need_l else 0.0, path, st, share_from=share_from, days=sd.get("km"), ch="volume")
     rows = [{"km": km_w[i], "long": long_r[i], "deload": deload_week(i + 1, st)} for i in range(HORIZON)]
     for ch, key in (("descent", "down"), ("ascent", "up")):
         nw = (req.get(ch + "Week") or {}).get("need")
@@ -424,11 +460,13 @@ def project(req: dict, st: dict, path: dict, share_from: int = 1, until: int = 0
         if nw is None and nr is None:
             continue
         spec = C.CHANNELS[ch]
-        vw, vr = _channel([w[key] for w in wk], st[key + "30"],
-                          nw, nr if nr is not None else (nw or 0) * TRAIL_RUN_CLIMB, path, st,
-                          floor_w=spec["floor_w"], floor_run=spec["floor_s"])
+        rf = st.get("descFac", 1.0) if ch == "descent" else 1.0        # the race's metres → the engine's weighted metres
+        nw2 = nw * rf if nw is not None else None
+        nr2 = (nr if nr is not None else (nw or 0) * TRAIL_RUN_CLIMB) * rf
+        vw, vr = _channel([w[key] for w in wk], st[key + "30"], nw2, nr2, path, st,
+                          floor_w=spec["floor_w"], floor_run=spec["floor_s"], days=sd.get(key), ch=ch)
         for i, row in enumerate(rows):
-            row[ch], row[ch + "Run"] = vw[i], vr[i]
+            row[ch], row[ch + "Run"] = vw[i] / rf, vr[i] / rf
     count_thr = (req.get("longCount") or {}).get("km")
     desc_min = _desc_min(req)
     n_long, n_desc = 0, desc_done(req, st)
@@ -562,7 +600,7 @@ def desc_done(req: dict, st: dict) -> int:
     2001); before, the count started at zero every time (owner report 2026-10-13)."""
     if not req.get("descSessions"):
         return 0
-    m = _desc_min(req)
+    m = _desc_min(req) * st.get("descFac", 1.0)          # the weeks' runs are in the engine's weighted metres
     return min(DESC_SESSIONS, sum(1 for w in st["weeks"][-HIST_WEEKS:] if (w.get("downRun") or 0) >= m - 0.5))
 
 
@@ -574,10 +612,13 @@ def _now(k: str, st: dict, req: dict | None = None) -> float | None:
         return max(w["km"] for w in wk[-4:])
     if k == "long":
         return st["long30"]
-    if k in ("ascentWeek", "descentWeek"):
-        return max(w["up" if k.startswith("a") else "down"] for w in wk[-4:])
+    rf = st.get("descFac", 1.0)
+    if k == "ascentWeek":
+        return max(w["up"] for w in wk[-4:])
+    if k == "descentWeek":
+        return max(w["down"] for w in wk[-4:]) / rf
     if k in ("ascentRun", "descentRun"):
-        return st["up30" if k.startswith("a") else "down30"]
+        return st["up30"] if k.startswith("a") else st["down30"] / rf
     return 0
 
 
@@ -595,8 +636,22 @@ def _fit(ready, taper, weeks) -> str:
     return "tight" if ready + taper <= weeks else "no"
 
 
+def descent_factor(goal: dict, st: dict) -> float:
+    """The goal's descent in the engine's steepness-weighted units per metre (1 + 3.2 × grade, as
+    terrain.descent_weighting): a race's grade from its descent over half its distance, a free goal
+    at the runner's own training steepness; 1 for a state without the engine's units (plan k cíli 2.0 #2)."""
+    if not st.get("eccFac"):
+        return 1.0
+    km = goal.get("km") or 0
+    down = goal.get("descentM") if goal.get("descentM") is not None else goal.get("ascentM")
+    if goal.get("kind") == "free" or not km or not down:
+        return st["eccFac"]
+    return 1.0 + terrain._ECC_PER_GRADE * min(down / (km * 500.0), 0.45)
+
+
 def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     """The whole feasibility answer for one goal."""
+    st = {**st, "descFac": descent_factor(goal, st)}
     start = _d(st["start"])
     gdate = _d(goal["date"])
     weeks = _weeks_to(gdate, start)
@@ -622,8 +677,9 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
                    text="Na projekci potřebuji aspoň 3 z posledních 6 týdnů s běháním z hodinek. Zatím aplikace neví, z čeho by kapacita rostla.")
         return out
     # the last 4 completed weeks in the projection's channels (the chart's history)
-    out["history"] = [{"km": _r(w["km"]), "long": _r(w["long"]), "ascent": _r(w["up"]), "descent": _r(w["down"]),
-                       "ascentRun": _r(w["upRun"]), "descentRun": _r(w["downRun"])} for w in st["weeks"][-4:]]
+    rf = st["descFac"]
+    out["history"] = [{"km": _r(w["km"]), "long": _r(w["long"]), "ascent": _r(w["up"]), "descent": _r(w["down"] / rf),
+                       "ascentRun": _r(w["upRun"]), "descentRun": _r(w["downRun"] / rf)} for w in st["weeks"][-4:]]
     safe = phased(req, st, SAFE, weeks, taper)
     risk = phased(req, st, RISK, weeks, taper)
     v = _fit(safe["readyWeek"], taper, weeks)

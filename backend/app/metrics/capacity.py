@@ -701,22 +701,33 @@ def _former(weeks_at, painful: list, chronic: float) -> float:
     return min(best, RETURN_ACWR / (1 + MARGIN_WEEK) * chronic)
 
 
-def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch, detail: dict | None = None):
-    """max(average week of the 4 weeks before the current 7-day window,
-    0.9 × best pain-free 7-day window of the 6 weeks before it, decayed by BREAK_DECAY
-    per week beyond its 2nd week, so after a break an old peak can't carry the capacity,
-    the former level (_former: the best 3 weeks in a row of 12, the way back ≤ 1.3 × the
-    4-week average)). A window more than JUMP_RATIO × the average week before it is a spike,
-    not demonstrated tolerance, and is left out (plan B1). `detail` (a dict) receives the
-    candidates and which one won — the Zátěž tab shows how the capacity came about."""
-    ref = _d(ref_day)
-    known = (ref - _d(first_day)).days          # days of history before today
+# v0.12.7 (owner decision 2026-10-13, plan k cíli 2.0 #1) — a reduced week, 40–70 % of the other
+# three weeks of the 4-week average, is a recovery week and is left out of that average: it is not a
+# loss of capacity (the goal plan's own rule since 2026-10-12, now one rule for the engine and the
+# plan). With it in, a narrowed margin (under ~11 %) could not even return to the level before the
+# recovery week. A full break (under 40 %) still counts. Working assumption.
+RECOVERY_BAND = (0.4, 0.7)
+
+
+def _chronic(windows: list, known: int) -> float:
+    """The 4-week average from its four 7-day windows, the one recovery week left out (only with a
+    full 5 weeks of history, so a window before the first day can't pass for one)."""
+    if known >= 35:
+        i = min(range(len(windows)), key=lambda j: windows[j])
+        rest = [w for j, w in enumerate(windows) if j != i]
+        m = sum(rest) / len(rest)
+        if m > 0 and RECOVERY_BAND[0] * m <= windows[i] <= RECOVERY_BAND[1] * m:
+            return m
+    return sum(windows) / len(windows)
+
+
+def weekly_capacity_vals(vals: list, painful: list, known: int, ch, detail: dict | None = None):
+    """weekly_capacity() on day arrays — vals[k] / painful[k] = the load / pain k days before the
+    reference day (at least FORMER_SPAN of them), known = days of history before it. The goal
+    plan runs this same function on its simulated days (plan k cíli 2.0 #1)."""
     if known < 27:
         return None
-    iso = [(ref - timedelta(days=k)).isoformat() for k in range(max(77, FORMER_SPAN))]   # iso[k] = k days ago
-    vals = [daily.get(d, 0.0) for d in iso]
-    painful = [d in pain for d in iso]
-    chronic = sum(vals[7:35]) / 4
+    chronic = _chronic([sum(vals[b:b + 7]) for b in (7, 14, 21, 28)], known)
     best = 0.0
     for back in range(7, 42):                 # window = days back … back+6
         if any(painful[back:back + 7]):
@@ -738,6 +749,22 @@ def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch, de
                        "basis": "avg4" if out == chronic else "best" if out == 0.9 * best
                        else "floor" if out == CHANNELS[ch]["floor_w"] else "former"})
     return out
+
+
+def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch, detail: dict | None = None):
+    """max(average week of the 4 weeks before the current 7-day window (a recovery week left out),
+    0.9 × best pain-free 7-day window of the 6 weeks before it, decayed by BREAK_DECAY
+    per week beyond its 2nd week, so after a break an old peak can't carry the capacity,
+    the former level (_former: the best 3 weeks in a row of 12, the way back ≤ 1.3 × the
+    4-week average)). A window more than JUMP_RATIO × the average week before it is a spike,
+    not demonstrated tolerance, and is left out (plan B1). `detail` (a dict) receives the
+    candidates and which one won — the Zátěž tab shows how the capacity came about."""
+    ref = _d(ref_day)
+    known = (ref - _d(first_day)).days          # days of history before today
+    if known < 27:
+        return None
+    iso = [(ref - timedelta(days=k)).isoformat() for k in range(max(77, FORMER_SPAN))]   # iso[k] = k days ago
+    return weekly_capacity_vals([daily.get(d, 0.0) for d in iso], [d in pain for d in iso], known, ch, detail)
 
 
 # v0.10.1 — the weekly score compares the unabsorbed load (residual_week, an EWMA in
@@ -778,7 +805,7 @@ def weekly_capacity_residual(daily: dict, ref_day: str, first_day: str, pain: se
 
     def peak(back):
         return max(res[back:back + 7])
-    chronic = sum(peak(b) for b in (7, 14, 21, 28)) / 4
+    chronic = _chronic([peak(b) for b in (7, 14, 21, 28)], known)
     best = 0.0
     for back in range(7, 42):
         if any(painful[back:back + 7]):

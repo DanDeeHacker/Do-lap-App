@@ -307,7 +307,9 @@ def test_per_run_capacity_remembers_90_days_like_the_engine(client, db_session):
                                        title="Běh", distance_km=km, duration_min=km * 6, ascent_m=desc, descent_m=desc))
     db_session.commit()
     st = G.runner_state(db_session, rid, {})
-    assert abs(st["long30"] - 24.0 * 0.5) < 0.05 and abs(st["down30"] - 900.0 * 0.5) < 0.5
+    from app.metrics import capacity as C
+    # the descent in the engine's weighted metres (no profile → the default steepness factor)
+    assert abs(st["long30"] - 24.0 * 0.5) < 0.05 and abs(st["down30"] - 900.0 * C.ECC_DEFAULT * 0.5) < 0.5
 
 
 def test_the_plan_remembers_the_former_level_like_the_engine():
@@ -381,3 +383,36 @@ def test_the_answer_carries_what_the_gauges_draw():
     b = next(a for a in free.get("alternatives") or [] if a["kind"] == "best")
     need = {q["key"]: q["need"] for q in G.evaluate(b["goal"], st, alternatives=False)["requirements"]}
     assert b["goal"]["free"]["weeklyKm"] == round(need["week"]) and b["progress"]          # the label says what it asks
+
+
+def test_the_plan_and_the_engine_agree_on_the_weekly_ceiling(client, db_session):
+    """Plan k cíli 2.0 #1: the plan's ceiling for this week is the engine's own weekly capacity ×
+    (1 + margin) — the projection runs capacity.weekly_capacity_vals on the same days. 20 runners
+    of different volumes and gaps; at most 3 % apart."""
+    import random
+    from app import models
+    from app.metrics import capacity as C
+    from .conftest import register
+    rng = random.Random(7)
+    today = E.today_date()
+    mon = today - timedelta(days=today.weekday())
+    for k in range(20):
+        rid = register(client, f"agree{k}@test.cz", "Agree Runner", "runner").json()["runner_id"]
+        base = rng.uniform(15, 70)
+        for d in range(1, 120):
+            day = mon - timedelta(days=d)
+            if rng.random() < 0.55 and not (k % 4 == 0 and 30 < d < 45):          # some runners had a break
+                km = base / 4 * rng.uniform(0.6, 1.5)
+                db_session.add(models.Activity(runner_id=rid, provider="garmin", external_id=f"ag{k}-{d}", sport="running",
+                                               started_at=day.isoformat() + "T07:00:00", title="Běh", distance_km=km,
+                                               duration_min=km * 6, ascent_m=km * 10, descent_m=km * 10))
+        db_session.commit()
+        st = G.runner_state(db_session, rid, {})
+        pain = C.pain_dates(db_session, rid)
+        daily = {}
+        for a in E.acts(db_session, rid, "load"):
+            daily[a.started_at[:10]] = daily.get(a.started_at[:10], 0.0) + a.distance_km
+        first = min(daily)
+        engine = C.weekly_capacity(daily, (mon + timedelta(days=6)).isoformat(), first, pain, "volume")
+        plan = G._engine_cap(st["days"]["km"], st["pain"], st["known"], "volume")
+        assert abs(plan - engine) <= 0.03 * engine, (k, plan, engine)
