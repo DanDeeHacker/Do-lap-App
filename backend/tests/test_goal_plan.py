@@ -279,3 +279,32 @@ def test_a_narrow_margin_grows_slower_but_never_shrinks():
                                                              "marginWhy": ["dřívější zranění"]})
     assert any(n["key"] == "margin" and "6 % místo 15 %" in n["text"] and "dřívější zranění" in n["text"] for n in r["notes"])
     assert "do 2 let" not in r["text"]
+
+
+def test_after_lighter_weeks_the_plan_climbs_back_as_fast_as_the_app_allows():
+    """Owner report 2026-10-13: 50 km weeks in September, then lighter ones — the plan started at
+    19 km, less than Trénink gives without a goal. The rise counts from the capacity the app
+    credits, not only from the last 2 weeks."""
+    km = [50.0, 52.0, 45.0, 28.0, 20.0, 17.0]
+    st = {**_st(), "weeks": [{**w, "km": k, "down": 0.0, "up": 0.0} for w, k in zip(_st()["weeks"], km)],
+          "marginWeek": 0.12, "cyclePos": 1}
+    p = G.project(G.requirements(_race(42.2, "2027-05-01")), st, G.SAFE, 1, until=30)
+    ceil = G._cap(km) * 1.12
+    assert abs(p["rows"][0]["km"] - min(ceil, 1.5 * sum(km[-4:]) / 4)) < 0.11          # the app's own weekly ceiling
+    assert p["rows"][0]["km"] > max(km[-2:]) * 1.15 + 5                                 # not 15 % over the light weeks
+
+
+def test_per_run_capacity_remembers_90_days_like_the_engine(client, db_session):
+    """A long, steep run 60 days before Monday still counts half (30-day half-life after 30 days),
+    as in capacity.session_capacity — before, the plan only knew the last 30 days."""
+    from app import models
+    from .conftest import register
+    rid = register(client, "goalmem@test.cz", "Mem Runner", "runner").json()["runner_id"]
+    mon = E.today_date() - timedelta(days=E.today_date().weekday())
+    for i, (ago, km, desc) in enumerate([(60, 24.0, 900.0), (10, 8.0, 100.0), (8, 8.0, 100.0), (5, 8.0, 100.0)]):
+        db_session.add(models.Activity(runner_id=rid, provider="garmin", external_id=f"mem-{i}", sport="running",
+                                       started_at=(mon - timedelta(days=ago)).isoformat() + "T07:00:00",
+                                       title="Běh", distance_km=km, duration_min=km * 6, ascent_m=desc, descent_m=desc))
+    db_session.commit()
+    st = G.runner_state(db_session, rid, {})
+    assert abs(st["long30"] - 24.0 * 0.5) < 0.05 and abs(st["down30"] - 900.0 * 0.5) < 0.5

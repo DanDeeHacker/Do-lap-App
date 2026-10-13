@@ -39,8 +39,10 @@ Projection (one row per calendar week from next Monday):
   safe — the week's volume up to the weekly ceiling (capacity × (1 + the runner's weekly
          margin, 15 % narrowed for the first year, injuries, new shoes)), the capacity
          recomputed every projected week by capacity.weekly_capacity's rule (max of the
-         4-week average and 0.9 × the best of the 6 weeks before, decayed after a break);
-         the long run ≤ the longest of 30 days + the per-run margin (10 %) and ≤ 50 % of the
+         4-week average and 0.9 × the best of the 6 weeks before, decayed after a break),
+         the week's rise counted from the last 2 weeks but never from below that capacity;
+         the long run ≤ the per-run capacity (the engine's: the longest run of 30 days, older
+         ones up to 90 days at a 30-day half-life) + the per-run margin (10 %) and ≤ 50 % of the
          week; every 4th week a recovery week (55 % of the week before, the app's cycle);
   risk — margin 25 %, weekly rise ≤ 20 % (Damsted 2019: 20–60 % → +22.6 percentage points of
          injuries at 21 days), the long run +15 % (Frandsen 2025: HRR 1.64 at +10–30 %),
@@ -248,8 +250,9 @@ def _monday(d: date) -> date:
 
 def runner_state(db, rid: str, a: dict | None = None, today: date | None = None, cycle_pos: int | None = None) -> dict:
     """Weekly history (6 completed calendar weeks before this Monday, oldest first) of km, the
-    longest run, the descent and ascent sums and per-run maxima, the longest run of the 30 days
-    before this Monday (so the plan stays the same all week), the margins the capacity model
+    longest run, the descent and ascent sums and per-run maxima, the per-run capacities before
+    this Monday as the engine reckons them (long30/down30/up30: the largest run of 30 days, older
+    ones up to 90 days at a 30-day half-life; Monday, so the plan stays the same all week), the margins the capacity model
     uses for this runner, the place of this week in the 4-week cycle, the race experience and
     today's limits. Week 1 of the projection is this calendar week."""
     today = today or E.today_date()
@@ -268,8 +271,10 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
         ever_long = max(ever_long, km)
         if km >= 20.5:
             ever_half = True
-        if 0 < (mon - dd).days <= 30:
-            l30, d30, u30 = max(l30, km), max(d30, down), max(u30, up)
+        age = (mon - dd).days
+        if 0 < age <= C.CAP_MAX_AGE:      # the engine's per-run capacity: 30 days in full, then a 30-day half-life up to 90 days
+            f = C._decay(age)
+            l30, d30, u30 = max(l30, km * f), max(d30, down * f), max(u30, up * f)
         if lo <= dd < mon:
             w = wk[(dd - lo).days // 7]
             w["km"] += km
@@ -355,8 +360,13 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
             w = last * path["deload"]
             r = min(runs[-1], max(w * (share if floor_run == 0.0 else 1.0), 0.0)) if need_run is not None else 0.0
         else:
-            ceil = max(_cap(hist, planned) * (1 + mw), floor_w)
-            ref = max(max(hist[-2:]), floor_w)        # after a recovery week the rise counts from the week before it
+            cap = _cap(hist, planned)
+            ceil = max(cap * (1 + mw), floor_w)
+            # the rise counts from the last 2 weeks (after a recovery week from the week before it), but
+            # never from below the capacity the app already credits: after a few lighter weeks the plan
+            # may climb back as fast as the app's own weekly ceiling allows (owner report 2026-10-13:
+            # 50 km weeks in September, the plan started at 19 km — less than Trénink without a goal)
+            ref = max(max(hist[-2:]), floor_w, cap)
             w = min(ceil, ref * (1 + path["rise"]), max(avg4 * ACWR_MAX, floor_w))
             if need_w is not None:
                 w = min(w, max(need_w, last))
@@ -389,7 +399,7 @@ def project(req: dict, st: dict, path: dict, share_from: int = 1, until: int = 0
     wk = st["weeks"]
     need_w = (req.get("week") or {}).get("need")
     need_l = (req.get("long") or {}).get("need")
-    km_w, long_r = _channel([w["km"] for w in wk], max(st["long30"], max(w["long"] for w in wk)),
+    km_w, long_r = _channel([w["km"] for w in wk], st["long30"],
                             need_w, need_l if need_l else 0.0, path, st, share_from=share_from)
     rows = [{"km": km_w[i], "long": long_r[i], "deload": deload_week(i + 1, st)} for i in range(HORIZON)]
     for ch, key in (("descent", "down"), ("ascent", "up")):
@@ -398,7 +408,7 @@ def project(req: dict, st: dict, path: dict, share_from: int = 1, until: int = 0
         if nw is None and nr is None:
             continue
         spec = C.CHANNELS[ch]
-        vw, vr = _channel([w[key] for w in wk], max(st[key + "30"], max(w[key + "Run"] for w in wk)),
+        vw, vr = _channel([w[key] for w in wk], st[key + "30"],
                           nw, nr if nr is not None else (nw or 0) * TRAIL_RUN_CLIMB, path, st,
                           floor_w=spec["floor_w"], floor_run=spec["floor_s"])
         for i, row in enumerate(rows):
