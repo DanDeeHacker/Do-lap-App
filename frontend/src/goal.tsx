@@ -759,7 +759,7 @@ function PlanList({ plan, today }: { plan: any[]; today: string }) {
               <span className="min-w-0 flex-1">
                 <span className="block text-fg">{w.race ? "Týden závodu" : `${num(w.km, 0)} km`}{w.long ? ` · dlouhý ${num(w.long, 0)} km` : ""}{w.descentRun ? ` · ↓ ${num(w.descentRun, 0)} m` : ""}</span>
                 <span className="block text-[11px] text-fg-3"><span className="tabular-nums">{fmtDY(w.start)}</span>
-                  {weekTags(w).map((t) => ` · ${t}`).join("")}{on ? " · tento týden" : ""}</span>
+                  {weekTags(w).length > 0 && <> · <span>{weekTags(w).join(" · ")}</span></>}{on && <> · <span>tento týden</span></>}</span>
               </span>
               <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${pc}1f`, color: pc }}>{pl}</span>
             </li>
@@ -838,7 +838,7 @@ function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy }
           <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-white/[.06]"><Target className="size-5 text-accent" aria-hidden /></span>
           <div className="min-w-0">
             <h2 className="font-serif text-[24px] leading-tight text-fg">{goalTitle(goal)}</h2>
-            <p className="text-[12px] text-fg-3">{`${fmtDY(goal.date)} · za ${weeksCz(res?.weeksToGoal)}`}{goal.km ? ` · ${num(goal.km)} km` : ""}{goal.ascentM ? ` · ↑ ${num(goal.ascentM, 0)} m` : ""}{goal.kind === "race" ? ` · ${goal.aim === "time" ? "cílový čas" : "doběhnout"}` : ""}</p>
+            <p className="text-[12px] text-fg-3">{`${fmtDY(goal.date)} · za ${weeksCz(res?.weeksToGoal)}`}{goal.km ? ` · ${num(goal.km)} km` : ""}{goal.ascentM ? ` · ↑ ${num(goal.ascentM, 0)} m` : ""}{goal.kind === "race" ? <> · <span>{goal.aim === "time" ? "cílový čas" : "doběhnout"}</span></> : ""}</p>
           </div>
         </div>
         {res?.statusLabel && <p className="mt-3 flex items-center gap-2 text-[12px] text-fg-2">Stav plánu
