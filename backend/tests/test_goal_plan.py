@@ -308,3 +308,60 @@ def test_per_run_capacity_remembers_90_days_like_the_engine(client, db_session):
     db_session.commit()
     st = G.runner_state(db_session, rid, {})
     assert abs(st["long30"] - 24.0 * 0.5) < 0.05 and abs(st["down30"] - 900.0 * 0.5) < 0.5
+
+
+def test_the_plan_remembers_the_former_level_like_the_engine():
+    """v0.12.6 (owner decision 2026-10-13): 50 km weeks until 7 weeks ago, 20 km since — the
+    projection gets the engine's former level (≤ 1.3 / 1.15 × the 4-week average), so the way
+    back grows ~10 % a week instead of the usual few per cent."""
+    from app.metrics import capacity as C
+    km = [50.0] * 6 + [20.0] * 6
+    assert G._cap(km) == C.RETURN_ACWR / (1 + C.MARGIN_WEEK) * 20
+    assert G._cap([20.0] * 12) == 20.0
+    w = [{"km": k, "long": 10.0, "down": 0.0, "up": 0.0, "downRun": 0.0, "upRun": 0.0, "runs": 4} for k in km]
+    back = {**_st(), "weeks": w, "cyclePos": 1}
+    flat = {**_st(), "weeks": [{**x, "km": 20.0} for x in w], "cyclePos": 1}
+    req = G.requirements(_race(42.2, "2027-05-01"))
+    pb, pf = G.project(req, back, G.SAFE, 1, until=12), G.project(req, flat, G.SAFE, 1, until=12)
+    assert pb["rows"][2]["km"] > pf["rows"][2]["km"] * 1.1                     # faster back to the former level
+    assert all(r["km"] <= 1.3 * 1.15 * 50 for r in pb["rows"])
+
+
+def test_a_goal_not_safe_by_its_date_gets_the_best_safe_goal():
+    """Owner request 2026-10-13: when the goal isn't safe by its date, the app offers the largest one
+    of the same kind that is (safe path, taper and reserve), at the edge and still a step up."""
+    st = {**_st(km=20.0, long=10.0, climb=200.0), "start": "2026-10-12", "cyclePos": 1}
+    for goal in (_race(101, "2027-08-28", ascentM=5500, descentM=5500, terrain="trail"), _race(42.2, "2026-12-20"),
+                 {"kind": "free", "date": "2027-01-31", "free": {"weeklyKm": 60, "longKm": 30, "climbM": 1500, "climbScope": "week"}}):
+        r = G.evaluate(goal, st)
+        assert r["verdict"] != "ok"
+        b = r["alternatives"][0]
+        assert b["kind"] == "best" and b["verdict"] == "ok" and "posune vás" in b["text"], goal
+        g = b["goal"]
+        assert G.evaluate(g, st, alternatives=False)["verdict"] == "ok"
+        if goal.get("kind") != "free":                                   # the next size up is not safe any more
+            steps = G.TRAIL_STEPS if G.is_trail(goal) else G.ROAD_STEPS
+            bigger = [d for d in steps if g["km"] + 0.5 < d < goal["km"] - 0.5]
+            if bigger:
+                k = bigger[0]
+                g2 = dict(g, km=float(k), **({"ascentM": round(5500 * k / 101 / 50) * 50, "descentM": round(5500 * k / 101 / 50) * 50}
+                                             if G.is_trail(goal) else {}))
+                assert G.evaluate(g2, st, alternatives=False)["verdict"] != "ok"
+        else:
+            assert g["free"]["weeklyKm"] > 20                               # a step up from today's 20 km
+    trail = G.evaluate(_race(101, "2027-08-28", ascentM=5500, descentM=5500, terrain="trail"), st)["alternatives"][0]["goal"]
+    assert abs(trail["ascentM"] / trail["km"] - 5500 / 101) < 3             # the same climb per km
+    assert G.evaluate(_race(10, "2027-08-28"), st).get("alternatives") is None   # a safe goal needs none
+
+
+def test_descent_sessions_already_done_count():
+    """Owner report 2026-10-13: hilly weeks of the last 12 count towards the 10 descent sessions
+    (the repeated bout effect lasts ≥ 6 months, Nosaka 2001); a short trail's sessions can count."""
+    req = G.requirements(_race(33.3, "2027-03-01", ascentM=1300, descentM=1300))
+    st = _st(km=40.0, long=18.0, climb=900.0)                         # downRun 450 m every week
+    assert G.desc_done(req, st) == 10
+    flat = _st(km=40.0, long=18.0, climb=100.0)
+    assert G.desc_done(req, flat) == 0
+    short = G.requirements(_race(5, "2027-03-01", ascentM=200, descentM=200, terrain="trail"))
+    assert G._desc_min(short) <= short["descentRun"]["need"]
+    assert G.project(short, {**flat, "cyclePos": 1}, G.SAFE, 1, until=30)["readyWeek"] is not None

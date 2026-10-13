@@ -675,18 +675,45 @@ def _daily_sums(sessions, ch):
     return out
 
 
+# v0.12.6 (owner decision 2026-10-13) — the weekly capacity remembers the former level: the best
+# FORMER_BLOCK weeks in a row (pain-free) of the FORMER_WEEKS weeks before the current window, kept
+# like the per-run capacity (in full for 30 days after the block, then a 30-day half-life, _decay).
+# Fitness lasts (Coyle et al., 1984: VO2max −7 % in 3 weeks, stable 16 % lower after 8, capillaries
+# kept), but a spike against the last 4 weeks after the load ebbed still predicts injury (Blanch et
+# al., 2015; Bache-Mathiesen et al., 2023: low chronic load the riskiest), so the way back is held
+# to RETURN_ACWR × the 4-week average with the weekly margin on top (0.8–1.3 the lowest-risk band,
+# Maupin et al., 2020). Before, an old peak was gone after 6 weeks and fell 15 % a week from the 3rd.
+FORMER_WEEKS, FORMER_BLOCK = 12, 3
+RETURN_ACWR = 1.3
+FORMER_SPAN = 7 + 7 * FORMER_WEEKS            # days back the blocks reach
+
+
+def _former(weeks_at, painful: list, chronic: float) -> float:
+    """The former-level term: max over the blocks (FORMER_BLOCK windows of 7 days ending `back`
+    days ago, back ≥ 7) of their mean × _decay(back), held to RETURN_ACWR / (1 + MARGIN_WEEK) ×
+    the 4-week average, so the ceiling it gives stays ≤ RETURN_ACWR × that average.
+    `weeks_at(back)` = the 7-day value of the window starting `back` days ago."""
+    best = 0.0
+    for back in range(7, FORMER_SPAN - 7 * FORMER_BLOCK + 1):
+        if any(painful[back:back + 7 * FORMER_BLOCK]):
+            continue
+        best = max(best, sum(weeks_at(back + 7 * i) for i in range(FORMER_BLOCK)) / FORMER_BLOCK * _decay(back))
+    return min(best, RETURN_ACWR / (1 + MARGIN_WEEK) * chronic)
+
+
 def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch, detail: dict | None = None):
     """max(average week of the 4 weeks before the current 7-day window,
     0.9 × best pain-free 7-day window of the 6 weeks before it, decayed by BREAK_DECAY
-    per week beyond its 2nd week, so after a break an old peak can't carry the capacity). A window more
-    than JUMP_RATIO × the average week before it is a spike, not demonstrated
-    tolerance, and is left out (plan B1). `detail` (a dict) receives the three
+    per week beyond its 2nd week, so after a break an old peak can't carry the capacity,
+    the former level (_former: the best 3 weeks in a row of 12, the way back ≤ 1.3 × the
+    4-week average)). A window more than JUMP_RATIO × the average week before it is a spike,
+    not demonstrated tolerance, and is left out (plan B1). `detail` (a dict) receives the
     candidates and which one won — the Zátěž tab shows how the capacity came about."""
     ref = _d(ref_day)
     known = (ref - _d(first_day)).days          # days of history before today
     if known < 27:
         return None
-    iso = [(ref - timedelta(days=k)).isoformat() for k in range(77)]   # iso[k] = k days ago
+    iso = [(ref - timedelta(days=k)).isoformat() for k in range(max(77, FORMER_SPAN))]   # iso[k] = k days ago
     vals = [daily.get(d, 0.0) for d in iso]
     painful = [d in pain for d in iso]
     chronic = sum(vals[7:35]) / 4
@@ -701,10 +728,15 @@ def weekly_capacity(daily: dict, ref_day: str, first_day: str, pain: set, ch, de
             if before > 0 and w > JUMP_RATIO * before:
                 continue
         best = max(best, w * BREAK_DECAY ** max(0.0, (back - 14) / 7))
-    out = max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"])
+    pre = [0.0]
+    for v in vals:
+        pre.append(pre[-1] + v)
+    former = _former(lambda b: pre[b + 7] - pre[b], painful, chronic)
+    out = max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"], former)
     if detail is not None:
-        detail.update({"avg4": chronic, "best": 0.9 * best, "floor": CHANNELS[ch]["floor_w"],
-                       "basis": "avg4" if out == chronic else "best" if out == 0.9 * best else "floor"})
+        detail.update({"avg4": chronic, "best": 0.9 * best, "floor": CHANNELS[ch]["floor_w"], "former": former,
+                       "basis": "avg4" if out == chronic else "best" if out == 0.9 * best
+                       else "floor" if out == CHANNELS[ch]["floor_w"] else "former"})
     return out
 
 
@@ -731,12 +763,13 @@ def _residual_series(daily: dict, days_oldest_first: list, k: float) -> list:
 def weekly_capacity_residual(daily: dict, ref_day: str, first_day: str, pain: set, ch):
     """weekly_capacity() in residual_week() units: the mean weekly peak of the residual
     over the 4 weeks before the current 7-day window, or 0.9 × the best pain-free
-    window's peak of the 6 weeks before it (decayed, spikes left out by the same rule)."""
+    window's peak of the 6 weeks before it (decayed, spikes left out by the same rule), or the
+    former level of the windows' peaks (_former)."""
     ref = _d(ref_day)
     known = (ref - _d(first_day)).days
     if known < 27:
         return None
-    n = 77
+    n = max(77, FORMER_SPAN)
     iso = [(ref - timedelta(days=k)).isoformat() for k in range(n + RES_WARMUP)]   # iso[k] = k days ago
     k_ref = _k(HALF_CARDIO_REF if ch in CARDIO else HALF_MSK)
     res = _residual_series(daily, iso[::-1], k_ref)[::-1]                          # res[k] = k days ago
@@ -757,7 +790,7 @@ def weekly_capacity_residual(daily: dict, ref_day: str, first_day: str, pain: se
             if before > 0 and w > JUMP_RATIO * before:
                 continue
         best = max(best, peak(back) * BREAK_DECAY ** max(0.0, (back - 14) / 7))
-    return max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"])
+    return max(chronic, 0.9 * best, CHANNELS[ch]["floor_w"], _former(peak, painful, chronic))
 
 
 READY_BASE = (8, 56)    # baseline nights: 8–56 days back (a strained stretch doesn't become its own norm)
@@ -1914,6 +1947,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
             # how the ceiling comes about (the Zátěž tab's inputs) and what tomorrow's
             # week readiness drops (the outlook: the 7-day mean loses today − 6)
             week["inputs"] = {"avg4": _fmt(cap_how.get("avg4"), ch), "best": _fmt(cap_how.get("best"), ch),
+                              "former": _fmt(cap_how.get("former"), ch),
                               "floor": _fmt(cap_how.get("floor"), ch), "basis": cap_how.get("basis"),
                               "rtr": _fmt(rtr_cap, ch) if (rtr_cap is not None and rtr_cap < cap_base) else None,
                               "ready": round(wk_ready_c, 3), "body": round(wk_bfac, 3), "margin": round(mw_c * wk_hold, 3),

@@ -1,5 +1,5 @@
 {
- "source": "Doslap_Literature_Summary.docx (project doc), 75 sources, 2026-10-12 (goal-planner sources added from Consensus searches and the owner's summaries)",
+ "source": "Doslap_Literature_Summary.docx (project doc), 79 sources, 2026-10-13 (goal-planner sources added from Consensus searches and the owner's summaries; v0.12.6 former level and descent sessions)",
  "categories": {
   "A": "Load progression and running injury",
   "B": "Load monitoring concepts and ACWR",
@@ -1742,6 +1742,93 @@
    "relevance": "The goal planner's ultra long run (35 km to finish, 45 km for a time) stays below the ~60 km the study links to maximal performance; finishing needs less.",
    "limits": "Men only, a flat 24-hour run, cross-sectional.",
    "strength": "low"
+  },
+  {
+   "id": "nosaka-et-al-2001",
+   "cite": "Nosaka et al. (2001)",
+   "category": "E",
+   "apa": "Nosaka, K., Sakamoto, K., Newton, M., & Sacco, P. (2001). How long does the protective effect on eccentric exercise-induced muscle damage last? Medicine and Science in Sports and Exercise.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/f3c700b7f6d656468b2519a16cec7346/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Experimental, two bouts 6, 9 or 12 months apart",
+    "Population": "35 male students",
+    "Exposure": "Time between two bouts of eccentric exercise",
+    "Outcome": "Strength recovery, soreness, swelling, creatine kinase, MRI T2",
+    "Main result": "The repeated bout effect lasted at least 6 months for most measures and was lost between 9 and 12 months"
+   },
+   "findings": [
+    "After a second bout 6 or 9 months later strength recovered faster; at 6 months soreness, swelling, CK and T2 changes were also smaller.",
+    "With 12 months between the bouts there was no protective effect."
+   ],
+   "relevance": "The goal planner counts the descent sessions of the last 12 weeks towards the 10 a trail goal needs, instead of starting from zero.",
+   "limits": "Elbow flexors, not downhill running; small groups.",
+   "strength": "moderate"
+  },
+  {
+   "id": "coyle-et-al-1984",
+   "cite": "Coyle et al. (1984)",
+   "category": "A",
+   "apa": "Coyle, E. F., Martin, W. H., Sinacore, D. R., Joyner, M. J., Hagberg, J. M., & Holloszy, J. O. (1984). Time course of loss of adaptations after stopping prolonged intense endurance training. Journal of Applied Physiology.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/189d65b2e8815c90bbf9899e373a3329/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Longitudinal, 84 days of detraining",
+    "Population": "7 endurance-trained adults",
+    "Exposure": "Stopping training",
+    "Outcome": "VO2max, stroke volume, capillaries, oxidative enzymes",
+    "Main result": "VO2max fell 7 % in 21 days and settled 16 % lower after 56 days; capillaries stayed 50 % above untrained levels"
+   },
+   "findings": [
+    "VO2max declined 7 % during the first 21 days and stabilised after 56 days at 16 % below the trained value, still above untrained controls.",
+    "Muscle capillarisation did not decline; oxidative enzymes fell with a half-time of 12 days and stabilised 50 % above untrained levels."
+   ],
+   "relevance": "Why the weekly capacity remembers the former level for weeks (v0.12.6): much of the fitness stays after a lighter period.",
+   "limits": "Fitness, not tissue tolerance; 7 people.",
+   "strength": "moderate"
+  },
+  {
+   "id": "blanch-et-al-2015",
+   "cite": "Blanch & Gabbett (2016)",
+   "category": "B",
+   "apa": "Blanch, P., & Gabbett, T. J. (2015). Has the athlete trained enough to return to play safely? The acute:chronic workload ratio permits clinicians to quantify a player's risk of subsequent injury. British Journal of Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/3794dec1529c5177b2677731ee13d494/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Analysis of team-sport cohorts",
+    "Population": "Cricket, rugby league and Australian football players",
+    "Exposure": "A week's load against the 4-week average (ACWR)",
+    "Outcome": "Injury",
+    "Main result": "Spikes above the 4-week average predicted injury, also when the load had ebbed during recuperation"
+   },
+   "findings": [
+    "The week's load against the average of the past 4 weeks had a strong polynomial relation to injury likelihood (R² = 0.53).",
+    "A spike can come from an unusual week or from the load ebbing during recuperation."
+   ],
+   "relevance": "Why the way back to a former level is held to 1.3 × the 4-week average (v0.12.6).",
+   "limits": "Team sports, not running.",
+   "strength": "moderate"
+  },
+  {
+   "id": "maupin-et-al-2020",
+   "cite": "Maupin et al. (2020)",
+   "category": "B",
+   "apa": "Maupin, D., Schram, B., Canetti, E., & Orr, R. (2020). The relationship between acute:chronic workload ratios and injury risk in sports: A systematic review. Open Access Journal of Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/30a7dc90f4b55fdbac36d0b1f7208820/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Systematic review of 27 studies",
+    "Population": "Athletes of several sports",
+    "Exposure": "Acute:chronic workload ratio",
+    "Outcome": "Injury",
+    "Main result": "Ratios of 0.80–1.30 tended to carry the lowest injury risk"
+   },
+   "findings": [
+    "High variability between studies; a trend towards 0.80–1.30 as the lowest-risk band."
+   ],
+   "relevance": "The upper end of that band (1.3) is the limit of the way back to a former level (v0.12.6).",
+   "limits": "Mostly team sports; heterogeneous ratios and reference groups.",
+   "strength": "low to moderate"
   }
  ]
 }

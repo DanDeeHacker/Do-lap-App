@@ -5234,6 +5234,18 @@
   ]
  },
  {
+  "t": "Je na hraně vašich limitů a posune vás dál.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Je na hraně vašich limitů a posune vás: {}.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Klesání v jednom běhu",
   "files": [
    "metrics/goal_plan.py"
@@ -5283,6 +5295,12 @@
  },
  {
   "t": "Nejdelší běh",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Nejlepší cíl, který do {} stihnete bezpečně i s rezervou: {}",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5348,7 +5366,7 @@
   ]
  },
  {
-  "t": "Riziková cesta (přijde v další etapě, jen s výslovným souhlasem): připraveni za {}. Týden by rostl až o 20 % a dlouhý běh o 15 %. Při nárůstu týdne o 20–60 % se během 3 týdnů zranilo o 23 procentních bodů víc běžců.",
+  "t": "Riziková cesta (jen s výslovným souhlasem, zvolíte ji po uložení v detailu cíle): připraveni za {}. Týden by rostl až o 20 % a dlouhý běh o 15 %. Při nárůstu týdne o 20–60 % se během 3 týdnů zranilo o 23 procentních bodů víc běžců.",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5498,6 +5516,12 @@
   ]
  },
  {
+  "t": "dlouhý běh {} km",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "doběhnout",
   "files": [
    "metrics/goal_plan.py"
@@ -5558,6 +5582,12 @@
   ]
  },
  {
+  "t": "nejdelší běh z {} na {} km",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "návrat po pauze",
   "files": [
    "metrics/goal_plan.py"
@@ -5577,6 +5607,12 @@
  },
  {
   "t": "přechod na nové boty",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "převýšení {} m",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5606,6 +5642,18 @@
   ]
  },
  {
+  "t": "stoupání v jednom běhu z {} na {} m",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "stoupání za týden z {} na {} m",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "stoupání závodu za týden",
   "files": [
    "metrics/goal_plan.py"
@@ -5630,7 +5678,19 @@
   ]
  },
  {
+  "t": "týdenní objem z {} na {} km",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "týdny",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "týdně {} km",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5654,6 +5714,12 @@
   ]
  },
  {
+  "t": "v jednom běhu",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "vlastní cíl",
   "files": [
    "metrics/goal_plan.py"
@@ -5666,6 +5732,12 @@
   ]
  },
  {
+  "t": "za týden",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "závod {} km",
   "files": [
    "metrics/goal_plan.py"
@@ -5673,6 +5745,12 @@
  },
  {
   "t": "· aby dlouhý běh {} km byl nejvýš 50 % týdne",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "· doběhnout",
   "files": [
    "metrics/goal_plan.py"
   ]

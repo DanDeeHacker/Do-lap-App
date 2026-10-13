@@ -89,7 +89,7 @@ function ReqRow({ r, res }: { r: any; res: any }) {
           <Sources ids={r.sources} info={res?.sourceInfo} />
           {r.assumption && <span className="rounded-full bg-white/[.06] px-1.5 py-0.5 text-[10px] font-bold text-fg-3">předpoklad</span>}
         </span>
-        <span className="tabular-nums text-fg-3">{isCount ? <b className="text-fg">{num(r.need, 0)}×</b> : <><b className="text-fg">{num(now, d)}</b> / {num(r.need, d)} {r.unit}</>}</span>
+        <span className="tabular-nums text-fg-3">{isCount ? <>{now ? <><b className="text-fg">{num(now, 0)}</b> / </> : null}<b className="text-fg">{num(r.need, 0)}×</b></> : <><b className="text-fg">{num(now, d)}</b> / {num(r.need, d)} {r.unit}</>}</span>
       </div>
       {!isCount && (
         <div className="relative mt-1 h-2 rounded-full bg-white/[.08]">
@@ -164,7 +164,8 @@ function ProjectionChart({ res }: { res: any }) {
     ? (sp.field === "long"
       ? [`Nejdelší běh smí bezpečně růst nejvýš o ${num(mg.run ?? 10, 0)} % za týden.`, "Smí mít nejvýš 30 % týdenního objemu, ve specifické fázi 50 %, takže ho brzdí i týdenní objem."]
       : [`Převýšení v jednom běhu smí bezpečně růst nejvýš o ${num(mg.run ?? 10, 0)} % za týden.`, "Nepřesáhne týdenní součet, takže ho brzdí i převýšení za týden."])
-    : [`Týden smí bezpečně růst nejvýš o ${num(mg.week ?? 15, 0)} % nad průměr posledních 4 týdnů, ne nad minulý týden.`, mg.avgRise != null ? `Každý 4. týden je odlehčovací, takže v průměru týden roste zhruba o ${num(mg.avgRise, 1)} %.` : "Každý 4. týden je odlehčovací."]
+    : [`Týden smí bezpečně růst nejvýš o ${num(mg.week ?? 15, 0)} % nad průměr posledních 4 týdnů, ne nad minulý týden.`, mg.avgRise != null ? `Každý 4. týden je odlehčovací, takže v průměru týden roste zhruba o ${num(mg.avgRise, 1)} %.` : "Každý 4. týden je odlehčovací.",
+       ...(mg.former && sp.field === "km" ? [`Po lehčích týdnech se vracíte k dřívější úrovni (asi ${num(mg.former, 0)} km týdně) rychleji, nejvýš na 1,3× průměru posledních 4 týdnů.`] : [])]
   const atGoal = (rows: any[]) => val(rows[Math.min(goalW, rows.length) - 1])
   const fmt = (v: number | null) => (v == null ? "—" : `${num(v, sp.unit === "km" ? 0 : 0)} ${sp.unit}`)
   const sGoal = atGoal(safe), rGoal = atGoal(risk)
@@ -279,6 +280,16 @@ function ProjectionChart({ res }: { res: any }) {
   )
 }
 
+// the best safe goal into the form: a new goal of its own (not the calendar race any more)
+function bestPatch(g: any): Partial<Form> {
+  if (g.kind === "free") {
+    const f = g.free || {}
+    return { weekly: strNum(f.weeklyKm), long: strNum(f.longKm), climb: strNum(f.climbM) }
+  }
+  return { raceId: null, name: "", km: strNum(g.km), ascent: strNum(g.ascentM), descent: strNum(g.descentM),
+    terrain: g.terrain || "", aim: g.aim || "finish", ...(g.aim === "time" ? {} : { target: "" }) }
+}
+
 function Verdict({ res, onApply }: { res: any; onApply?: (patch: Partial<Form>) => void }) {
   if (!res) return null
   const col = VCOL[res.verdict] || C.fg3
@@ -297,10 +308,13 @@ function Verdict({ res, onApply }: { res: any; onApply?: (patch: Partial<Form>) 
           <ul className="mt-1.5 space-y-2">
             {res.alternatives.map((x: any, i: number) => {
               const patch: Partial<Form> | null = x.kind === "later" ? { date: x.date } : x.kind === "finish" ? { aim: "finish" }
-                : x.kind === "shorter" ? { km: strNum(x.goal.km), ascent: "", descent: "" } : null
+                : x.kind === "shorter" ? { km: strNum(x.goal.km), ascent: "", descent: "" } : x.kind === "best" ? bestPatch(x.goal) : null
+              const best = x.kind === "best"
               return (
-                <li key={i} className="flex items-start gap-3 rounded-xl bg-white/[.04] p-3 text-[12px] leading-5 text-fg-soft" data-testid="goal-alt">
-                  <span className="min-w-0 flex-1">{x.text}{x.sources ? <> <Sources ids={x.sources} info={res.sourceInfo} /></> : null}</span>
+                <li key={i} className={`flex items-start gap-3 rounded-xl p-3 text-[12px] leading-5 text-fg-soft ${best ? "border border-accent/40 bg-accent/[.06]" : "bg-white/[.04]"}`}
+                  data-testid={best ? "goal-alt-best" : "goal-alt"}>
+                  <span className="min-w-0 flex-1">{best && <b className="mb-0.5 block text-[11px] uppercase tracking-wide text-accent">Nejlepší bezpečný cíl</b>}
+                    {x.text}{x.sources ? <> <Sources ids={x.sources} info={res.sourceInfo} /></> : null}</span>
                   {patch && onApply && <Button size="sm" variant="outline" onClick={() => onApply(patch)}>Použít</Button>}
                 </li>
               )

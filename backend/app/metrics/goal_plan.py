@@ -97,7 +97,7 @@ ACWR_MAX = 1.5                  # Toresdahl 2022
 HORIZON = 104                   # weeks projected at most
 TAPER_SHORT_KM = 12.0
 RESERVE_LONG_PLAN = 16
-HIST_WEEKS = 6
+HIST_WEEKS = 12                 # completed weeks of history: the former level looks 12 weeks back (capacity._former)
 
 SRC = {
     "week10": ["abrahamson-et-al-2024"],
@@ -107,7 +107,7 @@ SRC = {
     "count": ["doherty-et-al-2019", "toresdahl-et-al-2021"],
     "trail": ["soppelsa-et-al-2025"],
     "ultra": ["hoffman-and-krishnan-2014", "jaen-carrillo-et-al-2024", "knechtle-et-al-2011"],
-    "descent": ["marqueste-et-al-2008", "bontemps-et-al-2025", "mchugh-2003"],
+    "descent": ["marqueste-et-al-2008", "bontemps-et-al-2025", "mchugh-2003", "nosaka-et-al-2001"],
     "taper": ["bosquet-et-al-2007", "wang-et-al-2023", "smyth-and-lawlor-2021"],
     "reserve": ["toresdahl-et-al-2022"],
     "risk": ["damsted-et-al-2019", "nielsen-et-al-2014", "toresdahl-et-al-2022"],
@@ -310,7 +310,8 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
 def _cap(hist: list, planned: list | None = None) -> float:
     """capacity.weekly_capacity on calendar weeks: max(average of the last 4 weeks, 0.9 ×
     the best of the last 6, decayed beyond its 2nd week, a spike over 1.3 × its 4 weeks
-    before left out). `planned` marks the projection's own recovery weeks: a planned recovery
+    before left out, the former level: the best 3 weeks in a row of the last 12, decayed like
+    the per-run capacity, held to 1.3 / 1.15 × the 4-week average — capacity._former). `planned` marks the projection's own recovery weeks: a planned recovery
     week is not a loss of capacity, so the average is taken over the last 4 loaded weeks —
     with it in the average a narrowed weekly margin (under ~11 %) made the projection shrink
     week after week (owner report 2026-10-12: a trail goal "not within 2 years")."""
@@ -331,7 +332,19 @@ def _cap(hist: list, planned: list | None = None) -> float:
             if before > 0 and w > C.JUMP_RATIO * before:
                 continue
         best = max(best, w * C.BREAK_DECAY ** max(0, k - 2))
-    return max(chronic, 0.9 * best)
+    former = min(former_level(hist), C.RETURN_ACWR / (1 + C.MARGIN_WEEK) * chronic)
+    return max(chronic, 0.9 * best, former)
+
+
+def former_level(hist: list) -> float:
+    """The former level kept today (capacity._former before its 1.3 × limit): the best 3 weeks
+    in a row of the last 12, × _decay of the days since the block (its last week = 7 days back)."""
+    n, former = len(hist), 0.0
+    for end in range(n - 1, max(C.FORMER_BLOCK - 2, n - 1 - (C.FORMER_WEEKS - C.FORMER_BLOCK)) - 1, -1):
+        if end - C.FORMER_BLOCK + 1 >= 0:
+            blk = hist[end - C.FORMER_BLOCK + 1:end + 1]
+            former = max(former, sum(blk) / C.FORMER_BLOCK * C._decay(7 + 7 * (n - 1 - end)))
+    return former
 
 
 def deload_week(n: int, st: dict) -> bool:
@@ -414,8 +427,8 @@ def project(req: dict, st: dict, path: dict, share_from: int = 1, until: int = 0
         for i, row in enumerate(rows):
             row[ch], row[ch + "Run"] = vw[i], vr[i]
     count_thr = (req.get("longCount") or {}).get("km")
-    desc_min = max(DESC_SESSION_MIN, DESC_SESSION_SHARE * ((req.get("descentRun") or {}).get("need") or 0))
-    n_long = n_desc = 0
+    desc_min = _desc_min(req)
+    n_long, n_desc = 0, desc_done(req, st)
     ready, first = None, {}
     for i, row in enumerate(rows):
         if count_thr and row["long"] >= count_thr - 0.05:
@@ -531,7 +544,26 @@ UNIT = {"week": "km", "long": "km", "longCount": "×", "ascentWeek": "m", "ascen
         "descentRun": "m", "descSessions": "×"}
 
 
-def _now(k: str, st: dict) -> float | None:
+def _desc_min(req: dict) -> float:
+    """The descent that makes a run a descent session: 150 m or 30 % of the per-run requirement,
+    never more than the requirement itself (a short trail's 120 m could never count before)."""
+    need = (req.get("descentRun") or {}).get("need") or 0
+    return min(max(DESC_SESSION_MIN, DESC_SESSION_SHARE * need), need) if need else DESC_SESSION_MIN
+
+
+def desc_done(req: dict, st: dict) -> int:
+    """Descent sessions already done: the weeks of the history (12) with a run of that much descent,
+    at most one a week. The protection of a downhill bout lasts at least 6 months (Nosaka et al.,
+    2001); before, the count started at zero every time (owner report 2026-10-13)."""
+    if not req.get("descSessions"):
+        return 0
+    m = _desc_min(req)
+    return min(DESC_SESSIONS, sum(1 for w in st["weeks"][-HIST_WEEKS:] if (w.get("downRun") or 0) >= m - 0.5))
+
+
+def _now(k: str, st: dict, req: dict | None = None) -> float | None:
+    if k == "descSessions":
+        return desc_done(req or {}, st)
     wk = st["weeks"]
     if k == "week":
         return max(w["km"] for w in wk[-4:])
@@ -565,14 +597,17 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     weeks = _weeks_to(gdate, start)
     taper = taper_weeks(goal)
     req = requirements(goal)
-    known = sum(1 for w in st["weeks"] if w["runs"]) >= 3
+    known = sum(1 for w in st["weeks"][-6:] if w["runs"]) >= 3
     out = {"goal": goal, "start": st["start"], "weeksToGoal": weeks, "taperWeeks": taper,
            # the chart says why it takes these weeks
-           "margins": {"week": _r(st["marginWeek"] * 100), "run": _r(st["marginRun"] * 100), "avgRise": _r(avg_rise(st) * 100)},
+           "margins": {"week": _r(st["marginWeek"] * 100), "run": _r(st["marginRun"] * 100), "avgRise": _r(avg_rise(st) * 100),
+                       # the former level the way back heads for, when it is above the last 4 weeks (v0.12.6)
+                       "former": _r(_fl) if (_fl := former_level([w["km"] for w in st["weeks"]]))
+                       > 1.05 * sum(w["km"] for w in st["weeks"][-4:]) / 4 + 1 else None},
            "requirements": [], "notes": [], "sources": sorted({s for r in req.values() for s in r.get("sources", [])})}
     for k, r in req.items():
         out["requirements"].append({"key": k, "label": LABEL[k], "unit": UNIT[k], "need": _r(r["need"]),
-                                    "base": _r(r.get("base")), "km": r.get("km"), "now": _r(_now(k, st)),
+                                    "base": _r(r.get("base")), "km": r.get("km"), "now": _r(_now(k, st, req)),
                                     "why": r["why"], "sources": r.get("sources", []), "assumption": bool(r.get("assumption"))})
     if not req:
         out.update(verdict="unknown", verdictLabel=VERDICT["unknown"], text="Cíl zatím nemá žádný požadavek. Zadejte aspoň jedno číslo.")
@@ -650,8 +685,114 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     return out
 
 
+# owner request 2026-10-13: when the goal isn't safe by its date, the best goal that is — the largest
+# one of the same kind the safe path reaches with the taper and the reserve: at the edge of what the
+# runner's limits allow, and only when it still moves them on (a requirement above today's level)
+ROAD_STEPS = (5.0, 10.0, 15.0, 21.1, 30.0, 42.2)
+TRAIL_STEPS = (5, 8, 10, 12, 15, 18, 21, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 90, 100, 110, 120, 140, 160)
+FREE_STEPS = tuple(k / 20 for k in range(19, 5, -1))          # 95 % … 30 % of each number
+PROGRESS = (("week", "týdenní objem z {} na {} km"), ("long", "nejdelší běh z {} na {} km"),
+            ("ascentWeek", "stoupání za týden z {} na {} m"), ("ascentRun", "stoupání v jednom běhu z {} na {} m"))
+
+
+def _r50(v: float) -> int:
+    return int(round(v / 50.0) * 50)
+
+
+def _best_label(g: dict) -> str:
+    if g.get("kind") == "free":
+        f = g.get("free") or {}
+        parts = ([f"týdně {_cz(f['weeklyKm'], 0)} km"] if f.get("weeklyKm") else []) \
+            + ([f"dlouhý běh {_cz(f['longKm'], 0)} km"] if f.get("longKm") else []) \
+            + ([f"převýšení {_cz(f['climbM'], 0)} m " + ("za týden" if f.get("climbScope", "week") == "week" else "v jednom běhu")]
+               if f.get("climbM") else [])
+        return " · ".join(parts)
+    if is_trail(g):
+        return f"trail {_cz(g['km'], 0)} km · ↑ {_cz(g.get('ascentM') or 0, 0)} m"
+    return goal_name(g)
+
+
+def _free_edge(goal: dict, res: dict) -> dict | None:
+    """A free goal at the edge: each number as far as the safe path gets it with the reserve
+    before the date (never above what was asked), floored to whole km / 50 m."""
+    rows, weeks = (res.get("safe") or {}).get("rows") or [], res.get("weeksToGoal") or 0
+    cut = rows[:max(0, weeks - (res.get("reserveWeeks") or 2))]
+    if not cut:
+        return None
+    f0 = goal.get("free") or {}
+    top = lambda k: max((r.get(k) or 0) for r in cut)
+    fr = dict(f0)
+    if f0.get("weeklyKm"):
+        fr["weeklyKm"] = int(min(f0["weeklyKm"], top("km")))
+    if f0.get("longKm"):
+        fr["longKm"] = int(min(f0["longKm"], top("long")))
+    if f0.get("climbM"):
+        k = "Run" if f0.get("climbScope") == "run" else ""
+        fr["climbM"] = int(min(f0["climbM"], min(top("ascent" + k), top("descent" + k))) // 50 * 50)
+    return dict(goal, free=fr)
+
+
+def best_safe(goal: dict, st: dict, res: dict | None = None) -> dict | None:
+    """The largest goal of the same kind (road distances, a trail scaled with its climb per km, or
+    the free goal's numbers where the safe path gets them) whose verdict is "ok" by the same date,
+    with the original aim, else to finish; None when none is, or when it wouldn't move the runner
+    on. Binary search over the candidates, largest first (the verdict only gets better as they shrink)."""
+    if goal.get("kind") == "free":
+        edge = _free_edge(goal, res or evaluate(goal, st, alternatives=False))
+        f0 = goal.get("free") or {}
+        cands = [
+            dict(goal, free={**f0, **({"weeklyKm": round(f0["weeklyKm"] * k)} if f0.get("weeklyKm") else {}),
+                             **({"longKm": round(f0["longKm"] * k)} if f0.get("longKm") else {}),
+                             **({"climbM": _r50(f0["climbM"] * k)} if f0.get("climbM") else {})})
+            for k in FREE_STEPS]
+        aims = [goal.get("aim")]
+    else:
+        km = goal.get("km") or 0
+        if is_trail(goal):
+            up = goal.get("ascentM") or 0
+            down = goal["descentM"] if goal.get("descentM") is not None else up
+            cands = [dict(goal, km=float(d), ascentM=_r50(up * d / km), descentM=_r50(down * d / km), terrain="trail")
+                     for d in reversed(TRAIL_STEPS) if d < km - 0.5]
+        else:
+            cands = [dict(goal, km=d, ascentM=None, descentM=None) for d in reversed(ROAD_STEPS) if d < km - 0.5]
+        cands = [dict(c, raceId=None, name=None, targetTimeS=None) for c in cands]
+        aims = [goal.get("aim"), "finish"] if goal.get("aim") == "time" else [goal.get("aim")]
+    for aim in aims:
+        lo, hi, best = 0, len(cands) - 1, None
+        if goal.get("kind") == "free" and edge:           # the free goal's edge first, the scaled ones if it fails
+            r = evaluate(edge, st, alternatives=False)
+            if r["verdict"] == "ok":
+                best, hi = (edge, r), -1
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            g = dict(cands[mid], aim=aim)
+            r = evaluate(g, st, alternatives=False)
+            if r["verdict"] == "ok":
+                best, hi = (g, r), mid - 1
+            else:
+                lo = mid + 1
+        if best:
+            g, r = best
+            up = [(k, q) for k, q in ((q["key"], q) for q in r["requirements"]) if q.get("now") is not None
+                  and q["unit"] != "×" and q["need"] > (q["now"] or 0) + (0.5 if q["unit"] == "km" else 25)]
+            if not up:
+                return None
+            prog = [t.format(_cz(dict(up)[k]["now"], 0), _cz(dict(up)[k]["need"], 0)) for k, t in PROGRESS if k in dict(up)][:2]
+            return {"kind": "best", "goal": g, "verdict": r["verdict"], "verdictLabel": r["verdictLabel"],
+                    "label": _best_label(g), "readyDate": r.get("readyDate"),
+                    "text": f"Nejlepší cíl, který do {_dcz(_d(goal['date']))} stihnete bezpečně i s rezervou: {_best_label(g)}"
+                            + (" · doběhnout" if aim != goal.get("aim") else "") + ". "
+                            + (f"Je na hraně vašich limitů a posune vás: {' · '.join(prog)}." if prog else
+                               "Je na hraně vašich limitů a posune vás dál.")}
+    return None
+
+
 def _alternatives(goal: dict, st: dict, res: dict, risk: dict, taper: int, weeks: int) -> list:
     alts = []
+    if res.get("verdict") != "ok":
+        b = best_safe(goal, st, res)
+        if b:
+            alts.append(b)
     if res.get("realDate"):
         alts.append({"kind": "later", "date": res["realDate"],
                      "text": f"Posunout termín na {_dcz(_d(res['realDate']))} nebo později, nebo plánovaný závod běžet jako trénink."})
@@ -674,7 +815,7 @@ def _alternatives(goal: dict, st: dict, res: dict, risk: dict, taper: int, weeks
     rr = risk.get("readyWeek")
     if res.get("riskPossible"):
         alts.append({"kind": "risk", "readyWeek": rr, "sources": SRC["risk"],
-                     "text": f"Riziková cesta (přijde v další etapě, jen s výslovným souhlasem): připraveni za {_weeks_cz(rr)}. "
+                     "text": f"Riziková cesta (jen s výslovným souhlasem, zvolíte ji po uložení v detailu cíle): připraveni za {_weeks_cz(rr)}. "
                              "Týden by rostl až o 20 % a dlouhý běh o 15 %. Při nárůstu týdne o 20–60 % se během 3 týdnů "
                              "zranilo o 23 procentních bodů víc běžců."})
     else:

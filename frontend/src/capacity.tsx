@@ -282,7 +282,8 @@ function ChannelRow({ id, c, margins: allMargins, extra, open, onToggle, scale, 
               {/* owner feedback 2026-10-10 — which numbers are 7-day sums and which the absorbed load,
                   so the capacity (a 7-day sum) and the absorbed ceiling (lower) don't read as a contradiction */}
               <p className="flex flex-wrap items-center gap-x-1"><span>Týdenní kapacita (součet 7 dní): </span><b className="text-fg">{num(wk.cap)}</b>{" "}<span>{c.unit}</span>
-                {wk.inputs && <span data-testid="capacity-basis"><InfoDot label="Týdenní kapacita" text={`Vyšší z: průměr 4 týdnů ${num(wk.inputs.avg4)} · 0,9 × nejlepší týden ${num(wk.inputs.best)} · minimum ${num(wk.inputs.floor)}.`} /></span>}</p>
+                {wk.inputs && <span data-testid="capacity-basis"><InfoDot label="Týdenní kapacita" text={`Vyšší z: průměr 4 týdnů ${num(wk.inputs.avg4)} · 0,9 × nejlepší týden ${num(wk.inputs.best)} · minimum ${num(wk.inputs.floor)}.`
+                  + (wk.inputs.former ? ` Dřívější úroveň (nejlepší 3 týdny po sobě za 12 týdnů, cesta zpět nejvýš 1,3× průměru 4 týdnů): ${num(wk.inputs.former)}.` : "")} /></span>}</p>
               {wk.inputs && (
                 <p><span>Týdenní strop (součet 7 dní): </span><b className="text-fg">{num(wk.ceiling)}</b>{" "}<span>{c.unit}</span>
                   {" "}<span className="text-[11px] text-fg-3">{`= kapacita × připravenost týdne ${num(Math.round(wk.inputs.ready * 100) / 100)}`}</span>

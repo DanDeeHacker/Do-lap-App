@@ -75,7 +75,24 @@ def test_a_spike_week_is_not_demonstrated_weekly_capacity():
     assert cap < 0.9 * 63.0 and cap >= (42 * 3 + 63) / 4   # still ≥ the plain 4-week average
     # right after the start of the history there's too little before a week to call it a spike
     short = {_day(k): 6.0 if k < 30 else 0.0 for k in range(7, 40)}
-    assert C.weekly_capacity(short, _day(0), _day(30), set(), "volume") == pytest.approx(0.9 * 42)
+    # (v0.12.6: the 3 weeks at 42 km are a former level, held to 1.3 / 1.15 × the 4-week average)
+    assert C.weekly_capacity(short, _day(0), _day(30), set(), "volume") == pytest.approx(C.RETURN_ACWR / 1.15 * 138 / 4)
+
+
+def test_weekly_capacity_remembers_the_former_level():
+    """v0.12.6 (owner decision 2026-10-13): 50 km weeks until 7 weeks ago, 20 km since. Before,
+    the old weeks were gone from the 6-week best and the capacity was the 20 km average; now
+    the former level holds it at 1.3 / 1.15 × that average (the ceiling ≤ 1.3 × it)."""
+    daily = {_day(k): 20 / 7 if k < 49 else 50 / 7 for k in range(7, 120)}
+    how: dict = {}
+    cap = C.weekly_capacity(daily, _day(0), _day(119), set(), "volume", how)
+    assert cap == pytest.approx(C.RETURN_ACWR / (1 + C.MARGIN_WEEK) * 20) and how["basis"] == "former"
+    # the former level is kept like a single run: in full for 30 days after it, then halving every 30 days
+    old = {_day(k): 20 / 7 if k < 112 else 50 / 7 for k in range(7, 160)}
+    assert C.weekly_capacity(old, _day(0), _day(159), set(), "volume") == pytest.approx(20.0)        # beyond 12 weeks
+    # a block with pain in it is no proof
+    pain = {_day(k) for k in range(49, 120, 5)}
+    assert C.weekly_capacity(daily, _day(0), _day(119), pain, "volume") < cap - 1
 
 
 def test_a_session_jump_doesnt_count_until_held_and_confirmed():
