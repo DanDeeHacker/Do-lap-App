@@ -6040,7 +6040,8 @@
   "files": [
    "care.tsx",
    "coach.tsx",
-   "coachview.tsx"
+   "coachview.tsx",
+   "goal.tsx"
   ],
   "kind": "str"
  },
@@ -6359,7 +6360,8 @@
   "files": [
    "care.tsx",
    "coach.tsx",
-   "coachview.tsx"
+   "coachview.tsx",
+   "goal.tsx"
   ],
   "kind": "str"
  },
@@ -6389,7 +6391,8 @@
   "files": [
    "care.tsx",
    "coach.tsx",
-   "coachview.tsx"
+   "coachview.tsx",
+   "goal.tsx"
   ],
   "kind": "str"
  },
@@ -6514,7 +6517,8 @@
   "files": [
    "care.tsx",
    "coach.tsx",
-   "coachview.tsx"
+   "coachview.tsx",
+   "goal.tsx"
   ],
   "kind": "str"
  },
@@ -6579,7 +6583,8 @@
   "files": [
    "care.tsx",
    "coach.tsx",
-   "coachview.tsx"
+   "coachview.tsx",
+   "goal.tsx"
   ],
   "kind": "str"
  },
@@ -7019,6 +7024,7 @@
   "t": "Dlouhý běh",
   "files": [
    "coach.tsx",
+   "goal.tsx",
    "outlook.tsx"
   ],
   "kind": "str"
@@ -7988,7 +7994,8 @@
   "t": "So",
   "files": [
    "coach.tsx",
-   "coachview.tsx"
+   "coachview.tsx",
+   "goal.tsx"
   ],
   "kind": "str"
  },
@@ -8797,7 +8804,8 @@
  {
   "t": "Odebrat",
   "files": [
-   "coachview.tsx"
+   "coachview.tsx",
+   "goal.tsx"
   ],
   "kind": "str"
  },
@@ -11274,13 +11282,6 @@
   "kind": "tpl"
  },
  {
-  "t": "· {} % vrcholu",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "· ↑ {} m",
   "files": [
    "goal.tsx"
@@ -11310,13 +11311,6 @@
  },
  {
   "t": "· ladění",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "· mezicíl 21 km",
   "files": [
    "goal.tsx"
   ],
@@ -11434,6 +11428,20 @@
    "goal.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "{}Bez výpadku připraveni v týdnu {} z {}.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "+ Přidat dovolenou",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "× dlouhý běh aspoň",
@@ -11774,7 +11782,35 @@
   "kind": "jsx"
  },
  {
+  "t": "dlouhý {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "dlouhý {} min",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Dlouhý běh {} ({} km): trávení v pořádku?",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Dlouhý běh smí být o 15 % delší než nejdelší za 30 dní (místo 10 %). Už nárůst o 10–30 % zvyšoval riziko zranění zhruba 1,6×.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Dlouhý běh, min",
   "files": [
    "goal.tsx"
   ],
@@ -11802,7 +11838,14 @@
   "kind": "str"
  },
  {
-  "t": "do {} i s rezervou na nemoc",
+  "t": "do {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "do {} · šance {} %",
   "files": [
    "goal.tsx"
   ],
@@ -11851,6 +11894,27 @@
   "kind": "str"
  },
  {
+  "t": "dovolená",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dovolená (lehčí týden)",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "dovolená {}×",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "dřívější únavová zlomenina: větší rezervy",
   "files": [
    "goal.tsx"
@@ -11863,6 +11927,13 @@
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Důvod: {}. Týden neroste, ale ani neklesá, dokud průměr nepřesáhne 7 h.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Důvod: {}. Týdny drží vaši současnou úroveň.",
@@ -11970,6 +12041,13 @@
   "kind": "str"
  },
  {
+  "t": "Kdy můžete běhat",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Klesání v jednom běhu",
   "files": [
    "goal.tsx"
@@ -12003,6 +12081,13 @@
    "goal.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "kontrolní test 5–10 km",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Kratší trať",
@@ -12076,6 +12161,13 @@
   "kind": "str"
  },
  {
+  "t": "mezicíl / test",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "mezicíl: běh na 21 km",
   "files": [
    "goal.tsx"
@@ -12095,6 +12187,27 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Můj týden",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Můj týden: {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Můj týden: podle toho, jak běháte",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Na co plán myslí ({})",
@@ -12125,6 +12238,13 @@
   "kind": "str"
  },
  {
+  "t": "např. 150",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "např. 25",
   "files": [
    "goal.tsx"
@@ -12133,6 +12253,13 @@
  },
  {
   "t": "např. 50",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "např. 60",
   "files": [
    "goal.tsx"
   ],
@@ -12174,6 +12301,13 @@
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Ne, potíže",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Neběhal/a jsem",
@@ -12232,6 +12366,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Nepodařilo se uložit",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Nepřesáhne týdenní součet, takže ho brzdí i převýšení za týden.",
   "files": [
    "goal.tsx"
@@ -12260,11 +12401,26 @@
   "kind": "jsx"
  },
  {
+  "t": "Odhad času",
+  "files": [
+   "goal.tsx",
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Odhad z běhu {} ({}, {} km) Riegelovým vzorcem.",
   "files": [
    "goal.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Odhad z tréninku",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "odlehčení",
@@ -12318,6 +12474,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Plán se přizpůsobí: běhy jen v dny, kdy můžete, délka podle času, dovolená jako lehčí týden.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Plán teď neroste",
   "files": [
    "goal.tsx"
@@ -12354,6 +12517,13 @@
  },
  {
   "t": "posilování {} %",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "posilování {}×",
   "files": [
    "goal.tsx"
   ],
@@ -12444,21 +12614,7 @@
   "kind": "tpl"
  },
  {
-  "t": "Připraveni v týdnu {} z {}, rezerva {}.",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Připraveni v týdnu {} z {}, rezerva na nemoc chybí.",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Připraveni v týdnu {} z {}.",
+  "t": "Připraveni nejspíš mezi {} a {}.",
   "files": [
    "goal.tsx"
   ],
@@ -12599,6 +12755,20 @@
   "kind": "str"
  },
  {
+  "t": "Šance {}.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Šance být včas připraven/a",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Seznam týdnů",
   "files": [
    "goal.tsx"
@@ -12641,6 +12811,13 @@
   "kind": "str"
  },
  {
+  "t": "Spíš to nestihnete",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Splnil/a jste cíl?",
   "files": [
    "goal.tsx"
@@ -12663,13 +12840,6 @@
  },
  {
   "t": "Stihnete to bezpečně",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Stihnete to jen bez výpadku",
   "files": [
    "goal.tsx"
   ],
@@ -12733,6 +12903,13 @@
  },
  {
   "t": "Termín nestihne ani ona.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Těsné: vyjde jen bez větších výpadků",
   "files": [
    "goal.tsx"
   ],
@@ -12881,6 +13058,13 @@
   "kind": "str"
  },
  {
+  "t": "více než 95 %",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Vlastní cíl",
   "files": [
    "goal.tsx"
@@ -12893,6 +13077,27 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "všední den {} min",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Všední den, min",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vyberte aspoň 2 dny v týdnu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Výpadek posunul reálný termín o {} dní: {} → {}.",
@@ -12921,6 +13126,20 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "výživa {} g/h na dlouhém běhu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Z tréninku: {} km týdně ve vrcholu, tempo {}:{} /km",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "za týden",
@@ -25692,13 +25911,6 @@
    "training.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Odhad času",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Odlehčovací · zvýšená zátěž",

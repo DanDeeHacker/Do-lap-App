@@ -34,6 +34,8 @@ The splits are the product team's working assumptions on the cited principles.""
 from datetime import date, timedelta
 from itertools import combinations
 
+from . import goal_sessions as GS
+
 from .guidance import (CROSS_MIN, HARD_Z4_MIN, KOLO_MAX, LONG_SHARE, MIN_RUN_KM, NOVICE_LONG, NOVICE_Z4,
                        READY_QUALITY, TYPE_LABEL, WD_IN, Z4_SESSION_MAX)
 
@@ -106,7 +108,8 @@ def _today_items(g, types, wk) -> list:
     z4 = t.get("z4Target")
     return [{"kind": "run", "type": typ, "label": t.get("label"), "km": {"lo": km.get("lo"), "hi": km.get("hi")},
              "durationMin": t.get("durationMin"), "hr": t.get("hr"), "zones": t.get("hrZones"), "pace": t.get("pace"),
-             "z4": z4, "session": session_text(z4["hi"], 0) if (typ == "kvalitní" and z4 and z4.get("hi")) else None,
+             "z4": z4, "session": ((GS.session((g.get("planCtx") or {}).get("goalCtx"), z4["hi"], 0) or session_text(z4["hi"], 0))
+                                   if (typ == "kvalitní" and z4 and z4.get("hi")) else None),
              "descentMax": t.get("descentMax"), "ascentMax": t.get("ascentMax"), "optional": False, "strides": False,
              "note": None}]
 
@@ -346,6 +349,11 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     # ---- kilometres
     easy_days = [d for d in run_days if d != long_day and d not in q_days]
     q_km = min(ceil, easy)
+    pace_e = x.get("easyPace") or 400
+    if x.get("dayMin"):                         # plan k cíli 2.0 #10: the runner's time on a weekday
+        q_km = min(q_km, x["dayMin"] * 60 / pace_e)
+    if long_day and x.get("longMin"):
+        L = min(L, x["longMin"] * 60 / (pace_e * 1.05))
     need = (L if long_day else 0) + q_km * len(q_days)
     if need > left:
         easy_days = []
@@ -358,7 +366,7 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     rem = max(0.0, left - need)
     while easy_days and rem / len(easy_days) < min_run:
         easy_days.remove(max(easy_days, key=lambda d: (neighbours(d, run_days), d)))
-    e_cap = min(ceil, 1.5 * easy, 0.9 * L if long_day else 1e9)
+    e_cap = min(ceil, 1.5 * easy, 0.9 * L if long_day else 1e9, x["dayMin"] * 60 / pace_e if x.get("dayMin") else 1e9)
     e_km = min(e_cap, rem / len(easy_days)) if easy_days else 0.0
     plan_km = {d: e_km for d in easy_days}
     plan_km.update({d: q_km for d in q_days})
@@ -435,7 +443,7 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         cand = [d for d in cand if room_at(d) >= min_run]
         if cand and rest_after >= 1:
             extra = min(cand, key=lambda d: (neighbours(d, list(busy)), d))
-            km = min(leftover, 0.8 * easy, ceil, room_at(extra))
+            km = min(leftover, 0.8 * easy, ceil, room_at(extra), x["dayMin"] * 60 / pace_e if x.get("dayMin") else 1e9)
             if km >= min_run:
                 plan_km[extra] = km
                 fit_rolling()                  # the days after it may now have less room
@@ -467,12 +475,18 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         zq = None
         if kind == "kvalitní":
             zq = {"lo": _r(0.6 * z4[d], 0), "hi": _r(z4[d], 0)}
-        items[d].append(_run(kind, plan_km[d], types, x, z4=zq,
-                             sess=session_text(z4[d], q_days.index(d) + (1 if typ == "kvalitní" else 0)) if kind == "kvalitní" else None,
+        kq = q_days.index(d) + (1 if typ == "kvalitní" else 0) if kind == "kvalitní" else 0
+        sess = (GS.session(x.get("goalCtx"), z4[d], kq) or session_text(z4[d], kq)) if kind == "kvalitní" else None
+        note = ("4–6 stupňovaných rovinek po 15–20 s na konci (ne naplno) — pravidelný kontakt "
+                "s rychlostí chrání zadní stehenní svaly." if d == strides_day else None)
+        if kind == "dlouhý":
+            note = GS.long_note(x.get("goalCtx"), plan_km[d], x.get("goalFuel"), x.get("giBad")) or note
+        items[d].append(_run(kind, plan_km[d], types, x, z4=zq, sess=sess,
                              desc=hills("descent", d), asc=hills("ascent", d), optional=d == extra,
-                             strides=d == strides_day,
-                             note=("4–6 stupňovaných rovinek po 15–20 s na konci (ne naplno) — pravidelný kontakt "
-                                   "s rychlostí chrání zadní stehenní svaly." if d == strides_day else None)))
+                             strides=d == strides_day, note=note))
+    if x.get("hrvLow") and q_days and typ != "kvalitní":
+        notes.append(f"Tvrdý trénink se z dneška přesunul na {WD_LONG[q_days[0].weekday()].lower()}: HRV je dnes "
+                     "pod vaším běžným pásmem.")
     for d, r in races.items():
         if d > today:
             items[d].append({"kind": "race", "label": r.get("name") or "Závod", "km": r.get("km"), "note": None})

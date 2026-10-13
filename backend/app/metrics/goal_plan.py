@@ -54,6 +54,7 @@ illness and bad weeks: 2 weeks, 3 for plans over 16 weeks (Toresdahl 2022: 40 % 
 27 % ill within 16 weeks of marathon training). Verdict: ready + taper + reserve fits →
 Reálné; ready + taper fits → Těsné; else Nereálné with the real date.
 """
+import math
 from datetime import date, timedelta
 
 from . import capacity as C
@@ -88,6 +89,7 @@ LONG_SHARE = 0.50               # the long run's share of the week in the goal's
 LONG_SHARE_BASE = 0.30          # … and before it (guidance.LONG_SHARE)
 SPECIFIC_MIN = 8                # weeks of the specific phase at least …
 SPECIFIC_SLACK = 4              # … and the weeks the long run needs + the reserve and a week to spare
+SPECIFIC_MAX = 12               # the phase labels (and the sessions, #11): the specific phase at most 12 weeks
 # taper: share of the peak week, week by week (owner decision 2026-10-12: 2 weeks for the marathon;
 # Bosquet 2007: −41–60 %; Smyth & Lawlor 2021: every week less than the one before)
 TAPER = {1: [0.55], 2: [0.65, 0.45], "M": [0.60, 0.40]}
@@ -308,7 +310,10 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
             w["downRun"] = max(w["downRun"], down)
             w["upRun"] = max(w["upRun"], up)
             w["runs"] += 1
-    races = D.of(db, rid).races
+    rd = D.of(db, rid)
+    hike = _hike_state(rd, d0, lo, mon, fac, ecc)
+    train8 = _train8(runs, mon)
+    races = rd.races
     past = [x for x in races if x.date and x.date[:10] < today.isoformat() and x.distance_km]
     if any((x.distance_km or 0) >= 21.0 for x in past):
         ever_half = True
@@ -318,7 +323,8 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
         cycle_pos = (((g.get("week") or {}).get("cycle") or {}).get("autoPos"))
     pain = C.pain_dates(db, rid)
     from . import energy as EN                 # plan k cíli 2.0 #17: the energy & bone screen
-    en = EN.state(D.of(db, rid).runner, today)
+    en = EN.state(rd.runner, today)
+    pj = (getattr(rd.runner, "planner_json", None) or {}) if rd.runner is not None else {}
     bsi = EN.BSI_MARGIN if en["bsi"] else 1.0
     return {
         "today": today.isoformat(), "start": mon.isoformat(), "weeks": wk, "cyclePos": cycle_pos,
@@ -335,7 +341,117 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
                       if on],
         "everMarathon": ever_long >= 40.0 or any((x.distance_km or 0) >= 40.0 for x in past),
         "limited": g.get("override") or (g.get("mode") == "return"),
+        # plan k cíli 2.0 stage B: hiking climb (#3), training km and pace of 8 weeks (#13), the
+        # runner's week (#10), sleep (#18), how the plan has been kept (#6), sex (the Tanda note)
+        "hike": hike, "train8": train8, "prefs": pj.get("prefs") or {}, "sleep14": _sleep14(rd, today),
+        "missRate": _miss_rate(rd, wk, lo), "sex": getattr(rd.runner, "sex", None) if rd.runner is not None else None,
     }
+
+
+HIKE_SPORTS = ("hiking", "walking")
+HIKE_UP, HIKE_DOWN = 1.0, 0.5         # owner decision 2026-10-13: a hike's climb counts in full, its descent half
+
+
+def _hike_state(rd, d0: date, lo: date, mon: date, fac: dict, ecc: float) -> dict | None:
+    """Plan k cíli 2.0 #3: the climb of hikes and walks (ascent × 1, descent × 0.5 in the engine's
+    weighted units) for a trail goal — days before this Monday, per-week sums and per-hike maxima,
+    and the per-run capacity (30 days in full, then the 30-day half-life)."""
+    days = {"up": [0.0] * DAYS_HIST, "down": [0.0] * DAYS_HIST}
+    weeks = [{"up": 0.0, "down": 0.0, "upRun": 0.0, "downRun": 0.0} for _ in range(HIST_WEEKS)]
+    u30 = d30 = 0.0
+    n = 0
+    for x in rd.activities:
+        if (x.sport or "") not in HIKE_SPORTS or not E.counts_for(x, "load") or not x.started_at:
+            continue
+        up = (x.ascent_m or 0.0) * HIKE_UP
+        raw = x.descent_m if x.descent_m is not None else x.ascent_m
+        down = (raw or 0.0) * (fac.get(x.id) or ecc) * HIKE_DOWN
+        if up <= 0 and down <= 0:
+            continue
+        try:
+            dd = _d(x.started_at)
+        except ValueError:
+            continue
+        if d0 <= dd < mon:
+            i = (dd - d0).days
+            days["up"][i] += up
+            days["down"][i] += down
+            n += 1
+        age = (mon - dd).days
+        if 0 < age <= C.CAP_MAX_AGE:
+            f = C._decay(age)
+            u30, d30 = max(u30, up * f), max(d30, down * f)
+        if lo <= dd < mon:
+            w = weeks[(dd - lo).days // 7]
+            w["up"] += up
+            w["down"] += down
+            w["upRun"] = max(w["upRun"], up)
+            w["downRun"] = max(w["downRun"], down)
+    return {"days": days, "weeks": weeks, "up30": u30, "down30": d30, "n": n} if n else None
+
+
+def with_hikes(st: dict) -> dict:
+    """The runner state with the hikes' climb added (trail goals)."""
+    h = st.get("hike")
+    if not h:
+        return st
+    days = dict(st.get("days") or {})
+    for k in ("up", "down"):
+        if days.get(k):
+            days[k] = [a + b for a, b in zip(days[k], h["days"][k])]
+    weeks = [{**w, "up": w["up"] + hw["up"], "down": w["down"] + hw["down"],
+              "upRun": max(w["upRun"], hw["upRun"]), "downRun": max(w["downRun"], hw["downRun"])}
+             for w, hw in zip(st["weeks"], h["weeks"])] if len(h["weeks"]) == len(st["weeks"]) else st["weeks"]
+    return {**st, "days": days, "weeks": weeks, "up30": max(st["up30"], h["up30"]), "down30": max(st["down30"], h["down30"]),
+            "hikesIn": True}
+
+
+def _train8(runs, mon: date) -> dict | None:
+    """Plan k cíli 2.0 #13: the mean weekly km and the mean training pace (s/km) of the 8 weeks
+    before this Monday — the inputs of Tanda's marathon formula."""
+    lo8 = mon - timedelta(days=56)
+    km = sec = km_t = 0.0
+    for x in runs:
+        try:
+            dd = _d(x.started_at)
+        except ValueError:
+            continue
+        if lo8 <= dd < mon and x.distance_km:
+            km += x.distance_km
+            if x.duration_min and x.distance_km >= 1.0:
+                sec += x.duration_min * 60.0
+                km_t += x.distance_km
+    if km <= 0 or km_t <= 0:
+        return None
+    return {"km": km / 8.0, "pace": sec / km_t}
+
+
+SLEEP_HOLD_H = 7.0           # #18: a 14-night mean under 7 hours holds the week (Huang & Ihm 2021)
+SLEEP_NIGHTS_MIN = 10
+
+
+def _sleep14(rd, today: date) -> float | None:
+    """The mean sleep of the last 14 nights from the watch (at least 10 nights), else None."""
+    lo = (today - timedelta(days=14)).isoformat()
+    vals = [x.sleep_h for x in rd.daily if x.date and lo <= str(x.date)[:10] <= today.isoformat() and x.sleep_h]
+    return sum(vals) / len(vals) if len(vals) >= SLEEP_NIGHTS_MIN else None
+
+
+MISS_PRIOR, MISS_PRIOR_N = 0.03, 4     # #6: a week lost to life — the prior, shrunk to the runner's own record
+
+
+def _miss_rate(rd, wk: list, lo: date) -> float:
+    """The share of the active goal's recorded weeks run under 80 % of the plan, shrunk towards
+    3 % with 4 pseudo-weeks (plan k cíli 2.0 #6: the misses follow the runner's real adherence)."""
+    g = next((x for x in reversed(rd.goals) if x.status == "active"), None)
+    rec = ((g.track_json or {}).get("weeks") or {}) if g is not None else {}
+    n = miss = 0
+    for i, w in enumerate(wk):
+        p = rec.get((lo + timedelta(days=7 * i)).isoformat())
+        if p and p.get("km") and not p.get("deload") and not p.get("taper"):
+            n += 1
+            miss += int(w["km"] < 0.8 * p["km"])
+    return (miss + MISS_PRIOR * MISS_PRIOR_N) / (n + MISS_PRIOR_N)
 
 
 # ------------------------------------------------------------------ projection
@@ -383,8 +499,108 @@ def former_level(hist: list) -> float:
 def deload_week(n: int, st: dict) -> bool:
     """Week n (1 = this calendar week) is a recovery week: the app's 4-week cycle goes on from
     the place this week has in it (guidance.cycle_position), else every 4th week."""
+    if n in (st.get("vacWeeks") or ()):        # plan k cíli 2.0 #10: a holiday week runs like a recovery week
+        return True
     pos0 = st.get("cyclePos") or 1
     return (pos0 - 1 + n - 1) % 4 == 3
+
+
+def vac_weeks(st: dict) -> set:
+    """Plan k cíli 2.0 #10: the plan's weeks (1 = this week) with 3+ days of the runner's holidays."""
+    start = _d(st["start"])
+    out = set()
+    for v in (st.get("prefs") or {}).get("vacations") or []:
+        try:
+            a, b = _d(v["from"]), _d(v["to"])
+        except (KeyError, ValueError, TypeError):
+            continue
+        d = max(a, start)
+        while d <= b:
+            n = (d - start).days // 7 + 1
+            mon = start + timedelta(days=7 * (n - 1))
+            if sum(1 for k in range(7) if a <= mon + timedelta(days=k) <= b) >= 3:
+                out.add(n)
+            d = mon + timedelta(days=7)
+    return out
+
+
+# plan k cíli 2.0 #6 (owner decision 2026-10-13): the chance of being ready by the date replaces the
+# fixed reserve. Week by week the plan moves on unless an illness (27 % of marathon runners fell ill
+# within 16 weeks, Toresdahl 2022 → 2 % a week, a week lost), an injury with lost training (40 %
+# injured within 16 weeks → 3.1 % a week, 2 weeks lost) or a week of life (the runner's own record
+# of weeks under 80 % of the plan, 3 % without one) gets in the way. Every combination is counted,
+# not sampled. The rates and the lost weeks are working assumptions the goals' outcomes calibrate (#20).
+HAZ_ILL = (0.0195, 1)
+HAZ_INJURY = (0.031, 2)
+CHANCE_OK, CHANCE_TIGHT = 0.80, 0.50
+CHANCE_MAX = 95             # shown "více než 95 %": the model never knows a runner's future for sure
+REAL_Q = 0.80               # the real date: the week 80 % of the runs of the plan are ready by
+RANGE_Q = (0.10, 0.90)
+
+
+def hazards(st: dict, path: str = "safe") -> list:
+    """(probability a week, weeks lost) of an illness, an injury and a missed week for this runner:
+    a past injury, the first year of running, a past bone stress injury and the risk path raise the
+    injury rate (van Poppel 2020, Videbæk 2015, Damsted 2019; working multipliers)."""
+    why = st.get("marginWhy") or []
+    k = 1.0
+    if "dřívější zranění" in why:
+        k *= 1.5
+    if "první rok běhání" in why:
+        k *= 1.3
+    if (st.get("energy") or {}).get("bsi"):
+        k *= 1.5
+    if path == "risk":
+        k *= 1.5
+    miss = min(0.3, max(0.0, st.get("missRate", MISS_PRIOR)))
+    return [HAZ_ILL, (min(0.2, HAZ_INJURY[0] * k), HAZ_INJURY[1]), (miss, 1)]
+
+
+def ready_cdf(ready: int | None, st: dict, path: str = "safe", horizon: int = HORIZON + 52) -> list:
+    """P(ready by the end of week t), t = 0…horizon: the plan needs `ready` good weeks."""
+    out = [0.0] * (horizon + 1)
+    if not ready:
+        return out
+    hz = hazards(st, path)
+    ok = max(0.0, 1.0 - sum(p for p, _ in hz))
+    layers = {0: {0: 1.0}}
+    for t in range(horizon):
+        layer = layers.pop(t, None)
+        if not layer:
+            continue
+        for done, pr in layer.items():
+            if done + 1 >= ready:
+                out[t + 1] += pr * ok
+            else:
+                nxt = layers.setdefault(t + 1, {})
+                nxt[done + 1] = nxt.get(done + 1, 0.0) + pr * ok
+            for p, lost in hz:
+                if t + lost <= horizon:
+                    nxt = layers.setdefault(t + lost, {})
+                    nxt[done] = nxt.get(done, 0.0) + pr * p
+    acc = 0.0
+    for t in range(horizon + 1):
+        acc += out[t]
+        out[t] = acc
+    return out
+
+
+def _quant(cdf: list, q: float) -> int | None:
+    return next((t for t, v in enumerate(cdf) if v >= q - 1e-9), None)
+
+
+def chance_of(ready: int | None, taper: int, weeks: int, st: dict, path: str = "safe") -> dict:
+    """{chance 0–1, real: the week ready at the 80th percentile, lo/hi: the 10th–90th}."""
+    if not ready:
+        return {"chance": 0.0, "real": None, "lo": None, "hi": None}
+    cdf = ready_cdf(ready, st, path)
+    t = weeks - taper
+    return {"chance": cdf[t] if 0 <= t < len(cdf) else (1.0 if t >= len(cdf) else 0.0),
+            "real": _quant(cdf, REAL_Q), "lo": _quant(cdf, RANGE_Q[0]), "hi": _quant(cdf, RANGE_Q[1])}
+
+
+def verdict_of(chance: float) -> str:
+    return "ok" if chance >= CHANCE_OK - 1e-9 else "tight" if chance >= CHANCE_TIGHT - 1e-9 else "no"
 
 
 def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | None, path: dict,
@@ -405,12 +621,14 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
     pain = pain if pain is not None else [False] * len(dd)
     runs = [run0] * 4
     out_w, out_r = [], []
+    full = hist[-1]                           # the last week that wasn't a recovery week
     for n in range(1, HORIZON + 1):
         last = hist[-1]
         avg4 = sum(hist[-4:]) / 4
         share = LONG_SHARE if n >= share_from else LONG_SHARE_BASE
         if deload_week(n, st):
-            w = last * path["deload"]
+            # two lighter weeks in a row (a holiday next to a recovery week) don't compound
+            w = (full if deload_week(n - 1, st) and n > 1 else last) * path["deload"]
             r = min(runs[-1], max(w * (share if floor_run == 0.0 else 1.0), 0.0)) if need_run is not None else 0.0
         else:
             cap = _engine_cap(dd, pain, known + 7 * (n - 1), ch)
@@ -431,6 +649,8 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
                     r = min(r, w * share if share == LONG_SHARE else max(w * share, min(run0, w * LONG_SHARE)))
                 else:
                     r = min(r, w)
+        if not deload_week(n, st):
+            full = w
         hist.append(w)
         dd += _week_days(w, r)
         pain += [False] * 7
@@ -514,6 +734,9 @@ def phased(req: dict, st: dict, path: dict, weeks: int, taper: int) -> dict:
     to 50 % throughout when a shorter specific phase would miss the date."""
     build = max(0, weeks - taper)
     p0 = project(req, st, path, 1, until=weeks)
+    # the earliest the runner can be ready (the plan itself may peak later, just before the race):
+    # the good weeks the chance (#6) counts
+    p0["earliest"] = p0["readyWeek"]
     k = p0["firstMet"].get("long") or p0["readyWeek"] or build
     spec = min(build, max(SPECIFIC_MIN, k + SPECIFIC_SLACK))
     start = max(1, build - spec + 1)
@@ -522,6 +745,7 @@ def phased(req: dict, st: dict, path: dict, weeks: int, taper: int) -> dict:
     p1 = project(req, st, path, start, until=weeks)
     if p1["readyWeek"] is None or (p0["readyWeek"] and p0["readyWeek"] <= build < p1["readyWeek"]):
         return p0
+    p1["earliest"] = min(x for x in (p0["readyWeek"], p1["readyWeek"]) if x) if (p0["readyWeek"] or p1["readyWeek"]) else None
     return p1
 
 
@@ -547,6 +771,9 @@ def plan_weeks(goal: dict, st: dict, proj: dict, weeks: int) -> list:
     spec_from = proj.get("shareFrom") or 1
     if spec_from == 1:
         spec_from = max(1, build - max(SPECIFIC_MIN, (proj["firstMet"].get("long") or build) + SPECIFIC_SLACK) + 1)
+    # a long plan whose long run needs every week is "specific" for the long run's share, but its
+    # sessions and strength (#11, #14) follow a build phase until the last 12 weeks before the taper
+    sess_from = max(spec_from, build - SPECIFIC_MAX + 1)
     first_m = (goal.get("kind") != "free" and not is_trail(goal) and (goal.get("km") or 0) >= COUNT_FROM_KM
                and not st.get("everMarathon"))
     rest = spec_from - 1
@@ -561,6 +788,8 @@ def plan_weeks(goal: dict, st: dict, proj: dict, weeks: int) -> list:
             w.update({k: r.get(k) for k in ("km", "long", "descent", "descentRun", "ascent", "ascentRun") if r.get(k) is not None})
             w["deload"] = r["deload"]
             w["phase"] = "specific" if i >= spec_from else "base" if i <= base_end else "build"
+            if w["phase"] == "specific" and i < sess_from:
+                w["sessionPhase"] = "build"
             if not half_done and first_m and (w.get("long") or 0) >= 20.5:
                 w["milestone"] = "half"
                 half_done = True
@@ -577,10 +806,21 @@ def plan_weeks(goal: dict, st: dict, proj: dict, weeks: int) -> list:
                 w["race"] = True
         if first_m:
             w["runs"] = 3
+        if i in (st.get("vacWeeks") or ()) and not w.get("taper"):
+            w["vacation"] = True
+        to_race = weeks - i                        # weeks before the race week
+        if (goal.get("kind") != "free" and goal.get("aim") == "time" and not is_trail(goal)
+                and (goal.get("km") or 0) >= 10 and to_race == TEST_WEEKS_OUT and not w.get("milestone")):
+            w["milestone"] = "test"
+        if goal.get("kind") != "free" and 0 < to_race <= FUEL_WEEKS and w.get("long") \
+                and w["long"] * _long_pace(st) / 60 >= FUEL_MIN:
+            ultra = (goal.get("km") or 0) >= 50
+            w["fuel"] = int(round(FUEL_G[0] + ((FUEL_G[1] - FUEL_G[0]) * (FUEL_WEEKS - to_race) / (FUEL_WEEKS - 1) if ultra else 0), -1))
         # plan k cíli 2.0 #14: strength is part of the plan — 2× a week in the base and build, 1× in the
         # specific phase and the recovery weeks, a light one in the taper, none in the race week
         # (Lauersen 2018; it protects only when done: Desai 2023, Wu 2024)
-        w["strength"] = (0 if w.get("race") else 1 if w.get("taper") or w.get("deload") or w["phase"] == "specific" else 2)
+        w["strength"] = (0 if w.get("race") else 1 if w.get("taper") or w.get("deload")
+                         or (w.get("sessionPhase") or w["phase"]) == "specific" else 2)
         out.append(w)
     return out
 
@@ -665,7 +905,10 @@ def descent_factor(goal: dict, st: dict) -> float:
 
 def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     """The whole feasibility answer for one goal."""
+    if is_trail(goal) or (goal.get("kind") == "free" and (goal.get("free") or {}).get("climbM")):
+        st = with_hikes(st)                    # plan k cíli 2.0 #3: the hikes' climb counts towards a trail goal
     st = {**st, "descFac": descent_factor(goal, st)}
+    st["vacWeeks"] = vac_weeks(st) if (st.get("prefs") or {}).get("vacations") else set()
     start = _d(st["start"])
     gdate = _d(goal["date"])
     weeks = _weeks_to(gdate, start)
@@ -696,16 +939,21 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
                        "ascentRun": _r(w["upRun"]), "descentRun": _r(w["downRun"] / rf)} for w in st["weeks"][-4:]]
     safe = phased(req, st, SAFE, weeks, taper)
     risk = phased(req, st, RISK, weeks, taper)
-    v = _fit(safe["readyWeek"], taper, weeks, st)
     rr = risk["readyWeek"]
-    out["riskPossible"] = bool(rr and rr + taper <= weeks)
+    se, re_ = safe.get("earliest") or safe["readyWeek"], risk.get("earliest") or rr
+    cs, cr = chance_of(se, taper, weeks, st), chance_of(re_, taper, weeks, st, "risk")
+    v = verdict_of(cs["chance"])
+    out["riskPossible"] = bool(re_ and re_ + taper <= weeks)
+    out["feasible"] = bool(se and se + taper <= weeks)
+    # a chance is never a certainty (the proposal: "nevydávat šanci za jistotu"): at most 95 %
+    out["chance"], out["riskChance"] = min(CHANCE_MAX, round(cs["chance"] * 100)), min(CHANCE_MAX, round(cr["chance"] * 100))
     path = "risk" if goal.get("path") == "risk" else "safe"
     chosen = risk if path == "risk" else safe
-    pv = v if path == "safe" else ("tight" if out["riskPossible"] else "no")
+    pv = v if path == "safe" else verdict_of(cr["chance"])
     out.update(path=path, status=pv, statusLabel=STATUS[pv])
     if weeks <= HORIZON:
         out["plan"] = plan_weeks(goal, st, chosen, weeks)
-    reserve = reserve_weeks(safe["readyWeek"], taper, st)
+    reserve = (cs["real"] - se) if cs["real"] else reserve_weeks(se, taper, st)
     out.update(safe=safe, risk=risk, reserveWeeks=reserve, verdict=v, verdictLabel=VERDICT[v])
     # the gauges (owner feedback 2026-10-13: pictures, not sentences): the safe path at its peak
     # before the taper ("na startu") and the week each requirement is met
@@ -715,10 +963,13 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
         vals = [w.get(f) for w in peak if w.get(f) is not None]
         q["atRace"] = (vals[-1] if q["unit"] == "×" else max(vals)) if vals else None
         q["metWeek"] = safe["firstMet"].get(q["key"])
-    if safe["readyWeek"]:
-        real = start + timedelta(days=7 * (safe["readyWeek"] + taper + reserve) - 1)
+    if se:
+        real = start + timedelta(days=7 * (se + taper + reserve) - 1)
         out["realDate"] = real.isoformat()
-        out["readyDate"] = (start + timedelta(days=7 * safe["readyWeek"] - 1)).isoformat()
+        out["readyDate"] = (start + timedelta(days=7 * se - 1)).isoformat()
+        if cs["lo"] and cs["hi"]:                   # when the runner is ready, 10th–90th percentile
+            out["readyRange"] = {"from": (start + timedelta(days=7 * cs["lo"] - 1)).isoformat(),
+                                 "to": (start + timedelta(days=7 * cs["hi"] - 1)).isoformat()}
     bn = safe["bottleneck"]
     bn_txt = None
     if bn:
@@ -732,17 +983,27 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     gd = _dcz(gdate)
     # one sentence per template, so the app's English dictionary can translate each
     bn_s = f" {bn_txt}." if bn_txt else ""
+    ch_s = (f"Šance, že do {gd} budete bezpečně připraveni: více než {CHANCE_MAX} %." if out["chance"] >= CHANCE_MAX
+            else f"Šance, že do {gd} budete bezpečně připraveni: {out['chance']} %.")
     if v == "ok":
-        n = _weeks_cz(safe["readyWeek"])
-        out["text"] = (f"Do {gd} to stihnete bezpečně i s rezervou {reserve} týdnů na nemoc a horší týdny. "
-                       + (f"Připraveni budete zhruba za {n}, pak {_weeks_cz(taper)} ladění." if taper
-                          else f"Připraveni budete zhruba za {n}."))
+        n = _weeks_cz(se)
+        out["text"] = (ch_s + " " + (f"Bez výpadku budete připraveni zhruba za {n}, pak {_weeks_cz(taper)} ladění." if taper
+                                     else f"Bez výpadku budete připraveni zhruba za {n}.")
+                       + " Šance počítá s nemocí, zraněním i horšími týdny.")
     elif v == "tight":
-        out["text"] = (f"Do {gd} to stihnete jen bez výpadku: připraveni budete za {_weeks_cz(safe['readyWeek'])} z {weeks}, "
-                       f"rezerva na nemoc a horší týdny chybí." + bn_s)
+        out["text"] = (ch_s + f" Bez výpadku budete připraveni za {_weeks_cz(se)} z {weeks}, "
+                       "na nemoc a horší týdny zbývá málo času." + bn_s)
+    elif out["feasible"]:
+        out["text"] = (ch_s + " Vyšlo by to jen bez výpadku." + bn_s
+                       + (f" Reálný termín je od {_dcz(_d(out['realDate']))}." if out.get("realDate") else ""))
     else:
         out["text"] = (f"Do {gd} to bezpečně nestihnete." + bn_s
                        + (f" Reálný termín je od {_dcz(_d(out['realDate']))}." if out.get("realDate") else ""))
+    hz = hazards(st, path)
+    out["notes"].append({"key": "chance", "sources": SRC["reserve"],
+                         "text": f"Šance počítá s nemocí ({_cz(hz[0][0] * 100, 1)} % týdně, týden výpadku), zraněním "
+                                 f"({_cz(hz[1][0] * 100, 1)} % týdně, 2 týdny) a týdny, kdy se plán nepodaří splnit "
+                                 f"({_cz(hz[2][0] * 100, 0)} % týdně podle vašeho plnění)."})
     if goal.get("kind") != "free" and not is_trail(goal) and (goal.get("km") or 0) >= COUNT_FROM_KM:
         if not st["everHalf"]:
             out["notes"].append({"key": "half", "text": "Půlmaraton ještě v historii nemáte. Plán k cíli do přípravy vloží běh na 21 km "
@@ -755,6 +1016,10 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     if taper:
         out["notes"].append({"key": "taper", "text": f"Ladění {_weeks_cz(taper)} před závodem: objem dolů o 40–60 %, "
                              "intenzita a počet běhů zůstanou.", "sources": SRC["taper"]})
+    from . import goal_sessions as GS          # plan k cíli 2.0 #11: the intensity distribution
+    if goal.get("kind") != "free":
+        out["notes"].append({"key": "intensity", "sources": GS.SOURCES[:4],
+                             "text": GS.distribution(GS.ctx_of(goal, "specific", experienced(st)))})
     if goal.get("kind") == "free" and ((goal.get("free") or {}).get("longKm") or 0) > TRAIL_LONG_MAX:
         out["notes"].append({"key": "ultra", "sources": SRC["ultra"],
                              "text": f"Běh delší než {_cz(TRAIL_LONG_MAX, 0)} km je spíš závod než trénink. Pro přípravu na ultra zvolte Závod: "
@@ -774,13 +1039,96 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
                                 "text": f"Plán teď neroste ({en['hold']['why']}). Chybějící menstruace bývá známkou nízké "
                                         "energetické dostupnosti a ta zvyšuje riziko únavové zlomeniny. Objednejte se ke "
                                         "sportovnímu lékaři. Týdny zatím drží vaši současnou úroveň."})
-    elif en.get("fuel"):
+    elif (st.get("sleep14") or 99) < SLEEP_HOLD_H:   # plan k cíli 2.0 #18: short sleep holds the week
+        sl = _cz(st["sleep14"], 1)
+        out["hold"] = {"kind": "sleep", "why": f"spánek 14 nocí v průměru {sl} h"}
+        out["notes"].insert(0, {"key": "sleep", "sources": ["huang-and-ihm-2021", "dobrosielski-et-al-2021"],
+                                "text": f"Spíte v průměru {sl} h (14 nocí). Plán teď neroste, ale ani neklesá: spánek pod "
+                                        "7 hodin šel v některých studiích s vyšším rizikem zranění. Jakmile průměr přesáhne "
+                                        "7 hodin, plán poroste dál."})
+    if en.get("fuel"):
         out["notes"].append({"key": "fuel", "sources": ["gallant-et-al-2024", "kraus-et-al-2018"],
                              "text": "Uvedli jste známky nedostatku energie. Jezte víc kolem tréninku, hlavně sacharidy "
                                      "před dlouhým během a po něm, a poraďte se se sportovním lékařem nebo nutričním terapeutem."})
+    if st.get("hikesIn"):
+        out["notes"].append({"key": "hike", "sources": [],
+                             "text": "K trailovému cíli se počítá i stoupání z turistiky: celé, klesání z poloviny."})
+    out["notes"] += _life_notes(goal, st, req, out)
+    te = train_estimate(goal, st, out.get("plan"))
+    if te:
+        out["trainEstimate"] = te
     if alternatives and v != "ok":
         out["alternatives"] = _alternatives(goal, st, out, risk, taper, weeks)
     return out
+
+
+def experienced(st: dict) -> bool:
+    """A runner past the first year with a half marathon behind them (#11: a time goal goes polarised)."""
+    return bool(st.get("everHalf")) and not st.get("experience")
+
+
+def _long_pace(st: dict) -> float:
+    """The long run's pace (s/km): the 8 weeks' training pace + 8 %, 6:40 /km without one."""
+    p = (st.get("train8") or {}).get("pace")
+    return p * 1.08 if p else 400.0
+
+
+def _life_notes(goal: dict, st: dict, req: dict, out: dict) -> list:
+    """Plan k cíli 2.0 #10: the runner's week — holidays, the time for the long run and the week."""
+    pr = st.get("prefs") or {}
+    notes = []
+    vw = sorted(st.get("vacWeeks") or [])
+    if vw:
+        notes.append({"key": "vacation", "sources": [], "weeks": vw,
+                      "text": f"Dovolená: {len(vw)} {'týden' if len(vw) == 1 else 'týdny' if len(vw) <= 4 else 'týdnů'} "
+                              "plán počítá jako odlehčené, kapacita pak roste dál."})
+    pace = _long_pace(st)
+    need_l = (req.get("long") or {}).get("need")
+    long_min = pr.get("longMin")
+    if need_l and long_min and need_l * pace / 60 > long_min + 5:
+        notes.append({"key": "time", "sources": [],
+                      "text": f"Dlouhý běh {_cz(need_l, 0)} km zabere asi {round(need_l * pace / 60 / 5) * 5} min, "
+                              f"na dlouhý běh máte {long_min} min. Najděte víc času, nebo zvolte kratší cíl."})
+    days, day_min = pr.get("days") or [], pr.get("dayMin")
+    need_w = (req.get("week") or {}).get("need")
+    if need_w and days and day_min:
+        avail = (len(days) - (1 if long_min else 0)) * day_min + (long_min or 0)
+        week_min = need_w * pace / 0.92 / 60                # easy runs a little quicker than the long one
+        if week_min > avail + 10:
+            notes.append({"key": "time", "sources": [],
+                          "text": f"Na {_cz(need_w, 0)} km týdně potřebujete asi {_cz(week_min / 60, 1)} h běhu, "
+                                  f"ve vašem týdnu je {_cz(avail / 60, 1)} h."})
+    return notes
+
+
+# plan k cíli 2.0 #13: the marathon time from training (Tanda 2011: mean weekly km and mean training
+# pace of the 8 weeks before; SEE ≈ 4 min, RMSE 5.4 min for 2:47–3:36 in the 2022 validation)
+def tanda_pace(km_week: float, pace: float) -> float:
+    return 17.1 + 140.0 * math.exp(-0.0053 * km_week) + 0.55 * pace
+
+
+def train_estimate(goal: dict, st: dict, plan: list | None) -> dict | None:
+    """A road marathon's time from the plan's 8 peak weeks and today's training pace."""
+    t8 = st.get("train8")
+    km = goal.get("km") or 0
+    if not t8 or goal.get("kind") == "free" or is_trail(goal) or not (40.0 <= km <= 43.0):
+        return None
+    pre = [w for w in (plan or []) if not w.get("taper")][-8:]
+    k_plan = sum(w.get("km") or 0 for w in pre) / len(pre) if pre else t8["km"]
+    t_now = tanda_pace(t8["km"], t8["pace"]) * 42.195
+    t_plan = tanda_pace(k_plan, t8["pace"]) * 42.195
+    return {"kmWeek": _r(k_plan), "kmNow": _r(t8["km"]), "pace": round(t8["pace"]), "timeS": round(t_plan), "nowS": round(t_now),
+            "sources": ["tanda-2011"],
+            "text": f"S {_cz(k_plan, 0)} km týdně ve vrcholu přípravy a dnešním tréninkovým tempem {_hms(t8['pace'])} /km "
+                    f"vychází zhruba {_hms(t_plan)}.",
+            "note": "Odhad z tréninku (Tandův vzorec) má chybu kolem 4–5 minut u časů 2:47–3:36. Pro ženy a rychlejší "
+                    "nebo pomalejší časy platí jen orientačně."}
+
+
+TEST_WEEKS_OUT = 7          # the control test 6–8 weeks before the race (#13)
+FUEL_WEEKS = 8              # #15: from 8 weeks out, long runs over 90 min train the intake
+FUEL_MIN = 90
+FUEL_G = (60, 90)           # g of carbohydrate an hour: 60, rising to 90 for an ultra
 
 
 # owner request 2026-10-13: when the goal isn't safe by its date, the best goal that is — the largest
@@ -889,7 +1237,8 @@ def best_safe(goal: dict, st: dict, res: dict | None = None) -> dict | None:
                     "label": _best_label(g), "readyDate": r.get("readyDate"),
                     "progress": [{"key": k, "label": LABEL[k], "now": q["now"], "need": q["need"], "unit": q["unit"]}
                                  for k, q in up if k in ("week", "long", "ascentWeek", "ascentRun", "descentWeek", "descentRun")][:3],
-                    "text": f"Nejlepší cíl, který do {_dcz(_d(goal['date']))} stihnete bezpečně i s rezervou: {_best_label(g)}"
+                    "chance": r.get("chance"),
+                    "text": f"Nejlepší cíl, který do {_dcz(_d(goal['date']))} stihnete bezpečně (šance {r.get('chance')} %): {_best_label(g)}"
                             + (" · doběhnout" if aim != goal.get("aim") else "") + ". "
                             + (f"Je na hraně vašich limitů a posune vás: {' · '.join(prog)}." if prog else
                                "Je na hraně vašich limitů a posune vás dál.")}

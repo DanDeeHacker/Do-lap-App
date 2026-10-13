@@ -1,5 +1,5 @@
 {
- "source": "Doslap_Literature_Summary.docx (project doc), 87 sources, 2026-10-13 (goal-planner sources added from Consensus searches and the owner's summaries; v0.12.6 former level and descent sessions; plan k cíli 2.0 strength, energy and bone)",
+ "source": "Doslap_Literature_Summary.docx (project doc), 100 sources, 2026-10-13 (goal-planner sources added from Consensus searches and the owner's summaries; v0.12.6 former level and descent sessions; plan k cíli 2.0 strength, energy and bone, stage B)",
  "categories": {
   "A": "Load progression and running injury",
   "B": "Load monitoring concepts and ACWR",
@@ -1997,6 +1997,279 @@
    ],
    "relevance": "A past bone stress injury narrows the plan's margins and adds a reserve week (#17).",
    "limits": "Collegiate men only.",
+   "strength": "moderate"
+  },
+  {
+   "id": "huang-and-ihm-2021",
+   "cite": "Huang & Ihm (2021)",
+   "category": "G",
+   "apa": "Huang, K., & Ihm, J. (2021). Sleep and injury risk. Current Sports Medicine Reports.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/a3312dda360a5e3e90e2d28b926f980a/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Narrative review",
+    "Population": "Athletes, mostly adolescents",
+    "Exposure": "Sleep under 7 hours",
+    "Outcome": "Injury",
+    "Main result": "Sleeping under 7 hours for at least 14 days went with about 1.7 times higher injury risk"
+   },
+   "findings": [
+    "Sleeping under 7 hours for at least 14 days went with about 1.7 times higher injury risk."
+   ],
+   "relevance": "A 14-night sleep mean under 7 h holds the goal plan's week (plan k cíli 2.0 #18).",
+   "limits": "Mostly adolescent data; observational.",
+   "strength": "low"
+  },
+  {
+   "id": "dobrosielski-et-al-2021",
+   "cite": "Dobrosielski et al. (2021)",
+   "category": "G",
+   "apa": "Dobrosielski, D. A., et al. (2021). The association between poor sleep and the incidence of sport and physical training-related injuries in adult athletic populations: A systematic review. Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/007a56ee8b38584486bc0a955ee1a41c/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Systematic review",
+    "Population": "Adult athletes and military trainees",
+    "Exposure": "Poor sleep",
+    "Outcome": "Training-related injury",
+    "Main result": "In adults the studies were not consistent"
+   },
+   "findings": [
+    "In adults the studies were not consistent."
+   ],
+   "relevance": "Why the sleep rule only holds the week and never cuts it (#18).",
+   "limits": "Heterogeneous measures of sleep.",
+   "strength": "low"
+  },
+  {
+   "id": "tanda-2011",
+   "cite": "Tanda (2011)",
+   "category": "D",
+   "apa": "Tanda, G. (2011). Prediction of marathon performance time on the basis of training indices. Journal of Human Sport and Exercise, 6(3), 511–520.",
+   "doi": null,
+   "url": "https://rua.ua.es/dspace/handle/10045/18930",
+   "facts": {
+    "Design": "Observational, 22 runners, 46 marathons",
+    "Population": "Recreational marathon runners (men)",
+    "Exposure": "Mean weekly km and mean training pace over the 8 weeks before the race",
+    "Outcome": "Marathon pace",
+    "Main result": "Pm (s/km) = 17.1 + 140.0·exp(−0.0053·K) + 0.55·P; marathon time estimated with a standard error of about 4 min; a 2022 validation found an RMSE of 5.4 min for 2:47–3:36"
+   },
+   "findings": [
+    "Pm (s/km) = 17.1 + 140.0·exp(−0.0053·K) + 0.55·P; marathon time estimated with a standard error of about 4 min; a 2022 validation found an RMSE of 5.4 min for 2:47–3:36."
+   ],
+   "relevance": "The second estimate of a marathon target time, from the plan's peak weeks and today's training pace (#13).",
+   "limits": "Small male sample; less accurate below 2:47.",
+   "strength": "low to moderate"
+  },
+  {
+   "id": "campos-et-al-2021",
+   "cite": "Campos et al. (2021)",
+   "category": "D",
+   "apa": "Campos, Y., et al. (2021). Training-intensity distribution on middle- and long-distance runners: A systematic review. International Journal of Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/150aac4ad3ea5cc0baf9657e447905d1/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Systematic review",
+    "Population": "Middle- and long-distance runners",
+    "Exposure": "Training intensity distribution",
+    "Outcome": "Performance",
+    "Main result": "At least about 70 % of the volume should be easy"
+   },
+   "findings": [
+    "At least about 70 % of the volume should be easy."
+   ],
+   "relevance": "The goal plan keeps most running easy whatever the phase (#11).",
+   "limits": "Heterogeneous methods of zoning.",
+   "strength": "moderate"
+  },
+  {
+   "id": "bonato-et-al-2026",
+   "cite": "Bonato et al. (2026)",
+   "category": "D",
+   "apa": "Bonato, M., et al. (2026). Training intensity distribution, load management, and performance in recreational long-distance runners. International Journal of Sports Physiology and Performance.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/14bf272344365158bf2e51fb1a43a641/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Observational",
+    "Population": "Recreational long-distance runners",
+    "Exposure": "Training intensity distribution",
+    "Outcome": "Performance",
+    "Main result": "Recreational runners naturally train pyramidal; performance went with the volume at moderate intensity"
+   },
+   "findings": [
+    "Recreational runners naturally train pyramidal; performance went with the volume at moderate intensity."
+   ],
+   "relevance": "A recreational goal stays pyramidal (#11).",
+   "limits": "Observational.",
+   "strength": "low to moderate"
+  },
+  {
+   "id": "filipas-et-al-2021",
+   "cite": "Filipas et al. (2021)",
+   "category": "D",
+   "apa": "Filipas, L., et al. (2021). Effects of 16 weeks of pyramidal and polarized training intensity distributions in well-trained endurance runners. Scandinavian Journal of Medicine & Science in Sports.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/84fb70cfd6ac5b7ab501ce004e1edd1d/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Randomised trial, 16 weeks",
+    "Population": "Well-trained endurance runners",
+    "Exposure": "Pyramidal and polarised distributions, alone and in sequence",
+    "Outcome": "Performance",
+    "Main result": "Runners who started pyramidal and switched to polarised after 8 weeks improved the most"
+   },
+   "findings": [
+    "Runners who started pyramidal and switched to polarised after 8 weeks improved the most."
+   ],
+   "relevance": "A time goal of an experienced runner: pyramidal in the base, polarised in the specific phase (#11).",
+   "limits": "Small sample of trained runners.",
+   "strength": "moderate"
+  },
+  {
+   "id": "rosenblat-et-al-2025",
+   "cite": "Rosenblat et al. (2025)",
+   "category": "D",
+   "apa": "Rosenblat, M. A., et al. (2025). Which training intensity distribution intervention will produce the greatest improvements in maximal oxygen uptake and time-trial performance in endurance athletes? Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/7f699cfe3a235044b881b4bfa5561773/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Network meta-analysis",
+    "Population": "Endurance athletes",
+    "Exposure": "Training intensity distributions",
+    "Outcome": "VO2max and time-trial performance",
+    "Main result": "VO2max rose more with pyramidal training in recreational athletes and with polarised training in competitive ones"
+   },
+   "findings": [
+    "VO2max rose more with pyramidal training in recreational athletes and with polarised training in competitive ones."
+   ],
+   "relevance": "The distribution follows the runner's level (#11).",
+   "limits": "Short interventions.",
+   "strength": "moderate"
+  },
+  {
+   "id": "vesterinen-et-al-2016",
+   "cite": "Vesterinen et al. (2016)",
+   "category": "C",
+   "apa": "Vesterinen, V., et al. (2016). Individual endurance training prescription with heart rate variability. Medicine & Science in Sports & Exercise.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/4dd2314203cc52aa8523eaba4c828c14/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Controlled trial",
+    "Population": "Recreational endurance runners",
+    "Exposure": "Hard sessions timed by morning HRV",
+    "Outcome": "3000 m performance",
+    "Main result": "HRV-guided training improved 3000 m performance with fewer hard sessions"
+   },
+   "findings": [
+    "HRV-guided training improved 3000 m performance with fewer hard sessions."
+   ],
+   "relevance": "On the goal plan a hard session moves to another day when HRV is below the usual band (#12).",
+   "limits": "Small groups.",
+   "strength": "moderate"
+  },
+  {
+   "id": "duking-et-al-2021",
+   "cite": "Düking et al. (2021)",
+   "category": "C",
+   "apa": "Düking, P., et al. (2021). Monitoring and adapting endurance training on the basis of heart rate variability monitored by wearable technologies: A systematic review with meta-analysis. Journal of Science and Medicine in Sport.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/49268eac884451478ad7aaaca5e1272b/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Systematic review with meta-analysis",
+    "Population": "Endurance athletes",
+    "Exposure": "HRV-guided training",
+    "Outcome": "Performance and non-responders",
+    "Main result": "HRV guidance lowered the number of athletes who did not improve"
+   },
+   "findings": [
+    "HRV guidance lowered the number of athletes who did not improve."
+   ],
+   "relevance": "Supports timing the hard days by HRV (#12).",
+   "limits": "Few trials.",
+   "strength": "moderate"
+  },
+  {
+   "id": "figueiredo-et-al-2022",
+   "cite": "Figueiredo et al. (2022)",
+   "category": "C",
+   "apa": "Figueiredo, D. H., et al. (2022). Individually guided training prescription by heart rate variability and self-reported measure of stress tolerance in recreational runners. Journal of Sports Sciences.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/727c8e34d67c596cad086082fe529c1e/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Randomised trial",
+    "Population": "Recreational runners",
+    "Exposure": "Training guided by HRV or by self-reported stress tolerance",
+    "Outcome": "Performance",
+    "Main result": "Guidance by self-reported stress worked as well"
+   },
+   "findings": [
+    "Guidance by self-reported stress worked as well."
+   ],
+   "relevance": "The check-in's stress and fatigue items still block a hard day (#12).",
+   "limits": "Small sample.",
+   "strength": "low to moderate"
+  },
+  {
+   "id": "arribalzaga-et-al-2021",
+   "cite": "Arribalzaga et al. (2021)",
+   "category": "J",
+   "apa": "Arribalzaga, S., et al. (2021). Relationship of carbohydrate intake during a single-stage one-day ultra-trail race with fatigue outcomes and gastrointestinal problems. International Journal of Environmental Research and Public Health.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/b6f3c6afc99d5622acd37f542c597474/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Observational",
+    "Population": "Ultra-trail runners",
+    "Exposure": "Carbohydrate intake during the race",
+    "Outcome": "Fatigue and gastrointestinal problems",
+    "Main result": "65–82 % of ultra-trail runners had digestive problems"
+   },
+   "findings": [
+    "65–82 % of ultra-trail runners had digestive problems."
+   ],
+   "relevance": "Fuelling practice in the long runs before a goal race (#15).",
+   "limits": "Observational, one race.",
+   "strength": "low"
+  },
+  {
+   "id": "costa-et-al-2017",
+   "cite": "Costa et al. (2017)",
+   "category": "J",
+   "apa": "Costa, R. J. S., et al. (2017). Gut-training: The impact of two weeks repetitive gut-challenge during exercise on gastrointestinal status, glucose availability, fuel kinetics, and running performance. Applied Physiology, Nutrition, and Metabolism.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/d0b2b71a49065441901a63d82484b9a8/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Randomised trial",
+    "Population": "Endurance runners",
+    "Exposure": "Two weeks of carbohydrate intake during running",
+    "Outcome": "Gastrointestinal symptoms and performance",
+    "Main result": "Gut training cut symptoms by about 60 % and improved performance by about 5 %"
+   },
+   "findings": [
+    "Gut training cut symptoms by about 60 % and improved performance by about 5 %."
+   ],
+   "relevance": "From 8 weeks out the long runs over 90 min train the intake (#15).",
+   "limits": "Small sample.",
+   "strength": "moderate"
+  },
+  {
+   "id": "miall-et-al-2018",
+   "cite": "Miall et al. (2018)",
+   "category": "J",
+   "apa": "Miall, A., et al. (2018). Two weeks of repetitive gut-challenge reduce exercise-associated gastrointestinal symptoms and malabsorption. Scandinavian Journal of Medicine & Science in Sports.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/2fee18a343425606bc223d73b8bde429/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Randomised trial",
+    "Population": "Endurance runners",
+    "Exposure": "Two weeks of repeated carbohydrate intake during exercise",
+    "Outcome": "Gastrointestinal symptoms and malabsorption",
+    "Main result": "Repeated gut challenges reduced symptoms and malabsorption"
+   },
+   "findings": [
+    "Repeated gut challenges reduced symptoms and malabsorption."
+   ],
+   "relevance": "A digestion question after each long run in the fuelling weeks (#15).",
+   "limits": "Small sample.",
    "strength": "moderate"
   }
  ]

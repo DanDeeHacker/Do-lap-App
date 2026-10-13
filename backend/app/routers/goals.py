@@ -196,7 +196,23 @@ def _track(db: DBSession, rid: str, g, res: dict) -> dict:
     from ..metrics import goal_track as GT
     today = E.today_date()
     return {"adherence": GT.adherence(db, rid, g, today), "checkpoint": GT.checkpoint(g, res, today),
-            "setback": GT.setback(g, {"realDate": res.get("realDate")}, today)}
+            "setback": GT.setback(g, {"realDate": res.get("realDate")}, today), "gi": GT.gi_ask(db, rid, g, today),
+            "giLast": (g.track_json or {}).get("giLast")}
+
+
+class GiIn(BaseModel):
+    date: str
+    ok: bool
+
+
+class PrefsIn(BaseModel):
+    """Plan k cíli 2.0 #10: the runner's week — the days they can run (0 = Monday), the long run's
+    day, minutes on a weekday and for the long run, holidays {from, to}."""
+    days: list[int] = Field(default_factory=list, max_length=7)
+    long_day: int | None = Field(None, ge=0, le=6)
+    day_min: int | None = Field(None, ge=15, le=300)
+    long_min: int | None = Field(None, ge=30, le=600)
+    vacations: list[dict] = Field(default_factory=list, max_length=12)
 
 
 class CheckpointIn(BaseModel):
@@ -212,6 +228,70 @@ def answer_checkpoint(rid: str, body: CheckpointIn, user: models.User = Depends(
     GT.answer_checkpoint(g, body.key, E.today_date())
     db.commit()
     return get_goal(rid, user, db)
+
+
+@router.post("/api/runners/{rid}/goal/gi", dependencies=[Depends(verify_csrf)])
+def answer_gi(rid: str, body: GiIn, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """After a long run in the fuelling weeks: was digestion fine?"""
+    ensure_runner_self(user, rid)
+    from ..metrics import goal_track as GT
+    g = or_404(_active(db, rid), "Cíl nenalezen")
+    try:
+        date.fromisoformat(body.date[:10])
+    except ValueError:
+        raise HTTPException(422, "Neplatné datum")
+    GT.answer_gi(g, body.date[:10], body.ok)
+    db.commit()
+    E.recompute_assessment(db, rid, data_changed=False)
+    return get_goal(rid, user, db)
+
+
+@router.get("/api/runners/{rid}/goal/prefs")
+def get_prefs(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    ensure_runner_read_access(db, user, rid)
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    return {"prefs": (r.planner_json or {}).get("prefs") or {}}
+
+
+@router.put("/api/runners/{rid}/goal/prefs", dependencies=[Depends(verify_csrf)])
+def set_prefs(rid: str, body: PrefsIn, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """The runner's week: the plan and the week's schedule fit around it."""
+    ensure_runner_self(user, rid)
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    vac = []
+    for v in body.vacations:
+        try:
+            a, b = date.fromisoformat(str(v.get("from"))[:10]), date.fromisoformat(str(v.get("to"))[:10])
+        except ValueError:
+            raise HTTPException(422, "Neplatné datum dovolené")
+        if b < a or (b - a).days > 60:
+            raise HTTPException(422, "Dovolená může mít nejvýš 60 dní")
+        vac.append({"from": a.isoformat(), "to": b.isoformat()})
+    days = sorted({d for d in body.days if 0 <= d <= 6})
+    if days and len(days) < 2:
+        raise HTTPException(422, "Vyberte aspoň 2 dny v týdnu")
+    if days and body.long_day is not None and body.long_day not in days:
+        days = sorted(days + [body.long_day])
+    pj = dict(r.planner_json or {})
+    pj["prefs"] = {k: v for k, v in {"days": days, "longDay": body.long_day, "dayMin": body.day_min,
+                                     "longMin": body.long_min, "vacations": vac}.items() if v not in (None, [])}
+    r.planner_json = pj
+    db.commit()
+    _settings_changed(db, rid)
+    return {"prefs": pj["prefs"]}
+
+
+def _settings_changed(db: DBSession, rid: str) -> None:
+    """The goal's answer again after a change of its settings; this week's record follows it, so the
+    change doesn't read as a setback."""
+    from ..metrics import goal_track as GT
+    g = _active(db, rid)
+    if g is not None:
+        res = _answer(db, rid, GP.goal_dict(g))
+        g.projection_json = res
+        GT.rebase(g, res, E.today_date())
+        db.commit()
+    E.recompute_assessment(db, rid, data_changed=False)
 
 
 @router.post("/api/runners/{rid}/goal/outcome", dependencies=[Depends(verify_csrf)])
@@ -243,11 +323,8 @@ def answer_energy(rid: str, body: EnergyIn, user: models.User = Depends(get_curr
                     {"at": E.today_date().isoformat(), "bsi": bool(body.bsi), "period": bool(body.period),
                      "fuel": bool(body.fuel)})
     r.planner_json = pj
-    g = _active(db, rid)
-    if g is not None:
-        g.projection_json = None
     db.commit()
-    E.recompute_assessment(db, rid, data_changed=False)
+    _settings_changed(db, rid)
     return get_goal(rid, user, db)
 
 
@@ -262,7 +339,7 @@ def save_goal(rid: str, body: GoalIn, user: models.User = Depends(get_current_us
     ensure_runner_self(user, rid)
     goal = _goal_of(db, rid, body)
     res = _answer(db, rid, goal)
-    if res.get("verdict") == "no" and not res.get("riskPossible"):
+    if res.get("verdict") == "no" and not res.get("feasible") and not res.get("riskPossible"):
         raise HTTPException(422, "Tento cíl nestihne v termínu ani riziková cesta. Zvolte pozdější termín nebo menší cíl.")
     now = _now()
     for old in db.query(models.Goal).filter(models.Goal.runner_id == rid, models.Goal.status == "active"):

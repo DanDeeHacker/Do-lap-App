@@ -5217,6 +5217,24 @@
   ]
  },
  {
+  "t": "Bez výpadku budete připraveni za {} z {}, na nemoc a horší týdny zbývá málo času.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Bez výpadku budete připraveni zhruba za {}, pak {} ladění.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Bez výpadku budete připraveni zhruba za {}.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Běh delší než {} km je spíš závod než trénink. Pro přípravu na ultra zvolte Závod: aplikace pak počítá s dlouhými běhy 35–45 km.",
   "files": [
    "metrics/goal_plan.py"
@@ -5253,19 +5271,19 @@
   ]
  },
  {
+  "t": "Dlouhý běh {} km zabere asi {} min, na dlouhý běh máte {} min. Najděte víc času, nebo zvolte kratší cíl.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Do {} to bezpečně nestihnete.",
   "files": [
    "metrics/goal_plan.py"
   ]
  },
  {
-  "t": "Do {} to stihnete bezpečně i s rezervou {} týdnů na nemoc a horší týdny.",
-  "files": [
-   "metrics/goal_plan.py"
-  ]
- },
- {
-  "t": "Do {} to stihnete jen bez výpadku: připraveni budete za {} z {}, rezerva na nemoc a horší týdny chybí.",
+  "t": "Dovolená: {} {} plán počítá jako odlehčené, kapacita pak roste dál.",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5278,6 +5296,12 @@
  },
  {
   "t": "Je na hraně vašich limitů a posune vás: {}.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "K trailovému cíli se počítá i stoupání z turistiky: celé, klesání z poloviny.",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5331,19 +5355,31 @@
   ]
  },
  {
+  "t": "Na {} km týdně potřebujete asi {} h běhu, ve vašem týdnu je {} h.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Nejdelší běh",
   "files": [
    "metrics/goal_plan.py"
   ]
  },
  {
-  "t": "Nejlepší cíl, který do {} stihnete bezpečně i s rezervou: {}",
+  "t": "Nejlepší cíl, který do {} stihnete bezpečně (šance {} %): {}",
   "files": [
    "metrics/goal_plan.py"
   ]
  },
  {
   "t": "Nereálné",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Odhad z tréninku (Tandův vzorec) má chybu kolem 4–5 minut u časů 2:47–3:36. Pro ženy a rychlejší nebo pomalejší časy platí jen orientačně.",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5374,18 +5410,6 @@
  },
  {
   "t": "Počet dlouhých běhů",
-  "files": [
-   "metrics/goal_plan.py"
-  ]
- },
- {
-  "t": "Připraveni budete zhruba za {}, pak {} ladění.",
-  "files": [
-   "metrics/goal_plan.py"
-  ]
- },
- {
-  "t": "Připraveni budete zhruba za {}.",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5427,6 +5451,12 @@
   ]
  },
  {
+  "t": "S {} km týdně ve vrcholu přípravy a dnešním tréninkovým tempem {} /km vychází zhruba {}.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Seběhy",
   "files": [
    "metrics/goal_plan.py"
@@ -5440,6 +5470,12 @@
  },
  {
   "t": "Specifická příprava",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Spíte v průměru {} h (14 nocí). Plán teď neroste, ale ani neklesá: spánek pod 7 hodin šel v některých studiích s vyšším rizikem zranění. Jakmile průměr přesáhne 7 hodin, plán poroste dál.",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5506,6 +5542,12 @@
  },
  {
   "t": "Ve specifické fázi patří do dlouhých běhů úseky v cílovém tempu, ostatní běhy zůstávají lehké.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Vyšlo by to jen bez výpadku.",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5679,6 +5721,12 @@
   ]
  },
  {
+  "t": "spánek 14 nocí v průměru {} h",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "stihnete bezpečně za {}",
   "files": [
    "metrics/goal_plan.py"
@@ -5808,6 +5856,132 @@
   "t": "· doběhnout",
   "files": [
    "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Šance počítá s nemocí ({} % týdně, týden výpadku), zraněním ({} % týdně, 2 týdny) a týdny, kdy se plán nepodaří splnit ({} % týdně podle vašeho plnění).",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Šance počítá s nemocí, zraněním i horšími týdny.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Šance, že do {} budete bezpečně připraveni: více než {} %.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Šance, že do {} budete bezpečně připraveni: {} %.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "8–10 × 10–15 s do kopce svižně (ne naplno), dolů chůzí; zbytek běhu lehce v Z2. Krátké kopce budují sílu bez velké únavy",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "; rozklus 15 min a výklus 10 min v Z1–Z2",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "Dva dlouhé dny po sobě: druhý den středně dlouhý běh (asi 60 % prvního) pomalu, i s chůzí do kopců.",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "Ke konci dlouhého běhu 2 × 10 min v závodním tempu {} /km.",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "Minule potíže s trávením: o 10–20 g/h méně a přidávejte postupně.",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "Posledních {} km dlouhého běhu v závodním tempu {} /km, jen když se cítíte dobře.",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "Rozložení intenzity: v základu pyramidově (hodně lehce, část tempa a prahu, málo tvrdě), ve specifické fázi polarizovaně: víc lehkého běhu a krátké tvrdé úseky, méně středního tempa.",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "Rozložení intenzity: zhruba 75–80 % lehce, 15–20 % středně (tempo, práh), do 10 % tvrdě.",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "Trénink příjmu: {} g sacharidů za hodinu (gely, nápoj), první dávka po 20–30 min, pak každých 15–20 min.",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "V terénu s převýšením: do prudkých kopců klidně svižnou chůzí, seběhy s kontrolou.",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "{} × 3 min do kopce v Z4, dolů volným klusem a s technikou seběhu: krátké rychlé kroky, pohled 3–4 m dopředu, paže do stran",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "{} × 3 min v Z4, mezi úseky 2 min volně — intenzita zůstává, úseky jsou kratší",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "{} × 3–4 min v závodním tempu {} /km, mezi úseky 2 min volně",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "{} × 4 min v Z5, mezi úseky 3 min volným klusem",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "{} × {} min na prahu (Z3–Z4: zvládnete krátké věty), mezi úseky 2 min volně",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "{} × {} min v Z4–Z5, mezi úseky 2–3 min volným klusem",
+  "files": [
+   "metrics/goal_sessions.py"
+  ]
+ },
+ {
+  "t": "{} × {} min v závodním tempu {} /km, mezi úseky 2–3 min volně",
+  "files": [
+   "metrics/goal_sessions.py"
   ]
  },
  {
@@ -6202,6 +6376,12 @@
  },
  {
   "t": "Done",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "HRV je dnes pod vaším běžným pásmem — tvrdý trénink se přesouvá na jiný den tohoto týdne.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -6743,6 +6923,12 @@
  },
  {
   "t": "Tento týden (od pondělí) {} z cíle {} km.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Tento týden je kontrolní test: 5–10 km naplno, nebo půlmaraton jako B‑závod. Podle výsledku se upraví závodní tempo.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -10336,6 +10522,12 @@
  },
  {
   "t": "Tvrdé tréninky aspoň 48 hodin od sebe a ne vedle dlouhého běhu, nejvýš {} za týden.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Tvrdý trénink se z dneška přesunul na {}: HRV je dnes pod vaším běžným pásmem.",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -15058,11 +15250,23 @@
   ]
  },
  {
+  "t": "Dovolená může mít nejvýš 60 dní",
+  "files": [
+   "routers/goals.py"
+  ]
+ },
+ {
   "t": "Neplatné datum",
   "files": [
    "routers/goals.py",
    "routers/plan.py",
    "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Neplatné datum dovolené",
+  "files": [
+   "routers/goals.py"
   ]
  },
  {
@@ -15085,6 +15289,12 @@
  },
  {
   "t": "Tento cíl nestihne v termínu ani riziková cesta. Zvolte pozdější termín nebo menší cíl.",
+  "files": [
+   "routers/goals.py"
+  ]
+ },
+ {
+  "t": "Vyberte aspoň 2 dny v týdnu",
   "files": [
    "routers/goals.py"
   ]

@@ -522,6 +522,15 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     novice = hist_days < NOVICE_DAYS            # plan C1: too little history for a personal model
     today_runs = [s for s in runs if s["date"] == t_iso]
     pat = _pattern(hist, today)
+    # plan k cíli 2.0 #10: the runner's own week (Cíl → Můj týden) over the habit
+    prefs = ((getattr(db.runner, "planner_json", None) or {}).get("prefs") or {}) if db.runner is not None else {}
+    if prefs.get("days"):
+        dd_ = sorted({int(x) for x in prefs["days"] if 0 <= int(x) <= 6})
+        pat["runDays"] = dd_
+        pat["runsPerWeek"] = min(pat["runsPerWeek"] or len(dd_), len(dd_)) or len(dd_)
+        pat["hardDays"] = [w for w in pat["hardDays"] if w in dd_]
+    if prefs.get("longDay") is not None and 0 <= int(prefs["longDay"]) <= 6:
+        pat["longDay"] = int(prefs["longDay"])
     easy_km = _easy_km(hist, pat["longKm"])
     easy_pace = _easy_pace(hist)
     fit = C.hr_speed_fit(runs, t_iso, lo=1, hi=56)
@@ -687,6 +696,15 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         goal_back = GT.returning(g_row, [s["date"] for s in runs], today)
     risk_on = bool(goal_wk) and (goal_res or {}).get("path") == "risk"
     goal_hold = (goal_res or {}).get("hold") if goal_wk is not None else None
+    # plan k cíli 2.0 #12: on the goal's plan a hard session only with HRV inside the usual band
+    # (Vesterinen 2016, Düking 2021); outside it the session moves to another day of the week
+    hrv_low = goal_wk is not None and ((cap.get("readiness") or {}).get("parts") or {}).get("hrv", 0) > 0
+    goal_ctx = None
+    if goal_wk is not None and goal_res is not None:
+        from . import goal_sessions as GS
+        goal_ctx = GS.ctx_of(goal_res["goal"], goal_wk.get("sessionPhase") or goal_wk.get("phase"), GP.experienced(gst),
+                             bool(goal_wk.get("taper")))
+    gi_bad = (((g_row.track_json or {}) if g_row is not None else {}).get("giLast") or {}).get("ok") is False
     if coach_on:
         mode, factor = "coach", 1.0
     elif rtr:
@@ -1026,6 +1044,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                                  + (" (ve specifické fázi až 50 % týdne)" if goal_wk.get("phase") == "specific" else "")
                                  + "; stejnoměrně, v Z2.") if goal_long else
                                 f"Nejvýš {round(LONG_SHARE * 100)} % týdenního rozpočtu objemu; stejnoměrně, v Z2."])
+    if goal_long and goal_ctx is not None:
+        ln = GS.long_note(goal_ctx, goal_long, (goal_wk or {}).get("fuel"), gi_bad)
+        if ln:
+            types["dlouhý"]["notes"].append(ln)
     z4hi = None if int_max is None else min(int_max, Z4_SESSION_MAX) * (0.5 if drift else 1.0)
     if novice and (z4hi is None or z4hi < NOVICE_Z4):
         z4hi = NOVICE_Z4 * (0.5 if drift else 1.0)          # plan C1: intensity doesn't block the first 6 weeks
@@ -1226,6 +1248,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if gscore < READY_QUALITY:
         block("kvalitní", f"{rtxt()} — na tvrdý trénink je potřeba aspoň {READY_QUALITY} %.")
         block("dlouhý", f"{rtxt()} — dlouhý běh přesuňte na odpočatější den.")
+    elif hrv_low:
+        block("kvalitní", "HRV je dnes pod vaším běžným pásmem — tvrdý trénink se přesouvá na jiný den tohoto týdne.")
     if load >= 25:
         block("kvalitní", "Zátěž je zvýšená — týden odlehčujeme, bez tvrdých úseků.")
     if a.get("quadrant") in ("overreaching", "critical"):     # A4: the recommendation follows the state label
@@ -1521,6 +1545,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                            + (" (odlehčovací týden)" if goal_wk.get("deload") else "") + ".")
         if goal_wk.get("milestone") == "half":
             reasons.append("Tento týden je mezicíl: běh na 21 km, nebo B‑závod na půlmaraton.")
+        if goal_wk.get("milestone") == "test":
+            reasons.append("Tento týden je kontrolní test: 5–10 km naplno, nebo půlmaraton jako B‑závod. "
+                           "Podle výsledku se upraví závodní tempo.")
         if goal_hold:
             reasons.append(f"Plán k cíli teď neroste ({goal_hold['why']}): týden drží úroveň posledních týdnů.")
         re_ = goal_res["goal"].get("riskEndedAt")
@@ -1733,6 +1760,11 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         "ceilRun": {c: ((ch.get(c) or {}).get("ceilingSession") * (goal_risk_k()[1] if (risk_on and c in GOAL_RISK_CH) else 1.0)
                         if (ch.get(c) or {}).get("ceilingSession") is not None else None) for c in CHS},
         "goalLong": _r(goal_long) if goal_long else None, "goalRuns": goal_runs, "goalPhase": (goal_wk or {}).get("phase") if mode == "goal" else None,
+        # plan k cíli 2.0: the sessions by phase (#11), HRV outside the band today (#12), the fuelling
+        # practice on the long run (#15), the runner's time per day (#10)
+        "goalCtx": goal_ctx if mode == "goal" else None, "hrvLow": bool(hrv_low and mode == "goal"),
+        "goalFuel": (goal_wk or {}).get("fuel") if mode == "goal" else None, "giBad": gi_bad,
+        "dayMin": prefs.get("dayMin"), "longMin": prefs.get("longMin"),
         "noSpeedWeeks": bool(nsw) and not novice,
         "kolo": not ((xt or {}).get("kolo") == "avoid" or (override or {}).get("kind") == "red_flag"),
         "koloNote": ((xt or {}).get("koloNotes") or [None])[0],

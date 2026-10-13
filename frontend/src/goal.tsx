@@ -10,6 +10,7 @@ import { Button, Card, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
 import { fmtD } from "@/lib"
 import { num } from "@/outlook"
 import { C } from "@/tokens"
+import { useLang } from "@/i18n/lang"
 import { ChevronLeft, ChevronRight, Flag, Target } from "lucide-react"
 
 const VCOL: Record<string, string> = { ok: C.ok, tight: C.watch, no: C.alert, unknown: C.fg3 }
@@ -265,23 +266,52 @@ function bestPatch(g: any): Partial<Form> {
 }
 
 // ---- the answer at a glance (owner feedback 2026-10-13: pictures, not sentences) -------------
-function headline(res: any): { title: string; sub: string | null } {
-  const sr = res?.safe?.readyWeek, goalW = res?.weeksToGoal, taper = res?.taperWeeks || 0
-  if (res?.verdict === "ok") {
-    const spare = goalW - taper - sr
-    return { title: "Stihnete to bezpečně", sub: spare > 0 ? `Připraveni v týdnu ${sr} z ${goalW}, rezerva ${weeksCz(spare)}.` : `Připraveni v týdnu ${sr} z ${goalW}.` }
-  }
-  if (res?.verdict === "tight") return { title: "Stihnete to jen bez výpadku", sub: `Připraveni v týdnu ${sr} z ${goalW}, rezerva na nemoc chybí.` }
-  if (res?.verdict === "no") return { title: "Bezpečně to nestihnete", sub: res.realDate ? `Reálně od ${fmtDY(res.realDate)}.` : "Ani do 2 let." }
+const readyW = (p: any): number | null => p?.earliest ?? p?.readyWeek ?? null
+const chanceTxt = (c: number) => (c >= 95 ? "více než 95 %" : `${c} %`)
+function headline(res: any, withChance = true): { title: string; sub: string | null } {
+  const sr = readyW(res?.safe), goalW = res?.weeksToGoal
+  const ch = res?.chance != null && withChance ? `Šance ${chanceTxt(res.chance)}. ` : ""
+  if (res?.verdict === "ok") return { title: "Stihnete to bezpečně", sub: `${ch}Bez výpadku připraveni v týdnu ${sr} z ${goalW}.` }
+  if (res?.verdict === "tight") return { title: "Těsné: vyjde jen bez větších výpadků", sub: `${ch}Bez výpadku připraveni v týdnu ${sr} z ${goalW}.` }
+  if (res?.verdict === "no") return { title: res.feasible ? "Spíš to nestihnete" : "Bezpečně to nestihnete",
+    sub: `${res.feasible ? ch : ""}${res.realDate ? `Reálně od ${fmtDY(res.realDate)}.` : "Ani do 2 let."}` }
   return { title: "Zatím to nejde spočítat", sub: res?.text || null }
+}
+
+// plan k cíli 2.0 #6 — the chance on a bar with the verdict's zones (Nereálné < 50 % ≤ Těsné < 80 % ≤ Reálné)
+function ChanceBar({ res }: { res: any }) {
+  if (res?.chance == null) return null
+  const c = Math.max(0, Math.min(100, res.chance))
+  const col = c >= 80 ? C.ok : c >= 50 ? C.watch : C.alert
+  return (
+    <div className="mt-3" data-testid="goal-chance">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[12px] text-fg-2">Šance být včas připraven/a</span>
+        <b className="text-[22px] tabular-nums leading-none" style={{ color: col }}>{c >= 95 ? "> 95 %" : `${c} %`}</b>
+      </div>
+      <div className="relative mt-1.5 flex h-2.5 overflow-hidden rounded-full">
+        <i className="h-full" style={{ width: "50%", background: `${C.alert}33` }} />
+        <i className="h-full" style={{ width: "30%", background: `${C.watch}33` }} />
+        <i className="h-full" style={{ width: "20%", background: `${C.ok}33` }} />
+        <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${c}%`, background: col }} />
+      </div>
+      <div className="relative mt-0.5 h-3 text-[10px] text-fg-3">
+        <span className="absolute left-0">0</span>
+        <span className="absolute -translate-x-1/2" style={{ left: "50%" }}>50</span>
+        <span className="absolute -translate-x-1/2" style={{ left: "80%" }}>80</span>
+        <span className="absolute right-0">100</span>
+      </div>
+      {res.readyRange && <p className="mt-1 text-[11.5px] text-fg-2">{`Připraveni nejspíš mezi ${fmtDY(res.readyRange.from)} a ${fmtDY(res.readyRange.to)}.`}</p>}
+    </div>
+  )
 }
 
 // preparation as bars against the race line: a bar ending before the line = in time
 function Timeline({ res }: { res: any }) {
   const goalW = res.weeksToGoal as number
   const taper = res.taperWeeks || 0
-  const sr: number | null = res.safe?.readyWeek ?? null
-  const rr: number | null = res.risk?.readyWeek ?? null
+  const sr: number | null = readyW(res.safe)
+  const rr: number | null = readyW(res.risk)
   const showRisk = rr != null && res.verdict !== "ok" && (res.riskPossible || res.path === "risk")
   const lanes = [{ key: "safe", label: "Bezpečná cesta", ready: sr, col: C.ok, dash: false },
     ...(showRisk ? [{ key: "risk", label: "Riziková cesta", ready: rr, col: C.alert, dash: true }] : [])]
@@ -320,7 +350,7 @@ function Timeline({ res }: { res: any }) {
 function VerdictHero({ res }: { res: any }) {
   if (!res) return null
   const col = VCOL[res.verdict] || C.fg3
-  const h = headline(res)
+  const h = headline(res, false)
   return (
     <div className="nest p-3.5" style={{ borderColor: `${col}55` }} data-testid="goal-result">
       <div className="flex items-start justify-between gap-3">
@@ -330,6 +360,7 @@ function VerdictHero({ res }: { res: any }) {
         </div>
         <VerdictChip res={res} />
       </div>
+      <ChanceBar res={res} />
       {res.safe && res.weeksToGoal && <Timeline res={res} />}
       {res.safe && res.taperWeeks > 0 && <p className="mt-1 text-[10.5px] text-fg-3">Světlejší konec pruhu je ladění před závodem.</p>}
     </div>
@@ -446,7 +477,7 @@ function Options({ res, onApply }: { res: any; onApply?: (patch: Partial<Form>) 
                 <div className="min-w-0">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-accent">Nejlepší bezpečný cíl</p>
                   <p className="mt-0.5 text-[15px] font-bold text-fg">{x.label}</p>
-                  <p className="text-[11px] text-fg-3">{`do ${fmtDY(res.goal?.date)} i s rezervou na nemoc`}</p>
+                  <p className="text-[11px] text-fg-3">{x.chance != null ? `do ${fmtDY(res.goal?.date)} · šance ${x.chance} %` : `do ${fmtDY(res.goal?.date)}`}</p>
                 </div>
                 {use(bestPatch(x.goal))}
               </div>
@@ -482,8 +513,20 @@ function Options({ res, onApply }: { res: any; onApply?: (patch: Partial<Form>) 
 }
 
 // the target time in three numbers
-function TargetTime({ tt }: { tt: any }) {
-  if (!tt) return null
+function TrainEstimate({ te }: { te: any }) {
+  if (!te) return null
+  return (
+    <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-white/[.04] px-3 py-2" data-testid="goal-train-estimate">
+      <span className="min-w-0 text-[12px] text-fg-2">{`Z tréninku: ${num(te.kmWeek, 0)} km týdně ve vrcholu, tempo ${Math.floor(te.pace / 60)}:${String(te.pace % 60).padStart(2, "0")} /km`}</span>
+      <span className="flex items-center gap-1.5"><b className="text-[15px] tabular-nums text-fg">{`${Math.floor(te.timeS / 3600)}:${String(Math.floor((te.timeS % 3600) / 60)).padStart(2, "0")}`}</b>
+        <InfoDot label="Odhad z tréninku" wide text={<>{te.text}<span className="mt-1 block opacity-80">{te.note}</span></>} /></span>
+    </div>
+  )
+}
+
+function TargetTime({ tt, te }: { tt: any; te?: any }) {
+  if (!tt && !te) return null
+  if (!tt) return <div className="nest mt-4 p-3.5"><p className="t-label !text-fg-3">Odhad času</p><TrainEstimate te={te} /></div>
   const gap = tt.gapPct as number | undefined
   return (
     <div className="nest mt-4 p-3.5" data-testid="goal-target-time">
@@ -494,6 +537,7 @@ function TargetTime({ tt }: { tt: any }) {
         <div><p className="text-[16px] font-bold tabular-nums" style={{ color: gap == null ? C.fg3 : gap <= 1 ? C.ok : gap <= 5 ? C.watch : C.alert }}>{tt.predictedText || "—"}</p>
           <p className="text-[10.5px] text-fg-3">{gap == null ? "dnes neznámé" : gap <= 1 ? "dnes v dosahu" : `dnes o ${num(gap, 0)} % pomaleji`}</p></div>
       </div>
+      <TrainEstimate te={te} />
     </div>
   )
 }
@@ -526,8 +570,8 @@ function PlanBars({ plan, today }: { plan: any[]; today: string }) {
           return (
             <g key={p.i}>
               <rect x={xs(i)} y={H - pb - h} width={bw} height={h} rx={Math.min(3, bw / 2)} fill={col} opacity={p.deload || p.taper ? 0.45 : 1}
-                stroke={i === sel ? C.fg : "none"} strokeWidth="1.5" />
-              {p.milestone === "half" && <circle cx={xs(i) + bw / 2} cy={H - pb - h - 6} r="2.5" fill={C.accent} />}
+                stroke={i === sel ? C.fg : "none"} strokeWidth="1.5" strokeDasharray={p.vacation ? "2 2" : undefined} />
+              {p.milestone && <circle cx={xs(i) + bw / 2} cy={H - pb - h - 6} r="2.5" fill={p.milestone === "test" ? C.watch : C.accent} />}
               {p.race && <text x={xs(i) + bw / 2} y={H - pb - h - 4} fontSize="11" textAnchor="middle" fill={C.fg}>⚑</text>}
             </g>
           )
@@ -539,12 +583,13 @@ function PlanBars({ plan, today }: { plan: any[]; today: string }) {
       <div className="mt-1 flex flex-wrap gap-2 text-[10.5px] text-fg-3">
         {phases.map((ph) => <span key={ph}><i className="mr-1 inline-block size-2 rounded-sm align-middle" style={{ background: (PHASE[ph] || PHASE.base)[1] }} />{(PHASE[ph] || PHASE.base)[0]}</span>)}
         <span><i className="mr-1 inline-block size-2 rounded-sm align-middle opacity-45" style={{ background: C.fg3 }} />odlehčení</span>
+        {plan.some((p) => p.milestone) && <span><i className="mr-1 inline-block size-2 rounded-full align-middle" style={{ background: C.accent }} />mezicíl / test</span>}
       </div>
       <div className="nest mt-2 flex items-center gap-3 px-3 py-2" data-testid="goal-plan-sel">
         <span className="min-w-0 flex-1">
           <span className="block text-[11px] text-fg-3">{`${w.i}. týden · od ${fmtDY(w.start)}`}{sel === cur ? " · tento týden" : ""}</span>
           <span className="block text-[13px] font-semibold text-fg">{w.race ? "Týden závodu" : `${num(w.km, 0)} km`}{w.long ? ` · dlouhý ${num(w.long, 0)} km` : ""}{w.descentRun ? ` · ↓ ${num(w.descentRun, 0)} m` : ""}</span>
-          {(w.deload || w.taper || w.milestone) && <span className="block text-[11px] text-fg-3">{w.deload ? "odlehčovací týden" : w.taper ? `ladění, ${num((w.factor ?? 0) * 100, 0)} % vrcholu` : "mezicíl: běh na 21 km"}</span>}
+          {weekTags(w).length > 0 && <span className="block text-[11px] text-fg-3">{weekTags(w).join(" · ")}</span>}
         </span>
         <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${pc}1f`, color: pc }}>{pl}</span>
       </div>
@@ -679,6 +724,13 @@ const PHASE: Record<string, [string, string]> = {
   base: ["Základ", C.info], build: ["Rozvoj", C.ok], specific: ["Specifická příprava", C.accent], taper: ["Ladění", C.watch],
 }
 const SCOL: Record<string, string> = { ok: C.ok, tight: C.watch, no: C.alert }
+const weekTags = (w: any): string[] => [
+  ...(w.vacation ? ["dovolená"] : w.deload ? ["odlehčovací týden"] : []),
+  ...(w.taper ? [`ladění, ${num((w.factor ?? 0) * 100, 0)} % vrcholu`] : []),
+  ...(w.milestone === "half" ? ["mezicíl: běh na 21 km"] : w.milestone === "test" ? ["kontrolní test 5–10 km"] : []),
+  ...(w.fuel ? [`výživa ${w.fuel} g/h na dlouhém běhu`] : []),
+  ...(w.strength != null && !w.race ? [`posilování ${w.strength}×`] : []),
+]
 
 // stage 2 — the plan towards the goal, week by week (backend goal_plan.plan_weeks)
 function PlanList({ plan, today }: { plan: any[]; today: string }) {
@@ -699,7 +751,7 @@ function PlanList({ plan, today }: { plan: any[]; today: string }) {
               <span className="min-w-0 flex-1">
                 <span className="block text-fg">{w.race ? "Týden závodu" : `${num(w.km, 0)} km`}{w.long ? ` · dlouhý ${num(w.long, 0)} km` : ""}{w.descentRun ? ` · ↓ ${num(w.descentRun, 0)} m` : ""}</span>
                 <span className="block text-[11px] text-fg-3"><span className="tabular-nums">{fmtDY(w.start)}</span>
-                  {w.deload ? " · odlehčovací" : ""}{w.taper ? ` · ${num((w.factor ?? 0) * 100, 0)} % vrcholu` : ""}{w.milestone === "half" ? " · mezicíl 21 km" : ""}{on ? " · tento týden" : ""}</span>
+                  {weekTags(w).map((t) => ` · ${t}`).join("")}{on ? " · tento týden" : ""}</span>
               </span>
               <span className="whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${pc}1f`, color: pc }}>{pl}</span>
             </li>
@@ -793,7 +845,8 @@ function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy }
         </>}
         <div className="mt-5"><Gauges res={res} /><Notes res={res} /></div>
         <EnergyRow rid={rid} en={data.energy} onData={onChange} />
-        <TargetTime tt={res?.targetTime} />
+        <MyWeek rid={rid} onSaved={() => api.goal(rid).then(onChange).catch(() => {})} />
+        <TargetTime tt={res?.targetTime} te={res?.trainEstimate} />
         {gg?.coachCheck && <p className="nest mt-4 p-3.5 text-[12px] leading-5 text-fg-soft" data-testid="goal-coach-check">{gg.coachCheck.text}</p>}
         <RiskPanel rid={rid} goal={goal} res={res} onChange={onChange} />
         {res?.safe && <details className="mt-5" data-testid="goal-growth">
@@ -899,6 +952,84 @@ function EnergyRow({ rid, en, onData }: { rid: string; en: any; onData: (d: any)
   )
 }
 
+// plan k cíli 2.0 #10 — the runner's week: the days, the time, the holidays
+const WDS_CS = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"], WDS_EN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+function MyWeek({ rid, onSaved }: { rid: string; onSaved: () => void }) {
+  const toast = useToast()
+  const { refresh } = useApp()
+  const WDS = useLang() === "en" ? WDS_EN : WDS_CS
+  const [p, setP] = useState<any>(null)
+  const [edit, setEdit] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [f, setF] = useState({ days: [] as number[], longDay: null as number | null, dayMin: "", longMin: "", vac: [] as { from: string; to: string }[] })
+  useEffect(() => {
+    let alive = true
+    api.goalPrefs(rid).then((d: any) => alive && setP(d.prefs || {})).catch(() => alive && setP({}))
+    return () => { alive = false }
+  }, [rid])
+  if (!p) return null
+  const open = () => {
+    setF({ days: p.days || [], longDay: p.longDay ?? null, dayMin: p.dayMin ? String(p.dayMin) : "", longMin: p.longMin ? String(p.longMin) : "", vac: p.vacations || [] })
+    setEdit(true)
+  }
+  const toggle = (d: number) => setF((x) => ({ ...x, days: x.days.includes(d) ? x.days.filter((k) => k !== d) : [...x.days, d].sort() }))
+  const save = async () => {
+    if (f.days.length === 1) { toast({ title: "Vyberte aspoň 2 dny v týdnu" }); return }
+    setBusy(true)
+    try {
+      const d: any = await api.setGoalPrefs(rid, { days: f.days, long_day: f.longDay, day_min: nIn(f.dayMin), long_min: nIn(f.longMin),
+        vacations: f.vac.filter((v) => v.from && v.to) })
+      setP(d.prefs); setEdit(false); onSaved(); refresh()
+    } catch (e: any) { toast({ title: e?.message || "Nepodařilo se uložit" }) }
+    finally { setBusy(false) }
+  }
+  const parts = [
+    ...(p.days?.length ? [p.days.map((d: number) => WDS[d]).join(" ")] : []),
+    ...(p.longDay != null ? [`dlouhý ${WDS[p.longDay]}`] : []),
+    ...(p.dayMin ? [`všední den ${p.dayMin} min`] : []), ...(p.longMin ? [`dlouhý ${p.longMin} min`] : []),
+    ...(p.vacations?.length ? [`dovolená ${p.vacations.length}×`] : []),
+  ]
+  if (!edit) return (
+    <p className="mt-4 flex flex-wrap items-center gap-x-2 text-[12px] text-fg-2" data-testid="goal-week-prefs">
+      <span>{parts.length ? `Můj týden: ${parts.join(" · ")}` : "Můj týden: podle toho, jak běháte"}</span>
+      <button type="button" className="font-semibold text-accent underline-offset-2 hover:underline" onClick={open} data-testid="prefs-edit">Upravit</button>
+    </p>
+  )
+  return (
+    <div className="nest mt-4 p-3.5" data-testid="goal-prefs">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-accent">Můj týden</p>
+      <p className="mt-1 text-[12px] leading-5 text-fg-2">Plán se přizpůsobí: běhy jen v dny, kdy můžete, délka podle času, dovolená jako lehčí týden.</p>
+      <p className={`${lbl} mt-2.5`}>Kdy můžete běhat</p>
+      <div className="mt-1 flex flex-wrap gap-1.5">{WDS.map((w, d) => (
+        <button key={w} type="button" aria-pressed={f.days.includes(d)} onClick={() => toggle(d)} data-testid={`prefs-day-${d}`}
+          className={`min-w-9 rounded-full px-2.5 py-1 text-[12px] font-semibold ${f.days.includes(d) ? "bg-fg text-ink" : "bg-white/[.06] text-fg-2"}`}>{w}</button>))}</div>
+      <p className={`${lbl} mt-2.5`}>Dlouhý běh</p>
+      <div className="mt-1 flex flex-wrap gap-1.5">{WDS.map((w, d) => (f.days.length === 0 || f.days.includes(d)) && (
+        <button key={w} type="button" aria-pressed={f.longDay === d} onClick={() => setF((x) => ({ ...x, longDay: x.longDay === d ? null : d }))}
+          className={`min-w-9 rounded-full px-2.5 py-1 text-[12px] font-semibold ${f.longDay === d ? "bg-accent text-ink" : "bg-white/[.06] text-fg-2"}`}>{w}</button>))}</div>
+      <div className="mt-2.5 grid grid-cols-2 gap-2">
+        <label className={lbl}>Všední den, min<input className={inp} inputMode="numeric" value={f.dayMin} placeholder="např. 60" onChange={(e) => setF((x) => ({ ...x, dayMin: e.target.value }))} data-testid="prefs-daymin" /></label>
+        <label className={lbl}>Dlouhý běh, min<input className={inp} inputMode="numeric" value={f.longMin} placeholder="např. 150" onChange={(e) => setF((x) => ({ ...x, longMin: e.target.value }))} data-testid="prefs-longmin" /></label>
+      </div>
+      <p className={`${lbl} mt-2.5`}>Dovolená (lehčí týden)</p>
+      <div className="mt-1 grid gap-1.5">
+        {f.vac.map((v, i) => (
+          <div key={i} className="grid grid-cols-[1fr_1fr_auto] items-center gap-1.5">
+            <input type="date" className={inp + " !mt-0"} value={v.from} onChange={(e) => setF((x) => ({ ...x, vac: x.vac.map((y, k) => (k === i ? { ...y, from: e.target.value } : y)) }))} />
+            <input type="date" className={inp + " !mt-0"} value={v.to} onChange={(e) => setF((x) => ({ ...x, vac: x.vac.map((y, k) => (k === i ? { ...y, to: e.target.value } : y)) }))} />
+            <button type="button" className="px-2 text-[13px] text-fg-3" aria-label="Odebrat" onClick={() => setF((x) => ({ ...x, vac: x.vac.filter((_, k) => k !== i) }))}>✕</button>
+          </div>
+        ))}
+        <button type="button" className="justify-self-start text-[12px] font-semibold text-accent" onClick={() => setF((x) => ({ ...x, vac: [...x.vac, { from: "", to: "" }] }))}>+ Přidat dovolenou</button>
+      </div>
+      <div className="mt-3 flex gap-2">
+        <Button size="sm" disabled={busy} onClick={save} data-testid="prefs-save">Uložit</Button>
+        <Button size="sm" variant="outline" onClick={() => setEdit(false)}>Zpět</Button>
+      </div>
+    </div>
+  )
+}
+
 // plan k cíli 2.0 #19 — how the goal went, after its date
 export function OutcomeCard({ rid, oc, onData }: { rid: string; oc: any; onData: (d: any) => void }) {
   const [busy, setBusy] = useState(false)
@@ -939,15 +1070,16 @@ export function OutcomeCard({ rid, oc, onData }: { rid: string; oc: any; onData:
 // plan k cíli 2.0 #7, #9 — a checkpoint due and what a setback cost
 function TrackBanners({ rid, track, res, onData, onEdit }: { rid: string; track: any; res: any; onData: (d: any) => void; onEdit?: () => void }) {
   const [busy, setBusy] = useState(false)
-  const cp = track?.checkpoint, sb = track?.setback, hold = res?.hold
-  if (!cp && !sb && !hold) return null
+  const cp = track?.checkpoint, sb = track?.setback, hold = res?.hold, gi = track?.gi
+  if (!cp && !sb && !hold && !gi) return null
   const ack = async () => { setBusy(true); try { onData(await api.goalCheckpoint(rid, cp.key)) } finally { setBusy(false) } }
+  const giAns = async (ok: boolean) => { setBusy(true); try { onData(await api.goalGi(rid, gi.date, ok)) } finally { setBusy(false) } }
   return (
     <div className="mt-3 grid gap-2">
       {hold && (
         <div className="nest p-3" style={{ borderColor: `${C.alert}55` }} data-testid="goal-hold">
           <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: C.alert }}>Plán teď neroste</p>
-          <p className="mt-0.5 text-[13px] text-fg">{`Důvod: ${hold.why}. Týdny drží vaši současnou úroveň.`}</p>
+          <p className="mt-0.5 text-[13px] text-fg">{hold.kind === "sleep" ? `Důvod: ${hold.why}. Týden neroste, ale ani neklesá, dokud průměr nepřesáhne 7 h.` : `Důvod: ${hold.why}. Týdny drží vaši současnou úroveň.`}</p>
           {hold.kind === "energy" && <p className="mt-0.5 text-[12px] text-fg-2">Objednejte se ke sportovnímu lékaři. Chybějící menstruace bývá známkou nedostatku energie a zvyšuje riziko únavové zlomeniny.</p>}
         </div>
       )}
@@ -960,6 +1092,15 @@ function TrackBanners({ rid, track, res, onData, onEdit }: { rid: string; track:
             {cp.behind && onEdit && <Button size="sm" onClick={onEdit}>Upravit cíl</Button>}
             <Button size="sm" variant="outline" disabled={busy} onClick={ack} data-testid="goal-checkpoint-ok">{cp.behind ? "Ponechat cíl" : "Rozumím"}</Button>
           </div>
+        </div>
+      )}
+      {gi && (
+        <div className="nest flex flex-wrap items-center justify-between gap-2 p-3" data-testid="goal-gi">
+          <span className="text-[13px] text-fg">{`Dlouhý běh ${fmtD(gi.date)} (${num(gi.km, 0)} km): trávení v pořádku?`}</span>
+          <span className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => giAns(true)} data-testid="gi-ok">Ano</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => giAns(false)} data-testid="gi-bad">Ne, potíže</Button>
+          </span>
         </div>
       )}
       {sb && <p className="rounded-xl bg-watch/[.08] px-3 py-2 text-[12px] text-fg" data-testid="goal-setback">{`Výpadek posunul reálný termín o ${sb.days} dní: ${fmtDY(sb.from)} → ${fmtDY(sb.to)}.`}</p>}

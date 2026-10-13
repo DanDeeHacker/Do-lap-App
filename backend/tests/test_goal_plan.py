@@ -90,8 +90,17 @@ def test_verdicts_real_date_and_alternatives():
     far = G.evaluate(_race(42.2, near["realDate"]), st)               # the real date it gave is indeed reachable
     assert far["verdict"] == "ok" and "alternatives" not in far
     assert {n["key"] for n in far["notes"]} >= {"half", "freq", "taper"}   # first marathon, no half yet
-    tight_date = (G._d(st["start"]) + timedelta(days=7 * (near["safe"]["readyWeek"] + 2) - 1)).isoformat()
-    assert G.evaluate(_race(42.2, tight_date), st)["verdict"] == "tight"
+    # plan k cíli 2.0 #6: the verdict is the chance — Nereálné under 50 %, Těsné 50–79 %, Reálné from 80 %,
+    # and it only grows with more weeks
+    seen, last = [], -1
+    for k in range(0, 16):
+        d = (G._d(st["start"]) + timedelta(days=7 * (near["safe"]["earliest"] + 2 + k) - 1)).isoformat()
+        r = G.evaluate(_race(42.2, d), st, alternatives=False)
+        assert r["chance"] >= last and r["verdict"] == G.verdict_of(r["chance"] / 100)
+        last = r["chance"]
+        seen.append(r["verdict"])
+    assert seen[0] == "no" and "tight" in seen and seen[-1] == "ok"
+    assert seen == sorted(seen, key=["no", "tight", "ok"].index)
     t = G.evaluate(_race(21.1, "2027-01-10", aim="time"), st)
     assert any(a["kind"] == "finish" for a in t.get("alternatives", [])) or t["verdict"] == "ok"
 
@@ -486,7 +495,7 @@ def test_strength_is_a_fixed_part_of_the_plan(client, db_session):
     res = G.evaluate(_race(42.2, "2027-04-25"), _st(km=40, long=18))
     plan = res["plan"]
     for w in plan:
-        want = 0 if w.get("race") else 1 if (w.get("taper") or w.get("deload") or w["phase"] == "specific") else 2
+        want = 0 if w.get("race") else 1 if (w.get("taper") or w.get("deload") or (w.get("sessionPhase") or w["phase"]) == "specific") else 2
         assert w["strength"] == want, w
     assert {w["strength"] for w in plan} == {0, 1, 2}
     rid, _saved = _goal_runner(client, db_session, "goalstr@test.cz")
@@ -518,7 +527,7 @@ def test_the_energy_and_bone_screen(client, db_session):
     after = client.post(f"/api/runners/{rid}/goal/energy", json={"bsi": True}).json()
     assert not after["energy"]["ask"] and after["energy"]["bsi"]
     assert after["result"]["margins"]["week"] < before["margins"]["week"]
-    assert after["result"]["reserveWeeks"] == before["reserveWeeks"] + 1
+    assert after["result"]["chance"] <= before["chance"] and after["result"]["reserveWeeks"] >= before["reserveWeeks"]
     assert any(n["key"] == "margin" and "dřívější únavová zlomenina" in n["why"] for n in after["result"]["notes"])
     held = client.post(f"/api/runners/{rid}/goal/energy", json={"period": True}).json()
     assert held["result"]["hold"]["kind"] == "energy" and held["result"]["notes"][0]["key"] == "energy"
@@ -555,3 +564,130 @@ def test_the_goal_outcome_is_asked_after_its_date(client, db_session):
     assert o["finished"] and o["timeS"] == 6400 and o["verdict"] == "ok" and o["kmPct"] == 80 and o["strengthPct"] == 0
     assert not o["injury"]
     assert client.post(f"/api/runners/{rid}/goal/outcome", json={"goal_id": g.id, "skipped": True}).status_code == 409
+
+
+# ------------------------------------------------------------------ plan k cíli 2.0, stage B
+def test_hiking_climb_counts_for_a_trail_goal_only(client, db_session):
+    """#3: a hike's ascent counts in full, its descent half, and only towards a trail goal."""
+    from app import models
+    rid, _r = _runner(client, db_session, "hike@test.cz")
+    mon = E.today_date() - timedelta(days=E.today_date().weekday())
+    for k in (3, 10, 17):
+        db_session.add(models.Activity(runner_id=rid, provider="garmin", external_id=f"hk{k}", sport="hiking",
+                                       started_at=(mon - timedelta(days=k)).isoformat() + "T09:00:00",
+                                       distance_km=14.0, duration_min=300, ascent_m=1200.0, descent_m=1200.0))
+    db_session.commit()
+    st = G.runner_state(db_session, rid)
+    assert st["hike"] and st["hike"]["up30"] >= 1100
+    trail = _race(50, (E.today_date() + timedelta(days=7 * 30)).isoformat(), ascentM=3000, descentM=3000, terrain="trail")
+    road = _race(42.2, trail["date"])
+    tr = G.evaluate(trail, st)
+    up = next(q for q in tr["requirements"] if q["key"] == "ascentRun")
+    assert up["now"] >= 1100 and any(n["key"] == "hike" for n in tr["notes"])
+    without = G.evaluate(trail, {**st, "hike": None})
+    assert next(q for q in without["requirements"] if q["key"] == "ascentRun")["now"] < up["now"]
+    assert not any(n["key"] == "hike" for n in G.evaluate(road, st)["notes"])
+    h = st["hike"]["weeks"][-1]
+    assert h["down"] < h["up"]                                            # descent at half weight
+
+
+def test_the_chance_follows_the_risks():
+    """#6: every combination of illness, injury and missed weeks counted; a past injury, the risk
+    path and a poor plan record lower the chance; the real date sits at the 80th percentile."""
+    st = _st(km=40, long=18)
+    cdf = G.ready_cdf(10, st)
+    assert cdf[9] == 0 and 0 < cdf[10] < 1 and abs(cdf[-1] - 1) < 1e-6
+    assert all(b >= a for a, b in zip(cdf, cdf[1:]))
+    hurt = {**st, "marginWhy": ["dřívější zranění"]}
+    assert G.chance_of(10, 2, 15, hurt)["chance"] < G.chance_of(10, 2, 15, st)["chance"]
+    assert G.chance_of(10, 2, 15, {**st, "missRate": 0.2})["chance"] < G.chance_of(10, 2, 15, st)["chance"]
+    assert G.chance_of(10, 2, 15, st, "risk")["chance"] < G.chance_of(10, 2, 15, st)["chance"]
+    c = G.chance_of(10, 2, 30, st)
+    assert c["lo"] <= c["real"] <= c["hi"] and cdf[c["real"]] >= 0.8 > cdf[c["real"] - 1]
+    r = G.evaluate(_race(21.1, "2027-03-28"), st)
+    assert r["verdict"] == G.verdict_of(r["chance"] / 100) and "Šance" in r["text"]
+    assert any(n["key"] == "chance" for n in r["notes"]) and r.get("readyRange")
+
+
+def test_holidays_and_the_runners_week(client, db_session):
+    """#10: holiday weeks run as recovery weeks; the long run and the week fit the runner's time."""
+    st = {**_st(km=40, long=18), "start": "2026-10-19",
+          "prefs": {"vacations": [{"from": "2026-11-02", "to": "2026-11-08"}], "longMin": 90, "days": [1, 3, 5], "dayMin": 45}}
+    assert G.vac_weeks(st) == {3}
+    r = G.evaluate(_race(42.2, "2027-05-02"), st)
+    w3 = r["plan"][2]
+    assert w3["vacation"] and w3["deload"]
+    keys = [n["key"] for n in r["notes"]]
+    assert "vacation" in keys and keys.count("time") == 2                 # the long run and the week don't fit
+    rid, _saved = _goal_runner(client, db_session, "prefs@test.cz")
+    res = client.put(f"/api/runners/{rid}/goal/prefs", json={"days": [1, 3], "long_day": 6, "day_min": 40, "long_min": 80})
+    assert res.status_code == 200 and res.json()["prefs"]["days"] == [1, 3, 6]
+    assert client.put(f"/api/runners/{rid}/goal/prefs", json={"days": [2]}).status_code == 422
+    a = E.get_or_refresh_assessment(db_session, rid)
+    g = a["guidance"]
+    assert g["pattern"]["runDays"] == [1, 3, 6] and g["pattern"]["longDay"] == 6
+    from app.metrics import week_plan as WP
+    wp = WP.build(a, E.today_date())
+    pace = g["planCtx"]["easyPace"] or 400
+    for d in (wp or {}).get("days") or []:
+        for it in d["items"]:
+            if it["kind"] == "run" and not d["past"] and not d["today"]:
+                cap = (80 * 60 / (pace * 1.05)) if it["type"] == "dlouhý" else 40 * 60 / pace
+                assert it["km"]["hi"] <= cap + 0.15, it
+
+
+def test_sessions_follow_the_phase_and_the_goal():
+    """#11: base hills, build threshold, the specific phase by the goal's kind, the taper shorter."""
+    from app.metrics import goal_sessions as GS
+    m = _race(42.2, "2027-04-25", aim="time", targetTimeS=4 * 3600)
+    t = _race(60, "2027-08-28", ascentM=3000, descentM=3000, terrain="trail")
+    assert "do kopce" in GS.session(GS.ctx_of(m, "base", False), 10, 0)
+    assert "na prahu" in GS.session(GS.ctx_of(m, "build", False), 24, 0)
+    assert "závodním tempu 5:41" in GS.session(GS.ctx_of(m, "specific", True), 30, 0)
+    assert "do kopce v Z4" in GS.session(GS.ctx_of(t, "specific", False), 24, 0)
+    assert "kratší" in GS.session(GS.ctx_of(_race(10, "2027-04-25"), "x", False, taper=True), 12, 0)
+    assert "Dva dlouhé dny" in GS.long_note(GS.ctx_of(t, "specific", False), 30)
+    assert "Posledních" in GS.long_note(GS.ctx_of(m, "specific", True), 30)
+    assert "pyramid" in GS.distribution(GS.ctx_of(m, "specific", True)) and "75–80 %" in GS.distribution(GS.ctx_of(t, "base", False))
+
+
+def test_hrv_outside_the_band_moves_the_hard_day(client, db_session):
+    """#12: on the goal's plan a hard session waits for HRV inside the usual band."""
+    from app.metrics import guidance as GD
+    rid, _saved = _goal_runner(client, db_session, "hrv@test.cz")
+    r = db_session.query(__import__("app.models", fromlist=["Runner"]).Runner).filter_by(id=rid).first()
+    with E.engine_pinned("v3"):
+        a = E.assess(db_session, rid)
+    cap = dict(a["capacity"])
+    cap["readiness"] = {**cap["readiness"], "parts": {**(cap["readiness"].get("parts") or {}), "hrv": 0.4}}
+    g = GD.build_guidance(db_session, rid, {**a, "capacity": cap}, r)
+    assert g["week"]["mode"] == "goal"
+    assert g["planCtx"]["hrvLow"] and not g["types"]["kvalitní"]["allowed"]
+    plain = GD.build_guidance(db_session, rid, a, r)
+    assert not plain["planCtx"]["hrvLow"]
+
+
+def test_training_estimate_test_week_and_fuelling():
+    """#13: Tanda's marathon estimate and a control test 7 weeks out; #15: fuelling in the long runs
+    over 90 minutes of the last 8 weeks, rising to 90 g/h for an ultra."""
+    st = {**_st(km=50, long=22), "train8": {"km": 50.0, "pace": 330.0}}
+    assert abs(G.tanda_pace(50, 330) - (17.1 + 140.0 * 2.718281828 ** (-0.265) + 181.5)) < 0.1
+    r = G.evaluate(_race(42.2, "2027-05-02", aim="time", targetTimeS=3 * 3600 + 45 * 60), st)
+    te = r["trainEstimate"]
+    assert te["timeS"] < te["nowS"] and "vychází zhruba" in te["text"]
+    plan = r["plan"]
+    test = [w for w in plan if w.get("milestone") == "test"]
+    assert len(test) == 1 and len(plan) - test[0]["i"] == G.TEST_WEEKS_OUT
+    fuel = [w for w in plan if w.get("fuel")]
+    assert fuel and all(len(plan) - w["i"] <= G.FUEL_WEEKS for w in fuel) and {w["fuel"] for w in fuel} == {60}
+    u = G.evaluate(_race(80, "2027-08-28", ascentM=3000, descentM=3000, terrain="trail"), st)
+    uf = [w["fuel"] for w in u["plan"] if w.get("fuel")]
+    assert uf and max(uf) == 90 and min(uf) >= 60 and uf == sorted(uf)
+    assert "trainEstimate" not in u
+
+
+def test_short_sleep_holds_the_week():
+    """#18: a 14-night mean under 7 hours holds the week (no growth, no cut) with an explanation."""
+    r = G.evaluate(_race(21.1, "2027-03-28"), {**_st(km=30), "sleep14": 6.4})
+    assert r["hold"] == {"kind": "sleep", "why": "spánek 14 nocí v průměru 6,4 h"} and r["notes"][0]["key"] == "sleep"
+    assert "hold" not in G.evaluate(_race(21.1, "2027-03-28"), {**_st(km=30), "sleep14": 7.2})

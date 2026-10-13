@@ -36,6 +36,7 @@ def snapshot(g_row, gg: dict | None, today: date) -> bool:
     if ws not in weeks:
         w = gg["week"]
         weeks[ws] = {"km": w.get("km"), "long": w.get("long"), "strength": w.get("strength"), "deload": bool(w.get("deload")),
+                     "fuel": w.get("fuel"),
                      "taper": bool(w.get("taper")), "realDate": gg.get("realDate"), "status": gg.get("status")}
         tr["weeks"] = weeks
         changed = True
@@ -215,3 +216,46 @@ def record_outcome(db, rid: str, g_row, started: bool, finished: bool | None, ti
            **prep_summary(db, rid, g_row)}
     g_row.outcome_json = out
     return out
+
+
+# #15 — after a long run in the fuelling weeks one question: was digestion fine? A "no" lowers the
+# next long run's intake note (Costa 2017, Miall 2018: two weeks of gut training cut the symptoms)
+GI_DAYS, GI_MIN = 3, 90
+
+
+def gi_ask(db, rid: str, g_row, today: date) -> dict | None:
+    if g_row is None:
+        return None
+    tr = g_row.track_json or {}
+    weeks, done = tr.get("weeks") or {}, tr.get("gi") or {}
+    for a in reversed(D.of(db, rid).activities):
+        if not a.started_at or not E.is_run(a) or not E.counts_for(a, "load"):
+            continue
+        d = date.fromisoformat(a.started_at[:10])
+        if (today - d).days > GI_DAYS:
+            break
+        if d > today or (a.duration_min or 0) < GI_MIN or d.isoformat() in done:
+            continue
+        if (weeks.get(_monday(d).isoformat()) or {}).get("fuel"):
+            return {"date": d.isoformat(), "km": round(a.distance_km or 0, 1), "min": round(a.duration_min or 0)}
+    return None
+
+
+def answer_gi(g_row, day: str, ok: bool) -> None:
+    tr = dict(g_row.track_json or {})
+    gi = dict(tr.get("gi") or {})
+    gi[day] = bool(ok)
+    tr["gi"], tr["giLast"] = gi, {"date": day, "ok": bool(ok)}
+    g_row.track_json = tr
+
+
+def rebase(g_row, res: dict, today: date) -> None:
+    """A change of the goal's settings (the runner's week, the energy screen) is not a setback:
+    this week's record takes the new real date."""
+    ws = _monday(today).isoformat()
+    tr = dict(g_row.track_json or {})
+    weeks = dict(tr.get("weeks") or {})
+    if ws in weeks:
+        weeks[ws] = {**weeks[ws], "realDate": res.get("realDate"), "status": res.get("status")}
+        tr["weeks"] = weeks
+        g_row.track_json = tr
