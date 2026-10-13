@@ -715,6 +715,20 @@ class UserSession(Base):
     created_at = Column(String)
 
 
+class UsageDay(Base):
+    """Engagement for the owners' overview (Správa uživatelů): per user, day and tab the seconds the
+    app was in the foreground and in use (no input for 2 minutes stops the count) and the views;
+    tab "_app" holds the app opens, "f:<name>" a feature's opens (the goal planner, the reports).
+    First-party, no content of what was viewed."""
+    __tablename__ = "usage_days"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    day = Column(String, index=True, nullable=False)       # YYYY-MM-DD, the user's local day
+    tab = Column(String, nullable=False)
+    seconds = Column(Integer, default=0)
+    views = Column(Integer, default=0)
+
+
 class Settings(Base):
     __tablename__ = "settings"
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)

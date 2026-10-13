@@ -3,6 +3,7 @@
 // admin card. Every answer comes from the runner's engine data plus the reviewed
 // literature, and the backend validates it before it arrives here.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { track } from "@/usage"
 import { useLocation, useNavigate } from "react-router"
 import { Bot, BookOpen, ChevronDown, ExternalLink, FileUp, Send, ThumbsDown, ThumbsUp, Trash2, X } from "lucide-react"
 import { api } from "@/api"
@@ -52,7 +53,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (rid) load(); else setStatus(null) }, [rid, load, rev])
   const available = !!status && (status.access.enabled || status.access.reason === "consent")
   const path = loc.pathname
-  const open = useCallback((q?: string, ctx?: Ctx) => setOpenState((s) => ({ q, ctx, tab: tabOf(path), n: (s?.n || 0) + 1 })), [path])
+  const open = useCallback((q?: string, ctx?: Ctx) => { track("assistant"); setOpenState((s) => ({ q, ctx, tab: tabOf(path), n: (s?.n || 0) + 1 })) }, [path])
   const value = useMemo(() => ({ available, status, open }), [available, status, open])
   return (
     <AssistantCtx.Provider value={value}>

@@ -4,6 +4,7 @@
 // under the app's own limits, Reálné / Těsné / Nereálné, the real date and the alternatives.
 // Advice only — the daily recommendation and the week's plan don't follow the goal yet.
 import { useEffect, useState } from "react"
+import { track } from "@/usage"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Button, Card, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
@@ -1178,6 +1179,7 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
   const [data, setData] = useState<any>(null)
   const [mode, setMode] = useState<"" | "setup" | "detail">("")
   const [busy, setBusy] = useState(false)
+  useEffect(() => { if (mode) track(mode === "setup" ? "goal-setup" : "goal") }, [mode])
   useEffect(() => {
     let alive = true
     api.goal(rid).then((d: any) => alive && setData(d)).catch(() => alive && setData({ goal: null, races: [] }))

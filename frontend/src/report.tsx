@@ -3,6 +3,7 @@
 // previous one — with a way into the assistant on the last card. The numbers come
 // from backend/app/metrics/daily_report.py; every chart here is drawn in SVG.
 import { VerdictBadge } from "@/coach"
+import { track } from "@/usage"
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { api } from "@/api"
@@ -1632,6 +1633,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
     return () => { alive = false }
   }, [rid, repKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const value = useMemo<ReportApi>(() => ({ kind: rep ? rep.kind : null, open: () => setShow(true) }), [rep])
+  useEffect(() => { if (show && rep) track(`report-${rep.kind}`) }, [show, rep?.kind])
   const onAsk = (q: string) => { setShow(false); setTimeout(() => ask(q), 50) }
   // owner request 2026-10-05: a programme from the report — saved among the runner's
   // programmes (the same one twice is the same), optionally opened in Péče right away

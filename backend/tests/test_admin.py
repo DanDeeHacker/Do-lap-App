@@ -49,3 +49,26 @@ def test_a_runner_still_cannot_read_others(client, db_session, monkeypatch):
     other = _runner(client, db_session, "bezec-c@test.cz")
     _runner(client, db_session, "bezec-d@test.cz")
     assert client.get(f"/api/runners/{other}/bootstrap").status_code == 403
+
+
+def test_engagement_is_counted_and_shown_to_owners_only(client, db_session, monkeypatch):
+    """Owner request 2026-10-13: per runner the app opens, active days, minutes in use and the
+    minutes per tab; the batches add up per day and tab, odd keys and far days are dropped."""
+    from app.metrics import engine as E
+    monkeypatch.setenv("DOSSLAP_OWNER_EMAILS", "spravce-eng@test.cz")
+    rid = _runner(client, db_session, "bezec-eng@test.cz", "Eva")
+    today = E.today_date().isoformat()
+    for _ in range(2):
+        assert client.post("/api/usage", json={"day": today, "opens": 1, "tabs": {
+            "training": {"s": 120, "v": 2}, "today": {"s": 60, "v": 1}, "f:goal": {"s": 0, "v": 1},
+            "<script>": {"s": 5, "v": 1}}}).json()["ok"]
+    assert client.post("/api/usage", json={"day": "2020-01-01", "opens": 1, "tabs": {}}).json()["ok"] is False
+    assert client.post("/api/usage", json={"day": today, "tabs": {"today": {"s": 99999}}}).status_code == 422
+    assert client.get("/api/admin/engagement").status_code == 403          # Eva is not an owner
+    _runner(client, db_session, "spravce-eng@test.cz", "Správce")
+    d = client.get("/api/admin/engagement?days=7").json()
+    x = next(i for i in d["items"] if i["runnerId"] == rid)
+    assert x["opens"] == 2 and x["activeDays"] == 1 and x["minutes"] == 6.0
+    assert x["tabs"] == {"training": 4.0, "today": 2.0} and x["features"] == {"goal": 2}
+    assert x["avgVisitMin"] == 3.0 and x["lastActive"] == today
+    assert d["tabs"]["training"] >= 4.0 and d["activeUsers"] >= 1

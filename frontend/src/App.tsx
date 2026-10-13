@@ -32,6 +32,7 @@ import { RouteError, TabBoundary, installCrashReporting } from "@/crash"
 import { AssistantProvider, CoachFab, WhyButton } from "@/assistant"
 import { AdminPage, ViewAsBanner } from "@/admin"
 import { RunDetail } from "@/rundetail"
+import { track, useUsageTracking } from "@/usage"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C, badCol, goodCol } from "@/tokens"
@@ -238,6 +239,7 @@ function useAutoGarminSync(active: boolean) {
 function Layout() {
   const { me, realMe, loading, viewing, offline, reloadMe } = useApp()
   useAutoGarminSync(!!me && me.role === "runner" && !me.guest)
+  useUsageTracking()
   // New deployments: reload when the app returns to the foreground, or offer a
   // reload if one lands while it's in use (home-screen apps never reload alone).
   const [updateReady, setUpdateReady] = useState(false)
@@ -1790,7 +1792,7 @@ function AtlasBubble() {
         // and text looked cut off); a corner pill keeps it out of the content
         // column entirely.
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => { setOpen(true); track("checkin") }}
           aria-label="Otevřít check-in"
           data-tour="checkin"
           className="fixed right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-[55] flex items-center gap-2 rounded-full bg-accent py-3 pl-3 pr-4 text-sm font-extrabold text-ink shadow-[0_12px_30px_rgb(0_0_0_/_0.45),0_0_0_1px_rgb(0_0_0_/_0.1)] hover:brightness-105 md:bottom-7 md:right-7"

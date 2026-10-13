@@ -112,8 +112,118 @@ export function AdminPage() {
             </ul>
           )}
       </Card>
+      <Engagement />
       <GoalKpis />
     </>
+  )
+}
+
+// owner request 2026-10-13 — how each runner uses the app (backend usage.py, admin.engagement):
+// app opens, active days, minutes in use, the average visit and the minutes per tab
+const TAB_META: Record<string, [string, string]> = {
+  today: ["Dnes", C.accent], training: ["Trénink", C.info], post: ["Deník", C.self], mechanics: ["Mechanika", C.load],
+  load: ["Zátěž", C.watch], care: ["Péče", C.alertSoft], data: ["Data", C.fg3], engine: ["Citlivost", C.fg4], admin: ["Správa", C.fg4],
+}
+const FEATURE: Record<string, string> = {
+  goal: "plánovač cíle", "goal-setup": "nastavení cíle", "report-morning": "ranní report", "report-evening": "večerní report",
+  assistant: "asistent", checkin: "check-in",
+}
+const tabMeta = (k: string): [string, string] => TAB_META[k] || [k, C.fg4]
+const mins = (m: number) => (m >= 90 ? `${String(Math.round(m / 6) / 10).replace(".", ",")} h` : `${Math.round(m)} min`)
+
+function TabBar({ tabs, total, h = 8 }: { tabs: Record<string, number>; total: number; h?: number }) {
+  if (!total) return <div className="rounded-full bg-white/[.06]" style={{ height: h }} />
+  return (
+    <div className="flex gap-[2px] overflow-hidden rounded-full" style={{ height: h }}
+      title={Object.entries(tabs).map(([k, v]) => `${tabMeta(k)[0]} ${mins(v)}`).join(" · ")}>
+      {Object.entries(tabs).filter(([, v]) => v > 0).map(([k, v]) => (
+        <i key={k} className="h-full" style={{ width: `${(v / total) * 100}%`, background: tabMeta(k)[1] }} />
+      ))}
+    </div>
+  )
+}
+
+function Engagement() {
+  const [days, setDays] = useState(30)
+  const [d, setD] = useState<any>(null)
+  const [open, setOpen] = useState<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    api.adminEngagement(days).then((x: any) => alive && setD(x)).catch(() => alive && setD({ items: [], tabs: {} }))
+    return () => { alive = false }
+  }, [days])
+  if (!d) return null
+  const all: any[] = d.items || []
+  const items = all.filter((x) => x.opens || x.minutes)
+  const idle = all.filter((x) => !x.opens && !x.minutes)
+  const total = Object.values(d.tabs || {}).reduce((a: number, b: any) => a + b, 0) as number
+  const opens = items.reduce((a, x) => a + (x.opens || 0), 0)
+  return (
+    <Card className="mt-5" data-testid="engagement">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label>Zapojení uživatelů</Label>
+        <div className="flex gap-1" role="group" aria-label="Období">
+          {[7, 30, 90].map((n) => (
+            <button key={n} type="button" aria-pressed={days === n} onClick={() => setDays(n)}
+              className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${days === n ? "bg-fg text-ink" : "bg-white/[.06] text-fg-2"}`}>{`${n} dní`}</button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="rounded-xl bg-white/[.04] px-3 py-2"><p className="text-[11px] text-fg-3">Aktivní běžci</p><p className="text-[18px] font-bold tabular-nums text-fg">{`${d.activeUsers ?? 0} / ${d.users ?? 0}`}</p></div>
+        <div className="rounded-xl bg-white/[.04] px-3 py-2"><p className="text-[11px] text-fg-3">Otevření aplikace</p><p className="text-[18px] font-bold tabular-nums text-fg">{opens}</p></div>
+        <div className="rounded-xl bg-white/[.04] px-3 py-2"><p className="text-[11px] text-fg-3">Čas v aplikaci</p><p className="text-[18px] font-bold tabular-nums text-fg">{mins(total)}</p></div>
+      </div>
+      <p className="mt-3 t-label !text-fg-3">Čas podle záložek</p>
+      <div className="mt-1.5"><TabBar tabs={d.tabs || {}} total={total} h={10} /></div>
+      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-fg-2">
+        {Object.entries(d.tabs || {}).map(([k, v]: any) => (
+          <span key={k}><i className="mr-1 inline-block size-2 rounded-sm align-middle" style={{ background: tabMeta(k)[1] }} />{`${tabMeta(k)[0]} ${total ? Math.round((v / total) * 100) : 0} %`}</span>
+        ))}
+      </div>
+      <ul className="mt-4 divide-y divide-white/[.06]" data-testid="engagement-list">
+        {items.map((x) => {
+          const tot = Object.values(x.tabs || {}).reduce((a: number, b: any) => a + b, 0) as number
+          const trend = x.opens - (x.opensPrev || 0)
+          const isOpen = open === x.runnerId
+          return (
+            <li key={x.runnerId} className="py-2.5">
+              <button type="button" className="block w-full text-left" onClick={() => setOpen(isOpen ? null : x.runnerId)} aria-expanded={isOpen}>
+                <span className="flex items-baseline justify-between gap-2">
+                  <b className="min-w-0 truncate text-[14px] text-fg">{x.name}</b>
+                  <span className="shrink-0 text-[11px] text-fg-3">{x.lastActive ? `naposledy ${fmtD(x.lastActive)}` : "zatím bez záznamu"}</span>
+                </span>
+                <span className="mt-1 grid grid-cols-4 gap-2 text-[11px] text-fg-3">
+                  <span><b className="block text-[14px] tabular-nums text-fg">{x.opens}{trend !== 0 && <span className="ml-1 text-[11px]" style={{ color: trend > 0 ? C.ok : C.watch }}>{trend > 0 ? `▲${trend}` : `▼${-trend}`}</span>}</b>otevření</span>
+                  <span><b className="block text-[14px] tabular-nums text-fg">{x.activeDays}</b>aktivních dní</span>
+                  <span><b className="block text-[14px] tabular-nums text-fg">{mins(x.minutes)}</b>v aplikaci</span>
+                  <span><b className="block text-[14px] tabular-nums text-fg">{x.avgVisitMin == null ? "—" : mins(x.avgVisitMin)}</b>na návštěvu</span>
+                </span>
+                <span className="mt-1.5 block"><TabBar tabs={x.tabs || {}} total={tot} /></span>
+              </button>
+              {isOpen && (
+                <div className="mt-2 grid gap-1.5 text-[12px] text-fg-2">
+                  {Object.entries(x.tabs || {}).map(([k, v]: any) => (
+                    <span key={k} className="flex items-center justify-between gap-2">
+                      <span><i className="mr-1.5 inline-block size-2 rounded-sm align-middle" style={{ background: tabMeta(k)[1] }} />{tabMeta(k)[0]}</span>
+                      <b className="tabular-nums text-fg">{mins(v)}</b>
+                    </span>
+                  ))}
+                  {Object.keys(x.features || {}).length > 0 && (
+                    <span className="mt-1 flex flex-wrap gap-1.5">
+                      {Object.entries(x.features).map(([k, n]: any) => <span key={k} className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px]">{`${FEATURE[k] || k} ${n}×`}</span>)}
+                    </span>
+                  )}
+                  <span className="text-[11px] text-fg-3">{`Předchozích ${days} dní: ${x.opensPrev || 0} otevření.`}</span>
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+      {idle.length > 0 && <p className="mt-1 text-[12px] text-fg-3" data-testid="engagement-idle">{`Bez záznamu v období (${idle.length}): ${idle.map((x) => x.name).join(", ")}`}</p>}
+      <p className="mt-2 text-[10.5px] leading-4 text-fg-3">Čas se počítá jen v popředí a při používání (po 2 minutách bez dotyku se zastaví). Nové otevření = načtení aplikace nebo návrat po 30 minutách. Návštěvy v režimu Zobrazit jako se nepočítají.</p>
+    </Card>
   )
 }
 

@@ -66,3 +66,56 @@ def goal_kpis(replay: bool = False, user: models.User = Depends(require_owner), 
     if replay:
         out["projection"] = GB.projection_kpis(db)
     return out
+
+
+@router.get("/engagement")
+def engagement(days: int = 30, user: models.User = Depends(require_owner), db: DBSession = Depends(get_db)):
+    """How the runners use the app over the last `days` days (models.UsageDay): app opens, active
+    days, foreground minutes in use, the average visit, minutes per tab, feature opens, the last
+    active day and the opens of the period before (the trend). Not the tour demo or guests."""
+    from datetime import timedelta
+    from ..metrics import engine as E
+    days = max(1, min(int(days), 180))
+    today = E.today_date()
+    lo = (today - timedelta(days=days - 1)).isoformat()
+    lo_prev = (today - timedelta(days=2 * days - 1)).isoformat()
+    demo_rid = tutorial_demo_runner_id(db)
+    users = (db.query(models.User).filter(models.User.role == "runner", models.User.runner_id.isnot(None),
+                                          or_(models.User.provider.is_(None), models.User.provider != GUEST_PROVIDER)).all())
+    users = [u for u in users if u.runner_id != demo_rid]
+    names = {r.id: r.name for r in db.query(models.Runner).filter(models.Runner.id.in_([u.runner_id for u in users])).all()} if users else {}
+    rows = (db.query(models.UsageDay).filter(models.UsageDay.user_id.in_([u.id for u in users]),
+                                             models.UsageDay.day >= lo_prev).all()) if users else []
+    by_user: dict = {}
+    for r in rows:
+        by_user.setdefault(r.user_id, []).append(r)
+    items, tab_tot, active_ids = [], {}, set()
+    for u in users:
+        rs = by_user.get(u.id, [])
+        cur = [r for r in rs if r.day >= lo]
+        prev_opens = sum(r.views or 0 for r in rs if r.day < lo and r.tab == "_app")
+        tabs, feats, opens, secs, act_days = {}, {}, 0, 0, set()
+        for r in cur:
+            if r.tab == "_app":
+                opens += r.views or 0
+                act_days.add(r.day)
+            elif r.tab.startswith("f:"):
+                feats[r.tab[2:]] = feats.get(r.tab[2:], 0) + (r.views or 0)
+            else:
+                tabs[r.tab] = tabs.get(r.tab, 0) + (r.seconds or 0)
+                secs += r.seconds or 0
+                if (r.seconds or 0) > 0:
+                    act_days.add(r.day)
+        for k, v in tabs.items():
+            tab_tot[k] = tab_tot.get(k, 0) + v
+        if opens or secs:
+            active_ids.add(u.id)
+        items.append({"runnerId": u.runner_id, "name": names.get(u.runner_id) or u.email, "email": u.email,
+                      "opens": opens, "opensPrev": prev_opens, "activeDays": len(act_days),
+                      "minutes": round(secs / 60, 1), "avgVisitMin": round(secs / 60 / opens, 1) if opens else None,
+                      "tabs": {k: round(v / 60, 1) for k, v in sorted(tabs.items(), key=lambda kv: -kv[1])},
+                      "features": feats, "lastActive": max(act_days) if act_days else None})
+    items.sort(key=lambda x: (-x["minutes"], -x["opens"], x["name"] or ""))
+    return {"days": days, "from": lo, "to": today.isoformat(), "users": len(users), "activeUsers": len(active_ids),
+            "tabs": {k: round(v / 60, 1) for k, v in sorted(tab_tot.items(), key=lambda kv: -kv[1])},
+            "items": items}
