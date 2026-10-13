@@ -85,6 +85,7 @@ class ManualActivityRequest(Lenient):
     rpe: int
     legs: Optional[int] = None
     distance_km: Optional[float] = None
+    ascent_m: Optional[float] = None
     avg_hr: Optional[int] = None
     strength_focus: Optional[str] = None
     strength_type: Optional[str] = None

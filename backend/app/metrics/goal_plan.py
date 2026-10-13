@@ -573,6 +573,10 @@ def plan_weeks(goal: dict, st: dict, proj: dict, weeks: int) -> list:
                 w["race"] = True
         if first_m:
             w["runs"] = 3
+        # plan k cíli 2.0 #14: strength is part of the plan — 2× a week in the base and build, 1× in the
+        # specific phase and the recovery weeks, a light one in the taper, none in the race week
+        # (Lauersen 2018; it protects only when done: Desai 2023, Wu 2024)
+        w["strength"] = (0 if w.get("race") else 1 if w.get("taper") or w.get("deload") or w["phase"] == "specific" else 2)
         out.append(w)
     return out
 

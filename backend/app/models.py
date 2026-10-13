@@ -113,6 +113,9 @@ class Runner(Base):
     coach_name = Column(String)
     plan_feed_url = Column(String)
     plan_feed_status = Column(JSON)
+    # plan k cíli 2.0 (owner decision 2026-10-13): answers to data gaps {"gaps": {date: "rest"}},
+    # the week's constraints {"prefs": {...}} and the energy & bone screen {"energy": {...}}
+    planner_json = Column(JSON)
 
 
 class Integration(Base):
@@ -788,6 +791,11 @@ class Goal(Base):
     risk_end_reason = Column(String)
     status = Column(String, default="active")       # active | done | cancelled
     projection_json = Column(JSON)                  # the last feasibility answer
+    # plan k cíli 2.0: each week's plan and answer as it stood on its Monday (adherence, the
+    # checkpoints, the delay after a setback), the race-day outcome and a hot race
+    track_json = Column(JSON)
+    outcome_json = Column(JSON)
+    hot = Column(Boolean, default=False)
     created_at = Column(String)
     updated_at = Column(String)
 

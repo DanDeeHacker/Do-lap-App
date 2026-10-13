@@ -2993,7 +2993,8 @@
  {
   "t": "Běh",
   "files": [
-   "metrics/daily_report.py"
+   "metrics/daily_report.py",
+   "routers/runners.py"
   ]
  },
  {
@@ -3231,6 +3232,12 @@
   ]
  },
  {
+  "t": "Návrat po {}: tvrdý trénink počká do {}.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": "Plán zbytku týdne zatím nejde sestavit. Každé ráno den určí Trénink.",
   "files": [
    "metrics/daily_report.py"
@@ -3401,6 +3408,12 @@
  },
  {
   "t": "Večer si dopřejte klid, ať se tep před spaním zklidní.",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
+  "t": "Výpadek posunul reálný termín o {} dní, na {}.",
   "files": [
    "metrics/daily_report.py"
   ]
@@ -5762,6 +5775,36 @@
   ]
  },
  {
+  "t": "4 týdny před závodem",
+  "files": [
+   "metrics/goal_track.py"
+  ]
+ },
+ {
+  "t": "8 týdnů před závodem",
+  "files": [
+   "metrics/goal_track.py"
+  ]
+ },
+ {
+  "t": "Dva týdny pod 80 % plánu. Plán se přepočítal z toho, co jste opravdu odběhli.",
+  "files": [
+   "metrics/goal_track.py"
+  ]
+ },
+ {
+  "t": "Minulý týden {} % plánu. Víc nepřidávejte: přeplnění je skok jako každý jiný.",
+  "files": [
+   "metrics/goal_track.py"
+  ]
+ },
+ {
+  "t": "polovina plánu",
+  "files": [
+   "metrics/goal_track.py"
+  ]
+ },
+ {
   "t": "(a kvůli dřívějšímu zranění ještě víc)",
   "files": [
    "metrics/guidance.py"
@@ -6364,6 +6407,12 @@
  },
  {
   "t": "Návrat po zranění — bez intenzity do {}.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Návrat po {}: bez tvrdého tréninku do {}.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -7126,6 +7175,13 @@
   "t": "změna stavu",
   "files": [
    "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "zranění",
+  "files": [
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -10159,7 +10215,7 @@
   ]
  },
  {
-  "t": "Návrat po zranění — bez intenzity do {}. {}.",
+  "t": "Návrat po {} — bez intenzity do {}. {}.",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -14639,6 +14695,7 @@
    "routers/assistant.py",
    "routers/booking.py",
    "routers/coach.py",
+   "routers/goals.py",
    "routers/plan.py",
    "routers/runners.py",
    "routers/shoes.py"
@@ -14940,6 +14997,12 @@
    "routers/goals.py",
    "routers/plan.py",
    "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Neplatné období",
+  "files": [
+   "routers/goals.py"
   ]
  },
  {
@@ -15514,6 +15577,12 @@
  },
  {
   "t": "Upozornění nenalezeno",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Zadejte vzdálenost běhu (0,5–120 km)",
   "files": [
    "routers/runners.py"
   ]

@@ -784,7 +784,9 @@ function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy }
         {res?.statusLabel && <p className="mt-3 flex items-center gap-2 text-[12px] text-fg-2">Stav plánu
           <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${scol}1f`, color: scol }} data-testid="goal-status">{res.statusLabel}</span>
           {res.path === "risk" && <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${C.alert}1f`, color: C.alert }}>riziková cesta</span>}</p>}
+        <TrackBanners rid={rid} track={data.track} res={res} onData={onChange} onEdit={onEdit} />
         <div className="mt-3"><VerdictHero res={res} /></div>
+        {data.track?.adherence && <div className="mt-5"><Adherence ad={data.track.adherence} /></div>}
         {res?.plan?.length > 0 && <>
           <p className="mt-5 t-label !text-fg-3">Plán po týdnech</p>
           <PlanBars plan={res.plan} today={res.computedOn || res.start} />
@@ -800,6 +802,114 @@ function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy }
         <p className="mt-4 text-[11px] leading-5 text-fg-3">Plán se přepočítá každý týden z toho, co jste opravdu odběhli. Denní doporučení dál hlídá připravenost, bolest a limity.</p>
       </div>
     </Sheet>
+  )
+}
+
+// plan k cíli 2.0 #8 — the last weeks of the plan against what was run
+function Adherence({ ad, compact = false }: { ad: any; compact?: boolean }) {
+  if (!ad?.weeks?.length) return null
+  const col = (p: number) => (p < 80 ? C.watch : p > 115 ? C.alert : C.ok)
+  return (
+    <div data-testid="goal-adherence">
+      <div className="flex items-center justify-between gap-2">
+        <p className="t-label !text-fg-3">Plnění plánu</p>
+        {ad.strengthPct != null && <span className="rounded-full bg-white/[.06] px-2 py-0.5 text-[11px] text-fg-2">{`posilování ${ad.strengthPct} %`}</span>}
+      </div>
+      <div className="mt-1.5 grid gap-1">
+        {ad.weeks.map((w: any) => (
+          <div key={w.start} className="grid grid-cols-[64px_1fr_44px] items-center gap-2 text-[11px]">
+            <span className="tabular-nums text-fg-3">{fmtD(w.start)}</span>
+            <span className="relative h-2 rounded-full bg-white/[.07]">
+              <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, w.pct / 1.3)}%`, background: col(w.pct) }} />
+              <i className="absolute -inset-y-0.5 w-[2px] rounded" style={{ left: `${100 / 1.3}%`, background: C.fg }} />
+            </span>
+            <b className="text-right tabular-nums" style={{ color: col(w.pct) }}>{`${w.pct} %`}</b>
+          </div>
+        ))}
+      </div>
+      {!compact && <p className="mt-1 text-[10.5px] text-fg-3">Svislá čárka = plán týdne. Kilometry proti plánu, jak stál v pondělí.</p>}
+      {ad.text && <p className="mt-1.5 text-[12px] font-semibold" style={{ color: ad.flag === "over" ? C.alert : C.watch }}>{ad.text}</p>}
+    </div>
+  )
+}
+
+// plan k cíli 2.0 #7, #9 — a checkpoint due and what a setback cost
+function TrackBanners({ rid, track, res, onData, onEdit }: { rid: string; track: any; res: any; onData: (d: any) => void; onEdit?: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const cp = track?.checkpoint, sb = track?.setback
+  if (!cp && !sb) return null
+  const ack = async () => { setBusy(true); try { onData(await api.goalCheckpoint(rid, cp.key)) } finally { setBusy(false) } }
+  return (
+    <div className="mt-3 grid gap-2">
+      {cp && (
+        <div className="nest p-3" style={{ borderColor: `${cp.behind ? C.watch : C.ok}55` }} data-testid="goal-checkpoint">
+          <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: cp.behind ? C.watch : C.ok }}>{`Kontrolní bod · ${cp.label}`}</p>
+          <p className="mt-0.5 text-[13px] text-fg">{cp.behind ? "Zaostáváte za plánem. Zmeškané se nedohání: buď cíl upravit, nebo počítat s pozdějším termínem." : "Jste na cestě. Plán pokračuje beze změny."}</p>
+          {cp.behind && res?.alternatives?.find((x: any) => x.kind === "best") && <p className="mt-1 text-[12px] text-fg-2">{`Nejlepší bezpečný cíl: ${res.alternatives.find((x: any) => x.kind === "best").label}`}</p>}
+          <div className="mt-2 flex flex-wrap gap-2">
+            {cp.behind && onEdit && <Button size="sm" onClick={onEdit}>Upravit cíl</Button>}
+            <Button size="sm" variant="outline" disabled={busy} onClick={ack} data-testid="goal-checkpoint-ok">{cp.behind ? "Ponechat cíl" : "Rozumím"}</Button>
+          </div>
+        </div>
+      )}
+      {sb && <p className="rounded-xl bg-watch/[.08] px-3 py-2 text-[12px] text-fg" data-testid="goal-setback">{`Výpadek posunul reálný termín o ${sb.days} dní: ${fmtDY(sb.from)} → ${fmtDY(sb.to)}.`}</p>}
+    </div>
+  )
+}
+
+// plan k cíli 2.0 #4 — days without any data from the watch: rest, or a run logged by hand
+export function DataGapCard({ rid }: { rid: string }) {
+  const toast = useToast()
+  const { refresh } = useApp()
+  const [gap, setGap] = useState<any>(null)
+  const [form, setForm] = useState(false)
+  const [run, setRun] = useState({ date: "", km: "", min: "", rpe: "4" })
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    let alive = true
+    api.gaps(rid).then((d: any) => alive && setGap(d.gap)).catch(() => {})
+    return () => { alive = false }
+  }, [rid])
+  if (!gap) return null
+  const rest = async () => {
+    setBusy(true)
+    try { const d: any = await api.answerGap(rid, { from: gap.from, to: gap.to, answer: "rest" }); setGap(d.gap) } finally { setBusy(false) }
+  }
+  const save = async () => {
+    const km = nIn(run.km), min = nIn(run.min)
+    if (!run.date || !km || !min) { toast({ title: "Vyplňte den, kilometry a minuty" }); return }
+    setBusy(true)
+    try {
+      await api.addManualActivity(rid, { sport: "running", date: run.date, distance_km: km, duration_min: min, rpe: Number(run.rpe) || 4 })
+      const d: any = await api.gaps(rid); setGap(d.gap); setForm(false); setRun({ date: "", km: "", min: "", rpe: "4" }); refresh()
+      toast({ title: "Běh zapsán" })
+    } catch (e: any) { toast({ title: e?.message || "Běh se nepodařilo zapsat" }) }
+    finally { setBusy(false) }
+  }
+  const days = Array.from({ length: gap.days }, (_, i) => addDays(gap.from, i))
+  return (
+    <Card className="mt-4" data-testid="data-gap">
+      <p className="text-[13px] font-semibold text-fg">{`${fmtDY(gap.from)} – ${fmtDY(gap.to)}: z hodinek nic`}</p>
+      <p className="mt-0.5 text-[12px] leading-5 text-fg-3">Běhal/a jste bez hodinek? Jinak to aplikace počítá jako volno a kapacita i plán vyjdou nižší.</p>
+      {!form ? (
+        <div className="mt-2.5 flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" disabled={busy} onClick={rest} data-testid="gap-rest">Neběhal/a jsem</Button>
+          <Button size="sm" disabled={busy} onClick={() => { setRun((r) => ({ ...r, date: days[days.length - 1] })); setForm(true) }} data-testid="gap-log">Zapsat běh</Button>
+        </div>
+      ) : (
+        <div className="mt-2.5 grid gap-2">
+          <div className="flex flex-wrap gap-1.5">{days.map((d) => (
+            <button key={d} type="button" onClick={() => setRun((r) => ({ ...r, date: d }))} aria-pressed={run.date === d}
+              className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${run.date === d ? "bg-fg text-ink" : "bg-white/[.06] text-fg-2"}`}>{fmtD(d)}</button>))}</div>
+          <div className="grid grid-cols-3 gap-2">
+            <label className={lbl}>km<input className={inp} inputMode="decimal" value={run.km} onChange={(e) => setRun((r) => ({ ...r, km: e.target.value }))} data-testid="gap-km" /></label>
+            <label className={lbl}>minut<input className={inp} inputMode="numeric" value={run.min} onChange={(e) => setRun((r) => ({ ...r, min: e.target.value }))} data-testid="gap-min" /></label>
+            <label className={lbl}>náročnost 0–10<input className={inp} inputMode="numeric" value={run.rpe} onChange={(e) => setRun((r) => ({ ...r, rpe: e.target.value }))} /></label>
+          </div>
+          <div className="flex gap-2"><Button size="sm" disabled={busy} onClick={save} data-testid="gap-save">Uložit běh</Button><Button size="sm" variant="outline" onClick={() => setForm(false)}>Zpět</Button></div>
+        </div>
+      )}
+    </Card>
   )
 }
 
@@ -869,6 +979,8 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
           {gg?.riskEnded && <span className="mt-1 block text-[12px] text-watch">{`Riziková cesta skončila (${gg.riskEnded.reason}), plán pokračuje bezpečnou cestou.`}</span>}
         </button>
       )}
+      {goal && <TrackBanners rid={rid} track={data.track} res={res} onData={setData} onEdit={() => setMode("setup")} />}
+      {goal && data.track?.adherence && <div className="mt-3"><Adherence ad={data.track.adherence} compact /></div>}
       {mode === "setup" && <GoalSetup rid={rid} races={data.races || []} initial={formOf(goal)} onClose={() => setMode("")}
         onSaved={(d) => { setData(d); setMode("detail"); refresh() }} />}
       {mode === "detail" && goal && <GoalDetail rid={rid} data={data} gg={gg} busy={busy} onClose={() => setMode("")} onEdit={() => setMode("setup")} onCancel={cancel} onChange={setData} />}

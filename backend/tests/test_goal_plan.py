@@ -416,3 +416,65 @@ def test_the_plan_and_the_engine_agree_on_the_weekly_ceiling(client, db_session)
         engine = C.weekly_capacity(daily, (mon + timedelta(days=6)).isoformat(), first, pain, "volume")
         plan = G._engine_cap(st["days"]["km"], st["pain"], st["known"], "volume")
         assert abs(plan - engine) <= 0.03 * engine, (k, plan, engine)
+
+
+def test_a_gap_without_watch_data_is_asked_once(client, db_session):
+    """Plan k cíli 2.0 #4: 4 days without any reading or activity → the question; "rest" keeps it away;
+    a run logged by hand fills a day."""
+    from app import models
+    from .conftest import register
+    rid = register(client, "gap@test.cz", "Gap Runner", "runner").json()["runner_id"]
+    today = E.today_date()
+    for k in range(1, 40):
+        d = (today - timedelta(days=k)).isoformat()
+        if 3 <= k <= 6:
+            continue                                                        # the watch stayed at home
+        db_session.add(models.DailyMetric(runner_id=rid, date=d, resting_hr=50, hrv_ms=60, sleep_h=7.5))
+    db_session.commit()
+    gap = client.get(f"/api/runners/{rid}/gaps").json()["gap"]
+    assert gap == {"from": (today - timedelta(days=6)).isoformat(), "to": (today - timedelta(days=3)).isoformat(), "days": 4}
+    r = client.post(f"/api/runners/{rid}/activities/manual", json={"sport": "running", "date": gap["to"], "distance_km": 8,
+                                                                 "duration_min": 48, "rpe": 4})
+    assert r.status_code == 200
+    gap = client.get(f"/api/runners/{rid}/gaps").json()["gap"]
+    assert gap and gap["days"] == 3                                         # the logged day is filled
+    assert client.post(f"/api/runners/{rid}/gaps", json={"from": gap["from"], "to": gap["to"], "answer": "rest"}).json()["gap"] is None
+    assert client.get(f"/api/runners/{rid}/gaps").json()["gap"] is None
+
+
+def test_the_goal_record_adherence_checkpoints_and_setbacks(client, db_session):
+    """Plan k cíli 2.0 #7–#9: the Monday snapshot, two weeks under 80 % flagged, a checkpoint due
+    behind the plan, 7 days without hard sessions after an illness day and 3 after a break."""
+    from types import SimpleNamespace
+    from app import models
+    from app.metrics import goal_track as GT
+    from .conftest import register
+    rid = register(client, "track@test.cz", "Track Runner", "runner").json()["runner_id"]
+    today = E.today_date()
+    mon = today - timedelta(days=today.weekday())
+    g = models.Goal(runner_id=rid, kind="race", name="M", date=(mon + timedelta(days=7 * 20 + 6)).isoformat(), distance_km=42.2,
+                    aim="finish", status="active", created_at=(mon - timedelta(days=7 * 20)).isoformat(), track_json={})
+    db_session.add(g)
+    for k in (1, 2):                                   # the two weeks before: 40 km planned, 20 km run
+        s = mon - timedelta(days=7 * k)
+        g.track_json = {**(g.track_json or {}), "weeks": {**((g.track_json or {}).get("weeks") or {}),
+                        s.isoformat(): {"km": 40.0, "long": 16.0, "strength": 2}}}
+        for d in (1, 3):
+            db_session.add(models.Activity(runner_id=rid, provider="garmin", external_id=f"tr{k}{d}", sport="running",
+                                           started_at=(s + timedelta(days=d)).isoformat() + "T07:00:00", distance_km=10.0, duration_min=60))
+    db_session.commit()
+    ad = GT.adherence(db_session, rid, g, today)
+    assert [w["pct"] for w in ad["weeks"]] == [50, 50] and ad["flag"] == "under" and ad["strengthPct"] == 0
+    assert GT.snapshot(g, {"week": {"km": 30.0, "long": 12.0, "strength": 2}, "realDate": "2027-06-01", "status": "behind"}, today)
+    assert not GT.snapshot(g, {"week": {"km": 31.0}, "realDate": "2027-06-08"}, today)          # once a week
+    assert GT.setback(g, {"realDate": "2027-06-15"}, today) == {"from": "2027-06-01", "to": "2027-06-15", "days": 14}
+    cp = GT.checkpoint(g, {"status": "behind"}, today)
+    assert cp and cp["behind"] and cp["key"] == "half"
+    GT.answer_checkpoint(g, cp["key"], today)
+    assert GT.checkpoint(g, {"status": "behind"}, today) is None
+    g.track_json = {**g.track_json, "illLast": (today - timedelta(days=2)).isoformat()}
+    assert GT.returning(g, [], today)["why"] == "nemoc"
+    g.track_json = {**g.track_json, "illLast": None}
+    runs = [(today - timedelta(days=k)).isoformat() for k in (12, 11, 1)]                    # a 10-day break, back yesterday
+    assert GT.returning(g, runs, today)["why"] == "pauza"
+    assert GT.returning(g, [(today - timedelta(days=k)).isoformat() for k in (3, 2, 1)], today) is None

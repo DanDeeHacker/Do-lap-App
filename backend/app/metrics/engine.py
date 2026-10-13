@@ -4216,6 +4216,14 @@ def recompute_assessment(db: DBSession, rid: str, data_changed: bool = True) -> 
                             db.flush()
                             data = D.load_runner_data(db, rid)
                             a["guidance"] = cz_deep(G.build_guidance(data, rid, a, r))
+                # plan k cíli 2.0: the goal's week as it stands on its Monday, the illness days
+                gg = (a["guidance"] or {}).get("goal")
+                if gg:
+                    from . import goal_track as GT
+                    g_row = (db.query(models.Goal).filter(models.Goal.runner_id == rid, models.Goal.status == "active")
+                             .order_by(models.Goal.id.desc()).first())
+                    if GT.snapshot(g_row, gg, today_date()):
+                        db.flush()
             finally:
                 _engine_ctx.priors = None
     row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()

@@ -598,7 +598,7 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     if x.get("deload") or x.get("overreaching"):
         notes.append("Zátěž je zvýšená — týden bez tvrdých úseků, ať klesne pod práh.")
     if x.get("noQualityUntil") and _d(x["noQualityUntil"]) > today:
-        notes.append(f"Návrat po zranění — bez intenzity do {_d(x['noQualityUntil']).day}. {_d(x['noQualityUntil']).month}.")
+        notes.append(f"Návrat po {x.get('noQualityWhy') or 'zranění'} — bez intenzity do {_d(x['noQualityUntil']).day}. {_d(x['noQualityUntil']).month}.")
     for d, r in sorted(races.items()):
         notes.append(f"Závod {WD_IN[d.weekday()]}: {r.get('name') or 'závod'} — dva dny před ním a po něm bez tvrdého "
                      "tréninku, tři dny před ním bez posilování, týden bez dlouhého běhu.")

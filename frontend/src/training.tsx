@@ -20,7 +20,7 @@ import { C } from "@/tokens"
 import { BoundTag, TomorrowCard, WeekLoadCard, limitText } from "@/outlook"
 import { Bike, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Users, Waves, X, Zap, type LucideIcon } from "lucide-react"
 import { CoachProgress, CoachSection } from "@/coach"
-import { GoalCard } from "@/goal"
+import { DataGapCard, GoalCard } from "@/goal"
 
 const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"]
 const CROSS = ["kolo", "voda", "posilování"]
@@ -1426,6 +1426,7 @@ export function Training() {
             <>
               <TodayHero g={g} a={a} plan={plan} stage={stage} />
               <ActivityRow g={g} onPick={setSel} />
+              {rid && !touring && <DataGapCard rid={rid} />}
               {rid && !touring && <GoalCard rid={rid} gg={g.goal} />}
               <WeekCard g={g} plan={plan} />
             </>

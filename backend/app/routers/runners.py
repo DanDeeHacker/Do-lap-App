@@ -818,7 +818,8 @@ def rate_activity(rid: str, aid: int, body: schemas.RateActivityRequest,
     return E.recompute_assessment(db, rid)
 
 
-CROSS_TITLE = {"cycling": "Kolo", "swimming": "Plavání", "strength": "Posilování"}
+CROSS_TITLE = {"cycling": "Kolo", "swimming": "Plavání", "strength": "Posilování",
+               "running": "Běh"}   # plan k cíli 2.0 #4: a run without the watch, from the data-gap question
 
 
 @router.post("/{rid}/activities/manual", dependencies=[Depends(verify_csrf)])
@@ -836,12 +837,17 @@ def add_manual_activity(rid: str, body: schemas.ManualActivityRequest,
         raise HTTPException(422, "Neplatné datum")
     if day > E.today_date() or not (5 <= body.duration_min <= 600) or not (0 <= body.rpe <= 10):
         raise HTTPException(422, "Zkontrolujte datum, délku (5–600 min) a náročnost (0–10)")
+    if body.sport == "running" and not (body.distance_km and 0.5 <= body.distance_km <= 120):
+        raise HTTPException(422, "Zadejte vzdálenost běhu (0,5–120 km)")
     twin = E.find_twin(db, rid, body.sport, day.isoformat(), body.duration_min)
     if twin is not None:
         raise HTTPException(409, "Tento trénink už máte z hodinek. Ohodnoťte ho v Deníku u importovaných aktivit.")
     a = models.Activity(
         runner_id=rid, provider="manual", started_at=day.isoformat(), title=CROSS_TITLE[body.sport], sport=body.sport,
         duration_min=round(body.duration_min, 1), distance_km=body.distance_km, avg_hr=body.avg_hr,
+        ascent_m=body.ascent_m if body.sport == "running" else None,
+        descent_m=body.ascent_m if body.sport == "running" else None,
+        pace_s_km=round(body.duration_min * 60 / body.distance_km) if body.sport == "running" and body.distance_km else None,
         strength_focus=body.strength_focus if body.strength_focus in E.STRENGTH_FOCUS else None,
         strength_type=body.strength_type if body.strength_type in E.STRENGTH_TYPES else None,
     )

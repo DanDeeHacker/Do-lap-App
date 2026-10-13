@@ -679,6 +679,12 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
             goal_res = goal_wk = goal_next = None
     if goal_wk is not None and not goal_wk.get("km"):
         goal_wk = None
+    # plan k cíli 2.0 #9: back after an illness day or 5+ days without running — no hard sessions
+    # for a while (goal_track.returning; working assumption), the plan recomputed at once
+    from . import goal_track as GT
+    goal_back = None
+    if g_row is not None and goal_res is not None:
+        goal_back = GT.returning(g_row, [s["date"] for s in runs], today)
     risk_on = bool(goal_wk) and (goal_res or {}).get("path") == "risk"
     if coach_on:
         mode, factor = "coach", 1.0
@@ -1199,6 +1205,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         block("kvalitní", f"{pain_why} — dnes bez intenzity.")
     if rtr_all and rtr_all["noQuality"]:
         block("kvalitní", f"Návrat po zranění — bez intenzity do {_dm(rtr_all['noQualityUntil'])}.")
+    elif goal_back and goal_back["until"] >= t_iso:
+        block("kvalitní", f"Návrat po {'nemoci' if goal_back['why'] == 'nemoc' else 'pauze'}: bez tvrdého tréninku do {_dm(goal_back['until'])}.")
     if gscore < READY_QUALITY:
         block("kvalitní", f"{rtxt()} — na tvrdý trénink je potřeba aspoň {READY_QUALITY} %.")
         block("dlouhý", f"{rtxt()} — dlouhý běh přesuňte na odpočatější den.")
@@ -1673,6 +1681,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                     "budgetKm": week["volume"]["budget"] if mode == "goal" else None,
                     "progress": [{k: r.get(k) for k in ("key", "label", "now", "need", "unit")}
                                  for r in goal_res.get("requirements") or [] if r["key"] in ("week", "long")],
+                    # plan k cíli 2.0: for the week's record (goal_track) and the setback message
+                    "realDate": goal_res.get("realDate"), "ill": bool(ill) and not ill_light or bool(ill_light),
+                    "back": goal_back,
+                    "setback": GT.setback(g_row, {"realDate": goal_res.get("realDate")}, today) if goal_back is not None or g_row is not None else None,
                     "riskEnded": ({"at": goal_res["goal"]["riskEndedAt"], "reason": goal_res["goal"].get("riskEndReason")}
                                   if goal_res["goal"].get("riskEndedAt") and goal_res.get("path") == "safe" else None)}
 
@@ -1690,7 +1702,10 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         "ill": bool(ill) and not ill_light, "illLight": ill_light, "illWatch": ill_watch,
         "drift": drift, "deload": load >= 25, "overreaching": a.get("quadrant") in ("overreaching", "critical"),
         "raceRecoveryUntil": ((_d(race["date"]) + timedelta(days=race["days"])).isoformat() if race else None),
-        "noQualityUntil": rtr_all["noQualityUntil"] if (rtr_all and rtr_all["noQuality"]) else None,
+        "noQualityUntil": (rtr_all["noQualityUntil"] if (rtr_all and rtr_all["noQuality"])
+                           else (date.fromisoformat(goal_back["until"]) + timedelta(days=1)).isoformat() if goal_back else None),
+        "noQualityWhy": ("zranění" if (rtr_all and rtr_all["noQuality"]) else
+                         ("nemoci" if goal_back["why"] == "nemoc" else "pauze") if goal_back else None),
         "races": [{"date": x["date"], "name": x.get("name"), "km": x.get("km"), "priority": x.get("priority")}
                   for x in ro.get("upcoming") or [] if 0 <= (x.get("daysTo") or -1) <= 13],
         "perKm": _r(per_km, 2), "perMinRide": _r(per_min_c, 3), "z4PerMin": _r(z4_trimp_per_min(tb), 3),

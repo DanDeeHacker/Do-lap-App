@@ -3390,7 +3390,8 @@
  {
   "t": "Zapsat běh",
   "files": [
-   "App.tsx"
+   "App.tsx",
+   "goal.tsx"
   ],
   "kind": "str"
  },
@@ -6443,7 +6444,8 @@
  {
   "t": "Rozumím",
   "files": [
-   "care.tsx"
+   "care.tsx",
+   "goal.tsx"
   ],
   "kind": "jsx"
  },
@@ -11353,6 +11355,13 @@
   "kind": "tpl"
  },
  {
+  "t": "{} – {}: z hodinek nic",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} · {}. týden z {}",
   "files": [
    "goal.tsx"
@@ -11486,6 +11495,27 @@
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Běh se nepodařilo zapsat",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Běh zapsán",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Běhal/a jste bez hodinek? Jinak to aplikace počítá jako volno a kapacita i plán vyjdou nižší.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "bezpečná cesta",
@@ -11824,6 +11854,13 @@
   "kind": "str"
  },
  {
+  "t": "Jste na cestě. Plán pokračuje beze změny.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Každý 4. týden je odlehčovací, takže v průměru týden roste zhruba o {} %.",
   "files": [
    "goal.tsx"
@@ -11864,6 +11901,13 @@
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Kontrolní bod · {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Kratší trať",
@@ -12000,6 +12044,13 @@
   "kind": "str"
  },
  {
+  "t": "náročnost 0–10",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Nastavit cíl",
   "files": [
    "goal.tsx"
@@ -12021,6 +12072,13 @@
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Neběhal/a jsem",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Nejdelší běh",
@@ -12049,6 +12107,13 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Nejlepší bezpečný cíl: {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Nepřesáhne týdenní součet, takže ho brzdí i převýšení za týden.",
@@ -12123,6 +12188,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Plnění plánu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Po lehčích týdnech se vracíte k dřívější úrovni (asi {} km týdně) rychleji, nejvýš na 1,3× průměru posledních 4 týdnů.",
   "files": [
    "goal.tsx"
@@ -12135,6 +12207,20 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Ponechat cíl",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "posilování {} %",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "poslední 4 týdny",
@@ -12467,6 +12553,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Svislá čárka = plán týdne. Kilometry proti plánu, jak stál v pondělí.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Tabulka",
   "files": [
    "goal.tsx"
@@ -12574,7 +12667,21 @@
   "kind": "str"
  },
  {
+  "t": "Uložit běh",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Uložit cíl",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Upravit cíl",
   "files": [
    "goal.tsx"
   ],
@@ -12630,6 +12737,20 @@
   "kind": "jsx"
  },
  {
+  "t": "Výpadek posunul reálný termín o {} dní: {} → {}.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Vyplňte den, kilometry a minuty",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Vyplňte jedno nebo víc čísel.",
   "files": [
    "goal.tsx"
@@ -12645,6 +12766,13 @@
  },
  {
   "t": "Základ",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zaostáváte za plánem. Zmeškané se nedohání: buď cíl upravit, nebo počítat s pozdějším termínem.",
   "files": [
    "goal.tsx"
   ],

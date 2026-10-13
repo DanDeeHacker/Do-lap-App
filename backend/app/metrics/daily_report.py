@@ -33,7 +33,7 @@ from . import day_tags as DT
 from . import mobility as MOB
 from . import tendon as TD
 from . import week_plan as WP
-from .guidance import WD_IN
+from .guidance import WD_IN, _dm
 
 log = logging.getLogger(__name__)
 
@@ -276,6 +276,11 @@ def goal_note(a) -> dict | None:
         parts.append(f"Stav plánu: {gg['statusLabel'].lower()}.")
     if w.get("milestone") == "half":
         parts.append("Tento týden je mezicíl: běh na 21 km.")
+    if gg.get("back"):
+        parts.append(f"Návrat po {'nemoci' if gg['back']['why'] == 'nemoc' else 'pauze'}: tvrdý trénink počká do {_dm(gg['back']['until'])}.")
+    if gg.get("setback"):
+        sb = gg["setback"]
+        parts.append(f"Výpadek posunul reálný termín o {sb['days']} dní, na {_dm(sb['to'])}.")
     return {"text": " ".join(parts), "status": gg.get("status"), "path": gg.get("path")}
 
 

@@ -6,7 +6,7 @@ POST   /api/runners/{rid}/goal/preview   the answer for a goal being entered, no
 PUT    /api/runners/{rid}/goal           store it as the active goal (the previous one is cancelled)
 DELETE /api/runners/{rid}/goal           cancel the active goal
 """
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -144,8 +144,31 @@ def get_goal(rid: str, user: models.User = Depends(get_current_user), db: DBSess
         if user.runner_id == rid:
             g.projection_json = res
             db.commit()
-    out.update(goal=goal, result=res)
+    out.update(goal=goal, result=res, track=_track(db, rid, g, res))
     return out
+
+
+def _track(db: DBSession, rid: str, g, res: dict) -> dict:
+    """Plan k cíli 2.0 #7–#9: adherence of the last weeks, the checkpoint due, what a setback cost."""
+    from ..metrics import goal_track as GT
+    today = E.today_date()
+    return {"adherence": GT.adherence(db, rid, g, today), "checkpoint": GT.checkpoint(g, res, today),
+            "setback": GT.setback(g, {"realDate": res.get("realDate")}, today)}
+
+
+class CheckpointIn(BaseModel):
+    key: Literal["half", "w8", "w4"]
+
+
+@router.post("/api/runners/{rid}/goal/checkpoint", dependencies=[Depends(verify_csrf)])
+def answer_checkpoint(rid: str, body: CheckpointIn, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """The runner saw the checkpoint (kept the goal, or changed it in the setup)."""
+    ensure_runner_self(user, rid)
+    from ..metrics import goal_track as GT
+    g = or_404(_active(db, rid), "Cíl nenalezen")
+    GT.answer_checkpoint(g, body.key, E.today_date())
+    db.commit()
+    return get_goal(rid, user, db)
 
 
 @router.post("/api/runners/{rid}/goal/preview", dependencies=[Depends(verify_csrf)])
@@ -199,6 +222,42 @@ def set_path(rid: str, body: PathIn, user: models.User = Depends(get_current_use
     db.commit()
     E.recompute_assessment(db, rid, data_changed=False)
     return get_goal(rid, user, db)
+
+
+class GapIn(BaseModel):
+    date_from: str = Field(alias="from")
+    date_to: str = Field(alias="to")
+    answer: Literal["rest"] = "rest"
+
+
+@router.get("/api/runners/{rid}/gaps")
+def get_gap(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Plan k cíli 2.0 #4: the latest days without any data from the watch, to ask about."""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import gaps as GA
+    return {"gap": GA.data_gap(db, rid, E.today_date())}
+
+
+@router.post("/api/runners/{rid}/gaps", dependencies=[Depends(verify_csrf)])
+def answer_gap(rid: str, body: GapIn, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """The runner didn't run on those days: kept so the question doesn't come back."""
+    ensure_runner_self(user, rid)
+    try:
+        d0, d1 = date.fromisoformat(body.date_from[:10]), date.fromisoformat(body.date_to[:10])
+    except ValueError:
+        raise HTTPException(422, "Neplatné datum")
+    if d1 < d0 or (d1 - d0).days > 60:
+        raise HTTPException(422, "Neplatné období")
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    pj = dict(r.planner_json or {})
+    gaps = dict(pj.get("gaps") or {})
+    for k in range((d1 - d0).days + 1):
+        gaps[(d0 + timedelta(days=k)).isoformat()] = body.answer
+    pj["gaps"] = gaps
+    r.planner_json = pj
+    db.commit()
+    from ..metrics import gaps as GA
+    return {"gap": GA.data_gap(db, rid, E.today_date())}
 
 
 @router.delete("/api/runners/{rid}/goal", dependencies=[Depends(verify_csrf)])
