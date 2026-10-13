@@ -777,3 +777,36 @@ def test_the_long_run_is_not_held_below_what_the_runner_has_run(client, db_sessi
     rid, _r = _runner(client, db_session, "tolwire@test.cz")
     tol = E.get_or_refresh_assessment(db_session, rid)["capacity"]["margins"]["tolerance"]
     assert tol is None or set(tol) == {"n", "painful", "factor", "personal"}   # the rises, not the pain-day map
+
+
+def test_temporary_narrowings_end_in_the_projection():
+    """Owner's Strava data 2026-10-13: back after a lull + a new shoe + the first year put the margin on
+    its floor (6 %) for the whole 2-year projection and a 101 km race in 2028 came out impossible.
+    Each temporary factor now ends on its own date; past injury and the personal tolerance stay."""
+    from app.metrics import capacity as C
+    mon = G._d("2026-10-19")
+    m = {"frailty": 1.0, "underconditioned": {"factor": 0.8}, "experience": {"factor": 0.8, "since": "2026-01-15"}}
+    sched = G.margin_schedule(m, {"factor": 0.65, "transition": {"until": "2026-11-20"}}, mon)
+    assert abs(sched[0][0] - C.MARGIN_WEEK * max(0.8 * 0.9 * 0.65, C.SHRINK_MIN)) < 1e-9  # under × 9 months × shoe
+    assert sched[G.UNDER_LIFT_WEEK - 1][0] > sched[G.UNDER_LIFT_WEEK - 2][0]          # back to regular running
+    assert abs(sched[60][0] - C.MARGIN_WEEK) < 1e-9                                    # nothing temporary left
+    assert G.margin_schedule({**m, "frailty": 1.2, "tolerance": {"factor": 0.8}}, None, mon)[60][0] < C.MARGIN_WEEK
+    st = {**_st(km=30.0, long=20.0, climb=400.0), "start": "2026-10-19", "cyclePos": 1,
+          "marginWeek": sched[0][0], "marginRun": sched[0][1]}
+    ultra = _race(101, "2028-08-28", ascentM=5500, descentM=5500, terrain="trail")
+    frozen, ending = G.evaluate(ultra, st, alternatives=False), G.evaluate(ultra, {**st, "marginSched": sched}, alternatives=False)
+    assert (ending["safe"]["earliest"] or 999) < (frozen["safe"]["earliest"] or 999)
+    assert ending["chance"] > frozen["chance"]
+
+
+def test_a_light_spell_does_not_hold_the_plan_below_the_engine():
+    """Owner's Strava data: 49 km weeks, then 18, 2 and 11 km. The 1.5 × rule over the plain 4-week
+    average planned 23 km where Trénink's own weekly ceiling allowed 36 km; the chronic load is now the
+    one the engine credits."""
+    hist = [45.0] * 8 + [49.0, 18.0, 2.0, 11.0]
+    w = [{"km": k, "long": min(20.0, k * 0.4), "down": 100.0, "up": 100.0, "downRun": 50.0, "upRun": 50.0, "runs": 4} for k in hist]
+    st = {**_st(), "weeks": w, "start": "2026-10-19", "cyclePos": 1, "long30": 20.0}
+    r = G.evaluate(_race(21.1, "2027-03-28"), st, alternatives=False)
+    avg4 = sum(hist[-4:]) / 4
+    assert r["plan"][0]["km"] > G.ACWR_MAX * avg4 + 1
+    assert r["planVersion"] == G.PLAN_VERSION

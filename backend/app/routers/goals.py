@@ -144,7 +144,8 @@ def get_goal(rid: str, user: models.User = Depends(get_current_user), db: DBSess
     race = db.query(models.Race).filter(models.Race.id == g.race_id).first() if g.race_id else None
     goal = GP.goal_dict(g, race)
     res = g.projection_json or {}
-    if res.get("computedOn") != E.today_date().isoformat() or res.get("path") != (g.path or "safe"):
+    if (res.get("computedOn") != E.today_date().isoformat() or res.get("path") != (g.path or "safe")
+            or res.get("planVersion") != GP.PLAN_VERSION):
         res = _answer(db, rid, goal)
         if user.runner_id == rid:
             g.projection_json = res

@@ -807,7 +807,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                     wcap = {**wcap, "absorbedLeft": wcap["absorbedLeft"] + ceil7 * (kw - 1)}
                 ceil7 = ceil7 * kw
         if mode == "goal" and target is not None and past[c][:4] and sum(past[c][:4]) > 0:
-            target = min(target, GP.ACWR_MAX * sum(past[c][:4]) / 4)   # never 1.5 × the 4 weeks before (Toresdahl 2022)
+            # never 1.5 × the chronic load (Toresdahl 2022): the 4 weeks before, or the weekly capacity the
+            # engine credits when it is higher (light weeks don't hold the plan below the app's own ceiling)
+            target = min(target, GP.ACWR_MAX * max(sum(past[c][:4]) / 4, wcap.get("cap") or 0))
         if goal_hold and target is not None and max(past[c][:2], default=0) > 0:
             target = min(target, max(past[c][:2]))   # plan k cíli 2.0 #17/#18: the week holds the level, no growth
         if target is not None and ceil7 is not None and mode != "coach":

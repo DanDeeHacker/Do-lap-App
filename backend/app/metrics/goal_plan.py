@@ -335,6 +335,7 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
     en = EN.state(rd.runner, today)
     pj = (getattr(rd.runner, "planner_json", None) or {}) if rd.runner is not None else {}
     bsi = EN.BSI_MARGIN if en["bsi"] else 1.0
+    sched = margin_schedule(m, ((a or {}).get("capacity") or {}).get("shoes"), mon, bsi) if m else None
     return {
         "today": today.isoformat(), "start": mon.isoformat(), "weeks": wk, "cyclePos": cycle_pos,
         "long30": l30, "down30": d30, "up30": u30, "longFormer": l_former,
@@ -354,9 +355,57 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
         # plan k cíli 2.0 stage B: hiking climb (#3), training km and pace of 8 weeks (#13), the
         # runner's week (#10), sleep (#18), how the plan has been kept (#6), sex (the Tanda note)
         "hike": hike, "train8": train8, "prefs": pj.get("prefs") or {}, "sleep14": _sleep14(rd, today),
-        "missRate": _miss_rate(rd, wk, lo), "tolerance": m.get("tolerance"), "sex": getattr(rd.runner, "sex", None) if rd.runner is not None else None,
+        "missRate": _miss_rate(rd, wk, lo), "tolerance": m.get("tolerance"), "marginSched": sched, "sex": getattr(rd.runner, "sex", None) if rd.runner is not None else None,
     }
 
+
+# owner's Strava data 2026-10-13: the margins the capacity gives today held for the whole projection,
+# so a temporary narrowing (back after a lull, a new kind of shoe, the first year of running) slowed a
+# 2-year plan as if it lasted 2 years — with several at once the margin sat at its floor (6 %) and a
+# 101 km race in 2028 came out impossible. Each one now ends on its own date in the projection: the
+# underconditioning after 4 weeks of the plan's regular running (the engine's own 4-week window), the
+# shoe transition on its last day, the first year on its anniversary. Past injury, the personal
+# tolerance of increases and a bone stress injury stay.
+UNDER_LIFT_WEEK = 5
+
+
+def margin_schedule(m: dict, shoes: dict | None, mon: date, bsi: float = 1.0) -> list:
+    """[(weekly margin, per-run margin)] for the plan's weeks 1…HORIZON, the capacity's own formula
+    (capacity.assess_capacity) with each temporary factor applied only while it lasts."""
+    from . import runner_factors as RF
+    fr = float(m.get("frailty") or 1.0)
+    base = E.clamp(1 - 2.5 * (fr - 1), 0.5, 1.0)
+    under, exper = m.get("underconditioned"), m.get("experience")
+    tol = float(((m.get("tolerance") or {}).get("factor")) or 1.0)
+    sh_f = float((shoes or {}).get("factor") or 1.0)
+    sh_until = ((shoes or {}).get("transition") or {}).get("until")
+    since = None
+    if exper and exper.get("since"):
+        try:
+            since = _d(exper["since"])
+        except ValueError:
+            since = None
+    out = []
+    for n in range(1, HORIZON + 1):
+        d = mon + timedelta(days=7 * (n - 1))
+        k = base
+        if under and n < UNDER_LIFT_WEEK:
+            k *= float(under.get("factor") or 1.0) * (C.UNDER_WITH_INJURY if fr > 1.0 else 1.0)
+        if exper:
+            if since is not None:
+                months = (d - since).days / 30.44
+                k *= next((f for below, f in RF.EXPERIENCE_FACTORS if months < below), 1.0)
+            else:
+                k *= float(exper.get("factor") or 1.0)
+        k = max(k, C.SHRINK_MIN)
+        shoe = sh_f if (sh_until and d.isoformat() <= sh_until) else 1.0
+        run_k = max(k * shoe, C.SHRINK_MIN)
+        out.append((C.MARGIN_WEEK * tol * run_k * bsi, C.MARGIN_SESSION * tol * run_k * bsi))
+    return out
+
+
+# the stored answer (goals.projection_json) is recomputed when the planner changes, not only the next day
+PLAN_VERSION = "2.2"
 
 HIKE_SPORTS = ("hiking", "walking")
 HIKE_UP, HIKE_DOWN = 1.0, 0.5         # owner decision 2026-10-13: a hike's climb counts in full, its descent half
@@ -621,8 +670,9 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
     days and the simulated ones before each week × (1 + the weekly margin). The long run (volume,
     floor_run == 0) is at most LONG_SHARE of the week from `share_from` (the specific phase),
     LONG_SHARE_BASE before it."""
-    mw = st["marginWeek"] * path.get("weekX", 1.0)
-    mr = st["marginRun"] * path.get("runX", 1.0)
+    sched = st.get("marginSched")             # the temporary narrowings end on their own dates (owner's data 2026-10-13)
+    mw0 = st["marginWeek"] * path.get("weekX", 1.0)
+    mr0 = st["marginRun"] * path.get("runX", 1.0)
     hist = [max(v, 0.0) for v in hist_w]
     if days is None:
         dd, pain, known = _days_of(hist), None, 7 * len(hist)
@@ -633,6 +683,7 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
     out_w, out_r = [], []
     full = hist[-1]                           # the last week that wasn't a recovery week
     for n in range(1, HORIZON + 1):
+        mw, mr = (sched[n - 1][0] * path.get("weekX", 1.0), sched[n - 1][1] * path.get("runX", 1.0)) if sched else (mw0, mr0)
         last = hist[-1]
         avg4 = sum(hist[-4:]) / 4
         share = LONG_SHARE if n >= share_from else LONG_SHARE_BASE
@@ -649,7 +700,10 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
             # may climb back as fast as the app's own weekly ceiling allows (owner report 2026-10-13:
             # 50 km weeks in September, the plan started at 19 km — less than Trénink without a goal)
             ref = max(max(hist[-2:]), floor_w, cap)
-            w = min(ceil, ref * (1 + path["rise"]), max(avg4 * ACWR_MAX, floor_w))
+            # never 1.5 × the chronic load (Toresdahl 2022) — the chronic load as the engine credits it: after a few
+            # light weeks the plain 4-week average (a 2 km week in it) held the plan below Trénink's own ceiling
+            # (owner's Strava data 2026-10-13: 23 km planned where the engine allowed 36)
+            w = min(ceil, ref * (1 + path["rise"]), max(max(avg4, cap) * ACWR_MAX, floor_w))
             if need_w is not None:
                 w = min(w, max(need_w, last))
             r = 0.0
@@ -941,7 +995,7 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     taper = taper_weeks(goal)
     req = requirements(goal)
     known = sum(1 for w in st["weeks"][-6:] if w["runs"]) >= 3
-    out = {"goal": goal, "start": st["start"], "weeksToGoal": weeks, "taperWeeks": taper,
+    out = {"goal": goal, "start": st["start"], "weeksToGoal": weeks, "taperWeeks": taper, "planVersion": PLAN_VERSION,
            # the chart says why it takes these weeks
            "margins": {"week": _r(st["marginWeek"] * 100), "run": _r(st["marginRun"] * 100), "avgRise": _r(avg_rise(st) * 100),
                        # the former level the way back heads for, when it is above the last 4 weeks (v0.12.6)
