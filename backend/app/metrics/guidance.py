@@ -797,6 +797,11 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
             if ref is None:
                 ref = wcap.get("cap")
             target = None if ref is None else ref * factor
+            if mode == "return" and goal_wk is not None:
+                # the goal's plan takes the return's weeks over (goal_plan._rtr_weeks): the week is the
+                # lower of the two, so the goal card and Trénink show one number (owner report 2026-10-13)
+                gt = goal_target(c, goal_wk)
+                target = gt if target is None else target if gt is None else min(target, gt)
         if novice and c != "volume":          # plan C1: only volume plans / limits the first 6 weeks
             target, ceil7 = None, None
         capped = target is not None and ceil7 is not None and target > ceil7
@@ -1032,7 +1037,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     types["lehký"] = mk("lehký", 0.85 * base_km * km_scale, 1.1 * base_km * km_scale,
                         z4max=min(5, int_max) if int_max is not None else 5, dfac=0.8)
     long_target = max(base_km * 1.2, LONG_SHARE * (week["volume"]["budget"] or 0))
-    goal_long = (goal_wk or {}).get("long") if mode == "goal" else None
+    goal_long = (goal_wk or {}).get("long") if mode in ("goal", "return") else None   # in the return: its 30 % (goal_plan)
     if goal_long and goal_hold:                  # on hold the long run doesn't grow either
         longest28 = max((s["km"] or 0 for s in runs if 0 < (today - _d(s["date"])).days <= 28), default=0)
         goal_long = min(goal_long, longest28) or None
@@ -1042,11 +1047,13 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         longest30 = max((s["km"] or 0 for s in runs if 0 < (today - _d(s["date"])).days <= 30), default=0)
         if longest30:
             long_target = min(long_target, NOVICE_LONG * longest30)
+    long_week = long_target                      # the week's long run (the goal card); today's room caps it below
     long_target = cap_km(long_target * (1.0 if not pain_mod else 0.7))
     types["dlouhý"] = mk("dlouhý", 0.85 * long_target, long_target,
                          z4max=min(10, int_max) if int_max is not None else 10,
-                         notes=[(f"Plán k cíli: dlouhý běh tento týden {_cz(goal_long)} km"
-                                 + (" (ve specifické fázi až 50 % týdne)" if goal_wk.get("phase") == "specific" else "")
+                         notes=[(f"Plán k cíli: dlouhý běh tento týden {_cz(long_week)} km"
+                                 + (" (ve specifické fázi až 50 % týdne)" if goal_wk.get("phase") == "specific" and mode == "goal"
+                                    else " (při návratu po zranění zkrácený)" if mode == "return" else "")
                                  + "; stejnoměrně, v Z2.") if goal_long else
                                 f"Nejvýš {round(LONG_SHARE * 100)} % týdenního rozpočtu objemu; stejnoměrně, v Z2."])
     goal_heat = (goal_wk or {}).get("heat") if mode == "goal" else None
@@ -1731,7 +1738,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                     "weeks": len(goal_res.get("plan") or []), "week": goal_wk, "next": goal_next, "runs": goal_runs,
                     "weeksToGoal": goal_res.get("weeksToGoal"), "coachCheck": coach_check,
                     # this week's target as Trénink sets it: the plan's km under the safety ceilings
-                    "budgetKm": week["volume"]["budget"] if mode == "goal" else None,
+                    "budgetKm": week["volume"]["budget"] if mode in ("goal", "return", "deload", "coach") else None,
+                    "returnWeek": rtr["week"] if mode == "return" else None,
+                    "longKm": _r(long_week) if mode in ("goal", "return", "deload", "coach") else None,
                     "progress": [{k: r.get(k) for k in ("key", "label", "now", "need", "unit")}
                                  for r in goal_res.get("requirements") or [] if r["key"] in ("week", "long")],
                     # plan k cíli 2.0: for the week's record (goal_track) and the setback message

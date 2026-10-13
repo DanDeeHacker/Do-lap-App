@@ -340,6 +340,7 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
     bsi = EN.BSI_MARGIN if en["bsi"] else 1.0
     sched = margin_schedule(m, ((a or {}).get("capacity") or {}).get("shoes"), mon, bsi) if m else None
     return {
+        "rtr": _rtr_weeks(a, rd, runs),
         "today": today.isoformat(), "start": mon.isoformat(), "weeks": wk, "cyclePos": cycle_pos,
         "long30": l30, "down30": d30, "up30": u30, "longFormer": l_former,
         # the days before this Monday (oldest first) for the engine's own weekly capacity
@@ -360,6 +361,33 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
         "hike": hike, "train8": train8, "prefs": pj.get("prefs") or {}, "sleep14": _sleep14(rd, today),
         "missRate": _miss_rate(rd, wk, lo), "tolerance": m.get("tolerance"), "marginSched": sched, "sex": getattr(rd.runner, "sex", None) if rd.runner is not None else None,
     }
+
+
+def _rtr_weeks(a: dict | None, rd, runs) -> list | None:
+    """The graded return after a resolved injury (engine.return_to_run, plan B3) in the projection:
+    the km of its remaining weeks from this calendar week — the average week of the 4 weeks before
+    the injury × 50 / 75 / 90 % — as Trénink sets them (guidance.reference). None without one, or
+    when the runner chose the normal cycle (feedback #190). Before, the plan ignored it and the goal
+    card said 25 km with a 13 km long run while Trénink, in the return, planned 26 km with a 7.7 km
+    one (owner report 2026-10-13)."""
+    rtr = (a or {}).get("returnToRun")
+    if not rtr or not rtr.get("injuryAt"):
+        return None
+    ov = (getattr(rd.runner, "cycle_override", None) or {}) if rd.runner is not None else {}
+    if ov.get("noReturn") and ov.get("noReturn") == rtr.get("injuryAt"):
+        return None
+    inj = _d(rtr["injuryAt"])
+    pre = 0.0
+    for x in runs:
+        try:
+            dd = _d(x.started_at)
+        except ValueError:
+            continue
+        if inj - timedelta(days=28) <= dd < inj:
+            pre += x.distance_km or 0.0
+    pre /= 4
+    wk0 = max(1, int(rtr.get("week") or 1))
+    return [pre * f for f in E.RTR_FACTORS[wk0 - 1:]] if pre > 0 else None
 
 
 # owner's Strava data 2026-10-13: the margins the capacity gives today held for the whole projection,
@@ -408,7 +436,7 @@ def margin_schedule(m: dict, shoes: dict | None, mon: date, bsi: float = 1.0) ->
 
 
 # the stored answer (goals.projection_json) is recomputed when the planner changes, not only the next day
-PLAN_VERSION = "2.4"
+PLAN_VERSION = "2.5"
 
 HIKE_SPORTS = ("hiking", "walking")
 HIKE_UP, HIKE_DOWN = 1.0, 0.5         # owner decision 2026-10-13: a hike's climb counts in full, its descent half
@@ -675,6 +703,7 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
     LONG_SHARE_BASE before it; `long_share` (long_share_of) only once the week is at the goal's
     capped need."""
     sched = st.get("marginSched")             # the temporary narrowings end on their own dates (owner's data 2026-10-13)
+    rtr = st.get("rtr") if ch == "volume" else None
     mw0 = st["marginWeek"] * path.get("weekX", 1.0)
     mr0 = st["marginRun"] * path.get("runX", 1.0)
     hist = [max(v, 0.0) for v in hist_w]
@@ -710,6 +739,8 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
             w = min(ceil, ref * (1 + path["rise"]), max(max(avg4, cap) * ACWR_MAX, floor_w))
             if need_w is not None:
                 w = min(w, max(need_w, last))
+            if rtr and n <= len(rtr):           # the graded return after an injury sets these weeks
+                w = min(w, max(rtr[n - 1], floor_w))
             r = 0.0
             if need_run is not None:
                 r = min(max(max(runs[-4:]), floor_run) * (1 + mr), max(need_run, runs[-1]))
@@ -718,6 +749,8 @@ def _channel(hist_w: list, run0: float, need_w: float | None, need_run: float | 
                     if n >= share_from and long_share > share and need_w is not None and w >= need_w - 0.05:
                         share = long_share            # the week at the goal's cap: only now may the long run pass 50 %
                     r = min(r, w * share if n >= share_from else max(w * share, min(back, w * LONG_SHARE)))
+                    if rtr and n <= len(rtr):       # … and its long run: Trénink's 30 % of the week
+                        r = min(r, w * LONG_SHARE_BASE)
                 else:
                     r = min(r, w)
         if not deload_week(n, st):
@@ -1132,7 +1165,11 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
         out["notes"].append({"key": "ultra", "sources": SRC["ultra"],
                              "text": f"Běh delší než {_cz(TRAIL_LONG_MAX, 0)} km je spíš závod než trénink. Pro přípravu na ultra zvolte Závod: "
                                      "aplikace pak počítá s dlouhými běhy 35–45 km."})
-    if st.get("limited"):
+    if st.get("rtr"):
+        ks = " → ".join(f"{_cz(k, 0)} km" for k in st["rtr"])
+        out["notes"].append({"key": "limited", "text": f"Běží návrat po zranění ({ks}): plán jeho týdny přebírá, dlouhý běh v nich "
+                             "nejvýš 30 % týdne, a pak navazuje.", "sources": []})
+    elif st.get("limited"):
         out["notes"].append({"key": "limited", "text": "Teď máte omezení tréninku (bolest, zranění nebo návrat po něm). Projekce počítá "
                              "s tím, že trénink půjde bez přerušení, takže skutečný termín bude nejspíš později.", "sources": []})
     if st["marginWeek"] < C.MARGIN_WEEK - 0.001:

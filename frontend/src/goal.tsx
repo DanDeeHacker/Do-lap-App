@@ -835,14 +835,25 @@ const TAB_HINT: Record<DetailTab, string> = {
   settings: "můj týden, energie a kosti, riziková cesta",
 }
 
-function WeekNow({ w, weeks, budgetKm }: { w: any; weeks?: number; budgetKm?: number | null }) {
+// what sets this week when it isn't the goal's plan alone (guidance mode) — Trénink and this card show one week
+const WEEK_BY: Record<string, (gg: any) => [string, string]> = {
+  return: (gg) => [gg.returnWeek ? `Návrat po zranění, ${gg.returnWeek}. týden ze 3` : "Návrat po zranění",
+    "plán k cíli ho přebírá a dlouhý běh zkracuje."],
+  deload: () => ["Odlehčovací týden kvůli zvýšené zátěži", "plán k cíli počká týden."],
+  coach: () => ["Týden řídí plán trenéra", "cíl ho jen kontroluje."],
+}
+
+function WeekNow({ w, weeks, gg }: { w: any; weeks?: number; gg?: any }) {
   if (!w) return null
   const [pl, pc] = PHASE[w.phase] || PHASE.base
   const tags = weekTags(w).filter((t) => !t.startsWith("posilování"))
+  const by = gg?.mode && WEEK_BY[gg.mode] ? WEEK_BY[gg.mode](gg) : null
+  const long = gg?.longKm ?? w.long
   return (
     <div className="nest px-3 py-2.5" data-testid="goal-week">
       <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: pc }}>{`${pl} · ${w.i}. týden z ${weeks}`}</p>
-      <p className="mt-0.5 text-[14px] text-fg">{w.race ? "Týden závodu" : <>Tento týden <b>{num(budgetKm ?? w.km, 0)} km</b></>}{w.long ? <>, dlouhý běh <b>{num(w.long, 0)} km</b></> : null}</p>
+      <p className="mt-0.5 text-[14px] text-fg">{w.race ? "Týden závodu" : <>Tento týden <b>{num(gg?.budgetKm ?? w.km, 0)} km</b></>}{long ? <>, dlouhý běh <b>{num(long, long < 10 ? 1 : 0)} km</b></> : null}</p>
+      {by && <p className="mt-0.5 text-[11.5px] leading-4 text-watch" data-testid="goal-week-by"><span>{by[0]}</span>: <span>{by[1]}</span></p>}
       <p className="mt-0.5 flex flex-wrap gap-x-3 text-[11.5px] text-fg-3">
         {w.strength != null && !w.race && <span>{`posilování ${w.strength}×`}</span>}
         {tags.map((t) => <span key={t}>{t}</span>)}
@@ -903,7 +914,7 @@ function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy, 
             {res?.path === "risk" && <p className="mt-2"><span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${C.alert}1f`, color: C.alert }}>riziková cesta</span></p>}
             <TrackBanners rid={rid} track={data.track} res={res} onData={onChange} onEdit={onEdit} />
             <div className="mt-3"><VerdictHero res={res} /></div>
-            {wk && <div className="mt-4"><WeekNow w={wk} weeks={gg?.weeks || plan.length} budgetKm={gg?.budgetKm} /></div>}
+            {wk && <div className="mt-4"><WeekNow w={wk} weeks={gg?.weeks || plan.length} gg={gg} /></div>}
             {tr.adherence && <div className="mt-5"><Adherence ad={tr.adherence} /></div>}
             <div className="mt-5 grid gap-1.5">
               {DETAIL_TABS.slice(1).map(([k, l]) => (
@@ -1320,7 +1331,7 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
             <span className="text-[13px] font-bold" style={{ color: VCOL[res.verdict] || C.fg3 }}>{headline(res).title}</span>
             {res.chance != null && <span className="shrink-0 text-[12px] tabular-nums text-fg-2">{`šance ${res.chance >= 95 ? "> 95" : res.chance} %`}</span>}
           </span>}
-          {wk && <span className="mt-2.5 block"><WeekNow w={wk} weeks={gg?.weeks || res?.plan?.length} budgetKm={gg?.budgetKm} /></span>}
+          {wk && <span className="mt-2.5 block"><WeekNow w={wk} weeks={gg?.weeks || res?.plan?.length} gg={gg} /></span>}
           {wk?.milestone === "half" && <span className="mt-1 block text-[12px] text-accent">Mezicíl: běh na 21 km, nebo B‑závod na půlmaraton.</span>}
           {gg?.runs && <span className="mt-1 block text-[11px] text-fg-3">{`${gg.runs} běhy týdně (první maraton)`}</span>}
           {res?.verdict !== "unknown" && reqs.length > 0 && (

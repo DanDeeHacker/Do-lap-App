@@ -5241,6 +5241,12 @@
   ]
  },
  {
+  "t": "Běží návrat po zranění ({}): plán jeho týdny přebírá, dlouhý běh v nich nejvýš 30 % týdne, a pak navazuje.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Cíl doběhnout místo cílového času: {}.",
   "files": [
    "metrics/goal_plan.py"
@@ -6046,6 +6052,12 @@
  },
  {
   "t": "(odlehčovací týden)",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "(při návratu po zranění zkrácený)",
   "files": [
    "metrics/guidance.py"
   ]

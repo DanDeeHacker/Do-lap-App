@@ -11981,6 +11981,13 @@
   "kind": "str"
  },
  {
+  "t": "cíl ho jen kontroluje.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Cíl se nepodařilo spočítat",
   "files": [
    "goal.tsx"
@@ -12624,6 +12631,21 @@
   "kind": "jsx"
  },
  {
+  "t": "Návrat po zranění",
+  "files": [
+   "goal.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Návrat po zranění, {}. týden ze 3",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Název",
   "files": [
    "goal.tsx",
@@ -12790,11 +12812,32 @@
   "kind": "jsx"
  },
  {
+  "t": "Odlehčovací týden kvůli zvýšené zátěži",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Plán běží bezpečnou cestou.",
   "files": [
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "plán k cíli ho přebírá a dlouhý běh zkracuje.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plán k cíli počká týden.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "plán neroste",
@@ -13367,6 +13410,13 @@
  },
  {
   "t": "týden po týdnu, fáze, odlehčení a ladění",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Týden řídí plán trenéra",
   "files": [
    "goal.tsx"
   ],
@@ -26195,13 +26245,6 @@
  },
  {
   "t": "Nastavuji cyklus",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Návrat po zranění",
   "files": [
    "training.tsx"
   ],

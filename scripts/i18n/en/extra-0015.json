@@ -1,4 +1,12 @@
 {
   "dřívější úroveň převýšení (6 týdnů naplno, pak slábne)": "former climbing level (6 weeks in full, then fading)",
-  "Plán staví dlouhý běh nejvýš {} km. Delší běh je závod: pro ultra zvolte Závod.": "The plan builds long runs of at most {0} km. A longer run is a race: for an ultra, choose Race."
+  "Plán staví dlouhý běh nejvýš {} km. Delší běh je závod: pro ultra zvolte Závod.": "The plan builds long runs of at most {0} km. A longer run is a race: for an ultra, choose Race.",
+  "cíl ho jen kontroluje.": "the goal only checks it.",
+  "Návrat po zranění, {}. týden ze 3": "Return after injury, week {0} of 3",
+  "Odlehčovací týden kvůli zvýšené zátěži": "Recovery week because of an elevated load",
+  "plán k cíli počká týden.": "the goal plan waits a week.",
+  "Týden řídí plán trenéra": "The coach's plan sets the week",
+  "Běží návrat po zranění ({}): plán jeho týdny přebírá, dlouhý běh v nich nejvýš 30 % týdne, a pak navazuje.": "A return after injury is under way ({0}): the plan follows its weeks, with the long run at most 30 % of the week, and then carries on.",
+  "plán k cíli ho přebírá a dlouhý běh zkracuje.": "the goal plan follows it and shortens the long run.",
+  "(při návratu po zranění zkrácený)": "(shortened in the return after injury)"
 }

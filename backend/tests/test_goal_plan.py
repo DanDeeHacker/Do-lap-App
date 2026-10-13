@@ -855,3 +855,41 @@ def test_a_free_long_run_over_45_km_can_be_met():
     far = G.evaluate({**goal, "free": {"longKm": 100}}, {**_st(km=30.0, long=21.0), "cyclePos": 1}, alternatives=False)
     assert far["longCap"] == 60 and far["verdict"] == "no"
     assert G.long_share_of(G.requirements({**goal, "free": {"longKm": 100}})) == pytest.approx(G.LONG_SHARE_MAX)
+
+
+def test_the_projection_takes_the_return_after_injury_over():
+    """Owner report 2026-10-13 (screenshot): the goal card said 25 km with a 13 km long run while
+    Trénink, in the return after an injury, planned 26 km with a 7.7 km one. The plan now takes the
+    return's remaining weeks over: their km (the pre-injury week × 75 / 90 %) and Trénink's 30 % long run."""
+    st = {**_st(km=30.0, long=20.0), "cyclePos": 1, "rtr": [18.0, 21.6]}
+    r = G.evaluate(_race(42.2, "2027-06-27"), st, alternatives=False)
+    w1, w2, w3 = r["plan"][0], r["plan"][1], r["plan"][2]
+    assert w1["km"] <= 18.0 + 0.05 and w2["km"] <= 21.6 + 0.05
+    assert w1["long"] <= 0.3 * w1["km"] + 0.05 and w2["long"] <= 0.3 * w2["km"] + 0.05
+    assert w3["km"] > w2["km"] or w3.get("deload")                 # then the plan carries on
+    assert any(n["key"] == "limited" and "návrat po zranění" in n["text"] for n in r["notes"])
+    free = G.evaluate(_race(42.2, "2027-06-27"), {**st, "rtr": None}, alternatives=False)
+    assert free["plan"][0]["long"] > w1["long"]
+
+
+def test_the_goal_card_and_trenink_show_one_week_in_the_return(client, db_session):
+    """The same, end to end: with a goal and a resolved injury Trénink stays in the return (no
+    intensity, its label), but its week, the goal card's week and the week plan's long run are one."""
+    from app import models
+    rid, _saved = _goal_runner(client, db_session, "goalrtr@test.cz")
+    client.post(f"/api/runners/{rid}/injury-report", json={"kind": "adhoc", "q_participation": 17, "q_pain": 8,
+                                                          "pain_points": [{"region": "Holeň (P)", "side": "P"}]})
+    db_session.query(models.InjuryReport).filter(models.InjuryReport.runner_id == rid).update({"submitted_at": E.day_ago(20)})
+    db_session.commit()
+    a = client.post(f"/api/runners/{rid}/injury-report", json={"resolve": True}).json()
+    a = E.get_or_refresh_assessment(db_session, rid)
+    g = a["guidance"]
+    assert g["week"]["mode"] == "return" and not g["types"]["kvalitní"]["allowed"]
+    go, v = g["goal"], g["week"]["channels"]["volume"]
+    assert go["returnWeek"] == 1 and go["budgetKm"] == v["budget"]
+    ref = g["week"]["cycle"]["refKm"]
+    assert go["week"]["km"] <= 0.5 * ref + 0.2                         # the plan's week 1 is the return's
+    assert v["budget"] <= go["week"]["km"] + 0.11
+    assert go["week"]["long"] <= 0.3 * go["week"]["km"] + 0.11
+    assert go["longKm"] and go["longKm"] >= g["types"]["dlouhý"]["km"]["hi"] - 0.05      # the week's, not today's room
+    assert g["planCtx"]["goalLong"] == go["week"]["long"]
