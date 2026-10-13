@@ -3,7 +3,7 @@
 // backend metrics/goal_plan.py: requirements from the studies, the week-by-week projection
 // under the app's own limits, Reálné / Těsné / Nereálné, the real date and the alternatives.
 // Advice only — the daily recommendation and the week's plan don't follow the goal yet.
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { track } from "@/usage"
 import { api } from "@/api"
 import { useApp } from "@/store"
@@ -679,7 +679,7 @@ function GoalSetup({ rid, races, initial, onClose, onSaved }: { rid: string; rac
                 </div>
               </div>
               <div>
-                <p className={`${lbl} flex items-center gap-1.5`}>Co je cílem<InfoDot label="Doběhnout nebo cílový čas" text="Pro cílový čas aplikace počítá s vyšším objemem a delšími dlouhými běhy (horní čísla tabulky). Tempa k cílovému času přijdou v další etapě." /></p>
+                <p className={`${lbl} flex items-center gap-1.5`}>Co je cílem<InfoDot label="Doběhnout nebo cílový čas" text="Pro cílový čas aplikace počítá s vyšším objemem a delšími dlouhými běhy (horní čísla tabulky), ukáže závodní tempo a u maratonu i odhad času z tréninku." /></p>
                 <Segmented className="mt-1" size="sm" ariaLabel="Co je cílem" options={[["finish", "Doběhnout"], ["time", "Cílový čas"]] as const} value={f.aim} onChange={(k) => set({ aim: k })} />
                 {f.aim === "time" && <label className={`${lbl} mt-2 block max-w-[200px]`}>Cílový čas (h:mm)<input className={inp} placeholder="3:59" value={f.target} onChange={(e) => set({ target: e.target.value })} /></label>}
               </div>
@@ -823,8 +823,35 @@ function RiskPanel({ rid, goal, res, onChange }: { rid: string; goal: any; res: 
   )
 }
 
-function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy }: { rid: string; data: any; gg?: any; onClose: () => void; onEdit: () => void; onCancel: () => void; onChange: (d: any) => void; busy: boolean }) {
+// the goal's detail in four tabs (owner request 2026-10-13: intuitive and easy to navigate):
+// where I stand, the plan, what the goal needs, and the settings
+type DetailTab = "overview" | "plan" | "needs" | "settings"
+const DETAIL_TABS: [DetailTab, string][] = [["overview", "Přehled"], ["plan", "Plán"], ["needs", "Co je potřeba"], ["settings", "Nastavení"]]
+const TAB_HINT: Record<DetailTab, string> = {
+  overview: "", plan: "týden po týdnu, fáze, odlehčení a ladění", needs: "objem, dlouhý běh, převýšení a cílový čas",
+  settings: "můj týden, energie a kosti, riziková cesta",
+}
+
+function WeekNow({ w, weeks, budgetKm }: { w: any; weeks?: number; budgetKm?: number | null }) {
+  if (!w) return null
+  const [pl, pc] = PHASE[w.phase] || PHASE.base
+  const tags = weekTags(w).filter((t) => !t.startsWith("posilování"))
+  return (
+    <div className="nest px-3 py-2.5" data-testid="goal-week">
+      <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: pc }}>{`${pl} · ${w.i}. týden z ${weeks}`}</p>
+      <p className="mt-0.5 text-[14px] text-fg">{w.race ? "Týden závodu" : <>Tento týden <b>{num(budgetKm ?? w.km, 0)} km</b></>}{w.long ? <>, dlouhý běh <b>{num(w.long, 0)} km</b></> : null}</p>
+      <p className="mt-0.5 flex flex-wrap gap-x-3 text-[11.5px] text-fg-3">
+        {w.strength != null && !w.race && <span>{`posilování ${w.strength}×`}</span>}
+        {tags.map((t) => <span key={t}>{t}</span>)}
+      </p>
+    </div>
+  )
+}
+
+function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy, initialTab = "overview" }: { rid: string; data: any; gg?: any; onClose: () => void; onEdit: () => void; onCancel: () => void; onChange: (d: any) => void; busy: boolean; initialTab?: DetailTab }) {
   const { goal, result: res } = data
+  const [tab, setTab] = useState<DetailTab>(initialTab)
+  const bar = useRef<HTMLDivElement | null>(null)
   const footer = (
     <div className="flex items-center justify-between gap-2">
       <Button size="sm" variant="outline" disabled={busy} onClick={onCancel} data-testid="goal-cancel">Zrušit cíl</Button>
@@ -832,37 +859,88 @@ function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy }
     </div>
   )
   const scol = SCOL[res?.status] || C.fg3
+  const plan: any[] = res?.plan || []
+  const today = res?.computedOn || res?.start
+  const cur = plan.findIndex((w, i) => w.start <= today && today < (plan[i + 1]?.start ?? "9999"))
+  const wk = gg?.week || plan[Math.max(0, cur)]
+  const tr = data.track || {}
+  const dot: Partial<Record<DetailTab, boolean>> = {
+    overview: !!(tr.checkpoint || tr.setback || tr.gi || res?.hold),
+    settings: !!data.energy?.ask,
+  }
+  const pick = (t: DetailTab) => {
+    setTab(t)
+    const el = bar.current, sc = el?.closest(".overflow-y-auto") as HTMLElement | null
+    if (el && sc && sc.scrollTop > el.offsetTop) sc.scrollTo({ top: el.offsetTop })
+  }
   return (
     <Sheet open onClose={onClose} footer={footer}>
-      <div data-testid="goal-detail">
+      <div data-testid="goal-detail" className="min-h-[72dvh] md:min-h-[66dvh]">
         <div className="flex items-center gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-[12px] bg-white/[.06]"><Target className="size-5 text-accent" aria-hidden /></span>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="font-serif text-[24px] leading-tight text-fg">{goalTitle(goal)}</h2>
             <p className="text-[12px] text-fg-3">{`${fmtDY(goal.date)} · za ${weeksCz(res?.weeksToGoal)}`}{goal.km ? ` · ${num(goal.km)} km` : ""}{goal.ascentM ? ` · ↑ ${num(goal.ascentM, 0)} m` : ""}{goal.kind === "race" ? <> · <span>{goal.aim === "time" ? "cílový čas" : "doběhnout"}</span></> : ""}</p>
           </div>
+          {res?.statusLabel && <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${scol}1f`, color: scol }} data-testid="goal-status">{res.statusLabel}</span>}
         </div>
-        {res?.statusLabel && <p className="mt-3 flex items-center gap-2 text-[12px] text-fg-2">Stav plánu
-          <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${scol}1f`, color: scol }} data-testid="goal-status">{res.statusLabel}</span>
-          {res.path === "risk" && <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${C.alert}1f`, color: C.alert }}>riziková cesta</span>}</p>}
-        <TrackBanners rid={rid} track={data.track} res={res} onData={onChange} onEdit={onEdit} />
-        <div className="mt-3"><VerdictHero res={res} /></div>
-        {data.track?.adherence && <div className="mt-5"><Adherence ad={data.track.adherence} /></div>}
-        {res?.plan?.length > 0 && <>
-          <p className="mt-5 t-label !text-fg-3">Plán po týdnech</p>
-          <PlanBars plan={res.plan} today={res.computedOn || res.start} />
-        </>}
-        <div className="mt-5"><Gauges res={res} /><Notes res={res} /></div>
-        <EnergyRow rid={rid} en={data.energy} onData={onChange} />
-        <MyWeek rid={rid} onSaved={() => api.goal(rid).then(onChange).catch(() => {})} />
-        <TargetTime tt={res?.targetTime} te={res?.trainEstimate} />
-        {gg?.coachCheck && <p className="nest mt-4 p-3.5 text-[12px] leading-5 text-fg-soft" data-testid="goal-coach-check">{gg.coachCheck.text}</p>}
-        <RiskPanel rid={rid} goal={goal} res={res} onChange={onChange} />
-        {res?.safe && <details className="mt-5" data-testid="goal-growth">
-          <summary className="cursor-pointer t-label !text-fg-3">Jak poroste (graf)</summary>
-          <ProjectionChart res={res} />
-        </details>}
-        <p className="mt-4 text-[11px] leading-5 text-fg-3">Plán se přepočítá každý týden z toho, co jste opravdu odběhli. Denní doporučení dál hlídá připravenost, bolest a limity.</p>
+        <div ref={bar} className="sticky top-0 z-10 -mx-5 mt-3 bg-raised/95 px-5 py-2 backdrop-blur md:-mx-6 md:px-6" data-testid="goal-tabs">
+          <div role="tablist" aria-label="Části cíle" className="flex gap-1 overflow-x-auto rounded-full bg-white/[.06] p-[3px]">
+            {DETAIL_TABS.map(([k, l]) => (
+              <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => pick(k)} data-testid={`goal-tab-${k}`}
+                className={`relative flex-1 whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-bold transition ${tab === k ? "bg-fg text-ink" : "text-fg-2 hover:text-fg"}`}>
+                {l}
+                {dot[k] && tab !== k && <i className="ml-1 inline-block size-1.5 -translate-y-1.5 rounded-full bg-accent align-middle" aria-hidden />}
+              </button>
+            ))}
+          </div>
+        </div>
+        {tab === "overview" && (
+          <div role="tabpanel">
+            {res?.path === "risk" && <p className="mt-2"><span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${C.alert}1f`, color: C.alert }}>riziková cesta</span></p>}
+            <TrackBanners rid={rid} track={data.track} res={res} onData={onChange} onEdit={onEdit} />
+            <div className="mt-3"><VerdictHero res={res} /></div>
+            {wk && <div className="mt-4"><WeekNow w={wk} weeks={gg?.weeks || plan.length} budgetKm={gg?.budgetKm} /></div>}
+            {tr.adherence && <div className="mt-5"><Adherence ad={tr.adherence} /></div>}
+            <div className="mt-5 grid gap-1.5">
+              {DETAIL_TABS.slice(1).map(([k, l]) => (
+                <button key={k} type="button" onClick={() => pick(k)} className="flex items-center justify-between gap-3 rounded-xl bg-white/[.05] px-3.5 py-2.5 text-left hover:bg-white/[.08]">
+                  <span className="min-w-0">
+                    <b className="block text-[13px] text-fg">{l}{dot[k] && <i className="ml-1.5 inline-block size-1.5 rounded-full bg-accent align-middle" aria-hidden />}</b>
+                    <span className="block text-[11.5px] text-fg-3">{TAB_HINT[k]}</span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-fg-3" aria-hidden />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {tab === "plan" && (
+          <div role="tabpanel" className="mt-2">
+            {plan.length > 0 ? <PlanBars plan={plan} today={today} /> : <p className="mt-2 text-[13px] text-fg-2">Plán po týdnech se ukáže, až bude cíl do 2 let.</p>}
+            {res?.safe && <details className="mt-5" data-testid="goal-growth">
+              <summary className="cursor-pointer t-label !text-fg-3">Jak poroste (graf)</summary>
+              <ProjectionChart res={res} />
+            </details>}
+            <p className="mt-4 text-[11px] leading-5 text-fg-3">Plán se přepočítá každý týden z toho, co jste opravdu odběhli. Denní doporučení dál hlídá připravenost, bolest a limity.</p>
+          </div>
+        )}
+        {tab === "needs" && (
+          <div role="tabpanel" className="mt-2">
+            <Gauges res={res} />
+            <TargetTime tt={res?.targetTime} te={res?.trainEstimate} />
+            <Notes res={res} />
+          </div>
+        )}
+        {tab === "settings" && (
+          <div role="tabpanel" className="mt-1">
+            <MyWeek rid={rid} onSaved={() => api.goal(rid).then(onChange).catch(() => {})} />
+            <EnergyRow rid={rid} en={data.energy} onData={onChange} />
+            {gg?.coachCheck && <p className="nest mt-4 p-3.5 text-[12px] leading-5 text-fg-soft" data-testid="goal-coach-check">{gg.coachCheck.text}</p>}
+            <RiskPanel rid={rid} goal={goal} res={res} onChange={onChange} />
+            <p className="mt-4 text-[11px] leading-5 text-fg-3">Datum, trať nebo cílový čas změníte tlačítkem Změnit cíl dole.</p>
+          </div>
+        )}
       </div>
     </Sheet>
   )
@@ -944,6 +1022,21 @@ function EnergyScreen({ rid, en, onData, onDone }: { rid: string; en: any; onDat
   )
 }
 
+// on the card: one line instead of the whole screen; the questions open in the detail's settings
+function EnergyPrompt({ rid, onOpen, onData }: { rid: string; onOpen: () => void; onData: (d: any) => void }) {
+  const [busy, setBusy] = useState(false)
+  const decline = async () => { setBusy(true); try { onData(await api.goalEnergy(rid, { declined: true })) } finally { setBusy(false) } }
+  return (
+    <div className="nest mt-3 flex flex-wrap items-center justify-between gap-2 px-3 py-2.5" data-testid="goal-energy-prompt">
+      <span className="min-w-0 text-[12.5px] leading-5 text-fg-2"><b className="text-fg">Energie a kosti</b> · 2–3 nepovinné otázky, aby plán nastavil správné rezervy</span>
+      <span className="flex gap-1.5">
+        <Button size="sm" onClick={onOpen} data-testid="energy-open">Vyplnit</Button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={decline}>Ne, díky</Button>
+      </span>
+    </div>
+  )
+}
+
 function EnergyRow({ rid, en, onData }: { rid: string; en: any; onData: (d: any) => void }) {
   const [edit, setEdit] = useState(false)
   if (!en || (!en.answered && !en.declined && !en.ask)) return null
@@ -954,10 +1047,13 @@ function EnergyRow({ rid, en, onData }: { rid: string; en: any; onData: (d: any)
     ...(en.fuel ? ["známky nedostatku energie"] : []),
   ]
   return (
-    <p className="mt-4 flex flex-wrap items-center gap-x-2 text-[12px] text-fg-2" data-testid="goal-energy-row">
-      <span>{`Energie a kosti: ${parts.length ? parts.join(" · ") : "bez rizika"}`}</span>
-      <button type="button" className="font-semibold text-accent underline-offset-2 hover:underline" onClick={() => setEdit(true)}>Upravit</button>
-    </p>
+    <div className="nest mt-3 flex items-start justify-between gap-3 px-3.5 py-3" data-testid="goal-energy-row">
+      <span className="min-w-0">
+        <b className="block text-[13px] text-fg">Energie a kosti</b>
+        <span className="mt-0.5 block text-[12px] leading-5 text-fg-2">{parts.length ? parts.join(" · ") : "bez rizika"}</span>
+      </span>
+      <Button size="sm" variant="outline" onClick={() => setEdit(true)}>Upravit</Button>
+    </div>
   )
 }
 
@@ -999,13 +1095,16 @@ function MyWeek({ rid, onSaved }: { rid: string; onSaved: () => void }) {
     ...(p.vacations?.length ? [`dovolená ${p.vacations.length}×`] : []),
   ]
   if (!edit) return (
-    <p className="mt-4 flex flex-wrap items-center gap-x-2 text-[12px] text-fg-2" data-testid="goal-week-prefs">
-      <span>{parts.length ? `Můj týden: ${parts.join(" · ")}` : "Můj týden: podle toho, jak běháte"}</span>
-      <button type="button" className="font-semibold text-accent underline-offset-2 hover:underline" onClick={open} data-testid="prefs-edit">Upravit</button>
-    </p>
+    <div className="nest mt-3 flex items-start justify-between gap-3 px-3.5 py-3" data-testid="goal-week-prefs">
+      <span className="min-w-0">
+        <b className="block text-[13px] text-fg">Můj týden</b>
+        <span className="mt-0.5 block text-[12px] leading-5 text-fg-2">{parts.length ? parts.join(" · ") : "Podle toho, jak běháte. Nastavte dny, čas a dovolenou."}</span>
+      </span>
+      <Button size="sm" variant="outline" onClick={open} data-testid="prefs-edit">Upravit</Button>
+    </div>
   )
   return (
-    <div className="nest mt-4 p-3.5" data-testid="goal-prefs">
+    <div className="nest mt-3 p-3.5" data-testid="goal-prefs">
       <p className="text-[11px] font-bold uppercase tracking-wide text-accent">Můj týden</p>
       <p className="mt-1 text-[12px] leading-5 text-fg-2">Plán se přizpůsobí: běhy jen v dny, kdy můžete, délka podle času, dovolená jako lehčí týden.</p>
       <p className={`${lbl} mt-2.5`}>Kdy můžete běhat</p>
@@ -1178,6 +1277,8 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
   const { refresh } = useApp()
   const [data, setData] = useState<any>(null)
   const [mode, setMode] = useState<"" | "setup" | "detail">("")
+  const [tab0, setTab0] = useState<DetailTab>("overview")
+  const openDetail = (t: DetailTab) => { setTab0(t); setMode("detail") }
   const [busy, setBusy] = useState(false)
   useEffect(() => { if (mode) track(mode === "setup" ? "goal-setup" : "goal") }, [mode])
   useEffect(() => {
@@ -1209,17 +1310,16 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
           <Button size="sm" className="mt-3" icon={Target} onClick={() => setMode("setup")} data-testid="goal-start">Nastavit cíl</Button>
         </>
       ) : (
-        <button type="button" className="mt-2 block w-full text-left" onClick={() => setMode("detail")} data-testid="goal-open">
+        <button type="button" className="mt-2 block w-full text-left" onClick={() => openDetail("overview")} data-testid="goal-open">
           <b className="flex items-center gap-1.5 text-[15px] text-fg">{goalTitle(goal)}<ChevronRight className="size-4 text-fg-3" aria-hidden /></b>
           <span className="block text-[12px] text-fg-2"><span className="tabular-nums">{fmtDY(goal.date)}</span>{` · za ${weeksCz(res?.weeksToGoal)}`}{res?.realDate && res.verdict !== "ok" ? <> · reálně od <b className="text-fg">{fmtDY(res.realDate)}</b></> : null}</span>
-          {wk && (
-            <span className="nest mt-2.5 block px-3 py-2" data-testid="goal-week">
-              <span className="block text-[11px] font-bold uppercase tracking-wide" style={{ color: (PHASE[wk.phase] || PHASE.base)[1] }}>{`${(PHASE[wk.phase] || PHASE.base)[0]} · ${wk.i}. týden z ${gg?.weeks || res?.plan?.length}`}</span>
-              <span className="mt-0.5 block text-[13px] text-fg">{wk.race ? "Týden závodu" : <>Tento týden <b>{num(gg?.budgetKm ?? wk.km, 0)} km</b></>}{wk.long ? <>, dlouhý běh <b>{num(wk.long, 0)} km</b></> : null}{wk.deload ? " · odlehčovací" : ""}</span>
-              {wk.milestone === "half" && <span className="mt-0.5 block text-[12px] text-accent">Mezicíl: běh na 21 km, nebo B‑závod na půlmaraton.</span>}
-              {gg?.runs && <span className="mt-0.5 block text-[11px] text-fg-3">{`${gg.runs} běhy týdně (první maraton)`}</span>}
-            </span>
-          )}
+          {res && <span className="mt-2 flex items-baseline justify-between gap-2">
+            <span className="text-[13px] font-bold" style={{ color: VCOL[res.verdict] || C.fg3 }}>{headline(res).title}</span>
+            {res.chance != null && <span className="shrink-0 text-[12px] tabular-nums text-fg-2">{`šance ${res.chance >= 95 ? "> 95" : res.chance} %`}</span>}
+          </span>}
+          {wk && <span className="mt-2.5 block"><WeekNow w={wk} weeks={gg?.weeks || res?.plan?.length} budgetKm={gg?.budgetKm} /></span>}
+          {wk?.milestone === "half" && <span className="mt-1 block text-[12px] text-accent">Mezicíl: běh na 21 km, nebo B‑závod na půlmaraton.</span>}
+          {gg?.runs && <span className="mt-1 block text-[11px] text-fg-3">{`${gg.runs} běhy týdně (první maraton)`}</span>}
           {res?.verdict !== "unknown" && reqs.length > 0 && (
             <span className="mt-2.5 grid gap-2">
               {reqs.map((r: any) => {
@@ -1235,18 +1335,17 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
               {cnt && <span className="text-[11px] text-fg-3">a {num(cnt.need, 0)}× dlouhý běh aspoň {num(cnt.km, 0)} km</span>}
             </span>
           )}
-          {res && <span className="mt-2 block text-[12px] font-semibold" style={{ color: VCOL[res.verdict] || C.fg3 }}>{headline(res).title}</span>}
-          {res && headline(res).sub && <span className="block text-[11px] text-fg-3">{headline(res).sub}</span>}
           {gg?.coachCheck && !gg.coachCheck.ok && <span className="mt-1 block text-[12px] text-watch">{gg.coachCheck.text}</span>}
           {gg?.riskEnded && <span className="mt-1 block text-[12px] text-watch">{`Riziková cesta skončila (${gg.riskEnded.reason}), plán pokračuje bezpečnou cestou.`}</span>}
+          <span className="mt-3 flex items-center justify-end gap-1 text-[12px] font-bold text-accent">Plán, požadavky a nastavení<ChevronRight className="size-3.5" aria-hidden /></span>
         </button>
       )}
       {goal && <TrackBanners rid={rid} track={data.track} res={res} onData={setData} onEdit={() => setMode("setup")} />}
       {goal && data.track?.adherence && <div className="mt-3"><Adherence ad={data.track.adherence} compact /></div>}
-      {goal && data.energy?.ask && <EnergyScreen rid={rid} en={data.energy} onData={setData} />}
+      {goal && data.energy?.ask && <EnergyPrompt rid={rid} onOpen={() => openDetail("settings")} onData={setData} />}
       {mode === "setup" && <GoalSetup rid={rid} races={data.races || []} initial={formOf(goal)} onClose={() => setMode("")}
         onSaved={(d) => { setData(d); setMode("detail"); refresh() }} />}
-      {mode === "detail" && goal && <GoalDetail rid={rid} data={data} gg={gg} busy={busy} onClose={() => setMode("")} onEdit={() => setMode("setup")} onCancel={cancel} onChange={setData} />}
+      {mode === "detail" && goal && <GoalDetail rid={rid} data={data} gg={gg} busy={busy} initialTab={tab0} onClose={() => setMode("")} onEdit={() => setMode("setup")} onCancel={cancel} onChange={setData} />}
     </Card>
   )
 }

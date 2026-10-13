@@ -14,6 +14,45 @@
   "kind": "str"
  },
  {
+  "t": "{} {}×",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} dní",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} h",
+  "files": [
+   "admin.tsx",
+   "coachview.tsx",
+   "report.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} min",
+  "files": [
+   "admin.tsx",
+   "capacity.tsx",
+   "coach.tsx",
+   "coachview.tsx",
+   "outlook.tsx",
+   "report.tsx",
+   "rundetail.tsx",
+   "tabs.tsx",
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} z {} běžců plán plnilo · medián chyby {} (absolutně {})",
   "files": [
    "admin.tsx"
@@ -28,11 +67,53 @@
   "kind": "jsx"
  },
  {
+  "t": "Aktivní běžci",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "aktivních dní",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Bez záznamu v období ({}): {}",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "btn btn-sm gap-1.5 {}",
   "files": [
    "admin.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Čas podle záložek",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Čas se počítá jen v popředí a při používání (po 2 minutách bez dotyku se zastaví). Nové otevření = načtení aplikace nebo návrat po 30 minutách. Návštěvy v režimu Zobrazit jako se nepočítají.",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Čas v aplikaci",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Chyba odhadu času",
@@ -48,6 +129,20 @@
    "training.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Citlivost",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Data",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Doběhne ze startujících",
@@ -85,6 +180,13 @@
   "kind": "str"
  },
  {
+  "t": "na návštěvu",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Na startu bez zranění",
   "files": [
    "admin.tsx"
@@ -111,7 +213,42 @@
   "kind": "str"
  },
  {
+  "t": "naposledy {}",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "nastavení cíle",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Nikdo neodpovídá hledání.",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Období",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "otevření",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Otevření aplikace",
   "files": [
    "admin.tsx"
   ],
@@ -123,6 +260,13 @@
    "admin.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "plánovač cíle",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Plnění plánu",
@@ -138,6 +282,13 @@
    "admin.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Předchozích {} dní: {} otevření.",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Přehrát projekce 8 týdnů zpět",
@@ -168,6 +319,13 @@
   "kind": "jsx"
  },
  {
+  "t": "ranní report",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Registrovaní běžci",
   "files": [
    "admin.tsx"
@@ -183,6 +341,13 @@
  },
  {
   "t": "Seznam se nepodařilo načíst",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Správa",
   "files": [
    "admin.tsx"
   ],
@@ -225,11 +390,39 @@
   "kind": "jsx"
  },
  {
+  "t": "v aplikaci",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "večerní report",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Výsledky {} cílů. Rezervy a prahy se mění jen podle těchto dat.",
   "files": [
    "admin.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Zapojení uživatelů",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "zatím bez záznamu",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Zobrazeno",
@@ -644,7 +837,8 @@
   "t": "POST",
   "files": [
    "api.ts",
-   "crash.tsx"
+   "crash.tsx",
+   "usage.ts"
   ],
   "kind": "str"
  },
@@ -1312,6 +1506,7 @@
   "t": "Deník",
   "files": [
    "App.tsx",
+   "admin.tsx",
    "assistant.tsx",
    "landing.tsx",
    "onboarding.tsx",
@@ -1361,6 +1556,7 @@
   "t": "Dnes",
   "files": [
    "App.tsx",
+   "admin.tsx",
    "assistant.tsx",
    "capacity.tsx",
    "coach.tsx",
@@ -1922,6 +2118,7 @@
   "t": "Mechanika",
   "files": [
    "App.tsx",
+   "admin.tsx",
    "assistant.tsx",
    "enginecompare.tsx",
    "enginelab.tsx",
@@ -2278,6 +2475,7 @@
   "t": "Péče",
   "files": [
    "App.tsx",
+   "admin.tsx",
    "assistant.tsx",
    "care.tsx",
    "landing.tsx",
@@ -3124,6 +3322,7 @@
   "t": "Trénink",
   "files": [
    "App.tsx",
+   "admin.tsx",
    "assistant.tsx",
    "daytoday.tsx",
    "landing.tsx",
@@ -3511,6 +3710,7 @@
   "t": "Zátěž",
   "files": [
    "App.tsx",
+   "admin.tsx",
    "assistant.tsx",
    "enginecompare.tsx",
    "enginelab.tsx",
@@ -4431,20 +4631,6 @@
   "t": "{} {}{} · celkem {} min{}",
   "files": [
    "capacity.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{} min",
-  "files": [
-   "capacity.tsx",
-   "coach.tsx",
-   "coachview.tsx",
-   "outlook.tsx",
-   "report.tsx",
-   "rundetail.tsx",
-   "tabs.tsx",
-   "training.tsx"
   ],
   "kind": "tpl"
  },
@@ -5432,6 +5618,7 @@
   "t": "posilování",
   "files": [
    "capacity.tsx",
+   "goal.tsx",
    "outlook.tsx",
    "report.tsx",
    "training.tsx"
@@ -8679,15 +8866,6 @@
   "kind": "tpl"
  },
  {
-  "t": "{} h",
-  "files": [
-   "coachview.tsx",
-   "report.tsx",
-   "tabs.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "{} ms",
   "files": [
    "coachview.tsx",
@@ -8941,6 +9119,7 @@
   "t": "Přehled",
   "files": [
    "coachview.tsx",
+   "goal.tsx",
    "shell.tsx"
   ],
   "kind": "str"
@@ -11389,6 +11568,13 @@
   "kind": "tpl"
  },
  {
+  "t": "· 2–3 nepovinné otázky, aby plán nastavil správné rezervy",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "· cíl {}",
   "files": [
    "goal.tsx"
@@ -11729,6 +11915,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Části cíle",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Čekám horko (letní závod)",
   "files": [
    "goal.tsx"
@@ -11857,6 +12050,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Co je potřeba",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Další",
   "files": [
    "goal.tsx",
@@ -11870,6 +12070,13 @@
   "files": [
    "goal.tsx",
    "profile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Datum, trať nebo cílový čas změníte tlačítkem Změnit cíl dole.",
+  "files": [
+   "goal.tsx"
   ],
   "kind": "jsx"
  },
@@ -12050,18 +12257,18 @@
   "kind": "tpl"
  },
  {
-  "t": "Energie a kosti · nepovinné",
+  "t": "Energie a kosti",
   "files": [
    "goal.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Energie a kosti: {}",
+  "t": "Energie a kosti · nepovinné",
   "files": [
    "goal.tsx"
   ],
-  "kind": "tpl"
+  "kind": "jsx"
  },
  {
   "t": "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold {}",
@@ -12324,14 +12531,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Můj týden: {}",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Můj týden: podle toho, jak běháte",
+  "t": "můj týden, energie a kosti, riziková cesta",
   "files": [
    "goal.tsx"
   ],
@@ -12408,6 +12608,14 @@
   "kind": "jsx"
  },
  {
+  "t": "Nastavení",
+  "files": [
+   "goal.tsx",
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Nastavit cíl",
   "files": [
    "goal.tsx"
@@ -12429,6 +12637,13 @@
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Ne, díky",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Ne, potíže",
@@ -12522,6 +12737,13 @@
   "kind": "jsx"
  },
  {
+  "t": "objem, dlouhý běh, převýšení a cílový čas",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Observační studie: ukazují souvislost, ne jistý účinek.",
   "files": [
    "goal.tsx"
@@ -12588,6 +12810,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Plán po týdnech se ukáže, až bude cíl do 2 let.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Plán po týdnech, {} týdnů",
   "files": [
    "goal.tsx"
@@ -12623,6 +12852,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Plán, požadavky a nastavení",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Po lehčích týdnech se vracíte k dřívější úrovni (asi {} km týdně) rychleji, nejvýš na 1,3× průměru posledních 4 týdnů.",
   "files": [
    "goal.tsx"
@@ -12635,6 +12871,13 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Podle toho, jak běháte. Nastavte dny, čas a dovolenou.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Ponechat cíl",
@@ -12763,7 +13006,7 @@
   "kind": "tpl"
  },
  {
-  "t": "Pro cílový čas aplikace počítá s vyšším objemem a delšími dlouhými běhy (horní čísla tabulky). Tempa k cílovému času přijdou v další etapě.",
+  "t": "Pro cílový čas aplikace počítá s vyšším objemem a delšími dlouhými běhy (horní čísla tabulky), ukáže závodní tempo a u maratonu i odhad času z tréninku.",
   "files": [
    "goal.tsx"
   ],
@@ -12786,6 +13029,13 @@
  },
  {
   "t": "Reálně od {}.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "relative flex-1 whitespace-nowrap rounded-full px-3 py-1.5 text-[12.5px] font-bold transition {}",
   "files": [
    "goal.tsx"
   ],
@@ -12890,6 +13140,13 @@
   "kind": "str"
  },
  {
+  "t": "šance {} %",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Šance {}.",
   "files": [
    "goal.tsx"
@@ -12968,13 +13225,6 @@
  },
  {
   "t": "Stál/a jste na startu?",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Stav plánu",
   "files": [
    "goal.tsx"
   ],
@@ -13106,6 +13356,13 @@
    "goal.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "týden po týdnu, fáze, odlehčení a ladění",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Týden smí bezpečně růst nejvýš o {} % nad průměr posledních 4 týdnů, ne nad minulý týden.",
@@ -13268,6 +13525,13 @@
    "goal.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Vyplnit",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Vyplňte den, kilometry a minuty",
@@ -22199,13 +22463,6 @@
    "shell.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "Nastavení",
-  "files": [
-   "shell.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "pod prahem 25",

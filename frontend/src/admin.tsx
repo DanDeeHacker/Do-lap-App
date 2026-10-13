@@ -178,7 +178,7 @@ function Engagement() {
       <div className="mt-1.5"><TabBar tabs={d.tabs || {}} total={total} h={10} /></div>
       <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-fg-2">
         {Object.entries(d.tabs || {}).map(([k, v]: any) => (
-          <span key={k}><i className="mr-1 inline-block size-2 rounded-sm align-middle" style={{ background: tabMeta(k)[1] }} />{`${tabMeta(k)[0]} ${total ? Math.round((v / total) * 100) : 0} %`}</span>
+          <span key={k}><i className="mr-1 inline-block size-2 rounded-sm align-middle" style={{ background: tabMeta(k)[1] }} /><span>{tabMeta(k)[0]}</span> <b className="tabular-nums">{`${total ? Math.round((v / total) * 100) : 0} %`}</b></span>
         ))}
       </div>
       <ul className="mt-4 divide-y divide-white/[.06]" data-testid="engagement-list">
@@ -191,7 +191,7 @@ function Engagement() {
               <button type="button" className="block w-full text-left" onClick={() => setOpen(isOpen ? null : x.runnerId)} aria-expanded={isOpen}>
                 <span className="flex items-baseline justify-between gap-2">
                   <b className="min-w-0 truncate text-[14px] text-fg">{x.name}</b>
-                  <span className="shrink-0 text-[11px] text-fg-3">{x.lastActive ? `naposledy ${fmtD(x.lastActive)}` : "zatím bez záznamu"}</span>
+                  <span className="shrink-0 text-[11px] text-fg-3">{x.lastActive ? `naposledy ${new Date(x.lastActive + "T12:00:00").toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })}` : "zatím bez záznamu"}</span>
                 </span>
                 <span className="mt-1 grid grid-cols-4 gap-2 text-[11px] text-fg-3">
                   <span><b className="block text-[14px] tabular-nums text-fg">{x.opens}{trend !== 0 && <span className="ml-1 text-[11px]" style={{ color: trend > 0 ? C.ok : C.watch }}>{trend > 0 ? `▲${trend}` : `▼${-trend}`}</span>}</b>otevření</span>
