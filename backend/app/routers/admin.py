@@ -55,3 +55,14 @@ def list_runners(user: models.User = Depends(require_owner), db: DBSession = Dep
         })
     items.sort(key=lambda x: (x["demo"], -(int((x["lastActivity"] or "0000")[:10].replace("-", "")))))
     return {"items": items}
+
+
+@router.get("/goal-kpis")
+def goal_kpis(replay: bool = False, user: models.User = Depends(require_owner), db: DBSession = Depends(get_db)):
+    """Plan k cíli 2.0 #20: the goals' outcomes against the targets and the chance's calibration;
+    with `replay`, the planner's 8-week projection against the capacity the runners really have."""
+    from ..metrics import goal_backtest as GB
+    out = {"outcomes": GB.outcome_kpis(db)}
+    if replay:
+        out["projection"] = GB.projection_kpis(db)
+    return out

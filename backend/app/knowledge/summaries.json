@@ -1,5 +1,5 @@
 {
- "source": "Doslap_Literature_Summary.docx (project doc), 100 sources, 2026-10-13 (goal-planner sources added from Consensus searches and the owner's summaries; v0.12.6 former level and descent sessions; plan k cíli 2.0 strength, energy and bone, stage B)",
+ "source": "Doslap_Literature_Summary.docx (project doc), 102 sources, 2026-10-13 (goal-planner sources added from Consensus searches and the owner's summaries; v0.12.6 former level and descent sessions; plan k cíli 2.0 strength, energy and bone, stages B and C)",
  "categories": {
   "A": "Load progression and running injury",
   "B": "Load monitoring concepts and ACWR",
@@ -2270,6 +2270,48 @@
    ],
    "relevance": "A digestion question after each long run in the fuelling weeks (#15).",
    "limits": "Small sample.",
+   "strength": "moderate"
+  },
+  {
+   "id": "tyler-et-al-2016",
+   "cite": "Tyler et al. (2016)",
+   "category": "F",
+   "apa": "Tyler, C. J., Reeve, T., Hodges, G. J., & Cheung, S. S. (2016). The effects of heat adaptation on physiology, perception and exercise performance in the heat: A meta-analysis. Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/8f0d18f16de85b7d9c5f388058b901db/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Meta-analysis",
+    "Population": "Athletes and trained people",
+    "Exposure": "Heat acclimation programmes",
+    "Outcome": "Physiology and performance in the heat",
+    "Main result": "Heat acclimation improved performance in the heat; programmes over 14 days worked best"
+   },
+   "findings": [
+    "Heat acclimation improved performance in the heat; programmes over 14 days worked best."
+   ],
+   "relevance": "A hot race gets 10–14 days of heat acclimation 21–8 days before the start (plan k cíli 2.0 #16).",
+   "limits": "Mostly laboratory protocols.",
+   "strength": "moderate"
+  },
+  {
+   "id": "daanen-et-al-2017",
+   "cite": "Daanen et al. (2017)",
+   "category": "F",
+   "apa": "Daanen, H. A. M., Racinais, S., & Périard, J. D. (2017). Heat acclimation decay and re-induction: A systematic review and meta-analysis. Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/81eea1d4e9655b5fa1f1bbbde2974bcb/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Systematic review and meta-analysis",
+    "Population": "Heat-acclimated people",
+    "Exposure": "Days without heat exposure",
+    "Outcome": "Decay of the adaptation",
+    "Main result": "Without exposure about 2.5 % of the adaptation was lost a day"
+   },
+   "findings": [
+    "Without exposure about 2.5 % of the adaptation was lost a day."
+   ],
+   "relevance": "Short heat reminders in the race week keep the adaptation (#16).",
+   "limits": "Heterogeneous protocols.",
    "strength": "moderate"
   }
  ]

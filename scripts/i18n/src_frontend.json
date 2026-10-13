@@ -14,6 +14,13 @@
   "kind": "str"
  },
  {
+  "t": "{} z {} běžců plán plnilo · medián chyby {} (absolutně {})",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "aktivit · poslední",
   "files": [
    "admin.tsx"
@@ -26,6 +33,28 @@
    "admin.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Chyba odhadu času",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "cíl {}",
+  "files": [
+   "admin.tsx",
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Doběhne ze startujících",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Hledat běžce",
@@ -42,7 +71,21 @@
   "kind": "str"
  },
  {
+  "t": "Kalibrace šance",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Můj účet",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Na startu bez zranění",
   "files": [
    "admin.tsx"
   ],
@@ -75,11 +118,40 @@
   "kind": "jsx"
  },
  {
+  "t": "Plán k cíli · přesnost",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Plnění plánu",
+  "files": [
+   "admin.tsx",
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Právě zobrazujete jako",
   "files": [
    "admin.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Přehrát projekce 8 týdnů zpět",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přehrávám…",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Přepnout na jiného běžce",
@@ -89,11 +161,25 @@
   "kind": "str"
  },
  {
+  "t": "Pruh = kolik běžců dorazilo na start bez zranění, čárka = střed slíbené šance.",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Registrovaní běžci",
   "files": [
    "admin.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "šance {}–{} %",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Seznam se nepodařilo načíst",
@@ -137,6 +223,13 @@
    "admin.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Výsledky {} cílů. Rezervy a prahy se mění jen podle těchto dat.",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Zobrazeno",
@@ -11509,6 +11602,13 @@
   "kind": "str"
  },
  {
+  "t": "aklimatizace na horko",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Ani do 2 let.",
   "files": [
    "goal.tsx"
@@ -11627,6 +11727,13 @@
    "goal.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Čekám horko (letní závod)",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Celý plán ({} týdnů)",
@@ -11971,7 +12078,21 @@
   "kind": "tpl"
  },
  {
+  "t": "Fri",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Graf",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Horký závod",
   "files": [
    "goal.tsx"
   ],
@@ -12180,6 +12301,13 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Mon",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Možnosti",
@@ -12467,6 +12595,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Plán přidá 10–14 dní aklimatizace na horko 21 až 8 dní před startem a v posledním týdnu krátké připomínky. Bez horka se adaptace ztrácí asi o 2,5 % za den.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Plán se přepočítá každý týden z toho, co jste opravdu odběhli. Denní doporučení dál hlídá připravenost, bolest a limity.",
   "files": [
    "goal.tsx"
@@ -12482,13 +12617,6 @@
  },
  {
   "t": "Plán teď neroste",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Plnění plánu",
   "files": [
    "goal.tsx"
   ],
@@ -12601,6 +12729,13 @@
  },
  {
   "t": "Převýšení za",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "připomínka horka",
   "files": [
    "goal.tsx"
   ],
@@ -12769,6 +12904,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Sat",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Seznam týdnů",
   "files": [
    "goal.tsx"
@@ -12874,6 +13016,13 @@
   "kind": "str"
  },
  {
+  "t": "Sun",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Světlejší konec pruhu je ladění před závodem.",
   "files": [
    "goal.tsx"
@@ -12916,11 +13065,25 @@
   "kind": "str"
  },
  {
+  "t": "Thu",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Trénink k cíli",
   "files": [
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Tue",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "týden",
@@ -13133,6 +13296,13 @@
    "goal.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Wed",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Z tréninku: {} km týdně ve vrcholu, tempo {}:{} /km",
@@ -25218,13 +25388,6 @@
    "training.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "cíl {}",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "Cíl = {} % referenčního týdne ({} km{}).",

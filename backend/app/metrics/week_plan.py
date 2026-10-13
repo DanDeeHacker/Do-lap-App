@@ -36,7 +36,7 @@ from itertools import combinations
 
 from . import goal_sessions as GS
 
-from .guidance import (CROSS_MIN, HARD_Z4_MIN, KOLO_MAX, LONG_SHARE, MIN_RUN_KM, NOVICE_LONG, NOVICE_Z4,
+from .guidance import (HEAT_NOTE, CROSS_MIN, HARD_Z4_MIN, KOLO_MAX, LONG_SHARE, MIN_RUN_KM, NOVICE_LONG, NOVICE_Z4,
                        READY_QUALITY, TYPE_LABEL, WD_IN, Z4_SESSION_MAX)
 
 WD = ("po", "út", "st", "čt", "pá", "so", "ne")
@@ -481,6 +481,8 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
                 "s rychlostí chrání zadní stehenní svaly." if d == strides_day else None)
         if kind == "dlouhý":
             note = GS.long_note(x.get("goalCtx"), plan_km[d], x.get("goalFuel"), x.get("giBad")) or note
+        elif kind == "lehký" and x.get("goalHeat") and d != strides_day:
+            note = HEAT_NOTE[x["goalHeat"]]
         items[d].append(_run(kind, plan_km[d], types, x, z4=zq, sess=sess,
                              desc=hills("descent", d), asc=hills("ascent", d), optional=d == extra,
                              strides=d == strides_day, note=note))

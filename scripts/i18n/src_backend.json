@@ -5289,6 +5289,12 @@
   ]
  },
  {
+  "t": "Horký závod: 21 až 8 dní před startem 10–14 dní aklimatizace na horko (lehký běh v teple nebo ve vrstvách oblečení, případně sauna po běhu), v posledním týdnu 1–2 krátké připomínky. Bez horka se adaptace ztrácí asi o 2,5 % za den.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Je na hraně vašich limitů a posune vás dál.",
   "files": [
    "metrics/goal_plan.py"
@@ -5559,6 +5565,12 @@
   ]
  },
  {
+  "t": "Z vaší historie: po {} z {} týdenních nárůstů nad 15 % přišla do 21 dní bolest. Rezervy proto násobí {}.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Zaostává",
   "files": [
    "metrics/goal_plan.py"
@@ -5680,6 +5692,12 @@
  },
  {
   "t": "nejdelší běh z {} na {} km",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "nárůsty vás často bolely",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -6136,6 +6154,12 @@
  },
  {
   "t": "; stejnoměrně, v Z2.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Aklimatizace na horko před závodem: lehký běh 45–60 min v teple nebo ve vrstvách oblečení, případně sauna 20–30 min po běhu, 10–14 dní po sobě. Pijte, při závrati nebo bolesti hlavy přestaňte.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -6851,6 +6875,12 @@
  },
  {
   "t": "Při bolesti úponu hamstringů kolo zatím vynechte: ohnutá kyčel v sedle úpon stlačuje, a toho se v první fázi rehabilitace fyzioterapeuti vyhýbají (Nasser et al., 2020).",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Připomínka horka před závodem: 1–2× v týdnu lehký běh 30–40 min v teple.",
   "files": [
    "metrics/guidance.py"
   ]

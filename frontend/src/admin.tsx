@@ -112,7 +112,63 @@ export function AdminPage() {
             </ul>
           )}
       </Card>
+      <GoalKpis />
     </>
+  )
+}
+
+// plan k cíli 2.0 #20 — how the goal planner does against its targets (backend goal_backtest.py)
+function Kpi({ label, value, target, ok }: { label: string; value: string; target: string; ok: boolean | null }) {
+  return (
+    <div className="rounded-xl bg-white/[.04] px-3 py-2">
+      <p className="text-[11px] text-fg-3">{label}</p>
+      <p className="text-[18px] font-bold tabular-nums" style={{ color: ok == null ? C.fg3 : ok ? C.ok : C.watch }}>{value}</p>
+      <p className="text-[10.5px] text-fg-3">{`cíl ${target}`}</p>
+    </div>
+  )
+}
+
+function GoalKpis() {
+  const [d, setD] = useState<any>(null)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    let alive = true
+    api.adminGoalKpis().then((x: any) => alive && setD(x)).catch(() => {})
+    return () => { alive = false }
+  }, [])
+  if (!d) return null
+  const o = d.outcomes || {}, p = d.projection
+  const pct = (v: number | null | undefined) => (v == null ? "—" : `${String(v).replace(".", ",")} %`)
+  const replay = async () => { setBusy(true); try { setD(await api.adminGoalKpis(true)) } finally { setBusy(false) } }
+  return (
+    <Card className="mt-5" data-testid="goal-kpis">
+      <Label>Plán k cíli · přesnost</Label>
+      <p className="mt-1 text-[12px] text-fg-2">{`Výsledky ${o.goals ?? 0} cílů. Rezervy a prahy se mění jen podle těchto dat.`}</p>
+      <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+        <Kpi label="Na startu bez zranění" value={pct(o.startNoInjury)} target="≥ 90 %" ok={o.startNoInjury == null ? null : o.startNoInjury >= 90} />
+        <Kpi label="Doběhne ze startujících" value={pct(o.finishOfStarters)} target="≥ 93 %" ok={o.finishOfStarters == null ? null : o.finishOfStarters >= 93} />
+        <Kpi label="Chyba odhadu času" value={o.timeErrPct == null ? "—" : `± ${pct(o.timeErrPct)}`} target="± 3 %" ok={o.timeErrPct == null ? null : o.timeErrPct <= 3} />
+        <Kpi label="Plnění plánu" value={pct(o.kmPct)} target="80–115 %" ok={o.kmPct == null ? null : o.kmPct >= 80 && o.kmPct <= 115} />
+      </div>
+      <p className="mt-3 t-label !text-fg-3">Kalibrace šance</p>
+      <div className="mt-1 grid gap-1">
+        {(o.calibration || []).map((b: any) => (
+          <div key={b.from} className="grid grid-cols-[90px_1fr_70px] items-center gap-2 text-[12px]">
+            <span className="text-fg-3">{`šance ${b.from}–${b.to} %`}</span>
+            <span className="relative h-2 rounded-full bg-white/[.07]">
+              {b.ready != null && <i className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${b.ready}%`, background: C.info }} />}
+              <i className="absolute -inset-y-0.5 w-[2px] rounded" style={{ left: `${(b.from + b.to) / 2}%`, background: C.fg }} />
+            </span>
+            <span className="text-right tabular-nums text-fg-2">{`${pct(b.ready)} (${b.n})`}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-1 text-[10.5px] text-fg-3">Pruh = kolik běžců dorazilo na start bez zranění, čárka = střed slíbené šance.</p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button className="btn btn-secondary btn-sm" disabled={busy} onClick={replay}>{busy ? "Přehrávám…" : "Přehrát projekce 8 týdnů zpět"}</button>
+        {p && <span className="text-[12px] text-fg-2">{`${p.followed} z ${p.runners} běžců plán plnilo · medián chyby ${p.medianErrPct == null ? "—" : `${String(p.medianErrPct).replace(".", ",")} %`} (absolutně ${p.medianAbsErrPct == null ? "—" : `${String(p.medianAbsErrPct).replace(".", ",")} %`})`}</span>}
+      </div>
+    </Card>
   )
 }
 

@@ -537,6 +537,47 @@ def _d(s):
     return date.fromisoformat(s[:10])
 
 
+# v0.12.8 (plan k cíli 2.0 #5, owner decision 2026-10-13): the personal tolerance of increases. The
+# strongest predictor of a running injury is a previous one (van Poppel 2020, Hulme 2017), and the same
+# jump is riskier for some runners than for others (Gabbett 2018, Malone 2017). With 12+ months of
+# running, every weekly rise over 15 % (against the mean of the 4 weeks before, from 5 km) and whether
+# running pain followed within 21 days: from 4 such rises the margins take a personal multiplier —
+# 1.1 when none was followed by pain, down to 0.8 from half of them; fewer rises keep the population
+# value. Working assumption on the shape; the outcomes (plan k cíli 2.0 #20) calibrate it.
+TOL_DAYS, TOL_RISE, TOL_PAIN_DAYS, TOL_MIN_N, TOL_BASE_KM = 365, 0.15, 21, 4, 5.0
+TOL_HI, TOL_LO = 1.1, 0.8
+
+
+def personal_tolerance(sessions: list, pain: set, today: date) -> dict | None:
+    runs = [s for s in sessions if s.get("run") and s["date"] < today.isoformat() and s.get("km")]
+    if not runs:
+        return None
+    first = _d(min(s["date"] for s in runs))
+    if (today - first).days < TOL_DAYS:
+        return None
+    mon0 = first - timedelta(days=first.weekday())
+    mon_now = today - timedelta(days=today.weekday())
+    n_w = (mon_now - mon0).days // 7
+    km = [0.0] * n_w
+    for s in runs:
+        i = (_d(s["date"]) - mon0).days // 7
+        if 0 <= i < n_w:
+            km[i] += s["km"]
+    n = painful = 0
+    for i in range(4, n_w):
+        base = sum(km[i - 4:i]) / 4
+        if base < TOL_BASE_KM or km[i] <= base * (1 + TOL_RISE):
+            continue
+        n += 1
+        start = mon0 + timedelta(days=7 * i)
+        if any((start + timedelta(days=k)).isoformat() in pain for k in range(7 + TOL_PAIN_DAYS)):
+            painful += 1
+    if n < TOL_MIN_N:
+        return {"n": n, "painful": painful, "factor": 1.0, "personal": False}
+    f = E.clamp(TOL_HI - (TOL_HI - TOL_LO) * 2 * painful / n, TOL_LO, TOL_HI)
+    return {"n": n, "painful": painful, "factor": round(f, 2), "personal": True}
+
+
 def tolerated(day: str, pain: set) -> bool:
     d0 = _d(day)
     return not any((d0 + timedelta(days=k)).isoformat() in pain for k in range(PAIN_AFTER + 1))
@@ -1832,7 +1873,9 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         shrink *= exper["factor"]
     shoes = RF.shoe_state(db.shoes, prof, today)
     shrink = max(shrink, SHRINK_MIN)
-    m_s, m_w = MARGIN_SESSION * shrink, MARGIN_WEEK * shrink
+    tol = personal_tolerance(sessions, pain, today)
+    k_tol = tol["factor"] if tol else 1.0
+    m_s, m_w = MARGIN_SESSION * shrink * k_tol, MARGIN_WEEK * shrink * k_tol
     # the shoe transition narrows only the running channels' margins
     ch_m = {ch: (max(shrink * shoes["factor"], SHRINK_MIN) / shrink if ch in RUN_CH else 1.0) for ch in CHANNELS}
     recent_days = [(today - timedelta(days=k)).isoformat() for k in range(0, 28)]
@@ -2095,7 +2138,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
         "score": total, "signals": signals, "channels": channels, "zones7d": zone7,
         "readiness": readiness,
         "margins": {"session": round(m_s, 3), "week": round(m_w, 3), "frailty": round(frailty, 2),
-                    "underconditioned": under, "experience": exper,
+                    "underconditioned": under, "experience": exper, "tolerance": tol,
                     "runSession": round(m_s * ch_m["volume"], 3), "runWeek": round(m_w * ch_m["volume"], 3)},
         "shoes": shoes,
         "criticalSpeed": SP.cs_summary(sessions, {st.activity_id: st.segments_json for st in db.streams if st.segments_json}, t_iso),

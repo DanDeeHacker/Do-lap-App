@@ -50,6 +50,7 @@ class GoalIn(BaseModel):
     aim: Literal["finish", "time"] = "finish"
     target_time_s: int | None = Field(None, gt=0, le=60 * 3600)
     free: FreeIn | None = None
+    hot: bool = False                     # plan k cíli 2.0 #16: a hot race (the runner's flag)
 
 
 def _now() -> str:
@@ -77,7 +78,8 @@ def _goal_of(db: DBSession, rid: str, body: GoalIn) -> dict:
     race = _race(db, rid, body.race_id) if body.kind == "race" else None
     g = {"kind": body.kind, "raceId": race.id if race else None, "name": body.name or (race.name if race else None),
          "date": d.isoformat(), "km": body.km, "ascentM": body.ascent_m, "descentM": body.descent_m,
-         "terrain": body.terrain, "aim": body.aim, "targetTimeS": body.target_time_s, "free": {}}
+         "terrain": body.terrain, "aim": body.aim, "targetTimeS": body.target_time_s, "free": {},
+         "hot": bool(body.hot) and body.kind == "race"}
     if race:
         g["km"] = g["km"] or race.distance_km
         g["ascentM"] = g["ascentM"] if g["ascentM"] is not None else race.ascent_m
@@ -347,7 +349,7 @@ def save_goal(rid: str, body: GoalIn, user: models.User = Depends(get_current_us
     f = goal["free"] or {}
     g = models.Goal(runner_id=rid, kind=goal["kind"], race_id=goal["raceId"], name=goal["name"], date=goal["date"],
                     distance_km=goal["km"], ascent_m=goal["ascentM"], descent_m=goal["descentM"], terrain=goal["terrain"],
-                    aim=goal["aim"], target_time_s=goal["targetTimeS"], free_json=f or None, path="safe",
+                    aim=goal["aim"], target_time_s=goal["targetTimeS"], free_json=f or None, path="safe", hot=goal["hot"],
                     status="active", projection_json=res, created_at=now, updated_at=now)
     db.add(g)
     db.commit()

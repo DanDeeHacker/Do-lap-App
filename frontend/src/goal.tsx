@@ -21,10 +21,10 @@ const lbl = "text-[12px] font-semibold text-fg-2"
 type Form = {
   kind: "race" | "free"; raceId: number | null; name: string; date: string; km: string; ascent: string; descent: string
   terrain: "" | "road" | "trail"; aim: "finish" | "time"; target: string
-  weekly: string; long: string; climb: string; scope: "week" | "run"
+  weekly: string; long: string; climb: string; scope: "week" | "run"; hot: boolean
 }
 const EMPTY: Form = { kind: "race", raceId: null, name: "", date: "", km: "", ascent: "", descent: "", terrain: "", aim: "finish",
-  target: "", weekly: "", long: "", climb: "", scope: "week" }
+  target: "", weekly: "", long: "", climb: "", scope: "week", hot: false }
 
 const nIn = (v: string) => (v.trim() ? Number(v.replace(",", ".")) : null)
 const timeIn = (v: string) => {
@@ -39,7 +39,8 @@ function formOf(goal: any): Form {
   const f = goal.free || {}
   return { ...EMPTY, kind: goal.kind, raceId: goal.raceId ?? null, name: goal.name || "", date: goal.date, km: strNum(goal.km),
     ascent: strNum(goal.ascentM), descent: strNum(goal.descentM), terrain: goal.terrain || "", aim: goal.aim || "finish",
-    target: timeStr(goal.targetTimeS), weekly: strNum(f.weeklyKm), long: strNum(f.longKm), climb: strNum(f.climbM), scope: f.climbScope || "week" }
+    target: timeStr(goal.targetTimeS), weekly: strNum(f.weeklyKm), long: strNum(f.longKm), climb: strNum(f.climbM), scope: f.climbScope || "week",
+    hot: !!goal.hot }
 }
 
 function bodyOf(f: Form) {
@@ -49,6 +50,7 @@ function bodyOf(f: Form) {
     descent_m: f.kind === "race" ? nIn(f.descent) : null, terrain: f.terrain || null, aim: f.aim,
     target_time_s: f.aim === "time" ? timeIn(f.target) : null,
     free: f.kind === "free" ? { weekly_km: nIn(f.weekly), long_km: nIn(f.long), climb_m: nIn(f.climb), climb_scope: f.scope } : null,
+    hot: f.kind === "race" && f.hot,
   }
 }
 
@@ -680,6 +682,11 @@ function GoalSetup({ rid, races, initial, onClose, onSaved }: { rid: string; rac
                 <Segmented className="mt-1" size="sm" ariaLabel="Co je cílem" options={[["finish", "Doběhnout"], ["time", "Cílový čas"]] as const} value={f.aim} onChange={(k) => set({ aim: k })} />
                 {f.aim === "time" && <label className={`${lbl} mt-2 block max-w-[200px]`}>Cílový čas (h:mm)<input className={inp} placeholder="3:59" value={f.target} onChange={(e) => set({ target: e.target.value })} /></label>}
               </div>
+              <label className="flex items-center gap-2 text-[13px] text-fg" data-testid="goal-hot">
+                <input type="checkbox" checked={f.hot} onChange={(e) => set({ hot: e.target.checked })} />
+                Čekám horko (letní závod)
+                <InfoDot label="Horký závod" text="Plán přidá 10–14 dní aklimatizace na horko 21 až 8 dní před startem a v posledním týdnu krátké připomínky. Bez horka se adaptace ztrácí asi o 2,5 % za den." />
+              </label>
             </>) : (
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className={lbl}>Do kdy<input type="date" className={inp} value={f.date} onChange={(e) => set({ date: e.target.value })} data-testid="goal-date" /></label>
@@ -729,6 +736,7 @@ const weekTags = (w: any): string[] => [
   ...(w.taper ? [`ladění, ${num((w.factor ?? 0) * 100, 0)} % vrcholu`] : []),
   ...(w.milestone === "half" ? ["mezicíl: běh na 21 km"] : w.milestone === "test" ? ["kontrolní test 5–10 km"] : []),
   ...(w.fuel ? [`výživa ${w.fuel} g/h na dlouhém běhu`] : []),
+  ...(w.heat === "acclim" ? ["aklimatizace na horko"] : w.heat === "remind" ? ["připomínka horka"] : []),
   ...(w.strength != null && !w.race ? [`posilování ${w.strength}×`] : []),
 ]
 

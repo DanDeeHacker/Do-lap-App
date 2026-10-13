@@ -73,6 +73,9 @@ CYCLE_Z2 = (0.60, 0.70)          # HRR band for an easy ride
 CROSS_MIN, KOLO_MAX, VODA_MAX = 20, 90, 45
 EXTRA_RIDE_MAX = 60     # the optional ride over a met weekly target stays shorter (working assumption)
 STRENGTH_TARGET, STRENGTH_TARGET_RACE = 2, 1
+HEAT_NOTE = {"acclim": "Aklimatizace na horko před závodem: lehký běh 45–60 min v teple nebo ve vrstvách oblečení, případně "
+                       "sauna 20–30 min po běhu, 10–14 dní po sobě. Pijte, při závrati nebo bolesti hlavy přestaňte.",
+             "remind": "Připomínka horka před závodem: 1–2× v týdnu lehký běh 30–40 min v teple."}
 STRENGTH_CARRY = {0: 0.5, 1: 0.5, 2: 0.75}   # Z4+ cap factor by days since a heavy lower-body session (working assumption)
 WD = ("pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota", "neděle")
 WD_IN = ("v pondělí", "v úterý", "ve středu", "ve čtvrtek", "v pátek", "v sobotu", "v neděli")
@@ -1044,6 +1047,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                                  + (" (ve specifické fázi až 50 % týdne)" if goal_wk.get("phase") == "specific" else "")
                                  + "; stejnoměrně, v Z2.") if goal_long else
                                 f"Nejvýš {round(LONG_SHARE * 100)} % týdenního rozpočtu objemu; stejnoměrně, v Z2."])
+    goal_heat = (goal_wk or {}).get("heat") if mode == "goal" else None
+    if goal_heat:                                # plan k cíli 2.0 #16: a hot race
+        types["lehký"]["notes"].insert(0, HEAT_NOTE[goal_heat])
     if goal_long and goal_ctx is not None:
         ln = GS.long_note(goal_ctx, goal_long, (goal_wk or {}).get("fuel"), gi_bad)
         if ln:
@@ -1728,7 +1734,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                                  for r in goal_res.get("requirements") or [] if r["key"] in ("week", "long")],
                     # plan k cíli 2.0: for the week's record (goal_track) and the setback message
                     "realDate": goal_res.get("realDate"), "ill": bool(ill) and not ill_light or bool(ill_light),
-                    "back": goal_back, "hold": goal_hold,
+                    "back": goal_back, "hold": goal_hold, "chance": goal_res.get("chance"),
                     "setback": GT.setback(g_row, {"realDate": goal_res.get("realDate")}, today) if goal_back is not None or g_row is not None else None,
                     "riskEnded": ({"at": goal_res["goal"]["riskEndedAt"], "reason": goal_res["goal"].get("riskEndReason")}
                                   if goal_res["goal"].get("riskEndedAt") and goal_res.get("path") == "safe" else None)}
@@ -1763,7 +1769,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         # plan k cíli 2.0: the sessions by phase (#11), HRV outside the band today (#12), the fuelling
         # practice on the long run (#15), the runner's time per day (#10)
         "goalCtx": goal_ctx if mode == "goal" else None, "hrvLow": bool(hrv_low and mode == "goal"),
-        "goalFuel": (goal_wk or {}).get("fuel") if mode == "goal" else None, "giBad": gi_bad,
+        "goalFuel": (goal_wk or {}).get("fuel") if mode == "goal" else None, "giBad": gi_bad, "goalHeat": goal_heat,
         "dayMin": prefs.get("dayMin"), "longMin": prefs.get("longMin"),
         "noSpeedWeeks": bool(nsw) and not novice,
         "kolo": not ((xt or {}).get("kolo") == "avoid" or (override or {}).get("kind") == "red_flag"),

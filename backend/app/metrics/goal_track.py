@@ -36,7 +36,7 @@ def snapshot(g_row, gg: dict | None, today: date) -> bool:
     if ws not in weeks:
         w = gg["week"]
         weeks[ws] = {"km": w.get("km"), "long": w.get("long"), "strength": w.get("strength"), "deload": bool(w.get("deload")),
-                     "fuel": w.get("fuel"),
+                     "fuel": w.get("fuel"), "chance": gg.get("chance"),
                      "taper": bool(w.get("taper")), "realDate": gg.get("realDate"), "status": gg.get("status")}
         tr["weeks"] = weeks
         changed = True
@@ -212,6 +212,10 @@ def record_outcome(db, rid: str, g_row, started: bool, finished: bool | None, ti
            "timeS": time_s if (started and finished) else None,
            # what the plan said, for the calibration (#20)
            "verdict": res.get("verdict"), "status": res.get("status"), "path": g_row.path, "realDate": res.get("realDate"),
+           # the chance the plan gave at its start and at the end, for the calibration (#20)
+           "chanceFirst": next((w.get("chance") for _, w in sorted(((g_row.track_json or {}).get("weeks") or {}).items())
+                                if w.get("chance") is not None), None),
+           "chanceLast": res.get("chance"),
            "targetTimeS": g_row.target_time_s, "predTimeS": ((res.get("targetTime") or {}).get("predictedS")),
            **prep_summary(db, rid, g_row)}
     g_row.outcome_json = out

@@ -337,14 +337,15 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
         "marginWhy": [t for t, on in (("první rok běhání", m.get("experience")), ("dřívější zranění", (m.get("frailty") or 1.0) > 1.0),
                                       ("návrat po pauze", m.get("underconditioned")),
                                       ("přechod na nové boty", ((((a or {}).get("capacity") or {}).get("shoes") or {}).get("factor") or 1.0) < 1.0),
-                                      ("dřívější únavová zlomenina", en["bsi"]))
+                                      ("dřívější únavová zlomenina", en["bsi"]),
+                                      ("nárůsty vás často bolely", ((m.get("tolerance") or {}).get("factor") or 1.0) < 1.0))
                       if on],
         "everMarathon": ever_long >= 40.0 or any((x.distance_km or 0) >= 40.0 for x in past),
         "limited": g.get("override") or (g.get("mode") == "return"),
         # plan k cíli 2.0 stage B: hiking climb (#3), training km and pace of 8 weeks (#13), the
         # runner's week (#10), sleep (#18), how the plan has been kept (#6), sex (the Tanda note)
         "hike": hike, "train8": train8, "prefs": pj.get("prefs") or {}, "sleep14": _sleep14(rd, today),
-        "missRate": _miss_rate(rd, wk, lo), "sex": getattr(rd.runner, "sex", None) if rd.runner is not None else None,
+        "missRate": _miss_rate(rd, wk, lo), "tolerance": m.get("tolerance"), "sex": getattr(rd.runner, "sex", None) if rd.runner is not None else None,
     }
 
 
@@ -764,6 +765,7 @@ def plan_weeks(goal: dict, st: dict, proj: dict, weeks: int) -> list:
     cuts the peak week (the highest of the last 4 before it) step by step, intensity and the
     number of runs stay (Bosquet 2007, Wang 2023)."""
     start = _d(st["start"])
+    gd = _d(goal["date"])
     tf = taper_factors(goal)
     build = max(0, weeks - len(tf))
     rows = proj["rows"]
@@ -812,6 +814,14 @@ def plan_weeks(goal: dict, st: dict, proj: dict, weeks: int) -> list:
         if (goal.get("kind") != "free" and goal.get("aim") == "time" and not is_trail(goal)
                 and (goal.get("km") or 0) >= 10 and to_race == TEST_WEEKS_OUT and not w.get("milestone")):
             w["milestone"] = "test"
+        if goal.get("hot") and goal.get("kind") != "free":
+            # #16: heat acclimation over the days 21–8 before the race (10–14 days, done a week before
+            # the start), short reminders in the last week (Tyler 2016; Daanen 2017: ~2.5 % lost a day)
+            ds = [(gd - (_d(w["start"]) + timedelta(days=k))).days for k in range(7)]
+            if any(HEAT_FROM >= x >= HEAT_TO for x in ds):
+                w["heat"] = "acclim"
+            elif any(0 < x < HEAT_TO for x in ds):
+                w["heat"] = "remind"
         if goal.get("kind") != "free" and 0 < to_race <= FUEL_WEEKS and w.get("long") \
                 and w["long"] * _long_pace(st) / 60 >= FUEL_MIN:
             ultra = (goal.get("km") or 0) >= 50
@@ -1032,6 +1042,11 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
         out["notes"].append({"key": "margin", "sources": [], "pct": _r(st["marginWeek"] * 100), "why": why,
                              "text": f"Týdenní rezerva je u vás teď {_cz(st['marginWeek'] * 100)} % místo 15 %"
                                      + (f" ({' · '.join(why)})" if why else "") + ", proto kapacita v projekci roste pomaleji."})
+    tol = st.get("tolerance") or {}
+    if tol.get("personal"):                    # v0.12.8 (#5): the runner's own record of rises
+        out["notes"].append({"key": "tolerance", "sources": [], "n": tol["n"], "painful": tol["painful"],
+                             "text": f"Z vaší historie: po {tol['painful']} z {tol['n']} týdenních nárůstů nad 15 % přišla do 21 dní "
+                                     f"bolest. Rezervy proto násobí {_cz(tol['factor'], 2)}."})
     en = st.get("energy") or {}
     if en.get("hold"):                         # plan k cíli 2.0 #17: no period for 90+ days
         out["hold"] = {"kind": "energy", "why": en["hold"]["why"]}
@@ -1050,6 +1065,11 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
         out["notes"].append({"key": "fuel", "sources": ["gallant-et-al-2024", "kraus-et-al-2018"],
                              "text": "Uvedli jste známky nedostatku energie. Jezte víc kolem tréninku, hlavně sacharidy "
                                      "před dlouhým během a po něm, a poraďte se se sportovním lékařem nebo nutričním terapeutem."})
+    if goal.get("hot") and goal.get("kind") != "free":
+        out["notes"].append({"key": "heat", "sources": HEAT_SOURCES,
+                             "text": "Horký závod: 21 až 8 dní před startem 10–14 dní aklimatizace na horko (lehký běh v teple "
+                                     "nebo ve vrstvách oblečení, případně sauna po běhu), v posledním týdnu 1–2 krátké připomínky. "
+                                     "Bez horka se adaptace ztrácí asi o 2,5 % za den."})
     if st.get("hikesIn"):
         out["notes"].append({"key": "hike", "sources": [],
                              "text": "K trailovému cíli se počítá i stoupání z turistiky: celé, klesání z poloviny."})
@@ -1126,6 +1146,8 @@ def train_estimate(goal: dict, st: dict, plan: list | None) -> dict | None:
 
 
 TEST_WEEKS_OUT = 7          # the control test 6–8 weeks before the race (#13)
+HEAT_FROM, HEAT_TO = 21, 8  # #16: heat acclimation from day 21 to day 8 before a hot race
+HEAT_SOURCES = ["tyler-et-al-2016", "daanen-et-al-2017", "racinais-et-al-2015"]
 FUEL_WEEKS = 8              # #15: from 8 weeks out, long runs over 90 min train the intake
 FUEL_MIN = 90
 FUEL_G = (60, 90)           # g of carbohydrate an hour: 60, rising to 90 for an ultra
@@ -1328,7 +1350,7 @@ def goal_dict(g, race=None) -> dict:
     return {"id": g.id, "kind": g.kind, "raceId": g.race_id, "name": g.name or (race.name if race else None),
             "date": (g.date or "")[:10], "km": g.distance_km, "ascentM": g.ascent_m, "descentM": g.descent_m,
             "terrain": g.terrain, "aim": g.aim or "finish", "targetTimeS": g.target_time_s, "free": g.free_json or {},
-            "path": g.path or "safe", "riskConsentAt": g.risk_consent_at,
+            "path": g.path or "safe", "riskConsentAt": g.risk_consent_at, "hot": bool(getattr(g, "hot", False)),
             "riskEndedAt": getattr(g, "risk_ended_at", None), "riskEndReason": getattr(g, "risk_end_reason", None)}
 
 

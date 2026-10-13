@@ -160,6 +160,7 @@ export const api = {
 
   // Physio AI Assistant (chat over the runner's data and the reviewed literature)
   adminRunners: () => call("GET", "/api/admin/runners"),
+  adminGoalKpis: (replay = false) => call("GET", `/api/admin/goal-kpis${replay ? "?replay=true" : ""}`),
   assistant: (rid: string) => call("GET", `/api/runners/${rid}/assistant`),
   assistantAsk: (rid: string, body: { question: string; context?: any; thread_id?: string }) => call("POST", `/api/runners/${rid}/assistant/ask`, body),
   assistantSummary: (rid: string, tab: string) => call("GET", `/api/runners/${rid}/assistant/summary?tab=${encodeURIComponent(tab)}`),

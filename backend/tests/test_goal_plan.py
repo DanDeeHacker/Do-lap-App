@@ -691,3 +691,69 @@ def test_short_sleep_holds_the_week():
     r = G.evaluate(_race(21.1, "2027-03-28"), {**_st(km=30), "sleep14": 6.4})
     assert r["hold"] == {"kind": "sleep", "why": "spánek 14 nocí v průměru 6,4 h"} and r["notes"][0]["key"] == "sleep"
     assert "hold" not in G.evaluate(_race(21.1, "2027-03-28"), {**_st(km=30), "sleep14": 7.2})
+
+
+# ------------------------------------------------------------------ plan k cíli 2.0, stage C
+def test_personal_tolerance_of_increases():
+    """#5 (engine v0.12.8): from 4 weekly rises over 15 % in 12+ months, the share followed by pain
+    within 21 days sets a personal margin multiplier 0.8–1.1."""
+    from app.metrics import capacity as C
+    today = E.today_date()
+    mon = today - timedelta(days=today.weekday())
+    start = mon - timedelta(days=7 * 60)
+    sess, spikes = [], []
+    for w in range(60):
+        km = 40.0 if w % 8 == 7 else 30.0                     # a 33 % rise every 8th week
+        if w % 8 == 7:
+            spikes.append(start + timedelta(days=7 * w))
+        for d in (1, 3, 5):
+            sess.append({"run": True, "date": (start + timedelta(days=7 * w + d)).isoformat(), "km": km / 3})
+    clean = C.personal_tolerance(sess, set(), today)
+    assert clean["n"] >= 4 and clean["painful"] == 0 and clean["factor"] == 1.1 and clean["personal"]
+    sore = {(s + timedelta(days=9)).isoformat() for s in spikes}
+    hurt = C.personal_tolerance(sess, sore, today)
+    assert hurt["painful"] == hurt["n"] and hurt["factor"] == 0.8
+    half = {(s + timedelta(days=9)).isoformat() for s in spikes[::2]}
+    assert 0.8 <= C.personal_tolerance(sess, half, today)["factor"] <= 0.85
+    young = [s for s in sess if s["date"] >= (today - timedelta(days=300)).isoformat()]
+    assert C.personal_tolerance(young, sore, today) is None                 # under 12 months: the population value
+    st = {**_st(), "tolerance": hurt}
+    r = G.evaluate(_race(21.1, "2027-03-28"), st)
+    assert any(n["key"] == "tolerance" for n in r["notes"])
+
+
+def test_a_hot_race_gets_heat_acclimation():
+    """#16: 10–14 days of heat acclimation 21–8 days before a hot race, reminders in the last week."""
+    st = {**_st(km=40, long=18), "start": "2026-10-19"}
+    r = G.evaluate(_race(42.2, "2027-07-04", hot=True), st)
+    heat = {w["i"]: w.get("heat") for w in r["plan"] if w.get("heat")}
+    gd = G._d("2027-07-04")
+    for w in r["plan"]:
+        days = [(gd - (G._d(w["start"]) + timedelta(days=k))).days for k in range(7)]
+        if any(8 <= x <= 21 for x in days):
+            assert heat.get(w["i"]) == "acclim"
+    assert "remind" in heat.values() and any(n["key"] == "heat" for n in r["notes"])
+    assert not any(w.get("heat") for w in G.evaluate(_race(42.2, "2027-07-04"), st)["plan"])
+
+
+def test_backtesting_and_kpis(client, db_session):
+    """#20: the outcomes against the targets and the chance's calibration; the projection replayed
+    from 8 weeks back against the capacity the runner has now; owners only."""
+    from app import models
+    from app.metrics import goal_backtest as GB
+    from .conftest import register
+    rid = register(client, "kpi@test.cz", "KPI Runner", "runner").json()["runner_id"]
+    for k, (st_, fin, inj, ch, t, p) in enumerate([(True, True, False, 85, 14000, 14100), (True, True, False, 90, 14400, 14000),
+                                                   (True, False, True, 60, None, None), (False, False, True, 40, None, None)]):
+        db_session.add(models.Goal(runner_id=rid, kind="race", date="2026-01-0%d" % (k + 1), distance_km=42.2, status="done",
+                                   outcome_json={"started": st_, "finished": fin, "injury": inj, "chanceFirst": ch,
+                                                 "timeS": t, "predTimeS": p, "kmPct": 90}))
+    db_session.commit()
+    k = GB.outcome_kpis(db_session, [rid])
+    assert k["goals"] == 4 and k["startNoInjury"] == 50.0 and k["finishOfStarters"] == round(200 / 3, 1)
+    assert k["timeN"] == 2 and k["timeErrPct"] == round(400 / 14400 * 100, 1)
+    assert [b["n"] for b in k["calibration"]] == [1, 1, 2] and k["calibration"][2]["ready"] == 100.0
+    rid2, _r = _runner(client, db_session, "replay@test.cz", days=200)
+    rp = GB.replay_projection(db_session, rid2)
+    assert rp and rp["predicted"] > 0 and rp["actual"] > 0 and isinstance(rp["followed"], bool)
+    assert client.get("/api/admin/goal-kpis").status_code == 403
