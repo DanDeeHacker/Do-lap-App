@@ -281,6 +281,8 @@ def goal_note(a) -> dict | None:
     if gg.get("setback"):
         sb = gg["setback"]
         parts.append(f"Výpadek posunul reálný termín o {sb['days']} dní, na {_dm(sb['to'])}.")
+    if gg.get("hold"):
+        parts.append(f"Plán k cíli teď neroste ({gg['hold']['why']}).")
     return {"text": " ".join(parts), "status": gg.get("status"), "path": gg.get("path")}
 
 

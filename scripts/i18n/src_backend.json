@@ -3238,6 +3238,12 @@
   ]
  },
  {
+  "t": "Plán k cíli teď neroste ({}).",
+  "files": [
+   "metrics/daily_report.py"
+  ]
+ },
+ {
   "t": "Plán zbytku týdne zatím nejde sestavit. Každé ráno den určí Trénink.",
   "files": [
    "metrics/daily_report.py"
@@ -3742,6 +3748,18 @@
   "t": "Pravidelnost",
   "files": [
    "metrics/dayload.py"
+  ]
+ },
+ {
+  "t": "menstruace chybí 3 měsíce a déle",
+  "files": [
+   "metrics/energy.py"
+  ]
+ },
+ {
+  "t": "podle záznamu cyklu {} dní bez menstruace",
+  "files": [
+   "metrics/energy.py"
   ]
  },
  {
@@ -5331,6 +5349,12 @@
   ]
  },
  {
+  "t": "Plán teď neroste ({}). Chybějící menstruace bývá známkou nízké energetické dostupnosti a ta zvyšuje riziko únavové zlomeniny. Objednejte se ke sportovnímu lékaři. Týdny zatím drží vaši současnou úroveň.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Podle dnešní formy je cíl v dosahu: odhad {}.",
   "files": [
    "metrics/goal_plan.py"
@@ -5469,6 +5493,12 @@
   ]
  },
  {
+  "t": "Uvedli jste známky nedostatku energie. Jezte víc kolem tréninku, hlavně sacharidy před dlouhým během a po něm, a poraďte se se sportovním lékařem nebo nutričním terapeutem.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "V ohrožení",
   "files": [
    "metrics/goal_plan.py"
@@ -5572,6 +5602,12 @@
  },
  {
   "t": "dřívější zranění",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "dřívější únavová zlomenina",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -6244,6 +6280,18 @@
   ]
  },
  {
+  "t": "K cíli vždy cviky na chodidla a lýtka (výpony, krátká noha) a na brzdivou sílu stehen pro seběhy (pomalé dřepy a výpady s kontrolou dolů).",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "K cíli vždy cviky na chodidla a lýtka (výpony, krátká noha).",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Kapacitu intenzity zatím neznáme — chybí běhy s tepem.",
   "files": [
    "metrics/guidance.py"
@@ -6461,6 +6509,12 @@
  },
  {
   "t": "Plán k cíli ({}): {}, {}. týden z {} — cíl týdne {} km",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Plán k cíli teď neroste ({}): týden drží úroveň posledních týdnů.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -10294,6 +10348,12 @@
  },
  {
   "t": "Týden podle plánu trenéra",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Týden před závodem jen lehčí silová B: poslední těžší posilování má být 7–10 dní před startem.",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -14974,6 +15034,12 @@
   ]
  },
  {
+  "t": "Cíl ještě neproběhl",
+  "files": [
+   "routers/goals.py"
+  ]
+ },
+ {
   "t": "Cíl může být nejvýš 2 roky dopředu",
   "files": [
    "routers/goals.py"
@@ -15019,6 +15085,12 @@
  },
  {
   "t": "Tento cíl nestihne v termínu ani riziková cesta. Zvolte pozdější termín nebo menší cíl.",
+  "files": [
+   "routers/goals.py"
+  ]
+ },
+ {
+  "t": "Výsledek cíle už je zapsaný",
   "files": [
    "routers/goals.py"
   ]

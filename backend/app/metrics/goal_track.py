@@ -154,3 +154,64 @@ def setback(g_row, gg: dict | None, today: date) -> dict | None:
         return None
     moved = (date.fromisoformat(new) - date.fromisoformat(old)).days
     return {"from": old, "to": new, "days": moved} if moved >= 5 else None
+
+
+# #19 — the outcome of every goal (owner decision 2026-10-13): after the goal's date three
+# questions (started, finished, the time) and, on their own, an injury with lost training during
+# the preparation and how the plan was kept; the data backtesting and calibration (#20) need
+OUTCOME_DAYS = 30           # the question waits this long after the date, then the goal is closed without it
+LOST_TRAINING = 17          # OSTRC-H participation / volume item: reduced training or worse
+
+
+def prep_summary(db, rid: str, g_row) -> dict:
+    """What happened in the preparation: the plan kept (km and strength over the recorded weeks)
+    and injuries with lost training (an OSTRC-H report with reduced training, a return-to-run plan)."""
+    from .. import models
+    weeks = (g_row.track_json or {}).get("weeks") or {}
+    end = (g_row.date or "")[:10]
+    plan_km = done_km = plan_s = done_s = 0.0
+    for k, p in sorted(weeks.items()):
+        if k >= end or not p.get("km"):
+            continue
+        d = _done(db, rid, date.fromisoformat(k))
+        plan_km += p["km"]
+        done_km += min(d["km"], p["km"] * OVER)
+        plan_s += p.get("strength") or 0
+        done_s += min(d["strength"], p.get("strength") or 0)
+    start = (g_row.created_at or end)[:10]
+    inj = (db.query(models.InjuryReport)
+           .filter(models.InjuryReport.runner_id == rid, models.InjuryReport.submitted_at >= start,
+                   models.InjuryReport.submitted_at <= end + "T23:59:59")
+           .all())
+    lost = [r for r in inj if (r.q_participation or 0) >= LOST_TRAINING or (r.q_volume or 0) >= LOST_TRAINING]
+    rtr = (db.query(models.ReturnToRun)
+           .filter(models.ReturnToRun.runner_id == rid, models.ReturnToRun.created_at >= start,
+                   models.ReturnToRun.created_at <= end + "T23:59:59").count())
+    return {"weeks": sum(1 for k in weeks if k < end), "kmPct": round(100 * done_km / plan_km) if plan_km else None,
+            "strengthPct": round(100 * done_s / plan_s) if plan_s else None,
+            "injury": bool(lost) or rtr > 0, "injurySites": sorted({r.body_region for r in lost if r.body_region})}
+
+
+def outcome_due(g_row, today: date) -> bool:
+    """The goal's date is behind (up to 30 days) and the runner hasn't answered yet."""
+    if g_row is None or g_row.outcome_json or not g_row.date:
+        return False
+    try:
+        d = date.fromisoformat(g_row.date[:10])
+    except ValueError:
+        return False
+    return 0 < (today - d).days <= OUTCOME_DAYS
+
+
+def record_outcome(db, rid: str, g_row, started: bool, finished: bool | None, time_s: int | None,
+                   today: date, skipped: bool = False) -> dict:
+    res = g_row.projection_json or {}
+    out = {"at": today.isoformat(), "skipped": skipped, "started": None if skipped else started,
+           "finished": None if skipped else (bool(finished) if started else False),
+           "timeS": time_s if (started and finished) else None,
+           # what the plan said, for the calibration (#20)
+           "verdict": res.get("verdict"), "status": res.get("status"), "path": g_row.path, "realDate": res.get("realDate"),
+           "targetTimeS": g_row.target_time_s, "predTimeS": ((res.get("targetTime") or {}).get("predictedS")),
+           **prep_summary(db, rid, g_row)}
+    g_row.outcome_json = out
+    return out

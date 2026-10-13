@@ -1,5 +1,5 @@
 {
- "source": "Doslap_Literature_Summary.docx (project doc), 79 sources, 2026-10-13 (goal-planner sources added from Consensus searches and the owner's summaries; v0.12.6 former level and descent sessions)",
+ "source": "Doslap_Literature_Summary.docx (project doc), 87 sources, 2026-10-13 (goal-planner sources added from Consensus searches and the owner's summaries; v0.12.6 former level and descent sessions; plan k cíli 2.0 strength, energy and bone)",
  "categories": {
   "A": "Load progression and running injury",
   "B": "Load monitoring concepts and ACWR",
@@ -9,7 +9,8 @@
   "F": "Heat and weather",
   "G": "Sleep",
   "H": "Pain, return after pain and referral",
-  "I": "Strength training"
+  "I": "Strength training",
+  "J": "Nutrition and energy availability"
  },
  "syntheses": {
   "A": "Across the twelve sources summarised so far, two findings are consistent. First, a previous running-related injury is the most reliably reported risk factor. It was identified in five of eight prospective cohorts reviewed by Saragiotto et al. (2014), with risk estimates between 1.7 and 2.7, and it was confirmed in the recreational cohort of Hespanhol Junior et al. (2013). Second, training parameters on their own do not show a consistent relationship with injury. The largest review in the list, covering 36 prospective studies and 23,047 runners, found conflicting evidence for weekly distance, duration, frequency, intensity and recent changes in training, and concluded that no universal progression rule, including the 10% rule, can be justified (Fredette et al., 2022). This agrees with the randomised trial of Buist et al. (2008) and the earlier review of Damsted et al. (2018). Evidence for sudden weekly increases is suggestive but inconsistent (Damsted et al., 2019), and the framework of Nielsen et al. (2018) explains why a single threshold is unlikely to fit all runners. The marathon cohort of McGrath et al. (2024) adds that more than four in ten runners reported an injury during a 16-week build, that overuse injuries accumulated as training progressed and that physiotherapy was the most commonly used form of care, while the review by Knechtle et al. (2026) links higher training volumes and lower preparation to injury in the same race. For trail and ultramarathon runners, the available data are mostly retrospective and cross-sectional, as shown by Hoffman and Krishnan (2014) and Viljoen et al. (2022), and the weakest source in this section is the review by Dempster et al. (2021). For the engine, these sources support using previous injury as a strong modifier of risk messaging, describing load-spike findings as associations rather than rules, monitoring more closely in the later weeks of a marathon block and building the main spike claim on the session-level Garmin-RUNSAFE findings already in the database.",
@@ -1829,6 +1830,174 @@
    "relevance": "The upper end of that band (1.3) is the limit of the way back to a former level (v0.12.6).",
    "limits": "Mostly team sports; heterogeneous ratios and reference groups.",
    "strength": "low to moderate"
+  },
+  {
+   "id": "lauersen-et-al-2018",
+   "cite": "Lauersen et al. (2018)",
+   "category": "I",
+   "apa": "Lauersen, J. B., Andersen, T. E., & Andersen, L. B. (2018). Strength training as superior, dose-dependent and safe prevention of acute and overuse sports injuries: A systematic review, qualitative analysis and meta-analysis. British Journal of Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/6fbb9b5665ce59429a04e1748b52e990/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Systematic review and meta-analysis",
+    "Population": "Athletes of several sports",
+    "Exposure": "Strength training programmes",
+    "Outcome": "Acute and overuse sports injuries",
+    "Main result": "Strength training reduced sports injuries to about a third, with more training giving more protection"
+   },
+   "findings": [
+    "Strength training reduced sports injuries to about a third, with more training giving more protection."
+   ],
+   "relevance": "Strength training is a fixed part of the goal plan (plan k cíli 2.0 #14).",
+   "limits": "Mostly team sports; few running-only trials.",
+   "strength": "moderate"
+  },
+  {
+   "id": "wu-et-al-2024",
+   "cite": "Wu et al. (2024)",
+   "category": "I",
+   "apa": "Wu, H., et al. (2024). Do exercise-based prevention programs reduce injury in endurance runners? A systematic review and meta-analysis. Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/b40ecfde53a65ff1b8887e974c030a05/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Systematic review and meta-analysis",
+    "Population": "Endurance runners",
+    "Exposure": "Exercise-based injury prevention programmes",
+    "Outcome": "Running-related injury",
+    "Main result": "No overall effect; supervised programmes reduced injuries"
+   },
+   "findings": [
+    "No overall effect; supervised programmes reduced injuries."
+   ],
+   "relevance": "The plan counts the strength sessions done, because a programme protects only when it is done (#14).",
+   "limits": "Heterogeneous programmes and adherence.",
+   "strength": "moderate"
+  },
+  {
+   "id": "desai-et-al-2023",
+   "cite": "Desai et al. (2023)",
+   "category": "I",
+   "apa": "Desai, P., et al. (2023). Effectiveness of an 18-week general strength and foam-rolling intervention on running-related injuries in recreational runners. Scandinavian Journal of Medicine & Science in Sports.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/807a88fa0418558dadf63a49aa78c9bd/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Randomised controlled trial, 18 weeks",
+    "Population": "Recreational runners",
+    "Exposure": "General strength training and foam rolling",
+    "Outcome": "Running-related injury",
+    "Main result": "Runners who completed the programme had about 85 % fewer injuries; the intention-to-treat effect was smaller"
+   },
+   "findings": [
+    "Runners who completed the programme had about 85 % fewer injuries; the intention-to-treat effect was smaller."
+   ],
+   "relevance": "Strength compliance is shown as a percentage; without it the plan promises no protection (#14).",
+   "limits": "Compliance analysis is not randomised.",
+   "strength": "low to moderate"
+  },
+  {
+   "id": "toresdahl-et-al-2020",
+   "cite": "Toresdahl et al. (2020)",
+   "category": "I",
+   "apa": "Toresdahl, B. G., et al. (2020). A randomized study of a strength training program to prevent injuries in runners of the New York City Marathon. Sports Health.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/33ab6a2ff20b56bd8c9d0d5bea30bdb0/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Randomised trial",
+    "Population": "Runners preparing for the New York City Marathon",
+    "Exposure": "An unsupervised strength training programme",
+    "Outcome": "Injury during preparation",
+    "Main result": "No reduction in injuries; low adherence"
+   },
+   "findings": [
+    "No reduction in injuries; low adherence."
+   ],
+   "relevance": "An unsupervised programme alone isn't enough: the plan schedules and reminds the sessions (#14).",
+   "limits": "Low adherence limits the conclusion.",
+   "strength": "moderate"
+  },
+  {
+   "id": "taddei-et-al-2020",
+   "cite": "Taddei et al. (2020)",
+   "category": "I",
+   "apa": "Taddei, U. T., Matias, A. B., Duarte, M., & Sacco, I. C. N. (2020). Foot core training to prevent running-related injuries: A survival analysis of a single-blind, randomized controlled trial. The American Journal of Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/81adc0205b64549eb715c527577ce31c/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Single-blind randomised controlled trial, 12 months",
+    "Population": "Recreational runners",
+    "Exposure": "Foot core training",
+    "Outcome": "Running-related injury",
+    "Main result": "Foot core training lowered the injury rate about 2.4-fold"
+   },
+   "findings": [
+    "Foot core training lowered the injury rate about 2.4-fold."
+   ],
+   "relevance": "Foot and calf exercises for every goal plan (#14).",
+   "limits": "One trial; modest sample.",
+   "strength": "moderate"
+  },
+  {
+   "id": "heikura-et-al-2017",
+   "cite": "Heikura et al. (2017)",
+   "category": "J",
+   "apa": "Heikura, I. A., et al. (2017). Low energy availability is difficult to assess but outcomes have large impact on bone injury rates in elite distance athletes. International Journal of Sport Nutrition and Exercise Metabolism.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/be76ed22ac4156a49036378d8f83d0b2/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Cross-sectional study with injury history",
+    "Population": "Elite female and male distance athletes",
+    "Exposure": "Amenorrhoea in women, low testosterone in men",
+    "Outcome": "Bone stress injuries",
+    "Main result": "Athletes without a period or with low testosterone had about 4.5 times more bone injuries"
+   },
+   "findings": [
+    "Athletes without a period or with low testosterone had about 4.5 times more bone injuries."
+   ],
+   "relevance": "Missing periods for 90 days or more stop the goal plan's growth with a doctor's recommendation (#17).",
+   "limits": "Small elite sample; retrospective injuries.",
+   "strength": "low to moderate"
+  },
+  {
+   "id": "gallant-et-al-2024",
+   "cite": "Gallant et al. (2024)",
+   "category": "J",
+   "apa": "Gallant, T. L., et al. (2024). Low energy availability and relative energy deficiency in sport: A systematic review and meta-analysis. Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/7d31b35449b85a1a82b1bac56c74c024/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Systematic review and meta-analysis",
+    "Population": "Athletes",
+    "Exposure": "Low energy availability",
+    "Outcome": "Prevalence and health outcomes",
+    "Main result": "About 45 % of athletes had low energy availability"
+   },
+   "findings": [
+    "About 45 % of athletes had low energy availability."
+   ],
+   "relevance": "Low energy is common enough to ask about in long goal plans (#17).",
+   "limits": "Screening tools differ between studies.",
+   "strength": "moderate"
+  },
+  {
+   "id": "kraus-et-al-2018",
+   "cite": "Kraus et al. (2018)",
+   "category": "J",
+   "apa": "Kraus, E., et al. (2018). Bone stress injuries in male distance runners: Higher modified Female Athlete Triad Cumulative Risk Assessment scores predict increased rates of injury. British Journal of Sports Medicine.",
+   "doi": null,
+   "url": "https://consensus.app/papers/details/c41dc6b9f7a35de5807102333827b38e/?utm_source=claude_desktop",
+   "facts": {
+    "Design": "Prospective cohort",
+    "Population": "Male collegiate distance runners",
+    "Exposure": "Modified cumulative risk assessment score",
+    "Outcome": "Bone stress injury",
+    "Main result": "Each point of the risk score raised the bone stress injury risk by about 37 %"
+   },
+   "findings": [
+    "Each point of the risk score raised the bone stress injury risk by about 37 %."
+   ],
+   "relevance": "A past bone stress injury narrows the plan's margins and adds a reserve week (#17).",
+   "limits": "Collegiate men only.",
+   "strength": "moderate"
   }
  ]
 }

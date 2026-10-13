@@ -792,6 +792,7 @@ function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy }
           <PlanBars plan={res.plan} today={res.computedOn || res.start} />
         </>}
         <div className="mt-5"><Gauges res={res} /><Notes res={res} /></div>
+        <EnergyRow rid={rid} en={data.energy} onData={onChange} />
         <TargetTime tt={res?.targetTime} />
         {gg?.coachCheck && <p className="nest mt-4 p-3.5 text-[12px] leading-5 text-fg-soft" data-testid="goal-coach-check">{gg.coachCheck.text}</p>}
         <RiskPanel rid={rid} goal={goal} res={res} onChange={onChange} />
@@ -829,6 +830,108 @@ function Adherence({ ad, compact = false }: { ad: any; compact?: boolean }) {
       </div>
       {!compact && <p className="mt-1 text-[10.5px] text-fg-3">Svislá čárka = plán týdne. Kilometry proti plánu, jak stál v pondělí.</p>}
       {ad.text && <p className="mt-1.5 text-[12px] font-semibold" style={{ color: ad.flag === "over" ? C.alert : C.watch }}>{ad.text}</p>}
+      {!compact && ad.strengthPct != null && ad.strengthPct < 50 && <p className="mt-1.5 text-[12px] text-fg-2" data-testid="goal-strength-low">Posilování chrání před zraněním, jen když se opravdu dělá. Bez něj plán ochranu neslibuje.</p>}
+    </div>
+  )
+}
+
+// plan k cíli 2.0 #17 — the energy & bone screen: opt-in, it says why it asks
+function YesNo({ v, on, id }: { v: boolean | null; on: (b: boolean) => void; id: string }) {
+  return (
+    <span className="flex shrink-0 gap-1">
+      {([[true, "Ano"], [false, "Ne"]] as [boolean, string][]).map(([b, t]) => (
+        <button key={t} type="button" aria-pressed={v === b} onClick={() => on(b)} data-testid={`${id}-${b ? "yes" : "no"}`}
+          className={`rounded-full px-3 py-1 text-[12px] font-semibold ${v === b ? "bg-fg text-ink" : "bg-white/[.06] text-fg-2"}`}>{t}</button>
+      ))}
+    </span>
+  )
+}
+
+function EnergyScreen({ rid, en, onData, onDone }: { rid: string; en: any; onData: (d: any) => void; onDone?: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const was = en?.answered
+  const [a, setA] = useState<Record<string, boolean | null>>({
+    bsi: was ? !!en.bsi : null, period: was ? !!(en.hold && !en.hold.auto) : null, fuel: was ? !!en.fuel : null })
+  const qs: [string, string][] = [
+    ["bsi", "Měl/a jste někdy únavovou zlomeninu nebo stresovou reakci kosti?"],
+    ...(en?.askPeriod ? [["period", "Chybí vám menstruace 3 měsíce nebo déle (mimo těhotenství a kojení)?"] as [string, string]] : []),
+    ["fuel", "Hubnete bez záměru, jíte méně, než trénink potřebuje, nebo jste často unavený/á či nemocný/á?"],
+  ]
+  const ready = qs.every(([k]) => a[k] != null)
+  const send = async (body: any) => {
+    setBusy(true)
+    try { onData(await api.goalEnergy(rid, body)); onDone?.() } finally { setBusy(false) }
+  }
+  return (
+    <div className="nest mt-3 p-3.5" data-testid="goal-energy">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-accent">Energie a kosti · nepovinné</p>
+      <p className="mt-1 text-[12px] leading-5 text-fg-2">Dlouhá příprava zatěžuje kosti. Málo energie z jídla a dřívější únavová zlomenina zvyšují riziko další, proto se ptáme. Podle odpovědí plán nastaví větší rezervy.</p>
+      <div className="mt-2.5 grid gap-2.5">
+        {qs.map(([k, q]) => (
+          <div key={k} className="flex items-center justify-between gap-3">
+            <span className="text-[13px] leading-5 text-fg">{q}</span>
+            <YesNo v={a[k]} on={(b) => setA((x) => ({ ...x, [k]: b }))} id={`energy-${k}`} />
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button size="sm" disabled={!ready || busy} onClick={() => send({ bsi: !!a.bsi, period: !!a.period, fuel: !!a.fuel })} data-testid="energy-save">Uložit</Button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => send({ declined: true })} data-testid="energy-decline">Nechci odpovídat</Button>
+      </div>
+    </div>
+  )
+}
+
+function EnergyRow({ rid, en, onData }: { rid: string; en: any; onData: (d: any) => void }) {
+  const [edit, setEdit] = useState(false)
+  if (!en || (!en.answered && !en.declined && !en.ask)) return null
+  if (edit || en.ask) return <EnergyScreen rid={rid} en={en} onData={onData} onDone={() => setEdit(false)} />
+  const parts = en.declined ? ["bez odpovědí"] : [
+    ...(en.bsi ? ["dřívější únavová zlomenina: větší rezervy"] : []),
+    ...(en.hold ? ["plán neroste"] : []),
+    ...(en.fuel ? ["známky nedostatku energie"] : []),
+  ]
+  return (
+    <p className="mt-4 flex flex-wrap items-center gap-x-2 text-[12px] text-fg-2" data-testid="goal-energy-row">
+      <span>{`Energie a kosti: ${parts.length ? parts.join(" · ") : "bez rizika"}`}</span>
+      <button type="button" className="font-semibold text-accent underline-offset-2 hover:underline" onClick={() => setEdit(true)}>Upravit</button>
+    </p>
+  )
+}
+
+// plan k cíli 2.0 #19 — how the goal went, after its date
+export function OutcomeCard({ rid, oc, onData }: { rid: string; oc: any; onData: (d: any) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [started, setStarted] = useState<boolean | null>(null)
+  const [fin, setFin] = useState<boolean | null>(null)
+  const [t, setT] = useState("")
+  if (!oc) return null
+  const free = oc.kind === "free"
+  const timeS = timeIn(t)
+  const ready = free ? fin != null : started === false || (started === true && fin === false) || (started === true && fin === true && (!!timeS || !t.trim()))
+  const send = async (body: any) => {
+    setBusy(true)
+    try { onData(await api.goalOutcome(rid, { goal_id: oc.goalId, ...body })) } finally { setBusy(false) }
+  }
+  const save = () => send(free ? { started: true, finished: fin } : { started, finished: started ? fin : false, time_s: started && fin ? timeS : null })
+  return (
+    <div className="nest mt-2.5 p-3.5" data-testid="goal-outcome">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-accent">{`Jak to dopadlo · ${fmtDY(oc.date)}`}</p>
+      <p className="mt-0.5 text-[14px] font-semibold text-fg">{oc.name}</p>
+      <div className="mt-2.5 grid gap-2.5">
+        {!free && <div className="flex items-center justify-between gap-3"><span className="text-[13px] text-fg">Stál/a jste na startu?</span><YesNo v={started} on={setStarted} id="outcome-started" /></div>}
+        {(free || started) && <div className="flex items-center justify-between gap-3"><span className="text-[13px] text-fg">{free ? "Splnil/a jste cíl?" : "Doběhl/a jste?"}</span><YesNo v={fin} on={setFin} id="outcome-finished" /></div>}
+        {!free && started && fin && (
+          <label className={lbl}>{`Čas (h:mm:ss)${oc.targetTimeS ? ` · cíl ${timeStr(oc.targetTimeS)}` : ""}`}
+            <input className={inp} inputMode="numeric" placeholder="3:45:00" value={t} onChange={(e) => setT(e.target.value)} data-testid="outcome-time" />
+          </label>
+        )}
+      </div>
+      <p className="mt-2 text-[11px] leading-5 text-fg-3">Výsledky ukazují, jak přesně plán odhaduje. Plnění plánu a případné zranění v přípravě se doplní samy.</p>
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        <Button size="sm" disabled={!ready || busy} onClick={save} data-testid="outcome-save">Uložit</Button>
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => send({ skipped: true })} data-testid="outcome-skip">Nechci uvádět</Button>
+      </div>
     </div>
   )
 }
@@ -836,11 +939,18 @@ function Adherence({ ad, compact = false }: { ad: any; compact?: boolean }) {
 // plan k cíli 2.0 #7, #9 — a checkpoint due and what a setback cost
 function TrackBanners({ rid, track, res, onData, onEdit }: { rid: string; track: any; res: any; onData: (d: any) => void; onEdit?: () => void }) {
   const [busy, setBusy] = useState(false)
-  const cp = track?.checkpoint, sb = track?.setback
-  if (!cp && !sb) return null
+  const cp = track?.checkpoint, sb = track?.setback, hold = res?.hold
+  if (!cp && !sb && !hold) return null
   const ack = async () => { setBusy(true); try { onData(await api.goalCheckpoint(rid, cp.key)) } finally { setBusy(false) } }
   return (
     <div className="mt-3 grid gap-2">
+      {hold && (
+        <div className="nest p-3" style={{ borderColor: `${C.alert}55` }} data-testid="goal-hold">
+          <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: C.alert }}>Plán teď neroste</p>
+          <p className="mt-0.5 text-[13px] text-fg">{`Důvod: ${hold.why}. Týdny drží vaši současnou úroveň.`}</p>
+          {hold.kind === "energy" && <p className="mt-0.5 text-[12px] text-fg-2">Objednejte se ke sportovnímu lékaři. Chybějící menstruace bývá známkou nedostatku energie a zvyšuje riziko únavové zlomeniny.</p>}
+        </div>
+      )}
       {cp && (
         <div className="nest p-3" style={{ borderColor: `${cp.behind ? C.watch : C.ok}55` }} data-testid="goal-checkpoint">
           <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: cp.behind ? C.watch : C.ok }}>{`Kontrolní bod · ${cp.label}`}</p>
@@ -941,6 +1051,7 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
           <InfoDot label="Trénink k cíli" text="Zvolte závod nebo vlastní cíl. Aplikace z vašich dat spočítá, jak rychle mohou kapacity bezpečně růst, řekne, jestli cíl stihnete zdravě, a sestaví k němu plán po týdnech. Týdenní cíl se pak řídí tímto plánem, denní doporučení dál hlídá připravenost, bolest a limity." /></span>
         {goal && <span className="flex items-center gap-1.5">{res?.path === "risk" && <span className="rounded-full px-2 py-1 text-[10px] font-bold" style={{ background: `${C.alert}1f`, color: C.alert }}>riziková cesta</span>}<VerdictChip res={chip} /></span>}
       </div>
+      <OutcomeCard rid={rid} oc={data.outcome} onData={setData} />
       {!goal ? (
         <>
           <p className="mt-2 text-sm text-fg-2">Chystáte se na závod nebo máte vlastní cíl v kilometrech? Aplikace spočítá, jestli ho stihnete zdravě, sestaví k němu plán, a když to nejde, řekne reálný termín.</p>
@@ -981,6 +1092,7 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
       )}
       {goal && <TrackBanners rid={rid} track={data.track} res={res} onData={setData} onEdit={() => setMode("setup")} />}
       {goal && data.track?.adherence && <div className="mt-3"><Adherence ad={data.track.adherence} compact /></div>}
+      {goal && data.energy?.ask && <EnergyScreen rid={rid} en={data.energy} onData={setData} />}
       {mode === "setup" && <GoalSetup rid={rid} races={data.races || []} initial={formOf(goal)} onClose={() => setMode("")}
         onSaved={(d) => { setData(d); setMode("detail"); refresh() }} />}
       {mode === "detail" && goal && <GoalDetail rid={rid} data={data} gg={gg} busy={busy} onClose={() => setMode("")} onEdit={() => setMode("setup")} onCancel={cancel} onChange={setData} />}

@@ -5,6 +5,8 @@ GET    /api/runners/{rid}/goal           the active goal with today's answer, an
 POST   /api/runners/{rid}/goal/preview   the answer for a goal being entered, nothing stored
 PUT    /api/runners/{rid}/goal           store it as the active goal (the previous one is cancelled)
 DELETE /api/runners/{rid}/goal           cancel the active goal
+POST   /api/runners/{rid}/goal/energy    the energy & bone screen (plan k cíli 2.0 #17)
+POST   /api/runners/{rid}/goal/outcome   how the goal went, after its date (plan k cíli 2.0 #19)
 """
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal
@@ -129,12 +131,13 @@ def get_goal(rid: str, user: models.User = Depends(get_current_user), db: DBSess
     ensure_runner_read_access(db, user, rid)
     g = _active(db, rid)
     out = {"goal": None, "result": None, "races": _races(db, rid)}
-    if g is None:
-        return out
-    if (g.date or "")[:10] < E.today_date().isoformat():          # the goal's day is behind: done
+    if g is not None and (g.date or "")[:10] < E.today_date().isoformat():   # the goal's day is behind: done
         if user.runner_id == rid:
             g.status, g.updated_at = "done", _now()
             db.commit()
+        g = None
+    out["outcome"] = _outcome_ask(db, rid)
+    if g is None:
         return out
     race = db.query(models.Race).filter(models.Race.id == g.race_id).first() if g.race_id else None
     goal = GP.goal_dict(g, race)
@@ -144,8 +147,48 @@ def get_goal(rid: str, user: models.User = Depends(get_current_user), db: DBSess
         if user.runner_id == rid:
             g.projection_json = res
             db.commit()
-    out.update(goal=goal, result=res, track=_track(db, rid, g, res))
+    out.update(goal=goal, result=res, track=_track(db, rid, g, res), energy=_energy(db, rid, res))
     return out
+
+
+def _energy(db: DBSession, rid: str, res: dict | None) -> dict:
+    """Plan k cíli 2.0 #17: whether to offer the energy & bone screen, and what it changed."""
+    from ..metrics import energy as EN
+    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    if r is None:
+        return {"ask": False}
+    mj = r.menstrual_json or {}
+    female = (r.sex or "") == "female"
+    return {"ask": EN.ask(r, res), **EN.state(r, E.today_date()),
+            "askPeriod": female and not mj.get("hormonal"), "tracking": EN.period_gap(r, E.today_date()) is not None}
+
+
+def _outcome_ask(db: DBSession, rid: str) -> dict | None:
+    """Plan k cíli 2.0 #19: the last goal whose date is behind and that has no outcome yet."""
+    from ..metrics import goal_track as GT
+    today = E.today_date()
+    g = (db.query(models.Goal).filter(models.Goal.runner_id == rid, models.Goal.status == "done")
+         .order_by(models.Goal.date.desc(), models.Goal.id.desc()).first())
+    if g is None or not GT.outcome_due(g, today):
+        return None
+    goal = GP.goal_dict(g)
+    return {"goalId": g.id, "name": goal["name"] or GP.goal_name(goal), "date": goal["date"], "kind": g.kind,
+            "km": g.distance_km, "aim": g.aim, "targetTimeS": g.target_time_s}
+
+
+class OutcomeIn(BaseModel):
+    goal_id: int
+    skipped: bool = False
+    started: bool = False
+    finished: bool | None = None
+    time_s: int | None = Field(None, gt=0, le=60 * 3600)
+
+
+class EnergyIn(BaseModel):
+    declined: bool = False
+    bsi: bool | None = None
+    period: bool | None = None
+    fuel: bool | None = None
 
 
 def _track(db: DBSession, rid: str, g, res: dict) -> dict:
@@ -168,6 +211,43 @@ def answer_checkpoint(rid: str, body: CheckpointIn, user: models.User = Depends(
     g = or_404(_active(db, rid), "Cíl nenalezen")
     GT.answer_checkpoint(g, body.key, E.today_date())
     db.commit()
+    return get_goal(rid, user, db)
+
+
+@router.post("/api/runners/{rid}/goal/outcome", dependencies=[Depends(verify_csrf)])
+def answer_outcome(rid: str, body: OutcomeIn, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """How the goal went: started, finished, the time (or "rather not say")."""
+    ensure_runner_self(user, rid)
+    from ..metrics import goal_track as GT
+    g = or_404(db.query(models.Goal).filter(models.Goal.id == body.goal_id, models.Goal.runner_id == rid).first(),
+               "Cíl nenalezen")
+    if g.outcome_json:
+        raise HTTPException(409, "Výsledek cíle už je zapsaný")
+    if (g.date or "")[:10] >= E.today_date().isoformat():
+        raise HTTPException(422, "Cíl ještě neproběhl")
+    GT.record_outcome(db, rid, g, body.started, body.finished, body.time_s, E.today_date(), skipped=body.skipped)
+    if g.status == "active":
+        g.status = "done"
+    g.updated_at = _now()
+    db.commit()
+    return get_goal(rid, user, db)
+
+
+@router.post("/api/runners/{rid}/goal/energy", dependencies=[Depends(verify_csrf)])
+def answer_energy(rid: str, body: EnergyIn, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """The energy & bone screen (opt-in): the answers, or "rather not"; the plan is recomputed."""
+    ensure_runner_self(user, rid)
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    pj = dict(r.planner_json or {})
+    pj["energy"] = ({"at": E.today_date().isoformat(), "declined": True} if body.declined else
+                    {"at": E.today_date().isoformat(), "bsi": bool(body.bsi), "period": bool(body.period),
+                     "fuel": bool(body.fuel)})
+    r.planner_json = pj
+    g = _active(db, rid)
+    if g is not None:
+        g.projection_json = None
+    db.commit()
+    E.recompute_assessment(db, rid, data_changed=False)
     return get_goal(rid, user, db)
 
 

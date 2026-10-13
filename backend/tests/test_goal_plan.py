@@ -478,3 +478,80 @@ def test_the_goal_record_adherence_checkpoints_and_setbacks(client, db_session):
     runs = [(today - timedelta(days=k)).isoformat() for k in (12, 11, 1)]                    # a 10-day break, back yesterday
     assert GT.returning(g, runs, today)["why"] == "pauza"
     assert GT.returning(g, [(today - timedelta(days=k)).isoformat() for k in (3, 2, 1)], today) is None
+
+
+def test_strength_is_a_fixed_part_of_the_plan(client, db_session):
+    """Plan k cíli 2.0 #14: 2× in base and build, 1× in the specific phase and the taper, none in
+    the race week; Trénink schedules what the plan says."""
+    res = G.evaluate(_race(42.2, "2027-04-25"), _st(km=40, long=18))
+    plan = res["plan"]
+    for w in plan:
+        want = 0 if w.get("race") else 1 if (w.get("taper") or w.get("deload") or w["phase"] == "specific") else 2
+        assert w["strength"] == want, w
+    assert {w["strength"] for w in plan} == {0, 1, 2}
+    rid, _saved = _goal_runner(client, db_session, "goalstr@test.cz")
+    g = E.get_or_refresh_assessment(db_session, rid)["guidance"]
+    if g["week"]["mode"] == "goal":
+        assert g["strength"]["target"] == g["goal"]["week"]["strength"]
+        assert any("chodidla" in n for n in g["types"]["posilování"]["notes"])
+
+
+def test_the_energy_and_bone_screen(client, db_session):
+    """Plan k cíli 2.0 #17: offered for a long plan, a past bone stress injury narrows the margins
+    and adds a reserve week, a missing period (answer or the cycle log) stops the growth."""
+    from types import SimpleNamespace
+    from app.metrics import energy as EN
+    today = E.today_date()
+    log = {"track": True, "hormonal": False, "starts": [(today - timedelta(days=d)).isoformat() for d in (150, 122, 95)]}
+    she = SimpleNamespace(sex="female", menstrual_json=log, planner_json=None)
+    assert EN.state(she, today)["hold"]["auto"]                         # 95 days since the last period
+    she.menstrual_json = {**log, "starts": log["starts"] + [(today - timedelta(days=10)).isoformat()]}
+    assert EN.state(she, today)["hold"] is None
+    she.menstrual_json = {**log, "hormonal": True}
+    assert EN.state(she, today)["hold"] is None                         # the pill: the log says nothing
+    assert EN.ask(she, {"weeksToGoal": 20, "plan": []}) and not EN.ask(she, {"weeksToGoal": 8, "plan": [{"km": 30}]})
+
+    rid, saved = _goal_runner(client, db_session, "goalen@test.cz")
+    got = client.get(f"/api/runners/{rid}/goal").json()
+    assert got["energy"]["ask"]                                          # a 26-week plan
+    before = got["result"]
+    after = client.post(f"/api/runners/{rid}/goal/energy", json={"bsi": True}).json()
+    assert not after["energy"]["ask"] and after["energy"]["bsi"]
+    assert after["result"]["margins"]["week"] < before["margins"]["week"]
+    assert after["result"]["reserveWeeks"] == before["reserveWeeks"] + 1
+    assert any(n["key"] == "margin" and "dřívější únavová zlomenina" in n["why"] for n in after["result"]["notes"])
+    held = client.post(f"/api/runners/{rid}/goal/energy", json={"period": True}).json()
+    assert held["result"]["hold"]["kind"] == "energy" and held["result"]["notes"][0]["key"] == "energy"
+    g = E.get_or_refresh_assessment(db_session, rid)["guidance"]
+    if g["week"]["mode"] == "goal":
+        assert g["goal"]["hold"] and any("neroste" in x for x in g["reasons"])
+    assert client.post(f"/api/runners/{rid}/goal/energy", json={"declined": True}).json()["energy"]["declined"]
+
+
+def test_the_goal_outcome_is_asked_after_its_date(client, db_session):
+    """Plan k cíli 2.0 #19: after the date, started / finished / time, with the preparation's record."""
+    from app import models
+    from .conftest import register
+    rid = register(client, "outcome@test.cz", "Outcome Runner", "runner").json()["runner_id"]
+    today = E.today_date()
+    mon = today - timedelta(days=today.weekday())
+    wk = (mon - timedelta(days=14)).isoformat()
+    g = models.Goal(runner_id=rid, kind="race", name="Půlmaraton", date=(today - timedelta(days=2)).isoformat(),
+                    distance_km=21.1, aim="time", target_time_s=6300, status="active",
+                    created_at=(today - timedelta(days=60)).isoformat(),
+                    track_json={"weeks": {wk: {"km": 30.0, "long": 14.0, "strength": 2}}},
+                    projection_json={"verdict": "ok", "status": "ok", "realDate": (today - timedelta(days=20)).isoformat()})
+    db_session.add(g)
+    db_session.add(models.Activity(runner_id=rid, provider="garmin", external_id="oc1", sport="running",
+                                   started_at=wk + "T07:00:00", distance_km=24.0, duration_min=140))
+    db_session.commit()
+    got = client.get(f"/api/runners/{rid}/goal").json()
+    assert got["goal"] is None and got["outcome"]["goalId"] == g.id and got["outcome"]["targetTimeS"] == 6300
+    res = client.post(f"/api/runners/{rid}/goal/outcome",
+                      json={"goal_id": g.id, "started": True, "finished": True, "time_s": 6400})
+    assert res.status_code == 200 and res.json()["outcome"] is None
+    db_session.refresh(g)
+    o = g.outcome_json
+    assert o["finished"] and o["timeS"] == 6400 and o["verdict"] == "ok" and o["kmPct"] == 80 and o["strengthPct"] == 0
+    assert not o["injury"]
+    assert client.post(f"/api/runners/{rid}/goal/outcome", json={"goal_id": g.id, "skipped": True}).status_code == 409

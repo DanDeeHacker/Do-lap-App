@@ -317,17 +317,21 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
     if cycle_pos is None:
         cycle_pos = (((g.get("week") or {}).get("cycle") or {}).get("autoPos"))
     pain = C.pain_dates(db, rid)
+    from . import energy as EN                 # plan k cíli 2.0 #17: the energy & bone screen
+    en = EN.state(D.of(db, rid).runner, today)
+    bsi = EN.BSI_MARGIN if en["bsi"] else 1.0
     return {
         "today": today.isoformat(), "start": mon.isoformat(), "weeks": wk, "cyclePos": cycle_pos,
         "long30": l30, "down30": d30, "up30": u30,
         # the days before this Monday (oldest first) for the engine's own weekly capacity
         "days": days, "pain": [(d0 + timedelta(days=i)).isoformat() in pain for i in range(DAYS_HIST)],
         "known": (mon - first).days if first else 0, "eccFac": ecc,
-        "marginWeek": float(m.get("runWeek") or C.MARGIN_WEEK), "marginRun": float(m.get("runSession") or C.MARGIN_SESSION),
-        "experience": m.get("experience"), "everHalf": ever_half,
+        "marginWeek": float(m.get("runWeek") or C.MARGIN_WEEK) * bsi, "marginRun": float(m.get("runSession") or C.MARGIN_SESSION) * bsi,
+        "experience": m.get("experience"), "everHalf": ever_half, "energy": en, "reserveExtra": 1 if en["bsi"] else 0,
         "marginWhy": [t for t, on in (("první rok běhání", m.get("experience")), ("dřívější zranění", (m.get("frailty") or 1.0) > 1.0),
                                       ("návrat po pauze", m.get("underconditioned")),
-                                      ("přechod na nové boty", ((((a or {}).get("capacity") or {}).get("shoes") or {}).get("factor") or 1.0) < 1.0))
+                                      ("přechod na nové boty", ((((a or {}).get("capacity") or {}).get("shoes") or {}).get("factor") or 1.0) < 1.0),
+                                      ("dřívější únavová zlomenina", en["bsi"]))
                       if on],
         "everMarathon": ever_long >= 40.0 or any((x.distance_km or 0) >= 40.0 for x in past),
         "limited": g.get("override") or (g.get("mode") == "return"),
@@ -631,10 +635,16 @@ def _weeks_to(goal_date: date, start: date) -> int:
     return (goal_date - start).days // 7 + 1
 
 
-def _fit(ready, taper, weeks) -> str:
+def reserve_weeks(ready, taper, st: dict | None = None) -> int:
+    """The weeks kept for illness and bad weeks: 2, 3 in a plan over 16 weeks, one more after a
+    bone stress injury (plan k cíli 2.0 #17)."""
+    return (3 if (ready or 0) + taper > RESERVE_LONG_PLAN else 2) + int((st or {}).get("reserveExtra") or 0)
+
+
+def _fit(ready, taper, weeks, st: dict | None = None) -> str:
     if ready is None:
         return "no"
-    reserve = 3 if ready + taper > RESERVE_LONG_PLAN else 2
+    reserve = reserve_weeks(ready, taper, st)
     if ready + taper + reserve <= weeks:
         return "ok"
     return "tight" if ready + taper <= weeks else "no"
@@ -686,7 +696,7 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
                        "ascentRun": _r(w["upRun"]), "descentRun": _r(w["downRun"] / rf)} for w in st["weeks"][-4:]]
     safe = phased(req, st, SAFE, weeks, taper)
     risk = phased(req, st, RISK, weeks, taper)
-    v = _fit(safe["readyWeek"], taper, weeks)
+    v = _fit(safe["readyWeek"], taper, weeks, st)
     rr = risk["readyWeek"]
     out["riskPossible"] = bool(rr and rr + taper <= weeks)
     path = "risk" if goal.get("path") == "risk" else "safe"
@@ -695,7 +705,7 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
     out.update(path=path, status=pv, statusLabel=STATUS[pv])
     if weeks <= HORIZON:
         out["plan"] = plan_weeks(goal, st, chosen, weeks)
-    reserve = 3 if (safe["readyWeek"] or 0) + taper > RESERVE_LONG_PLAN else 2
+    reserve = reserve_weeks(safe["readyWeek"], taper, st)
     out.update(safe=safe, risk=risk, reserveWeeks=reserve, verdict=v, verdictLabel=VERDICT[v])
     # the gauges (owner feedback 2026-10-13: pictures, not sentences): the safe path at its peak
     # before the taper ("na startu") and the week each requirement is met
@@ -757,6 +767,17 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
         out["notes"].append({"key": "margin", "sources": [], "pct": _r(st["marginWeek"] * 100), "why": why,
                              "text": f"Týdenní rezerva je u vás teď {_cz(st['marginWeek'] * 100)} % místo 15 %"
                                      + (f" ({' · '.join(why)})" if why else "") + ", proto kapacita v projekci roste pomaleji."})
+    en = st.get("energy") or {}
+    if en.get("hold"):                         # plan k cíli 2.0 #17: no period for 90+ days
+        out["hold"] = {"kind": "energy", "why": en["hold"]["why"]}
+        out["notes"].insert(0, {"key": "energy", "sources": ["heikura-et-al-2017", "gallant-et-al-2024"],
+                                "text": f"Plán teď neroste ({en['hold']['why']}). Chybějící menstruace bývá známkou nízké "
+                                        "energetické dostupnosti a ta zvyšuje riziko únavové zlomeniny. Objednejte se ke "
+                                        "sportovnímu lékaři. Týdny zatím drží vaši současnou úroveň."})
+    elif en.get("fuel"):
+        out["notes"].append({"key": "fuel", "sources": ["gallant-et-al-2024", "kraus-et-al-2018"],
+                             "text": "Uvedli jste známky nedostatku energie. Jezte víc kolem tréninku, hlavně sacharidy "
+                                     "před dlouhým během a po něm, a poraďte se se sportovním lékařem nebo nutričním terapeutem."})
     if alternatives and v != "ok":
         out["alternatives"] = _alternatives(goal, st, out, risk, taper, weeks)
     return out

@@ -420,6 +420,7 @@
   "files": [
    "annotate.tsx",
    "coach.tsx",
+   "goal.tsx",
    "report.tsx",
    "training.tsx"
   ],
@@ -431,6 +432,7 @@
    "annotate.tsx",
    "coach.tsx",
    "coachview.tsx",
+   "goal.tsx",
    "shell.tsx"
   ],
   "kind": "jsx"
@@ -824,6 +826,7 @@
   "t": "Ano",
   "files": [
    "App.tsx",
+   "goal.tsx",
    "profile.tsx"
   ],
   "kind": "str"
@@ -1951,6 +1954,7 @@
    "annotate.tsx",
    "coach.tsx",
    "coachview.tsx",
+   "goal.tsx",
    "profile.tsx",
    "selfprograms.tsx"
   ],
@@ -11291,6 +11295,13 @@
   "kind": "tpl"
  },
  {
+  "t": "· cíl {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· dlouhý {} km",
   "files": [
    "goal.tsx"
@@ -11518,6 +11529,20 @@
   "kind": "jsx"
  },
  {
+  "t": "bez odpovědí",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez rizika",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "bezpečná cesta",
   "files": [
    "goal.tsx"
@@ -11589,11 +11614,25 @@
   "kind": "tpl"
  },
  {
+  "t": "Čas (h:mm:ss){}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Celý plán ({} týdnů)",
   "files": [
    "goal.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Chybí vám menstruace 3 měsíce nebo déle (mimo těhotenství a kojení)?",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Chystáte se na závod nebo máte vlastní cíl v kilometrech? Aplikace spočítá, jestli ho stihnete zdravě, sestaví k němu plán, a když to nejde, řekne reálný termín.",
@@ -11728,6 +11767,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Dlouhá příprava zatěžuje kosti. Málo energie z jídla a dřívější únavová zlomenina zvyšují riziko další, proto se ptáme. Podle odpovědí plán nastaví větší rezervy.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Dlouhý běh smí být o 15 % delší než nejdelší za 30 dní (místo 10 %). Už nárůst o 10–30 % zvyšoval riziko zranění zhruba 1,6×.",
   "files": [
    "goal.tsx"
@@ -11777,6 +11823,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Doběhl/a jste?",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "doběhnout",
   "files": [
    "goal.tsx"
@@ -11798,11 +11851,39 @@
   "kind": "str"
  },
  {
+  "t": "dřívější únavová zlomenina: větší rezervy",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Druh cíle",
   "files": [
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Důvod: {}. Týdny drží vaši současnou úroveň.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Energie a kosti · nepovinné",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Energie a kosti: {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold {}",
@@ -11826,6 +11907,13 @@
   "kind": "str"
  },
  {
+  "t": "Hubnete bez záměru, jíte méně, než trénink potřebuje, nebo jste často unavený/á či nemocný/á?",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Jak poroste (graf)",
   "files": [
    "goal.tsx"
@@ -11838,6 +11926,13 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Jak to dopadlo · {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "jako stoupání",
@@ -11974,6 +12069,13 @@
   "kind": "str"
  },
  {
+  "t": "Měl/a jste někdy únavovou zlomeninu nebo stresovou reakci kosti?",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "mezicíl: běh na 21 km",
   "files": [
    "goal.tsx"
@@ -12081,6 +12183,20 @@
   "kind": "jsx"
  },
  {
+  "t": "Nechci odpovídat",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nechci uvádět",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Nejdelší běh",
   "files": [
    "goal.tsx"
@@ -12130,6 +12246,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Objednejte se ke sportovnímu lékaři. Chybějící menstruace bývá známkou nedostatku energie a zvyšuje riziko únavové zlomeniny.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Observační studie: ukazují souvislost, ne jistý účinek.",
   "files": [
    "goal.tsx"
@@ -12167,6 +12290,13 @@
   "kind": "jsx"
  },
  {
+  "t": "plán neroste",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Plán po týdnech",
   "files": [
    "goal.tsx"
@@ -12182,6 +12312,13 @@
  },
  {
   "t": "Plán se přepočítá každý týden z toho, co jste opravdu odběhli. Denní doporučení dál hlídá připravenost, bolest a limity.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Plán teď neroste",
   "files": [
    "goal.tsx"
   ],
@@ -12221,6 +12358,13 @@
    "goal.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Posilování chrání před zraněním, jen když se opravdu dělá. Bez něj plán ochranu neslibuje.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "poslední 4 týdny",
@@ -12497,6 +12641,20 @@
   "kind": "str"
  },
  {
+  "t": "Splnil/a jste cíl?",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Stál/a jste na startu?",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Stav plánu",
   "files": [
    "goal.tsx"
@@ -12758,6 +12916,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Výsledky ukazují, jak přesně plán odhaduje. Plnění plánu a případné zranění v přípravě se doplní samy.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "za týden",
   "files": [
    "goal.tsx"
@@ -12833,6 +12998,13 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "známky nedostatku energie",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Zpět na bezpečné cestě",

@@ -46,6 +46,7 @@ DEFAULT_RUN_DAYS = {1: (5,), 2: (1, 5), 3: (1, 3, 6), 4: (1, 3, 5, 6), 5: (0, 1,
 STRENGTH_MIN, STRENGTH_RPE = (30, 45), 6.5
 QUALITY_SYS = 0.5          # a hard minute's all-sport load above an easy one, share of a Z4 minute (working assumption)
 SESSION_NAME = {"A": "A · Síla (těžší)", "B": "B · Odolnost"}
+STRENGTH_A_RACE = 7         # no heavier session A in the last 7 days before a race
 
 
 def _r(v, d=1):
@@ -498,6 +499,8 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
             return False
         if last_s and (d - last_s).days < 2:
             return False
+        if kind == "A" and any(0 <= (r - d).days < STRENGTH_A_RACE for r in all_races):
+            return False                      # the last heavier session 7–10 days before a race (plan k cíli 2.0 #14)
         return not (kind == "A" and (d in hard_set or (d - timedelta(days=1)) in hard_set))
 
     def rest_days(extra_busy=()):
@@ -535,7 +538,9 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     if n_s and (not best or len(best) < n_s):
         notes.append(f"Posilování se tento týden vejde jen {len(best or [])}× — kolem tvrdých a dlouhých běhů "
                      "a závodů na něj nezbývá den, který by ho unesl.")
-    if swapped:
+    if swapped and any(0 <= (r - d).days < STRENGTH_A_RACE for d, _k in best or [] for r in all_races):
+        notes.append("Týden před závodem jen lehčí silová B: poslední těžší posilování má být 7–10 dní před startem.")
+    elif swapped:
         notes.append("Těžší silová A se tento týden nevejde mezi tvrdé dny — místo ní lehčí B, A přijde příště.")
     for d, kind in best or []:
         same = any(it["kind"] == "run" for it in items[d])
