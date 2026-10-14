@@ -1387,6 +1387,12 @@
   ]
  },
  {
+  "t": "Duplicate activity merge failed",
+  "files": [
+   "main.py"
+  ]
+ },
+ {
   "t": "GET",
   "files": [
    "main.py",
@@ -15776,12 +15782,6 @@
  },
  {
   "t": "Hmotnost musí být číslo",
-  "files": [
-   "routers/runners.py"
-  ]
- },
- {
-  "t": "Importovanou aktivitu nelze smazat, můžete ji vyřadit z výpočtů.",
   "files": [
    "routers/runners.py"
   ]

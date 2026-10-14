@@ -324,6 +324,25 @@ async def _knowledge_embed_task():
         logging.getLogger("dosslap.assistant").exception("Knowledge embedding failed")
 
 
+def _dedupe_activities(db) -> None:
+    """v0.12.11 — one recording stored twice by two syncs at once (before the per-runner
+    lock): the copies are merged on boot, so the history and the load count it once."""
+    from sqlalchemy import func
+    from .metrics import engine as E
+    try:
+        rids = {r for (r,) in db.query(models.Activity.runner_id)
+                .filter(models.Activity.external_id.isnot(None), models.Activity.provider != "manual")
+                .group_by(models.Activity.runner_id, models.Activity.provider, models.Activity.external_id)
+                .having(func.count(models.Activity.id) > 1)}
+        for rid in sorted(rids):
+            n = E.dedupe_activities(db, rid)
+            db.commit()
+            logging.getLogger("dosslap").info("Merged %s duplicate activities of runner %s", n, rid)
+    except Exception:  # noqa: BLE001 — never blocks startup
+        db.rollback()
+        logging.getLogger("dosslap").exception("Duplicate activity merge failed")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _persistence_guard()
@@ -339,6 +358,7 @@ async def lifespan(app: FastAPI):
         # Runs on every boot (not just an empty DB) so the demo logins also
         # appear on an already-seeded / redeployed database. Idempotent.
         seed_module.ensure_demo_accounts(db)
+        _dedupe_activities(db)
         # Physio AI Assistant: built-in knowledge (cards, summaries, app guide) from the repo
         try:
             from .assistant import knowledge as KB

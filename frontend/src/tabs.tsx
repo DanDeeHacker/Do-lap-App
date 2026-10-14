@@ -3,7 +3,7 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { useQuadHistory } from "@/history"
 import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, FactorBar, toneCol, type Tone, Field, HowTo, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
-import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Ship, TriangleAlert, Waves, type LucideIcon } from "lucide-react"
+import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Ship, Trash2, TriangleAlert, Waves, type LucideIcon } from "lucide-react"
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
 import { clamp, cz, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, PHASE, plural, QUAD, sgn, toImpact } from "@/lib"
@@ -2021,18 +2021,55 @@ function ReadinessStrip({ r, today }: { r: any; today: boolean }) {
   )
 }
 
+// v0.12.11 — the runner can delete any activity from the history (a copy, a watch left
+// running); an imported one is not brought back by the next sync
+function DeleteActivity({ rid, aid, onDone }: { rid: string; aid: number; onDone: () => void }) {
+  const [ask, setAsk] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(false)
+  const toast = useToast()
+  const del = () => {
+    setBusy(true)
+    setErr(false)
+    api.deleteActivity(rid, aid).then(() => { toast({ title: "Aktivita smazána" }); onDone() })
+      .catch(() => setErr(true)).finally(() => setBusy(false))
+  }
+  return (
+    <div className="border-t border-white/[.07] px-4 py-2.5" data-testid="lh-delete">
+      {!ask ? (
+        <button type="button" onClick={() => setAsk(true)} className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[12px] font-semibold text-fg-3 transition hover:bg-alert/10 hover:text-alert">
+          <Trash2 className="size-3.5" aria-hidden />Smazat aktivitu
+        </button>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-[12px] leading-relaxed text-fg-2">Smazat aktivitu i s jejím hodnocením? Synchronizace hodinek ji už znovu nestáhne.</p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={busy} onClick={del} data-testid="lh-delete-confirm" className="rounded-full bg-alert/15 px-3 py-1.5 text-[12px] font-bold text-alert transition hover:bg-alert/25 disabled:opacity-60">
+              {busy ? "Mažu…" : "Smazat"}
+            </button>
+            <button type="button" disabled={busy} onClick={() => setAsk(false)} className="rounded-full border border-white/[.12] px-3 py-1.5 text-[12px] font-semibold text-fg-2 transition hover:text-fg">Zrušit</button>
+          </div>
+          {err && <p className="text-[12px] text-alert-soft">Aktivitu se nepodařilo smazat. Zkuste to prosím znovu.</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function LoadHistory({ rid }: { rid: string }) {
+  const { refresh, touring } = useApp()
   const [open, setOpen] = useState(false)
   const [sel, setSel] = useState<number | null>(null)
   const [more, setMore] = useState(false)
   const [data, setData] = useState<any | null | false>(null) // null = not loaded, false = failed
+  const [ver, setVer] = useState(0)   // bumped after a delete → the list loads again
   useEffect(() => {
     if (!open || data !== null) return
     let alive = true
     api.loadHistory(rid).then((d) => alive && setData(d || false)).catch(() => alive && setData(false))
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, rid])
+  }, [open, rid, ver])
   const items: any[] = data && data.items ? data.items : []
   const shown = more ? items : items.slice(0, 12)
   const scale: number | null = data ? data.impactScale ?? null : null
@@ -2084,6 +2121,9 @@ function LoadHistory({ rid }: { rid: string }) {
                 {isOpen && (x.run
                   ? <RunFlip initial="load" load={<LoadRunPanel x={x} imp={imp} todayIso={todayIso} />} move={<MovementRunPanelById rid={rid} aid={x.id} />} />
                   : <div className="border-t border-white/[.07]"><LoadRunPanel x={x} imp={imp} todayIso={todayIso} /></div>)}
+                {isOpen && !touring && (
+                  <DeleteActivity rid={rid} aid={x.id} onDone={() => { setSel(null); setData(null); setVer((v) => v + 1); refresh() }} />
+                )}
               </div>
             )
           })}

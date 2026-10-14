@@ -860,15 +860,15 @@ def add_manual_activity(rid: str, body: schemas.ManualActivityRequest,
 
 
 @router.delete("/{rid}/activities/{aid}", dependencies=[Depends(verify_csrf)])
-def delete_manual_activity(rid: str, aid: int, user: models.User = Depends(get_current_user),
+def delete_activity(rid: str, aid: int, user: models.User = Depends(get_current_user),
                            db: DBSession = Depends(get_db)):
-    """Only hand-logged sessions can be deleted; imported ones are excluded instead."""
+    """Deletes a session with its rating and detailed data. An imported one (v0.12.11 —
+    a duplicate, a watch left running) leaves a tombstone, so a later sync skips it;
+    excluding it instead keeps it restorable."""
     ensure_runner_self(user, rid)
     a = or_404(db.query(models.Activity).filter(models.Activity.id == aid, models.Activity.runner_id == rid).first(),
                "Aktivita nenalezena")
-    if a.provider != "manual":
-        raise HTTPException(400, "Importovanou aktivitu nelze smazat, můžete ji vyřadit z výpočtů.")
-    E.delete_activity(db, a)
+    E.forget_activity(db, a)
     db.commit()
     return {"ok": True, "assessment": E.recompute_assessment(db, rid)}
 

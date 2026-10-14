@@ -263,6 +263,22 @@ class Activity(Base):
     mech_keep = Column(Boolean, default=False)
 
 
+class DeletedActivity(Base):
+    """An imported activity the runner deleted (v0.12.11). A later sync or file import
+    skips it: by its external id, or by day, sport and length when the same session
+    arrives under another id (an Apple Health copy of a Garmin recording)."""
+    __tablename__ = "deleted_activities"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    provider = Column(String)
+    external_id = Column(String)
+    started_at = Column(String)
+    sport = Column(String)
+    duration_min = Column(Float)
+    distance_km = Column(Float)
+    deleted_at = Column(String, nullable=False)
+
+
 class ActivityFeedback(Base):
     __tablename__ = "activity_feedback"
     id = Column(Integer, primary_key=True, autoincrement=True)

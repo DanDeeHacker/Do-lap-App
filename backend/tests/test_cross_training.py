@@ -80,8 +80,9 @@ def test_manual_entry_twin_and_absorb(client, db_session):
     assert fb and fb.rpe == 7 and watch.strength_focus == "lower"
     # logging it again by hand is refused, the imported one is there
     assert client.post(f"/api/runners/{rid}/activities/manual", json=body).status_code == 409
-    # imported activities can't be deleted, only excluded
-    assert client.delete(f"/api/runners/{rid}/activities/{watch.id}").status_code == 400
+    # v0.12.11 — an imported activity can be deleted too; it leaves a tombstone
+    assert client.delete(f"/api/runners/{rid}/activities/{watch.id}").status_code == 200
+    assert db_session.query(models.DeletedActivity).filter_by(runner_id=rid, external_id="g-lift").count() == 1
 
 
 def test_strength_channel_and_carry_over(client, db_session):

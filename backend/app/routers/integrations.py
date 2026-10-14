@@ -14,11 +14,14 @@ import secrets
 import shutil
 import sys
 import tempfile
+import threading
 import time
+from functools import wraps
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request, UploadFile, File
 from sqlalchemy import func
 from sqlalchemy.orm import Session as DBSession
+from starlette.concurrency import run_in_threadpool
 
 from .. import models
 from ..db import get_db
@@ -89,6 +92,30 @@ def _apply_day_raw(db: DBSession, rid: str, seed: dict) -> int:
     return len(days)
 
 
+# v0.12.11 — one sync or import at a time per runner. The app syncs by itself when it
+# opens, and the runner could tap Synchronizovat (or a second tab could open) while that
+# sync was still downloading: both saw the same activity as new and both stored it.
+# The API runs as one process (Dockerfile), so a lock in the process is enough. Reentrant:
+# the Garmin download holds it and calls _merge_seed, which takes it too.
+_RUNNER_LOCKS: dict[str, threading.RLock] = {}
+_LOCKS_GUARD = threading.Lock()
+
+
+def runner_lock(rid: str) -> threading.RLock:
+    with _LOCKS_GUARD:
+        return _RUNNER_LOCKS.setdefault(rid, threading.RLock())
+
+
+def _one_at_a_time(fn):
+    """For functions called as fn(db, rid, ...): waits for the runner's other sync."""
+    @wraps(fn)
+    def run(db, rid, *args, **kwargs):
+        with runner_lock(rid):
+            return fn(db, rid, *args, **kwargs)
+    return run
+
+
+@_one_at_a_time
 def _apply_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -> None:
     db.query(models.Activity).filter(models.Activity.runner_id == rid).delete()
     db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid).delete()
@@ -122,6 +149,14 @@ def _apply_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
         f["activity_id"] = act_rows[orig_activity_id - 1].id
         f.setdefault("pain_points", [])
         db.add(models.ActivityFeedback(**f))
+    # activities the runner deleted stay deleted (after the feedback mapping, which counts them)
+    gone = E.deleted_activities(db, rid)
+    if gone:
+        db.flush()
+        for a in act_rows:
+            if E.was_deleted(gone, {"external_id": a.external_id, "provider": a.provider, "started_at": a.started_at,
+                                    "sport": a.sport, "duration_min": a.duration_min, "distance_km": a.distance_km}):
+                E.delete_activity(db, a)
 
     integ = db.query(models.Integration).filter(models.Integration.runner_id == rid).first()
     if integ:
@@ -180,7 +215,7 @@ async def garmin_import(file: UploadFile = File(...), fit: bool = False,
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
-    _apply_seed(db, rid, seed, provider="garmin")
+    await run_in_threadpool(_apply_seed, db, rid, seed, provider="garmin")
     return {"ok": True, "runner_id": rid, "activities": len(seed.get("activities", [])), "meta": seed.get("_meta")}
 
 
@@ -205,7 +240,7 @@ async def apple_import(file: UploadFile = File(...),
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
-    _apply_seed(db, rid, seed, provider="apple")
+    await run_in_threadpool(_apply_seed, db, rid, seed, provider="apple")
     return {"ok": True, "runner_id": rid, "activities": len(seed.get("activities", [])), "meta": seed.get("_meta")}
 
 
@@ -284,7 +319,7 @@ async def apple_push(request: Request, db: DBSession = Depends(get_db),
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    added = _merge_seed(db, rid, seed, provider="apple")
+    added = await run_in_threadpool(_merge_seed, db, rid, seed, provider="apple")
     row.last_used_at = E.now_iso()
     db.commit()
     return {"ok": True, "runner_id": rid, **added, "meta": seed.get("_meta")}
@@ -344,6 +379,7 @@ def _stored_twin(db: DBSession, rid: str, a: dict) -> bool:
     return False
 
 
+@_one_at_a_time
 def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -> dict:
     """Additive, idempotent import: inserts only activities whose external_id
     is new and daily rows for dates the runner doesn't have yet. Nothing is
@@ -357,9 +393,12 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
     existing_dates = {
         row[0] for row in db.query(models.DailyMetric.date).filter(models.DailyMetric.runner_id == rid).all()
     }
+    gone = E.deleted_activities(db, rid)
     added_a = added_d = 0
     for a in seed.get("activities", []):
         ext = a.get("external_id")
+        if gone and E.was_deleted(gone, a):
+            continue                                  # the runner deleted it
         if ext and ext in existing_ext:
             # Never overwrite an existing activity — but fill in run context it
             # was imported without (start time / place arrived in a later version).
@@ -399,6 +438,7 @@ def _merge_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -
                     setattr(row, k, v)
     db.flush()
     E.absorb_manual(db, rid)       # a watch recording replaces the same hand-logged session
+    E.dedupe_activities(db, rid)   # copies stored by two syncs at once before v0.12.11
 
     integ = db.query(models.Integration).filter(models.Integration.runner_id == rid).first()
     if integ:
@@ -436,6 +476,7 @@ SYNC_LOOKBACK_DAYS = 14     # activities that reach Garmin late (another device,
 CROSS_BACKFILL_DAYS = 180   # one-time re-pull: cross-training before 2026-09-25 was never requested
 
 
+@_one_at_a_time
 def _download_and_merge(db: DBSession, rid: str, garmin) -> dict:
     skip_dates, since = _runner_history(db, rid)
     # v0.8.6: each sync starts SYNC_LOOKBACK_DAYS before the newest stored activity (merging is
@@ -574,6 +615,7 @@ DETAIL_DAYS, DETAIL_CAP = 60, 12   # every sync also fetches detailed data for r
 HR_ONLY_SPORTS = ("cycling", "swimming")   # railway#199: their heart-rate trace for Intenzita
 
 
+@_one_at_a_time
 def fetch_new_details(db: DBSession, rid: str, garmin=None) -> dict | None:
     """Detailed per-second data (track, elevation, mechanics) for the last
     DETAIL_DAYS of runs that don't have it yet — part of every sync, so segment
@@ -606,6 +648,7 @@ def fetch_new_details_bg(rid: str) -> None:
         db.close()
 
 
+@_one_at_a_time
 def _sync_from_stored(db: DBSession, rid: str, details: bool = True) -> dict:
     """Resume Garmin from the stored token, download+merge, fetch detailed data
     for new runs (details=True), then re-persist the (possibly refreshed) token.

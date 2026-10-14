@@ -23064,6 +23064,20 @@
   "kind": "jsx"
  },
  {
+  "t": "Aktivita smazána",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Aktivitu se nepodařilo smazat. Zkuste to prosím znovu.",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "aktivní",
   "files": [
    "tabs.tsx"
@@ -23773,6 +23787,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Mažu…",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Mechanika · technika běhu",
   "files": [
    "tabs.tsx"
@@ -24464,6 +24485,20 @@
    "tabs.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Smazat aktivitu",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Smazat aktivitu i s jejím hodnocením? Synchronizace hodinek ji už znovu nestáhne.",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Souhrn check-inů",

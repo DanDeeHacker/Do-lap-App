@@ -1,0 +1,8 @@
+{
+  "Aktivita smazána": "Activity deleted",
+  "Smazat aktivitu": "Delete activity",
+  "Smazat aktivitu i s jejím hodnocením? Synchronizace hodinek ji už znovu nestáhne.": "Delete the activity and its rating? The watch sync will not download it again.",
+  "Mažu…": "Deleting…",
+  "Aktivitu se nepodařilo smazat. Zkuste to prosím znovu.": "The activity could not be deleted. Please try again.",
+  "Duplicate activity merge failed": ""
+}
