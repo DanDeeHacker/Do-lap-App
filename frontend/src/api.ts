@@ -152,6 +152,7 @@ export const api = {
   outcomesOverview: () => call("GET", "/api/engine/outcomes", undefined, { skipAuthRedirect: true }),
   runHistory: (id: string, limit = 20) => call("GET", `/api/runners/${id}/run-history?limit=${limit}`),
   loadHistory: (id: string) => call("GET", `/api/runners/${id}/load-history`),
+  fitnessTrend: (id: string) => call("GET", `/api/runners/${id}/fitness-trend`),
 
   // AI summaries & training commentary (opt-in)
   coach: (rid: string) => call("GET", `/api/runners/${rid}/coach`),

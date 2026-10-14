@@ -236,7 +236,8 @@
  {
   "t": "Období",
   "files": [
-   "admin.tsx"
+   "admin.tsx",
+   "fitness.tsx"
   ],
   "kind": "str"
  },
@@ -359,6 +360,7 @@
    "admin.tsx",
    "coach.tsx",
    "coachview.tsx",
+   "fitness.tsx",
    "goal.tsx",
    "outlook.tsx",
    "report.tsx",
@@ -3392,6 +3394,7 @@
   "files": [
    "App.tsx",
    "annotate.tsx",
+   "fitness.tsx",
    "profile.tsx",
    "report.tsx",
    "tabs.tsx"
@@ -3425,7 +3428,8 @@
   "t": "Únava",
   "files": [
    "App.tsx",
-   "capacity.tsx"
+   "capacity.tsx",
+   "fitness.tsx"
   ],
   "kind": "str"
  },
@@ -5248,6 +5252,7 @@
   "files": [
    "capacity.tsx",
    "coachview.tsx",
+   "fitness.tsx",
    "report.tsx",
    "shell.tsx",
    "tabs.tsx"
@@ -5297,7 +5302,8 @@
  {
   "t": "Kritická rychlost",
   "files": [
-   "capacity.tsx"
+   "capacity.tsx",
+   "fitness.tsx"
   ],
   "kind": "str"
  },
@@ -7302,6 +7308,7 @@
   "t": "Den",
   "files": [
    "coach.tsx",
+   "fitness.tsx",
    "outlook.tsx"
   ],
   "kind": "jsx"
@@ -9825,6 +9832,7 @@
   "t": "grid size-[34px] shrink-0 place-items-center rounded-[10px] {}",
   "files": [
    "datapage.tsx",
+   "fitness.tsx",
    "selfprograms.tsx"
   ],
   "kind": "tpl"
@@ -10868,6 +10876,7 @@
    "enginecompare.tsx",
    "enginelab.tsx",
    "exfigure.tsx",
+   "fitness.tsx",
    "landing.tsx",
    "report.tsx",
    "rundetail.tsx",
@@ -11361,6 +11370,484 @@
    "firstday.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": ", zadaných {} je méně",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· zátěž dne",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "{} /km",
+  "files": [
+   "fitness.tsx",
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} % za 4 týdny",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} jste aspoň 30 s měli tep {} ({}), víc než maximum {}, se kterým aplikace počítá. Tvrdé úseky se pak počítají jako těžší, než byly. Pokud to nebyla chyba snímače, uložte si {} jako maximální tep.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} tep/min",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "1 rok",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "3 měsíce",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "6 měsíců",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez nočních dat obecných 50",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "body zátěže za den",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Čerstvost",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dlouhodobý trend celkové zátěže · rozklikni graf",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Graf",
+  "files": [
+   "fitness.tsx",
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Historie je zatím kratší než 6 týdnů, takže se Kondice teprve ustaluje.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Jak se to počítá",
+  "files": [
+   "fitness.tsx",
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kondice",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kondice (42 dní)",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kondice {}",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Kondice {}, Únava {} k {}",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Kondice a únava",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kondice minus Únava jako podíl Kondice. Kladná = poslední dny jste zatěžovali méně, než jste zvyklí, a jste odpočatější. Záporná = poslední týden byl nad vaším průměrem.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kritická rychlost se za 6 týdnů posunula z {} na {} /km ({}). Intenzita a Rychlost s ní počítají samy.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "málo zátěže na srovnání",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Maximální tep",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Maximální tep je odhad. Změřený (z testu nebo ze závodu do kopce) zadejte v profilu, zóny i zátěž budou přesnější.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Maximální tep uložen",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "medián z {} nocí za 6 měsíců",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "mimo rozsah klid–maximum, nepoužívá se",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "mt-1 block font-serif text-[19px] leading-snug {}",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Naměřili jsme vyšší tep, než s jakým aplikace počítá",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nezadán",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "obecný odhad, bez roku narození a tvrdých běhů",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "odhad z věku (208 − 0,7 × věk = {})",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "odpočatý",
+  "files": [
+   "fitness.tsx",
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Počítám trend zátěže…",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "potřebuje rychlejší úseky různé délky z detailních dat",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "před 6 týdny {} /km · počítá se z nejrychlejších úseků za 90 dní",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "průměr ~6 týdnů",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "průměr ~7 dní",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "rounded-[12px] border px-3 py-2.5 {}",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "size-5 shrink-0 text-load transition {}",
+  "files": [
+   "fitness.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Tabulka",
+  "files": [
+   "fitness.tsx",
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tep na prahu",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tep na prahu {} je mimo rozsah klidového a maximálního tepu, proto ho aplikace nepoužívá. Opravte ho v profilu.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Tep na prahu se nepoužívá",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tepové hodnoty a prahy",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "text-[12.5px] leading-[1.45] {}",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Trend jako Fitness &amp; Freshness ve Stravě nebo PMC v TrainingPeaks, z celkové zátěže všech aktivit. Jak dnes trénovat, ukazuje Připravenost a kapacita kanálů výše.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Trend se nepodařilo načíst. Zkuste to prosím později.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Trend uvidíte po prvních aktivitách z hodinek.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Uložit {} jako maximální tep",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Únava (7 dní)",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Únava {}",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "unavený",
+  "files": [
+   "fitness.tsx",
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "vyrovnaná zátěž",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "vyrovnaný",
+  "files": [
+   "fitness.tsx",
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Z čeho se počítá zátěž · rozklikni detail",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Z maximálního a klidového tepu se počítá zátěž každého běhu i minuty v Z4+, z kritické rychlosti Intenzita a Rychlost. Když maximum neodpovídá, zátěž tvrdých tréninků je nadhodnocená (nízké maximum) nebo schovaná (vysoké).",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "z nejrychlejších úseků za 90 dní",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "z nejtvrdšího běhu (průměr {} + 10){}",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "zadaný v profilu",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zátěž dne je součet zátěže všech aktivit (u běhu z tepu, u posilování z náročnosti, stejná jako v Celkové zátěži). Kondice je její vážený průměr s časovou konstantou 42 dní, Únava se 7 dny: včerejšek váží nejvíc a starší dny postupně méně. Čerstvost je (Kondice − Únava) ÷ Kondice. Hranice „vyrovnané“ zátěže (−10 až +5 %) jsou zvyklost aplikace, ne výsledek výzkumu. Model kondice a únavy dobře popisuje skupiny, u jednotlivce je hrubší, proto o dnešním tréninku nerozhoduje.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zatím málo dat pro trend v čase.",
+  "files": [
+   "fitness.tsx",
+   "ui.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "zatím neznámá",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zóny a tvrdé minuty se počítají od prahu",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zóny se počítají z tepové rezervy (klid až maximum)",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "A, B, C u signálu",
@@ -11937,6 +12424,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Čerstvost na start",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Chybí vám menstruace 3 měsíce nebo déle (mimo těhotenství a kojení)?",
   "files": [
    "goal.tsx"
@@ -12307,13 +12801,6 @@
   "kind": "str"
  },
  {
-  "t": "Graf",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Horký závod",
   "files": [
    "goal.tsx"
@@ -12329,13 +12816,6 @@
  },
  {
   "t": "Jak poroste (graf)",
-  "files": [
-   "goal.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Jak se to počítá",
   "files": [
    "goal.tsx"
   ],
@@ -12419,6 +12899,13 @@
   "kind": "str"
  },
  {
+  "t": "Kondice minus Únava jako podíl Kondice ráno v den závodu (viz Kondice a únava na Zátěži). Počítá se ze zátěže, kterou už máte za sebou, a ze zbývajících týdnů plánu. Kilometry plánu se převádějí na zátěž podle toho, kolik zátěže vám dal kilometr za posledních 6 týdnů.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Kontrolní bod · {}",
   "files": [
    "goal.tsx"
@@ -12453,6 +12940,20 @@
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Ladění jde podle plánu, na start přijdete {}.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Ladění začíná {}. Podle plánu přijdete na start {}.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "ladění, {} % vrcholu",
@@ -12565,6 +13066,13 @@
    "goal.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Na start byste přišli unavení ({}). Do závodu už jen krátce a lehce, ať únava stihne odeznít.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "na startu",
@@ -12826,6 +13334,13 @@
   "kind": "str"
  },
  {
+  "t": "Odpočatější, než plán počítá ({} místo {}). Vynechané kilometry nedohánějte, ladění snese i větší snížení objemu, když zůstane intenzita.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Plán běží bezpečnou cestou.",
   "files": [
    "goal.tsx"
@@ -12925,6 +13440,13 @@
  },
  {
   "t": "Po uložení se týdenní cíl na Tréninku řídí tímto plánem. Rizikovou cestu zvolíte v detailu cíle, jen s výslovným souhlasem.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "podle plánu",
   "files": [
    "goal.tsx"
   ],
@@ -13345,11 +13867,12 @@
   "kind": "jsx"
  },
  {
-  "t": "Tabulka",
+  "t": "teď",
   "files": [
-   "goal.tsx"
+   "goal.tsx",
+   "ui.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "Tento cíl v termínu nestihne ani riziková cesta, proto ho aplikace neuloží. Použijte nejlepší bezpečný cíl nebo pozdější termín.",
@@ -13527,6 +14050,13 @@
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "V ladění jste zatím naběhali víc, než plán počítá, takže na start vychází {} místo {}. Do závodu nic nepřidávejte a zbytek ladění držte podle plánu.",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "v týdnu {}",
@@ -16308,6 +16838,7 @@
    "enginecompare.tsx",
    "enginelab.tsx",
    "exfigure.tsx",
+   "fitness.tsx",
    "landing.tsx",
    "report.tsx",
    "rundetail.tsx",
@@ -24445,13 +24976,6 @@
   "kind": "tpl"
  },
  {
-  "t": "size-5 shrink-0 text-load transition {}",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "Skóre dnes",
   "files": [
    "tabs.tsx"
@@ -25531,13 +26055,6 @@
  },
  {
   "t": "{} · úsilí {}",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{} /km",
   "files": [
    "training.tsx"
   ],
@@ -27651,13 +28168,6 @@
   "kind": "jsx"
  },
  {
-  "t": "teď",
-  "files": [
-   "ui.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "transform .22s cubic-bezier(.2,.8,.2,1)",
   "files": [
    "ui.tsx"
@@ -27677,13 +28187,6 @@
    "ui.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "Zatím málo dat pro trend v čase.",
-  "files": [
-   "ui.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "block text-[10.5px] leading-[14px] text-fg-3 {}",

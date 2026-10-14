@@ -61,6 +61,7 @@ from . import engine as E
 from . import runner_factors as RF
 from . import speed as SP
 from . import terrain
+from . import zonecheck as ZC
 
 CHANNELS = {
     "volume": {"label": "Objem", "unit": "km", "dec": 1, "w": 1.0, "grade": "B",
@@ -1869,7 +1870,8 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
     t_iso = today.isoformat()
     db = D.of(db, rid)
     runs_only = E.acts(db, rid, "load")
-    hrmax, rhr = E.hr_bounds(runs_only, E.daily(db, rid, 180), runner.birth_year if runner else None,
+    days180 = E.daily(db, rid, 180)
+    hrmax, rhr = E.hr_bounds(runs_only, days180, runner.birth_year if runner else None,
                              runner.hr_max if runner else None)
     sessions = run_exposures(db, rid, hrmax, rhr)
     nt_days = nontraining_daily(db, rid)
@@ -2149,6 +2151,8 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
                                "known": y_iso in nights or bool(y_parts)},
                  "known": t_iso in nights or bool(parts_today),
                  "inputs": readiness_inputs(db, rid, t_iso)}
+    segs_all = {st.activity_id: st.segments_json for st in db.streams if st.segments_json}
+    cs_now = SP.cs_summary(sessions, segs_all, t_iso)
     out = {
         "score": total, "signals": signals, "channels": channels, "zones7d": zone7,
         "readiness": readiness,
@@ -2156,7 +2160,10 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
                     "underconditioned": under, "experience": exper, "tolerance": tol_rise,
                     "runSession": round(m_s * ch_m["volume"], 3), "runWeek": round(m_w * ch_m["volume"], 3)},
         "shoes": shoes,
-        "criticalSpeed": SP.cs_summary(sessions, {st.activity_id: st.segments_json for st in db.streams if st.segments_json}, t_iso),
+        "criticalSpeed": cs_now,
+        # v0.12.12 — the values the load uses, their source, and when to update one
+        "zoneCheck": ZC.check(db, runner if runner is not None else db.runner, runs_only, days180, hrmax, rhr, cs_now,
+                              SP.cs_summary(sessions, segs_all, (today - timedelta(days=ZC.CS_BACK)).isoformat()), today),
         "zones": hr_zones(hrmax, rhr, getattr(runner, "threshold_hr", None) if runner else None),
         "zoneBasis": "lthr" if (runner is not None and getattr(runner, "threshold_hr", None)
                                 and rhr < runner.threshold_hr < hrmax) else "hrr", "hrMax": E.rnd(hrmax), "hrRest": E.rnd(rhr),

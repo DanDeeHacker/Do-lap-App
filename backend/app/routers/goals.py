@@ -151,7 +151,25 @@ def get_goal(rid: str, user: models.User = Depends(get_current_user), db: DBSess
             g.projection_json = res
             db.commit()
     out.update(goal=goal, result=res, track=_track(db, rid, g, res), energy=_energy(db, rid, res))
+    out["track"]["freshness"] = _freshness(db, rid, g, res, own=user.runner_id == rid)
     return out
+
+
+def _freshness(db: DBSession, rid: str, g, res: dict, own: bool) -> dict | None:
+    """v0.12.12 — Čerstvost on the race morning. The plan's taper is kept as it stood the day
+    before it began, so the check can compare the taper as planned with the taper as run."""
+    from ..metrics import fitness as FT
+    tj = dict(g.track_json or {})
+    tp = FT.taper_plan(res.get("plan"))
+    soon = tp and (date.fromisoformat(tp["start"]) - E.today_date()).days <= 2 * FT.CHECK_LEAD_DAYS
+    if own and soon and tj.get("taperPlan") != tp:
+        tj["taperPlan"] = tp
+        g.track_json = tj
+        db.commit()
+    try:
+        return FT.race_check(db, rid, res, E.get_or_refresh_assessment(db, rid), tj.get("taperPlan"))
+    except Exception:  # noqa: BLE001 — the goal card must not fail on the check
+        return None
 
 
 def _energy(db: DBSession, rid: str, res: dict | None) -> dict:

@@ -11,6 +11,7 @@ import { Button, Card, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
 import { fmtD } from "@/lib"
 import { num } from "@/outlook"
 import { C } from "@/tokens"
+import { formWord, signed } from "@/fitness"
 import { useLang } from "@/i18n/lang"
 import { ChevronLeft, ChevronRight, Flag, Target } from "lucide-react"
 
@@ -862,6 +863,42 @@ function WeekNow({ w, weeks, gg }: { w: any; weeks?: number; gg?: any }) {
   )
 }
 
+// v0.12.12 — Čerstvost on the race morning: from a week before the taper; once it has begun, the
+// taper as planned against the taper as run so far (extra load shows, missed km are not caught up)
+const FR_LO = -30, FR_HI = 50
+const frPos = (v: number) => ((Math.max(FR_LO, Math.min(FR_HI, v)) - FR_LO) / (FR_HI - FR_LO)) * 100
+function RaceFreshness({ f }: { f: any }) {
+  const w = formWord(f.word)
+  const col = f.tone === "alert" ? C.alert : f.tone === "watch" ? C.watch : w ? w[1] : C.fgSoft
+  const now = `${signed(f.form)} %`, plan = f.planned != null ? `${signed(f.planned)} %` : null
+  const text = f.kind === "tired" ? `Na start byste přišli unavení (${now}). Do závodu už jen krátce a lehce, ať únava stihne odeznít.`
+    : f.kind === "lessFresh" ? `V ladění jste zatím naběhali víc, než plán počítá, takže na start vychází ${now} místo ${plan}. Do závodu nic nepřidávejte a zbytek ladění držte podle plánu.`
+    : f.kind === "fresher" ? `Odpočatější, než plán počítá (${now} místo ${plan}). Vynechané kilometry nedohánějte, ladění snese i větší snížení objemu, když zůstane intenzita.`
+    : f.inTaper ? `Ladění jde podle plánu, na start přijdete ${w ? w[0] : "odpočatý"}.`
+    : `Ladění začíná ${fmtDY(f.taperStart)}. Podle plánu přijdete na start ${w ? w[0] : "odpočatý"}.`
+  return (
+    <div className="nest mt-3 px-3 py-2.5" data-testid="goal-freshness">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Čerstvost na start</span>
+          <InfoDot label="Čerstvost na start" text="Kondice minus Únava jako podíl Kondice ráno v den závodu (viz Kondice a únava na Zátěži). Počítá se ze zátěže, kterou už máte za sebou, a ze zbývajících týdnů plánu. Kilometry plánu se převádějí na zátěž podle toho, kolik zátěže vám dal kilometr za posledních 6 týdnů." /></span>
+        <b className="t-num text-[18px] leading-none" style={{ color: col }}>{now}</b>
+      </div>
+      <div className="relative mt-2.5 h-2 rounded-full bg-white/[.07]" aria-hidden>
+        <i className="absolute inset-y-0 rounded-full bg-white/[.10]" style={{ left: `${frPos(-10)}%`, width: `${frPos(5) - frPos(-10)}%` }} />
+        <i className="absolute inset-y-[-3px] w-px bg-fg-4" style={{ left: `${frPos(0)}%` }} />
+        {f.planned != null && <i className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-panel" style={{ left: `${frPos(f.planned)}%`, borderColor: C.fg2 }} />}
+        <i className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-ink" style={{ left: `${frPos(f.form)}%`, background: col }} />
+      </div>
+      <div className="relative mt-1 h-3 text-[10px] leading-3 text-fg-3"><span className="absolute left-0">unavený</span>
+        <span className="absolute -translate-x-1/2" style={{ left: `${(frPos(-10) + frPos(5)) / 2}%` }}>vyrovnaný</span><span className="absolute right-0">odpočatý</span></div>
+      {plan && <p className="mt-1 flex flex-wrap gap-x-3 text-[11px] text-fg-3">
+        <span><i className="mr-1 inline-block size-2 rounded-full align-middle" style={{ background: col }} />teď {now}</span>
+        <span><i className="mr-1 inline-block size-2 rounded-full border align-middle" style={{ borderColor: C.fg2 }} />podle plánu {plan}</span></p>}
+      <p className={`mt-1.5 text-[12px] leading-[1.45] ${f.tone === "alert" ? "text-alert-soft" : f.tone === "watch" ? "text-watch" : "text-fg-2"}`} data-testid="goal-freshness-text">{text}</p>
+    </div>
+  )
+}
+
 function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy, initialTab = "overview" }: { rid: string; data: any; gg?: any; onClose: () => void; onEdit: () => void; onCancel: () => void; onChange: (d: any) => void; busy: boolean; initialTab?: DetailTab }) {
   const { goal, result: res } = data
   const [tab, setTab] = useState<DetailTab>(initialTab)
@@ -1354,6 +1391,7 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
           <span className="mt-3 flex items-center justify-end gap-1 text-[12px] font-bold text-accent">Plán, požadavky a nastavení<ChevronRight className="size-3.5" aria-hidden /></span>
         </button>
       )}
+      {goal && data.track?.freshness && <RaceFreshness f={data.track.freshness} />}
       {goal && <TrackBanners rid={rid} track={data.track} res={res} onData={setData} onEdit={() => setMode("setup")} />}
       {goal && data.track?.adherence && <div className="mt-3"><Adherence ad={data.track.adherence} compact /></div>}
       {goal && data.energy?.ask && <EnergyPrompt rid={rid} onOpen={() => openDetail("settings")} onData={setData} />}

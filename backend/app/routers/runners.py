@@ -612,6 +612,15 @@ def load_history(rid: str, user: models.User = Depends(get_current_user), db: DB
             "impactScale": (a.get("impactScale") or {}).get("load")}
 
 
+@router.get("/{rid}/fitness-trend")
+def fitness_trend(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Zátěž → Kondice a únava (v0.12.12): a year of the 42- and 7-day averages of the total
+    load and their balance, like Fitness & Freshness. A trend to read, not a decision input."""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import fitness as FT
+    return FT.trend(db, rid, E.get_or_refresh_assessment(db, rid))
+
+
 @router.get("/{rid}/run-compare/{aid}")
 def run_compare(rid: str, aid: int, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     """One run's metrics vs. the comparable run from a month before."""
