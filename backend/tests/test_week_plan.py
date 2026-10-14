@@ -155,3 +155,19 @@ def test_the_report_shows_the_plan_only_on_monday(client, db_session):
     with E.today_pinned(MON + timedelta(days=1)):
         r2 = DR.build(db_session, rid, "morning")
     assert "weekPlan" not in r2
+
+
+def test_todays_strength_session_counts_once():
+    """Owner report 2026-10-14: strength done today was counted twice — "done" (sessions since Monday)
+    already holds it and "today" was added on top, so one session read as 2× and the week's second
+    session was never planned."""
+    a = _a()
+    a["guidance"]["strength"] = {"target": 2, "done": 1, "today": True, "lastAge": 0}
+    p = WP.build(a, MON, {"name": "Runner's must-have", "due": "B", "last": MON.isoformat()})
+    planned = _items(p, "strength")
+    assert len(planned) == 1 and planned[0][0] > MON + timedelta(days=1)   # the second one, 48 h later or more
+    assert p["totals"]["strength"] == 2                                    # 1 done + 1 planned, not 1 + 1 + 1
+    a1 = _a()
+    a1["guidance"]["strength"] = {"target": 1, "done": 1, "today": True, "lastAge": 0}
+    p1 = WP.build(a1, MON, {"name": "Runner's must-have", "due": "B", "last": MON.isoformat()})
+    assert p1["totals"]["strength"] == 1 and not _items(p1, "strength")   # the week's one session is done

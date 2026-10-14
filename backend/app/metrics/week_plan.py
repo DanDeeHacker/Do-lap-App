@@ -495,7 +495,9 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
 
     # ---- strength
     st = g.get("strength") or {}
-    n_s = max(0, (st.get("target") or 0) - (st.get("done") or 0) - int(bool(st.get("today"))))
+    # "done" (guidance: strength sessions since Monday) already holds today's — counting "today" on top
+    # of it counted one session twice: the week said 2× after one session, and the second went unplanned
+    n_s = max(0, (st.get("target") or 0) - (st.get("done") or 0))
     pos_t = types.get("posilování") or {}
     hard_set = set(q_days) | ({long_day} if long_day else set()) | set(races) | (
         {today} if (typ in ("kvalitní", "dlouhý", "závod") or x.get("todayHard")) else set())
@@ -648,7 +650,7 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         "runs": sum(1 for d in days for it in items[d] if it["kind"] in ("run", "done") and not it.get("optional")
                     and it.get("km") not in (None, 0)),
         "kmLastWeek": ((((g.get("week") or {}).get("cycle") or {}).get("weeks") or [{}] * 2)[-2] or {}).get("km"),
-        "strength": len(best or []) + (st.get("done") or 0) + int(bool(st.get("today"))), "strengthTarget": st.get("target"),
+        "strength": len(best or []) + (st.get("done") or 0), "strengthTarget": st.get("target"),
         "rides": len(rides), "rideMin": sum(it["min"][1] for d in rides for it in items[d] if it["kind"] == "ride"),
     })
 
