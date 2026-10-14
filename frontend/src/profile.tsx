@@ -9,6 +9,7 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { Field, HowTo, Sheet, useAsync, useToast } from "@/ui"
 import { fmtD } from "@/lib"
+import { ZoneCheck } from "@/fitness"
 import { C } from "@/tokens"
 
 const todayIso = () => new Date().toLocaleDateString("sv-SE")
@@ -178,6 +179,7 @@ export function ProfileGate({ missing, onDone }: { missing: string[]; onDone: ()
 export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { me, boot, refresh } = useApp()
   const r = boot?.runner
+  const zc = boot?.assessment?.capacity?.zoneCheck
   const [f, setF] = useState<Record<string, any>>({})
   const [cyc, setCyc] = useState<Cycle>(cycleFrom(null))
   const { busy, err, run } = useAsync()
@@ -232,6 +234,8 @@ export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => 
         <Field label="Tep na prahu (LTHR)" hint={f.threshold_hr ? "zóny a tvrdé minuty se počítají z prahu" : "z laktátového nebo terénního testu (průměr posledních 20 min 30min testu); nepovinné"}><input className={inp} inputMode="numeric" value={f.threshold_hr ?? ""} placeholder="např. 172" onChange={(e) => set("threshold_hr", e.target.value.replace(/\D/g, ""))} /></Field>
         <Field label="Strana"><select className={inp} value={f.prior_injury_side ?? ""} onChange={(e) => set("prior_injury_side", e.target.value)}><option value="">—</option><option value="left">levá</option><option value="right">pravá</option><option value="both">obě</option></select></Field>
       </div>
+      {/* railway#215 — the values the load is computed with, beside the fields that set them */}
+      {zc && me?.runner_id && <ZoneCheck rid={me.runner_id} zc={zc} onUse={(hr) => set("hr_max", String(hr))} />}
       {f.sex === "f" && <CycleFields c={cyc} set={setCyc} />}
       {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
       <div className="mt-5 flex gap-2">

@@ -9983,7 +9983,6 @@
   "t": "grid size-[34px] shrink-0 place-items-center rounded-[10px] {}",
   "files": [
    "datapage.tsx",
-   "fitness.tsx",
    "selfprograms.tsx"
   ],
   "kind": "tpl"
@@ -11580,6 +11579,13 @@
   "kind": "str"
  },
  {
+  "t": "block text-[12px] {}",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "body zátěže za den",
   "files": [
    "fitness.tsx"
@@ -11601,6 +11607,13 @@
   "kind": "str"
  },
  {
+  "t": "Doplněno do profilu",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Graf",
   "files": [
    "fitness.tsx",
@@ -11608,6 +11621,13 @@
    "runprofile.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "grid size-8 shrink-0 place-items-center rounded-[10px] {}",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Historie je zatím kratší než 6 týdnů, takže se Kondice teprve ustaluje.",
@@ -11696,6 +11716,13 @@
   "kind": "str"
  },
  {
+  "t": "Maximální tep {} tep/min. Uložte profil.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Maximální tep je odhad. Změřený (z testu nebo ze závodu do kopce) zadejte v profilu, zóny i zátěž budou přesnější.",
   "files": [
    "fitness.tsx"
@@ -11722,13 +11749,6 @@
    "fitness.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "mt-1 block font-serif text-[19px] leading-snug {}",
-  "files": [
-   "fitness.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "Naměřili jsme vyšší tep, než s jakým aplikace počítá",
@@ -11779,6 +11799,13 @@
    "fitness.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Použít {} jako maximální tep",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "před 6 týdny {} /km · počítá se z nejrychlejších úseků za 90 dní",
@@ -11873,13 +11900,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Uložit {} jako maximální tep",
-  "files": [
-   "fitness.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "Únava (7 dní)",
   "files": [
    "fitness.tsx"
@@ -11917,7 +11937,7 @@
   "kind": "str"
  },
  {
-  "t": "Z čeho se počítá zátěž · rozklikni detail",
+  "t": "Z čeho se počítá zátěž",
   "files": [
    "fitness.tsx"
   ],
@@ -18549,6 +18569,13 @@
   "kind": "tpl"
  },
  {
+  "t": "· za týden",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "(nový týden)",
   "files": [
    "outlook.tsx"
@@ -18804,6 +18831,13 @@
   "kind": "str"
  },
  {
+  "t": "Další týden",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "dlouhý",
   "files": [
    "outlook.tsx",
@@ -18997,6 +19031,13 @@
    "outlook.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Minulý týden · {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "mt-[2px] block w-full {}",
@@ -19289,6 +19330,13 @@
   "kind": "str"
  },
  {
+  "t": "Předchozí týden",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Příklad slabší noci: kratší spánek a nižší HRV. Až bude z hodinek aspoň 10 nocí, použijí se vaše vlastní.",
   "files": [
    "outlook.tsx"
@@ -19429,11 +19477,18 @@
   "kind": "str"
  },
  {
+  "t": "Tento týden · {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Tento týden zatím žádná zátěž v tomto kanálu.",
   "files": [
    "outlook.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "týden cyklu",
@@ -19475,6 +19530,13 @@
   "files": [
    "outlook.tsx",
    "selfprograms.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "V tomto týdnu žádná zátěž v tomto kanálu.",
+  "files": [
+   "outlook.tsx"
   ],
   "kind": "str"
  },

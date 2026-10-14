@@ -8,6 +8,7 @@
 //    is the reference this file mirrors; its `grid` holds the precomputed presets).
 import { useState, type ReactNode } from "react"
 import { HowTo, InfoDot, Label, Segmented } from "@/ui"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { C } from "@/tokens"
 
@@ -54,17 +55,25 @@ const WD_SHORT = ["po", "út", "st", "čt", "pá", "so", "ne"]
 
 export function WeekLoadCard({ g, cap }: { g: any; cap: any }) {
   const wk = g.week || {}
-  const days: any[] = wk.days || []
+  // railway#216 — the arrows go back through the weeks before (0 = this week)
+  const pastWeeks: any[] = wk.past || []
+  const [back, setBack] = useState(0)
+  const pw = back > 0 ? pastWeeks[back - 1] : null
+  const days: any[] = pw ? pw.days || [] : wk.days || []
   const [ch, setCh] = useState<Ch>("volume")
   const [hover, setHover] = useState<number | null>(null)
   const [table, setTable] = useState(false)
   const [inputs, setInputs] = useState(false)
   if (days.length !== 7 || !wk.channels) return null
-  const c = wk.channels[ch] || {}
+  const cNow = wk.channels[ch] || {}
+  // a past week: what was done, the goal plan's km where it was kept — no allowance, no limits
+  const c = pw ? { unit: cNow.unit, budget: ch === "volume" ? pw.targetKm ?? null : null } as any : cNow
   const capW = cap?.channels?.[ch]?.week || null
   const d = DEC[ch]
   const unit = c.unit || ""
-  const ti = days.findIndex((x) => x.date === g.date)
+  const ti = pw ? -1 : days.findIndex((x) => x.date === g.date)
+  const span = `${new Date(days[0].date + "T12:00:00").toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })} – ${new Date(days[6].date + "T12:00:00").toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })}`
+  const go = (k: number) => { setBack(k); setHover(null) }
   const acc: Record<SrcKey, number> = { run: 0, sport: 0, strength: 0, daily: 0 }
   const rows = days.map((x, i) => {
     const add: Record<SrcKey, number> = { run: 0, sport: 0, strength: 0, daily: 0 }
@@ -75,12 +84,12 @@ export function WeekLoadCard({ g, cap }: { g: any; cap: any }) {
     return { date: x.date as string, add, cum: past ? { ...acc } : null, total: past ? total : null, dayTotal: SRC.reduce((a, s) => a + add[s.key], 0) }
   })
   const present = SRC.filter((s) => rows.some((r) => r.add[s.key] > 0))
-  const done = c.done ?? rows[Math.max(0, ti)]?.total ?? 0
+  const done = pw ? rows[6]?.total ?? 0 : c.done ?? rows[Math.max(0, ti)]?.total ?? 0
   const allow = c.todayMax != null && c.todayMax > 0 ? c.todayMax : 0
   const safeExtra = c.bound === "plan" && c.safeMax != null && c.safeMax > allow + 0.05 ? c.safeMax - allow : 0
   const target: number | null = c.budget ?? null
   // Plán od trenéra: the plan's running total by day (ghost outline behind the bars)
-  const coachMode = wk.mode === "coach"
+  const coachMode = wk.mode === "coach" && !pw
   let pc = 0
   const planCum = coachMode ? days.map((x) => (x.plan ? (pc += x.plan[ch] || 0) : null)) : null
   const planTop = planCum ? Math.max(0, ...planCum.map((v) => v || 0)) : 0
@@ -94,10 +103,19 @@ export function WeekLoadCard({ g, cap }: { g: any; cap: any }) {
         <span className="flex items-center gap-1.5"><Label>Týden od pondělí</Label><InfoDot text={MI.weekLoad} label="Týden od pondělí" /></span>
         <button type="button" onClick={() => setTable((v) => !v)} className="text-[11px] font-bold text-accent hover:underline" aria-pressed={table}>{table ? "graf" : "tabulka"}</button>
       </div>
+      {pastWeeks.length > 0 && (
+        <div className="mt-2 flex items-center justify-between gap-2" data-testid="week-nav">
+          <button type="button" onClick={() => go(back + 1)} disabled={back >= pastWeeks.length} aria-label="Předchozí týden" data-testid="week-prev"
+            className="grid size-8 place-items-center rounded-full text-fg-2 hover:bg-white/[.08] hover:text-fg disabled:opacity-25 disabled:hover:bg-transparent"><ChevronLeft className="size-4" aria-hidden /></button>
+          <span className="text-[12.5px] font-bold text-fg-soft" data-testid="week-span">{back === 0 ? `Tento týden · ${span}` : back === 1 ? `Minulý týden · ${span}` : span}</span>
+          <button type="button" onClick={() => go(back - 1)} disabled={back === 0} aria-label="Další týden" data-testid="week-next-btn"
+            className="grid size-8 place-items-center rounded-full text-fg-2 hover:bg-white/[.08] hover:text-fg disabled:opacity-25 disabled:hover:bg-transparent"><ChevronRight className="size-4" aria-hidden /></button>
+        </div>
+      )}
       <Segmented size="sm" className="mt-3" ariaLabel="Kanál" value={ch} onChange={(k) => { setCh(k); setHover(null) }}
         options={CHS.filter((k) => wk.channels[k]).map((k) => [k, CH_SHORT[k]] as const)} />
       <p className="mt-3 text-[13px] leading-5 text-fg-2" data-testid="week-load-summary">
-        <span>{CH_LABEL[ch]}</span><span>{" · od pondělí "}</span><b className="text-fg">{num(done, d)}</b>
+        <span>{CH_LABEL[ch]}</span><span>{pw ? " · za týden " : " · od pondělí "}</span><b className="text-fg">{num(done, d)}</b>
         {target != null && <><span>{coachMode ? " z plánu " : " z cíle "}</span><b className="text-fg">{num(target, d)}</b></>}{" "}<span>{unit}</span>
         {c.todayMax != null && <><span>{" · dnes ještě nejvýš "}</span><b className="text-fg">{num(c.todayMax, d)}</b></>}
       </p>
@@ -177,7 +195,7 @@ export function WeekLoadCard({ g, cap }: { g: any; cap: any }) {
           )}
         </div>
       )}
-      {nothing && <p className="mt-2 text-[12px] text-fg-3">Tento týden zatím žádná zátěž v tomto kanálu.</p>}
+      {nothing && <p className="mt-2 text-[12px] text-fg-3">{pw ? "V tomto týdnu žádná zátěž v tomto kanálu." : "Tento týden zatím žádná zátěž v tomto kanálu."}</p>}
       {/* legend: always with two or more sources; the marks for today's allowance and the target */}
       <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-fg-3" data-testid="week-legend">
         {present.length >= 2 && present.map((s) => <span key={s.key} className="flex items-center gap-1"><i className="size-2.5 rounded-[3px]" style={{ background: s.col }} />{s.label}</span>)}
@@ -187,10 +205,10 @@ export function WeekLoadCard({ g, cap }: { g: any; cap: any }) {
         {target != null && <span className="flex items-center gap-1"><i className="h-0 w-3 border-t-[1.5px] border-dashed" style={{ borderColor: C.fg2 }} />{coachMode ? "plán trenéra na týden" : "cíl týdne"}</span>}
         {planCum && planTop > 0 && <span className="flex items-center gap-1"><i className="size-2.5 rounded-[3px] border border-dashed" style={{ borderColor: C.info }} />plán po dnech</span>}
       </div>
-      <button type="button" onClick={() => setInputs((v) => !v)} aria-expanded={inputs} className="mt-3 text-[12px] font-bold text-accent hover:underline" data-testid="week-inputs-toggle">
+      {!pw && <button type="button" onClick={() => setInputs((v) => !v)} aria-expanded={inputs} className="mt-3 text-[12px] font-bold text-accent hover:underline" data-testid="week-inputs-toggle">
         {inputs ? "Skrýt, z čeho cíl a strop vychází" : "Z čeho cíl a strop vychází"}
-      </button>
-      {inputs && <WeekInputs c={c} capW={capW} g={g} unit={unit} d={d} ch={ch} />}
+      </button>}
+      {inputs && !pw && <WeekInputs c={c} capW={capW} g={g} unit={unit} d={d} ch={ch} />}
     </section>
   )
 }

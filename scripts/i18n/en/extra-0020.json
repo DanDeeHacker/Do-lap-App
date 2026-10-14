@@ -156,5 +156,16 @@
   "Čtvrt roku v bezpečném pásmu": "A quarter of a year in the safe range",
   "· milníky {}/{}": "· milestones {0}/{1}",
   "· nejdelší řada {}": "· longest run {0}",
-  "{} {} v pásmu": "{0} {1} in the range"
+  "{} {} v pásmu": "{0} {1} in the range",
+  "block text-[12px] {}": "",
+  "Doplněno do profilu": "Added to your profile",
+  "Maximální tep {} tep/min. Uložte profil.": "Maximum heart rate {0} bpm. Save your profile.",
+  "Použít {} jako maximální tep": "Use {0} as your maximum heart rate",
+  "Z čeho se počítá zátěž": "What the load is computed from",
+  "· za týden": "· for the week",
+  "Další týden": "Next week",
+  "Minulý týden · {}": "Last week · {0}",
+  "Předchozí týden": "Previous week",
+  "Tento týden · {}": "This week · {0}",
+  "V tomto týdnu žádná zátěž v tomto kanálu.": "No load in this channel that week."
 }

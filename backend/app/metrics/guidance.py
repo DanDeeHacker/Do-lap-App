@@ -72,6 +72,7 @@ CROSS_TYPES = ("kolo", "voda", "posilování")
 CYCLE_Z2 = (0.60, 0.70)          # HRR band for an easy ride
 CROSS_MIN, KOLO_MAX, VODA_MAX = 20, 90, 45
 EXTRA_RIDE_MAX = 60     # the optional ride over a met weekly target stays shorter (working assumption)
+PAST_WEEKS = 8          # railway#216: the weeks before this one on Trénink → Týden od pondělí
 STRENGTH_TARGET, STRENGTH_TARGET_RACE = 2, 1
 HEAT_NOTE = {"acclim": "Aklimatizace na horko před závodem: lehký běh 45–60 min v teple nebo ve vrstvách oblečení, případně "
                        "sauna 20–30 min po běhu, 10–14 dní po sobě. Pijte, při závrati nebo bolesti hlavy přestaňte.",
@@ -1626,24 +1627,42 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     # ---- owner feedback 2026-10-10: this calendar week day by day, by sport (the plan's
     # running total) — the same daily loads as `done`, split by where they came from
     nt_days = C.nontraining_daily(db, rid)
-    week_days = []
-    for k in range(7):
-        d = (ws + timedelta(days=k)).isoformat()
-        by = {c: {} for c in (*CHS, "systemic")}
-        if d <= t_iso:
-            for s in sessions:
-                if s["date"] != d:
-                    continue
-                src = "run" if s["run"] else s.get("sport") if s.get("sport") in ("cycling", "swimming", "strength") else "other"
-                for c in by:
-                    v = s["exp"].get(c)
-                    if not v or (c in ("volume", "descent", "ascent") and not s["run"]) \
-                            or (c == "intensity" and not (s["run"] or s.get("sport") in C.CROSS_CARDIO)):
-                        continue
-                    by[c][src] = by[c].get(src, 0.0) + v
-            if nt_days.get(d):
-                by["systemic"]["daily"] = nt_days[d]
-        week_days.append({"date": d, "by": {c: {s: _r(v, C.CHANNELS[c]["dec"]) for s, v in b.items()} for c, b in by.items()}})
+    by_date = {}
+    for s in sessions:
+        by_date.setdefault(s["date"], []).append(s)
+
+    def days_of(start):
+        out_days = []
+        for k in range(7):
+            d = (start + timedelta(days=k)).isoformat()
+            by = {c: {} for c in (*CHS, "systemic")}
+            if d <= t_iso:
+                for s in by_date.get(d, ()):
+                    src = "run" if s["run"] else s.get("sport") if s.get("sport") in ("cycling", "swimming", "strength") else "other"
+                    for c in by:
+                        v = s["exp"].get(c)
+                        if not v or (c in ("volume", "descent", "ascent") and not s["run"]) \
+                                or (c == "intensity" and not (s["run"] or s.get("sport") in C.CROSS_CARDIO)):
+                            continue
+                        by[c][src] = by[c].get(src, 0.0) + v
+                if nt_days.get(d):
+                    by["systemic"]["daily"] = nt_days[d]
+            out_days.append({"date": d, "by": {c: {s: _r(v, C.CHANNELS[c]["dec"]) for s, v in b.items()} for c, b in by.items()}})
+        return out_days
+    week_days = days_of(ws)
+    # railway#216 — the weeks before, day by day the same way (Trénink → Týden od pondělí, arrows);
+    # what the goal plan asked of the week where one was kept (goal_track snapshot, km only)
+    goal_weeks = {}
+    for g_ in db.goals:
+        if getattr(g_, "status", None) == "active":
+            goal_weeks = (g_.track_json or {}).get("weeks") or {}
+    past_weeks = []
+    for k in range(1, PAST_WEEKS + 1):
+        st_ = ws - timedelta(days=7 * k)
+        if st_ < first_day - timedelta(days=6):
+            break
+        gw_ = goal_weeks.get(st_.isoformat()) or {}
+        past_weeks.append({"start": st_.isoformat(), "days": days_of(st_), "targetKm": gw_.get("km")})
 
     # ---- owner feedback 2026-10-10: the outlook for tomorrow (outlook.py)
     def next_target(c):
@@ -1882,7 +1901,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         "types": types,
         "axes": {"load": load, "mech": a.get("mech") or 0, "threshold": E.QUAD_THRESHOLD},
         "outlook": outlook,
-        "week": {"channels": week, "mode": mode, "progression": round(factor, 3), "cycle": cycle, "days": week_days,
+        "week": {"channels": week, "mode": mode, "progression": round(factor, 3), "cycle": cycle, "days": week_days, "past": past_weeks,
                  "start": ws.isoformat(),
                  "novice": {"days": hist_days, "until": (today + timedelta(days=NOVICE_DAYS - hist_days)).isoformat()} if novice else None},
         "pattern": {**pat, "runDayNames": [WD[w] for w in pat["runDays"]],

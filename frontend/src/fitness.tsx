@@ -207,7 +207,9 @@ const HR_SRC: Record<string, (h: any) => string> = {
   default: () => "obecný odhad, bez roku narození a tvrdých běhů",
 }
 
-export function ZoneCheck({ rid, zc }: { rid: string; zc: any }) {
+// railway#215 — not a card on Zátěž any more: a section of the profile sheet, under the maximum
+// and threshold heart rate it explains; "use" puts a measured maximum into the profile's field.
+export function ZoneCheck({ rid, zc, onUse }: { rid: string; zc: any; onUse?: (hr: number) => void }) {
   const { refresh, touring } = useApp()
   const toast = useToast()
   const [open, setOpen] = useState(false)
@@ -218,20 +220,21 @@ export function ZoneCheck({ rid, zc }: { rid: string; zc: any }) {
   const warn = flags.find((f) => f.tone === "watch")
   const h = zc.hrMax || {}
   const save = async (hr: number) => {
+    if (onUse) { onUse(hr); toast({ title: "Doplněno do profilu", msg: `Maximální tep ${hr} tep/min. Uložte profil.` }); return }
     setBusy(true)
     try { await api.updateProfile(rid, { hr_max: hr }); toast({ title: "Maximální tep uložen", msg: `${hr} tep/min` }); refresh() } finally { setBusy(false) }
   }
-  const sub = above ? "Naměřili jsme vyšší tep, než s jakým aplikace počítá" : warn ? "Tep na prahu se nepoužívá" : "Z čeho se počítá zátěž · rozklikni detail"
+  const sub = above ? "Naměřili jsme vyšší tep, než s jakým aplikace počítá" : warn ? "Tep na prahu se nepoužívá" : "Z čeho se počítá zátěž"
   return (
     <section className="mt-4" data-testid="zone-check">
-      <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="card flex w-full items-center gap-4 px-4 py-4 text-left text-fg transition hover:border-load/45 md:px-5">
-        <span className={`grid size-[34px] shrink-0 place-items-center rounded-[10px] ${warn ? "bg-watch/15 text-watch" : "bg-load/15 text-load"}`}><HeartPulse className="size-4" aria-hidden /></span>
-        <span className="min-w-0 flex-1"><span className="t-label">Tepové hodnoty a prahy</span>
-          <span className={`mt-1 block font-serif text-[19px] leading-snug ${warn ? "text-watch" : ""}`}>{sub}</span></span>
-        <ChevronDown className="size-5 shrink-0 text-load transition" style={{ transform: open ? "rotate(180deg)" : undefined }} aria-hidden />
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="nest flex w-full items-center gap-3 px-3.5 py-3 text-left text-fg transition hover:border-white/20">
+        <span className={`grid size-8 shrink-0 place-items-center rounded-[10px] ${warn ? "bg-watch/15 text-watch" : "bg-load/15 text-load"}`}><HeartPulse className="size-4" aria-hidden /></span>
+        <span className="min-w-0 flex-1"><span className="block text-[13px] font-bold">Tepové hodnoty a prahy</span>
+          <span className={`block text-[12px] ${warn ? "text-watch" : "text-fg-3"}`}>{sub}</span></span>
+        <ChevronDown className="size-4 shrink-0 text-fg-3 transition" style={{ transform: open ? "rotate(180deg)" : undefined }} aria-hidden />
       </button>
       {open && (
-        <div className="card mt-3 space-y-3 p-4 md:p-5">
+        <div className="mt-2 space-y-3 px-1">
           {flags.map((f) => <Flag key={f.key} f={f} zc={zc} busy={busy} canSave={!touring} onSave={save} />)}
           <div className="divide-y divide-white/[.07]">
             <Row label="Maximální tep" value={`${h.value} tep/min`} sub={(HR_SRC[h.source] || HR_SRC.default)(h)} />
@@ -271,7 +274,7 @@ function Flag({ f, zc, busy, canSave, onSave }: { f: any; zc: any; busy: boolean
       {f.key === "hrAbove" && canSave && (
         <button type="button" disabled={busy} onClick={() => onSave(f.hr)} data-testid="zone-save-hrmax"
           className="mt-2 rounded-full bg-watch/15 px-3 py-1.5 text-[12px] font-bold text-watch transition hover:bg-watch/25 disabled:opacity-60">
-          {busy ? "Ukládám…" : `Uložit ${f.hr} jako maximální tep`}
+          {busy ? "Ukládám…" : `Použít ${f.hr} jako maximální tep`}
         </button>
       )}
     </div>
