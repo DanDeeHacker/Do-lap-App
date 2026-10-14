@@ -13,6 +13,7 @@ import { CAP_SIGNAL_IDS, CapacityPanel, readinessCol, readinessPct } from "@/cap
 import { C, goodCol } from "@/tokens"
 import { SelfPrograms } from "@/selfprograms"
 import { FirstSteps, NoData, useDataStage } from "@/firstday"
+import { RouteSvg, useRouteThumbs } from "@/routethumb"
 
 const surf = (s?: string) => ({ road: "silnice", trail: "terén", treadmill: "pás", track: "dráha" } as any)[s || ""] || s || "—"
 const dayAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10)
@@ -108,6 +109,8 @@ export function Post() {
   const rid = me!.runner_id!
   const [rate, setRate] = useState<{ act: any; initial?: any } | null>(null)
   const [crossOpen, setCrossOpen] = useState(false)
+  const thumbs = useRouteThumbs()
+  const thumbOf = (x: any) => (x && thumbs[String(x.id)] ? <RouteSvg pts={thumbs[String(x.id)]} /> : undefined)
   const toastX = useToast()
   // railway#193 — no "Jiný sport" block here any more (other sports sit in the lists with
   // the runs); Trénink's "Zapsat do deníku" for a cross session still opens the form
@@ -253,6 +256,7 @@ export function Post() {
       />
       {/* UX audit F19 — an empty diary said "complete"; say where the runs come from */}
       {!acts.length && <FirstSteps className="-mt-2 mb-4" />}
+      {acts.length > 0 && <DiaryTotals acts={acts} />}
       {rate && <RateSheet act={rate.act} initial={rate.initial} rid={rid} onClose={() => setRate(null)} onDone={() => { setRate(null); refresh() }} />}
       {crossOpen && <CrossSheet rid={rid} onClose={() => setCrossOpen(false)} onDone={() => { setCrossOpen(false); refresh() }} />}
       <div className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
@@ -264,7 +268,7 @@ export function Post() {
             {unrated.length ? (
               <div className="mt-2 divide-y divide-white/[.07]">
                 {unrated.map((x) => (
-                  <ListRow key={x.id} onClick={() => setRate({ act: x })} icon={actIcon(x)} tone="info"
+                  <ListRow key={x.id} onClick={() => setRate({ act: x })} icon={thumbOf(x) ? undefined : actIcon(x)} tileText={thumbOf(x)} tone="info"
                     title={actTitle(x)}
                     meta={isCross(x) ? `${fmtD(x.started_at)} · jiný sport${x.avg_hr ? ` · ${Math.round(x.avg_hr)} tep/min` : ""}` : `${fmtD(x.started_at)} · ${surf(x.surface)} · ${paceStr(x.pace_s_km)}/km · ${cz(x.descent_m)} m klesání`}
                     trailing={<span className="btn btn-primary btn-sm shrink-0">Zapsat</span>} />
@@ -289,7 +293,7 @@ export function Post() {
                       const cross = act && isCross(act)
                       return (
                         <div key={f.id} className="flex items-center gap-1">
-                          <ListRow icon={actIcon(act)} tone={hurt ? "alert" : "ok"}
+                          <ListRow icon={thumbOf(act) ? undefined : actIcon(act)} tileText={thumbOf(act)} tone={hurt ? "alert" : "ok"}
                             title={act ? actTitle(act) : "Běh"}
                             meta={cross
                               ? `${fmtD(f.submitted_at)}${f.rpe != null ? ` · náročnost ${f.rpe}/10` : ""}${act.strength_focus ? ` · ${(FOCUS_OPTS.find((o) => o[0] === act.strength_focus) || [0, ""])[1]}` : ""}${act.provider === "manual" ? " · zapsáno ručně" : ""}`
@@ -384,6 +388,51 @@ export function Post() {
 
 // Digest the feedback log into a lay-readable diary overview + plain-language
 // insights. All client-side so it stays in sync with edits without a round-trip.
+// v0.12.14 — Deník's week / month at a glance (Endurain's feeds with week and month statistics):
+// this period so far, the whole previous one in grey. No green or red: more is not better here.
+const periodStart = (unit: "w" | "m", back: number) => {
+  const d = new Date()
+  d.setHours(12, 0, 0, 0)
+  if (unit === "w") { d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7 * back) } else { d.setDate(1); d.setMonth(d.getMonth() - back) }
+  return d.toLocaleDateString("sv-SE")
+}
+function periodSum(acts: any[], lo: string, hi: string | null) {
+  const runs = acts.filter((x) => (x.sport || "running") === "running" && !x.excluded && x.started_at && x.started_at.slice(0, 10) >= lo && (!hi || x.started_at.slice(0, 10) < hi))
+  return { n: runs.length, km: runs.reduce((s, x) => s + (x.distance_km || 0), 0), min: runs.reduce((s, x) => s + (x.duration_min || 0), 0),
+    up: runs.reduce((s, x) => s + (x.ascent_m || 0), 0) }
+}
+const hm = (min: number) => `${Math.floor(min / 60)}:${String(Math.round(min % 60)).padStart(2, "0")}`
+
+function DiaryTotals({ acts }: { acts: any[] }) {
+  const [unit, setUnit] = useState<"w" | "m">("w")
+  const lo = periodStart(unit, 0), prevLo = periodStart(unit, 1)
+  const cur = periodSum(acts, lo, null), prev = periodSum(acts, prevLo, lo)
+  const cells: [string, string, string][] = [
+    ["Běhy", String(cur.n), String(prev.n)],
+    ["Km", cz(cur.km), cz(prev.km)],
+    ["Čas", hm(cur.min), hm(prev.min)],
+    ["Stoupání", `${Math.round(cur.up)} m`, `${Math.round(prev.up)} m`],
+  ]
+  return (
+    <section className="card mb-4 p-4 md:p-5" data-testid="diary-totals">
+      <div className="flex items-center justify-between gap-2">
+        <Label>{unit === "w" ? "Tento týden" : "Tento měsíc"}</Label>
+        <Segmented size="sm" ariaLabel="Období" value={unit} onChange={setUnit} options={[["w", "Týden"], ["m", "Měsíc"]] as const} />
+      </div>
+      <div className="mt-3 grid grid-cols-4 gap-2">
+        {cells.map(([k, v, p]) => (
+          <div key={k} className="min-w-0">
+            <span className="t-label block truncate !text-fg-3">{k}</span>
+            <b className="t-num mt-1 block truncate text-[20px] leading-none text-fg">{v}</b>
+            <span className="mt-1 block truncate text-[11px] tabular-nums text-fg-3">{p}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-[11px] text-fg-3">{unit === "w" ? "Běhy od pondělí. Šedě celý minulý týden." : "Běhy od 1. dne měsíce. Šedě celý minulý měsíc."}</p>
+    </section>
+  )
+}
+
 function diaryOverview(fb: any[]) {
   if (!fb.length) return null
   const rows = fb.slice().sort((a, b) => a.submitted_at.localeCompare(b.submitted_at))
@@ -886,6 +935,7 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
   }, [open, rid])
   // the context endpoint when it answered, else the boot activities without context
   const rows: any[] = ctx ? ctx : acts.slice().sort((a, b) => (b.started_at || "").localeCompare(a.started_at || "")).slice(0, 20)
+  const thumbs = useRouteThumbs()
   return (
     <>
       <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="card mt-4 flex w-full items-center gap-4 px-4 py-4 text-left text-fg transition hover:border-info/45 md:px-5">
@@ -904,7 +954,7 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
             return (
               <div key={x.id} id={`beh-${x.id}`} className={`scroll-mt-24 overflow-hidden rounded-[18px] border transition ${isOpen ? "border-info/40 bg-panel-2" : "border-white/[.08] bg-white/[.03] hover:border-white/15"} ${x.excluded ? "opacity-60" : ""}`}>
                 <button onClick={() => setRun(isOpen ? null : x.id)} aria-expanded={isOpen} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 text-left">
-                  <span className="grid size-[34px] place-items-center rounded-[10px] bg-info/15 text-info">{x.surface === "trail" ? <Mountain className="size-4" aria-hidden /> : <Footprints className="size-4" aria-hidden />}</span>
+                  <span className="grid size-[34px] place-items-center rounded-[10px] bg-info/15 text-info">{thumbs[String(x.id)] ? <RouteSvg pts={thumbs[String(x.id)]} /> : x.surface === "trail" ? <Mountain className="size-4" aria-hidden /> : <Footprints className="size-4" aria-hidden />}</span>
                   <span className="min-w-0">
                     <b className="text-sm font-bold">{x.title}</b>
                     {x.excluded && <span title={x.auto_excluded === "treadmill" ? AUTO_TREADMILL_TEXT : undefined} className={`ml-2 rounded-full px-2 py-0.5 align-middle text-[11px] font-bold uppercase tracking-[.08em] ${x.auto_excluded ? "bg-watch/15 text-watch" : "bg-white/[.08] text-fg-2"}`}>{x.auto_excluded === "treadmill" ? "pás · automaticky bez mechaniky" : (x.excluded_scope || "all") === "all" ? "vyřazeno" : x.excluded_scope === "mech" ? "bez mechaniky" : "bez zátěže"}</span>}
@@ -2099,6 +2149,7 @@ function LoadHistory({ rid }: { rid: string }) {
   const scale: number | null = data ? data.impactScale ?? null : null
   const imp = (pts: number) => (scale != null ? fmtImpact(toImpact(pts, scale)) : pts >= 0.5 ? `+${mfmt(1, pts)} b` : "0 b")
   const todayIso = new Date().toLocaleDateString("sv-SE")
+  const thumbs = useRouteThumbs()
   return (
     <section className="mt-4" data-testid="load-history">
       <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="card flex w-full items-center gap-4 px-4 py-4 text-left text-fg transition hover:border-load/45 md:px-5">
@@ -2122,7 +2173,7 @@ function LoadHistory({ rid }: { rid: string }) {
             return (
               <div key={x.id} id={`akt-${x.id}`} className={`scroll-mt-24 overflow-hidden rounded-[18px] border transition ${isOpen ? "border-load/40 bg-panel-2" : "border-white/[.08] bg-white/[.03] hover:border-white/15"}`}>
                 <button onClick={() => setSel(isOpen ? null : x.id)} aria-expanded={isOpen} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 text-left">
-                  <span className={`grid size-[34px] place-items-center rounded-[10px] ${x.run ? "bg-load/15 text-load" : "bg-info/15 text-info"}`}><Icon className="size-4" aria-hidden /></span>
+                  <span className={`grid size-[34px] place-items-center rounded-[10px] ${x.run ? "bg-load/15 text-load" : "bg-info/15 text-info"}`}>{x.run && thumbs[String(x.id)] ? <RouteSvg pts={thumbs[String(x.id)]} /> : <Icon className="size-4" aria-hidden />}</span>
                   <span className="min-w-0">
                     <b className="text-sm font-bold">{x.title || x.sportLabel}</b>
                     <span className="block text-[12px] text-fg-3">{meta}</span>

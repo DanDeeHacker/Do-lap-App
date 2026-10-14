@@ -38,11 +38,79 @@ const DEFS: Record<MetricId, Def> = {
 // the usual range the readiness uses (mean ± 1 SD of the nights 8–56 days back)
 const RANGE_KEY: Partial<Record<MetricId, string>> = { hrv: "hrv", rhr: "rhr", sleep: "sleep" }
 
-let dailyCache: { rid: string; asOf: string; rows: any[] } | null = null
-
 const iso = (d: Date) => d.toLocaleDateString("sv-SE")
 const monday = (s: string) => { const d = new Date(s.slice(0, 10) + "T12:00:00"); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return iso(d) }
 const nf = (v: number, dec: number) => v.toLocaleString("cs-CZ", { maximumFractionDigits: dec, minimumFractionDigits: dec })
+
+// half a year of nights (HRV, resting HR, sleep), one request per assessment, shared by the
+// sheet and the tiles' trend lines
+let dailyCache: { key: string; rows: any[] } | null = null
+let dailyInflight: { key: string; p: Promise<any[]> } | null = null
+function loadDaily(rid: string, asOf: string): Promise<any[]> {
+  const key = `${rid}|${asOf}`
+  if (dailyCache?.key === key) return Promise.resolve(dailyCache.rows)
+  if (dailyInflight?.key === key) return dailyInflight.p
+  const p = api.daily(rid, 183).then((rows: any) => {
+    const r = Array.isArray(rows) ? [...rows].sort((x, y) => String(x.date).localeCompare(String(y.date))) : []
+    dailyCache = { key, rows: r }
+    return r
+  }).catch(() => [] as any[]).finally(() => { if (dailyInflight?.key === key) dailyInflight = null })
+  dailyInflight = { key, p }
+  return p
+}
+export function useDailyRows(rid: string, asOf: string, enabled = true): any[] | null {
+  const key = `${rid}|${asOf}`
+  const [rows, setRows] = useState<any[] | null>(dailyCache?.key === key ? dailyCache.rows : null)
+  useEffect(() => {
+    if (!enabled || !rid) return
+    let alive = true
+    loadDaily(rid, asOf).then((r) => alive && setRows(r))
+    return () => { alive = false }
+  }, [rid, asOf, enabled])
+  return rows
+}
+
+/** Running km per week (Monday–Sunday), the last `weeks` weeks, oldest first. */
+export function weeklyKm(acts: any[], weeks: number): { t: string; v: number }[] {
+  const wk = new Map<string, number>()
+  for (const x of acts || []) {
+    if ((x.sport && x.sport !== "running") || x.excluded || !x.started_at) continue
+    const m = monday(String(x.started_at))
+    wk.set(m, (wk.get(m) || 0) + (x.distance_km || 0))
+  }
+  const out: { t: string; v: number }[] = []
+  const d = new Date(monday(iso(new Date())) + "T12:00:00")
+  for (let k = weeks - 1; k >= 0; k--) { const m = new Date(d); m.setDate(d.getDate() - 7 * k); const s = iso(m); out.push({ t: s, v: Math.round((wk.get(s) || 0) * 10) / 10 }) }
+  return out
+}
+
+const valueOf = (id: string, def: Def, r: any) => (r ? (r[def.field!] ?? (id === "readiness" ? r.readiness : null)) ?? null : null) as number | null
+
+/** v0.12.14 — the tiles' trend lines (NOOP's stat tiles): the last 14 days of each number,
+ *  weekly km over the last 8 weeks. {card id: values, oldest first; null = a day without data}. */
+export function useTileTrends(ids: string[]): Record<string, (number | null)[]> {
+  const { me, boot } = useApp()
+  const rid = me?.runner_id || ""
+  const asOf = boot?.assessment?.computed_at || ""
+  const metric = ids.filter((id): id is MetricId => (METRIC_IDS as readonly string[]).includes(id))
+  const daily = useDailyRows(rid, asOf, metric.some((id) => DEFS[id].source === "daily"))
+  const hist = useQuadHistory(rid)
+  const key = metric.join(",")
+  return useMemo(() => {
+    const out: Record<string, (number | null)[]> = {}
+    const days = Array.from({ length: 14 }, (_, k) => iso(new Date(Date.now() - (13 - k) * 86400000)))
+    for (const id of metric) {
+      const def = DEFS[id]
+      if (def.source === "acts") { out[id] = weeklyKm(boot?.activities || [], 8).map((p) => p.v); continue }
+      const rows = def.source === "hist" ? hist : daily
+      if (!rows) continue
+      const by = new Map(rows.map((r: any) => [String(r.date).slice(0, 10), r]))
+      out[id] = days.map((d) => valueOf(id, def, by.get(d)))
+    }
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, hist, daily, boot?.activities])
+}
 
 export function MetricSheet({ id, onClose }: { id: MetricId; onClose: () => void }) {
   const { me, boot } = useApp()
@@ -51,33 +119,12 @@ export function MetricSheet({ id, onClose }: { id: MetricId; onClose: () => void
   const a = boot?.assessment
   const hist = useQuadHistory(rid)
   const asOf = a?.computed_at || ""
-  const [daily, setDaily] = useState<any[] | null>(dailyCache && dailyCache.rid === rid && dailyCache.asOf === asOf ? dailyCache.rows : null)
+  const daily = useDailyRows(rid, asOf, def.source === "daily")
   const [range, setRange] = useState<Range>(def.weekly ? "91" : "30")
-  useEffect(() => {
-    if (def.source !== "daily" || !rid) return
-    if (dailyCache && dailyCache.rid === rid && dailyCache.asOf === asOf) { setDaily(dailyCache.rows); return }
-    let alive = true
-    api.daily(rid, 183).then((rows: any) => {
-      const r = Array.isArray(rows) ? [...rows].sort((x, y) => String(x.date).localeCompare(String(y.date))) : []
-      dailyCache = { rid, asOf, rows: r }
-      if (alive) setDaily(r)
-    }).catch(() => alive && setDaily([]))
-    return () => { alive = false }
-  }, [rid, asOf, def.source])
-  const all = useMemo(() => {
-    if (def.source === "hist") return (hist || []).map((h: any) => ({ t: String(h.date), v: (h[def.field!] ?? (id === "readiness" ? h.readiness : null)) as number | null }))
-    if (def.source === "daily") return (daily || []).map((r: any) => ({ t: String(r.date), v: (r[def.field!] ?? null) as number | null }))
-    // weekly km from the runs
-    const wk = new Map<string, number>()
-    for (const x of (boot?.activities || []) as any[]) {
-      if ((x.sport && x.sport !== "running") || x.excluded || !x.started_at) continue
-      const m = monday(String(x.started_at))
-      wk.set(m, (wk.get(m) || 0) + (x.distance_km || 0))
-    }
-    const out: { t: string; v: number | null }[] = []
-    const d = new Date(monday(iso(new Date())) + "T12:00:00")
-    for (let k = 26; k >= 0; k--) { const m = new Date(d); m.setDate(d.getDate() - 7 * k); const s = iso(m); out.push({ t: s, v: Math.round((wk.get(s) || 0) * 10) / 10 }) }
-    return out
+  const all = useMemo((): { t: string; v: number | null }[] => {
+    if (def.source === "hist") return (hist || []).map((h: any) => ({ t: String(h.date), v: valueOf(id, def, h) }))
+    if (def.source === "daily") return (daily || []).map((r: any) => ({ t: String(r.date), v: valueOf(id, def, r) }))
+    return weeklyKm(boot?.activities || [], 27)
   }, [def, hist, daily, boot?.activities, id])
   const lo = iso(new Date(Date.now() - (Number(range) - 1) * 86400000))
   const pts = all.filter((p) => p.t >= (def.weekly ? monday(lo) : lo))

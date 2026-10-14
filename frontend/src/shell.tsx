@@ -11,8 +11,8 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { QUAD } from "@/lib"
 import { C, goodCol } from "@/tokens"
-import { Label, Sheet, Switch } from "@/ui"
-import { METRIC_IDS, MetricSheet, type MetricId } from "@/metricsheet"
+import { Label, MiniTrend, Sheet, Switch } from "@/ui"
+import { METRIC_IDS, MetricSheet, useTileTrends, type MetricId } from "@/metricsheet"
 import { readinessCol, readinessPct } from "@/capacity"
 import { dataStage } from "@/firstday"
 
@@ -208,6 +208,7 @@ export function StatRail() {
   const q = a?.quadrant ? QUAD[a.quadrant] : null
   const qCol = a?.quadrant === "critical" ? C.alert : a?.quadrant === "overreaching" ? C.watch : a?.quadrant === "silent" ? C.self : C.ok
   const list = (chosen || DEFAULT_RAIL).map((id) => cards.find((c) => c.id === id)).filter(Boolean) as RailCard[]
+  const trends = useTileTrends(list.map((c) => c.id))
   return (
     <aside className="sticky top-[88px] hidden max-h-[calc(100dvh-104px)] self-start overflow-y-auto pb-6 xl:block" aria-label="Přehled">
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -240,8 +241,11 @@ export function StatRail() {
               </span>
               {v ? (
                 <>
-                  <span className="t-num mt-2 block text-[28px] leading-none" style={{ color: v.col || C.fg }}>
-                    {v.value}{v.unit && <small className="ml-1 text-[13px] font-semibold tracking-normal text-fg-3">{v.unit}</small>}
+                  <span className="mt-2 flex items-end justify-between gap-3">
+                    <span className="t-num block whitespace-nowrap text-[28px] leading-none" style={{ color: v.col || C.fg }}>
+                      {v.value}{v.unit && <small className="ml-1 text-[13px] font-semibold tracking-normal text-fg-3">{v.unit}</small>}
+                    </span>
+                    <MiniTrend vals={trends[c.id]} className="mb-0.5 w-[92px] shrink-0" />
                   </span>
                   {v.pct != null && <span className="mt-2.5 block h-1.5 rounded-full bg-white/[.08]"><i className="block h-full rounded-full" style={{ width: `${Math.max(3, Math.min(100, v.pct))}%`, background: v.col || C.info }} /></span>}
                   {v.sub && <span className="mt-2 block truncate text-[12px] text-fg-2">{v.sub}</span>}
@@ -265,11 +269,12 @@ export function TodayNumbers() {
   const [chosen, save, isDefault] = useCardChoice("today")
   const [editing, setEditing] = useState(false)
   const [open, setOpen] = useState<MetricId | null>(null)
-  if (!cards.length || chosen === null) return null
   // the untouched default shows only the numbers this runner has (no "Zatím bez dat" tiles
   // for a runner without nights from a watch); a saved choice shows what was chosen
-  const list = (chosen.map((id) => cards.find((c) => c.id === id)).filter(Boolean) as RailCard[])
+  const list = ((chosen || []).map((id) => cards.find((c) => c.id === id)).filter(Boolean) as RailCard[])
     .filter((c) => !isDefault || c.render() != null)
+  const trends = useTileTrends(list.map((c) => c.id))
+  if (!cards.length || chosen === null) return null
   return (
     <section className="mt-5 xl:hidden" aria-label="Moje čísla" data-testid="today-numbers">
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -295,6 +300,7 @@ export function TodayNumbers() {
                     <span className="t-num mt-1.5 block whitespace-nowrap text-[22px] leading-none" style={{ color: v.col || C.fg }}>
                       {v.value}{v.unit && <small className="ml-1 text-[11px] font-semibold tracking-normal text-fg-3">{v.unit}</small>}
                     </span>
+                    <MiniTrend vals={trends[c.id]} className="mt-2" />
                     {v.sub && <span className="mt-1.5 block truncate text-[11px] text-fg-3">{v.sub}</span>}
                   </>
                 ) : <span className="mt-1.5 block text-[11px] text-fg-3">Zatím bez dat</span>}

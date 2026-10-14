@@ -689,6 +689,7 @@ def fetch_new_details(db: DBSession, rid: str, garmin=None) -> dict | None:
             garmin = garmin_live.resume_session(own.token_blob, bool(own.encrypted))
         out = _fetch_streams(db, rid, garmin, since_days=DETAIL_DAYS, cap=DETAIL_CAP)
         out["gear"] = fetch_gear(db, rid, garmin)           # v0.12.13 — shoes per run
+        out["tracks"] = fetch_tracks(db, rid, garmin)       # v0.12.14 — routes of older runs
         if own is not None:
             _store_session(db, rid, garmin, auto_sync=bool(own.auto_sync))   # keep a refreshed token
         return out
@@ -902,11 +903,26 @@ def _store_run_stream(db: DBSession, rid: str, a, old, res: dict, segs: list):
     return st
 
 
+def _track_from(db: DBSession, rid: str, a, st, garmin):
+    """One run's route and series from Garmin into its stream row (created when missing).
+    Raises on a failed Garmin request; a stream that yields no track keeps {"v": 1}, so it is
+    not fetched again."""
+    from ..metrics import segmentation, stream_qc
+    res = stream_qc.process(garmin_live.fetch_details(garmin, a.external_id))
+    if st is not None:
+        st.route_json, st.track_json = _track_of(a, res.get("records") or [])
+    else:
+        segs = segmentation.segment(res.get("records") or [], surface=a.surface) if res.get("accepted") else []
+        st = _store_run_stream(db, rid, a, None, res, segs)
+    if st.track_json is None:
+        st.track_json = {"v": 1}
+    return st
+
+
 @_one_at_a_time
 def fetch_run_track(db: DBSession, rid: str, aid: int) -> bool:
     """v0.12.13 — the run detail's route and series for a run whose detailed data was stored
     before them: fetched from Garmin once, when the runner opens the run. True when stored."""
-    from ..metrics import segmentation, stream_qc
     a = db.query(models.Activity).filter(models.Activity.id == aid, models.Activity.runner_id == rid).first()
     if a is None or a.provider != "garmin" or not a.external_id or not E.is_run(a):
         return False
@@ -918,16 +934,47 @@ def fetch_run_track(db: DBSession, rid: str, aid: int) -> bool:
         return False
     try:
         garmin = garmin_live.resume_session(row.token_blob, bool(row.encrypted))
-        res = stream_qc.process(garmin_live.fetch_details(garmin, a.external_id))
+        st = _track_from(db, rid, a, st, garmin)
     except Exception:  # noqa: BLE001 — no detail now; the run detail shows what it has
+        db.rollback()
         return False
-    if st is not None:
-        st.route_json, st.track_json = _track_of(a, res.get("records") or [])
-    else:
-        segs = segmentation.segment(res.get("records") or [], surface=a.surface) if res.get("accepted") else []
-        st = _store_run_stream(db, rid, a, None, res, segs)
     db.commit()
-    return st.track_json is not None
+    return bool(st.track_json and (st.track_json.get("series") or st.track_json.get("splits")))
+
+
+TRACK_DAYS, TRACK_CAP = 120, 6
+
+
+def fetch_tracks(db: DBSession, rid: str, garmin) -> int:
+    """v0.12.14 — runs whose detailed data was stored before v0.12.13 get their route and
+    series a few per sync (newest first), so the run lists fill with route outlines without
+    a burst of Garmin requests. Never raises."""
+    try:
+        lo = E.day_ago(TRACK_DAYS)
+        rows = (db.query(models.ActivityStream, models.Activity)
+                .join(models.Activity, models.Activity.id == models.ActivityStream.activity_id)
+                .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.track_json.is_(None),
+                        models.Activity.provider == "garmin", models.Activity.external_id.isnot(None),
+                        models.Activity.sport == "running", models.Activity.started_at > lo)
+                .order_by(models.Activity.started_at.desc()).limit(TRACK_CAP * 3).all())
+        n = 0
+        for st, a in rows:
+            if (st.quality_json or {}).get("failed"):
+                continue
+            if n >= TRACK_CAP:
+                break
+            try:
+                _track_from(db, rid, a, st, garmin)
+            except Exception as e:  # noqa: BLE001
+                if any(x in str(e).lower() for x in ("429", "too many", "rate")):
+                    break
+                st.track_json = {"v": 1}
+            n += 1
+        db.commit()
+        return n
+    except Exception:  # noqa: BLE001
+        db.rollback()
+        return 0
 
 
 def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap: int = 25, retry_failed: bool = False) -> dict:

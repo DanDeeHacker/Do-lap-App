@@ -36,8 +36,9 @@ import { track, useUsageTracking } from "@/usage"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C, badCol, goodCol } from "@/tokens"
-import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, Users, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, NotebookPen, LogOut, Moon, RefreshCw, SlidersHorizontal, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
+import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, Users, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, NotebookPen, LogOut, Moon, RefreshCw, SlidersHorizontal, Sparkles, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail, TodayNumbers, Wordmark } from "@/shell"
+import { NewsPrompt, NewsSheet } from "@/news"
 import { Landing } from "@/landing"
 import { LangSwitch } from "@/i18n/LangSwitch"
 import { getLang } from "@/i18n/lang"
@@ -87,6 +88,7 @@ function useDynamicReveal() {
 function Topbar() {
   const [profileOpen, setProfileOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [newsOpen, setNewsOpen] = useState(false)
   const { me, realMe, boot, logout, viewing } = useApp()
   const nav = useNavigate()
   const { pathname } = useLocation()
@@ -182,6 +184,7 @@ function Topbar() {
                   )}
                   <button onClick={() => { setProfileOpen(false); setEditOpen(true) }} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><UserPen className="size-4 text-fg-2" aria-hidden />Upravit profil</button>
                   <Link to="/data" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Database className="size-4 text-fg-2" aria-hidden />Data a připojení</Link>
+                  <button onClick={() => { setProfileOpen(false); setNewsOpen(true) }} data-testid="menu-news" className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Sparkles className="size-4 text-fg-2" aria-hidden />Co je nového</button>
                   {/* feedback #187 — the engine sandbox is for the app's owners only */}
                   {realMe?.owner && <Link to="/engine" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><SlidersHorizontal className="size-4 text-fg-2" aria-hidden />Citlivostní analýza</Link>}
                   {realMe?.owner && <Link to="/admin" onClick={() => setProfileOpen(false)} data-testid="menu-admin" className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Users className="size-4 text-fg-2" aria-hidden />Správa uživatelů</Link>}
@@ -199,6 +202,7 @@ function Topbar() {
         )}
       </div>
       <ProfileSheet open={editOpen} onClose={() => setEditOpen(false)} />
+      <NewsSheet open={newsOpen} onClose={() => setNewsOpen(false)} all />
     </header>
   )
 }
@@ -1349,6 +1353,7 @@ function TodayV2() {
       </section>
       )}
       {stage !== "none" && <TodayNumbers />}
+      {stage !== "none" && <NewsPrompt />}
     </>
   )
 }

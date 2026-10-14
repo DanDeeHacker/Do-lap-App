@@ -240,7 +240,8 @@
   "files": [
    "admin.tsx",
    "fitness.tsx",
-   "metricsheet.tsx"
+   "metricsheet.tsx",
+   "tabs.tsx"
   ],
   "kind": "str"
  },
@@ -366,6 +367,7 @@
    "fitness.tsx",
    "goal.tsx",
    "metricsheet.tsx",
+   "news.tsx",
    "outlook.tsx",
    "report.tsx",
    "training.tsx"
@@ -1422,6 +1424,14 @@
   "t": "Co bolest dělá",
   "files": [
    "App.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Co je nového",
+  "files": [
+   "App.tsx",
+   "news.tsx"
   ],
   "kind": "jsx"
  },
@@ -3316,6 +3326,7 @@
    "report.tsx",
    "selfprograms.tsx",
    "shell.tsx",
+   "tabs.tsx",
    "training.tsx"
   ],
   "kind": "jsx"
@@ -5388,6 +5399,7 @@
    "fitness.tsx",
    "landing.tsx",
    "report.tsx",
+   "routethumb.tsx",
    "rundetail.tsx",
    "runprofile.tsx",
    "tabs.tsx",
@@ -6880,7 +6892,8 @@
   "t": "Rozumím",
   "files": [
    "care.tsx",
-   "goal.tsx"
+   "goal.tsx",
+   "news.tsx"
   ],
   "kind": "jsx"
  },
@@ -8596,7 +8609,8 @@
   "t": "Týden",
   "files": [
    "coach.tsx",
-   "goal.tsx"
+   "goal.tsx",
+   "tabs.tsx"
   ],
   "kind": "str"
  },
@@ -17090,6 +17104,7 @@
    "fitness.tsx",
    "landing.tsx",
    "report.tsx",
+   "routethumb.tsx",
    "rundetail.tsx",
    "runprofile.tsx",
    "tabs.tsx",
@@ -17423,6 +17438,63 @@
   "t": "Zezadu",
   "files": [
    "MuscleAnatomy.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Boty u každého běhu",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Detail běhu",
+  "files": [
+   "news.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Moje čísla na Dnes",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pod kartou Dnes si vyberte a seřaďte čísla. Každé ukazuje vývoj za poslední dny, klepnutím otevřete celý graf.",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Trasa (vidíte ji jen vy), mezičasy a průběh tempa a tepu. Otevřete ho z Deníku i ze seznamů běhů na Mechanice a Zátěži, kde běh poznáte podle tvaru trasy.",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Výchozí pár, spárování s botami z Garminu a kilometry pro každý pár zvlášť (profil → Boty).",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Výhled na zítra a Deník",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Výhled začíná zítřejším dnem z plánu týdne a slabší noc bere z vašich nocí. Deník nahoře shrnuje týden a měsíc.",
+  "files": [
+   "news.tsx"
   ],
   "kind": "str"
  },
@@ -20612,6 +20684,7 @@
   "files": [
    "report.tsx",
    "rundetail.tsx",
+   "tabs.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -22265,7 +22338,8 @@
   "t": "Km",
   "files": [
    "rundetail.tsx",
-   "runprofile.tsx"
+   "runprofile.tsx",
+   "tabs.tsx"
   ],
   "kind": "jsx"
  },
@@ -24387,7 +24461,28 @@
   "kind": "str"
  },
  {
+  "t": "Běhy",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "běhy čekají",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Běhy od 1. dne měsíce. Šedě celý minulý měsíc.",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Běhy od pondělí. Šedě celý minulý týden.",
   "files": [
    "tabs.tsx"
   ],
@@ -24639,13 +24734,6 @@
    "tabs.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Detail běhu",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Detailních dat",
@@ -25006,6 +25094,13 @@
  },
  {
   "t": "Mechanika se mění",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Měsíc",
   "files": [
    "tabs.tsx"
   ],
@@ -25881,6 +25976,13 @@
  },
  {
   "t": "Tento běh je vyřazený jen ze zátěže a kapacity — do mechaniky se dál počítá.",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tento měsíc",
   "files": [
    "tabs.tsx"
   ],
@@ -28783,6 +28885,13 @@
    "ui.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "relative block {}",
+  "files": [
+   "ui.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "relative h-6 w-10 shrink-0 rounded-full transition disabled:opacity-50 {}",

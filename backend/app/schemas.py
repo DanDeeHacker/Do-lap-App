@@ -273,3 +273,4 @@ class SettingsPatch(Lenient):
     notify_checkin: Optional[bool] = None
     rail_cards: Optional[list[str]] = None
     today_cards: Optional[list[str]] = None
+    news_seen: Optional[str] = None

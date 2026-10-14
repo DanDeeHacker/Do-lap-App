@@ -301,6 +301,29 @@ export function ChartTip({ value, sub, color, leftPct, top = 0 }: { value: React
   )
 }
 
+/** v0.12.14 — a tile's trend line: no axes, no tooltip (the tile opens the full chart), a gap
+ *  for a day without data, the latest value as a dot. */
+export function MiniTrend({ vals, color = C.info, h = 22, className = "" }: { vals?: (number | null)[]; color?: string; h?: number; className?: string }) {
+  if (!vals) return null
+  const known = vals.map((v, i) => [i, v] as const).filter((p): p is readonly [number, number] => p[1] != null)
+  if (known.length < 2) return null
+  const mn = Math.min(...known.map((p) => p[1])), mx = Math.max(...known.map((p) => p[1]))
+  const rg = mx - mn || 1
+  const x = (i: number) => (vals.length > 1 ? (i / (vals.length - 1)) * 100 : 50)
+  const y = (v: number) => 2 + (1 - (v - mn) / rg) * (h - 4)
+  let d = ""
+  vals.forEach((v, i) => { if (v == null) return; d += `${i && vals[i - 1] != null ? "L" : "M"}${x(i).toFixed(2)} ${y(v).toFixed(2)}` })
+  const [li, lv] = known[known.length - 1]
+  return (
+    <span className={`relative block ${className}`} style={{ height: h }} aria-hidden="true">
+      <svg viewBox={`0 0 100 ${h}`} preserveAspectRatio="none" className="block size-full overflow-visible">
+        <path d={d} fill="none" stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" opacity={0.9} />
+      </svg>
+      <i className="absolute size-[6px] -translate-x-1/2 -translate-y-1/2 rounded-full" style={{ left: `${x(li)}%`, top: y(lv), background: color }} />
+    </span>
+  )
+}
+
 export function Sparkline({ vals, color = C.info, h = 48 }: { vals: number[]; color?: string; h?: number }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)

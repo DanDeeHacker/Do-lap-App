@@ -636,6 +636,31 @@ def run_track(rid: str, aid: int, user: models.User = Depends(get_current_user),
             "shoe": run_shoe(db, rid, a) if a is not None and E.is_run(a) else None}
 
 
+THUMB_DAYS, THUMB_MAX = 400, 150
+
+
+@router.get("/{rid}/route-thumbs")
+def route_thumbs(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """v0.12.14 — the shape of each run's route for the run lists (Deník, Mechanika, Zátěž):
+    {activity id: [x0, y0, …] in 0–100}. Only the shape, no coordinates — and like the route
+    itself, only to the runner's own session (empty for a physio, a coach link or the admin view)."""
+    ensure_runner_read_access(db, user, rid)
+    if user.runner_id != rid:
+        return {"thumbs": {}}
+    from ..metrics import run_track as RT
+    rows = (db.query(models.ActivityStream.activity_id, models.ActivityStream.route_json)
+            .join(models.Activity, models.Activity.id == models.ActivityStream.activity_id)
+            .filter(models.ActivityStream.runner_id == rid, models.ActivityStream.route_json.isnot(None),
+                    models.Activity.started_at > E.day_ago(THUMB_DAYS))
+            .order_by(models.Activity.started_at.desc()).limit(THUMB_MAX).all())
+    out = {}
+    for aid, route in rows:
+        t = RT.thumb(route)
+        if t:
+            out[str(aid)] = t
+    return {"thumbs": out}
+
+
 @router.get("/{rid}/fitness-trend")
 def fitness_trend(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     """Zátěž → Kondice a únava (v0.12.12): a year of the 42- and 7-day averages of the total

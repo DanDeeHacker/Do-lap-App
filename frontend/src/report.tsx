@@ -1574,7 +1574,7 @@ const seenKey = (rid: string, day: string, k: Kind) => `dl-report-seen:${rid}:${
 const wasSeen = (key: string) => { try { return !!localStorage.getItem(key) } catch { return false } }
 const markSeen = (key: string) => { try { localStorage.setItem(key, "1") } catch { /* private mode */ } }
 
-type ReportApi = { kind: Kind | null; open: () => void }
+type ReportApi = { kind: Kind | null; open: () => void; showing?: boolean }
 const ReportCtx = createContext<ReportApi>({ kind: null, open: () => {} })
 export const useReport = () => useContext(ReportCtx)
 
@@ -1632,7 +1632,7 @@ export function ReportProvider({ children }: { children: ReactNode }) {
     api.reportAi(rid, rep.kind).then((x: any) => alive && setAi({ key: repKey, notes: x.notes || {}, source: x.source })).catch(() => {})
     return () => { alive = false }
   }, [rid, repKey]) // eslint-disable-line react-hooks/exhaustive-deps
-  const value = useMemo<ReportApi>(() => ({ kind: rep ? rep.kind : null, open: () => setShow(true) }), [rep])
+  const value = useMemo<ReportApi>(() => ({ kind: rep ? rep.kind : null, open: () => setShow(true), showing: show && !!rep }), [rep, show])
   useEffect(() => { if (show && rep) track(`report-${rep.kind}`) }, [show, rep?.kind])
   const onAsk = (q: string) => { setShow(false); setTimeout(() => ask(q), 50) }
   // owner request 2026-10-05: a programme from the report — saved among the runner's

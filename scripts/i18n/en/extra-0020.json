@@ -92,5 +92,20 @@
   "Strop na zítra": "Tomorrow's ceiling",
   "Zítra nejvýš {} km, plán zkraťte.": "At most {0} km tomorrow; shorten the plan.",
   "Zítra v plánu týdne": "Tomorrow in the week's plan",
-  "Bez běhu, podle plánu týdne.": "No run, as the week's plan has it."
+  "Bez běhu, podle plánu týdne.": "No run, as the week's plan has it.",
+  "Co je nového": "What's new",
+  "Boty u každého běhu": "Shoes for every run",
+  "Moje čísla na Dnes": "My numbers on Today",
+  "Pod kartou Dnes si vyberte a seřaďte čísla. Každé ukazuje vývoj za poslední dny, klepnutím otevřete celý graf.": "Choose and order the numbers under the Today card. Each shows its trend over the last days; tap one for the full chart.",
+  "Trasa (vidíte ji jen vy), mezičasy a průběh tempa a tepu. Otevřete ho z Deníku i ze seznamů běhů na Mechanice a Zátěži, kde běh poznáte podle tvaru trasy.": "The route (only you can see it), splits, and pace and heart rate along the run. Open it from the Diary and from the run lists on Mechanics and Load, where you can spot a run by the shape of its route.",
+  "Výchozí pár, spárování s botami z Garminu a kilometry pro každý pár zvlášť (profil → Boty).": "A default pair, pairing with your shoes in Garmin, and kilometres for each pair (profile → Shoes).",
+  "Výhled na zítra a Deník": "Tomorrow's outlook and the Diary",
+  "Běhy": "Runs",
+  "Běhy od 1. dne měsíce. Šedě celý minulý měsíc.": "Runs since the 1st of the month. In grey: the whole of last month.",
+  "Běhy od pondělí. Šedě celý minulý týden.": "Runs since Monday. In grey: the whole of last week.",
+  "Měsíc": "Month",
+  "Tento měsíc": "This month",
+  "relative block {}": "",
+  "Výhled začíná zítřejším dnem z plánu týdne a slabší noc bere z vašich nocí. Deník nahoře shrnuje týden a měsíc.": "The outlook starts with tomorrow's day from the week's plan and takes the weaker night from your own nights. The Diary now sums up the week and the month at the top.",
+  "Rozumím": "Got it"
 }

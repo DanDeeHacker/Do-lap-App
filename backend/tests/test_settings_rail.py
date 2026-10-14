@@ -29,3 +29,12 @@ def test_today_cards_own_order_and_empty_means_hidden(client):
     assert r.json()["today_cards"] == ["sleep", "hrv", "week"] and r.json()["rail_cards"] is None
     client.patch("/api/auth/settings", json={"today_cards": []})
     assert client.get("/api/auth/settings").json()["today_cards"] == []
+
+
+def test_news_seen_is_stored_with_the_account_age(client):
+    """v0.12.14 — Co je nového: the last release seen, and since when the account exists."""
+    register(client, "rail4@test.cz", "Rail Four", "runner")
+    s = client.get("/api/auth/settings").json()
+    assert s["news_seen"] is None and len(s["user_since"]) == 10
+    assert client.patch("/api/auth/settings", json={"news_seen": "2026-10-14"}).json()["news_seen"] == "2026-10-14"
+    assert client.get("/api/auth/settings").json()["news_seen"] == "2026-10-14"

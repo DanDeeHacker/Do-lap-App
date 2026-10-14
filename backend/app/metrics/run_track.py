@@ -189,6 +189,32 @@ def decoupling(records: list, hot: bool = False) -> dict | None:
             "hr1": round(first[1] / first[2]), "hr2": round(second[1] / second[2])}
 
 
+THUMB_PTS = 40             # points in a list thumbnail
+
+
+def thumb(route_pts: list | None, n: int = THUMB_PTS) -> list | None:
+    """The route's shape for a list thumbnail: [x0, y0, x1, y1, …] in 0–100 (north up, aspect
+    kept, centred), at most n points — the shape only, no coordinates. None without a route."""
+    if not route_pts or len(route_pts) < 2:
+        return None
+    step = max(1, math.ceil(len(route_pts) / n))
+    pts = route_pts[::step]
+    if pts[-1] != route_pts[-1]:
+        pts.append(route_pts[-1])
+    lat0 = pts[0][0]
+    xy = [_xy(lat0, la, lo) for la, lo in pts]
+    xs, ys = [p[0] for p in xy], [p[1] for p in xy]
+    w, h = max(xs) - min(xs), max(ys) - min(ys)
+    span = max(w, h)
+    if span < 1:                                    # a run on the spot (treadmill drift)
+        return None
+    ox, oy = (span - w) / 2 - min(xs), (span - h) / 2 - min(ys)
+    out = []
+    for x, y in xy:
+        out += [round((x + ox) / span * 100), round(100 - (y + oy) / span * 100)]
+    return out
+
+
 def build(records: list, hot: bool = False) -> dict:
     """Everything the run detail stores from one detailed stream."""
     return {"route": route(records), "series": series(records), "splits": splits(records),

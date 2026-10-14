@@ -771,6 +771,8 @@ class Settings(Base):
     rail_cards = Column(JSON, nullable=True)
     # v0.12.13 — the number cards under the Dnes card on a phone (Moje čísla), same ids, own order
     today_cards = Column(JSON, nullable=True)
+    # v0.12.14 — the last "Co je nového" (release notes) the user has seen
+    news_seen = Column(String, nullable=True)
 
 
 class Annotation(Base):

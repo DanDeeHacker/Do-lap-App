@@ -99,7 +99,44 @@ def test_route_only_for_the_runner():
         login(c, "havlickova@fyzioholesovice.cz", expected_role="physio")
         seen = c.get(f"/api/runners/run-0001/activities/{a.id}/track").json()
         assert seen["available"] and seen["route"] is None                     # the physio sees no route
+        assert c.get("/api/runners/run-0001/route-thumbs").json()["thumbs"] == {}   # nor its outline
         login(c, "adela@demo.cz")
         own = c.get(f"/api/runners/run-0001/activities/{a.id}/track").json()
         assert own["route"] == [[50.08, 14.42], [50.09, 14.43]]
+        t = c.get("/api/runners/run-0001/route-thumbs").json()["thumbs"][str(a.id)]
+        assert t[1::2] == [100, 0] and t[0] + t[2] == 100                 # taller than wide: centred
         db.close()
+
+
+def test_thumb_is_the_shape_only():
+    """v0.12.14 — a list thumbnail: at most 40 points in 0–100, north up, aspect kept, centred."""
+    t = RT.thumb(RT.route(_recs(minutes=40)))
+    assert len(t) <= 2 * (RT.THUMB_PTS + 1) and min(t) >= 0 and max(t) <= 100
+    xs, ys = t[0::2], t[1::2]
+    assert max(xs) - min(xs) == 100 or max(ys) - min(ys) == 100          # the longer side fills the box
+    north = RT.thumb([[50.0, 14.0], [50.01, 14.0]])                      # a run due north: centred, bottom → top
+    assert north == [50, 100, 50, 0]
+    assert RT.thumb(None) is None and RT.thumb([[50.0, 14.0], [50.0, 14.0]]) is None
+
+
+def test_sync_backfills_routes_of_older_runs(client, db_session, monkeypatch):
+    """v0.12.14 — runs stored before the route was kept get it a few per sync, newest first."""
+    rid = register(client, "rt2@test.cz", "RT Two", "runner").json()["runner_id"]
+    for k in range(8):
+        db_session.add(models.Activity(runner_id=rid, provider="garmin", external_id=f"o{k}", started_at=E.day_ago(2 + k),
+                                       sport="running", distance_km=8, duration_min=45, avg_hr=140))
+    db_session.commit()
+    for a in db_session.query(models.Activity).filter_by(runner_id=rid):
+        db_session.add(models.ActivityStream(activity_id=a.id, runner_id=rid, created_at=E.now_iso(),
+                                             quality_json={"accepted": True}))
+    db_session.commit()
+    monkeypatch.setattr(I.garmin_live, "fetch_details", lambda garmin, ext: _payload(minutes=30))
+    assert I.fetch_tracks(db_session, rid, garmin=None) == I.TRACK_CAP
+    done = {a.external_id for a, st in db_session.query(models.Activity, models.ActivityStream)
+            .join(models.ActivityStream, models.ActivityStream.activity_id == models.Activity.id)
+            .filter(models.Activity.runner_id == rid, models.ActivityStream.track_json.isnot(None))}
+    assert done == {f"o{k}" for k in range(I.TRACK_CAP)}                  # the newest first
+    assert I.fetch_tracks(db_session, rid, garmin=None) == 8 - I.TRACK_CAP
+    assert I.fetch_tracks(db_session, rid, garmin=None) == 0
+    thumbs = client.get(f"/api/runners/{rid}/route-thumbs").json()["thumbs"]
+    assert len(thumbs) == 8
