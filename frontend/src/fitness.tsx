@@ -1,4 +1,4 @@
-// v0.12.12 — Zátěž → Kondice a únava: the 42- and 7-day averages of the total load and their
+// v0.12.12 — Kondice a únava (Trénink → Tělo a den, owner feedback railway#213): the 42- and 7-day averages of the total load and their
 // balance (Čerstvost), the picture Strava calls Fitness & Freshness and TrainingPeaks the PMC.
 // A trend to read: today's training follows Připravenost and the capacity channels.
 import { useEffect, useState } from "react"
@@ -8,7 +8,7 @@ import { AxisLineChart, InfoDot, Label, Segmented, useToast } from "@/ui"
 import { fmtD, paceStr } from "@/lib"
 import { num } from "@/outlook"
 import { C } from "@/tokens"
-import { ChevronDown, HeartPulse, TrendingUp } from "lucide-react"
+import { ChevronDown, HeartPulse } from "lucide-react"
 
 // two slots of the app's validated categorical palette (outlook.SRC): lightness band, chroma,
 // CVD and normal-vision separation and contrast all pass on the dark surface
@@ -23,34 +23,38 @@ const RANGES = [["90", "3 měsíce"], ["182", "6 měsíců"], ["365", "1 rok"]] 
 type Range = (typeof RANGES)[number][0]
 const niceStep = (mx: number) => { const raw = mx / 4, p = 10 ** Math.floor(Math.log10(raw || 1)), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p }
 
-export function FitnessTrend({ rid }: { rid: string }) {
-  const [open, setOpen] = useState(false)
-  const [data, setData] = useState<any | null | false>(null)   // null = not loaded, false = failed
+// a tab of Tělo a den: loaded when the tab opens, kept for the same assessment so switching tabs
+// doesn't load it again
+const trendCache = new Map<string, { asOf: string; data: any }>()
+
+export function FitnessPanel({ rid, asOf = "" }: { rid: string; asOf?: string }) {
+  const hit = trendCache.get(rid)
+  const [data, setData] = useState<any | null | false>(hit && hit.asOf === asOf ? hit.data : null)   // null = loading, false = failed
   const [range, setRange] = useState<Range>("90")
   useEffect(() => {
-    if (!open || data !== null) return
+    const h = trendCache.get(rid)
+    if (h && h.asOf === asOf) { setData(h.data); return }
     let alive = true
-    api.fitnessTrend(rid).then((d) => alive && setData(d || false)).catch(() => alive && setData(false))
+    setData(null)
+    api.fitnessTrend(rid).then((d) => { if (d) trendCache.set(rid, { asOf, data: d }); if (alive) setData(d || false) })
+      .catch(() => alive && setData(false))
     return () => { alive = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, rid])
+  }, [rid, asOf])
   const t = data && data.available ? data.today : null
   return (
-    <section className="mt-4" data-testid="fitness-trend">
-      <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="card flex w-full items-center gap-4 px-4 py-4 text-left text-fg transition hover:border-load/45 md:px-5">
-        <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-load/15 text-load"><TrendingUp className="size-4" aria-hidden /></span>
-        <span className="min-w-0 flex-1"><span className="t-label">Kondice a únava</span><span className="mt-1 block font-serif text-[19px] leading-snug">Dlouhodobý trend celkové zátěže · rozklikni graf</span></span>
-        <ChevronDown className={`size-5 shrink-0 text-load transition ${open ? "rotate-180" : ""}`} aria-hidden />
-      </button>
-      {open && (
-        <div className="card mt-3 p-4 md:p-5">
-          {data === null && <p className="text-[12px] text-fg-3">Počítám trend zátěže…</p>}
-          {data === false && <p className="text-[12px] text-fg-3">Trend se nepodařilo načíst. Zkuste to prosím později.</p>}
-          {data && !data.available && <p className="text-[12px] text-fg-3">Trend uvidíte po prvních aktivitách z hodinek.</p>}
-          {t && <TrendBody data={data} t={t} range={range} setRange={setRange} />}
-        </div>
-      )}
-    </section>
+    <div className="nest p-3.5" data-testid="fitness-trend">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Kondice a únava — trend</span>
+          <InfoDot label="Kondice a únava" text="Dlouhodobý trend celkové zátěže všech aktivit, jako Fitness & Freshness ve Stravě. Kondice je průměr zátěže za zhruba 6 týdnů, Únava za týden, Čerstvost jejich rozdíl." /></span>
+        <span className="text-[11px] text-fg-3">42 a 7 dní</span>
+      </div>
+      <div className="mt-2">
+        {data === null && <p className="text-[12px] text-fg-3">Počítám trend zátěže…</p>}
+        {data === false && <p className="text-[12px] text-fg-3">Trend se nepodařilo načíst. Zkuste to prosím později.</p>}
+        {data && !data.available && <p className="text-[12px] text-fg-3">Trend uvidíte po prvních aktivitách z hodinek.</p>}
+        {t && <TrendBody data={data} t={t} range={range} setRange={setRange} />}
+      </div>
+    </div>
   )
 }
 
@@ -60,7 +64,7 @@ function TrendBody({ data, t, range, setRange }: { data: any; t: any; range: Ran
   const w = formWord(t.word)
   return (
     <>
-      <div className="grid grid-cols-3 gap-2" data-testid="fitness-stats">
+      <div className="grid grid-cols-3 gap-1.5" data-testid="fitness-stats">
         <Stat label="Kondice" col={FIT_COL} value={num(t.fit, 0)} sub={t.fitChange != null ? `${signed(t.fitChange)} % za 4 týdny` : "průměr ~6 týdnů"} />
         <Stat label="Únava" col={FAT_COL} value={num(t.fat, 0)} sub="průměr ~7 dní" />
         <Stat label="Čerstvost" value={t.form != null ? `${signed(t.form)} %` : "—"} sub={w ? w[0] : "málo zátěže na srovnání"} />
@@ -82,7 +86,7 @@ function TrendBody({ data, t, range, setRange }: { data: any; t: any; range: Ran
         </>
       )}
       <div className="mt-3 grid gap-1 text-[11px] leading-4 text-fg-3">
-        <p>Trend jako Fitness &amp; Freshness ve Stravě nebo PMC v TrainingPeaks, z celkové zátěže všech aktivit. Jak dnes trénovat, ukazuje Připravenost a kapacita kanálů výše.</p>
+        <p>Trend jako Fitness &amp; Freshness ve Stravě nebo PMC v TrainingPeaks, z celkové zátěže všech aktivit. Jak dnes trénovat, ukazuje Připravenost a Dnešní kapacita.</p>
         <details><summary className="cursor-pointer font-semibold text-fg-2">Jak se to počítá</summary>
           <span className="mt-1 block">Zátěž dne je součet zátěže všech aktivit (u běhu z tepu, u posilování z náročnosti, stejná jako v Celkové zátěži). Kondice je její vážený průměr s časovou konstantou 42 dní, Únava se 7 dny: včerejšek váží nejvíc a starší dny postupně méně. Čerstvost je (Kondice − Únava) ÷ Kondice. Hranice „vyrovnané“ zátěže (−10 až +5 %) jsou zvyklost aplikace, ne výsledek výzkumu. Model kondice a únavy dobře popisuje skupiny, u jednotlivce je hrubší, proto o dnešním tréninku nerozhoduje.</span>
         </details>
@@ -100,9 +104,9 @@ function formAxis(days: any[]) {
 
 function Stat({ label, value, sub, col }: { label: string; value: string; sub: string; col?: string }) {
   return (
-    <div className="nest min-w-0 px-2.5 py-2.5">
+    <div className="min-w-0 rounded-[12px] bg-white/[.045] px-2 py-2.5">
       <span className="flex items-center gap-1.5">{col && <i className="inline-block h-[3px] w-3 shrink-0 rounded-full" style={{ background: col }} />}<span className="t-label !text-fg-3">{label}</span></span>
-      <b className="t-num mt-1 block text-[24px] leading-none text-fg">{value}</b>
+      <b className="t-num mt-1 block whitespace-nowrap text-[21px] leading-none text-fg">{value}</b>
       <span className="mt-1 block text-[11px] leading-4 text-fg-2">{sub}</span>
     </div>
   )

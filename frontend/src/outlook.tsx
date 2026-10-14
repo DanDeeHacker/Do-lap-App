@@ -421,7 +421,8 @@ function Slider({ label, value, onChange, max, step, unit }: { label: string; va
   )
 }
 
-export function TomorrowCard({ g }: { g: any }) {
+// owner feedback railway#214 — also a tab of the Dnešní kapacita card (`embedded`: no card, no header)
+export function TomorrowCard({ g, embedded = false }: { g: any; embedded?: boolean }) {
   const ol = g.outlook
   const presets: any[] = ol?.presets || []
   const [pk, setPk] = useState<string>(() => (g.outlook?.presets || []).some((p: any) => p.key === "plan") ? "plan" : "none")
@@ -441,12 +442,17 @@ export function TomorrowCard({ g }: { g: any }) {
   const coachMode = g.week?.mode === "coach"
   const pt = ol.planTomorrow
   const shown = (["volume", "intensity", "descent", "ascent", "systemic"] as const).filter((c) => v.ev[c] && todayCh[c])
+  const Box = embedded ? "div" : "section"
   return (
-    <section className="card mt-4 p-4 md:p-6" data-testid="tomorrow">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><Label>Výhled na zítra</Label><InfoDot text={MI.tomorrow} label="Výhled na zítra" /></span>
-        <span className="text-[12px] text-fg-2">{tomorrow}{newWeek ? " · nový týden" : ""}</span>
-      </div>
+    <Box className={embedded ? "" : "card mt-4 p-4 md:p-6"} data-testid="tomorrow">
+      {embedded ? (
+        <p className="text-[12px] text-fg-2">{tomorrow}{newWeek ? " · nový týden" : ""}</p>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5"><Label>Výhled na zítra</Label><InfoDot text={MI.tomorrow} label="Výhled na zítra" /></span>
+          <span className="text-[12px] text-fg-2">{tomorrow}{newWeek ? " · nový týden" : ""}</span>
+        </div>
+      )}
       {g.goal?.week && (
         <p className="mt-1.5 text-[12px] text-fg-3" data-testid="tomorrow-goal">{`Cíl ${g.goal.name}: ${g.goal.week.i}. týden z ${g.goal.weeks}`}{newWeek && g.goal.next?.km ? <span>{` · příští týden ${num(g.goal.next.km, 0)} km`}</span> : null}</p>
       )}
@@ -543,6 +549,6 @@ export function TomorrowCard({ g }: { g: any }) {
         })}
       </div>
       <HowTo className="mt-3" label="Jak se výhled počítá" text="Odhad podle stejných pravidel jako dnešní kapacita: co dnes ještě přidáte, se přes noc vstřebá jen zčásti (svaly a šlachy asi o pětinu za noc, srdce a plíce podle toho, jak se vyspíte), cíl týdne se sníží o to, co dnes uděláte, a v pondělí začne nový. Ráno ho upřesní skutečná noc z hodinek." />
-    </section>
+    </Box>
   )
 }

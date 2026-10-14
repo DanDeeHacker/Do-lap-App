@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { api } from "@/api"
 import { useApp } from "@/store"
-import { FitnessTrend, ZoneCheck } from "@/fitness"
+import { ZoneCheck } from "@/fitness"
 import { useQuadHistory } from "@/history"
 import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, FactorBar, toneCol, type Tone, Field, HowTo, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
 import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Ship, Trash2, TriangleAlert, Waves, type LucideIcon } from "lucide-react"
@@ -1710,7 +1710,6 @@ export function Load() {
           ascent: <DescentBySlope g={a?.gradientAscent || { buckets: [], labels: [], total7: 0, steep7: 0 }} up />,
         }} />
       )}
-      {a.capacity && <FitnessTrend rid={rid} />}
       {a.capacity && <LoadHistory rid={rid} />}
       {a.capacity?.zoneCheck && <ZoneCheck rid={rid} zc={a.capacity.zoneCheck} />}
     </>

@@ -5201,7 +5201,8 @@
   "files": [
    "capacity.tsx",
    "coach.tsx",
-   "glossary.tsx"
+   "glossary.tsx",
+   "training.tsx"
   ],
   "kind": "str"
  },
@@ -11429,6 +11430,13 @@
   "kind": "str"
  },
  {
+  "t": "42 a 7 dní",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "6 měsíců",
   "files": [
    "fitness.tsx"
@@ -11457,11 +11465,11 @@
   "kind": "str"
  },
  {
-  "t": "Dlouhodobý trend celkové zátěže · rozklikni graf",
+  "t": "Dlouhodobý trend celkové zátěže všech aktivit, jako Fitness & Freshness ve Stravě. Kondice je průměr zátěže za zhruba 6 týdnů, Únava za týden, Čerstvost jejich rozdíl.",
   "files": [
    "fitness.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Graf",
@@ -11516,6 +11524,14 @@
  },
  {
   "t": "Kondice a únava",
+  "files": [
+   "fitness.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kondice a únava — trend",
   "files": [
    "fitness.tsx"
   ],
@@ -11663,14 +11679,6 @@
   "kind": "tpl"
  },
  {
-  "t": "size-5 shrink-0 text-load transition {}",
-  "files": [
-   "fitness.tsx",
-   "tabs.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "Tabulka",
   "files": [
    "fitness.tsx",
@@ -11714,7 +11722,7 @@
   "kind": "tpl"
  },
  {
-  "t": "Trend jako Fitness &amp; Freshness ve Stravě nebo PMC v TrainingPeaks, z celkové zátěže všech aktivit. Jak dnes trénovat, ukazuje Připravenost a kapacita kanálů výše.",
+  "t": "Trend jako Fitness &amp; Freshness ve Stravě nebo PMC v TrainingPeaks, z celkové zátěže všech aktivit. Jak dnes trénovat, ukazuje Připravenost a Dnešní kapacita.",
   "files": [
    "fitness.tsx"
   ],
@@ -12899,7 +12907,7 @@
   "kind": "str"
  },
  {
-  "t": "Kondice minus Únava jako podíl Kondice ráno v den závodu (viz Kondice a únava na Zátěži). Počítá se ze zátěže, kterou už máte za sebou, a ze zbývajících týdnů plánu. Kilometry plánu se převádějí na zátěž podle toho, kolik zátěže vám dal kilometr za posledních 6 týdnů.",
+  "t": "Kondice minus Únava jako podíl Kondice ráno v den závodu (viz Kondice a únava v Tělo a den na Tréninku). Počítá se ze zátěže, kterou už máte za sebou, a ze zbývajících týdnů plánu. Kilometry plánu se převádějí na zátěž podle toho, kolik zátěže vám dal kilometr za posledních 6 týdnů.",
   "files": [
    "goal.tsx"
   ],
@@ -18878,7 +18886,8 @@
  {
   "t": "Výhled na zítra",
   "files": [
-   "outlook.tsx"
+   "outlook.tsx",
+   "training.tsx"
   ],
   "kind": "jsx"
  },
@@ -24970,6 +24979,13 @@
  },
  {
   "t": "size-5 shrink-0 text-info transition {}",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "size-5 shrink-0 text-load transition {}",
   "files": [
    "tabs.tsx"
   ],

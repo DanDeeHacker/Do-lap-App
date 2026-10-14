@@ -880,7 +880,7 @@ function RaceFreshness({ f }: { f: any }) {
     <div className="nest mt-3 px-3 py-2.5" data-testid="goal-freshness">
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Čerstvost na start</span>
-          <InfoDot label="Čerstvost na start" text="Kondice minus Únava jako podíl Kondice ráno v den závodu (viz Kondice a únava na Zátěži). Počítá se ze zátěže, kterou už máte za sebou, a ze zbývajících týdnů plánu. Kilometry plánu se převádějí na zátěž podle toho, kolik zátěže vám dal kilometr za posledních 6 týdnů." /></span>
+          <InfoDot label="Čerstvost na start" text="Kondice minus Únava jako podíl Kondice ráno v den závodu (viz Kondice a únava v Tělo a den na Tréninku). Počítá se ze zátěže, kterou už máte za sebou, a ze zbývajících týdnů plánu. Kilometry plánu se převádějí na zátěž podle toho, kolik zátěže vám dal kilometr za posledních 6 týdnů." /></span>
         <b className="t-num text-[18px] leading-none" style={{ color: col }}>{now}</b>
       </div>
       <div className="relative mt-2.5 h-2 rounded-full bg-white/[.07]" aria-hidden>

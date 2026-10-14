@@ -21,6 +21,7 @@ import { BoundTag, TomorrowCard, WeekLoadCard, limitText } from "@/outlook"
 import { Bike, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Users, Waves, X, Zap, type LucideIcon } from "lucide-react"
 import { CoachProgress, CoachSection } from "@/coach"
 import { DataGapCard, GoalCard } from "@/goal"
+import { FitnessPanel } from "@/fitness"
 
 const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"]
 const CROSS = ["kolo", "voda", "posilování"]
@@ -1285,8 +1286,11 @@ function WeekCard({ g, plan }: { g: any; plan: any }) {
 
 // today's capacity in one card: what today's session takes per channel against what today
 // leaves; the gauges, the week's ceilings and the safe longest run one tap away
+// owner feedback railway#214 — tomorrow's outlook is the card's second tab
 function CapacityCard({ g }: { g: any }) {
   const [more, setMore] = useState(false)
+  const [tab, setTab] = useState<"t" | "z">("t")
+  const hasTomorrow = !!g.outlook?.channels
   const wk = g.week || {}
   const f = fitRows(g, g.type, true)
   const status = capStatus(g)
@@ -1299,9 +1303,15 @@ function CapacityCard({ g }: { g: any }) {
   return (
     <section className="card mt-4 p-4 md:p-6" data-testid="capacity-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5"><Label>Dnešní kapacita</Label><InfoDot text={MI.todayCapacity} label="Dnešní kapacita" /></span>
-        <span className="text-[12px] text-fg-2">kolik dnes ještě smíte</span>
+        {tab === "t"
+          ? <span className="flex items-center gap-1.5"><Label>Dnešní kapacita</Label><InfoDot text={MI.todayCapacity} label="Dnešní kapacita" /></span>
+          : <span className="flex items-center gap-1.5"><Label>Výhled na zítra</Label><InfoDot text={MI.tomorrow} label="Výhled na zítra" /></span>}
+        {hasTomorrow
+          ? <Segmented size="sm" ariaLabel="Kapacita" value={tab} onChange={setTab} options={[["t", "Dnes"], ["z", "Zítra"]] as const} />
+          : <span className="text-[12px] text-fg-2">kolik dnes ještě smíte</span>}
       </div>
+      {tab === "z" ? <div className="mt-2"><TomorrowCard g={g} embedded /></div> : <>
+      {hasTomorrow && <p className="mt-1 text-[12px] text-fg-2">kolik dnes ještě smíte</p>}
       {status && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
       {f && (
         <>
@@ -1319,21 +1329,25 @@ function CapacityCard({ g }: { g: any }) {
         <ChevronDown className={`size-4 shrink-0 transition ${more ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />
       </button>
       {(more || !f) && <div className="mt-3 origin-top animate-[careReveal_.28s_ease-out]"><TodayCapacity g={g} embedded /></div>}
+      </>}
     </section>
   )
 }
 
-// readiness and the day outside training, one card with a switch
-function BodyCard({ a, hist, day }: { a: any; hist: any; day: { d: any; err: boolean } }) {
-  const [tab, setTab] = useState<"r" | "d">("r")
+// readiness, the day outside training and (railway#213) Kondice a únava, one card with a switch
+function BodyCard({ rid, a, hist, day }: { rid?: string; a: any; hist: any; day: { d: any; err: boolean } }) {
+  const [tab, setTab] = useState<"r" | "d" | "f">("r")
   return (
     <section id="telo" className="card mt-4 scroll-mt-24 p-4 md:p-6" data-testid="body-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label>Tělo a den</Label>
-        <Segmented size="sm" ariaLabel="Tělo a den" value={tab} onChange={setTab} options={[["r", "Připravenost"], ["d", "Den mimo trénink"]] as const} />
+        <Segmented size="sm" ariaLabel="Tělo a den" value={tab} onChange={setTab}
+          options={[["r", "Připravenost"], ["d", "Den mimo trénink"], ...(rid ? [["f", "Kondice a únava"] as const] : [])]} />
       </div>
       <div className="mt-3">
-        {tab === "r" ? <ReadinessTrend a={a} hist={hist} below={<DayReadiness d={day.d} />} /> : <DayToday d={day.d} err={day.err} embedded />}
+        {tab === "r" ? <ReadinessTrend a={a} hist={hist} below={<DayReadiness d={day.d} />} />
+          : tab === "f" && rid ? <FitnessPanel rid={rid} asOf={a?.computed_at} />
+          : <DayToday d={day.d} err={day.err} embedded />}
       </div>
     </section>
   )
@@ -1433,14 +1447,13 @@ export function Training() {
           )}
         </div>
         <div className="min-w-0">
+          {/* owner feedback 2026-10-10 / railway#214 — tomorrow's limits (after what is still done
+              today and the night) are the capacity card's second tab */}
           <CapacityCard g={g} />
-          {/* owner feedback 2026-10-10 — tomorrow's limits after what is still done today and the
-              night, and the week's running total by sport: detail, after today's capacity */}
-          <TomorrowCard g={g} />
           <WeekLoadCard g={g} cap={a.capacity} />
           {coach && <CoachProgress rid={rid!} />}
           {coach && <GoalCard rid={rid!} gg={g.goal} />}
-          <BodyCard a={a} hist={quadHist} day={day} />
+          <BodyCard rid={rid} a={a} hist={quadHist} day={day} />
           <RacesCard outlook={a.races} g={g} cap={a.capacity} />
         </div>
       </div>
