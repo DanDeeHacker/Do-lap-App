@@ -4,7 +4,7 @@ import { useApp } from "@/store"
 import { ZoneCheck } from "@/fitness"
 import { useQuadHistory } from "@/history"
 import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty, FactorBar, toneCol, type Tone, Field, HowTo, InfoDot, Label, ListRow, Metric, Ring, Segmented, Sheet, Slider, Sparkline, useAsync, useToast } from "@/ui"
-import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Ship, Trash2, TriangleAlert, Waves, type LucideIcon } from "lucide-react"
+import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Route, Ship, Trash2, TriangleAlert, Waves, type LucideIcon } from "lucide-react"
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
 import { clamp, cz, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, PHASE, plural, QUAD, sgn, toImpact } from "@/lib"
@@ -921,7 +921,7 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
                   <span className="flex items-center gap-2 whitespace-nowrap tabular-nums text-[12px] text-fg-2">VR {cz(x.vert_ratio_pct)} <ChevronDown className={`size-4 text-fg-3 transition ${isOpen ? "rotate-180 text-info" : ""}`} aria-hidden /></span>
                 </button>
                 {isOpen && rid && (
-                  <RunFlip initial="move"
+                  <RunFlip initial="move" detail={{ aid: x.id, from: `/app/mechanics#beh-${x.id}`, label: "Mechanika" }}
                     move={<MovementRunPanel rid={rid} x={x} hasCtx={!!ctx} onExcluded={(ex, scope) => {
                       setCtx((c) => (c ? c.map((r: any) => (r.id === x.id ? { ...r, excluded: ex, excluded_scope: scope } : r)) : c))
                       refresh()
@@ -939,7 +939,10 @@ function RunHistoryReal({ acts }: { acts: any[] }) {
 
 // Feedback #147 — one run, two faces: its movement detail (Pohyb) and its load detail
 // (Zátěž). Swipe right → Zátěž, swipe left → Pohyb, or tap the switch; the card flips.
-function RunFlip({ move, load, initial }: { move: ReactNode; load: ReactNode; initial: "move" | "load" }) {
+// v0.12.13 — on top, the way to the run's own detail (route, splits, pace and heart rate);
+// its back link returns here, to the same run.
+export type RunDetailFrom = { from: string; label: string }
+function RunFlip({ move, load, initial, detail }: { move: ReactNode; load: ReactNode; initial: "move" | "load"; detail?: { aid: number } & RunDetailFrom }) {
   const [face, setFace] = useState<"move" | "load">(initial)
   const [anim, setAnim] = useState(0)
   const start = useRef<{ x: number; y: number } | null>(null)
@@ -953,6 +956,17 @@ function RunFlip({ move, load, initial }: { move: ReactNode; load: ReactNode; in
         const t = e.changedTouches[0], dx = t.clientX - s0.x, dy = t.clientY - s0.y
         if (Math.abs(dx) > 60 && Math.abs(dx) > 1.6 * Math.abs(dy)) go(dx > 0 ? "load" : "move")
       }}>
+      {detail && (
+        <Link to={`/app/post/${detail.aid}`} state={{ from: detail.from, label: detail.label }} data-testid="run-detail-link"
+          className="mx-4 mt-3 flex items-center gap-3 rounded-[14px] bg-white/[.045] px-3 py-2.5 transition hover:bg-white/[.08]">
+          <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-accent/12 text-accent"><Route className="size-4" aria-hidden /></span>
+          <span className="min-w-0 flex-1">
+            <b className="block text-[13px] font-bold text-fg">Detail běhu</b>
+            <span className="block truncate text-[11.5px] text-fg-3">trasa, mezičasy, průběh tempa a tepu</span>
+          </span>
+          <ChevronRight className="size-4 shrink-0 text-fg-3" aria-hidden />
+        </Link>
+      )}
       <div className="flex items-center justify-between gap-2 px-4 pt-3">
         <div className="inline-flex rounded-full bg-white/[.06] p-0.5 text-[11px] font-bold" role="tablist">
           {(["move", "load"] as const).map((f) => (
@@ -2060,8 +2074,10 @@ function DeleteActivity({ rid, aid, onDone }: { rid: string; aid: number; onDone
 
 function LoadHistory({ rid }: { rid: string }) {
   const { refresh, touring } = useApp()
-  const [open, setOpen] = useState(false)
-  const [sel, setSel] = useState<number | null>(null)
+  // back from a run's detail (#akt-<id>): the list opens on that run
+  const wantAct = window.location.hash.startsWith("#akt-") ? Number(window.location.hash.slice(5)) : null
+  const [open, setOpen] = useState(!!wantAct)
+  const [sel, setSel] = useState<number | null>(wantAct)
   const [more, setMore] = useState(false)
   const [data, setData] = useState<any | null | false>(null) // null = not loaded, false = failed
   const [ver, setVer] = useState(0)   // bumped after a delete → the list loads again
@@ -2073,6 +2089,12 @@ function LoadHistory({ rid }: { rid: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, rid, ver])
   const items: any[] = data && data.items ? data.items : []
+  useEffect(() => {
+    if (!wantAct || !items.length) return
+    if (items.findIndex((x) => x.id === wantAct) >= 12) setMore(true)
+    setTimeout(() => document.getElementById(`akt-${wantAct}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 300)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantAct, items.length])
   const shown = more ? items : items.slice(0, 12)
   const scale: number | null = data ? data.impactScale ?? null : null
   const imp = (pts: number) => (scale != null ? fmtImpact(toImpact(pts, scale)) : pts >= 0.5 ? `+${mfmt(1, pts)} b` : "0 b")
@@ -2098,7 +2120,7 @@ function LoadHistory({ rid }: { rid: string }) {
             const pkTone: Tone = over.length ? "alert" : (x.weekOver || []).length ? "watch" : pk ? BAND_TONE[pk.band] || "muted" : "muted"
             const meta = [fmtD(x.date), x.sportLabel, x.km ? `${mfmt(1, x.km)} km` : null, dur(x.durationMin), x.avgHr ? `⌀ ${x.avgHr} tep` : null].filter(Boolean).join(" · ")
             return (
-              <div key={x.id} className={`overflow-hidden rounded-[18px] border transition ${isOpen ? "border-load/40 bg-panel-2" : "border-white/[.08] bg-white/[.03] hover:border-white/15"}`}>
+              <div key={x.id} id={`akt-${x.id}`} className={`scroll-mt-24 overflow-hidden rounded-[18px] border transition ${isOpen ? "border-load/40 bg-panel-2" : "border-white/[.08] bg-white/[.03] hover:border-white/15"}`}>
                 <button onClick={() => setSel(isOpen ? null : x.id)} aria-expanded={isOpen} className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3 text-left">
                   <span className={`grid size-[34px] place-items-center rounded-[10px] ${x.run ? "bg-load/15 text-load" : "bg-info/15 text-info"}`}><Icon className="size-4" aria-hidden /></span>
                   <span className="min-w-0">
@@ -2121,7 +2143,8 @@ function LoadHistory({ rid }: { rid: string }) {
                   </span>
                 </button>
                 {isOpen && (x.run
-                  ? <RunFlip initial="load" load={<LoadRunPanel x={x} imp={imp} todayIso={todayIso} />} move={<MovementRunPanelById rid={rid} aid={x.id} />} />
+                  ? <RunFlip initial="load" detail={{ aid: x.id, from: `/app/load#akt-${x.id}`, label: "Zátěž" }}
+                    load={<LoadRunPanel x={x} imp={imp} todayIso={todayIso} />} move={<MovementRunPanelById rid={rid} aid={x.id} />} />
                   : <div className="border-t border-white/[.07]"><LoadRunPanel x={x} imp={imp} todayIso={todayIso} /></div>)}
                 {isOpen && !touring && (
                   <DeleteActivity rid={rid} aid={x.id} onDone={() => { setSel(null); setData(null); setVer((v) => v + 1); refresh() }} />

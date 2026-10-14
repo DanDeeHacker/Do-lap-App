@@ -16877,6 +16877,14 @@
   "kind": "jsx"
  },
  {
+  "t": "Zatím bez dat",
+  "files": [
+   "metricsheet.tsx",
+   "shell.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "(i v druhém pohledu)",
   "files": [
    "MuscleAnatomy.tsx"
@@ -23673,13 +23681,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Zatím bez dat",
-  "files": [
-   "shell.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Nepodařilo se načíst data",
   "files": [
    "store.tsx"
@@ -25195,13 +25196,6 @@
   "kind": "str"
  },
  {
-  "t": "overflow-hidden rounded-[18px] border transition {}",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "overflow-hidden rounded-[20px] border transition {}",
   "files": [
    "tabs.tsx"
@@ -25503,6 +25497,13 @@
   "kind": "jsx"
  },
  {
+  "t": "scroll-mt-24 overflow-hidden rounded-[18px] border transition {}",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "scroll-mt-24 overflow-hidden rounded-[18px] border transition {} {}",
   "files": [
    "tabs.tsx"
@@ -25798,6 +25799,13 @@
  },
  {
   "t": "testů ·",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "trasa, mezičasy, průběh tempa a tepu",
   "files": [
    "tabs.tsx"
   ],

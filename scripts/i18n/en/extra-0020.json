@@ -76,5 +76,6 @@
   "+{} m": "+{0} m",
   "3px solid {}": "",
   "repeat({}, minmax(0, 1fr))": "",
-  "© <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\" rel=\"noopener\">OpenStreetMap</a>": ""
+  "© <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\" rel=\"noopener\">OpenStreetMap</a>": "",
+  "trasa, mezičasy, průběh tempa a tepu": "route, splits, pace and heart rate along the run"
 }

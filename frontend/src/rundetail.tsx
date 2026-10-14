@@ -5,7 +5,7 @@
 // shows climb and descent computed from the elevation profile.
 import { WhyButton } from "@/assistant"
 import { useMemo, useRef, useState } from "react"
-import { Link, useParams } from "react-router"
+import { Link, useLocation, useParams } from "react-router"
 import { ArrowLeft, Mountain, NotebookPen } from "lucide-react"
 import { useApp } from "@/store"
 import { Button, Card, ChartTip, Chip, Empty, HowTo, Label } from "@/ui"
@@ -148,6 +148,7 @@ function Tile({ label, value, sub, col }: { label: string; value: string; sub?: 
 
 export function RunDetail() {
   const { aid } = useParams()
+  const loc = useLocation()
   const { me, boot, refresh, viewing, touring } = useApp()
   const rid = me?.runner_id
   const [editing, setEditing] = useState(false)
@@ -163,9 +164,11 @@ export function RunDetail() {
   const tr = useRunTrack(rid, aid)
   const hasSplits = !!(tr && tr.splits?.length)
 
+  // opened from a run list on Mechanika or Zátěž: back to that list, open on this run
+  const from = (loc.state as { from?: string; label?: string } | null) || null
   const back = (
-    <Link to="/app/post" className="inline-flex items-center gap-1.5 text-[13px] font-bold text-fg-2 hover:text-fg">
-      <ArrowLeft className="size-4" aria-hidden /> Deník
+    <Link to={from?.from || "/app/post"} className="inline-flex items-center gap-1.5 text-[13px] font-bold text-fg-2 hover:text-fg">
+      <ArrowLeft className="size-4" aria-hidden /> {from?.label || "Deník"}
     </Link>
   )
   if (!boot) return <>{back}<div className="mt-4"><Empty>Načítám…</Empty></div></>
