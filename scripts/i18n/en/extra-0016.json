@@ -1,0 +1,11 @@
+{
+  "dokud se spánek nevrátí k vaší normě": "until your sleep returns to your norm",
+  "Důvod: {}.": "Reason: {0}.",
+  "Týden neroste, ale ani neklesá, {}.": "The week does not grow, but it does not drop either, {0}.",
+  "Aplikace zatím nezná vaši obvyklou délku spánku, proto do té doby platí obecná hranice 7 hodin.": "The app does not know your usual sleep length yet, so the general 7-hour line applies until then.",
+  "Obvykle spíte {}.": "You usually sleep {0}.",
+  "Spánek pod {} plán zastaví vždy, i když je pro vás běžný.": "Sleep under {0} always holds the plan, even when it is usual for you.",
+  "Spíte v průměru {} (14 nocí). {} Plán teď neroste, ale ani neklesá: dlouhodobě kratší spánek šel v některých studiích s vyšším rizikem zranění. Jakmile bude průměr aspoň {}, plán poroste dál.": "You sleep {0} on average (14 nights). {1} The plan does not grow for now, but it does not drop either: sleeping less over a longer time went with a higher injury risk in some studies. Once the average is at least {2}, the plan will grow again.",
+  "dokud průměr nebude aspoň {}": "until the average is at least {0}",
+  "spánek 14 nocí v průměru {}": "an average of {0} of sleep over 14 nights"
+}

@@ -1201,7 +1201,7 @@ function TrackBanners({ rid, track, res, onData, onEdit }: { rid: string; track:
       {hold && (
         <div className="nest p-3" style={{ borderColor: `${C.alert}55` }} data-testid="goal-hold">
           <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: C.alert }}>Plán teď neroste</p>
-          <p className="mt-0.5 text-[13px] text-fg">{hold.kind === "sleep" ? `Důvod: ${hold.why}. Týden neroste, ale ani neklesá, dokud průměr nepřesáhne 7 h.` : `Důvod: ${hold.why}. Týdny drží vaši současnou úroveň.`}</p>
+          <p className="mt-0.5 text-[13px] text-fg">{hold.kind === "sleep" ? <><span>{`Důvod: ${hold.why}.`}</span>{" "}<span>{`Týden neroste, ale ani neklesá, ${hold.until || "dokud se spánek nevrátí k vaší normě"}.`}</span></> : `Důvod: ${hold.why}. Týdny drží vaši současnou úroveň.`}</p>
           {hold.kind === "energy" && <p className="mt-0.5 text-[12px] text-fg-2">Objednejte se ke sportovnímu lékaři. Chybějící menstruace bývá známkou nedostatku energie a zvyšuje riziko únavové zlomeniny.</p>}
         </div>
       )}

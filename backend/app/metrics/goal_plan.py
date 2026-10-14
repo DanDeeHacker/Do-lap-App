@@ -359,6 +359,7 @@ def runner_state(db, rid: str, a: dict | None = None, today: date | None = None,
         # plan k cíli 2.0 stage B: hiking climb (#3), training km and pace of 8 weeks (#13), the
         # runner's week (#10), sleep (#18), how the plan has been kept (#6), sex (the Tanda note)
         "hike": hike, "train8": train8, "prefs": pj.get("prefs") or {}, "sleep14": _sleep14(rd, today),
+        "sleepNorm": _sleep_norm(rd, today),
         "missRate": _miss_rate(rd, wk, lo), "tolerance": m.get("tolerance"), "marginSched": sched, "sex": getattr(rd.runner, "sex", None) if rd.runner is not None else None,
     }
 
@@ -436,7 +437,7 @@ def margin_schedule(m: dict, shoes: dict | None, mon: date, bsi: float = 1.0) ->
 
 
 # the stored answer (goals.projection_json) is recomputed when the planner changes, not only the next day
-PLAN_VERSION = "2.5"
+PLAN_VERSION = "2.6"
 
 HIKE_SPORTS = ("hiking", "walking")
 HIKE_UP, HIKE_DOWN = 1.0, 0.5         # owner decision 2026-10-13: a hike's climb counts in full, its descent half
@@ -516,8 +517,17 @@ def _train8(runs, mon: date) -> dict | None:
     return {"km": km / 8.0, "pace": sec / km_t}
 
 
-SLEEP_HOLD_H = 7.0           # #18: a 14-night mean under 7 hours holds the week (Huang & Ihm 2021)
-SLEEP_NIGHTS_MIN = 10
+# #18, aligned with readiness (owner decision 2026-10-14): the evidence for a fixed 7-hour line is weak
+# for adults (Huang & Ihm 2021: mostly adolescents; Dobrosielski et al. 2021: inconsistent in adults) and
+# 7 h is a population minimum (Watson et al. 2015), not a personal one. Like readiness (capacity: the
+# 7-hour floor only until the own norm is known), the week is held when the 14-night mean is SLEEP_HOLD_BELOW
+# under the runner's own norm (nights 8–56 days back, as readiness) or under SLEEP_HOLD_LOW_H in any case;
+# 7 h stands in only without a norm. Sleep efficiency stays out: watches detect wake poorly (Chinoy 2021).
+# A runner who habitually sleeps 6:45–7:15 h is no longer held. Thresholds are working assumptions.
+SLEEP_HOLD_H = 7.0           # without the own norm
+SLEEP_HOLD_LOW_H = 6.5       # always
+SLEEP_HOLD_BELOW = 0.75      # h under the own norm
+SLEEP_NIGHTS_MIN = 10        # nights for the 14-night mean and for the norm (readiness: 10 baseline nights)
 
 
 def _sleep14(rd, today: date) -> float | None:
@@ -525,6 +535,40 @@ def _sleep14(rd, today: date) -> float | None:
     lo = (today - timedelta(days=14)).isoformat()
     vals = [x.sleep_h for x in rd.daily if x.date and lo <= str(x.date)[:10] <= today.isoformat() and x.sleep_h]
     return sum(vals) / len(vals) if len(vals) >= SLEEP_NIGHTS_MIN else None
+
+
+def _sleep_norm(rd, today: date) -> float | None:
+    """The runner's own sleep norm as readiness reckons it: the mean of the nights 8–56 days back
+    (capacity.READY_BASE, at least 10 nights), else None."""
+    lo = (today - timedelta(days=C.READY_BASE[1])).isoformat()
+    hi = (today - timedelta(days=C.READY_BASE[0])).isoformat()
+    vals = [x.sleep_h for x in rd.daily if x.date and lo <= str(x.date)[:10] <= hi and x.sleep_h]
+    return sum(vals) / len(vals) if len(vals) >= SLEEP_NIGHTS_MIN else None
+
+
+def _hm(h: float) -> str:
+    """Hours as "6 h 58 min" — a one-decimal "7,0 h" read as enough when it was not."""
+    m = int(round(h * 60))
+    return f"{m // 60} h {m % 60:02d} min"
+
+
+def sleep_hold(s14: float | None, norm: float | None) -> dict | None:
+    """{why, until, note} when short sleep holds the week, else None (see SLEEP_HOLD_* above)."""
+    if s14 is None:
+        return None
+    if norm is None:
+        if s14 >= SLEEP_HOLD_H:
+            return None
+        target = SLEEP_HOLD_H
+        detail = "Aplikace zatím nezná vaši obvyklou délku spánku, proto do té doby platí obecná hranice 7 hodin."
+    else:
+        target = max(SLEEP_HOLD_LOW_H, norm - SLEEP_HOLD_BELOW)
+        if s14 >= target:
+            return None
+        detail = (f"Obvykle spíte {_hm(norm)}." if target > SLEEP_HOLD_LOW_H else       # the own norm decides
+                  f"Spánek pod {_hm(SLEEP_HOLD_LOW_H)} plán zastaví vždy, i když je pro vás běžný.")
+    return {"why": f"spánek 14 nocí v průměru {_hm(s14)}", "until": f"dokud průměr nebude aspoň {_hm(target)}",
+            "target": round(target, 2), "detail": detail}
 
 
 MISS_PRIOR, MISS_PRIOR_N = 0.03, 4     # #6: a week lost to life — the prior, shrunk to the runner's own record
@@ -1189,13 +1233,12 @@ def evaluate(goal: dict, st: dict, alternatives: bool = True) -> dict:
                                 "text": f"Plán teď neroste ({en['hold']['why']}). Chybějící menstruace bývá známkou nízké "
                                         "energetické dostupnosti a ta zvyšuje riziko únavové zlomeniny. Objednejte se ke "
                                         "sportovnímu lékaři. Týdny zatím drží vaši současnou úroveň."})
-    elif (st.get("sleep14") or 99) < SLEEP_HOLD_H:   # plan k cíli 2.0 #18: short sleep holds the week
-        sl = _cz(st["sleep14"], 1)
-        out["hold"] = {"kind": "sleep", "why": f"spánek 14 nocí v průměru {sl} h"}
+    elif (sh := sleep_hold(st.get("sleep14"), st.get("sleepNorm"))):   # #18: short sleep holds the week
+        out["hold"] = {"kind": "sleep", "why": sh["why"], "until": sh["until"]}
         out["notes"].insert(0, {"key": "sleep", "sources": ["huang-and-ihm-2021", "dobrosielski-et-al-2021"],
-                                "text": f"Spíte v průměru {sl} h (14 nocí). Plán teď neroste, ale ani neklesá: spánek pod "
-                                        "7 hodin šel v některých studiích s vyšším rizikem zranění. Jakmile průměr přesáhne "
-                                        "7 hodin, plán poroste dál."})
+                                "text": f"Spíte v průměru {_hm(st['sleep14'])} (14 nocí). {sh['detail']} Plán teď neroste, "
+                                        "ale ani neklesá: dlouhodobě kratší spánek šel v některých studiích s vyšším rizikem "
+                                        f"zranění. Jakmile bude průměr aspoň {_hm(sh['target'])}, plán poroste dál."})
     if en.get("fuel"):
         out["notes"].append({"key": "fuel", "sources": ["gallant-et-al-2024", "kraus-et-al-2018"],
                              "text": "Uvedli jste známky nedostatku energie. Jezte víc kolem tréninku, hlavně sacharidy "

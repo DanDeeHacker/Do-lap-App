@@ -5217,6 +5217,12 @@
   ]
  },
  {
+  "t": "Aplikace zatím nezná vaši obvyklou délku spánku, proto do té doby platí obecná hranice 7 hodin.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Bez výpadku budete připraveni za {} z {}, na nemoc a horší týdny zbývá málo času.",
   "files": [
    "metrics/goal_plan.py"
@@ -5391,6 +5397,12 @@
   ]
  },
  {
+  "t": "Obvykle spíte {}.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "Odhad z tréninku (Tandův vzorec) má chybu kolem 4–5 minut u časů 2:47–3:36. Pro ženy a rychlejší nebo pomalejší časy platí jen orientačně.",
   "files": [
    "metrics/goal_plan.py"
@@ -5487,7 +5499,13 @@
   ]
  },
  {
-  "t": "Spíte v průměru {} h (14 nocí). Plán teď neroste, ale ani neklesá: spánek pod 7 hodin šel v některých studiích s vyšším rizikem zranění. Jakmile průměr přesáhne 7 hodin, plán poroste dál.",
+  "t": "Spánek pod {} plán zastaví vždy, i když je pro vás běžný.",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
+  "t": "Spíte v průměru {} (14 nocí). {} Plán teď neroste, ale ani neklesá: dlouhodobě kratší spánek šel v některých studiích s vyšším rizikem zranění. Jakmile bude průměr aspoň {}, plán poroste dál.",
   "files": [
    "metrics/goal_plan.py"
   ]
@@ -5661,6 +5679,12 @@
   ]
  },
  {
+  "t": "dokud průměr nebude aspoň {}",
+  "files": [
+   "metrics/goal_plan.py"
+  ]
+ },
+ {
   "t": "dřívější zranění",
   "files": [
    "metrics/goal_plan.py"
@@ -5745,7 +5769,7 @@
   ]
  },
  {
-  "t": "spánek 14 nocí v průměru {} h",
+  "t": "spánek 14 nocí v průměru {}",
   "files": [
    "metrics/goal_plan.py"
   ]

@@ -691,10 +691,20 @@ def test_training_estimate_test_week_and_fuelling():
 
 
 def test_short_sleep_holds_the_week():
-    """#18: a 14-night mean under 7 hours holds the week (no growth, no cut) with an explanation."""
-    r = G.evaluate(_race(21.1, "2027-03-28"), {**_st(km=30), "sleep14": 6.4})
-    assert r["hold"] == {"kind": "sleep", "why": "spánek 14 nocí v průměru 6,4 h"} and r["notes"][0]["key"] == "sleep"
-    assert "hold" not in G.evaluate(_race(21.1, "2027-03-28"), {**_st(km=30), "sleep14": 7.2})
+    """#18 aligned with readiness (owner decision 2026-10-14): the week is held (no growth, no cut) when
+    the 14-night mean is 45 min under the runner's own norm or under 6.5 h; 7 h only without a norm.
+    The owner sleeps 6:45–7:15 h every night and was held at a mean shown as "7,0 h"."""
+    race = _race(21.1, "2027-03-28")
+    ev = lambda s14, norm: G.evaluate(race, {**_st(km=30), "sleep14": s14, "sleepNorm": norm})
+    assert "hold" not in ev(6.97, 7.0)                                   # the owner's case: a habit, not a drop
+    assert "hold" not in ev(6.6, 6.9)
+    r = ev(6.2, 7.3)                                                     # over an hour under the own norm
+    assert r["hold"] == {"kind": "sleep", "why": "spánek 14 nocí v průměru 6 h 12 min",
+                         "until": "dokud průměr nebude aspoň 6 h 33 min"}
+    assert r["notes"][0]["key"] == "sleep" and "Obvykle spíte 7 h 18 min" in r["notes"][0]["text"]
+    assert ev(6.4, 6.5)["hold"]["until"] == "dokud průměr nebude aspoň 6 h 30 min"   # under 6.5 h always
+    assert ev(6.9, None)["hold"]["until"] == "dokud průměr nebude aspoň 7 h 00 min"   # no norm yet: 7 h
+    assert "hold" not in ev(7.2, None) and "hold" not in ev(None, 7.0)
 
 
 # ------------------------------------------------------------------ plan k cíli 2.0, stage C
@@ -893,3 +903,16 @@ def test_the_goal_card_and_trenink_show_one_week_in_the_return(client, db_sessio
     assert go["week"]["long"] <= 0.3 * go["week"]["km"] + 0.11
     assert go["longKm"] and go["longKm"] >= g["types"]["dlouhý"]["km"]["hi"] - 0.05      # the week's, not today's room
     assert g["planCtx"]["goalLong"] == go["week"]["long"]
+
+
+def test_the_sleep_norm_is_the_readiness_baseline():
+    """The planner's sleep norm is readiness's: the nights 8–56 days back, at least 10 of them."""
+    from datetime import date
+    from types import SimpleNamespace as NS
+    today = date(2026, 10, 14)
+    nights = [NS(date=(today - timedelta(days=k)).isoformat(), sleep_h=(6.0 if k < 8 else 7.0 if k <= 56 else 9.0))
+              for k in range(0, 80)]
+    rd = NS(daily=nights)
+    assert G._sleep_norm(rd, today) == pytest.approx(7.0)            # recent short nights and old long ones left out
+    assert G._sleep14(rd, today) < 6.6
+    assert G._sleep_norm(NS(daily=nights[8:15]), today) is None        # fewer than 10 nights: no norm, 7 h stands in

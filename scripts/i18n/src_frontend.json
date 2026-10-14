@@ -12216,6 +12216,13 @@
   "kind": "str"
  },
  {
+  "t": "dokud se spánek nevrátí k vaší normě",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "dovolená",
   "files": [
    "goal.tsx"
@@ -12251,7 +12258,7 @@
   "kind": "str"
  },
  {
-  "t": "Důvod: {}. Týden neroste, ale ani neklesá, dokud průměr nepřesáhne 7 h.",
+  "t": "Důvod: {}.",
   "files": [
    "goal.tsx"
   ],
@@ -13403,6 +13410,13 @@
  },
  {
   "t": "týden {} · od {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Týden neroste, ale ani neklesá, {}.",
   "files": [
    "goal.tsx"
   ],
