@@ -14460,7 +14460,28 @@
   "kind": "str"
  },
  {
+  "t": "· milníky {}/{}",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· nejdelší řada {}",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· posilování {} z {}",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} {} v pásmu",
   "files": [
    "habits.tsx"
   ],
@@ -14502,13 +14523,6 @@
   "kind": "tpl"
  },
  {
-  "t": "Milníky",
-  "files": [
-   "habits.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Milníky {} z {}",
   "files": [
    "habits.tsx"
@@ -14528,13 +14542,6 @@
    "habits.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "nejdelší řada {}",
-  "files": [
-   "habits.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "Nový milník",

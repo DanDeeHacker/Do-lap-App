@@ -153,5 +153,8 @@
   "nemoc nebo bolest": "illness or pain",
   "posilování {} z {}": "strength {0} of {1}",
   "zátěž nad prahem {}×": "load over the threshold {0}×",
-  "Čtvrt roku v bezpečném pásmu": "A quarter of a year in the safe range"
+  "Čtvrt roku v bezpečném pásmu": "A quarter of a year in the safe range",
+  "· milníky {}/{}": "· milestones {0}/{1}",
+  "· nejdelší řada {}": "· longest run {0}",
+  "{} {} v pásmu": "{0} {1} in the range"
 }
