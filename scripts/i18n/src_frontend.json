@@ -3840,6 +3840,7 @@
   "files": [
    "App.tsx",
    "goal.tsx",
+   "outlook.tsx",
    "report.tsx",
    "training.tsx"
   ],
@@ -8773,7 +8774,8 @@
  {
   "t": "Volno",
   "files": [
-   "coach.tsx"
+   "coach.tsx",
+   "training.tsx"
   ],
   "kind": "str"
  },
@@ -9291,7 +9293,8 @@
  {
   "t": "repeat({}, minmax(0, 1fr))",
   "files": [
-   "coachview.tsx"
+   "coachview.tsx",
+   "outlook.tsx"
   ],
   "kind": "tpl"
  },
@@ -18367,6 +18370,34 @@
   "kind": "jsx"
  },
  {
+  "t": "běh nejvýš",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "bez běhu",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Bez běhu, podle plánu týdne.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Bez běhu. Odpočinek je součást plánu týdne.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "bez cyklu",
   "files": [
    "outlook.tsx"
@@ -18509,6 +18540,15 @@
   "kind": "str"
  },
  {
+  "t": "dlouhý",
+  "files": [
+   "outlook.tsx",
+   "report.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "dlouhý běh možný",
   "files": [
    "outlook.tsx"
@@ -18615,6 +18655,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Jako vaše slabší noci: za posledních 6 týdnů byla taková nebo horší zhruba každá pátá ({} nocí).",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Je to plán týdne, ne strop — bezpečnostní limity by dovolily až {} km, pokud bude připravenost aspoň 80 %.",
   "files": [
    "outlook.tsx"
@@ -18632,6 +18679,15 @@
   "t": "Kolo v Z2",
   "files": [
    "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "kvalitní",
+  "files": [
+   "outlook.tsx",
+   "report.tsx",
+   "training.tsx"
   ],
   "kind": "str"
  },
@@ -18684,6 +18740,20 @@
    "outlook.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Na dlouhý běh to zítra nevychází, raději kratší.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Na kvalitní trénink to zítra nevychází, raději lehce.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Na kvalitní trénink zítra nezbude dost kilometrů.",
@@ -18747,6 +18817,13 @@
    "outlook.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "nest p-3.5 {}",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "nevstřebaná celková zátěž (týdenní strop)",
@@ -18927,11 +19004,32 @@
   "kind": "str"
  },
  {
+  "t": "Podle limitů zítra raději bez běhu.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Podle plánu",
   "files": [
    "outlook.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Pokud plán změníte",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Příklad slabší noci: kratší spánek a nižší HRV. Až bude z hodinek aspoň 10 nocí, použijí se vaše vlastní.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Pro tento kanál se týdenní cíl zatím nestanovuje.",
@@ -19011,6 +19109,13 @@
   "kind": "str"
  },
  {
+  "t": "Sedí do limitů na zítra.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Skrýt, z čeho cíl a strop vychází",
   "files": [
    "outlook.tsx"
@@ -19047,6 +19152,13 @@
  },
  {
   "t": "strop jednoho běhu dnes",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Strop na zítra",
   "files": [
    "outlook.tsx"
   ],
@@ -19210,7 +19322,21 @@
   "kind": "jsx"
  },
  {
+  "t": "Zítra nejvýš {} km, plán zkraťte.",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Zítra v plánu",
+  "files": [
+   "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zítra v plánu týdne",
   "files": [
    "outlook.tsx"
   ],
@@ -20626,14 +20752,6 @@
   "kind": "jsx"
  },
  {
-  "t": "dlouhý",
-  "files": [
-   "report.tsx",
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Dnes bez běhu",
   "files": [
    "report.tsx"
@@ -20948,14 +21066,6 @@
    "report.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "kvalitní",
-  "files": [
-   "report.tsx",
-   "training.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "L{} {}",

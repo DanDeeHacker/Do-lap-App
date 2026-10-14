@@ -1218,6 +1218,27 @@ def readiness_inputs(db, rid, day: str) -> dict:
     return out
 
 
+# v0.12.14 — the outlook's "weaker night" is the runner's own: the night at the 20th percentile
+# of their readiness over the last 6 weeks (one night in five was this bad or worse), from at
+# least 10 known nights. When this morning already scored as low, the worst of those nights.
+WEAK_NIGHT_PCT, WEAK_NIGHT_MIN = 0.2, 10
+
+
+def weak_night(ready: dict, nights, morning) -> dict | None:
+    """{score, factor, parts, n} of the runner's own weaker night, or None (too few nights, or
+    no night of the window was worse than this morning)."""
+    pool = sorted((ready[d] for d in ready if d in nights and len(ready[d]) > 2), key=lambda e: e[2])
+    if len(pool) < WEAK_NIGHT_MIN:
+        return None
+    e = pool[int(WEAK_NIGHT_PCT * (len(pool) - 1))]
+    if morning is not None and e[2] >= morning:
+        e = pool[0]
+        if e[2] >= morning:
+            return None
+    return {"score": e[2], "factor": e[0], "n": len(pool),
+            "parts": {k: round(v, 3) for k, v in (e[1] or {}).items() if k != "session"}}
+
+
 def readiness_block(db, rid) -> dict | None:
     """v0.9.0 — Připravenost for the engines without the capacity model (Standardní /
     Citlivý): it replaced the single-night Regenerace ring on Dnes for every runner.
@@ -2150,7 +2171,8 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
                  "yesterday": {"score": y_score, "parts": y_parts, "effects": readiness_effects(y_parts),
                                "known": y_iso in nights or bool(y_parts)},
                  "known": t_iso in nights or bool(parts_today),
-                 "inputs": readiness_inputs(db, rid, t_iso)}
+                 "inputs": readiness_inputs(db, rid, t_iso),
+                 "weakNight": weak_night(ready, nights, morning_score)}
     segs_all = {st.activity_id: st.segments_json for st in db.streams if st.segments_json}
     cs_now = SP.cs_summary(sessions, segs_all, t_iso)
     out = {

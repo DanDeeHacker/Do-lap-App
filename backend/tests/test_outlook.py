@@ -171,3 +171,21 @@ def test_absorbed_series_ends_where_the_room_says(client, db_session):
     days = g["week"]["days"]
     assert len(days) == 7 and days[0]["date"] == "2026-10-05"
     assert abs(sum(sum(d["by"]["volume"].values()) for d in days) - g["week"]["channels"]["volume"]["done"]) < 0.2
+
+
+def test_weak_night_is_the_runners_own_20th_percentile():
+    """v0.12.14 — the outlook's weaker night from the runner's own nights of 6 weeks."""
+    ready = {f"2026-09-{d:02d}": (1.0 - 0.01 * d, {"hrv": 0.01 * d}, 100 - d) for d in range(1, 21)}
+    nights = set(ready)
+    w = C.weak_night(ready, nights, 100)
+    assert w["n"] == 20 and w["score"] == 83 and w["parts"] == {"hrv": 0.17}   # the 20th percentile
+    assert C.weak_night(ready, nights, 83)["score"] == 80                        # this morning as low: the worst
+    assert C.weak_night(ready, nights, 80) is None                               # nothing worse than this morning
+    assert C.weak_night(ready, set(list(ready)[:9]), 100) is None                # too few nights
+    # the outlook takes it, with the per-channel factors from its parts
+    cap = {"readiness": {"morningScore": 100, "weakNight": w}, "channels": {}}
+    weak = O.night_scenarios(cap)[2]
+    assert weak["score"] == 83 and weak["own"] and weak["n"] == 20
+    assert weak["factor"]["systemic"] == w["factor"] and weak["factor"]["volume"] > w["factor"]   # HRV at half weight
+    fixed = O.night_scenarios({"readiness": {"morningScore": 100}, "channels": {}})[2]
+    assert fixed["score"] == C.readiness_from(O.WEAK_PARTS)[1] and not fixed["own"]

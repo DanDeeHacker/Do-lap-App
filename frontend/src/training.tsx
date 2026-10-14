@@ -17,7 +17,7 @@ import { readinessCol } from "@/capacity"
 import { EarlyNote, NoData, useDataStage } from "@/firstday"
 import { fmtD, leadReasons, paceStr } from "@/lib"
 import { C } from "@/tokens"
-import { BoundTag, TomorrowCard, WeekLoadCard, limitText } from "@/outlook"
+import { BoundTag, TomorrowCard, WeekLoadCard, limitText, type TomorrowPlan } from "@/outlook"
 import { Bike, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Users, Waves, X, Zap, type LucideIcon } from "lucide-react"
 import { CoachProgress, CoachSection } from "@/coach"
 import { DataGapCard, GoalCard } from "@/goal"
@@ -1061,6 +1061,17 @@ const dayItemText = (it: any) => {
   return it.kind === "strength" ? `${it.label} ${(it.sessionKey || "").trim()}`.trim() : `${it.label}${sum ? ` ${sum}` : ""}`
 }
 const dayText = (d: any) => (d?.items || []).map(dayItemText).join(" · ")
+// tomorrow in the week plan, for Výhled na zítra (null: no plan, a paused plan, a new week)
+function planTomorrow(plan: any): TomorrowPlan | null {
+  const days: any[] = plan?.days || []
+  const ti = days.findIndex((d) => d.today)
+  const d = !plan || plan.override || ti < 0 ? null : days[ti + 1]
+  const items: any[] = d?.items || []
+  if (!items.length || items.every((it) => it.kind === "rest" && it.label !== "Volno")) return null
+  const run = items.find((it) => it.kind === "race") || items.find((it) => it.kind === "run" && !it.optional) || items.find((it) => it.kind === "run")
+  return { text: dayText(d), rest: !run, off: items.every((it) => it.kind === "rest"), type: run ? (run.kind === "race" ? "závod" : run.type) : null,
+    km: run ? (typeof run.km === "number" ? run.km : run.km?.hi ?? null) : null }
+}
 
 function KeyTile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
   return (
@@ -1287,7 +1298,7 @@ function WeekCard({ g, plan }: { g: any; plan: any }) {
 // today's capacity in one card: what today's session takes per channel against what today
 // leaves; the gauges, the week's ceilings and the safe longest run one tap away
 // owner feedback railway#214 — tomorrow's outlook is the card's second tab
-function CapacityCard({ g }: { g: any }) {
+function CapacityCard({ g, plan }: { g: any; plan?: any }) {
   const [more, setMore] = useState(false)
   const [tab, setTab] = useState<"t" | "z">("t")
   const hasTomorrow = !!g.outlook?.channels
@@ -1310,7 +1321,7 @@ function CapacityCard({ g }: { g: any }) {
           ? <Segmented size="sm" ariaLabel="Kapacita" value={tab} onChange={setTab} options={[["t", "Dnes"], ["z", "Zítra"]] as const} />
           : <span className="text-[12px] text-fg-2">kolik dnes ještě smíte</span>}
       </div>
-      {tab === "z" ? <div className="mt-2"><TomorrowCard g={g} embedded /></div> : <>
+      {tab === "z" ? <div className="mt-2"><TomorrowCard g={g} embedded tomorrowPlan={planTomorrow(plan)} /></div> : <>
       {hasTomorrow && <p className="mt-1 text-[12px] text-fg-2">kolik dnes ještě smíte</p>}
       {status && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
       {f && (
@@ -1449,7 +1460,7 @@ export function Training() {
         <div className="min-w-0">
           {/* owner feedback 2026-10-10 / railway#214 — tomorrow's limits (after what is still done
               today and the night) are the capacity card's second tab */}
-          <CapacityCard g={g} />
+          <CapacityCard g={g} plan={plan} />
           <WeekLoadCard g={g} cap={a.capacity} />
           {coach && <CoachProgress rid={rid!} />}
           {coach && <GoalCard rid={rid!} gg={g.goal} />}

@@ -77,5 +77,20 @@
   "3px solid {}": "",
   "repeat({}, minmax(0, 1fr))": "",
   "© <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\" rel=\"noopener\">OpenStreetMap</a>": "",
-  "trasa, mezičasy, průběh tempa a tepu": "route, splits, pace and heart rate along the run"
+  "trasa, mezičasy, průběh tempa a tepu": "route, splits, pace and heart rate along the run",
+  "běh nejvýš": "a run of at most",
+  "bez běhu": "no run",
+  "Bez běhu. Odpočinek je součást plánu týdne.": "No run. Rest is part of the week's plan.",
+  "Jako vaše slabší noci: za posledních 6 týdnů byla taková nebo horší zhruba každá pátá ({} nocí).": "Like your weaker nights: over the last 6 weeks about one night in five was like this or worse ({0} nights).",
+  "Na dlouhý běh to zítra nevychází, raději kratší.": "Tomorrow doesn't allow a long run; keep it shorter.",
+  "Na kvalitní trénink to zítra nevychází, raději lehce.": "Tomorrow doesn't allow a quality session; keep it easy.",
+  "nest p-3.5 {}": "",
+  "Podle limitů zítra raději bez běhu.": "By tomorrow's limits, better no run.",
+  "Pokud plán změníte": "If you change the plan",
+  "Příklad slabší noci: kratší spánek a nižší HRV. Až bude z hodinek aspoň 10 nocí, použijí se vaše vlastní.": "An example of a weaker night: shorter sleep and lower HRV. Once your watch has at least 10 nights, your own are used.",
+  "Sedí do limitů na zítra.": "Fits tomorrow's limits.",
+  "Strop na zítra": "Tomorrow's ceiling",
+  "Zítra nejvýš {} km, plán zkraťte.": "At most {0} km tomorrow; shorten the plan.",
+  "Zítra v plánu týdne": "Tomorrow in the week's plan",
+  "Bez běhu, podle plánu týdne.": "No run, as the week's plan has it."
 }

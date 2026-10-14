@@ -369,6 +369,17 @@ export function evaluate(ol: any, x: Record<string, number>, night: string, n = 
   return out
 }
 
+/** Does tomorrow's planned run fit tomorrow's limits (the run's km, a quality / long session)? */
+function planFit(tp: TomorrowPlan, v: any): { ok: boolean; text: string } | null {
+  if (tp.type === "závod") return null
+  const mx = v.ev?.volume?.max
+  if (!v.run) return { ok: false, text: "Podle limitů zítra raději bez běhu." }
+  if (tp.type === "kvalitní" && !v.quality) return { ok: false, text: "Na kvalitní trénink to zítra nevychází, raději lehce." }
+  if (tp.type === "dlouhý" && !v.long) return { ok: false, text: "Na dlouhý běh to zítra nevychází, raději kratší." }
+  if (tp.km != null && mx != null && tp.km > mx + 0.05) return { ok: false, text: `Zítra nejvýš ${num(mx)} km, plán zkraťte.` }
+  return { ok: true, text: "Sedí do limitů na zítra." }
+}
+
 function verdict(ol: any, x: Record<string, number>, night: string) {
   const ev = evaluate(ol, x, night)
   const score = (ol.nights || []).find((n: any) => n.key === night)?.score ?? 100
@@ -421,8 +432,14 @@ function Slider({ label, value, onChange, max, step, unit }: { label: string; va
   )
 }
 
-// owner feedback railway#214 — also a tab of the Dnešní kapacita card (`embedded`: no card, no header)
-export function TomorrowCard({ g, embedded = false }: { g: any; embedded?: boolean }) {
+/** Tomorrow in the week plan (week_plan.py) as the outlook needs it: the day's text, whether it
+ *  has no run, and the planned run's type and km. */
+export type TomorrowPlan = { text: string; rest: boolean; off?: boolean; type?: string | null; km?: number | null }
+
+// owner feedback railway#214 — also a tab of the Dnešní kapacita card (`embedded`: no card, no header).
+// v0.12.14 (owner feedback 2026-10-14): tomorrow's planned day leads — the ceiling is a second
+// line ("Strop na zítra", or "Pokud plán změníte" on a planned rest day), never the headline.
+export function TomorrowCard({ g, embedded = false, tomorrowPlan = null }: { g: any; embedded?: boolean; tomorrowPlan?: TomorrowPlan | null }) {
   const ol = g.outlook
   const presets: any[] = ol?.presets || []
   const [pk, setPk] = useState<string>(() => (g.outlook?.presets || []).some((p: any) => p.key === "plan") ? "plan" : "none")
@@ -441,6 +458,15 @@ export function TomorrowCard({ g, embedded = false }: { g: any; embedded?: boole
   const nights: any[] = ol.nights || []
   const coachMode = g.week?.mode === "coach"
   const pt = ol.planTomorrow
+  // the week plan's day (the coach's plan has its own box, pt)
+  const tp = !pt?.sessions?.length && !coachMode ? tomorrowPlan : null
+  const planned = !!tp || pt?.sessions?.length > 0
+  const tpFit = tp && !tp.rest ? planFit(tp, v) : null
+  // the night options that differ: no "dobrá" when this morning was already in the norm, no
+  // "slabší" when no night of 6 weeks was worse than this morning
+  const nToday = nights.find((n) => n.key === "today")
+  const nOpts = nights.filter((n) => !(n.key === "good" && (nToday?.score ?? 0) >= 98) && !(n.key === "weak" && nToday && n.score >= nToday.score))
+  const nWeak = nights.find((n) => n.key === "weak")
   const shown = (["volume", "intensity", "descent", "ascent", "systemic"] as const).filter((c) => v.ev[c] && todayCh[c])
   const Box = embedded ? "div" : "section"
   return (
@@ -475,14 +501,29 @@ export function TomorrowCard({ g, embedded = false }: { g: any; embedded?: boole
       )}
       <p className="mt-3 text-[12px] font-semibold text-fg-3">Jaká bude noc</p>
       <Segmented size="sm" className="mt-1.5" ariaLabel="Noc" value={night} onChange={setNight}
-        options={nights.map((n) => [n.key, n.key === "today" ? `jako dnes · ${n.score} %` : n.key === "good" ? "dobrá" : `slabší · ${n.score} %`] as const)} />
+        options={nOpts.map((n) => [n.key, n.key === "today" ? `jako dnes · ${n.score} %` : n.key === "good" ? "dobrá" : `slabší · ${n.score} %`] as const)} />
+      {night === "weak" && nWeak && (
+        <p className="mt-1.5 text-[11.5px] leading-4 text-fg-3" data-testid="tomorrow-weak-night">
+          {nWeak.own ? `Jako vaše slabší noci: za posledních 6 týdnů byla taková nebo horší zhruba každá pátá (${nWeak.n} nocí).`
+            : "Příklad slabší noci: kratší spánek a nižší HRV. Až bude z hodinek aspoň 10 nocí, použijí se vaše vlastní."}
+        </p>
+      )}
+
+      {tp && (
+        <div className="nest mt-4 p-3.5" data-testid="tomorrow-plan">
+          <p className="text-[12px] font-semibold text-fg-3">Zítra v plánu týdne</p>
+          <p className="mt-0.5 text-[15px] font-bold leading-6 text-fg">{tp.text}</p>
+          {tp.rest ? <p className="mt-0.5 text-[12px] text-fg-2">{tp.off ? "Bez běhu. Odpočinek je součást plánu týdne." : "Bez běhu, podle plánu týdne."}</p>
+            : tpFit && <p className="mt-0.5 text-[12px] font-semibold" style={{ color: tpFit.ok ? C.ok : C.watch }}>{tpFit.text}</p>}
+        </div>
+      )}
 
       {pt?.sessions?.length > 0 && (
         <div className="nest mt-4 p-3.5" data-testid="tomorrow-plan">
           <p className="text-[12px] font-semibold text-fg-3">Zítra v plánu</p>
           <p className="mt-0.5 text-[14px] font-bold text-fg">{pt.sessions.map((x: any) => `${x.label}${x.km ? ` ${num(x.km)} km` : x.min ? ` ${num(x.min, 0)} min` : ""}`).join(" + ")}</p>
-          <div className="mt-2 grid grid-cols-3 gap-1.5">
-            {nights.map((n) => {
+          <div className="mt-2 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${nOpts.length}, minmax(0, 1fr))` }}>
+            {nOpts.map((n) => {
               const r = pt.byNight?.[n.key]
               const col = r?.verdict === "ok" ? C.ok : r?.verdict === "mod" ? C.watch : r?.verdict === "no" ? C.alert : C.fg3
               const lbl = r?.verdict === "ok" ? "sedí" : r?.verdict === "mod" ? "s úpravou" : r?.verdict === "no" ? "raději ne" : "volno"
@@ -498,10 +539,19 @@ export function TomorrowCard({ g, embedded = false }: { g: any; embedded?: boole
           {pt.byNight?.[night]?.why?.[0] && <p className="mt-1.5 text-[11.5px] leading-4 text-fg-3">{pt.byNight[night].why[0]}</p>}
         </div>
       )}
-      <div className="nest mt-4 p-3.5" data-testid="tomorrow-verdict">
-        <p className="text-[15px] font-bold leading-6 text-fg">
-          {v.run ? <><span>Zítra běh do </span><span className="tabular-nums">{num(vol?.max, 1)}</span><span> km</span></> : <span>Zítra bez běhu</span>}
-        </p>
+      <div className={`nest p-3.5 ${planned ? "mt-2" : "mt-4"}`} data-testid="tomorrow-verdict">
+        {planned ? (
+          <>
+            <p className="text-[12px] font-semibold text-fg-3">{tp?.rest ? "Pokud plán změníte" : "Strop na zítra"}</p>
+            <p className="mt-0.5 text-[14px] font-bold leading-6 text-fg">
+              {v.run ? <><span>běh nejvýš </span><span className="tabular-nums">{num(vol?.max, 1)}</span><span> km</span></> : <span>bez běhu</span>}
+            </p>
+          </>
+        ) : (
+          <p className="text-[15px] font-bold leading-6 text-fg">
+            {v.run ? <><span>Zítra běh do </span><span className="tabular-nums">{num(vol?.max, 1)}</span><span> km</span></> : <span>Zítra bez běhu</span>}
+          </p>
+        )}
         {!v.run && vol?.lim && (
           <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-fg-2"><span>{`omezuje: ${limitText(vol.lim, vol.bound, newWeek, coachMode)}`}</span><BoundTag bound={vol.bound} /></p>
         )}
@@ -512,11 +562,11 @@ export function TomorrowCard({ g, embedded = false }: { g: any; embedded?: boole
           <p className="mt-1 text-[12px] text-fg-3">{`Je to plán týdne, ne strop — bezpečnostní limity by dovolily až ${num(vol.safe)} km, pokud bude připravenost aspoň 80 %.`}</p>
         )}
         {later && <p className="mt-1 text-[12px] text-fg-2">{`Nejbližší den s prostorem na běh: ${later.date.toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "numeric" })} · ≈ ${num(later.km)} km${later.newWeek ? " (nový týden)" : ""}`}</p>}
-        <div className="mt-2 flex flex-wrap gap-1.5 text-[11.5px] font-bold">
+        {!tp?.rest && <div className="mt-2 flex flex-wrap gap-1.5 text-[11.5px] font-bold">
           <span className={`rounded-full px-2 py-0.5 ${v.quality ? "bg-ok/15 text-ok" : "bg-white/[.06] text-fg-3"}`}>{v.quality ? "kvalitní trénink možný" : "bez kvalitního tréninku"}</span>
           <span className={`rounded-full px-2 py-0.5 ${v.long && v.run ? "bg-ok/15 text-ok" : "bg-white/[.06] text-fg-3"}`}>{v.long && v.run ? "dlouhý běh možný" : "bez dlouhého běhu"}</span>
-        </div>
-        {!v.quality && v.run && (
+        </div>}
+        {!v.quality && v.run && !tp?.rest && (
           <p className="mt-1.5 text-[11.5px] leading-4 text-fg-3">
             {!v.gapOk ? "Mezi tvrdými tréninky aspoň 48 hodin." : v.score < (ol.hard?.readyQuality ?? 65) ? `Na tvrdý trénink je potřeba připravenost aspoň ${ol.hard?.readyQuality ?? 65} %.`
               : (vol?.max ?? 99) < 0.5 * (ol.baseKm || 0) ? "Na kvalitní trénink zítra nezbude dost kilometrů." : "Na tvrdé minuty (aspoň 10 min v Z4+) zítra nezbude prostor."}

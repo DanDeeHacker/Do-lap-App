@@ -26,8 +26,9 @@ from . import capacity as C
 
 CHS = ("volume", "intensity", "descent", "ascent", "systemic")
 MSK = ("volume", "descent", "ascent")
-# the night scenarios: signals in the runner's norm, like this morning, a weaker night
-# (shorter sleep and lower HRV — readiness_from of these deficits ≈ 64 %)
+# the night scenarios: signals in the runner's norm, like this morning, a weaker night —
+# v0.12.14: the runner's own (capacity.weak_night: the 20th percentile of 6 weeks of nights);
+# until 10 nights are known, a shorter sleep and a lower HRV (readiness_from ≈ 64 %)
 WEAK_PARTS = {"hrv": 0.3, "sleep": 0.3}
 DRIFT_CUT = {"volume": 0.8, "intensity": 0.5, "descent": 0.5}
 
@@ -37,13 +38,18 @@ def night_scenarios(cap: dict) -> list:
     rd = cap.get("readiness") or {}
     chs = cap.get("channels") or {}
     m_score = rd.get("morningScore", rd.get("score", 100))
-    wf, ws = C.readiness_from(WEAK_PARTS)
-    weak = {c: C.channel_readiness((wf, WEAK_PARTS, ws), c) for c in CHS}
+    wn = rd.get("weakNight")
+    if wn:
+        wf, wp, ws = wn["factor"], wn["parts"], wn["score"]
+    else:
+        wp = WEAK_PARTS
+        wf, ws = C.readiness_from(wp)
+    weak = {c: C.channel_readiness((wf, wp, ws), c) for c in CHS}
     return [
         {"key": "good", "label": "Noc v normě", "score": 100, "factor": {c: 1.0 for c in CHS}},
         {"key": "today", "label": "Jako dnešní noc", "score": m_score,
          "factor": {c: (chs.get(c) or {}).get("readinessFactor") or 1.0 for c in CHS}},
-        {"key": "weak", "label": "Slabší noc", "score": ws, "factor": weak},
+        {"key": "weak", "label": "Slabší noc", "score": ws, "factor": weak, "own": bool(wn), "n": wn["n"] if wn else None},
     ]
 
 
@@ -90,7 +96,7 @@ def build(*, cap: dict, week: dict, today: date, plan_next: dict, conv: dict, no
                        "planNext": plan_next.get(c), "byNight": by}
     ol = {"date": (today + timedelta(days=1)).isoformat(), "toMonday": to_monday, "minRunKm": min_run,
           "baseKm": base_km, "novice": novice, "drift": DRIFT_CUT if drift else None,
-          "nights": [{k: n[k] for k in ("key", "label", "score")} for n in nights],
+          "nights": [{k: n[k] for k in ("key", "label", "score", "own", "n") if k in n} for n in nights],
           "conv": conv, "channels": channels,
           "hard": {"lastAge": last_hard_age, "gap": hard_gap, "readyQuality": ready_quality, "z4Min": 10}}
     for p in presets:
