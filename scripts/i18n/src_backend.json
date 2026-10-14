@@ -16021,6 +16021,12 @@
   ]
  },
  {
+  "t": "Boty z Garminu",
+  "files": [
+   "routers/shoes.py"
+  ]
+ },
+ {
   "t": "Běh nenalezen",
   "files": [
    "routers/shoes.py"

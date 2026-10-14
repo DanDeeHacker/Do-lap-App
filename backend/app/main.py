@@ -113,6 +113,7 @@ def _migrate(engine):
     add("checkins", "sleep_quality", "sleep_quality INTEGER")
     add("checkins", "flags", "flags JSON")
     add("settings", "rail_cards", "rail_cards JSON")
+    add("settings", "today_cards", "today_cards JSON")
     add("races", "ascent_m", "ascent_m FLOAT")
     add("races", "target_pace_s_km", "target_pace_s_km INTEGER")
     add("goals", "risk_ended_at", "risk_ended_at VARCHAR")
@@ -138,6 +139,13 @@ def _migrate(engine):
     add("runners", "coach_name", "coach_name VARCHAR")
     add("runners", "plan_feed_url", "plan_feed_url VARCHAR")
     add("runners", "plan_feed_status", "plan_feed_status JSON")
+    # v0.12.13 — run detail (route, series, splits) and shoes per run
+    add("activity_streams", "route_json", "route_json JSON")
+    add("activity_streams", "track_json", "track_json JSON")
+    add("activities", "shoe_id", "shoe_id INTEGER")
+    add("activities", "gear_uuid", "gear_uuid VARCHAR")
+    add("shoes", "is_default", "is_default BOOLEAN", "UPDATE shoes SET is_default = FALSE WHERE is_default IS NULL")
+    add("shoes", "garmin_uuid", "garmin_uuid VARCHAR")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.

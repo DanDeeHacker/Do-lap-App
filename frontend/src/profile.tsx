@@ -322,6 +322,7 @@ export function Shoes({ rid }: { rid: string }) {
   const [data, setData] = useState<any>(null)
   const [form, setForm] = useState<ShoeForm | null>(null)
   const [recog, setRecog] = useState<"" | "busy" | string>("")
+  const [setup, setSetup] = useState<number | null>(null)     // v0.12.13 — a pair's default / Garmin options open
   const fileRef = useRef<HTMLInputElement | null>(null)
   const { busy, err, run, setErr } = useAsync()
   useEffect(() => { api.shoes(rid).then(setData).catch(() => {}) }, [rid])
@@ -438,14 +439,35 @@ export function Shoes({ rid }: { rid: string }) {
             <li key={s.id} className={`nest flex items-start gap-3 p-3 ${s.retired_at ? "opacity-60" : ""}`}>
               <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white/[.06] text-fg-2"><Footprints className="size-4" aria-hidden /></span>
               <div className="min-w-0 flex-1">
-                <b className="block text-[14px] text-fg">{s.brand} {s.model}</b>
+                <b className="block text-[14px] text-fg">{s.brand} {s.model}{s.is_default && !s.retired_at && <span className="ml-1.5 rounded-full bg-accent/15 px-1.5 py-0.5 align-middle text-[10.5px] font-bold text-accent">výchozí</span>}</b>
                 <span className="block text-[11.5px] leading-[17px] text-fg-3">
                   {[s.categoryLabel, s.drop_mm != null ? `drop ${String(s.drop_mm).replace(".", ",")} mm` : null, s.carbon ? "karbon" : null].filter(Boolean).join(" · ")}
                 </span>
                 <span className="block text-[11.5px] leading-[17px] text-fg-2">
                   {s.retired_at ? `vyřazeno ${fmtD(s.retired_at)}` : `od ${fmtD(s.first_used)}`}
                   {s.kmSince != null && !s.retired_at ? ` · ${data?.kmShared ? "nejvýš " : ""}${String(s.kmSince).replace(".", ",")} km` : ""}
+                  {data?.byRun && s.runsSince != null && !s.retired_at ? ` · ${s.runsSince} ${s.runsSince === 1 ? "běh" : s.runsSince >= 2 && s.runsSince <= 4 ? "běhy" : "běhů"}` : ""}
                 </span>
+                {!s.retired_at && (
+                  <button type="button" onClick={() => setSetup(setup === s.id ? null : s.id)} aria-expanded={setup === s.id} data-testid="shoe-setup"
+                    className="mt-1 text-[11.5px] font-semibold text-accent">{setup === s.id ? "Skrýt" : (data?.garminGear?.length ? "Výchozí bota a Garmin" : "Výchozí bota")}</button>
+                )}
+                {setup === s.id && (
+                  <div className="mt-2 grid gap-2" data-testid="shoe-setup-panel">
+                    <Toggle on={!!s.is_default} onClick={() => run(async () => after(await api.updateShoe(rid, s.id, { is_default: !s.is_default })))} label="Výchozí pro běhy bez jiných bot" />
+                    {data?.garminGear?.length > 0 && (
+                      <label className="grid gap-1 text-[12px] text-fg-2">
+                        <span>Tyto boty v Garminu</span>
+                        <select className={inp} value={s.garmin_uuid || ""} data-testid="shoe-garmin"
+                          onChange={(e) => run(async () => after(await api.updateShoe(rid, s.id, { garmin_uuid: e.target.value || null })))}>
+                          <option value="">nespárované</option>
+                          {data.garminGear.map((g: any) => <option key={g.uuid} value={g.uuid}>{`${g.name}${g.runs ? ` · ${g.runs} ${g.runs === 1 ? "běh" : g.runs <= 4 ? "běhy" : "běhů"}` : ""}${g.pairedTo && g.pairedTo !== s.id ? " · u jiných bot" : ""}`}</option>)}
+                        </select>
+                      </label>
+                    )}
+                    <p className="text-[11px] leading-4 text-fg-3">Běh dostane boty podle toho, co jste u něj vybrali, jinak podle bot zapsaných v Garminu, jinak výchozí. Kilometry pak počítá každý pár zvlášť.</p>
+                  </div>
+                )}
                 {s.transition && (
                   <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: `${C.watch}1f`, color: C.watch }} data-testid="shoe-transition">
                     přechod do {fmtD(s.transition.until)}: užší rezervy na běh

@@ -206,6 +206,7 @@
    "admin.tsx",
    "care.tsx",
    "coachview.tsx",
+   "metricsheet.tsx",
    "rundetail.tsx",
    "tabs.tsx",
    "training.tsx"
@@ -215,7 +216,8 @@
  {
   "t": "naposledy {}",
   "files": [
-   "admin.tsx"
+   "admin.tsx",
+   "metricsheet.tsx"
   ],
   "kind": "tpl"
  },
@@ -237,7 +239,8 @@
   "t": "Období",
   "files": [
    "admin.tsx",
-   "fitness.tsx"
+   "fitness.tsx",
+   "metricsheet.tsx"
   ],
   "kind": "str"
  },
@@ -362,6 +365,7 @@
    "coachview.tsx",
    "fitness.tsx",
    "goal.tsx",
+   "metricsheet.tsx",
    "outlook.tsx",
    "report.tsx",
    "training.tsx"
@@ -1840,6 +1844,7 @@
    "coachview.tsx",
    "glossary.tsx",
    "landing.tsx",
+   "metricsheet.tsx",
    "report.tsx",
    "shell.tsx",
    "tabs.tsx"
@@ -2139,6 +2144,7 @@
    "enginelab.tsx",
    "glossary.tsx",
    "landing.tsx",
+   "metricsheet.tsx",
    "onboarding.tsx",
    "shell.tsx",
    "tabs.tsx"
@@ -2634,6 +2640,7 @@
   "t": "práh",
   "files": [
    "App.tsx",
+   "metricsheet.tsx",
    "tabs.tsx"
   ],
   "kind": "str"
@@ -2778,6 +2785,7 @@
    "coachview.tsx",
    "glossary.tsx",
    "landing.tsx",
+   "metricsheet.tsx",
    "onboarding.tsx",
    "report.tsx",
    "shell.tsx",
@@ -2927,7 +2935,8 @@
    "App.tsx",
    "landing.tsx",
    "report.tsx",
-   "rundetail.tsx"
+   "rundetail.tsx",
+   "runprofile.tsx"
   ],
   "kind": "str"
  },
@@ -3294,6 +3303,7 @@
    "App.tsx",
    "coach.tsx",
    "goal.tsx",
+   "metricsheet.tsx",
    "training.tsx"
   ],
   "kind": "jsx"
@@ -3341,6 +3351,7 @@
    "assistant.tsx",
    "daytoday.tsx",
    "landing.tsx",
+   "metricsheet.tsx",
    "onboarding.tsx",
    "report.tsx",
    "training.tsx"
@@ -3733,6 +3744,7 @@
    "enginelab.tsx",
    "glossary.tsx",
    "landing.tsx",
+   "metricsheet.tsx",
    "onboarding.tsx",
    "shell.tsx",
    "tabs.tsx"
@@ -4652,6 +4664,16 @@
   "kind": "tpl"
  },
  {
+  "t": "{} /km",
+  "files": [
+   "capacity.tsx",
+   "fitness.tsx",
+   "runprofile.tsx",
+   "training.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} min zvýšeného tepu v klidu",
   "files": [
    "capacity.tsx",
@@ -4771,6 +4793,7 @@
   "files": [
    "capacity.tsx",
    "outlook.tsx",
+   "profile.tsx",
    "report.tsx",
    "tabs.tsx"
   ],
@@ -4799,6 +4822,7 @@
   "t": "běhů",
   "files": [
    "capacity.tsx",
+   "profile.tsx",
    "report.tsx",
    "tabs.tsx"
   ],
@@ -4808,6 +4832,7 @@
   "t": "běhy",
   "files": [
    "capacity.tsx",
+   "profile.tsx",
    "report.tsx",
    "tabs.tsx"
   ],
@@ -5254,6 +5279,7 @@
    "capacity.tsx",
    "coachview.tsx",
    "fitness.tsx",
+   "metricsheet.tsx",
    "report.tsx",
    "shell.tsx",
    "tabs.tsx"
@@ -5301,6 +5327,13 @@
   "kind": "str"
  },
  {
+  "t": "kritická {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Kritická rychlost",
   "files": [
    "capacity.tsx",
@@ -5341,6 +5374,23 @@
   "t": "luteální fáze",
   "files": [
    "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "M",
+  "files": [
+   "capacity.tsx",
+   "enginecompare.tsx",
+   "enginelab.tsx",
+   "exfigure.tsx",
+   "fitness.tsx",
+   "landing.tsx",
+   "report.tsx",
+   "rundetail.tsx",
+   "runprofile.tsx",
+   "tabs.tsx",
+   "ui.tsx"
   ],
   "kind": "str"
  },
@@ -5408,6 +5458,27 @@
   "kind": "str"
  },
  {
+  "t": "Nejlepší tempo",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nejlepší tempo podle délky úseku",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nejlepší tempo: {}",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Nejnáročnější běh · 7 dní",
   "files": [
    "capacity.tsx"
@@ -5423,6 +5494,13 @@
  },
  {
   "t": "Nejnáročnější trénink · 7 dní",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nejrychlejší tempo (přepočtené na rovinu), které jste v tréninku udrželi 3, 6, 10, 15 a 20 minut. Čím delší úsek, tím pomalejší tempo; křivka se blíží kritické rychlosti. Z tréninku, ne ze závodu, takže skutečné maximum může být vyšší.",
   "files": [
    "capacity.tsx"
   ],
@@ -5670,6 +5748,13 @@
   "kind": "tpl"
  },
  {
+  "t": "posledních 90 dní",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "poznáváme",
   "files": [
    "capacity.tsx"
@@ -5684,6 +5769,20 @@
   "kind": "jsx"
  },
  {
+  "t": "předchozích 90 dní",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Předchozích 90 dní na srovnání chybí.",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Přední strana stehna",
   "files": [
    "capacity.tsx"
@@ -5691,7 +5790,35 @@
   "kind": "str"
  },
  {
+  "t": "předtím",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "překryv a zaokrouhlení",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Proti předchozím 90 dnům pomalejší na všech délkách.",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Proti předchozím 90 dnům rychlejší na {} z {} délek.",
+  "files": [
+   "capacity.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Proti předchozím 90 dnům rychlejší na všech délkách.",
   "files": [
    "capacity.tsx"
   ],
@@ -9187,6 +9314,7 @@
   "files": [
    "coachview.tsx",
    "landing.tsx",
+   "metricsheet.tsx",
    "report.tsx",
    "shell.tsx",
    "tabs.tsx"
@@ -10872,21 +11000,6 @@
   "kind": "jsx"
  },
  {
-  "t": "M",
-  "files": [
-   "enginecompare.tsx",
-   "enginelab.tsx",
-   "exfigure.tsx",
-   "fitness.tsx",
-   "landing.tsx",
-   "report.tsx",
-   "rundetail.tsx",
-   "tabs.tsx",
-   "ui.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Mechanika jako Citlivý. Zátěž: proti vaší prokázané kapacitě v pěti kanálech (objem, intenzita v Z4+, klesání, stoupání, celková zátěž) — jednotlivé běhy i 7 dní, snížená podle připravenosti. Zátěž má v celkovém skóre větší váhu.",
   "files": [
    "enginecompare.tsx"
@@ -11387,14 +11500,6 @@
   "kind": "jsx"
  },
  {
-  "t": "{} /km",
-  "files": [
-   "fitness.tsx",
-   "training.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "{} % za 4 týdny",
   "files": [
    "fitness.tsx"
@@ -11425,7 +11530,8 @@
  {
   "t": "3 měsíce",
   "files": [
-   "fitness.tsx"
+   "fitness.tsx",
+   "metricsheet.tsx"
   ],
   "kind": "str"
  },
@@ -11439,7 +11545,8 @@
  {
   "t": "6 měsíců",
   "files": [
-   "fitness.tsx"
+   "fitness.tsx",
+   "metricsheet.tsx"
   ],
   "kind": "str"
  },
@@ -11475,7 +11582,8 @@
   "t": "Graf",
   "files": [
    "fitness.tsx",
-   "goal.tsx"
+   "goal.tsx",
+   "runprofile.tsx"
   ],
   "kind": "str"
  },
@@ -15970,6 +16078,7 @@
    "landing.tsx",
    "report.tsx",
    "rundetail.tsx",
+   "runprofile.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -16648,6 +16757,126 @@
   "kind": "str"
  },
  {
+  "t": "1 měsíc",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "7 dní",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Délka spánku z hodinek. Rozhoduje vaše obvyklá délka, ne obecných 8 hodin.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Graf ukazuje ranní hodnotu každého dne.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jak se technika běhu odchyluje od vaší normy. Nad prahem 25 je odchylka výrazná.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kilometry týdně",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nejméně",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nejvíc",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "průměr",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Ranní připravenost po noci: HRV, klidový tep a spánek proti vaší normě.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Skóre zátěže 0–100. Nad prahem 25 je zátěž proti vaší obvyklé úrovni zvýšená.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Součet naběhaných kilometrů v každém týdnu (pondělí až neděle).",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tep v klidu během noci. Několik nocí nad obvyklým rozmezím bývá známkou únavy nebo nastupující nemoci.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Variabilita srdečního tepu ve spánku. Vyšší než obvykle bývá po dobrém zotavení, nižší po zátěži, nemoci nebo stresu.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "vaše obvyklé rozmezí",
+  "files": [
+   "metricsheet.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Více na stránce {}",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Za toto období zatím málo dat.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "(i v druhém pohledu)",
   "files": [
    "MuscleAnatomy.tsx"
@@ -16843,6 +17072,7 @@
   "t": "L",
   "files": [
    "MuscleAnatomy.tsx",
+   "capacity.tsx",
    "enginecompare.tsx",
    "enginelab.tsx",
    "exfigure.tsx",
@@ -16850,6 +17080,7 @@
    "landing.tsx",
    "report.tsx",
    "rundetail.tsx",
+   "runprofile.tsx",
    "tabs.tsx",
    "ui.tsx"
   ],
@@ -18052,7 +18283,8 @@
  {
   "t": "{} km{}",
   "files": [
-   "outlook.tsx"
+   "outlook.tsx",
+   "runprofile.tsx"
   ],
   "kind": "tpl"
  },
@@ -18998,6 +19230,13 @@
   "kind": "tpl"
  },
  {
+  "t": "· u jiných bot",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "(jistota {} %)",
   "files": [
    "profile.tsx"
@@ -19038,6 +19277,13 @@
    "profile.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Běh dostane boty podle toho, co jste u něj vybrali, jinak podle bot zapsaných v Garminu, jinak výchozí. Kilometry pak počítá každý pár zvlášť.",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "bez data ho aplikace počítá jako nedávné",
@@ -19363,6 +19609,13 @@
   "kind": "str"
  },
  {
+  "t": "nespárované",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "nest flex items-start gap-3 p-3 {}",
   "files": [
    "profile.tsx"
@@ -19560,6 +19813,13 @@
   "kind": "str"
  },
  {
+  "t": "Skrýt",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Smazat {} {}?",
   "files": [
    "profile.tsx"
@@ -19622,6 +19882,13 @@
    "profile.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Tyto boty v Garminu",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Údaje, které používá aplikace (zkušenost, dřívější zranění, obuv, cílový závod) a fyzioterapeut (věk, pohlaví, město).",
@@ -19720,6 +19987,35 @@
    "profile.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "výchozí",
+  "files": [
+   "profile.tsx",
+   "runprofile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Výchozí bota",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Výchozí bota a Garmin",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Výchozí pro běhy bez jiných bot",
+  "files": [
+   "profile.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Vyfotit botu",
@@ -21325,6 +21621,7 @@
   "files": [
    "report.tsx",
    "rundetail.tsx",
+   "runprofile.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -21751,6 +22048,13 @@
   "kind": "str"
  },
  {
+  "t": "© <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\" rel=\"noopener\">OpenStreetMap</a>",
+  "files": [
+   "routemap.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "{} °C",
   "files": [
    "rundetail.tsx",
@@ -21782,14 +22086,16 @@
  {
   "t": "0 0 0 3px {}",
   "files": [
-   "rundetail.tsx"
+   "rundetail.tsx",
+   "runprofile.tsx"
   ],
   "kind": "tpl"
  },
  {
   "t": "0 km",
   "files": [
-   "rundetail.tsx"
+   "rundetail.tsx",
+   "runprofile.tsx"
   ],
   "kind": "jsx"
  },
@@ -21840,7 +22146,8 @@
  {
   "t": "Km",
   "files": [
-   "rundetail.tsx"
+   "rundetail.tsx",
+   "runprofile.tsx"
   ],
   "kind": "jsx"
  },
@@ -21850,6 +22157,13 @@
    "rundetail.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Načítám průběh běhu…",
+  "files": [
+   "rundetail.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Nohy",
@@ -21905,7 +22219,8 @@
  {
   "t": "rgb(255 255 255 / .45)",
   "files": [
-   "rundetail.tsx"
+   "rundetail.tsx",
+   "runprofile.tsx"
   ],
   "kind": "str"
  },
@@ -22039,6 +22354,202 @@
   "t": "Ztuhlost",
   "files": [
    "rundetail.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· {} m n. m.",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· {} tep",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "↑ / ↓ m",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Automaticky",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Běh byl v horku, tep stoupá i bez únavy.",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez posunu",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Boty",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Boty tohoto běhu",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Do 5 % je to stabilní.",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "jiné než moje",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jiné než moje",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Mezičasy",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nad 5 % tělo tempo drželo hůř.",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nejrychlejší celý kilometr je zeleně. Tempo je z času v pohybu, stání se nepočítá.",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "nevybrané",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Průběh běhu",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "průměr {} {}",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Stabilita tepu",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "stání",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tep vůči tempu zůstal po celý běh stejný.",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Trasa",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Trasu vidíte jen vy, fyzioterapeut ani trenér ji nevidí.",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "U rovnoměrného běhu od hodiny: kolik rychlosti (přepočtené na rovinu) dal jeden úder srdce ve druhé polovině proti první, bez prvních 10 minut. Čím menší posun, tím lépe tělo drží tempo bez stoupání tepu. U maratonců šel menší posun s rychlejším časem (Smyth 2022). Hranice 5 % je trenérská zvyklost. Horko a ztráta tekutin zvedají tep i bez únavy.",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Ve druhé polovině stejné tempo stálo víc tepu ({} → {} tep/min). {}",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "vybrané",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "z Garminu",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zvětšit",
+  "files": [
+   "runprofile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zvětšit mapu trasy",
+  "files": [
+   "runprofile.tsx"
   ],
   "kind": "str"
  },
@@ -23077,6 +23588,13 @@
   "kind": "str"
  },
  {
+  "t": "Moje čísla",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "nad prahem 25",
   "files": [
    "shell.tsx"
@@ -23098,6 +23616,20 @@
   "kind": "tpl"
  },
  {
+  "t": "Posunout níž: {}",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Posunout výš: {}",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "translate(0 3)",
   "files": [
    "shell.tsx"
@@ -23105,11 +23637,18 @@
   "kind": "str"
  },
  {
-  "t": "Vyberte karty, které chcete mít vpravo. Uloží se k vašemu účtu.",
+  "t": "Vyberte čísla pod kartou Dnes a šipkami je seřaďte. Klepnutím na číslo uvidíte jeho vývoj.",
   "files": [
    "shell.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
+ },
+ {
+  "t": "Vyberte karty, které chcete mít vpravo, a šipkami je seřaďte. Uloží se k vašemu účtu.",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "za {} d",
@@ -23118,6 +23657,13 @@
    "training.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Žádná čísla — přidejte je přes Upravit.",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Žádné karty — přidejte je přes Upravit.",
@@ -25483,13 +26029,6 @@
  },
  {
   "t": "V. poměr",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "vaše obvyklé rozmezí",
   "files": [
    "tabs.tsx"
   ],

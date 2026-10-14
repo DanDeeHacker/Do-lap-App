@@ -19,3 +19,13 @@ def test_other_settings_untouched_by_rail_patch(client):
     client.patch("/api/auth/settings", json={"rail_cards": ["recovery"]})
     s = client.get("/api/auth/settings").json()
     assert s["notify_drift"] is False and s["rail_cards"] == ["recovery"]
+
+
+def test_today_cards_own_order_and_empty_means_hidden(client):
+    """v0.12.13 — Moje čísla on Dnes: its own list, reordered as sent; [] keeps every card hidden."""
+    register(client, "rail3@test.cz", "Rail Three", "runner")
+    assert client.get("/api/auth/settings").json()["today_cards"] is None
+    r = client.patch("/api/auth/settings", json={"today_cards": ["sleep", "hrv", "bogus", "sleep", "week"]})
+    assert r.json()["today_cards"] == ["sleep", "hrv", "week"] and r.json()["rail_cards"] is None
+    client.patch("/api/auth/settings", json={"today_cards": []})
+    assert client.get("/api/auth/settings").json()["today_cards"] == []

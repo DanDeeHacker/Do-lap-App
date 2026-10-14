@@ -129,12 +129,8 @@ def fit_cs(points: dict, long_bound: float | None) -> dict | None:
     return {"cs": round(cs, 3), "dPrime": round(dp), "n": n}
 
 
-def critical_speed(runs, segs_by_id, day: str) -> dict | None:
-    """CS from the runs of the CS_WINDOW days before `day` (that day itself excluded)."""
-    pool = _runs_before(runs, day, CS_WINDOW)
-    key = (day, tuple(s["id"] for s in pool))
-    if key in _CS_CACHE:
-        return _CS_CACHE[key]
+def best_efforts(pool, segs_by_id) -> tuple[dict, float | None]:
+    """({duration s: best flat-equivalent speed}, the best whole run of ≥ 25 min) over `pool`."""
     best: dict = {}
     long_bound = None
     for s in pool:
@@ -150,6 +146,33 @@ def critical_speed(runs, segs_by_id, day: str) -> dict | None:
                     best[T] = g
             if dur >= CS_LONG_S and (long_bound is None or g > long_bound):
                 long_bound = g
+    return best, long_bound
+
+
+def best_curve(sessions, segs_by_id, today: str) -> dict | None:
+    """v0.12.13 — the Rychlost detail's best-effort curve (GoldenCheetah's mean-maximal curve):
+    the best flat-equivalent pace held for 3, 6, 10, 15 and 20 minutes over the last 90 days
+    and the 90 before, with today's critical speed. None with fewer than 2 durations."""
+    runs = [s for s in sessions if s["run"]]
+    nxt = (_d(today) + timedelta(days=1)).isoformat()
+    back = (_d(today) - timedelta(days=CS_WINDOW - 1)).isoformat()
+    now, _ = best_efforts(_runs_before(runs, nxt, CS_WINDOW), segs_by_id)
+    prev, _ = best_efforts(_runs_before(runs, back, CS_WINDOW), segs_by_id)
+    if len(now) < 2:
+        return None
+    pace = lambda v: round(1000 / v) if v else None      # noqa: E731
+    cs = critical_speed(runs, segs_by_id, nxt)
+    return {"durs": list(CS_DURS), "now": [pace(now.get(T)) for T in CS_DURS],
+            "prev": [pace(prev.get(T)) for T in CS_DURS], "csPace": pace(cs["cs"]) if cs else None}
+
+
+def critical_speed(runs, segs_by_id, day: str) -> dict | None:
+    """CS from the runs of the CS_WINDOW days before `day` (that day itself excluded)."""
+    pool = _runs_before(runs, day, CS_WINDOW)
+    key = (day, tuple(s["id"] for s in pool))
+    if key in _CS_CACHE:
+        return _CS_CACHE[key]
+    best, long_bound = best_efforts(pool, segs_by_id)
     out = fit_cs(best, long_bound)
     if out:
         out["asOf"] = day

@@ -294,3 +294,15 @@ def test_shoe_catalog_writes_the_line_like_the_maker(client):
     cat = client.get("/api/shoes/catalog").json()
     hoka = next(b for b in cat["brands"] if b["name"] == "HOKA")
     assert any(m["name"] == "Clifton" and m["category"] == "daily" for m in hoka["models"])
+
+
+def test_best_curve_compares_the_last_90_days_with_the_90_before():
+    hard = _segs((10, 3.0), (3, 5.0), (2, 3.0), (6, 4.7), (2, 3.0), (10, 4.5), (2, 3.0), (20, 4.33))
+    older = _segs((10, 3.0), (3, 4.8), (2, 3.0), (6, 4.5), (2, 3.0), (10, 4.3), (2, 3.0), (20, 4.2))
+    runs = [_run(20, 1, 12.0, 60), _run(120, 2, 12.0, 60)]
+    bc = SP.best_curve(runs, {1: hard, 2: older}, E.today_date().isoformat())
+    assert bc["durs"] == [180, 360, 600, 900, 1200]
+    assert bc["now"][0] == round(1000 / 5.0) and bc["prev"][0] == round(1000 / 4.8)
+    assert all(n < p for n, p in zip(bc["now"], bc["prev"]))       # faster at every duration
+    assert bc["csPace"] and bc["csPace"] > bc["now"][-1] - 20       # CS pace sits near the 20-min best
+    assert SP.best_curve([], {}, E.today_date().isoformat()) is None

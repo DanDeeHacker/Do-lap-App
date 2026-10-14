@@ -159,6 +159,11 @@ class ActivityStream(Base):
     surface_json = Column(JSON)    # Phase 3b — OSM/ZABAGED surface classification of the track
     gps = Column(Boolean, default=False)
     created_at = Column(String, nullable=False)
+    # v0.12.13 (run_track.py) — the run detail's route, pace/HR series, km splits and decoupling.
+    # The route is the runner's alone (runners.run_track sends it only to their own session);
+    # both stay out of the engine's snapshot (data.SNAPSHOT_SKIP).
+    route_json = Column(JSON)
+    track_json = Column(JSON)
 
 
 class GarminSession(Base):
@@ -214,6 +219,12 @@ class Activity(Base):
     # The session RPE lives in ActivityFeedback.rpe like for runs.
     strength_focus = Column(String)
     strength_type = Column(String)
+    # v0.12.13 — shoes per run: shoe_id = the runner's own pick (Shoe.id; 0 = no shoe of theirs),
+    # gear_uuid = the Garmin gear the run was logged with ("" = checked, none). The run's shoe is
+    # resolved on read (app/shoes.run_shoe): the pick, else the shoe paired with the gear, else
+    # the default shoe.
+    shoe_id = Column(Integer)
+    gear_uuid = Column(String)
     distance_km = Column(Float)
     duration_min = Column(Float)
     pace_s_km = Column(Float)
@@ -377,6 +388,9 @@ class Shoe(Base):
     first_activity_id = Column(Integer)   # the run the first use was taken from (if picked)
     retired_at = Column(String)
     source = Column(String)            # photo | manual
+    # v0.12.13 — the runner's default shoe for runs without one, and the Garmin gear it is paired with
+    is_default = Column(Boolean, default=False)
+    garmin_uuid = Column(String)
     created_at = Column(String, nullable=False)
 
 
@@ -755,6 +769,8 @@ class Settings(Base):
     notify_checkin = Column(Boolean, default=True)
     # desktop stat rail (redesign OPT-5): ordered list of card ids the runner chose
     rail_cards = Column(JSON, nullable=True)
+    # v0.12.13 — the number cards under the Dnes card on a phone (Moje čísla), same ids, own order
+    today_cards = Column(JSON, nullable=True)
 
 
 class Annotation(Base):

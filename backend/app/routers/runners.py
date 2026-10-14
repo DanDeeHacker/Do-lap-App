@@ -612,6 +612,30 @@ def load_history(rid: str, user: models.User = Depends(get_current_user), db: DB
             "impactScale": (a.get("impactScale") or {}).get("load")}
 
 
+@router.get("/{rid}/activities/{aid}/track")
+def run_track(rid: str, aid: int, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """The run detail (v0.12.13): pace and heart rate along the run, the km splits, aerobic
+    decoupling — and the route, which goes to the runner's own session only (never to a
+    physio, a coach link or the admin view). A run stored before v0.12.13 gets them from
+    Garmin once, the first time its runner opens it."""
+    ensure_runner_read_access(db, user, rid)
+    own = user.runner_id == rid
+    st = db.query(models.ActivityStream).filter(models.ActivityStream.activity_id == aid,
+                                                models.ActivityStream.runner_id == rid).first()
+    if (st is None or st.track_json is None) and own:
+        from .integrations import fetch_run_track
+        if fetch_run_track(db, rid, aid):
+            db.expire_all()
+            st = db.query(models.ActivityStream).filter(models.ActivityStream.activity_id == aid).first()
+    tr = (st.track_json or {}) if st is not None else {}
+    a = db.query(models.Activity).filter(models.Activity.id == aid, models.Activity.runner_id == rid).first()
+    from .shoes import run_shoe
+    return {"available": bool(tr.get("series") or tr.get("splits")), "series": tr.get("series"),
+            "splits": tr.get("splits"), "decoupling": tr.get("decoupling"),
+            "route": (st.route_json if own and st is not None else None),
+            "shoe": run_shoe(db, rid, a) if a is not None and E.is_run(a) else None}
+
+
 @router.get("/{rid}/fitness-trend")
 def fitness_trend(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     """Zátěž → Kondice a únava (v0.12.12): a year of the 42- and 7-day averages of the total

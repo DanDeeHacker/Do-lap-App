@@ -584,6 +584,65 @@ function CriticalSpeed({ cs, speed = false }: { cs: any; speed?: boolean }) {
   )
 }
 
+// v0.12.13 — the best pace held for 3–20 min (GoldenCheetah's mean-maximal curve): the last 90
+// days against the 90 before, with critical speed as the line the curve flattens towards
+function BestCurve({ bc }: { bc: any }) {
+  const [hover, setHover] = useState<number | null>(null)
+  const durs: number[] = bc?.durs || []
+  const now: (number | null)[] = bc?.now || []
+  const prev: (number | null)[] = bc?.prev || []
+  const known = now.filter((v) => v != null) as number[]
+  if (known.length < 2) return null
+  const all = [...known, ...(prev.filter((v) => v != null) as number[]), ...(bc.csPace ? [bc.csPace] : [])]
+  const lo = Math.min(...all) - 8, hi = Math.max(...all) + 8
+  const W = 320, H = 150, pl = 40, pr = 14, pt = 12, pb = 22
+  const x = (i: number) => pl + (i / (durs.length - 1)) * (W - pl - pr)
+  const y = (v: number) => pt + ((v - lo) / (hi - lo)) * (H - pt - pb)        // faster (lower s/km) on top
+  const path = (vs: (number | null)[]) => vs.map((v, i) => (v == null ? "" : `${vs[i - 1] == null || i === 0 ? "M" : "L"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`)).join(" ")
+  const both = durs.map((_, i) => [now[i], prev[i]]).filter(([a, b]) => a != null && b != null) as [number, number][]
+  const faster = both.filter(([a, b]) => a < b - 1).length
+  const slower = both.filter(([a, b]) => a > b + 1).length
+  const summary = !both.length ? "Předchozích 90 dní na srovnání chybí."
+    : faster === both.length ? "Proti předchozím 90 dnům rychlejší na všech délkách."
+    : slower === both.length ? "Proti předchozím 90 dnům pomalejší na všech délkách."
+    : `Proti předchozím 90 dnům rychlejší na ${faster} z ${both.length} délek.`
+  const mm = (t: number) => `${t / 60} min`
+  const hv = hover != null ? hover : null
+  return (
+    <div className="mt-4 border-t border-white/[.07] pt-3" data-testid="best-curve">
+      <span className="flex items-center gap-1.5"><span className="t-label !text-fg-3">Nejlepší tempo podle délky úseku</span>
+        <InfoDot label="Nejlepší tempo" text="Nejrychlejší tempo (přepočtené na rovinu), které jste v tréninku udrželi 3, 6, 10, 15 a 20 minut. Čím delší úsek, tím pomalejší tempo; křivka se blíží kritické rychlosti. Z tréninku, ne ze závodu, takže skutečné maximum může být vyšší." /></span>
+      <p className="mt-1 text-[12px] text-fg-2">{summary}</p>
+      <div className="relative mt-2" onPointerLeave={() => setHover(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full touch-pan-y" role="img" aria-label={`Nejlepší tempo: ${durs.map((t, i) => `${mm(t)} ${now[i] != null ? paceStr(now[i]) : "—"}`).join(", ")}`}
+          onPointerMove={(e) => { const r = (e.currentTarget as SVGSVGElement).getBoundingClientRect(); const px = ((e.clientX - r.left) / r.width) * W; setHover(Math.max(0, Math.min(durs.length - 1, Math.round(((px - pl) / (W - pl - pr)) * (durs.length - 1))))) }}>
+          {[lo + 8, (lo + hi) / 2, hi - 8].map((v) => <g key={v}><line x1={pl} x2={W - pr} y1={y(v)} y2={y(v)} stroke="rgba(255,255,255,.07)" />
+            <text x={pl - 6} y={y(v) + 3.5} textAnchor="end" fontSize="10" fill={C.fg3}>{paceStr(v)}</text></g>)}
+          {bc.csPace && <><line x1={pl} x2={W - pr} y1={y(bc.csPace)} y2={y(bc.csPace)} stroke={C.fg2} strokeDasharray="4 3" />
+            <text x={W - pr} y={y(bc.csPace) - 4} textAnchor="end" fontSize="10" fill={C.fg2} stroke={C.panel} strokeWidth="3" paintOrder="stroke">{`kritická ${paceStr(bc.csPace)}`}</text></>}
+          <path d={path(prev)} fill="none" stroke={C.fg3} strokeWidth="2" strokeDasharray="5 4" />
+          <path d={path(now)} fill="none" stroke={C.info} strokeWidth="2.2" />
+          {now.map((v, i) => v != null && <circle key={i} cx={x(i)} cy={y(v)} r={hv === i ? 4.5 : 3} fill={C.info} stroke={C.panel} strokeWidth="1.5" />)}
+          {durs.map((t, i) => <text key={t} x={x(i)} y={H - 6} textAnchor="middle" fontSize="10" fill={C.fg3}>{mm(t)}</text>)}
+          {hv != null && <line x1={x(hv)} x2={x(hv)} y1={pt} y2={H - pb} stroke={C.fg2} strokeOpacity=".5" />}
+        </svg>
+        {hv != null && (
+          <div className="pointer-events-none absolute top-0 z-10 rounded-[10px] border border-white/14 bg-raised px-2.5 py-1.5 text-[11px] shadow-[0_10px_28px_rgba(0,0,0,.5)]"
+            style={{ left: `${(x(hv) / W) * 100}%`, transform: `translateX(${x(hv) > W * 0.6 ? "-105%" : "5%"})` }}>
+            <span className="block text-fg-3">{mm(durs[hv])}</span>
+            <span className="block"><b className="tabular-nums text-fg">{now[hv] != null ? `${paceStr(now[hv])} /km` : "—"}</b><span className="text-fg-3"> posledních 90 dní</span></span>
+            {prev[hv] != null && <span className="block"><b className="tabular-nums text-fg-2">{`${paceStr(prev[hv])} /km`}</b><span className="text-fg-3"> předtím</span></span>}
+          </div>
+        )}
+      </div>
+      <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-fg-2">
+        <span><i className="mr-1.5 inline-block h-[2px] w-4 align-middle" style={{ background: C.info }} />posledních 90 dní</span>
+        <span><i className="mr-1.5 inline-block w-4 border-t-2 border-dashed align-middle" style={{ borderColor: C.fg3 }} />předchozích 90 dní</span>
+      </p>
+    </div>
+  )
+}
+
 // Feedback #159 — which body regions the last 7 days of running loaded and how full
 // their capacity is. A region's fill is a weighted mix of the run channels' fill
 // (last 7 days ÷ the 7-day ceiling). The weights are the app's working model from the
@@ -681,7 +740,7 @@ export function CapacityPanel({ cap, extra = {}, scale }: { cap: any; extra?: Re
         <CriticalSpeed cs={cap.criticalSpeed} />
       </>
     ),
-    speed: <CriticalSpeed cs={cap.criticalSpeed} speed />,
+    speed: <><CriticalSpeed cs={cap.criticalSpeed} speed /><BestCurve bc={cap.bestCurve} /></>,
   }
   return (
     <section className="card mb-4 p-4 md:p-6">

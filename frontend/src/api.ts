@@ -105,6 +105,7 @@ export const api = {
   addShoe: (id: string, body: any) => call("POST", `/api/runners/${id}/shoes`, body),
   updateShoe: (id: string, sid: number, body: any) => call("PATCH", `/api/runners/${id}/shoes/${sid}`, body),
   deleteShoe: (id: string, sid: number) => call("DELETE", `/api/runners/${id}/shoes/${sid}`),
+  setRunShoe: (id: string, aid: number | string, shoeId: number | null) => call("PATCH", `/api/runners/${id}/activities/${aid}/shoe`, { shoe_id: shoeId }),
   recognizeShoe: (id: string, image: string) => call("POST", `/api/runners/${id}/shoes/recognize`, { image }),
   shoeCatalog: () => call("GET", `/api/shoes/catalog`),
   updateOnboarding: (id: string, patch: { dismissed?: boolean; tutorialDone?: boolean }) => call("POST", `/api/runners/${id}/onboarding`, patch),
@@ -152,6 +153,7 @@ export const api = {
   outcomesOverview: () => call("GET", "/api/engine/outcomes", undefined, { skipAuthRedirect: true }),
   runHistory: (id: string, limit = 20) => call("GET", `/api/runners/${id}/run-history?limit=${limit}`),
   loadHistory: (id: string) => call("GET", `/api/runners/${id}/load-history`),
+  runTrack: (id: string, aid: string | number) => call("GET", `/api/runners/${id}/activities/${aid}/track`),
   fitnessTrend: (id: string) => call("GET", `/api/runners/${id}/fitness-trend`),
 
   // AI summaries & training commentary (opt-in)

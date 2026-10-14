@@ -28,8 +28,14 @@ def _copy(row, cols) -> SimpleNamespace:
     return SimpleNamespace(**{c: getattr(row, c) for c in cols})
 
 
+# display-only columns the engine never reads (v0.12.13: a run's route and chart series), kept out
+# of every snapshot so a runner with years of routes doesn't carry them through each computation
+SNAPSHOT_SKIP = {"activity_streams": {"route_json", "track_json"}}
+
+
 def _cols(model) -> list[str]:
-    return [c.key for c in model.__mapper__.column_attrs]
+    skip = SNAPSHOT_SKIP.get(getattr(model, "__tablename__", ""), ())
+    return [c.key for c in model.__mapper__.column_attrs if c.key not in skip]
 
 
 @dataclass(frozen=True)

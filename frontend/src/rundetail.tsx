@@ -1,7 +1,7 @@
-// OPT-9 · Deník → run detail (/app/post/:aid). Everything here comes from data the
-// app already has for each run (bootstrap activities + the diary entry): the
-// downsampled elevation profile, the per-third pace / HR / vertical ratio, and the
-// runner's own ratings. There are no per-km splits in the data, so the per-km table
+// OPT-9 · Deník → run detail (/app/post/:aid): the run's data (bootstrap activities + the diary
+// entry): the downsampled elevation profile, the per-third pace / HR / vertical ratio, and the
+// runner's own ratings. v0.12.13: with detailed data also the route (the runner only), pace and
+// heart rate along the run and the km splits (runprofile.tsx); without it the per-km table
 // shows climb and descent computed from the elevation profile.
 import { WhyButton } from "@/assistant"
 import { useMemo, useRef, useState } from "react"
@@ -12,6 +12,7 @@ import { Button, Card, ChartTip, Chip, Empty, HowTo, Label } from "@/ui"
 import { FEEL_LABEL, fmtD, paceStr } from "@/lib"
 import { RateSheet } from "@/tabs"
 import { C } from "@/tokens"
+import { ProgressCard, RouteCard, RunShoe, useRunTrack } from "@/runprofile"
 
 const SURF: Record<string, string> = { road: "silnice", trail: "terén", treadmill: "pás", track: "dráha" }
 const n1 = (v: number) => { const r = Math.round(v * 10) / 10; return (r === 0 ? 0 : r).toLocaleString("cs-CZ") }
@@ -147,7 +148,7 @@ function Tile({ label, value, sub, col }: { label: string; value: string; sub?: 
 
 export function RunDetail() {
   const { aid } = useParams()
-  const { me, boot, refresh } = useApp()
+  const { me, boot, refresh, viewing, touring } = useApp()
   const rid = me?.runner_id
   const [editing, setEditing] = useState(false)
   const acts = (boot?.activities || []) as any[]
@@ -159,6 +160,8 @@ export function RunDetail() {
     [act],
   )
   const kmRows = useMemo(() => perKm(pts), [pts])
+  const tr = useRunTrack(rid, aid)
+  const hasSplits = !!(tr && tr.splits?.length)
 
   const back = (
     <Link to="/app/post" className="inline-flex items-center gap-1.5 text-[13px] font-bold text-fg-2 hover:text-fg">
@@ -197,6 +200,11 @@ export function RunDetail() {
         <Tile label="Terén" value={SURF[act.surface] || act.surface || "—"} sub={act.temp_c != null ? `${n0(act.temp_c)} °C` : undefined} />
       </div>
 
+      {tr && rid && <RunShoe rid={rid} aid={act.id} shoe={tr.shoe} canEdit={!viewing && !touring} />}
+      {tr && tr.route?.length > 1 && <RouteCard route={tr.route} />}
+      {tr && tr.available && <ProgressCard tr={tr} />}
+      {tr === null && act.provider === "garmin" && <p className="mt-4 text-[12px] text-fg-3" data-testid="run-track-loading">Načítám průběh běhu…</p>}
+
       <div className="mt-4 grid items-start gap-4 md:grid-cols-2">
           <Card>
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -230,7 +238,7 @@ export function RunDetail() {
           </Card>
       </div>
       <div className="mt-4 grid items-start gap-4 md:grid-cols-2">
-          {kmRows.length > 0 && (
+          {kmRows.length > 0 && !hasSplits && (
             <Card>
               <Label>Převýšení po kilometrech</Label>
               <p className="mt-1 text-[12px] text-fg-3">Spočítáno z výškového profilu běhu. Tempo po kilometrech v datech není.</p>

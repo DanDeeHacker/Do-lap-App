@@ -1888,7 +1888,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
     exper = RF.experience(prof, today)
     if exper:
         shrink *= exper["factor"]
-    shoes = RF.shoe_state(db.shoes, prof, today)
+    shoes = RF.shoe_state(db.shoes, prof, today, runs_only)
     shrink = max(shrink, SHRINK_MIN)
     tol_rise = personal_tolerance(sessions, pain, today)
     k_tol = tol_rise["factor"] if tol_rise else 1.0
@@ -2161,6 +2161,7 @@ def assess_capacity(db, rid, frailty=1.0, runner=None, with_history=False) -> di
                     "runSession": round(m_s * ch_m["volume"], 3), "runWeek": round(m_w * ch_m["volume"], 3)},
         "shoes": shoes,
         "criticalSpeed": cs_now,
+        "bestCurve": SP.best_curve(sessions, segs_all, t_iso),
         # v0.12.12 — the values the load uses, their source, and when to update one
         "zoneCheck": ZC.check(db, runner if runner is not None else db.runner, runs_only, days180, hrmax, rhr, cs_now,
                               SP.cs_summary(sessions, segs_all, (today - timedelta(days=ZC.CS_BACK)).isoformat()), today),

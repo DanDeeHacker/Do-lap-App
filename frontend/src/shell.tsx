@@ -1,17 +1,18 @@
 // App shell pieces (redesign v2 §3 + OPT-5): nav icons, desktop sidebar and the
 // customisable desktop stat rail. Behaviour of the existing shell (Topbar,
 // AtlasNav, Check-in) lives in App.tsx; this file only adds the desktop layout.
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { Link, useLocation, useNavigate } from "react-router"
 import {
-  Activity, Database, Flag, Footprints, Gauge, HeartHandshake, HeartPulse, House, Moon, NotebookPen, Pencil, SlidersHorizontal, Target, TrendingUp, Users, Zap,
+  Activity, ChevronDown, ChevronUp, Database, Flag, Footprints, Gauge, HeartHandshake, HeartPulse, House, Moon, NotebookPen, Pencil, SlidersHorizontal, Target, TrendingUp, Users, Zap,
   type LucideIcon,
 } from "lucide-react"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { QUAD } from "@/lib"
 import { C, goodCol } from "@/tokens"
-import { Switch } from "@/ui"
+import { Label, Sheet, Switch } from "@/ui"
+import { METRIC_IDS, MetricSheet, type MetricId } from "@/metricsheet"
 import { readinessCol, readinessPct } from "@/capacity"
 import { dataStage } from "@/firstday"
 
@@ -93,13 +94,53 @@ export function Sidebar({ items }: { items: [string, string][] }) {
   )
 }
 
-/* ---------------- Desktop stat rail (xl+) ---------------- */
+/* ---------------- Number cards: the desktop rail (xl+) and Moje čísla on Dnes (phone) ---------------- */
 type RailCard = { id: string; label: string; to: string; Icon: LucideIcon; render: () => { value: string; unit?: string; sub?: string; col?: string; pct?: number } | null }
 const DEFAULT_RAIL = ["readiness", "week", "load", "mech"]
+// v0.12.13 — on a phone the Dnes card already shows the three rings, so the cards under it
+// default to the numbers it does not show
+const DEFAULT_TODAY = ["week", "hrv", "rhr", "sleep"]
 // v0.9.0 — the single-night "Regenerace" card is gone; a saved choice of it shows Připravenost
 const RAIL_RENAMED: Record<string, string> = { recovery: "readiness" }
 const migrateRail = (ids: string[]) => [...new Set(ids.map((x) => RAIL_RENAMED[x] ?? x))]
 const fmt1 = (v: number | null | undefined) => (v == null ? "—" : String(Math.round(v * 10) / 10).replace(".", ","))
+
+// One copy of the saved choices for both places (on a wide screen both are on the page).
+type Where = "rail" | "today"
+type Choice = { uid: string; rail: string[]; today: string[] | null }
+let choice: Choice | null = null
+let choiceFor = ""
+const choiceSubs = new Set<() => void>()
+const choiceEmit = () => choiceSubs.forEach((f) => f())
+const choiceSub = (f: () => void) => { choiceSubs.add(f); return () => { choiceSubs.delete(f) } }
+function loadChoice(uid: string) {
+  if (!uid || choiceFor === uid) return
+  choiceFor = uid
+  choice = null
+  api.getSettings().then((st: any) => {
+    choice = {
+      uid,
+      rail: Array.isArray(st?.rail_cards) && st.rail_cards.length ? migrateRail(st.rail_cards) : DEFAULT_RAIL,
+      // null = never chosen (the default); [] = the runner hid them all
+      today: Array.isArray(st?.today_cards) ? migrateRail(st.today_cards) : null,
+    }
+  }).catch(() => { choice = { uid, rail: DEFAULT_RAIL, today: null } }).finally(choiceEmit)
+}
+/** [the chosen ids (null while loading), save, whether it is the untouched default] */
+function useCardChoice(where: Where): [string[] | null, (next: string[]) => void, boolean] {
+  const { me } = useApp()
+  const uid = String(me?.id ?? "")
+  useEffect(() => loadChoice(uid), [uid])
+  const c = useSyncExternalStore(choiceSub, () => choice)
+  const save = (next: string[]) => {
+    choice = { ...(choice || { uid, rail: DEFAULT_RAIL, today: null }), [where]: next }
+    choiceEmit()
+    api.patchSettings(where === "rail" ? { rail_cards: next } : { today_cards: next }).catch(() => {})
+  }
+  if (!c || c.uid !== uid) return [null, save, false]
+  const v = c[where]
+  return [v ?? (where === "rail" ? DEFAULT_RAIL : DEFAULT_TODAY), save, v == null]
+}
 
 function useRailCards(): RailCard[] {
   const { boot } = useApp()
@@ -121,25 +162,48 @@ function useRailCards(): RailCard[] {
   ], [a, rcv, L, none])
 }
 
+/** Show / hide the cards and put them in order (arrows: a list of at most eight needs no drag). */
+function CardEditor({ cards, chosen, onChange, hint }: { cards: RailCard[]; chosen: string[]; onChange: (next: string[]) => void; hint: string }) {
+  const ids = chosen.filter((id) => cards.some((c) => c.id === id))
+  const on = ids.map((id) => cards.find((c) => c.id === id)!)
+  const off = cards.filter((c) => !ids.includes(c.id))
+  const move = (i: number, d: number) => {
+    const n = [...ids]
+    ;[n[i], n[i + d]] = [n[i + d], n[i]]
+    onChange(n)
+  }
+  const arrow = "grid size-7 place-items-center rounded-full text-fg-2 hover:bg-white/[.08] hover:text-fg disabled:opacity-25 disabled:hover:bg-transparent"
+  return (
+    <div className="grid gap-1" data-testid="card-editor">
+      <p className="mb-1 text-[11.5px] leading-[1.45] text-fg-3">{hint}</p>
+      {on.map((c, i) => (
+        <div key={c.id} className="flex items-center gap-1.5 text-[13px] text-fg-soft">
+          <span className="flex min-w-0 flex-1 items-center gap-2"><c.Icon className="size-4 shrink-0 text-fg-3" aria-hidden /><span className="truncate">{c.label}</span></span>
+          <button type="button" className={arrow} disabled={i === 0} onClick={() => move(i, -1)} aria-label={`Posunout výš: ${c.label}`}><ChevronUp className="size-4" aria-hidden /></button>
+          <button type="button" className={arrow} disabled={i === on.length - 1} onClick={() => move(i, 1)} aria-label={`Posunout níž: ${c.label}`}><ChevronDown className="size-4" aria-hidden /></button>
+          <span className="ml-1"><Switch checked onChange={() => onChange(ids.filter((x) => x !== c.id))} label={c.label} /></span>
+        </div>
+      ))}
+      {off.length > 0 && on.length > 0 && <span className="my-1 border-t border-white/[.07]" />}
+      {off.map((c) => (
+        <div key={c.id} className="flex items-center gap-1.5 text-[13px] text-fg-3">
+          <span className="flex min-w-0 flex-1 items-center gap-2"><c.Icon className="size-4 shrink-0" aria-hidden /><span className="truncate">{c.label}</span></span>
+          <span className="ml-1"><Switch checked={false} onChange={() => onChange([...ids, c.id])} label={c.label} /></span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+const isMetric = (id: string): id is MetricId => (METRIC_IDS as readonly string[]).includes(id)
+
 export function StatRail() {
   const { boot } = useApp()
   const nav = useNavigate()
   const cards = useRailCards()
-  const [chosen, setChosen] = useState<string[] | null>(null)
+  const [chosen, save] = useCardChoice("rail")
   const [editing, setEditing] = useState(false)
-  useEffect(() => {
-    let alive = true
-    api.getSettings().then((s: any) => alive && setChosen(Array.isArray(s?.rail_cards) && s.rail_cards.length ? migrateRail(s.rail_cards) : DEFAULT_RAIL)).catch(() => alive && setChosen(DEFAULT_RAIL))
-    return () => { alive = false }
-  }, [])
-  const save = (next: string[]) => {
-    setChosen(next)
-    api.patchSettings({ rail_cards: next }).catch(() => {})
-  }
-  const toggle = (id: string, on: boolean) => {
-    const cur = chosen || DEFAULT_RAIL
-    save(on ? [...cur.filter((x) => x !== id), id] : cur.filter((x) => x !== id))
-  }
+  const [open, setOpen] = useState<MetricId | null>(null)
   const a = boot?.assessment
   const q = a?.quadrant ? QUAD[a.quadrant] : null
   const qCol = a?.quadrant === "critical" ? C.alert : a?.quadrant === "overreaching" ? C.watch : a?.quadrant === "silent" ? C.self : C.ok
@@ -159,21 +223,16 @@ export function StatRail() {
         </button>
       </div>
       {editing && (
-        <div className="nest mb-3 grid gap-2 p-3">
-          <p className="text-[11px] text-fg-3">Vyberte karty, které chcete mít vpravo. Uloží se k vašemu účtu.</p>
-          {cards.map((c) => (
-            <label key={c.id} className="flex items-center justify-between gap-2 text-[13px] text-fg-soft">
-              <span className="flex items-center gap-2"><c.Icon className="size-4 text-fg-3" aria-hidden />{c.label}</span>
-              <Switch checked={(chosen || DEFAULT_RAIL).includes(c.id)} onChange={(v) => toggle(c.id, v)} label={c.label} />
-            </label>
-          ))}
+        <div className="nest mb-3 p-3">
+          <CardEditor cards={cards} chosen={chosen || DEFAULT_RAIL} onChange={save}
+            hint="Vyberte karty, které chcete mít vpravo, a šipkami je seřaďte. Uloží se k vašemu účtu." />
         </div>
       )}
       <div className="grid gap-3">
         {list.map((c) => {
           const v = c.render()
           return (
-            <button key={c.id} type="button" onClick={() => nav(c.to)}
+            <button key={c.id} type="button" onClick={() => (isMetric(c.id) ? setOpen(c.id) : nav(c.to))} data-testid={`rail-${c.id}`}
               className="card group/rc p-3.5 text-left transition hover:-translate-y-0.5 hover:border-info/45 hover:shadow-[0_14px_34px_rgb(0_0_0_/_0.35)]">
               <span className="flex items-center justify-between gap-2">
                 <span className="t-label">{c.label}</span>
@@ -193,6 +252,65 @@ export function StatRail() {
         })}
         {!list.length && <p className="text-[12px] text-fg-3">Žádné karty — přidejte je přes Upravit.</p>}
       </div>
+      {open && <MetricSheet id={open} onClose={() => setOpen(null)} />}
     </aside>
+  )
+}
+
+/** v0.12.13 — Moje čísla: the runner's chosen numbers under the Dnes card on a phone or tablet
+ *  (the wide screen has the rail). Small tiles; a tap opens the number's trend. */
+export function TodayNumbers() {
+  const nav = useNavigate()
+  const cards = useRailCards()
+  const [chosen, save, isDefault] = useCardChoice("today")
+  const [editing, setEditing] = useState(false)
+  const [open, setOpen] = useState<MetricId | null>(null)
+  if (!cards.length || chosen === null) return null
+  // the untouched default shows only the numbers this runner has (no "Zatím bez dat" tiles
+  // for a runner without nights from a watch); a saved choice shows what was chosen
+  const list = (chosen.map((id) => cards.find((c) => c.id === id)).filter(Boolean) as RailCard[])
+    .filter((c) => !isDefault || c.render() != null)
+  return (
+    <section className="mt-5 xl:hidden" aria-label="Moje čísla" data-testid="today-numbers">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="t-label">Moje čísla</span>
+        <button type="button" onClick={() => setEditing(true)}
+          className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold text-accent hover:bg-accent/10">
+          <Pencil className="size-3.5" aria-hidden />Upravit
+        </button>
+      </div>
+      {list.length ? (
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+          {list.map((c) => {
+            const v = c.render()
+            return (
+              <button key={c.id} type="button" onClick={() => (isMetric(c.id) ? setOpen(c.id) : nav(c.to))} data-testid={`num-${c.id}`}
+                className="card min-w-0 p-3 text-left transition active:scale-[.98] hover:border-info/45">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="t-label truncate">{c.label}</span>
+                  <c.Icon className="size-3.5 shrink-0 text-fg-3" aria-hidden />
+                </span>
+                {v ? (
+                  <>
+                    <span className="t-num mt-1.5 block whitespace-nowrap text-[22px] leading-none" style={{ color: v.col || C.fg }}>
+                      {v.value}{v.unit && <small className="ml-1 text-[11px] font-semibold tracking-normal text-fg-3">{v.unit}</small>}
+                    </span>
+                    {v.sub && <span className="mt-1.5 block truncate text-[11px] text-fg-3">{v.sub}</span>}
+                  </>
+                ) : <span className="mt-1.5 block text-[11px] text-fg-3">Zatím bez dat</span>}
+              </button>
+            )
+          })}
+        </div>
+      ) : <p className="text-[12px] text-fg-3">Žádná čísla — přidejte je přes Upravit.</p>}
+      <Sheet open={editing} onClose={() => setEditing(false)}>
+        <Label>Moje čísla</Label>
+        <div className="mt-3">
+          <CardEditor cards={cards} chosen={list.map((c) => c.id)} onChange={save}
+            hint="Vyberte čísla pod kartou Dnes a šipkami je seřaďte. Klepnutím na číslo uvidíte jeho vývoj." />
+        </div>
+      </Sheet>
+      {open && <MetricSheet id={open} onClose={() => setOpen(null)} />}
+    </section>
   )
 }

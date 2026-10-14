@@ -202,3 +202,10 @@ html, body { overflow-x:clip; }
 /* feedback #147 — run detail flips between Pohyb and Zátěž */
 @keyframes runFlip { from { opacity:0; transform: perspective(900px) rotateY(-14deg) scale(.98); } }
 @media (prefers-reduced-motion: reduce) { .animate-\[runFlip_\.35s_ease-out\] { animation:none !important; } }
+
+/* v0.12.13 — the route map: OpenStreetMap tiles darkened to the app's theme (the route stays bright) */
+.route-map, .route-map.leaflet-container { background:#0b1a18; }
+.route-map .route-tiles { filter: invert(1) hue-rotate(185deg) brightness(.82) contrast(.88) saturate(.35); }
+.route-map .leaflet-control-attribution { background:rgba(7,19,19,.7); color:#7f958e; font-size:9px; }
+.route-map .leaflet-control-attribution a { color:#a9bfb7; }
+.route-map .leaflet-bar a { background:#17302a; color:#eef6f2; border-color:rgba(255,255,255,.12); }

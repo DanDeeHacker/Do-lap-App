@@ -615,6 +615,64 @@ DETAIL_DAYS, DETAIL_CAP = 60, 12   # every sync also fetches detailed data for r
 HR_ONLY_SPORTS = ("cycling", "swimming")   # railway#199: their heart-rate trace for Intenzita
 
 
+GEAR_DAYS, GEAR_CAP = 60, 15
+
+
+def _gear_items(g) -> list:
+    if isinstance(g, list):
+        return g
+    if isinstance(g, dict):
+        return g.get("gearList") or g.get("items") or ([g] if g.get("uuid") else [])
+    return []
+
+
+def fetch_gear(db: DBSession, rid: str, garmin) -> int:
+    """v0.12.13 — shoes per run: which Garmin gear (shoes) each recent run was logged with, at most
+    GEAR_CAP runs per sync (newest first, so the history fills over a few syncs). The gear seen
+    is remembered by name for pairing it with a shoe in the profile. Never raises."""
+    try:
+        lo = E.day_ago(GEAR_DAYS)
+        acts = (db.query(models.Activity)
+                .filter(models.Activity.runner_id == rid, models.Activity.provider == "garmin",
+                        models.Activity.external_id.isnot(None), models.Activity.gear_uuid.is_(None),
+                        models.Activity.started_at > lo, models.Activity.sport == "running")
+                .order_by(models.Activity.started_at.desc()).limit(GEAR_CAP).all())
+        if not acts:
+            return 0
+        runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
+        meta = dict((runner.onboarding_json or {}) if runner else {})
+        seen = dict(meta.get("garminGear") or {})
+        n = 0
+        for a in acts:
+            try:
+                items = _gear_items(garmin.get_activity_gear(a.external_id))
+            except Exception as e:  # noqa: BLE001
+                if any(x in str(e).lower() for x in ("429", "too many", "rate")):
+                    break
+                items = []
+            shoe = next((g for g in items if "shoe" in str(g.get("gearTypeName") or "").lower()), None) \
+                or (items[0] if items else None)
+            a.gear_uuid = (shoe or {}).get("uuid") or ""
+            if a.gear_uuid:
+                name = (shoe.get("displayName") or shoe.get("customMakeModel")
+                        or " ".join(x for x in (shoe.get("gearMakeName"), shoe.get("gearModelName")) if x) or None)
+                g = dict(seen.get(a.gear_uuid) or {})
+                g["name"] = name or g.get("name")
+                g["runs"] = (g.get("runs") or 0) + 1
+                seen[a.gear_uuid] = g
+            n += 1
+        if runner is not None:
+            meta["garminGear"] = seen
+            runner.onboarding_json = meta
+        db.commit()
+        if n:
+            E.recompute_assessment(db, rid)
+        return n
+    except Exception:  # noqa: BLE001
+        db.rollback()
+        return 0
+
+
 @_one_at_a_time
 def fetch_new_details(db: DBSession, rid: str, garmin=None) -> dict | None:
     """Detailed per-second data (track, elevation, mechanics) for the last
@@ -630,6 +688,7 @@ def fetch_new_details(db: DBSession, rid: str, garmin=None) -> dict | None:
                 return None
             garmin = garmin_live.resume_session(own.token_blob, bool(own.encrypted))
         out = _fetch_streams(db, rid, garmin, since_days=DETAIL_DAYS, cap=DETAIL_CAP)
+        out["gear"] = fetch_gear(db, rid, garmin)           # v0.12.13 — shoes per run
         if own is not None:
             _store_session(db, rid, garmin, auto_sync=bool(own.auto_sync))   # keep a refreshed token
         return out
@@ -811,6 +870,66 @@ def _backfill_start(a, records: list[dict]) -> None:
             a.start_time = datetime.fromtimestamp(t0 / 1000, tz=E.LOCAL_TZ).strftime("%H:%M")
 
 
+def _track_of(a, records: list) -> tuple:
+    """v0.12.13 — (route, track) for the run detail; never fails the stream it comes with."""
+    from ..metrics import run_track as RT
+    try:
+        b = RT.build(records, hot=E.hot_run(a))
+    except Exception:  # noqa: BLE001
+        return None, None
+    return b["route"], {"v": 1, "series": b["series"], "splits": b["splits"], "decoupling": b["decoupling"]}
+
+
+def _store_run_stream(db: DBSession, rid: str, a, old, res: dict, segs: list):
+    """One run's processed detailed data → its ActivityStream row (new or refreshed in place)."""
+    from ..metrics import segmentation
+    prof = res.get("elevation_profile") or None
+    quality = {**(res.get("quality") or {}), "accepted": bool(res.get("accepted")),
+               "segVersion": segmentation.SEG_VERSION}
+    st = old or models.ActivityStream(activity_id=a.id, runner_id=rid)
+    st.external_id = a.external_id
+    st.elevation_profile = prof
+    st.quality_json = quality
+    st.segments_json = segs or None
+    st.gps = bool(res.get("gps"))
+    st.created_at = E.now_iso()
+    st.route_json, st.track_json = _track_of(a, res.get("records") or [])
+    if old is None:
+        db.add(st)
+    if prof and not a.elevation_profile:
+        a.elevation_profile = prof
+    _backfill_start(a, res.get("records") or [])
+    return st
+
+
+@_one_at_a_time
+def fetch_run_track(db: DBSession, rid: str, aid: int) -> bool:
+    """v0.12.13 — the run detail's route and series for a run whose detailed data was stored
+    before them: fetched from Garmin once, when the runner opens the run. True when stored."""
+    from ..metrics import segmentation, stream_qc
+    a = db.query(models.Activity).filter(models.Activity.id == aid, models.Activity.runner_id == rid).first()
+    if a is None or a.provider != "garmin" or not a.external_id or not E.is_run(a):
+        return False
+    st = db.query(models.ActivityStream).filter(models.ActivityStream.activity_id == aid).first()
+    if st is not None and st.track_json is not None:
+        return True
+    row = db.query(models.GarminSession).filter(models.GarminSession.runner_id == rid).first()
+    if row is None:
+        return False
+    try:
+        garmin = garmin_live.resume_session(row.token_blob, bool(row.encrypted))
+        res = stream_qc.process(garmin_live.fetch_details(garmin, a.external_id))
+    except Exception:  # noqa: BLE001 — no detail now; the run detail shows what it has
+        return False
+    if st is not None:
+        st.route_json, st.track_json = _track_of(a, res.get("records") or [])
+    else:
+        segs = segmentation.segment(res.get("records") or [], surface=a.surface) if res.get("accepted") else []
+        st = _store_run_stream(db, rid, a, None, res, segs)
+    db.commit()
+    return st.track_json is not None
+
+
 def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap: int = 25, retry_failed: bool = False) -> dict:
     """Phase 4 — pull the 1 Hz stream for running activities that don't yet have
     one (oldest-first within the window), run Stage-S1 quality control, store the
@@ -905,23 +1024,9 @@ def _fetch_streams(db: DBSession, rid: str, garmin, since_days: int = 3650, cap:
                 segments_json=None, gps=False, created_at=E.now_iso(),
             ))
             continue
-        prof = res.get("elevation_profile") or None
-        quality = {**(res.get("quality") or {}), "accepted": bool(res.get("accepted")),
-                   "segVersion": segmentation.SEG_VERSION}
         if not res.get("accepted"):
             rejected += 1
-        st = old or models.ActivityStream(activity_id=a.id, runner_id=rid)
-        st.external_id = a.external_id
-        st.elevation_profile = prof
-        st.quality_json = quality
-        st.segments_json = segs or None
-        st.gps = bool(res.get("gps"))
-        st.created_at = E.now_iso()
-        if old is None:
-            db.add(st)
-        if prof and not a.elevation_profile:
-            a.elevation_profile = prof
-        _backfill_start(a, res.get("records") or [])
+        _store_run_stream(db, rid, a, old, res, segs)
         stored += 1
     db.commit()
     if stored:
