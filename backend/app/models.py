@@ -773,6 +773,8 @@ class Settings(Base):
     today_cards = Column(JSON, nullable=True)
     # v0.12.14 — the last "Co je nového" (release notes) the user has seen
     news_seen = Column(String, nullable=True)
+    # owner decision 2026-10-14 — the milestones already announced on Dnes
+    badges_seen = Column(JSON, nullable=True)
 
 
 class Annotation(Base):

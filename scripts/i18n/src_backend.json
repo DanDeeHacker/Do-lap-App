@@ -2580,6 +2580,7 @@
   "t": "Závod",
   "files": [
    "metrics/coach_plan.py",
+   "metrics/goal_track.py",
    "metrics/week_plan.py"
   ]
  },
@@ -6051,7 +6052,43 @@
   ]
  },
  {
+  "t": "Cíl",
+  "files": [
+   "metrics/goal_track.py"
+  ]
+ },
+ {
   "t": "Dva týdny pod 80 % plánu. Plán se přepočítal z toho, co jste opravdu odběhli.",
+  "files": [
+   "metrics/goal_track.py"
+  ]
+ },
+ {
+  "t": "Kontrola 4 týdny před závodem",
+  "files": [
+   "metrics/goal_track.py"
+  ]
+ },
+ {
+  "t": "Kontrola 8 týdnů před závodem",
+  "files": [
+   "metrics/goal_track.py"
+  ]
+ },
+ {
+  "t": "Kontrola v polovině plánu",
+  "files": [
+   "metrics/goal_track.py"
+  ]
+ },
+ {
+  "t": "Kontrolní test 5–10 km",
+  "files": [
+   "metrics/goal_track.py"
+  ]
+ },
+ {
+  "t": "Mezicíl: běh na 21 km",
   "files": [
    "metrics/goal_track.py"
   ]
@@ -7668,6 +7705,120 @@
   "t": "— {} při něm není zatížené",
   "files": [
    "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "12 týdnů v řadě bez zátěže nad prahem a s posilováním podle programu.",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "20 zápisů v deníku",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "24 tréninků programu odolnosti, tedy 12 týdnů po dvou.",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "30 nocí s hodinkami",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "4 týdny v řadě bez zátěže nad prahem a s posilováním podle programu.",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "6 týdnů přechodu na botu s nižším dropem, minimalistickou nebo karbonovou za vámi.",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "Celý plán návratu k běhu od fyzioterapeuta je za vámi.",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "Dva páry na střídání",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "Dva páry, ve kterých běháte aspoň dvakrát za 4 týdny. Střídání bot souviselo s menším rizikem zranění.",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "Jak se běh běžel, jak se cítily nohy a jestli něco bolelo. Ze zápisů aplikace pozná, co vám sedí.",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "Měsíc v bezpečném pásmu",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "Nové boty zaběhnuté",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "Návrat k běhu dokončen",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "Runner's must-have: 12 týdnů",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "Z nocí aplikace zná vaši normu HRV, klidového tepu a spánku a z ní připravenost.",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "bez tréninku",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "posilování {} z {}",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "zátěž nad prahem {}×",
+  "files": [
+   "metrics/habits.py"
+  ]
+ },
+ {
+  "t": "Čtvrt roku v bezpečném pásmu",
+  "files": [
+   "metrics/habits.py"
   ]
  },
  {

@@ -218,7 +218,7 @@ def _track(db: DBSession, rid: str, g, res: dict) -> dict:
     today = E.today_date()
     return {"adherence": GT.adherence(db, rid, g, today), "checkpoint": GT.checkpoint(g, res, today),
             "setback": GT.setback(g, {"realDate": res.get("realDate")}, today), "gi": GT.gi_ask(db, rid, g, today),
-            "giLast": (g.track_json or {}).get("giLast")}
+            "giLast": (g.track_json or {}).get("giLast"), "journey": GT.journey(g, res, today)}
 
 
 class GiIn(BaseModel):

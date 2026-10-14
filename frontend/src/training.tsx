@@ -21,6 +21,7 @@ import { BoundTag, TomorrowCard, WeekLoadCard, limitText, type TomorrowPlan } fr
 import { Bike, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Users, Waves, X, Zap, type LucideIcon } from "lucide-react"
 import { CoachProgress, CoachSection } from "@/coach"
 import { DataGapCard, GoalCard } from "@/goal"
+import { HabitsCard } from "@/habits"
 import { FitnessPanel } from "@/fitness"
 
 const ORDER = ["volno", "regenerace", "lehký", "dlouhý", "kvalitní", "závod"]
@@ -1454,6 +1455,7 @@ export function Training() {
               {rid && !touring && <DataGapCard rid={rid} />}
               {rid && !touring && <GoalCard rid={rid} gg={g.goal} />}
               <WeekCard g={g} plan={plan} />
+              {!touring && <HabitsCard />}
             </>
           )}
         </div>

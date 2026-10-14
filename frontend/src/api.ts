@@ -155,6 +155,7 @@ export const api = {
   loadHistory: (id: string) => call("GET", `/api/runners/${id}/load-history`),
   runTrack: (id: string, aid: string | number) => call("GET", `/api/runners/${id}/activities/${aid}/track`),
   routeThumbs: (id: string) => call("GET", `/api/runners/${id}/route-thumbs`),
+  habits: (id: string) => call("GET", `/api/runners/${id}/habits`),
   fitnessTrend: (id: string) => call("GET", `/api/runners/${id}/fitness-trend`),
 
   // AI summaries & training commentary (opt-in)

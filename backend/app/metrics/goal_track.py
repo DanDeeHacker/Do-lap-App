@@ -36,6 +36,7 @@ def snapshot(g_row, gg: dict | None, today: date) -> bool:
     if ws not in weeks:
         w = gg["week"]
         weeks[ws] = {"km": w.get("km"), "long": w.get("long"), "strength": w.get("strength"), "deload": bool(w.get("deload")),
+                     "phase": w.get("phase"),
                      "fuel": w.get("fuel"), "chance": gg.get("chance"),
                      "taper": bool(w.get("taper")), "realDate": gg.get("realDate"), "status": gg.get("status")}
         tr["weeks"] = weeks
@@ -93,6 +94,67 @@ def adherence(db, rid: str, g_row, today: date, n: int = 4) -> dict | None:
     plan_s = sum(r["planStrength"] or 0 for r in rows)
     return {"weeks": rows, "flag": flag, "text": text,
             "strengthPct": round(100 * min(sum(r["strength"] for r in rows), plan_s) / plan_s) if plan_s else None}
+
+
+def checkpoint_dates(g_row) -> dict:
+    """{key: the Monday of the week a checkpoint falls on} for the goal (half, w8, w4)."""
+    try:
+        c0 = _monday(date.fromisoformat(g_row.created_at[:10]))
+        race = _monday(date.fromisoformat(g_row.date[:10]))
+    except (TypeError, ValueError, AttributeError):
+        return {}
+    total = (race - c0).days // 7
+    at = {"half": c0 + timedelta(days=7 * (total // 2)), "w8": race - timedelta(days=56), "w4": race - timedelta(days=28)}
+    return {k: v for k, v in at.items() if c0 < v < race}
+
+
+STOP_LABEL = {"half": "Kontrola v polovině plánu", "w8": "Kontrola 8 týdnů před závodem", "w4": "Kontrola 4 týdny před závodem"}
+
+
+def journey(g_row, res: dict, today: date) -> dict | None:
+    """Owner decision 2026-10-14 — the goal as a path: every week from the one the goal was set in
+    to the race, the weeks behind (as kept in the record) and ahead (the plan), the phases, and the
+    stops on the way — the checkpoints, the plan's milestones (half marathon, a test) and the race.
+    {weeks, now, segs [{from, to, phase, done}], stops [{key, label, i, date, done}], next}."""
+    plan = (res or {}).get("plan") or []
+    if g_row is None or not plan or not g_row.created_at:
+        return None
+    mon = _monday(today)
+    try:
+        c0 = min(_monday(date.fromisoformat(g_row.created_at[:10])), mon)
+        p0 = date.fromisoformat(plan[0]["start"])
+    except (TypeError, ValueError, KeyError):
+        return None
+    past = max(0, (p0 - c0).days // 7)                    # weeks before the plan's first (this) week
+    rec = (g_row.track_json or {}).get("weeks") or {}
+    phases = [(rec.get((c0 + timedelta(days=7 * k)).isoformat()) or {}).get("phase") or "base" for k in range(past)]
+    phases += [w.get("phase") or "base" for w in plan]
+    n = len(phases)
+    now = past + 1
+    segs = []
+    for i, ph in enumerate(phases, start=1):
+        if segs and segs[-1]["phase"] == ph:
+            segs[-1]["to"] = i
+        else:
+            segs.append({"from": i, "to": i, "phase": ph})
+    week_of = lambda d: (_monday(d) - c0).days // 7 + 1   # noqa: E731
+    answered = (g_row.track_json or {}).get("checkpoints") or {}
+    stops = []
+    for k, d in checkpoint_dates(g_row).items():
+        i = week_of(d)
+        if 1 <= i <= n:
+            stops.append({"key": k, "label": STOP_LABEL[k], "i": i, "date": d.isoformat(), "kind": "check",
+                          "done": k in answered or i < now})
+    for w in plan:
+        if w.get("milestone") in ("half", "test"):
+            stops.append({"key": w["milestone"], "label": "Mezicíl: běh na 21 km" if w["milestone"] == "half" else "Kontrolní test 5–10 km",
+                          "i": past + w["i"], "date": w["start"], "kind": "milestone", "done": False})
+    stops.append({"key": "race", "label": "Závod" if g_row.race_id or (res.get("goal") or {}).get("kind") == "race" else "Cíl",
+                  "i": n, "date": g_row.date[:10], "kind": "race", "done": False})
+    stops.sort(key=lambda s: (s["i"], s["kind"] != "check"))
+    nxt = next((s for s in stops if not s["done"] and s["i"] >= now), None)
+    return {"weeks": n, "now": now, "start": c0.isoformat(), "segs": segs, "stops": stops,
+            "next": {**nxt, "inWeeks": nxt["i"] - now} if nxt else None}
 
 
 def checkpoint(g_row, res: dict, today: date) -> dict | None:

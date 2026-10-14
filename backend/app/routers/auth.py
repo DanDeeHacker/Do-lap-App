@@ -238,7 +238,7 @@ def get_settings(user: models.User = Depends(get_current_user), db: DBSession = 
         "share_with_physio": s.share_with_physio, "share_bodymap": s.share_bodymap,
         "employer_aggregate": s.employer_aggregate, "notify_drift": s.notify_drift,
         "notify_checkin": s.notify_checkin, "rail_cards": s.rail_cards, "today_cards": s.today_cards,
-        "news_seen": s.news_seen, "user_since": (user.created_at or "")[:10] or None,
+        "news_seen": s.news_seen, "user_since": (user.created_at or "")[:10] or None, "badges_seen": s.badges_seen,
     }
 
 
@@ -253,6 +253,8 @@ def patch_settings(body: schemas.SettingsPatch, user: models.User = Depends(get_
             v = [c for c in dict.fromkeys(v) if c in RAIL_CARD_IDS][:8]
         if k == "news_seen" and v is not None:
             v = str(v)[:32]
+        if k == "badges_seen" and v is not None:
+            v = [str(x)[:24] for x in dict.fromkeys(v)][:40]
         setattr(s, k, v)
     db.commit()
     db.refresh(s)
@@ -260,5 +262,5 @@ def patch_settings(body: schemas.SettingsPatch, user: models.User = Depends(get_
         "share_with_physio": s.share_with_physio, "share_bodymap": s.share_bodymap,
         "employer_aggregate": s.employer_aggregate, "notify_drift": s.notify_drift,
         "notify_checkin": s.notify_checkin, "rail_cards": s.rail_cards, "today_cards": s.today_cards,
-        "news_seen": s.news_seen, "user_since": (user.created_at or "")[:10] or None,
+        "news_seen": s.news_seen, "user_since": (user.created_at or "")[:10] or None, "badges_seen": s.badges_seen,
     }

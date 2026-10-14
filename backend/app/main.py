@@ -115,6 +115,7 @@ def _migrate(engine):
     add("settings", "rail_cards", "rail_cards JSON")
     add("settings", "today_cards", "today_cards JSON")
     add("settings", "news_seen", "news_seen VARCHAR")
+    add("settings", "badges_seen", "badges_seen JSON")
     add("races", "ascent_m", "ascent_m FLOAT")
     add("races", "target_pace_s_km", "target_pace_s_km INTEGER")
     add("goals", "risk_ended_at", "risk_ended_at VARCHAR")

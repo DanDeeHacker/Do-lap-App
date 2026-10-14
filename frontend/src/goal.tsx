@@ -844,7 +844,60 @@ const WEEK_BY: Record<string, (gg: any) => [string, string]> = {
   coach: () => ["Týden řídí plán trenéra", "cíl ho jen kontroluje."],
 }
 
-function WeekNow({ w, weeks, gg }: { w: any; weeks?: number; gg?: any }) {
+// Owner decision 2026-10-14 — the goal as a path: the weeks from the one the goal was set in to the
+// race, the weeks behind solid, the phases ahead dim, the stops on the way (the checkpoints, the
+// half-marathon milestone or a test, the race) and the next one named. Progress towards something
+// that matters, not a score.
+function GoalPath({ j, list = false }: { j: any; list?: boolean }) {
+  if (!j || !(j.weeks > 1)) return null
+  const W = j.weeks
+  const pct = (i: number) => ((i - 0.5) / W) * 100
+  const parts: { from: number; to: number; phase: string; done: boolean }[] = []
+  for (const s of j.segs || []) {
+    if (s.from < j.now) parts.push({ from: s.from, to: Math.min(s.to, j.now - 1), phase: s.phase, done: true })
+    if (s.to >= j.now) parts.push({ from: Math.max(s.from, j.now), to: s.to, phase: s.phase, done: false })
+  }
+  const stops: any[] = (j.stops || []).filter((s: any) => s.kind !== "race")
+  const nx = j.next
+  const stopCol = (s: any) => (s.done ? C.fg3 : s.kind === "milestone" ? C.accent : C.info)
+  return (
+    <span className="block" data-testid="goal-path">
+      <span className="relative block h-7" aria-hidden>
+        <span className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 overflow-hidden rounded-full bg-white/[.06]">
+          {parts.map((p) => (
+            <i key={`${p.from}-${p.done}`} className="absolute inset-y-0" style={{ left: `${((p.from - 1) / W) * 100}%`, width: `${((p.to - p.from + 1) / W) * 100}%`,
+              background: (PHASE[p.phase] || PHASE.base)[1], opacity: p.done ? 0.95 : 0.3 }} />
+          ))}
+        </span>
+        {stops.map((s) => (
+          <i key={`${s.key}-${s.i}-${s.kind}`} title={s.label} className="absolute top-1/2 size-[9px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+            style={{ left: `${pct(s.i)}%`, background: s.done ? stopCol(s) : C.bg, boxShadow: `0 0 0 2px ${stopCol(s)}` }} />
+        ))}
+        <i className="absolute top-1/2 size-[15px] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-bg" style={{ left: `${pct(j.now)}%`, background: C.fg }} data-testid="goal-path-now" />
+        <Flag className="absolute -top-0.5 right-0 size-4 translate-x-1/2" style={{ color: C.accent }} />
+      </span>
+      <span className="mt-0.5 flex items-baseline justify-between gap-3 text-[11.5px]">
+        <span className="shrink-0 tabular-nums text-fg-3">{`${j.now}. týden z ${W}`}</span>
+        {nx && <span className="min-w-0 truncate text-right text-fg-2" data-testid="goal-path-next">
+          <span>{"Další zastávka: "}</span><b className="text-fg">{nx.label}</b><span>{nx.inWeeks <= 0 ? " · tento týden" : ` · za ${weeksCz(nx.inWeeks)}`}</span>
+        </span>}
+      </span>
+      {list && (
+        <span className="mt-2 grid gap-1" data-testid="goal-path-stops">
+          {(j.stops || []).map((s: any) => (
+            <span key={`${s.key}-${s.i}-${s.kind}-l`} className={`flex items-center gap-2 text-[12px] ${s.done ? "text-fg-3" : "text-fg-soft"}`}>
+              <i className="size-2 shrink-0 rounded-full" style={{ background: s.kind === "race" ? C.accent : stopCol(s) }} />
+              <span className="min-w-0 flex-1 truncate">{s.label}</span>
+              <span className="shrink-0 tabular-nums text-fg-3">{s.kind === "race" ? fmtDY(s.date) : `${s.i}. týden`}</span>
+            </span>
+          ))}
+        </span>
+      )}
+    </span>
+  )
+}
+
+function WeekNow({ w, weeks, gg, j }: { w: any; weeks?: number; gg?: any; j?: any }) {
   if (!w) return null
   const [pl, pc] = PHASE[w.phase] || PHASE.base
   const tags = weekTags(w).filter((t) => !t.startsWith("posilování"))
@@ -852,7 +905,7 @@ function WeekNow({ w, weeks, gg }: { w: any; weeks?: number; gg?: any }) {
   const long = gg?.longKm ?? w.long
   return (
     <div className="nest px-3 py-2.5" data-testid="goal-week">
-      <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: pc }}>{`${pl} · ${w.i}. týden z ${weeks}`}</p>
+      <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: pc }}>{`${pl} · ${j?.weeks > 1 ? j.now : w.i}. týden z ${j?.weeks > 1 ? j.weeks : weeks}`}</p>
       <p className="mt-0.5 text-[14px] text-fg">{w.race ? "Týden závodu" : <>Tento týden <b>{num(gg?.budgetKm ?? w.km, 0)} km</b></>}{long ? <>, dlouhý běh <b>{num(long, long < 10 ? 1 : 0)} km</b></> : null}</p>
       {by && <p className="mt-0.5 text-[11.5px] leading-4 text-watch" data-testid="goal-week-by"><span>{by[0]}</span>: <span>{by[1]}</span></p>}
       <p className="mt-0.5 flex flex-wrap gap-x-3 text-[11.5px] text-fg-3">
@@ -951,7 +1004,8 @@ function GoalDetail({ rid, data, gg, onClose, onEdit, onCancel, onChange, busy, 
             {res?.path === "risk" && <p className="mt-2"><span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: `${C.alert}1f`, color: C.alert }}>riziková cesta</span></p>}
             <TrackBanners rid={rid} track={data.track} res={res} onData={onChange} onEdit={onEdit} />
             <div className="mt-3"><VerdictHero res={res} /></div>
-            {wk && <div className="mt-4"><WeekNow w={wk} weeks={gg?.weeks || plan.length} gg={gg} /></div>}
+            {tr.journey && <div className="nest mt-4 px-3 pb-3 pt-2"><GoalPath j={tr.journey} list /></div>}
+            {wk && <div className="mt-4"><WeekNow w={wk} weeks={gg?.weeks || plan.length} gg={gg} j={tr.journey} /></div>}
             {tr.adherence && <div className="mt-5"><Adherence ad={tr.adherence} /></div>}
             <div className="mt-5 grid gap-1.5">
               {DETAIL_TABS.slice(1).map(([k, l]) => (
@@ -1368,7 +1422,8 @@ export function GoalCard({ rid, gg }: { rid: string; gg?: any }) {
             <span className="text-[13px] font-bold" style={{ color: VCOL[res.verdict] || C.fg3 }}>{headline(res).title}</span>
             {res.chance != null && <span className="shrink-0 text-[12px] tabular-nums text-fg-2">{`šance ${res.chance >= 95 ? "> 95" : res.chance} %`}</span>}
           </span>}
-          {wk && <span className="mt-2.5 block"><WeekNow w={wk} weeks={gg?.weeks || res?.plan?.length} gg={gg} /></span>}
+          {data.track?.journey && <span className="mt-3 block"><GoalPath j={data.track.journey} /></span>}
+          {wk && <span className="mt-2.5 block"><WeekNow w={wk} weeks={gg?.weeks || res?.plan?.length} gg={gg} j={data.track?.journey} /></span>}
           {wk?.milestone === "half" && <span className="mt-1 block text-[12px] text-accent">Mezicíl: běh na 21 km, nebo B‑závod na půlmaraton.</span>}
           {gg?.runs && <span className="mt-1 block text-[11px] text-fg-3">{`${gg.runs} běhy týdně (první maraton)`}</span>}
           {res?.verdict !== "unknown" && reqs.length > 0 && (

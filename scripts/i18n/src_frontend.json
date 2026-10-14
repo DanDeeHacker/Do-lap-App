@@ -3313,6 +3313,7 @@
    "App.tsx",
    "coach.tsx",
    "goal.tsx",
+   "habits.tsx",
    "metricsheet.tsx",
    "training.tsx"
   ],
@@ -3876,6 +3877,7 @@
   "files": [
    "App.tsx",
    "annotate.tsx",
+   "habits.tsx",
    "onboarding.tsx",
    "profile.tsx",
    "ui.tsx"
@@ -7594,7 +7596,8 @@
  {
   "t": "inset 0 0 0 1.5px {}",
   "files": [
-   "coach.tsx"
+   "coach.tsx",
+   "habits.tsx"
   ],
   "kind": "tpl"
  },
@@ -9308,6 +9311,7 @@
   "t": "repeat({}, minmax(0, 1fr))",
   "files": [
    "coachview.tsx",
+   "habits.tsx",
    "outlook.tsx"
   ],
   "kind": "tpl"
@@ -9357,6 +9361,7 @@
   "files": [
    "coachview.tsx",
    "goal.tsx",
+   "habits.tsx",
    "selfprograms.tsx"
   ],
   "kind": "jsx"
@@ -12323,9 +12328,25 @@
   "kind": "tpl"
  },
  {
+  "t": "{}. týden",
+  "files": [
+   "goal.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{}. týden · od {}",
   "files": [
    "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}. týden z {}",
+  "files": [
+   "goal.tsx",
+   "selfprograms.tsx"
   ],
   "kind": "tpl"
  },
@@ -12701,6 +12722,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Další zastávka:",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Datum závodu",
   "files": [
    "goal.tsx",
@@ -12914,6 +12942,13 @@
  },
  {
   "t": "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-semibold {}",
+  "files": [
+   "goal.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "flex items-center gap-2 text-[12px] {}",
   "files": [
    "goal.tsx"
   ],
@@ -14053,6 +14088,7 @@
   "t": "týden",
   "files": [
    "goal.tsx",
+   "habits.tsx",
    "selfprograms.tsx"
   ],
   "kind": "str"
@@ -14138,6 +14174,7 @@
   "t": "týdny",
   "files": [
    "goal.tsx",
+   "habits.tsx",
    "selfprograms.tsx"
   ],
   "kind": "str"
@@ -14421,6 +14458,153 @@
    "goal.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "· posilování {} z {}",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} v řadě v bezpečném pásmu",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} z {}",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "block text-[14px] font-bold {}",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "h-7 rounded-[6px] transition {}",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "inset 0 0 0 1.5px {}66",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Milníky",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Milníky {} z {}",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "mimo pásmo",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Návyky",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "nejdelší řada {}",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Nový milník",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Posledních 12 týdnů",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "repeating-linear-gradient(135deg, rgba(255,255,255,.10) 0 2px, transparent 2px 5px)",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Týden se počítá, když jste trénovali, zátěž ani jeden den nepřekročila práh 25 a posilování z programu Runner's must-have proběhlo, jak program chce (2× týdně, v lehčích týdnech 1×). Nemoc, bolest nebo týden bez tréninku řadu nepřeruší, jen se nepočítá: nikdo nemá trénovat nemocný nebo přes bolest, aby si řadu udržel. Kilometry ani tempo se tu nepočítají.",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Týdny v bezpečném pásmu",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "v pásmu",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Za návyky, které chrání před zraněním. Získaný milník už vám zůstane.",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Získáno {}",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Zobrazit",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zobrazit ({})",
+  "files": [
+   "habits.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "-45% 0px -50% 0px",
@@ -16926,6 +17110,7 @@
   "t": "0 0 0 2px {}",
   "files": [
    "MuscleAnatomy.tsx",
+   "goal.tsx",
    "tabs.tsx",
    "ui.tsx"
   ],
@@ -22852,20 +23037,6 @@
  },
  {
   "t": "{}. série{}",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{}. týden",
-  "files": [
-   "selfprograms.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{}. týden z {}",
   "files": [
    "selfprograms.tsx"
   ],

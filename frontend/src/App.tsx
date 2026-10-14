@@ -39,6 +39,7 @@ import { C, badCol, goodCol } from "@/tokens"
 import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, Users, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, NotebookPen, LogOut, Moon, RefreshCw, SlidersHorizontal, Sparkles, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail, TodayNumbers, Wordmark } from "@/shell"
 import { NewsPrompt, NewsSheet } from "@/news"
+import { NewMilestone } from "@/habits"
 import { Landing } from "@/landing"
 import { LangSwitch } from "@/i18n/LangSwitch"
 import { getLang } from "@/i18n/lang"
@@ -1352,6 +1353,7 @@ function TodayV2() {
         )}
       </section>
       )}
+      {stage !== "none" && <NewMilestone />}
       {stage !== "none" && <TodayNumbers />}
       {stage !== "none" && <NewsPrompt />}
     </>

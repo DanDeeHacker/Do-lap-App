@@ -636,6 +636,19 @@ def run_track(rid: str, aid: int, user: models.User = Depends(get_current_user),
             "shoe": run_shoe(db, rid, a) if a is not None and E.is_run(a) else None}
 
 
+@router.get("/{rid}/habits")
+def habits(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Owner decision 2026-10-14 — Trénink → Návyky: the weeks kept inside the limits (with the
+    must-have programme's sessions), the run of them, and the habit milestones (metrics/habits.py).
+    Reads the daily history the Dnes strip already keeps; never counts kilometres or pace."""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import habits as HB
+    rows = H.quadrant_cache_fresh(db, rid) or H.quadrant_cache_any(db, rid)
+    if rows is None:
+        rows = H.refresh_quadrant_history(db, rid)["rows"]
+    return HB.build(db, rid, load_rows=rows, own=user.runner_id == rid)
+
+
 THUMB_DAYS, THUMB_MAX = 400, 150
 
 

@@ -274,3 +274,4 @@ class SettingsPatch(Lenient):
     rail_cards: Optional[list[str]] = None
     today_cards: Optional[list[str]] = None
     news_seen: Optional[str] = None
+    badges_seen: Optional[list[str]] = None
