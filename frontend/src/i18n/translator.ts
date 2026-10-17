@@ -151,6 +151,18 @@ function translateCore(s: string, depth: number): string | null {
       const tr = sents.map((p) => translateCore(p, depth + 1))
       if (tr.some((x) => x != null)) return sents.map((p, k) => tr[k] ?? numbersEn(p)).join(" ")
     }
+    // an emoji in front of a text ("🌦 slabý déšť"): the text after it
+    const em = s.match(/^(\p{Extended_Pictographic}[\uFE0F\u200D\p{Extended_Pictographic}]*\s+)(.+)$/u)
+    if (em) {
+      const t = translateCore(em[2], depth + 1)
+      if (t != null) return em[1] + t
+    }
+    // a list joined with ", " ("Achillova šlacha, Gastrocnemius med."), only when every item is known as is
+    if (s.includes(", ")) {
+      const items = s.split(", ")
+      const tr = items.map((p) => exact.get(norm(p)) ?? null)
+      if (tr.every((x) => x != null)) return tr.join(", ")
+    }
     for (const sep of [" · ", " – ", " — ", ": "]) {
       if (s.includes(sep)) {
         // "Název: věta" — only the first colon is a label; the rest may hold one of its own

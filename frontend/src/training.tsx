@@ -1078,7 +1078,8 @@ function KeyTile({ label, value, sub, tone }: { label: string; value: string; su
   return (
     <div className="min-w-0 rounded-[14px] px-2.5 py-2.5 md:px-3.5 md:py-3" style={{ background: tone ? `${tone}1f` : "rgb(255 255 255 / .05)" }}>
       <p className="truncate text-[10.5px] md:text-[11.5px]" style={{ color: tone ? C.alertSoft : C.fg2 }}>{label}</p>
-      <p className="t-num mt-0.5 whitespace-nowrap text-[19px] leading-tight md:text-[24px]" style={{ color: tone ? C.alertSoft : C.fg }}>{value}</p>
+      {/* a range with its unit ("13.9–16.3 km") doesn't fit a third of a phone at full size: smaller, and it may wrap */}
+      <p className={`t-num mt-0.5 leading-tight ${value.length <= 7 ? "whitespace-nowrap text-[19px] md:text-[24px]" : value.length <= 10 ? "text-[16px] md:text-[21px]" : "text-[14.5px] md:text-[19px]"}`} style={{ color: tone ? C.alertSoft : C.fg }}>{value}</p>
       {sub && <p className="mt-0.5 text-[10.5px] leading-[14px] md:text-[11.5px]" style={{ color: tone ? C.alertSoft : C.fg3 }}>{sub}</p>}
     </div>
   )
