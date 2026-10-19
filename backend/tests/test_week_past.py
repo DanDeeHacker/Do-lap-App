@@ -8,7 +8,7 @@ from .test_guidance import _guide, _runner
 
 
 def test_past_weeks(client, db_session):
-    rid, r = _runner(client, db_session, "wp1@test.cz", days=70)
+    rid, r = _runner(client, db_session, "wpast1@test.cz", days=70)
     g = _guide(db_session, rid, r)
     past = g["week"]["past"]
     assert 1 <= len(past) <= G.PAST_WEEKS
