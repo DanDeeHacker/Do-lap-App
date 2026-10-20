@@ -26,6 +26,7 @@ class TabIn(BaseModel):
 
 class UsageIn(BaseModel):
     day: str
+    hour: int | None = Field(None, ge=0, le=23)     # the local hour of the batch (older apps don't send it)
     opens: int = Field(0, ge=0, le=20)
     tabs: dict[str, TabIn] = Field(default_factory=dict, max_length=30)
 
@@ -46,11 +47,13 @@ def post_usage(body: UsageIn, user: models.User = Depends(get_current_user), db:
         return {"ok": True}
     have = {u.tab: u for u in db.query(models.UsageDay).filter(models.UsageDay.user_id == user.id,
                                                                models.UsageDay.day == d.isoformat(),
+                                                               models.UsageDay.hour.is_(body.hour) if body.hour is None
+                                                               else models.UsageDay.hour == body.hour,
                                                                models.UsageDay.tab.in_(list(rows))).all()}
     for k, v in rows.items():
         u = have.get(k)
         if u is None:
-            u = models.UsageDay(user_id=user.id, day=d.isoformat(), tab=k, seconds=0, views=0)
+            u = models.UsageDay(user_id=user.id, day=d.isoformat(), hour=body.hour, tab=k, seconds=0, views=0)
             db.add(u)
         u.seconds = (u.seconds or 0) + int(round(v.s))
         u.views = (u.views or 0) + v.v

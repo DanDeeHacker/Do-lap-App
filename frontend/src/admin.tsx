@@ -149,7 +149,8 @@ function Engagement() {
   const [open, setOpen] = useState<string | null>(null)
   useEffect(() => {
     let alive = true
-    api.adminEngagement(days).then((x: any) => alive && setD(x)).catch(() => alive && setD({ items: [], tabs: {} }))
+    // days 0 = the last 24 hours (railway#218), by the hour the app recorded the use in
+    api.adminEngagement(days || 1, days ? undefined : 24).then((x: any) => alive && setD(x)).catch(() => alive && setD({ items: [], tabs: {} }))
     return () => { alive = false }
   }, [days])
   if (!d) return null
@@ -163,9 +164,9 @@ function Engagement() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label>Zapojení uživatelů</Label>
         <div className="flex gap-1" role="group" aria-label="Období">
-          {[7, 30, 90].map((n) => (
+          {[0, 7, 30, 90].map((n) => (
             <button key={n} type="button" aria-pressed={days === n} onClick={() => setDays(n)}
-              className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${days === n ? "bg-fg text-ink" : "bg-white/[.06] text-fg-2"}`}>{`${n} dní`}</button>
+              className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${days === n ? "bg-fg text-ink" : "bg-white/[.06] text-fg-2"}`}>{n ? `${n} dní` : "24 h"}</button>
           ))}
         </div>
       </div>

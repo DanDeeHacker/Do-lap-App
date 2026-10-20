@@ -60,6 +60,13 @@
   "kind": "tpl"
  },
  {
+  "t": "24 h",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "aktivit · poslední",
   "files": [
    "admin.tsx"
@@ -1259,7 +1266,8 @@
    "App.tsx",
    "care.tsx",
    "landing.tsx",
-   "rundetail.tsx"
+   "rundetail.tsx",
+   "tabs.tsx"
   ],
   "kind": "str"
  },
@@ -1869,13 +1877,6 @@
   "kind": "str"
  },
  {
-  "t": "inset 0 0 0 1px {}",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "inset 0 0 0 1px {}55",
   "files": [
    "App.tsx"
@@ -2053,14 +2054,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Kritická",
-  "files": [
-   "App.tsx",
-   "enginelab.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "kříž",
   "files": [
    "App.tsx"
@@ -2076,13 +2069,6 @@
  },
  {
   "t": "Kulhám",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Kvadrant: zátěž svisle, mechanika vodorovně",
   "files": [
    "App.tsx"
   ],
@@ -2108,20 +2094,6 @@
    "App.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "M10 5 L2 0 L2 10 Z",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "M5 0 L10 8 L0 8 Z",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "má roli „",
@@ -2699,15 +2671,6 @@
   "kind": "tpl"
  },
  {
-  "t": "Přetížení",
-  "files": [
-   "App.tsx",
-   "enginelab.tsx",
-   "lib.ts"
-  ],
-  "kind": "str"
- },
- {
   "t": "Přetížení hned po běhu",
   "files": [
    "App.tsx"
@@ -2933,13 +2896,6 @@
   "kind": "tpl"
  },
  {
-  "t": "rgb(255 255 255 / .03)",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "rgb(255 255 255 / .07)",
   "files": [
    "App.tsx",
@@ -2947,17 +2903,6 @@
    "report.tsx",
    "rundetail.tsx",
    "runprofile.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "rgb(255 255 255 / .08)",
-  "files": [
-   "App.tsx",
-   "landing.tsx",
-   "rundetail.tsx",
-   "tabs.tsx",
-   "training.tsx"
   ],
   "kind": "str"
  },
@@ -3176,16 +3121,6 @@
   "kind": "str"
  },
  {
-  "t": "Stabilní",
-  "files": [
-   "App.tsx",
-   "enginelab.tsx",
-   "landing.tsx",
-   "lib.ts"
-  ],
-  "kind": "str"
- },
- {
   "t": "Stáhnout nová data z Garminu",
   "files": [
    "App.tsx"
@@ -3198,14 +3133,6 @@
    "App.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "Stav podle zátěže a techniky",
-  "files": [
-   "App.tsx",
-   "onboarding.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "Staženo: {} aktivit, {} dní dat.",
@@ -3336,15 +3263,6 @@
   "t": "těžká",
   "files": [
    "App.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Tichý drift",
-  "files": [
-   "App.tsx",
-   "enginelab.tsx",
-   "lib.ts"
   ],
   "kind": "str"
  },
@@ -3739,14 +3657,6 @@
   "kind": "str"
  },
  {
-  "t": "zátěž",
-  "files": [
-   "App.tsx",
-   "enginelab.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Zátěž",
   "files": [
    "App.tsx",
@@ -3922,13 +3832,6 @@
  },
  {
   "t": "změnu v mechanice běhu",
-  "files": [
-   "App.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Zobrazit vývoj stavu za 6 měsíců",
   "files": [
    "App.tsx"
   ],
@@ -8182,7 +8085,8 @@
   "t": "Plán týdne",
   "files": [
    "coach.tsx",
-   "report.tsx"
+   "report.tsx",
+   "training.tsx"
   ],
   "kind": "jsx"
  },
@@ -11211,6 +11115,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Kritická",
+  "files": [
+   "enginelab.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "kvadrant = zátěž × mechanika · práh",
   "files": [
    "enginelab.tsx"
@@ -11309,6 +11220,14 @@
   "kind": "jsx"
  },
  {
+  "t": "Přetížení",
+  "files": [
+   "enginelab.tsx",
+   "lib.ts"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "příznaky",
   "files": [
    "enginelab.tsx"
@@ -11344,9 +11263,26 @@
   "kind": "tpl"
  },
  {
+  "t": "Stabilní",
+  "files": [
+   "enginelab.tsx",
+   "landing.tsx",
+   "lib.ts"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Standardní / Citlivý",
   "files": [
    "enginelab.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tichý drift",
+  "files": [
+   "enginelab.tsx",
+   "lib.ts"
   ],
   "kind": "str"
  },
@@ -11387,6 +11323,13 @@
  },
  {
   "t": "žádné",
+  "files": [
+   "enginelab.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zátěž",
   "files": [
    "enginelab.tsx"
   ],
@@ -16074,6 +16017,16 @@
   "kind": "str"
  },
  {
+  "t": "rgb(255 255 255 / .08)",
+  "files": [
+   "landing.tsx",
+   "rundetail.tsx",
+   "tabs.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "rgb(255 255 255 / .12)",
   "files": [
    "landing.tsx",
@@ -18052,13 +18005,6 @@
   "kind": "str"
  },
  {
-  "t": "Odliší obyčejnou únavu z objemu od změny techniky, kterou zatím necítíte. Každá chce jinou reakci.",
-  "files": [
-   "onboarding.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Po špatné noci unesete méně. Došlap podle toho ráno sníží dnešní stropy.",
   "files": [
    "onboarding.tsx"
@@ -18463,13 +18409,6 @@
  },
  {
   "t": "Zápis po běhu",
-  "files": [
-   "onboarding.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Zátěž a technika běhu společně určí jeden ze čtyř stavů: stabilní, přetížení (zátěž nad normou), tichý drift (technika se mění, i když to necítíte) a kritická kombinace (obojí naráz). Klepnutím zobrazíte vývoj za 6 měsíců.",
   "files": [
    "onboarding.tsx"
   ],
@@ -20938,7 +20877,6 @@
   "files": [
    "report.tsx",
    "rundetail.tsx",
-   "tabs.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -22592,8 +22530,7 @@
   "t": "Km",
   "files": [
    "rundetail.tsx",
-   "runprofile.tsx",
-   "tabs.tsx"
+   "runprofile.tsx"
   ],
   "kind": "jsx"
  },
@@ -24701,28 +24638,14 @@
   "kind": "str"
  },
  {
-  "t": "Běhy",
+  "t": "Běhy {} · {} km · {} · {} m stoupání",
   "files": [
    "tabs.tsx"
   ],
-  "kind": "str"
+  "kind": "tpl"
  },
  {
   "t": "běhy čekají",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Běhy od 1. dne měsíce. Šedě celý minulý měsíc.",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Běhy od pondělí. Šedě celý minulý týden.",
   "files": [
    "tabs.tsx"
   ],
@@ -24841,6 +24764,13 @@
    "tabs.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Check-iny: dny s ranním check-inem. Zápisy: běhy se zápisem ze všech běhů. Bolest: dny, kdy jste v check-inu nebo zápisu uvedli bolest. OSTRC: vyplněné týdenní kontroly.",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Chybí souvislá data z hodinek za posledních 35 dní (HRV, klidový tep, spánek).",
@@ -25606,6 +25536,20 @@
   "kind": "jsx"
  },
  {
+  "t": "Od 1. dne měsíce. Šedě celý minulý měsíc.",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Od pondělí. Šedě celý minulý týden.",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Odděleně od běhů · poslední",
   "files": [
    "tabs.tsx"
@@ -25635,6 +25579,13 @@
  },
  {
   "t": "Oscilace",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "OSTRC",
   "files": [
    "tabs.tsx"
   ],
@@ -26600,6 +26551,13 @@
   "kind": "str"
  },
  {
+  "t": "Vyplňování deníku",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Vyřadit „",
   "files": [
    "tabs.tsx"
@@ -26762,6 +26720,13 @@
  },
  {
   "t": "zápisy",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zápisy",
   "files": [
    "tabs.tsx"
   ],
@@ -27405,6 +27370,13 @@
   "kind": "str"
  },
  {
+  "t": "Den po dni a cyklus",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Den závodu — ale {} (viz níže). Běžte s rezervou.",
   "files": [
    "training.tsx"
@@ -28022,13 +27994,6 @@
  },
  {
   "t": "Plán se ukáže po prvních datech",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Plán týdne den po dni a cyklus",
   "files": [
    "training.tsx"
   ],

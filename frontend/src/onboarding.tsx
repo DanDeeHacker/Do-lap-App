@@ -233,9 +233,6 @@ export const CORE_TOUR: TourStep[] = [
 // The rest of each tab, behind the compass in the top bar (on the demo runner too).
 export const TAB_TOURS: Record<string, TourStep[]> = {
   "/app/today": [
-    { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-quadrant"]' }, title: "Stav podle zátěže a techniky",
-      body: "Zátěž a technika běhu společně určí jeden ze čtyř stavů: stabilní, přetížení (zátěž nad normou), tichý drift (technika se mění, i když to necítíte) a kritická kombinace (obojí naráz). Klepnutím zobrazíte vývoj za 6 měsíců.",
-      value: "Odliší obyčejnou únavu z objemu od změny techniky, kterou zatím necítíte. Každá chce jinou reakci." },
     { route: "/app/today", tab: "Dnes", target: { sel: '[data-tour="today-drivers"]' }, title: "Co ovlivňuje skóre",
       body: "Signály seřazené podle toho, kolik bodů ubírají ze skóre dne. Písmeno A, B nebo C u signálu říká, jak silné jsou pro něj důkazy z výzkumu. Po rozkliknutí uvidíte, které běhy nebo záznamy k němu přispívají.",
       value: "Skóre není černá skříňka. Vidíte, co ho tvoří, a víte, na co se zaměřit." },

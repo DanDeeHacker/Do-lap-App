@@ -749,12 +749,14 @@ class UsageDay(Base):
     """Engagement for the owners' overview (Správa uživatelů): per user, day and tab the seconds the
     app was in the foreground and in use (no input for 2 minutes stops the count) and the views;
     tab "_app" holds the app opens, "f:<name>" a feature's opens (the goal planner, the reports).
-    First-party, no content of what was viewed."""
+    `hour` (0–23, the user's local hour; NULL in rows from before it was sent) lets the overview
+    show the last 24 hours. First-party, no content of what was viewed."""
     __tablename__ = "usage_days"
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
     day = Column(String, index=True, nullable=False)       # YYYY-MM-DD, the user's local day
     tab = Column(String, nullable=False)
+    hour = Column(Integer, nullable=True)
     seconds = Column(Integer, default=0)
     views = Column(Integer, default=0)
 

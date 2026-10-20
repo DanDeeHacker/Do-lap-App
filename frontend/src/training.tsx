@@ -1053,7 +1053,7 @@ function useArcScroll(ref: React.RefObject<HTMLDivElement | null>, deps: unknown
 
 // ---------------------------------------------------------------- Trénink layout (owner request 2026-10-12)
 // Three floors instead of one long column of cards: Dnes (what to run today and why, on
-// the first screen), Tento týden (the same plan as the Monday sheet and the evening
+// the first screen), Plán týdne (the same plan as the Monday sheet and the evening
 // report), then the detail — today's capacity in one card, readiness and the day in one
 // card, races. On a wide screen the detail is a column of its own.
 
@@ -1251,7 +1251,7 @@ function WeekCard({ g, plan }: { g: any; plan: any }) {
   return (
     <section className="card mt-4 p-4 md:p-6" data-testid="week-card">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="flex items-center gap-1.5"><Label>Tento týden</Label><InfoDot text={MI.weekBudget} label="Týdenní cíl a cyklus" /></span>
+        <span className="flex items-center gap-1.5"><Label>Plán týdne</Label><InfoDot text={MI.weekBudget} label="Týdenní cíl a cyklus" /></span>
         {vol.budget != null && <b className="text-[13px] tabular-nums text-fg">{`${num(vol.done ?? 0)} z ${num(vol.budget, 0)} km`}</b>}
       </div>
       <p className="mt-1 text-[12.5px] text-fg-2">
@@ -1276,7 +1276,7 @@ function WeekCard({ g, plan }: { g: any; plan: any }) {
       <HabitsRow />
       <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} data-testid="week-detail-toggle"
         className="mt-1 flex w-full items-center justify-between gap-2 border-t border-white/[.07] pt-3 text-left text-[13px] font-bold text-fg-soft hover:text-fg">
-        <span>{plan ? "Plán týdne den po dni a cyklus" : "Cyklus a cíl týdne"}</span>
+        <span>{plan ? "Den po dni a cyklus" : "Cyklus a cíl týdne"}</span>
         <ChevronDown className={`size-4 shrink-0 transition ${open ? "rotate-180 text-accent" : "text-fg-3"}`} aria-hidden />
       </button>
       {open && (

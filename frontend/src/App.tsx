@@ -524,14 +524,6 @@ function ReadinessDetail({ r, fallback }: { r: any; fallback: number | null }) {
   )
 }
 const QCOL: Record<string, string> = { stable: C.ok, overreaching: C.watch, silent: C.self, critical: C.alert }
-// railway#106 — laid out like a chart: load rises upwards, mechanics to the right,
-// so "Stabilní" (both low) is bottom-left and "Kritická" (both high) top-right
-const QCELLS: [string, string][] = [
-  ["overreaching", "Přetížení"],
-  ["critical", "Kritická"],
-  ["stable", "Stabilní"],
-  ["silent", "Tichý drift"],
-]
 // State card, top row: quadrant chip (the only place the quadrant name appears, FIX-4),
 // the Garmin sync button and the 6-month history button.
 function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, canSync, alertSlot }: { quadrant?: string; live?: any; onSync?: () => void; syncing?: boolean; syncMsg?: string | null; canSync?: boolean | null; alertSlot?: React.ReactNode }) {
@@ -583,58 +575,6 @@ function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, can
       </div>
       {syncMsg && <p className="mt-2 text-[12px] font-medium text-fg-2" role="status">{syncMsg}</p>}
       <p className="mt-2 max-w-xl text-[13px] leading-5 text-fg-2">{q.d}</p>
-    </div>
-  )
-}
-// Compact 2×2: mechanika (sloupce) × zátěž (řádky). Aktivní buňka = reálný kvadrant; tap opens history.
-function QuadrantGrid({ quadrant = "stable", onHistory }: { quadrant?: string; onHistory?: () => void }) {
-  const Wrap = onHistory ? "button" : "div"
-  return (
-    <div>
-      {/* railway#72 — the 6-month history opens from the quadrant graphic itself;
-          railway#140 — and from the Skóre ring (its arrow), so no separate button here */}
-      <div className="mb-2.5 flex min-h-[30px] items-center justify-between gap-2">
-        <p className="t-label !text-fg-3">Stav podle zátěže a techniky</p>
-      </div>
-      <div className="grid grid-cols-[22px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_24px] gap-x-1.5 gap-y-1">
-        {/* y axis: load ↑ */}
-        <div className="relative" aria-hidden>
-          <svg className="absolute right-0.5 top-0 h-full w-2.5 overflow-visible" preserveAspectRatio="none" viewBox="0 0 10 100">
-            <line x1="5" y1="100" x2="5" y2="3" stroke="currentColor" strokeWidth="1.4" vectorEffect="non-scaling-stroke" className="text-fg-3" />
-          </svg>
-          <svg className="absolute -top-0.5 right-0.5 size-2.5 text-fg-3" viewBox="0 0 10 10"><path d="M5 0 L10 8 L0 8 Z" fill="currentColor" /></svg>
-          <span className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-180 whitespace-nowrap text-[10px] font-bold uppercase tracking-[.12em] text-fg-3 [writing-mode:vertical-rl]">zátěž</span>
-        </div>
-      <Wrap {...(onHistory ? { type: "button" as const, onClick: onHistory, title: "Zobrazit vývoj stavu za 6 měsíců" } : {})} className="grid w-full grid-cols-2 gap-2 text-left" aria-label="Kvadrant: zátěž svisle, mechanika vodorovně">
-        {QCELLS.map(([key, label]) => {
-          const active = key === quadrant
-          const c = QCOL[key]
-          return (
-            <span
-              key={key}
-              aria-current={active ? "true" : undefined}
-              className="relative overflow-hidden rounded-[14px] border px-3 py-3 transition"
-              style={{ borderColor: active ? c : "rgb(255 255 255 / .08)", background: active ? `${c}24` : "rgb(255 255 255 / .03)", boxShadow: active ? `inset 0 0 0 1px ${c}` : undefined }}
-            >
-              <span className="flex items-center gap-2">
-                <i className={`size-2 rounded-full ${active ? "atlas-point" : ""}`} style={{ background: active ? c : `${c}66` }} />
-                <b className="text-[13px]" style={{ color: active ? C.fg : C.fg2 }}>{label}</b>
-              </span>
-            </span>
-          )
-        })}
-      </Wrap>
-        {/* x axis: mechanics → */}
-        <div />
-        <div className="relative" aria-hidden>
-          <svg className="absolute left-0 top-0.5 h-2.5 w-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 10">
-            <line x1="0" y1="5" x2="96" y2="5" stroke="currentColor" strokeWidth="1.4" vectorEffect="non-scaling-stroke" className="text-fg-3" />
-          </svg>
-          <svg className="absolute right-0 top-0.5 size-2.5 text-fg-3" viewBox="0 0 10 10"><path d="M10 5 L2 0 L2 10 Z" fill="currentColor" /></svg>
-          <span className="absolute left-1/2 top-[11px] -translate-x-1/2 whitespace-nowrap text-[10px] font-bold uppercase leading-none tracking-[.12em] text-fg-3">mechanika</span>
-        </div>
-      </div>
-
     </div>
   )
 }
@@ -986,8 +926,9 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
         </div>
       </div>
       <div>
-        <div data-tour="today-quadrant"><QuadrantGrid quadrant={d.quadrant} onHistory={onHistory} /></div>
-        <div className="mt-5" data-tour="today-drivers">
+        {/* railway#219 — the load × technique quadrant is no longer shown here: the state is in the
+            verdict and the two rings, and its 6-month history opens from the Skóre ring */}
+        <div data-tour="today-drivers">
           <p className="t-label !text-fg-3">{onToggle ? "Co teď nejvíc ovlivňuje skóre" : "Co nejvíc ovlivňovalo skóre"}</p>
           {signals.length ? <ImpactPyramid signals={signals} tone={gradeTone} />
             : <p className="mt-2 text-sm text-fg-2">Nic nad prahem — zátěž i mechanika {onToggle ? "sedí" : "seděly"} na vaší normě.</p>}

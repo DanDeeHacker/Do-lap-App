@@ -255,7 +255,7 @@ export function Post() {
       />
       {/* UX audit F19 — an empty diary said "complete"; say where the runs come from */}
       {!acts.length && <FirstSteps className="-mt-2 mb-4" />}
-      {acts.length > 0 && <DiaryTotals acts={acts} />}
+      {acts.length > 0 && <DiaryTotals acts={acts} fb={fb} checkins={checkins} weekly={weeklyReports} />}
       {rate && <RateSheet act={rate.act} initial={rate.initial} rid={rid} onClose={() => setRate(null)} onDone={() => { setRate(null); refresh() }} />}
       {crossOpen && <CrossSheet rid={rid} onClose={() => setCrossOpen(false)} onDone={() => { setCrossOpen(false); refresh() }} />}
       <div className="grid gap-4 lg:grid-cols-[1.4fr_.8fr]">
@@ -402,20 +402,42 @@ function periodSum(acts: any[], lo: string, hi: string | null) {
 }
 const hm = (min: number) => `${Math.floor(min / 60)}:${String(Math.round(min % 60)).padStart(2, "0")}`
 
-function DiaryTotals({ acts }: { acts: any[] }) {
+// railway#221 — the week / month of filling in the diary: daily check-ins, notes on runs, days with
+// pain, the weekly OSTRC; the running totals stay as one quiet line under them.
+const localDayOf = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("sv-SE") : "")
+const daysBetween = (lo: string, hi: string) => Math.round((Date.parse(hi) - Date.parse(lo)) / 864e5)
+function diarySum(acts: any[], fb: any[], checkins: any[], weekly: any[], lo: string, hi: string | null) {
+  const inP = (d: string) => !!d && d >= lo && (!hi || d < hi)
+  const today = new Date().toLocaleDateString("sv-SE")
+  const end = hi || new Date(Date.parse(today) + 864e5).toLocaleDateString("sv-SE")
+  const days = daysBetween(lo, end)
+  const ciDays = new Set(checkins.map((c) => localDayOf(c.submitted_at)).filter(inP))
+  const runs = acts.filter((x) => (x.sport || "running") === "running" && !x.excluded && inP((x.started_at || "").slice(0, 10)))
+  const rated = new Set(fb.map((f) => f.activity_id))
+  const painDays = new Set([
+    ...checkins.filter((c) => (c.pain_score || 0) > 0 || (c.pain_points || []).length).map((c) => localDayOf(c.submitted_at)),
+    ...fb.filter((f) => (f.pain_during || 0) > 0 || f.niggle || (f.pain_points || []).length).map((f) => localDayOf(f.submitted_at)),
+  ].filter(inP))
+  const ostrc = weekly.filter((r) => r.source !== "self_adhoc" && inP(localDayOf(r.submitted_at))).length
+  return { days, ci: ciDays.size, runs: runs.length, rated: runs.filter((x) => rated.has(x.id)).length, pain: painDays.size,
+    ostrc, weeks: Math.max(1, Math.ceil(days / 7)), ...periodSum(acts, lo, hi) }
+}
+
+function DiaryTotals({ acts, fb, checkins, weekly }: { acts: any[]; fb: any[]; checkins: any[]; weekly: any[] }) {
   const [unit, setUnit] = useState<"w" | "m">("w")
   const lo = periodStart(unit, 0), prevLo = periodStart(unit, 1)
-  const cur = periodSum(acts, lo, null), prev = periodSum(acts, prevLo, lo)
+  const cur = diarySum(acts, fb, checkins, weekly, lo, null), prev = diarySum(acts, fb, checkins, weekly, prevLo, lo)
   const cells: [string, string, string][] = [
-    ["Běhy", String(cur.n), String(prev.n)],
-    ["Km", cz(cur.km), cz(prev.km)],
-    ["Čas", hm(cur.min), hm(prev.min)],
-    ["Stoupání", `${Math.round(cur.up)} m`, `${Math.round(prev.up)} m`],
+    ["Check-iny", `${cur.ci}/${cur.days}`, `${prev.ci}/${prev.days}`],
+    ["Zápisy", `${cur.rated}/${cur.runs}`, `${prev.rated}/${prev.runs}`],
+    ["Bolest", String(cur.pain), String(prev.pain)],
+    ["OSTRC", `${cur.ostrc}/${cur.weeks}`, `${prev.ostrc}/${prev.weeks}`],
   ]
   return (
     <section className="card mb-4 p-4 md:p-5" data-testid="diary-totals">
       <div className="flex items-center justify-between gap-2">
-        <Label>{unit === "w" ? "Tento týden" : "Tento měsíc"}</Label>
+        <span className="flex items-center gap-1.5"><Label>{unit === "w" ? "Tento týden" : "Tento měsíc"}</Label>
+          <InfoDot label="Vyplňování deníku" text="Check-iny: dny s ranním check-inem. Zápisy: běhy se zápisem ze všech běhů. Bolest: dny, kdy jste v check-inu nebo zápisu uvedli bolest. OSTRC: vyplněné týdenní kontroly." /></span>
         <Segmented size="sm" ariaLabel="Období" value={unit} onChange={setUnit} options={[["w", "Týden"], ["m", "Měsíc"]] as const} />
       </div>
       <div className="mt-3 grid grid-cols-4 gap-2">
@@ -427,7 +449,10 @@ function DiaryTotals({ acts }: { acts: any[] }) {
           </div>
         ))}
       </div>
-      <p className="mt-2 text-[11px] text-fg-3">{unit === "w" ? "Běhy od pondělí. Šedě celý minulý týden." : "Běhy od 1. dne měsíce. Šedě celý minulý měsíc."}</p>
+      <p className="mt-3 border-t border-white/[.07] pt-2.5 text-[12px] tabular-nums text-fg-2" data-testid="diary-run-totals">
+        {`Běhy ${cur.n} · ${cz(cur.km)} km · ${hm(cur.min)} · ${Math.round(cur.up)} m stoupání`}
+      </p>
+      <p className="mt-1 text-[11px] text-fg-3">{unit === "w" ? "Od pondělí. Šedě celý minulý týden." : "Od 1. dne měsíce. Šedě celý minulý měsíc."}</p>
     </section>
   )
 }
@@ -1542,16 +1567,6 @@ export function Mechanics() {
               <i className={`size-2 rounded-full ${drift ? "bg-alert" : "bg-ok"}`} />
               {drift ? "vyšší než váš obvyklý střed" : "v rámci obvyklého středu"}
             </div>
-            {mechSig.length > 0 && (
-              <div className="mt-5 border-t border-white/[.08] pt-4">
-                <p className="t-label !text-fg-3">Co tvoří skóre mechaniky</p>
-                <div className="mt-3 space-y-3">
-                  {mechSig.map((s) => (
-                    <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} impact={s.impact} tone="info" pct={(s.pts / Math.max(1, ...mechSig.map((x) => x.pts || 0))) * 100} />
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
           <div className="nest p-4 md:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1568,6 +1583,17 @@ export function Mechanics() {
               <AxisLineChart points={mechPoints} yMin={0} yMax={100} threshold={25} thresholdLabel="práh" color={drift ? C.alert : C.ok} height={150} zone />
             ) : (
               <p className="mt-3 text-sm text-fg-3">Na trend v čase je zatím málo historie.</p>
+            )}
+            {/* railway#217: what makes the score sits under the chart it explains */}
+            {mechSig.length > 0 && (
+              <div className="mt-4 border-t border-white/[.08] pt-4">
+                <p className="t-label !text-fg-3">Co tvoří skóre mechaniky</p>
+                <div className="mt-3 space-y-3">
+                  {mechSig.map((s) => (
+                    <FactorBar key={s.id} label={s.name} value={s.val} pts={s.pts} impact={s.impact} tone="info" pct={(s.pts / Math.max(1, ...mechSig.map((x) => x.pts || 0))) * 100} />
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>

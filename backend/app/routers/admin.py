@@ -69,16 +69,29 @@ def goal_kpis(replay: bool = False, user: models.User = Depends(require_owner), 
 
 
 @router.get("/engagement")
-def engagement(days: int = 30, user: models.User = Depends(require_owner), db: DBSession = Depends(get_db)):
+def engagement(days: int = 30, hours: int | None = None, user: models.User = Depends(require_owner),
+               db: DBSession = Depends(get_db)):
     """How the runners use the app over the last `days` days (models.UsageDay): app opens, active
     days, foreground minutes in use, the average visit, minutes per tab, feature opens, the last
-    active day and the opens of the period before (the trend). Not the tour demo or guests."""
-    from datetime import timedelta
+    active day and the opens of the period before (the trend). Not the tour demo or guests.
+    With `hours` (railway#218: the last 24 h) the window is that many hours back from now by the
+    rows' local hour; a row from before the hour was recorded counts as midday."""
+    from datetime import datetime, timedelta
     from ..metrics import engine as E
     days = max(1, min(int(days), 180))
     today = E.today_date()
     lo = (today - timedelta(days=days - 1)).isoformat()
     lo_prev = (today - timedelta(days=2 * days - 1)).isoformat()
+    in_cur = lambda r: r.day >= lo
+    in_prev = lambda r: r.day < lo
+    if hours:
+        hours = max(1, min(int(hours), 72))
+        now = datetime.now(E.LOCAL_TZ).replace(tzinfo=None, minute=0, second=0, microsecond=0)
+        start, start_prev = now - timedelta(hours=hours - 1), now - timedelta(hours=2 * hours - 1)
+        at = lambda r: datetime.fromisoformat(r.day) + timedelta(hours=12 if r.hour is None else r.hour)
+        in_cur = lambda r: start <= at(r) <= now
+        in_prev = lambda r: start_prev <= at(r) < start
+        lo, lo_prev = start.date().isoformat(), start_prev.date().isoformat()
     demo_rid = tutorial_demo_runner_id(db)
     users = (db.query(models.User).filter(models.User.role == "runner", models.User.runner_id.isnot(None),
                                           or_(models.User.provider.is_(None), models.User.provider != GUEST_PROVIDER)).all())
@@ -92,8 +105,8 @@ def engagement(days: int = 30, user: models.User = Depends(require_owner), db: D
     items, tab_tot, active_ids = [], {}, set()
     for u in users:
         rs = by_user.get(u.id, [])
-        cur = [r for r in rs if r.day >= lo]
-        prev_opens = sum(r.views or 0 for r in rs if r.day < lo and r.tab == "_app")
+        cur = [r for r in rs if in_cur(r)]
+        prev_opens = sum(r.views or 0 for r in rs if in_prev(r) and r.tab == "_app")
         tabs, feats, opens, secs, act_days = {}, {}, 0, 0, set()
         for r in cur:
             if r.tab == "_app":
@@ -116,6 +129,6 @@ def engagement(days: int = 30, user: models.User = Depends(require_owner), db: D
                       "tabs": {k: round(v / 60, 1) for k, v in sorted(tabs.items(), key=lambda kv: -kv[1])},
                       "features": feats, "lastActive": max(act_days) if act_days else None})
     items.sort(key=lambda x: (-x["minutes"], -x["opens"], x["name"] or ""))
-    return {"days": days, "from": lo, "to": today.isoformat(), "users": len(users), "activeUsers": len(active_ids),
+    return {"days": days, "hours": hours, "from": lo, "to": today.isoformat(), "users": len(users), "activeUsers": len(active_ids),
             "tabs": {k: round(v / 60, 1) for k, v in sorted(tab_tot.items(), key=lambda kv: -kv[1])},
             "items": items}

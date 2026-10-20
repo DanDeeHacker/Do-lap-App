@@ -72,3 +72,29 @@ def test_engagement_is_counted_and_shown_to_owners_only(client, db_session, monk
     assert x["tabs"] == {"training": 4.0, "today": 2.0} and x["features"] == {"goal": 2}
     assert x["avgVisitMin"] == 3.0 and x["lastActive"] == today
     assert d["tabs"]["training"] >= 4.0 and d["activeUsers"] >= 1
+
+
+def test_engagement_last_24_hours_by_the_recorded_hour(client, db_session, monkeypatch):
+    """railway#218: the overview's 24 h filter counts the batches by the local hour the app
+    recorded them in — this hour and yesterday's later hours, not yesterday morning."""
+    from datetime import datetime, timedelta
+    from app.metrics import engine as E
+    monkeypatch.setenv("DOSSLAP_OWNER_EMAILS", "spravce-24@test.cz")
+    rid = _runner(client, db_session, "bezec-24@test.cz", "Jana")
+    now = datetime.now(E.LOCAL_TZ)
+    recent = now - timedelta(hours=3)
+    old = now - timedelta(hours=30)
+    for t, opens in ((now, 1), (recent, 1), (old, 5)):
+        assert client.post("/api/usage", json={"day": t.date().isoformat(), "hour": t.hour, "opens": opens,
+                                               "tabs": {"today": {"s": 60, "v": 1}}}).json()["ok"]
+    # the same hour twice adds up in one row
+    assert client.post("/api/usage", json={"day": now.date().isoformat(), "hour": now.hour,
+                                           "tabs": {"today": {"s": 60, "v": 1}}}).json()["ok"]
+    assert client.post("/api/usage", json={"day": now.date().isoformat(), "hour": 24, "tabs": {}}).status_code == 422
+    _runner(client, db_session, "spravce-24@test.cz", "Správce")
+    d = client.get("/api/admin/engagement?hours=24").json()
+    x = next(i for i in d["items"] if i["runnerId"] == rid)
+    assert d["hours"] == 24
+    assert x["opens"] == 2 and x["minutes"] == 3.0 and x["opensPrev"] == 5
+    week = next(i for i in client.get("/api/admin/engagement?days=7").json()["items"] if i["runnerId"] == rid)
+    assert week["opens"] == 7 and week["minutes"] == 4.0

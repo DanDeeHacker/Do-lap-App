@@ -1,7 +1,7 @@
 // Owner decision 2026-10-14 — engagement that rewards habits, never volume (metrics/habits.py):
 // the weeks kept inside the limits with the strength programme done (a pause for illness, pain or a
 // week off neither counts nor breaks the run), and milestones for habits — earned once and kept.
-// Trénink → Tento týden → Návyky (one row, the rest in a sheet); a newly earned milestone is
+// Trénink → Plán týdne → Návyky (one row, the rest in a sheet); a newly earned milestone is
 // announced once on Dnes.
 import { useEffect, useState } from "react"
 import { Link } from "react-router"
@@ -119,7 +119,7 @@ function HabitsSheet({ h, open, onClose }: { h: any; open: boolean; onClose: () 
   )
 }
 
-/** Trénink → Tento týden: one quiet row (the run of weeks, the milestones); the rest in a sheet.
+/** Trénink → Plán týdne: one quiet row (the run of weeks, the milestones); the rest in a sheet.
  *  #navyky (the Dnes milestone notice) opens it. */
 export function HabitsRow() {
   const { touring } = useApp()

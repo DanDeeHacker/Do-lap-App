@@ -60,7 +60,7 @@ function flush() {
   buf = { tabs: {}, opens: 0 }
   const tabs = Object.fromEntries(Object.entries(body.tabs).map(([k, v]) => [k, { s: Math.round(v.s), v: v.v }]))
   fetch("/api/usage", { method: "POST", credentials: "same-origin", keepalive: true, headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ day: localDay(), opens: body.opens, tabs }) }).catch(() => { /* engagement is best-effort */ })
+    body: JSON.stringify({ day: localDay(), hour: new Date().getHours(), opens: body.opens, tabs }) }).catch(() => { /* engagement is best-effort */ })
 }
 
 function activity() {

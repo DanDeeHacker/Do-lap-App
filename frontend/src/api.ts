@@ -165,7 +165,7 @@ export const api = {
 
   // Physio AI Assistant (chat over the runner's data and the reviewed literature)
   adminRunners: () => call("GET", "/api/admin/runners"),
-  adminEngagement: (days = 30) => call("GET", `/api/admin/engagement?days=${days}`),
+  adminEngagement: (days = 30, hours?: number) => call("GET", `/api/admin/engagement?days=${days}${hours ? `&hours=${hours}` : ""}`),
   adminGoalKpis: (replay = false) => call("GET", `/api/admin/goal-kpis${replay ? "?replay=true" : ""}`),
   assistant: (rid: string) => call("GET", `/api/runners/${rid}/assistant`),
   assistantAsk: (rid: string, body: { question: string; context?: any; thread_id?: string }) => call("POST", `/api/runners/${rid}/assistant/ask`, body),
