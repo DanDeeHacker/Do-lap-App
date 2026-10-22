@@ -37,6 +37,7 @@ def test_persistence_flag_follows_the_verdict():
     drift = {"beyond": True, "persist": True, "state": "clear"}
     assert E._mech_flags({**drift, "norm": 0}, None, None, None, None) == (False, False)
     assert E._mech_flags({**drift, "norm": 1}, None, None, None, None)[0] is True
-    # step length isn't scored: it counts only with a shift of at least one SWC
-    assert E._mech_flags(None, None, None, {**drift, "baseMean": 1.10, "recMean": 1.11}, None) == (False, False)
-    assert E._mech_flags(None, None, None, {**drift, "baseMean": 1.10, "recMean": 1.15}, None)[0] is True
+    # step length isn't scored and moves with cadence: it never flags on its own (v0.12.19)
+    assert E._mech_flags(None, None, None, {**drift, "baseMean": 1.10, "recMean": 1.15}, None) == (False, False)
+    # the flag names the metric behind it, for the chip on Dnes
+    assert E._mech_flags_detail(None, None, {**drift, "norm": 2}, None, None) == (True, False, ["kadence"])

@@ -528,6 +528,12 @@ const QCOL: Record<string, string> = { stable: C.ok, overreaching: C.watch, sile
 // the Garmin sync button and the 6-month history button.
 function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, canSync, alertSlot }: { quadrant?: string; live?: any; onSync?: () => void; syncing?: boolean; syncMsg?: string | null; canSync?: boolean | null; alertSlot?: React.ReactNode }) {
   const q = QUAD[quadrant] || QUAD.stable
+  // v0.12.19 — a stable day with a technique flag doesn't say "technika sedí na normě"
+  const flagOn = (live?.engineMode === "v2" || live?.engineMode === "v3") && (live?.mechFlag || live?.mechWatch)
+  const flagNames = flagOn && (live?.mechFlagMetrics || []).length ? (live.mechFlagMetrics as string[]).join(", ") : ""
+  const techNote = flagOn && quadrant === "stable"
+    ? (live?.mechFlag ? (flagNames ? `V technice se drží mimo normu: ${flagNames}.` : "V technice se něco drží mimo normu.") : (flagNames ? `V technice sledujeme: ${flagNames}.` : "V technice něco sledujeme."))
+    : ""
   const col = QCOL[quadrant] || C.ok
   return (
     <div>
@@ -546,7 +552,8 @@ function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, can
                 style={live?.mechFlag ? { background: `${C.alert}20`, color: C.alertSoft } : { background: "rgb(255 255 255 / .07)", color: C.fg2 }}
                 title={live?.mechFlag ? "Technika běhu se drží mimo vaši normu napříč běhy, nebo se to ukazuje ve dvou nezávislých skupinách metrik" : "Jedna skupina metrik techniky se výrazně odchýlila, zatím jen sledujeme"}
               >
-                {live?.mechFlag ? "⚑ mechanika přetrvává" : "◔ sledovat mechaniku"}
+                {/* v0.12.19 — the chip names the metric behind it */}
+                {flagNames ? (live?.mechFlag ? `⚑ ${flagNames} mimo normu` : `◔ sledovat: ${flagNames}`) : live?.mechFlag ? "⚑ mechanika přetrvává" : "◔ sledovat mechaniku"}
               </span>
             )}
           </div>
@@ -574,7 +581,7 @@ function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, can
         </div>
       </div>
       {syncMsg && <p className="mt-2 text-[12px] font-medium text-fg-2" role="status">{syncMsg}</p>}
-      <p className="mt-2 max-w-xl text-[13px] leading-5 text-fg-2">{q.d}</p>
+      <p className="mt-2 max-w-xl text-[13px] leading-5 text-fg-2">{techNote ? `Zátěž sedí na vaší normě. ${techNote}` : q.d}</p>
     </div>
   )
 }

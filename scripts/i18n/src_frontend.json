@@ -1070,6 +1070,20 @@
   "kind": "str"
  },
  {
+  "t": "◔ sledovat: {}",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "⚑ {} mimo normu",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "⚑ mechanika přetrvává",
   "files": [
    "App.tsx"
@@ -3428,6 +3442,34 @@
   "kind": "str"
  },
  {
+  "t": "V technice něco sledujeme.",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "V technice se drží mimo normu: {}.",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "V technice se něco drží mimo normu.",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "V technice sledujeme: {}.",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "včera ráno",
   "files": [
    "App.tsx"
@@ -3686,6 +3728,13 @@
    "App.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Zátěž sedí na vaší normě. {}",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Zátěž sedí na vaší obvyklé úrovni.",
