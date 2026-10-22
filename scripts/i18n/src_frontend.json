@@ -25522,6 +25522,13 @@
   "kind": "str"
  },
  {
+  "t": "norma ± podstatná změna",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "ø bolest /10",
   "files": [
    "tabs.tsx"
@@ -26213,6 +26220,13 @@
    "tabs.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "trend (vážený průměr běhů)",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Trend mechaniky",
@@ -28938,6 +28952,13 @@
   "kind": "str"
  },
  {
+  "t": "{} · trend {}{}",
+  "files": [
+   "ui.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "absolute left-1/2 top-0 -translate-x-1/2 text-[11px] font-bold tabular-nums {}",
   "files": [
    "ui.tsx"
@@ -29055,6 +29076,13 @@
    "ui.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "jednotlivé běhy",
+  "files": [
+   "ui.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "M0 {} L{} L{} {} Z",

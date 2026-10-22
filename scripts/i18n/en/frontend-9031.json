@@ -1,0 +1,10 @@
+{
+  "norma ± podstatná změna": "norm ± a meaningful change",
+  "trend (vážený průměr běhů)": "trend (weighted mean of runs)",
+  "jednotlivé běhy": "single runs",
+  "trend {}{}": "trend {0}{1}",
+  "Připravenost po dnech. Pod grafem otevřete spánek, HRV a klidový tep z hodinek, vždy proti vaší vlastní normě. Dny bez noci z hodinek zůstanou v grafu prázdné.": "Readiness day by day. Below the chart, open sleep, HRV and resting heart rate from your watch, always against your own norm. Days without a night from the watch stay empty in the chart.",
+  "Váš pocit z běhu je jeden z nejcitlivějších signálů únavy. Aplikace ho váží nejvíc.": "How a run felt is one of the most sensitive signs of fatigue. The app weighs it the most.",
+  "Zhoršující se pocit z běhů se často objeví dřív než změna v datech z hodinek.": "Runs feeling worse often shows up before any change in the watch data.",
+  "Běh na pásu se automaticky nepočítá do mechaniky, protože jeho metriky výrazně vybočily z vaší normy z běhů venku": "A treadmill run is automatically left out of mechanics, because its metrics differed markedly from your norm on outdoor runs"
+}

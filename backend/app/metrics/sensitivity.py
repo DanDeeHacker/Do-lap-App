@@ -217,6 +217,9 @@ for _sid in ("tavr", "gct", "cad", "vosc"):
                   "min": 0.0, "max": 1.0, "step": 0.01, "default": 0.2, "desc": ""})
     KNOBS.append({"id": f"mech_{_sid}_wf", "hidden": True, "axis": "mech", "label": "", "grade": "—",
                   "min": 0.0, "max": 1.0, "step": 0.01, "default": 1.0, "desc": ""})
+    # v0.12.17: the worthwhile factor (shift of the run means against the SWC), seeded live
+    KNOBS.append({"id": f"mech_{_sid}_worth", "hidden": True, "axis": "mech", "label": "", "grade": "—",
+                  "min": 0.0, "max": 1.0, "step": 0.01, "default": 1.0, "desc": ""})
 
 DEFAULTS = {k["id"]: k["default"] for k in KNOBS}
 _BOOL_IDS = {k["id"] for k in KNOBS if k.get("kind") == "bool"}
@@ -359,10 +362,10 @@ def simulate(inp: dict, prev_quadrant: str | None = None, mode: str = "v1") -> d
     # ------------------------------------------------------------------ MECH
     # (mag, dead, weight, cap) exactly as engine.assess()'s mech_terms.
     for sid, name, grade, mag, dead, weight, cap, unit, raw in (
-        ("tavr", "Vertikální poměr roste", "B", g["tavrZ"], g["mech_tavr_dead"], 17 * g["mech_tavr_wf"], 4.0, "z", g["tavrZ"]),
-        ("gct", "Prodloužený kontakt se zemí", "B", g["gctZ"], g["mech_gct_dead"], 13 * g["mech_gct_wf"], 4.0, "z", g["gctZ"]),
-        ("cad", "Klesající kadence", "C", -g["cadZ"], g["mech_cad_dead"], 10 * g["mech_cad_wf"], 4.0, "z", g["cadZ"]),
-        ("vosc", "Vyšší vertikální oscilace", "C", g["voscZ"], g["mech_vosc_dead"], 10 * g["mech_vosc_wf"], 4.0, "z", g["voscZ"]),
+        ("tavr", "Vertikální poměr roste", "B", g["tavrZ"] * g["mech_tavr_worth"], max(g["mech_tavr_dead"], E.MECH_STAT_DEAD), 17 * g["mech_tavr_wf"], 4.0, "z", g["tavrZ"]),
+        ("gct", "Prodloužený kontakt se zemí", "B", g["gctZ"] * g["mech_gct_worth"], max(g["mech_gct_dead"], E.MECH_STAT_DEAD), 13 * g["mech_gct_wf"], 4.0, "z", g["gctZ"]),
+        ("cad", "Klesající kadence", "C", -g["cadZ"] * g["mech_cad_worth"], max(g["mech_cad_dead"], E.MECH_STAT_DEAD), 10 * g["mech_cad_wf"], 4.0, "z", g["cadZ"]),
+        ("vosc", "Vyšší vertikální oscilace", "C", g["voscZ"] * g["mech_vosc_worth"], max(g["mech_vosc_dead"], E.MECH_STAT_DEAD), 10 * g["mech_vosc_wf"], 4.0, "z", g["voscZ"]),
         ("bal", "Posun v symetrii kontaktu", "B", g["balExcursion"], 0.4, 22, 3.0, "p.b.", g["balExcursion"]),
     ):
         push(sid, "mech", name, grade, clamp(mag - dead, 0, cap) * weight, f"{round(raw, 2)} {unit}")
@@ -524,6 +527,10 @@ def inputs_from_assessment(a: dict, runner=None) -> dict:
         if f"mech_{_sid}_dead" in out:
             out[f"mech_{_sid}_dead"] = res.get("dead", 0.2)
             out[f"mech_{_sid}_wf"] = res.get("wf", 1.0)
+    for _sid, _key in (("tavr", "tavr"), ("gct", "gct"), ("cad", "cadence"), ("vosc", "vosc")):
+        out[f"mech_{_sid}_worth"] = gv(a, _key, "worth", default=1.0)
+        if out[f"mech_{_sid}_worth"] is None:
+            out[f"mech_{_sid}_worth"] = 1.0
     cap = a.get("capacity") or {}
     hpd = E.hr_pace_deltas(cap.get("relativeEffort"))
     out["hrPace"] = E.mean(hpd) if len(hpd) >= 3 else 0.0

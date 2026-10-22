@@ -450,6 +450,8 @@ export function AxisLineChart({
   height = 128,
   band,
   zone = false,
+  trend,
+  trendLabel,
 }: {
   /** v = null: a day without data — the line breaks there (UX audit F02) */
   points: { t: string; v: number | null }[]
@@ -465,6 +467,9 @@ export function AxisLineChart({
   band?: { lo: number; hi: number; mid?: number; label?: string }
   /** tint the area above `threshold` (the "over threshold" zone) */
   zone?: boolean
+  /** a smoothed line over the same points (drawn bold; the points then show faint) */
+  trend?: (number | null)[]
+  trendLabel?: string
 }) {
   const [act, setAct] = useState<number | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -477,6 +482,7 @@ export function AxisLineChart({
   const padT = 12
   const padB = 22
   const vs = known.map((p) => p.v)
+  const tr = trend && trend.length === points.length ? trend : null
   let mn = yMin ?? Math.min(...vs, ...(band ? [band.lo] : []))
   let mx = yMax ?? Math.max(...vs, ...(band ? [band.hi] : []))
   if (band && yMin == null && yMax == null) {
@@ -497,7 +503,8 @@ export function AxisLineChart({
   const line = segs.map((sg) => sg.map((i, k) => `${k ? "L" : "M"}${x(i).toFixed(1)} ${y(points[i].v!).toFixed(1)}`).join(" ")).join(" ")
   const area = segs.filter((sg) => sg.length > 1).map((sg) => `M${x(sg[0]).toFixed(1)} ${(H - padB).toFixed(1)} ` + sg.map((i) => `L${x(i).toFixed(1)} ${y(points[i].v!).toFixed(1)}`).join(" ") + ` L${x(sg.at(-1)!).toFixed(1)} ${(H - padB).toFixed(1)} Z`).join(" ")
   const lastI = segs.at(-1)!.at(-1)!
-  const lastV = points[lastI].v!
+  const lastV = tr && tr[lastI] != null ? tr[lastI]! : points[lastI].v!
+  const trendPath = tr ? tr.map((v, i) => (v == null ? null : `${i && tr[i - 1] != null ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`)).filter(Boolean).join(" ") : ""
   const ticks = [mx, (mx + mn) / 2, mn]
   const xi = [0, Math.floor((points.length - 1) / 2), points.length - 1]
   const fmt = (d: string) => new Date(d.length <= 10 ? d + "T00:00:00" : d).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })
@@ -542,8 +549,9 @@ export function AxisLineChart({
         {threshold != null && threshold >= mn && threshold <= mx && (
           <line x1={padL} y1={y(threshold)} x2={W - padR} y2={y(threshold)} stroke={C.alert} strokeOpacity=".55" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />
         )}
-        <path d={area} fill={color} opacity=".12" />
-        <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        {!tr && <path d={area} fill={color} opacity=".12" />}
+        <path d={line} fill="none" stroke={color} strokeWidth={tr ? 1.25 : 2} strokeOpacity={tr ? 0.4 : 1} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        {tr && <path d={trendPath} fill="none" stroke={color} strokeWidth="2.75" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
         {act != null && <line x1={x(act)} y1={padT} x2={x(act)} y2={H - padB} stroke={color} strokeOpacity=".45" vectorEffect="non-scaling-stroke" />}
       </svg>
       {ticks.map((t, i) => (
@@ -574,9 +582,15 @@ export function AxisLineChart({
               <i className="inline-block w-4 border-t border-dashed" style={{ borderColor: `${color}99` }} />střed {nf(band.mid)}{unit}
             </span>
           )}
+          {tr && (
+            <span className="inline-flex items-center gap-1.5">
+              <i className="inline-block w-4 border-t-[3px]" style={{ borderColor: color }} />{trendLabel || "trend"}
+              <i className="ml-1.5 inline-block w-4 border-t" style={{ borderColor: `${color}66` }} />jednotlivé běhy
+            </span>
+          )}
         </p>
       )}
-      {act != null && <ChartTip value={points[act].v != null ? <>{nf(points[act].v!)}{unit}</> : "bez dat"} sub={fmt(points[act].t)} color={color} leftPct={aPct} top={-6} />}
+      {act != null && <ChartTip value={points[act].v != null ? <>{nf(points[act].v!)}{unit}</> : "bez dat"} sub={tr && tr[act] != null ? `${fmt(points[act].t)} · trend ${nf(tr[act]!)}${unit}` : fmt(points[act].t)} color={color} leftPct={aPct} top={-6} />}
     </div>
   )
 }

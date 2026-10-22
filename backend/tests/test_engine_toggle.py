@@ -58,8 +58,9 @@ def test_v2_ewma_damps_single_spike_but_accumulates_drift():
     with E.engine_pinned("v2"):
         zp = E._drift_z_core(persistent, "vert_ratio_pct", 28)["z"]
         zs = E._drift_z_core(spike, "vert_ratio_pct", 28)["z"]
-    assert zp > 1.5                 # sustained drift shows up strongly (λ = 0.15, 4 sessions)
+    assert zp > 1.0                 # sustained drift shows up strongly (λ = 0.15, 4 sessions, DIs capped at 2.5)
     assert zs < zp / 2             # a single spike is damped well below it
+    assert zs < E.MECH_SHOW        # v0.12.17: one odd run alone never makes a metric a signal
 
 
 def test_v2_persistence_flag_fields_present():

@@ -152,6 +152,9 @@ def fallback_weekly_summary(f: dict) -> str:
         out.append(f"Bolest jste hlásili {p['reports']}×, nejvýš {p['max']}/10" + (f" ({p['site']})" if p.get("site") else "") + ".")
     st = f["stateNow"]
     out.append(f"Aktuální stav: {st['quadrant']} ({st['risk'].lower()}).")
+    if str(st.get("quadrant", "")).startswith("Stabil"):
+        # a quiet week is a short summary; say what "stable" means so it isn't a bare list
+        out.append("Zátěž i mechanika sedí na vlastní normě.")
     plan = f.get("thisWeekPlan") or {}
     if plan.get("mode"):
         out.append(f"Tento týden: {plan['mode']}"

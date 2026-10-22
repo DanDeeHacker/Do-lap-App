@@ -591,7 +591,7 @@ const std = (a: number[]) => {
   const m = mean(a)
   return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / (a.length - 1))
 }
-type Metric = { label: string; unit: string; dec: number; value: number; baseline: number; z: number; delta: string; hot: boolean; position: number; weeks: number[]; dates: string[]; series: number[]; seriesDates: string[]; terrain?: boolean; approx?: boolean; refSd?: number | null; lowRes?: boolean }
+type Metric = { label: string; unit: string; dec: number; value: number; baseline: number; z: number; delta: string; hot: boolean; position: number; weeks: number[]; dates: string[]; series: number[]; seriesDates: string[]; terrain?: boolean; approx?: boolean; refSd?: number | null; lowRes?: boolean; norm?: number | null; swc?: number | null }
 
 // Plan phase 3 — a word for where a metric sits against the runner's own norm,
 // derived from the continuous deviation for display only. Defaults follow the
@@ -600,7 +600,10 @@ const MECH_BAD_DIR: Record<string, number> = { "Vertikální poměr": 1, "Kontak
 // UX audit F09 — the word follows the engine's signal for the metric as well: a metric that
 // is a signal on Dnes is never "v normě" here, and one without a signal is never "mimo normu"
 const MECH_SIG_ID: Record<string, string> = { "Vertikální poměr": "tavr", "Kontakt se zemí": "gct", "Symetrie kontaktu": "bal", "Kadence": "cad", "Vertikální oscilace": "vosc" }
-export function normStatus(m: Pick<Metric, "label" | "z">, sigIds?: Set<string>): { word: string; tone: "ok" | "watch" | "alert" } {
+export function normStatus(m: Pick<Metric, "label" | "z" | "norm">, sigIds?: Set<string>): { word: string; tone: "ok" | "watch" | "alert" } {
+  // v0.12.17 — the engine's own verdict (beyond the noise AND a worthwhile shift of the run
+  // means), so the card says exactly what the mechanics score does
+  if (m.norm != null) return m.norm >= 2 ? { word: "mimo normu", tone: "alert" } : m.norm === 1 ? { word: "na hraně", tone: "watch" } : { word: "v normě", tone: "ok" }
   const dir = MECH_BAD_DIR[m.label]
   const zb = m.label === "Symetrie kontaktu" ? Math.abs(m.z) / 0.8 : dir ? dir * m.z : Math.abs(m.z)
   const own = zb >= 2 ? 2 : zb >= 1.5 ? 1 : 0
@@ -634,9 +637,19 @@ function metricFromActs(acts: any[], field: string, label: string, unit: string,
   return { label, unit, dec, value, baseline, z, delta, hot: false, position: clamp(50 + z * 18, 8, 92), weeks, dates: dates.slice(-8), series: vals.slice(-26), seriesDates: dates.slice(-26), terrain: false, approx: true }
 }
 
+// v0.12.17 — the trend the engine judges: an exponentially weighted mean of the runs with the
+// engine's λ = 0.15, so one odd run moves it a little and a lasting change moves it a lot
+export const ewmaTrend = (xs: number[], lam = 0.15) => {
+  let e: number | null = null
+  return xs.map((x) => (e = e == null ? x : lam * x + (1 - lam) * e))
+}
+
 // Usual range = baseline ± 1 SD, the SD backed out from the z-score — shared by
 // the card's interval bar and the band in the full-trend chart.
 export function usualRange(m: Metric) {
+  // v0.12.17 — with the engine's smallest worthwhile change the range is the norm ± that
+  // change: a shift inside it is too small to matter, whatever single runs do
+  if (m.swc) return { lo: m.baseline - m.swc, hi: m.baseline + m.swc, isd: m.swc }
   // plan phase 3: the individual reference SD from the backend when population priors exist
   const fallback = Math.abs(m.baseline) * 0.03 || 1
   let isd = m.refSd ? m.refSd : Math.abs(m.z) > 0.15 ? Math.abs(m.value - m.baseline) / Math.abs(m.z) : fallback
@@ -1445,7 +1458,7 @@ export function buildMechMetrics(a: any, acts: any[]): Metric[] {
         : !o.segment && o.z != null ? o.z
           : (rec - base) / (std(series) || Math.abs(base * 0.02) || 1)
     const res = (a.mechRes || {})[({ vert_ratio_pct: "tavr", gct_ms: "gct", cadence_spm: "cad", vert_osc_cm: "vosc" } as Record<string, string>)[field]]
-    return { ...eng(series, field, label, unit, dec, rec, base, z, pctStr(rec, base), Math.abs(z) >= 1, clamp(50 + z * 18, 8, 92), terrain), refSd: o.refSd ?? null, lowRes: !!res && res.wf < 1 }
+    return { ...eng(series, field, label, unit, dec, rec, base, z, pctStr(rec, base), Math.abs(z) >= 1, clamp(50 + z * 18, 8, 92), terrain), refSd: o.refSd ?? null, lowRes: !!res && res.wf < 1, norm: o.norm ?? null, swc: o.swc ?? null }
   }
   const metrics: Metric[] = []
   if (a.tavr) metrics.push(mk(a.tavr, "vert_ratio_pct", "Vertikální poměr", "%", 1))
@@ -1620,7 +1633,8 @@ export function Mechanics() {
                       <div className="mt-3">
                         <p className="t-label !text-fg-3">Celý trend · {m.series.length} {plural(m.series.length, "běh", "běhy", "běhů")}{m.seriesDates.length ? ` · ${fmtD(m.seriesDates[0])} → ${fmtD(m.seriesDates.at(-1)!)}` : ""}</p>
                         <AxisLineChart points={m.series.map((v, i) => ({ t: m.seriesDates[i] || m.seriesDates.at(-1) || "", v }))} dec={m.dec} unit={` ${m.unit}`} color={C.accent} height={150}
-                          band={{ lo: usualRange(m).lo, hi: usualRange(m).hi, mid: m.baseline, label: "vaše obvyklé rozmezí" }} />
+                          trend={ewmaTrend(m.series)} trendLabel="trend (vážený průměr běhů)"
+                          band={{ lo: usualRange(m).lo, hi: usualRange(m).hi, mid: m.baseline, label: m.swc ? "norma ± podstatná změna" : "vaše obvyklé rozmezí" }} />
                       </div>
                     )}
                   </div>

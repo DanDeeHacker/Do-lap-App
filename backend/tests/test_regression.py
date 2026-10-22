@@ -72,7 +72,9 @@ def test_segment_mechanics_uses_regression(client, db_session):
         sm = E.segment_mechanics(db, rid)
     assert sm and "gct" in sm
     assert sm["gct"]["method"] == "regression"   # enough data → S4 model used
-    assert sm["gct"]["z"] > 1.0                    # the real shift is caught
+    # the real shift is caught: two shifted sessions, each winsorised at ±2.5 (v0.12.17),
+    # already put the EWMA over the show threshold
+    assert sm["gct"]["z"] >= E.MECH_SHOW
 
 
 def test_cumdescent_covariate_used_when_present():
