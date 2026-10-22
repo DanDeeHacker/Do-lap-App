@@ -29,3 +29,14 @@ def test_worthwhile_shift_is_caught(client, db_session):
     v, sig = _vosc_after_shift(client, db_session, "mech-big@test.cz", 1.0)     # > 1.5 SWC
     assert v.get("worth") == 1 and v.get("norm") >= 1
     assert "vosc" in sig
+
+
+def test_persistence_flag_follows_the_verdict():
+    """The "⚑ mechanika přetrvává" chip showed on a stable day with mechanics 9: the flags
+    used the raw EWMA labels without the worthwhile gate. A metric counts only as a signal."""
+    drift = {"beyond": True, "persist": True, "state": "clear"}
+    assert E._mech_flags({**drift, "norm": 0}, None, None, None, None) == (False, False)
+    assert E._mech_flags({**drift, "norm": 1}, None, None, None, None)[0] is True
+    # step length isn't scored: it counts only with a shift of at least one SWC
+    assert E._mech_flags(None, None, None, {**drift, "baseMean": 1.10, "recMean": 1.11}, None) == (False, False)
+    assert E._mech_flags(None, None, None, {**drift, "baseMean": 1.10, "recMean": 1.15}, None)[0] is True
