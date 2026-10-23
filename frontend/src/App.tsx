@@ -43,6 +43,7 @@ import { NewMilestone } from "@/habits"
 import { Landing } from "@/landing"
 import { LangSwitch } from "@/i18n/LangSwitch"
 import { getLang } from "@/i18n/lang"
+import { translate } from "@/i18n/translator"
 import { FirstSteps, useDataStage } from "@/firstday"
 import { GlossarySheet } from "@/glossary"
 
@@ -530,7 +531,8 @@ function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, can
   const q = QUAD[quadrant] || QUAD.stable
   // v0.12.19 — a stable day with a technique flag doesn't say "technika sedí na normě"
   const flagOn = (live?.engineMode === "v2" || live?.engineMode === "v3") && (live?.mechFlag || live?.mechWatch)
-  const flagNames = flagOn && (live?.mechFlagMetrics || []).length ? (live.mechFlagMetrics as string[]).join(", ") : ""
+  // the names arrive in Czech and joined they make no dictionary key, so each is translated on its own
+  const flagNames = flagOn && (live?.mechFlagMetrics || []).length ? (live.mechFlagMetrics as string[]).map((n) => (getLang() === "en" ? translate(n) : n)).join(", ") : ""
   const techNote = flagOn && quadrant === "stable"
     ? (live?.mechFlag ? (flagNames ? `V technice se drží mimo normu: ${flagNames}.` : "V technice se něco drží mimo normu.") : (flagNames ? `V technice sledujeme: ${flagNames}.` : "V technice něco sledujeme."))
     : ""

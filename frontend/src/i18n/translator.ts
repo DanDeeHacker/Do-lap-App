@@ -87,7 +87,9 @@ export function loadDict(d: Dict) {
     const parts = cs.split("{}")
     const lits = parts.map((p) => p.trim()).filter((p) => LETTER.test(p))
     if (!lits.length) continue                 // only placeholders: too greedy to match freely
-    const rx = new RegExp("^" + parts.map(esc).join("(.+?)") + "$")
+    // two placeholders back to back ("{}{} — odlehčit…") can't be told apart: the first takes the
+    // whole run and the second stays empty, so "Bolest 4/10 · …" isn't cut into "B" + "olest 4/10 · …"
+    const rx = new RegExp("^" + parts.map((p, k) => (k ? (parts[k - 1] === "" && k > 1 ? "(.*?)" : p === "" ? "(.+)" : "(.+?)") : "") + esc(p)).join("") + "$")
     const i = rxTpl.length
     rxTpl.push({ rx, en, n: parts.length - 1, key: cs })
     // index by the longest word of the literal parts
@@ -141,6 +143,12 @@ function translateCore(s: string, depth: number): string | null {
   if (hit != null) return hit
   const n = viaNumbers(s)
   if (n != null) return n
+  // a weather or status icon in front ("🌦 slabý déšť") keeps the text out of the dictionary
+  const icon = s.match(/^(\p{Extended_Pictographic}\uFE0F?\s*)(.*\p{L}.*)$/u)
+  if (icon) {
+    const t = translateCore(icon[2], depth)
+    if (t != null) return icon[1] + t
+  }
   if (depth < 3) {
     const t = viaTemplates(s, depth)
     if (t != null) return t

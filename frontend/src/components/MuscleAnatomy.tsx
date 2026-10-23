@@ -22,6 +22,7 @@ type Def = {
   overlay?: string
   top: number
   left: number // for paired defs this is the image-LEFT-side x
+  r?: [number, number] // paired: [top, left] of the image-RIGHT point (the drawings aren't mirror-exact)
   title: string
   kind: Kind
   layout: "pair" | "center"
@@ -44,14 +45,16 @@ type Hotspot = {
 // Original design canvas from the import (419 × 1024).
 const CANVAS_W = 419
 const CANVAS_H = 1024
-const CX = CANVAS_W / 2
 
-const mirror = (x: number) => Math.round(2 * CX - x)
+// The figures' midlines (canvas px): the front drawing sits a little right of centre.
+const AX = { front: 217, back: 204 } as const
+
+const mirror = (view: "front" | "back", x: number) => Math.round(2 * AX[view] - x)
 
 // Anatomical side for a point, accounting for the mirrored back view.
 // Front view: image-left half = figure's RIGHT side; back view: image-left = LEFT.
 function anatSide(view: "front" | "back", x: number): "L" | "P" {
-  const imageLeft = x < CX
+  const imageLeft = x < AX[view]
   if (view === "front") return imageLeft ? "P" : "L"
   return imageLeft ? "L" : "P"
 }
@@ -72,12 +75,13 @@ function build(view: "front" | "back", defs: Def[]): Hotspot[] {
         h: d.h,
       })
     } else {
-      for (const x of [d.left, mirror(d.left)]) {
+      const pts: [number, number][] = [[d.top, d.left], d.r ?? [d.top, mirror(view, d.left)]]
+      for (const [top, x] of pts) {
         const s = anatSide(view, x)
         out.push({
           id: `${d.key}-${s}`,
           overlay: d.overlay,
-          top: d.top,
+          top,
           left: x,
           title: `${d.title} (${s})`,
           kind: d.kind,
@@ -93,65 +97,65 @@ function build(view: "front" | "back", defs: Def[]): Hotspot[] {
 
 const frontDefs: Def[] = [
   // Muscles — paired
-  { key: "front-chest", overlay: "front-chest", top: 250, left: 165, title: "Prsní sval", kind: "muscle", layout: "pair" },
-  { key: "front-biceps", overlay: "front-biceps", top: 300, left: 100, title: "Biceps", kind: "muscle", layout: "pair" },
-  { key: "front-quads", overlay: "front-quads", top: 630, left: 170, title: "Kvadriceps", kind: "muscle", layout: "pair" },
-  { key: "front-delts", overlay: "front-delts", top: 230, left: 80, title: "Přední delt", kind: "muscle", layout: "pair" },
-  { key: "front-forearms", overlay: "front-forearms", top: 400, left: 80, title: "Předloktí", kind: "muscle", layout: "pair" },
-  { key: "triceps", overlay: "triceps", top: 290, left: 40, title: "Triceps", kind: "muscle", layout: "pair" },
-  { key: "front-obliques", overlay: "front-obliques", top: 380, left: 140, title: "Šikmé břišní", kind: "muscle", layout: "pair" },
-  { key: "front-calves", overlay: "front-calves", top: 800, left: 165, title: "Lýtko", kind: "muscle", layout: "pair" },
-  { key: "side-delt", overlay: "side-delt", top: 220, left: 55, title: "Boční delt", kind: "muscle", layout: "pair" },
-  { key: "front-adductors", overlay: "front-adductors", top: 540, left: 185, title: "Adduktor", kind: "muscle", layout: "pair" },
-  { key: "front-hips", overlay: "front-hips", top: 460, left: 155, title: "Ohýbač kyčle", kind: "muscle", layout: "pair" },
+  { key: "front-chest", overlay: "front-chest", top: 240, left: 168, title: "Prsní sval", kind: "muscle", layout: "pair", r: [234, 271] },
+  { key: "front-biceps", overlay: "front-biceps", top: 312, left: 98, title: "Biceps", kind: "muscle", layout: "pair", r: [302, 337] },
+  { key: "front-quads", overlay: "front-quads", top: 627, left: 158, title: "Kvadriceps", kind: "muscle", layout: "pair", r: [629, 277] },
+  { key: "front-delts", overlay: "front-delts", top: 227, left: 101, title: "Přední delt", kind: "muscle", layout: "pair", r: [220, 329] },
+  { key: "front-forearms", overlay: "front-forearms", top: 392, left: 75, title: "Předloktí", kind: "muscle", layout: "pair", r: [388, 359] },
+  { key: "triceps", overlay: "triceps", top: 272, left: 68, title: "Triceps", kind: "muscle", layout: "pair", r: [284, 370] },
+  { key: "front-obliques", overlay: "front-obliques", top: 412, left: 153, title: "Šikmé břišní", kind: "muscle", layout: "pair", r: [411, 281] },
+  { key: "front-calves", overlay: "front-calves", top: 812, left: 198, title: "Lýtko", kind: "muscle", layout: "pair", r: [800, 243] },
+  { key: "side-delt", overlay: "side-delt", top: 218, left: 76, title: "Boční delt", kind: "muscle", layout: "pair", r: [216, 358] },
+  { key: "front-adductors", overlay: "front-adductors", top: 536, left: 197, title: "Adduktor", kind: "muscle", layout: "pair", r: [535, 236] },
+  { key: "front-hips", overlay: "front-hips", top: 470, left: 144, title: "Ohýbač kyčle", kind: "muscle", layout: "pair", r: [471, 291] },
+  { key: "front-traps", overlay: "front-traps", top: 168, left: 168, title: "Horní trapézy", kind: "muscle", layout: "pair", r: [168, 267] },
   // Muscles — central
-  { key: "upper-abs", overlay: "upper-abs", top: 300, left: 210, title: "Horní břišní", kind: "muscle", layout: "center" },
-  { key: "lower-abs", overlay: "lower-abs", top: 450, left: 210, title: "Dolní břišní", kind: "muscle", layout: "center" },
-  { key: "front-traps", overlay: "front-traps", top: 150, left: 210, title: "Horní trapézy", kind: "muscle", layout: "center" },
+  { key: "upper-abs", overlay: "upper-abs", top: 318, left: 217, title: "Horní břišní", kind: "muscle", layout: "center" },
+  { key: "lower-abs", overlay: "lower-abs", top: 440, left: 217, title: "Dolní břišní", kind: "muscle", layout: "center" },
   // Tendons / úpony — paired
-  { key: "f-patellar", top: 715, left: 172, title: "Patelární šlacha", kind: "tendon", layout: "pair" },
-  { key: "f-quadtendon", top: 670, left: 172, title: "Kvadricepsová šlacha", kind: "tendon", layout: "pair" },
-  { key: "f-shin", top: 830, left: 165, title: "Tibialis anterior (holeň)", kind: "tendon", layout: "pair" },
-  { key: "f-groin", top: 505, left: 185, title: "Tříslo / úpon adduktorů", kind: "tendon", layout: "pair" },
-  { key: "f-hipflexor", top: 480, left: 160, title: "Úpon ohýbačů kyčle", kind: "tendon", layout: "pair" },
-  { key: "f-elbow", top: 375, left: 95, title: "Šlacha bicepsu (loket)", kind: "tendon", layout: "pair" },
-  { key: "f-wrist", top: 475, left: 72, title: "Šlachy zápěstí", kind: "tendon", layout: "pair" },
-  { key: "f-ankle", top: 895, left: 168, title: "Přední hlezenní vazy", kind: "tendon", layout: "pair" },
+  { key: "f-patellar", top: 757, left: 170, title: "Patelární šlacha", kind: "tendon", layout: "pair", r: [757, 264] },
+  { key: "f-quadtendon", top: 708, left: 168, title: "Kvadricepsová šlacha", kind: "tendon", layout: "pair", r: [708, 264] },
+  { key: "f-shin", top: 830, left: 166, title: "Tibialis anterior (holeň)", kind: "tendon", layout: "pair", r: [830, 268] },
+  { key: "f-groin", top: 497, left: 199, title: "Tříslo / úpon adduktorů", kind: "tendon", layout: "pair", r: [497, 235] },
+  { key: "f-hipflexor", top: 455, left: 168, title: "Úpon ohýbačů kyčle", kind: "tendon", layout: "pair", r: [455, 266] },
+  { key: "f-elbow", top: 350, left: 92, title: "Šlacha bicepsu (loket)", kind: "tendon", layout: "pair", r: [350, 340] },
+  { key: "f-wrist", top: 476, left: 58, title: "Šlachy zápěstí", kind: "tendon", layout: "pair", r: [476, 374] },
+  { key: "f-ankle", top: 922, left: 178, title: "Přední hlezenní vazy", kind: "tendon", layout: "pair", r: [922, 258] },
   // Feet — paired
-  { key: "f-foot", top: 975, left: 168, title: "Chodidlo – nárt", kind: "tendon", layout: "pair", w: 55, h: 45 },
-  { key: "f-toes", top: 1005, left: 166, title: "Prsty / metatarzy", kind: "tendon", layout: "pair", w: 45, h: 32 },
+  { key: "f-foot", top: 958, left: 185, title: "Chodidlo – nárt", kind: "tendon", layout: "pair", r: [958, 262], w: 55, h: 45 },
+  { key: "f-toes", top: 990, left: 178, title: "Prsty / metatarzy", kind: "tendon", layout: "pair", r: [990, 272], w: 45, h: 32 },
 ]
 
 const backDefs: Def[] = [
   // Muscles — paired
-  { key: "back-lats", overlay: "back-lats", top: 300, left: 150, title: "Zádové svaly (lats)", kind: "muscle", layout: "pair" },
-  { key: "back-img3", overlay: "back-img3", top: 500, left: 175, title: "Hýždě (gluteus)", kind: "muscle", layout: "pair" },
-  { key: "back-img4", overlay: "back-img4", top: 620, left: 170, title: "Hamstring", kind: "muscle", layout: "pair" },
-  { key: "back-img5", overlay: "back-img5", top: 780, left: 170, title: "Lýtko (gastrocnemius)", kind: "muscle", layout: "pair" },
-  { key: "back-img6", overlay: "back-img6", top: 380, left: 108, title: "Šikmé břišní", kind: "muscle", layout: "pair" },
-  { key: "back-img7", overlay: "back-img7", top: 200, left: 104, title: "Zadní delt", kind: "muscle", layout: "pair" },
-  { key: "back-img8", overlay: "back-img8", top: 400, left: 60, title: "Předloktí", kind: "muscle", layout: "pair" },
-  { key: "back-img9", overlay: "back-img9", top: 280, left: 30, title: "Triceps – laterální hlava", kind: "muscle", layout: "pair" },
-  { key: "back-img10", overlay: "back-img10", top: 240, left: 114, title: "Triceps – dlouhá hlava", kind: "muscle", layout: "pair" },
-  { key: "back-img11", overlay: "back-img11", top: 350, left: 114, title: "Triceps – mediální hlava", kind: "muscle", layout: "pair" },
-  { key: "back-img14", overlay: "back-img14", top: 200, left: 74, title: "Boční delt", kind: "muscle", layout: "pair" },
-  { key: "back-img15", overlay: "back-img15", top: 210, left: 134, title: "Teres minor", kind: "muscle", layout: "pair" },
-  { key: "back-img16", overlay: "back-img16", top: 255, left: 139, title: "Teres major", kind: "muscle", layout: "pair" },
+  { key: "back-lats", overlay: "back-lats", top: 336, left: 157, title: "Zádové svaly (lats)", kind: "muscle", layout: "pair", r: [336, 253] },
+  { key: "back-img3", overlay: "back-img3", top: 503, left: 165, title: "Hýždě (gluteus)", kind: "muscle", layout: "pair", r: [493, 245] },
+  { key: "back-img4", overlay: "back-img4", top: 654, left: 145, title: "Hamstring", kind: "muscle", layout: "pair", r: [642, 249] },
+  { key: "back-img5", overlay: "back-img5", top: 807, left: 133, title: "Lýtko (gastrocnemius)", kind: "muscle", layout: "pair", r: [798, 266] },
+  { key: "back-img6", overlay: "back-img6", top: 409, left: 138, title: "Šikmé břišní", kind: "muscle", layout: "pair", r: [412, 277] },
+  { key: "back-img7", overlay: "back-img7", top: 209, left: 79, title: "Zadní delt", kind: "muscle", layout: "pair", r: [209, 329] },
+  { key: "back-img8", overlay: "back-img8", top: 406, left: 59, title: "Předloktí", kind: "muscle", layout: "pair", r: [402, 362] },
+  { key: "back-img9", overlay: "back-img9", top: 284, left: 57, title: "Triceps – laterální hlava", kind: "muscle", layout: "pair", r: [291, 352] },
+  { key: "back-img10", overlay: "back-img10", top: 274, left: 86, title: "Triceps – dlouhá hlava", kind: "muscle", layout: "pair", r: [262, 324] },
+  { key: "back-img11", overlay: "back-img11", top: 347, left: 85, title: "Triceps – mediální hlava", kind: "muscle", layout: "pair", r: [345, 325] },
+  { key: "back-img14", overlay: "back-img14", top: 181, left: 90, title: "Boční delt", kind: "muscle", layout: "pair", r: [180, 322] },
+  { key: "back-img15", overlay: "back-img15", top: 215, left: 108, title: "Teres minor", kind: "muscle", layout: "pair", r: [212, 298] },
+  { key: "back-img16", overlay: "back-img16", top: 263, left: 114, title: "Teres major", kind: "muscle", layout: "pair", r: [264, 291] },
+  { key: "back-img12", top: 228, left: 180, title: "Rhomboidy", kind: "muscle", layout: "pair", r: [228, 230] },
   // Muscles — central
-  { key: "back-traps", overlay: "back-traps", top: 100, left: 210, title: "Trapézy", kind: "muscle", layout: "center" },
-  { key: "back-img12", overlay: "back-img12", top: 240, left: 210, title: "Rhomboidy", kind: "muscle", layout: "center" },
-  { key: "back-img13", overlay: "back-img13", top: 400, left: 210, title: "Vzpřimovače páteře", kind: "muscle", layout: "center" },
+  { key: "back-traps", overlay: "back-traps", top: 182, left: 204, title: "Trapézy", kind: "muscle", layout: "center" },
+  { key: "back-img13", overlay: "back-img13", top: 407, left: 204, title: "Vzpřimovače páteře", kind: "muscle", layout: "center" },
   // Tendons / úpony — paired
-  { key: "b-achilles", top: 905, left: 172, title: "Achillova šlacha", kind: "tendon", layout: "pair" },
-  { key: "b-haminsert", top: 560, left: 172, title: "Úpon hamstringů (sedací hrbol)", kind: "tendon", layout: "pair" },
-  { key: "b-itb", top: 560, left: 118, title: "Iliotibiální trakt (IT band)", kind: "tendon", layout: "pair" },
-  { key: "b-knee", top: 700, left: 165, title: "Zákolenní šlachy", kind: "tendon", layout: "pair" },
-  { key: "b-cuff", top: 220, left: 118, title: "Rotátorová manžeta", kind: "tendon", layout: "pair" },
-  { key: "b-plantar", top: 965, left: 172, title: "Úpon plantární fascie (pata)", kind: "tendon", layout: "pair", w: 50, h: 40 },
+  { key: "b-achilles", top: 905, left: 157, title: "Achillova šlacha", kind: "tendon", layout: "pair", r: [905, 234] },
+  { key: "b-haminsert", top: 548, left: 172, title: "Úpon hamstringů (sedací hrbol)", kind: "tendon", layout: "pair", r: [548, 236] },
+  { key: "b-itb", top: 625, left: 110, title: "Iliotibiální trakt (IT band)", kind: "tendon", layout: "pair", r: [625, 300] },
+  { key: "b-knee", top: 712, left: 156, title: "Zákolenní šlachy", kind: "tendon", layout: "pair", r: [712, 243] },
+  { key: "b-cuff", top: 230, left: 135, title: "Rotátorová manžeta", kind: "tendon", layout: "pair", r: [230, 276] },
+  { key: "b-plantar", top: 992, left: 161, title: "Úpon plantární fascie (pata)", kind: "tendon", layout: "pair", r: [992, 230], w: 50, h: 40 },
   // Tendons — central
-  { key: "b-si", top: 470, left: 210, title: "SI kloub / bederní úpony", kind: "tendon", layout: "center" },
+  { key: "b-si", top: 468, left: 204, title: "SI kloub / bederní úpony", kind: "tendon", layout: "center" },
   // Feet — paired
-  { key: "b-foot", top: 1000, left: 170, title: "Chodidlo – pata", kind: "tendon", layout: "pair", w: 60, h: 45 },
+  { key: "b-foot", top: 966, left: 160, title: "Chodidlo – pata", kind: "tendon", layout: "pair", r: [966, 230], w: 60, h: 45 },
 ]
 
 const overlays = {
@@ -208,7 +212,12 @@ const byId = (() => {
   return m
 })()
 const toBP = (h: Hotspot): BodyPoint => ({ region: h.title, side: h.side === "center" ? "" : h.side, kind: h.kind })
-const clipFor = (h: Hotspot) => (h.side !== "center" ? (h.left < CX ? "inset(0 50% 0 0)" : "inset(0 0 0 50%)") : undefined)
+// Clip a bilateral overlay to the picked half, split at the figure's midline.
+const clipFor = (h: Hotspot, view: "front" | "back") => {
+  if (h.side === "center") return undefined
+  const pct = (AX[view] / CANVAS_W) * 100
+  return h.left < AX[view] ? `inset(0 ${100 - pct}% 0 0)` : `inset(0 0 0 ${pct}%)`
+}
 
 // Read-only body silhouette that highlights how often each region was marked
 // painful (counts keyed by region title). Intensity ∝ frequency. Front/back
@@ -341,7 +350,9 @@ export default function MuscleAnatomy({
 
       <div
         className="relative w-full overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-b from-panel-2 to-panel"
-        style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}` }}
+        // the front art is 80 % opaque: on the dark card a stacked muscle overlay turned its half
+        // visibly lighter, on white (as the opaque back art) the halves match
+        style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}`, ...(view === "front" ? { background: "#fff" } : {}) }}
       >
         <img
           src={bases[view]}
@@ -360,13 +371,13 @@ export default function MuscleAnatomy({
               alt=""
               aria-hidden
               className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-100 transition-opacity duration-300"
-              style={{ clipPath: clipFor(h) }}
+              style={{ clipPath: clipFor(h, view) }}
             />
           ))}
 
-        {/* Red area highlight for each selected tendon / foot point (no overlay image) */}
+        {/* Red area highlight for each selected point without an overlay image (tendons, feet, rhomboids) */}
         {selectedHere
-          .filter((h) => h.kind === "tendon")
+          .filter((h) => !(h.overlay && overlays[view][h.overlay]))
           .map((h) => (
             <span
               key={h.id}
