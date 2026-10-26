@@ -129,6 +129,17 @@ class Integration(Base):
     coverage_json = Column(JSON)
 
 
+class CalendarFeed(Base):
+    """The runner's training calendar subscription (owner request 2026-10-26): a secret URL that
+    Apple / Google Calendar polls for this week's plan as an .ics feed. One per runner; a new
+    link revokes the old one, switching it off deletes it."""
+    __tablename__ = "calendar_feeds"
+    token = Column(String, primary_key=True)
+    runner_id = Column(String, ForeignKey("runners.id"), index=True, nullable=False)
+    created_at = Column(String, nullable=False)
+    last_used_at = Column(String)
+
+
 class IngestToken(Base):
     """A long-lived bearer token that lets a phone push HealthKit data to the
     runner's own history without a browser session — the closest thing to a

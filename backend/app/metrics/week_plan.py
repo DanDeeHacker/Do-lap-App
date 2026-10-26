@@ -30,14 +30,21 @@ How the week is built, in order:
      strength sessions, in Z2 of the cycling HR max, on days without a run, keeping at
      least one day of full rest.
 Every morning Trénink re-sizes the day by readiness; the plan assumes normal recovery.
-The splits are the product team's working assumptions on the cited principles."""
+The splits are the product team's working assumptions on the cited principles.
+
+Owner request 2026-10-26 — the runner can change a day ("pins", runners.planner_json["dayPins"]):
+a pinned day is laid first and the rest of the week is re-laid around it under the same rules
+and ceilings. A pin the rules don't allow is never placed (options() offers alternatives
+instead); one that new data makes impossible later falls back to what the day can take, with
+the reason in `pins`."""
+import math
 from datetime import date, timedelta
 from itertools import combinations
 
 from . import goal_sessions as GS
 
 from .guidance import (HEAT_NOTE, CROSS_MIN, HARD_Z4_MIN, KOLO_MAX, LONG_SHARE, MIN_RUN_KM, NOVICE_LONG, NOVICE_Z4,
-                       READY_QUALITY, TYPE_LABEL, WD_IN, Z4_SESSION_MAX)
+                       READY_QUALITY, TYPE_LABEL, VODA_MAX, WD_IN, Z4_SESSION_MAX)
 
 WD = ("po", "út", "st", "čt", "pá", "so", "ne")
 WD_LONG = ("pondělí", "úterý", "středa", "čtvrtek", "pátek", "sobota", "neděle")
@@ -49,6 +56,8 @@ STRENGTH_MIN, STRENGTH_RPE = (30, 45), 6.5
 QUALITY_SYS = 0.5          # a hard minute's all-sport load above an easy one, share of a Z4 minute (working assumption)
 SESSION_NAME = {"A": "A · Síla (těžší)", "B": "B · Odolnost"}
 STRENGTH_A_RACE = 7         # no heavier session A in the last 7 days before a race
+PIN_TYPES = ("lehký", "dlouhý", "kvalitní", "regenerace", "kolo", "voda", "posilování", "volno")
+PIN_RUN = ("lehký", "dlouhý", "kvalitní", "regenerace")
 
 
 def _r(v, d=1):
@@ -162,9 +171,10 @@ def _headline(g) -> str:
     return "Cyklus nastavíme po 4 týdnech dat · cílem je vaše kapacita"
 
 
-def build(a: dict | None, today: date, program: dict | None = None) -> dict | None:
+def build(a: dict | None, today: date, program: dict | None = None, pins: dict | None = None) -> dict | None:
     """The calendar week of `today`, day by day. `program` = the active Runner's
-    must-have {name, due: "A"|"B", last: iso|None} or None."""
+    must-have {name, due: "A"|"B", last: iso|None} or None. `pins` = the runner's own
+    changes {iso: {"type", "km"?, "min"?, "session"?}} (today's is applied by guidance)."""
     g = (a or {}).get("guidance") or {}
     x = g.get("planCtx")
     if not x:
@@ -183,6 +193,9 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     ceil = (x.get("ceilRun") or {}).get("volume") or 1e9
     rscore = x.get("readiness") or 100
     races = {_d(r["date"]): r for r in x.get("races") or [] if ws <= _d(r["date"]) <= days[-1]}
+    fixed = {_d(k): v for k, v in (pins or {}).items()
+             if v and v.get("type") in PIN_TYPES and _d(k) in future and _d(k) not in races}
+    pin_why: dict = {}                              # a pin that couldn't be placed as asked → why
     all_races = [_d(r["date"]) for r in x.get("races") or []]
     race_pri = {_d(r["date"]): r.get("priority") or "A" for r in x.get("races") or []}
 
@@ -202,23 +215,46 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     today_z4 = (((types.get(typ) or {}).get("z4Target") or {}).get("hi") or 0) if (today_run and typ == "kvalitní") else 0
 
     out = {"weekStart": ws.isoformat(), "headline": _headline(g), "mode": (g.get("week") or {}).get("mode"),
-           "notes": notes, "rules": [], "override": None}
+           "notes": notes, "rules": [], "override": None, "pins": {}}
+    tp = g.get("pin") or {}
+    if tp.get("type"):                            # today's change, applied (or not) by the morning's guidance
+        out["pins"][today.isoformat()] = {"type": tp["type"], "status": "ok" if tp.get("applied") else "no",
+                                          "why": tp.get("why")}
 
     def finish(totals=None):
+        for d, p in fixed.items():
+            if d.isoformat() not in out["pins"]:
+                out["pins"][d.isoformat()] = _pin_status(p, items[d], pin_why.get(d))
+        for d in fixed:
+            for it in items[d]:
+                it["pinned"] = True
+        if tp.get("applied"):
+            for it in items[today]:
+                it["pinned"] = True
         out["days"] = [{"date": d.isoformat(), "wd": WD[d.weekday()], "wdLong": WD_LONG[d.weekday()],
-                        "today": d == today, "past": d < today, "items": items[d]} for d in days]
+                        "today": d == today, "past": d < today, "items": items[d],
+                        "pinned": (d.isoformat() in out["pins"]) and out["pins"][d.isoformat()]["status"] != "no",
+                        "pin": out["pins"].get(d.isoformat())}
+                       for d in days]
         out["totals"] = totals
         return out
 
     # ---- Plán od trenéra (2026-10-12): the coach's week with the app's verdicts, not its own layout
     coach = g.get("coach") or {}
     if coach.get("on") and coach.get("eval"):
+        fixed.clear()                          # the coach's week is changed in the coach's plan
         return _coach_week(coach, out, days, today, items, finish)
 
     # ---- a stop: no running plan, only what doesn't hurt
     ov = g.get("override")
     if ov or x.get("ill"):
         out["override"] = ov["title"] if ov else "Hlásíte nemoc — tento týden nejdřív odpočinek"
+        for d in fixed:
+            pin_why[d] = f"Plán běhu je teď pozastavený: {out['override'][0].lower() + out['override'][1:]}"
+        fixed_keep = {d: p for d, p in fixed.items() if p["type"] == "volno"}
+        for d in fixed_keep:
+            items[d].append({"kind": "rest", "label": "Volno", "note": None})
+            pin_why.pop(d, None)
         notes.append("Plán běhu je pozastavený. Každé ráno ho Trénink znovu posoudí a jakmile to půjde, "
                      "vrátí běh postupně.")
         if x.get("kolo") and (not ov or ov.get("kind") != "red_flag") and not x.get("ill"):
@@ -234,6 +270,8 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
 
     budget = vol.get("budget")
     if budget is None:
+        for d in fixed:
+            pin_why[d] = "Na plán týdne zatím chybí data o vaší týdenní kapacitě."
         notes.append("Na plán týdne zatím chybí data o vaší týdenní kapacitě — stačí pár týdnů běhů.")
         for d in future:
             items[d].append({"kind": "rest", "label": "Podle ranního doporučení", "note": None})
@@ -247,27 +285,35 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     usual = set(pat.get("runDays") or []) or set(DEFAULT_RUN_DAYS[min(7, max(1, n_runs))])
     before = sum(1 for d in days if d < today and pvol.get(d.isoformat()))
     allowed = max(0, max(n_runs, before + int(today_run or bool(g.get("done")))) - before - int(today_run or bool(g.get("done"))))
-    run_days = [d for d in future if d.weekday() in usual and d not in races]
+    pin_run = sorted(d for d, p in fixed.items() if p["type"] in PIN_RUN)
+    run_days = [d for d in future if d.weekday() in usual and d not in races and d not in fixed]
     long_wd = pat.get("longDay")
     hard_wd = set(pat.get("hardDays") or [])
 
     lday = ws + timedelta(days=long_wd) if long_wd is not None else None
-    if lday in future and lday not in run_days and lday not in races:
+    if lday in future and lday not in run_days and lday not in races and lday not in fixed:
         run_days = sorted(run_days + [lday])         # the usual long-run day even when it isn't a usual run day
 
     def neighbours(d, pool):
         return sum(1 for e in pool if abs((e - d).days) == 1) + (1 if (d - today).days == 1 and (today_run or g.get("done")) else 0)
-    while len(run_days) > allowed:
-        drop = max((d for d in run_days if d.weekday() != long_wd), key=lambda d: (neighbours(d, run_days), d), default=None)
+    free = max(0, allowed - len(pin_run))           # the runner's own run days count first
+    while len(run_days) > free:
+        drop = max((d for d in run_days if d.weekday() != long_wd), key=lambda d: (neighbours(d, run_days + pin_run), d), default=None)
         run_days.remove(drop if drop is not None else run_days[-1])
-    if len(run_days) < allowed:
+    if len(run_days) < free:
         for wd in DEFAULT_RUN_DAYS[min(7, max(1, n_runs))]:
             d = ws + timedelta(days=wd)
-            if len(run_days) >= allowed:
+            if len(run_days) >= free:
                 break
-            if d in future and d not in run_days and d not in races:
+            if d in future and d not in run_days and d not in races and d not in fixed:
                 run_days.append(d)
-        run_days.sort()
+        if fixed:                                    # a day the runner took off moves the run to another free day
+            spare = [d for d in future if d not in run_days and d not in races and d not in fixed]
+            while len(run_days) < free and spare:
+                d = min(spare, key=lambda e: (neighbours(e, run_days + pin_run), e))
+                spare.remove(d)
+                run_days.append(d)
+    run_days = sorted(run_days + pin_run)
 
     # ---- what the context allows on a day
     def early(d):                          # low readiness / illness signal → nothing hard in the first 2 days
@@ -289,6 +335,26 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
             return False
         return not any(0 <= (r - d).days <= 7 and race_pri[r] in ("A", "B") for r in all_races) and not any(0 < (d - r).days <= 2 for r in all_races)
 
+    def why_ctx(d, what):                  # why a pinned hard / long day can't stand (the rules above, in words)
+        if x.get("painMod"):
+            return f"{x.get('painWhy') or 'Bolest'} — tento týden bez {what}."
+        if what == "intenzity" and x.get("drift"):
+            return "Mechanika se odchyluje od vaší normy — tento týden bez intenzity."
+        if x.get("deload") or x.get("overreaching"):
+            return f"Zátěž je zvýšená — tento týden bez {what}."
+        if early(d):
+            return f"Nízká připravenost nebo možný začátek nemoci — první dva dny bez {what}."
+        if what == "intenzity" and x.get("noQualityUntil") and d < _d(x["noQualityUntil"]):
+            q = _d(x["noQualityUntil"])
+            return f"Návrat po {x.get('noQualityWhy') or 'zranění'} — bez intenzity do {q.day}. {q.month}."
+        if x.get("raceRecoveryUntil") and d < _d(x["raceRecoveryUntil"]):
+            return f"Po závodě ještě regenerace — bez {what} do {_d(x['raceRecoveryUntil']).day}. {_d(x['raceRecoveryUntil']).month}."
+        if what == "intenzity" and any(abs((r - d).days) <= 2 for r in all_races):
+            return "Dva dny před závodem a po něm bez tvrdého tréninku."
+        if any(0 <= (r - d).days <= 7 and race_pri[r] in ("A", "B") for r in all_races):
+            return "Týden před závodem bez dlouhého běhu."
+        return "Dva dny po závodě bez dlouhého běhu."
+
     # ---- the long run
     long_done = typ == "dlouhý" or any((pvol.get(d.isoformat()) or 0) >= 1.25 * easy for d in days if d < today)
     long_day = None
@@ -297,10 +363,26 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         L = min(ceil, max(1.2 * easy, x["goalLong"]))
     if x.get("novice") and x.get("longest30"):
         L = min(L, NOVICE_LONG * x["longest30"])
-    if not long_done and len(run_days) + before + int(today_run) >= 3 and L >= 1.2 * easy:
-        cand = [d for d in run_days if ok_long(d)]
+    pin_long = [d for d in pin_run if fixed[d]["type"] == "dlouhý"]
+    for d in pin_long[1:] if not long_done else pin_long:
+        pin_why[d] = ("Dlouhý běh už tento týden máte za sebou." if long_done else
+                      "Dlouhý běh se do týdne vejde jen jednou.")
+    for d in list(pin_long):
+        if d in pin_why:
+            continue
+        if not ok_long(d):
+            pin_why[d] = why_ctx(d, "dlouhého běhu")
+        elif L < 1.2 * easy:
+            pin_why[d] = "Na dlouhý běh tento týden nezbývá objem."
+    pin_long_ok = [d for d in pin_long if d not in pin_why]
+    if pin_long_ok:
+        long_day = pin_long_ok[0]
+        if fixed[long_day].get("km"):
+            L = min(L, max(1.2 * easy, float(fixed[long_day]["km"])))
+    elif not long_done and len(run_days) + before + int(today_run) >= 3 and L >= 1.2 * easy:
+        cand = [d for d in run_days if ok_long(d) and d not in fixed]
         long_day = next((d for d in cand if d.weekday() == long_wd), None)
-        if long_day is None and long_wd is None:
+        if long_day is None and (long_wd is None or (fixed and (ws + timedelta(days=long_wd)) in fixed)):
             wkend = [d for d in cand if d.weekday() >= 5]
             long_day = wkend[-1] if wkend else (cand[-1] if cand else None)
 
@@ -326,8 +408,18 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     if typ in ("kvalitní", "závod") or x.get("todayHard"):
         anchors.add(today)
     q_days = []
-    for _ in range(nq):
-        cand = [d for d in run_days if d != long_day and d not in q_days and ok_hard(d)
+    for d in [d for d in pin_run if fixed[d]["type"] == "kvalitní"]:
+        if not ok_hard(d):
+            pin_why[d] = why_ctx(d, "intenzity")
+        elif len(q_days) >= nq:
+            pin_why[d] = ("Na tvrdý trénink tento týden nezbývá rozpočet intenzity." if (i_left is not None and i_left < HARD_Z4_MIN)
+                          else f"Tvrdých tréninků už je tento týden dost — nejvýš {x.get('hardCap') or 2} za týden.")
+        elif any(abs((d - a_).days) < 2 for a_ in anchors | set(q_days)):
+            pin_why[d] = "Tvrdé dny musí být aspoň 48 hodin od sebe a ne vedle dlouhého běhu nebo závodu."
+        else:
+            q_days.append(d)
+    for _ in range(nq - len(q_days)):
+        cand = [d for d in run_days if d != long_day and d not in q_days and ok_hard(d) and d not in fixed
                 and all(abs((d - a_).days) >= 2 for a_ in anchors | set(q_days))]
         if not cand:
             break
@@ -347,28 +439,40 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
             z4[d] = per
 
     # ---- kilometres
-    easy_days = [d for d in run_days if d != long_day and d not in q_days]
+    # the runner's own easy / recovery runs keep their size (within the single-run ceiling)
+    pin_easy = {}
+    for d in pin_run:
+        p = fixed[d]
+        if p["type"] == "lehký":
+            pin_easy[d] = min(ceil, 1.5 * easy, float(p.get("km") or easy))
+        elif p["type"] == "regenerace":
+            pin_easy[d] = min(ceil, 0.8 * easy, float(p.get("km") or max(min_run, 0.6 * easy)))
+    easy_days = [d for d in run_days if d != long_day and d not in q_days and d not in pin_easy]
     q_km = min(ceil, easy)
     pace_e = x.get("easyPace") or 400
     if x.get("dayMin"):                         # plan k cíli 2.0 #10: the runner's time on a weekday
         q_km = min(q_km, x["dayMin"] * 60 / pace_e)
     if long_day and x.get("longMin"):
         L = min(L, x["longMin"] * 60 / (pace_e * 1.05))
-    need = (L if long_day else 0) + q_km * len(q_days)
+    need = (L if long_day else 0) + q_km * len(q_days) + sum(pin_easy.values())
     if need > left:
         easy_days = []
         f = left / need if need else 0
         L, q_km = L * f, q_km * f
+        pin_easy = {d: v * f for d, v in pin_easy.items()}
         if long_day and L < 1.2 * easy:
+            if long_day in fixed:
+                pin_why[long_day] = "Na dlouhý běh tento týden nezbývá objem — týdenní cíl je skoro splněný."
             easy_days.append(long_day)
             long_day = None
-        need = (L if long_day else 0) + q_km * len(q_days)
+        need = (L if long_day else 0) + q_km * len(q_days) + sum(pin_easy.values())
     rem = max(0.0, left - need)
     while easy_days and rem / len(easy_days) < min_run:
         easy_days.remove(max(easy_days, key=lambda d: (neighbours(d, run_days), d)))
     e_cap = min(ceil, 1.5 * easy, 0.9 * L if long_day else 1e9, x["dayMin"] * 60 / pace_e if x.get("dayMin") else 1e9)
     e_km = min(e_cap, rem / len(easy_days)) if easy_days else 0.0
     plan_km = {d: e_km for d in easy_days}
+    plan_km.update(pin_easy)
     plan_km.update({d: q_km for d in q_days})
     if long_day:
         plan_km[long_day] = L
@@ -424,7 +528,7 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     for d in sorted(plan_km):
         if leftover < 0.1:
             break
-        if d in q_days or d == long_day:
+        if d in q_days or d == long_day or d in pin_easy:
             continue
         add = min(leftover, e_cap - plan_km[d], room_at(d))
         if add >= 0.1:
@@ -436,7 +540,7 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     extra = None
     if (leftover >= max(min_run, 0.6 * easy) and rscore >= READY_QUALITY and not x.get("painMod")
             and not x.get("drift") and len(plan_km) + 1 <= 6):
-        busy = set(plan_km) | {today}
+        busy = set(plan_km) | {today} | set(fixed)
         hard_next = set(q_days) | ({long_day} if long_day else set()) | set(races)
         cand = [d for d in future if d not in busy and d not in races and (d + timedelta(days=1)) not in hard_next]
         rest_after = sum(1 for d in days if d not in busy and d > today) - 1
@@ -471,7 +575,8 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         strides_day = next((d for d in sorted(plan_km) if d not in nxt_hard and d != extra
                             and (d + timedelta(days=1)) not in nxt_hard), None)
     for k, d in enumerate(sorted(plan_km)):
-        kind = "dlouhý" if d == long_day else "kvalitní" if d in q_days else "lehký"
+        kind = ("dlouhý" if d == long_day else "kvalitní" if d in q_days else
+                "regenerace" if (d in pin_easy and fixed[d]["type"] == "regenerace") else "lehký")
         zq = None
         if kind == "kvalitní":
             zq = {"lo": _r(0.6 * z4[d], 0), "hi": _r(z4[d], 0)}
@@ -507,6 +612,7 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     last_s = _d(program["last"]) if (program and program.get("last")) else (
         today - timedelta(days=st["lastAge"]) if st.get("lastAge") is not None else None)
     s_cand = ([today] if (pos_t.get("allowed") and not st.get("today")) else []) + future
+    s_cand = [d for d in s_cand if fixed.get(d, {}).get("type") != "volno"]
     due = (program or {}).get("due") or "A"
     seq0 = [due, "B" if due == "A" else "A"]
 
@@ -524,10 +630,22 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
     def rest_days(extra_busy=()):
         return sum(1 for d in days if d >= today and d not in extra_busy
                    and all(it["kind"] == "rest" for it in items[d]))
+    # the runner's own strength days: placed when the rules allow them, the others around them
+    pin_s = []
+    for d in sorted(d for d, p in fixed.items() if p["type"] == "posilování"):
+        if not (s_ok(d, "A") or s_ok(d, "B")):
+            pin_why[d] = (_why_strength(d, hard_set, long_day, races, all_races, last_s, early(d) and x.get("illWatch")))
+        elif any(abs((d - e).days) < 2 for e in pin_s):
+            pin_why[d] = "Posilování aspoň 48 hodin od sebe."
+        else:
+            pin_s.append(d)
+    n_s = max(n_s, len(pin_s))
     best, best_sc, swapped = None, None, False
     for n in range(n_s, 0, -1):
+        if n < len(pin_s):
+            break
         for combo, (order, seq) in ((c_, o_) for c_ in combinations(s_cand, n) for o_ in enumerate((seq0, seq0[::-1]))):
-            if any((b - a_).days < 2 for a_, b in zip(combo, combo[1:])):
+            if any((b - a_).days < 2 for a_, b in zip(combo, combo[1:])) or not set(pin_s) <= set(combo):
                 continue
             # the due session first; B first and A after it is what the programme itself does
             # when the day can't carry A (durability.choose), so it costs a little
@@ -560,6 +678,11 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         notes.append("Týden před závodem jen lehčí silová B: poslední těžší posilování má být 7–10 dní před startem.")
     elif swapped:
         notes.append("Těžší silová A se tento týden nevejde mezi tvrdé dny — místo ní lehčí B, A přijde příště.")
+    want = {d: fixed[d].get("session") for d in pin_s if fixed[d].get("session") in ("A", "B")}
+    best = [(d, want[d] if (d in want and s_ok(d, want[d])) else k_) for d, k_ in best or []]
+    for d in want:
+        if not s_ok(d, want[d]):
+            pin_why[d] = f"Těžší silová A se na tento den nehodí (vedle tvrdého nebo dlouhého běhu) — místo ní B."
     for d, kind in best or []:
         same = any(it["kind"] == "run" for it in items[d])
         items[d].append({"kind": "strength", "label": "Posilování", "session": SESSION_NAME[kind], "sessionKey": kind,
@@ -581,7 +704,27 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         after_hard = set()
         for d in hard_set:
             after_hard.add(d + timedelta(days=1))
-        cand = [d for d in future if not items[d] and d not in races and (d + timedelta(days=1)) not in races]
+        for d in sorted(d for d, p in fixed.items() if p["type"] in ("kolo", "voda")):
+            p, kt = fixed[d], fixed[d]["type"]
+            t_ = types.get(kt) or {}
+            want_m = float(p.get("min") or ((t_.get("durationMin") or [0, 45])[1]) or 45)
+            m = min(want_m, KOLO_MAX if kt == "kolo" else VODA_MAX, max(0.0, room) / per_min)
+            r7 = _room(d, today, sysw, psys, day_sys)
+            if r7 is not None:
+                m = min(m, r7 / per_min)
+            if m < CROSS_MIN:
+                pin_why[d] = "Celková zátěž tento týden už další trénink neunese."
+                continue
+            m = int(m // 5 * 5)
+            if m < want_m - 4:
+                pin_why[d] = "Kratší, než jste chtěli — víc celková zátěž týdne neunese."
+            day_sys[d] = m * per_min
+            room -= m * per_min
+            items[d].append({"kind": "ride" if kt == "kolo" else "swim", "label": TYPE_LABEL[kt],
+                             "min": [max(CROSS_MIN, int(0.75 * m // 5 * 5)), m], "hr": t_.get("hr") or (x.get("rideHr") if kt == "kolo" else None),
+                             "zones": t_.get("hrZones") or ("Z2 na kole" if kt == "kolo" else None), "optional": False,
+                             "note": x.get("koloNote") if kt == "kolo" else None})
+        cand = [d for d in future if not items[d] and d not in races and (d + timedelta(days=1)) not in races and d not in fixed]
         cand.sort(key=lambda d: (d not in after_hard, d))
         n = min(n_max, max(0, rest_days() - 1), len(cand))
         while n > 0:
@@ -602,6 +745,14 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
             items[d].append({"kind": "ride", "label": "Kolo" + ("" if (x.get("rides8w") or 0) >= 2 else " (volitelně)"),
                              "min": [max(CROSS_MIN, int(0.75 * m // 5 * 5)), m], "hr": x.get("rideHr"),
                              "zones": "Z2 na kole", "optional": (x.get("rides8w") or 0) < 2, "note": x.get("koloNote")})
+    for d in sorted(d for d, p in fixed.items() if p["type"] in ("kolo", "voda")):
+        if d not in pin_why and not any(it["kind"] in ("ride", "swim") for it in items[d]):
+            # no all-sport load to check against (no rides in the history yet): the runner's own minutes
+            kt, t_ = fixed[d]["type"], types.get(fixed[d]["type"]) or {}
+            m = int(min(float(fixed[d].get("min") or ((t_.get("durationMin") or [0, 45])[1]) or 45), KOLO_MAX if kt == "kolo" else VODA_MAX))
+            items[d].append({"kind": "ride" if kt == "kolo" else "swim", "label": TYPE_LABEL[kt],
+                             "min": [max(CROSS_MIN, int(0.75 * m // 5 * 5)), m], "hr": t_.get("hr"), "zones": t_.get("hrZones"),
+                             "optional": False, "note": None})
     for d in future:
         if not items[d]:
             items[d].append({"kind": "rest", "label": "Volno", "note": None})
@@ -653,6 +804,48 @@ def build(a: dict | None, today: date, program: dict | None = None) -> dict | No
         "strength": len(best or []) + (st.get("done") or 0), "strengthTarget": st.get("target"),
         "rides": len(rides), "rideMin": sum(it["min"][1] for d in rides for it in items[d] if it["kind"] == "ride"),
     })
+
+
+def _why_strength(d, hard_set, long_day, races, all_races, last_s, ill) -> str:
+    if d in races or any(0 <= (r - d).days <= 3 for r in all_races):
+        return "Tři dny před závodem bez posilování."
+    if d == long_day:
+        return "V den dlouhého běhu bez posilování."
+    if (d + timedelta(days=1)) in hard_set:
+        return "Posilování ne den před tvrdým nebo dlouhým během."
+    if last_s and (d - last_s).days < 2:
+        return "Posilování aspoň 48 hodin od toho posledního."
+    if ill:
+        return "Možný začátek nemoci — první dva dny bez posilování."
+    return "Na tento den se posilování podle pravidel nehodí."
+
+
+def _pin_status(p: dict, its: list, why: str | None) -> dict:
+    """Did the runner's change land as asked: ok, mod (smaller / B instead of A) or no (+ why)."""
+    t = p["type"]
+    out = {"type": t, "status": "no", "why": why, "km": p.get("km"), "min": p.get("min")}
+    if t == "volno":
+        ok = all(it["kind"] == "rest" for it in its)
+        out["status"] = "ok" if ok else "no"
+        return out
+    if t in PIN_RUN:
+        hit = next((it for it in its if it["kind"] == "run" and it.get("type") == t), None)
+        if hit is None:
+            out["why"] = why or "Pod stropy kapacity na tento den už běh nezbývá."
+            return out
+        asked = p.get("km")
+        got = (hit.get("km") or {}).get("hi") or 0
+        out["status"] = "mod" if (asked and got < 0.95 * float(asked)) or why else "ok"
+        if out["status"] == "mod" and not why:
+            out["why"] = "Kratší, než jste chtěli — víc nedovolí týdenní cíl nebo strop kapacity."
+        return out
+    kind = {"kolo": "ride", "voda": "swim", "posilování": "strength"}[t]
+    hit = next((it for it in its if it["kind"] == kind), None)
+    if hit is None:
+        out["why"] = why or "Na tento den se to podle pravidel týdne nevejde."
+        return out
+    out["status"] = "mod" if why else "ok"
+    return out
 
 
 COACH_VERDICT = {"ok": "sedí", "mod": "sedí s úpravou", "no": "dnes raději ne"}
@@ -730,3 +923,215 @@ def note(p: dict | None) -> str | None:
     tip = ("Nejdůležitější jsou lehké dny opravdu lehké — tvrdé tréninky pak dají víc a tělo zůstane pod stropem kapacity."
            if hard else "Držte lehké běhy v Z2 — objem roste bezpečně a tělo zůstává pod stropem kapacity.")
     return ", ".join(bits) + ". " + tip
+
+
+# ---------------------------------------------------------------- changing a day (owner request 2026-10-26)
+# what the sheet offers in place of a type the day can't take, nearest first
+FALLBACK = {"kvalitní": ("lehký", "regenerace", "kolo", "volno"), "dlouhý": ("lehký", "regenerace", "kolo", "volno"),
+            "lehký": ("regenerace", "kolo", "voda", "volno"), "regenerace": ("lehký", "kolo", "voda", "volno"),
+            "kolo": ("voda", "regenerace", "volno"), "voda": ("kolo", "regenerace", "volno"),
+            "posilování": ("lehký", "kolo", "volno"), "volno": ()}
+
+
+def _it_txt(it: dict) -> str:
+    k = it.get("kind")
+    if k == "run":
+        km = it.get("km") or {}
+        lo, hi = km.get("lo"), km.get("hi")
+        return f"{TYPE_LABEL.get(it.get('type'), it.get('label'))} " + (
+            f"{_cz(lo)}–{_cz(hi)} km" if lo and hi and abs(hi - lo) >= 0.1 else f"{_cz(hi or 0)} km")
+    if k in ("ride", "swim"):
+        m = it.get("min") or [0, 0]
+        return f"{it.get('label')} {m[0]}–{m[1]} min" if m[0] != m[1] else f"{it.get('label')} {m[1]} min"
+    if k == "strength":
+        return f"Posilování {it.get('session') or ''}".strip()
+    if k == "done":
+        return f"{it.get('label')} {_cz(it['km'])} km" if it.get("km") else it.get("label") or ""
+    return it.get("label") or ""
+
+
+def _day_txt(day: dict) -> str:
+    return " + ".join(_it_txt(it) for it in day["items"] if not (it.get("kind") == "rest" and len(day["items"]) > 1))
+
+
+def changes(old: dict | None, new: dict | None, skip=()) -> list:
+    """What else the change moves in the week: one line per day whose sessions differ."""
+    if not old or not new or not old.get("days") or not new.get("days"):
+        return []
+    out = []
+    for a_, b_ in zip(old["days"], new["days"]):
+        if a_["past"] or a_["date"] in skip:
+            continue
+        ta, tb = _day_txt(a_), _day_txt(b_)
+        if ta != tb:
+            d = _d(a_["date"])
+            out.append({"date": a_["date"], "wd": a_["wd"], "text": f"{a_['wd']} {d.day}. {d.month}.: {ta} → {tb}"})
+    return out
+
+
+def _with_today(a: dict, typ: str | None, km=None) -> dict:
+    """The assessment as if today were `typ` (today's change is applied by guidance; this is its preview)."""
+    import copy
+    a2 = dict(a)
+    g = copy.deepcopy(a.get("guidance") or {})
+    if typ:
+        t = (g.get("types") or {}).get(typ) or {}
+        g["type"], g["pin"] = typ, {"type": typ, "applied": True}
+        k = t.get("km") if isinstance(t.get("km"), dict) else None
+        if km and k and k.get("hi") and typ in PIN_RUN:
+            hi = min(float(km), k.get("max") or k["hi"])
+            k["hi"], k["lo"] = _r(hi), _r(min(k.get("lo") or hi, 0.85 * hi))
+    a2["guidance"] = g
+    return a2
+
+
+def simulate(a: dict, today: date, program: dict | None, pins: dict) -> dict | None:
+    t = pins.get(today.isoformat())
+    rest = {k: v for k, v in pins.items() if k != today.isoformat()}
+    if t:
+        return build(_with_today(a, t["type"], t.get("km")), today, program, rest)
+    return build(a, today, program, rest)
+
+
+def _main(day: dict | None) -> dict | None:
+    """The day's session the runner would move: a run first, then a ride / swim / strength."""
+    if not day:
+        return None
+    for kinds in (("run",), ("ride", "swim"), ("strength",)):
+        it = next((i for i in day["items"] if i["kind"] in kinds and not i.get("optional")), None)
+        if it:
+            return it
+    return None
+
+
+def _main_pin(it: dict) -> dict | None:
+    if it["kind"] == "run":
+        return {"type": it.get("type"), "km": (it.get("km") or {}).get("hi")}
+    if it["kind"] in ("ride", "swim"):
+        return {"type": "kolo" if it["kind"] == "ride" else "voda", "min": (it.get("min") or [0, 0])[1]}
+    if it["kind"] == "strength":
+        return {"type": "posilování", "session": it.get("sessionKey")}
+    return None
+
+
+def _status(a, today, program, pins, day_iso, pin):
+    """(status, why, plan) of putting `pin` on the day."""
+    p2 = {**pins, day_iso: pin}
+    plan = simulate(a, today, program, p2)
+    if day_iso == today.isoformat():
+        g = (a.get("guidance") or {})
+        t = (g.get("types") or {}).get(pin["type"]) or {}
+        if g.get("done"):
+            return "no", "Dnešní trénink už máte hotový.", plan
+        if not t.get("allowed"):
+            return "no", t.get("why") or (g.get("override") or {}).get("title") or "Podle ranních dat to dnes nejde.", plan
+        if g.get("override") and pin["type"] != "volno":
+            return "no", g["override"].get("title"), plan
+        return "ok", None, plan
+    st = ((plan or {}).get("pins") or {}).get(day_iso) or {"status": "no", "why": None}
+    return st["status"], st.get("why"), plan
+
+
+def _range(a, today, program, pins, day_iso, typ, plan) -> dict | None:
+    """The slider: from the shortest sensible size to the most the day can take as asked."""
+    g = a.get("guidance") or {}
+    x = g.get("planCtx") or {}
+    easy = x.get("easyKm") or 6.0
+    if typ in ("lehký", "regenerace", "dlouhý"):
+        lo = max(MIN_RUN_KM, 0.5 * easy) if typ != "dlouhý" else 1.2 * easy
+        if day_iso == today.isoformat():
+            k = ((g.get("types") or {}).get(typ) or {}).get("km") or {}
+            hi = k.get("max") or k.get("hi")
+        else:
+            big = simulate(a, today, program, {**pins, day_iso: {"type": typ, "km": 999}})
+            day = next((d for d in (big or {}).get("days") or [] if d["date"] == day_iso), None)
+            it = next((i for i in (day or {}).get("items") or [] if i["kind"] == "run" and i.get("type") == typ), None)
+            hi = ((it or {}).get("km") or {}).get("hi")
+        cur = next((i for i in next((d for d in (plan or {}).get("days") or [] if d["date"] == day_iso), {"items": []})["items"]
+                    if i["kind"] == "run"), None)
+        lo, hi = math.ceil(lo * 2) / 2, math.floor((hi or 0) * 2) / 2          # the slider's 0.5 km steps reach both ends
+        if not hi or hi < lo:
+            return None
+        val = ((cur or {}).get("km") or {}).get("hi") or hi
+        return {"unit": "km", "lo": lo, "hi": hi, "step": 0.5, "value": min(hi, max(lo, round(val * 2) / 2))}
+    if typ in ("kolo", "voda") and day_iso != today.isoformat():
+        big = simulate(a, today, program, {**pins, day_iso: {"type": typ, "min": 999}})
+        day = next((d for d in (big or {}).get("days") or [] if d["date"] == day_iso), None)
+        it = next((i for i in (day or {}).get("items") or [] if i["kind"] in ("ride", "swim")), None)
+        hi = ((it or {}).get("min") or [0, 0])[1]
+        hi = int(hi // 5 * 5) if hi else 0
+        if not hi or hi < CROSS_MIN:
+            return None
+        cur = next((i for i in next((d for d in (plan or {}).get("days") or [] if d["date"] == day_iso), {"items": []})["items"]
+                    if i["kind"] in ("ride", "swim")), None)
+        return {"unit": "min", "lo": CROSS_MIN, "hi": hi, "step": 5, "value": ((cur or {}).get("min") or [0, hi])[1]}
+    return None
+
+
+def options(a: dict | None, today: date, program: dict | None, pins: dict, day_iso: str) -> dict:
+    """Everything the 'Změnit trénink' sheet shows for one day: each type with its verdict
+    (ok / mod / no + why), its size, the slider range, what else in the week it moves, the
+    alternatives for a type the day can't take, and the days its current session can move to."""
+    base = simulate(a, today, program, pins) if a else None
+    d0 = _d(day_iso)
+    if not base or not base.get("totals") or d0 < today or d0 > _d(base["weekStart"]) + timedelta(days=6):
+        return {"date": day_iso, "editable": False, "why": "Tento den se změnit nedá.", "types": [], "moves": []}
+    day = next(d for d in base["days"] if d["date"] == day_iso)
+    if any(it["kind"] in ("race", "done") for it in day["items"]) or (d0 == today and (a.get("guidance") or {}).get("done")):
+        return {"date": day_iso, "editable": False, "why": "Den se závodem nebo s hotovým tréninkem se nemění.",
+                "types": [], "moves": []}
+    others = {k: v for k, v in pins.items() if k != day_iso}
+    cur = _main(day)
+    mp = _main_pin(cur) if cur else None
+    res = {}
+    for t in PIN_TYPES:
+        pin = {k: v for k, v in mp.items() if v is not None} if (mp and mp["type"] == t) else {"type": t}  # the same type keeps its size
+        st, why, plan = _status(a, today, program, others, day_iso, pin)
+        nd = next((d for d in (plan or {}).get("days") or [] if d["date"] == day_iso), None)
+        res[t] = {"type": t, "label": TYPE_LABEL[t], "status": st, "why": why,
+                  "text": _day_txt(nd) if nd and st != "no" else None,
+                  "range": _range(a, today, program, others, day_iso, t, plan) if st != "no" else None,
+                  "changes": changes(base, plan, skip=(day_iso,)) if st != "no" else [], "alts": []}
+    future = [d for d in base["days"] if not d["past"] and d["date"] != day_iso
+              and not any(it["kind"] in ("race", "done") for it in d["items"]) and d["date"] != today.isoformat()]
+    for t, r in res.items():
+        if r["status"] != "no":
+            continue
+        alts = [{"kind": "type", "type": f, "label": TYPE_LABEL[f], "text": res[f]["text"]}
+                for f in FALLBACK[t] if res[f]["status"] != "no"][:1]
+        for d in future:
+            if len(alts) >= 3:
+                break
+            st, _w, _p = _status(a, today, program, others, d["date"], {"type": t})
+            if st != "no" and others.get(d["date"]) is None:
+                alts.append({"kind": "day", "type": t, "label": TYPE_LABEL[t], "date": d["date"], "wd": d["wd"], "wdLong": d["wdLong"]})
+        r["alts"] = alts
+    moves = []
+    if mp and mp["type"] in PIN_TYPES:
+        for d in future:
+            if others.get(d["date"]) is not None:
+                continue
+            p2 = {**others, day_iso: {"type": "volno"}}
+            st, why, plan = _status(a, today, program, p2, d["date"], mp)
+            moves.append({"date": d["date"], "wd": d["wd"], "wdLong": d["wdLong"], "status": st, "why": why,
+                          "changes": changes(base, plan, skip=(day_iso, d["date"])) if st != "no" else []})
+    return {"date": day_iso, "editable": True, "today": d0 == today, "current": _day_txt(day),
+            "currentType": (mp or {}).get("type") or ("volno" if all(it["kind"] == "rest" for it in day["items"]) else None),
+            "pinned": day_iso in pins, "types": [res[t] for t in PIN_TYPES], "moves": moves}
+
+
+def preview(a: dict | None, today: date, program: dict | None, pins: dict, day_iso: str, pin: dict,
+            move_to: str | None = None) -> dict:
+    """One concrete change (with the slider's size, or a move): its verdict and what else it moves."""
+    base = simulate(a, today, program, pins) if a else None
+    others = {k: v for k, v in pins.items() if k != day_iso}
+    if move_to:
+        p2 = {**{k: v for k, v in others.items() if k != move_to}, day_iso: {"type": "volno"}}
+        st, why, plan = _status(a, today, program, p2, move_to, pin)
+        target = move_to
+    else:
+        st, why, plan = _status(a, today, program, others, day_iso, pin)
+        target = day_iso
+    nd = next((d for d in (plan or {}).get("days") or [] if d["date"] == target), None)
+    return {"status": st, "why": why, "text": _day_txt(nd) if nd else None,
+            "changes": changes(base, plan, skip=(day_iso, target)) if st != "no" else []}

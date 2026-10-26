@@ -275,3 +275,13 @@ class SettingsPatch(Lenient):
     today_cards: Optional[list[str]] = None
     news_seen: Optional[str] = None
     badges_seen: Optional[list[str]] = None
+
+
+class DayPinRequest(Lenient):
+    """Plán týdne → Změnit: the day's new session (km / min = the slider) or a move to `move_to`."""
+    date: str
+    type: str
+    km: float | None = None
+    min: float | None = None
+    session: str | None = None
+    move_to: str | None = None

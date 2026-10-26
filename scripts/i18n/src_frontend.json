@@ -211,6 +211,7 @@
   "t": "Načítám…",
   "files": [
    "admin.tsx",
+   "calendarsync.tsx",
    "care.tsx",
    "coachview.tsx",
    "metricsheet.tsx",
@@ -3898,6 +3899,7 @@
   "files": [
    "App.tsx",
    "coach.tsx",
+   "dayedit.tsx",
    "goal.tsx",
    "landing.tsx",
    "onboarding.tsx"
@@ -4469,6 +4471,192 @@
    "assistant.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "„Přidat do Apple Kalendáře\" otevře Kalendář a nabídne odběr. Jak často se obnovuje, nastavíte v Kalendáři u odběru (doporučujeme každou hodinu).",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "(Outlook…): zkopírujte odkaz a přidejte kalendář „z adresy URL\".",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Google:",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "iPhone a Mac:",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Jak na to",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Jiný kalendář",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kalendář si plán naposledy stáhl {}.",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Kopírovat",
+  "files": [
+   "calendarsync.tsx",
+   "coachview.tsx",
+   "datapage.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nastavení kalendáře se nepodařilo načíst.",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nepovedlo se",
+  "files": [
+   "calendarsync.tsx",
+   "coachview.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nový odkaz je připravený — starý přestal fungovat",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odběr kalendáře je vypnutý",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odkaz je tajný — kdo ho má, vidí váš plán.",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odkaz na kalendář",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odkaz na kalendář je připravený",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "odkaz otevře Google Kalendář v prohlížeči a přidá ho. V telefonu se pak ukáže sám; Google odběry obnovuje po několika hodinách.",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odkaz označte a zkopírujte ručně",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odkaz zkopírován",
+  "files": [
+   "calendarsync.tsx",
+   "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán týdne se zobrazí ve vašem Apple nebo Google Kalendáři jako celodenní události s tepem, tempem a náplní tréninku. Když plán změníte nebo ho ráno upraví připravenost, kalendář se aktualizuje sám.",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přidat do Apple Kalendáře",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přidat do Google Kalendáře",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Tréninky v kalendáři",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vypnout",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vytvořit nový odkaz",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zapnout odběr kalendáře",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zatím si ho žádný kalendář nestáhl.",
+  "files": [
+   "calendarsync.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "— ohodnoťte ten běh (bolest 0), ať se po té době započítá celý.",
@@ -7776,7 +7964,8 @@
  {
   "t": "Místo toho:",
   "files": [
-   "coach.tsx"
+   "coach.tsx",
+   "dayedit.tsx"
   ],
   "kind": "jsx"
  },
@@ -7881,7 +8070,8 @@
  {
   "t": "neděle",
   "files": [
-   "coach.tsx"
+   "coach.tsx",
+   "dayedit.tsx"
   ],
   "kind": "str"
  },
@@ -7981,13 +8171,6 @@
  },
  {
   "t": "Odkaz pro trenéra vytvořen",
-  "files": [
-   "coach.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Odkaz zkopírován",
   "files": [
    "coach.tsx"
   ],
@@ -8205,7 +8388,8 @@
  {
   "t": "pondělí",
   "files": [
-   "coach.tsx"
+   "coach.tsx",
+   "dayedit.tsx"
   ],
   "kind": "str"
  },
@@ -8632,7 +8816,8 @@
  {
   "t": "úterý",
   "files": [
-   "coach.tsx"
+   "coach.tsx",
+   "dayedit.tsx"
   ],
   "kind": "str"
  },
@@ -9145,14 +9330,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Kopírovat",
-  "files": [
-   "coachview.tsx",
-   "datapage.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Kopírovat týden",
   "files": [
    "coachview.tsx"
@@ -9172,13 +9349,6 @@
    "coachview.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Nepovedlo se",
-  "files": [
-   "coachview.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Odebrat",
@@ -10724,6 +10894,263 @@
    "datapage.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Běhací dny bez {} — plán se přepočítal",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Běhací dny musí být aspoň dva — upravte je v Cíl → Můj týden",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Běhací dny se nepodařilo uložit",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Co se tím změní ve zbytku týdne",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "čtvrtku",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Délka",
+  "files": [
+   "dayedit.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Den je zpět podle návrhu aplikace",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Možnosti se nepodařilo načíst.",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "mt-0.5 block text-[12px] leading-[17px] {}",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "nejvýš {} {} pod stropy",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Nic dalšího — ostatní dny zůstanou, jak jsou.",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nikdy nemůžu běhat {} → upravit běhací dny",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Nový plán dne: {}",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "pátku",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán týdne je přepočítaný",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Počítám, co se na tento den vejde…",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Potvrdit a přepočítat týden",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přesunout „{}\" na jiný den",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "s úpravou",
+  "files": [
+   "dayedit.tsx",
+   "outlook.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "středy",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "teď",
+  "files": [
+   "dayedit.tsx",
+   "goal.tsx",
+   "ui.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Teď v plánu: {}",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "text-[14px] {}",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Tohle plán nedovolí",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "v neděli",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "v pátek",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "v pondělí",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "v sobotu",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "v úterý",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "ve čtvrtek",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "ve středu",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Velikost tréninku",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vrátit návrh aplikace",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vzdálenost",
+  "files": [
+   "dayedit.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Změnit trénink",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Změnu se nepodařilo uložit",
+  "files": [
+   "dayedit.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "· obvykle {}",
@@ -14047,14 +14474,6 @@
   "kind": "jsx"
  },
  {
-  "t": "teď",
-  "files": [
-   "goal.tsx",
-   "ui.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Tento cíl v termínu nestihne ani riziková cesta, proto ho aplikace neuloží. Použijte nejlepší bezpečný cíl nebo pozdější termín.",
   "files": [
    "goal.tsx"
@@ -17264,18 +17683,18 @@
   "kind": "str"
  },
  {
-  "t": "inset(0 0 0 50%)",
+  "t": "inset(0 {}% 0 0)",
   "files": [
    "MuscleAnatomy.tsx"
   ],
-  "kind": "str"
+  "kind": "tpl"
  },
  {
-  "t": "inset(0 50% 0 0)",
+  "t": "inset(0 0 0 {}%)",
   "files": [
    "MuscleAnatomy.tsx"
   ],
-  "kind": "str"
+  "kind": "tpl"
  },
  {
   "t": "Klepněte na bod – vyberte stranu (L/P), sval, šlachu nebo chodidlo",
@@ -17692,6 +18111,27 @@
   "kind": "str"
  },
  {
+  "t": "Tréninky ve vašem kalendáři",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "U každého dne v Tréninku → Den po dni klepněte na Změnit. Aplikace u každé možnosti řekne, jestli se vejde, a když ne, nabídne jinou. Zbytek týdne se přepočítá podle týdenních limitů.",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "V profilu → Tréninky v kalendáři si plán týdne přidáte do Apple nebo Google Kalendáře. Aktualizuje se sám.",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Výchozí pár, spárování s botami z Garminu a kilometry pro každý pár zvlášť (profil → Boty).",
   "files": [
    "news.tsx"
@@ -17707,6 +18147,13 @@
  },
  {
   "t": "Výhled začíná zítřejším dnem z plánu týdne a slabší noc bere z vašich nocí. Deník nahoře shrnuje týden a měsíc.",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Změna tréninku v plánu týdne",
   "files": [
    "news.tsx"
   ],
@@ -19400,13 +19847,6 @@
    "outlook.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "s úpravou",
-  "files": [
-   "outlook.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Sedí do limitů na zítra.",
@@ -22186,6 +22626,27 @@
   "kind": "tpl"
  },
  {
+  "t": "vaše volba",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "vaše volba · {}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Vaše změna už nejde{}",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "včera",
   "files": [
    "report.tsx"
@@ -22464,6 +22925,13 @@
    "report.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Změnit",
+  "files": [
+   "report.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Zpět na obvyklé vstávání v {}",
@@ -27405,13 +27873,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Délka",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "délka × plánované tempo",
   "files": [
    "training.tsx"
@@ -28775,13 +29236,6 @@
    "training.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Vzdálenost",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "w-full rounded-[11px] px-1.5 py-2 text-center text-[12px] font-bold leading-tight transition disabled:cursor-not-allowed {}",

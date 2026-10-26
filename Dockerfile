@@ -25,6 +25,8 @@ RUN pip install -r requirements.txt
 # i.e. one level above backend/ (FRONTEND_DIR = dirname(BACKEND_DIR)).
 COPY backend/ /app/backend/
 COPY --from=web /web/dist /app/frontend/dist
+# the fixed English dictionary, for texts outside the browser (the calendar feed: app/i18n_static.py)
+COPY --from=web /web/src/i18n/en.json /app/frontend/src/i18n/en.json
 
 # Railway/most PaaS inject $PORT; default to 8000 for local `docker run`.
 # --proxy-headers so the app sees the real https scheme + client IP behind the

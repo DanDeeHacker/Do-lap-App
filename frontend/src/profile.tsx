@@ -10,6 +10,7 @@ import { useApp } from "@/store"
 import { Field, HowTo, Sheet, useAsync, useToast } from "@/ui"
 import { fmtD } from "@/lib"
 import { ZoneCheck } from "@/fitness"
+import { CalendarSync } from "@/calendarsync"
 import { C } from "@/tokens"
 
 const todayIso = () => new Date().toLocaleDateString("sv-SE")
@@ -242,6 +243,7 @@ export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => 
         <button onClick={save} disabled={busy} className="btn btn-primary flex-1 py-3 text-sm">{busy ? "Ukládám…" : "Uložit profil"}</button>
         <button onClick={onClose} className="btn btn-outline px-5 py-3 text-sm">Zavřít</button>
       </div>
+      {open && me?.runner_id && <CalendarSync rid={me.runner_id} />}
       {open && me?.runner_id && <Shoes rid={me.runner_id} />}
     </Sheet>
   )

@@ -226,17 +226,30 @@ def _plan(a, db, rid):
     return out
 
 
-def _week_plan(a, db, rid, today):
-    """The calendar week laid out by week_plan.py, with the Runner's must-have session due next."""
+def _program(db, rid):
+    """The active Runner's must-have with the session due next, or None."""
     progs = db.query(models.SelfProgram).filter(models.SelfProgram.runner_id == rid, models.SelfProgram.active.is_(True)).all()
     prog = next((x for x in progs if x.template == "durability"), None)
-    program = None
-    if prog is not None:
-        hist = (prog.state or {}).get("history") or []
-        last = hist[-1] if hist else None
-        program = {"name": prog.name, "due": "B" if (last and last.get("session") == "A") else "A",
-                   "last": last.get("date") if last else None}
-    return WP.build(a, today, program)
+    if prog is None:
+        return None
+    hist = (prog.state or {}).get("history") or []
+    last = hist[-1] if hist else None
+    return {"name": prog.name, "due": "B" if (last and last.get("session") == "A") else "A",
+            "last": last.get("date") if last else None}
+
+
+def week_pins(db, rid, today) -> dict:
+    """The runner's own changes of this week's days (Plán týdne → Změnit)."""
+    r = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    ws = (today - timedelta(days=today.weekday())).isoformat()
+    we = (today + timedelta(days=6 - today.weekday())).isoformat()
+    return {k: v for k, v in (((r.planner_json if r else None) or {}).get("dayPins") or {}).items() if ws <= k <= we}
+
+
+def _week_plan(a, db, rid, today):
+    """The calendar week laid out by week_plan.py, with the Runner's must-have session due next
+    and the runner's own changes of the days."""
+    return WP.build(a, today, _program(db, rid), week_pins(db, rid, today))
 
 
 def _week(a, db, rid, today):

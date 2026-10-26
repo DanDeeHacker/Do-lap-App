@@ -11,6 +11,7 @@ import { useQuadHistory } from "@/history"
 import { ReadinessTrend } from "@/tabs"
 import { DayReadiness, DayToday, useDayToday } from "@/daytoday"
 import { PlanDay, WeekStrip, itemSummary } from "@/report"
+import { DayEditSheet } from "@/dayedit"
 import { AlertBanner, Button, Card, Chip, HowTo, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { readinessCol } from "@/capacity"
@@ -1237,8 +1238,10 @@ function ActivityRow({ g, onPick }: { g: any; onPick: (k: string) => void }) {
 }
 
 // the week: the same planner as the Monday sheet and the evening report (week_plan.py)
-function WeekCard({ g, plan }: { g: any; plan: any }) {
+function WeekCard({ g, plan, rid, onPlan }: { g: any; plan: any; rid?: string; onPlan?: (p: any) => void }) {
   const [open, setOpen] = useState(false)
+  const [edit, setEdit] = useState<any>(null)
+  const canEdit = !!rid && !!onPlan && !!plan?.totals && plan?.mode !== "coach"
   const wk = g.week || {}
   const vol = wk.channels?.volume || {}
   const cyc = wk.cycle || {}
@@ -1282,7 +1285,7 @@ function WeekCard({ g, plan }: { g: any; plan: any }) {
       {open && (
         <div className="mt-3 grid origin-top animate-[careReveal_.28s_ease-out] gap-3">
           {plan && !plan.override && days.length > 0 && (
-            <ul className="divide-y divide-white/[.06]" data-no-tap data-testid="week-days">{days.map((d) => <PlanDay key={d.date} d={d} />)}</ul>
+            <ul className="divide-y divide-white/[.06]" data-no-tap data-testid="week-days">{days.map((d) => <PlanDay key={d.date} d={d} onEdit={canEdit ? setEdit : undefined} />)}</ul>
           )}
           {plan?.notes?.length > 0 && (
             <ul className="grid gap-1.5 text-[12.5px] leading-5 text-fg-soft">
@@ -1293,6 +1296,7 @@ function WeekCard({ g, plan }: { g: any; plan: any }) {
           {cyc.next && <NextWeek cyc={cyc} />}
         </div>
       )}
+      {edit && rid && onPlan && <DayEditSheet rid={rid} day={edit} onClose={() => setEdit(null)} onPlan={onPlan} />}
     </section>
   )
 }
@@ -1455,7 +1459,7 @@ export function Training() {
               <ActivityRow g={g} onPick={setSel} />
               {rid && !touring && <DataGapCard rid={rid} />}
               {rid && !touring && <GoalCard rid={rid} gg={g.goal} />}
-              <WeekCard g={g} plan={plan} />
+              <WeekCard g={g} plan={plan} rid={touring ? undefined : rid} onPlan={setPlan} />
             </>
           )}
         </div>

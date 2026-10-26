@@ -2,7 +2,7 @@
 // on Dnes for accounts that existed before it (a new account has nothing "new"), never over the
 // morning or evening report; the whole list stays in the profile menu.
 import { useEffect, useState } from "react"
-import { CalendarDays, Footprints, LayoutGrid, Route, Sparkles, type LucideIcon } from "lucide-react"
+import { CalendarDays, CalendarPlus, Footprints, LayoutGrid, Route, Shuffle, Sparkles, type LucideIcon } from "lucide-react"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { useReport } from "@/report"
@@ -11,6 +11,12 @@ import { Button, Label, Sheet } from "@/ui"
 type Release = { id: string; date: string; items: [LucideIcon, string, string][] }
 // newest first; the id is what the account remembers as seen
 export const NEWS: Release[] = [
+  {
+    id: "2026-10-26", date: "2026-10-26", items: [
+      [Shuffle, "Změna tréninku v plánu týdne", "U každého dne v Tréninku → Den po dni klepněte na Změnit. Aplikace u každé možnosti řekne, jestli se vejde, a když ne, nabídne jinou. Zbytek týdne se přepočítá podle týdenních limitů."],
+      [CalendarPlus, "Tréninky ve vašem kalendáři", "V profilu → Tréninky v kalendáři si plán týdne přidáte do Apple nebo Google Kalendáře. Aktualizuje se sám."],
+    ],
+  },
   {
     id: "2026-10-14", date: "2026-10-14", items: [
       [Route, "Detail běhu", "Trasa (vidíte ji jen vy), mezičasy a průběh tempa a tepu. Otevřete ho z Deníku i ze seznamů běhů na Mechanice a Zátěži, kde běh poznáte podle tvaru trasy."],

@@ -1404,6 +1404,28 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if xt_pick:
         typ = xt_pick
 
+    # owner request 2026-10-26 — the runner's own change of today in Plán týdne: it stands when this
+    # morning's data allow that type (the same verdicts the day's options show), else today's pick does
+    pin_today = None
+    dp = (((getattr(db.runner, "planner_json", None) or {}).get("dayPins") or {}).get(t_iso)
+          if db.runner is not None else None)
+    if dp and dp.get("type") in types and not race_today and not today_runs:
+        pt = types[dp["type"]]
+        if pt.get("allowed") and not (override and dp["type"] != "volno"):
+            typ = dp["type"]
+            pin_today = {"type": typ, "applied": True}
+            want = dp.get("km")
+            km_ = pt.get("km") if isinstance(pt.get("km"), dict) else None
+            if want and km_ and typ in RUN_TYPES and km_.get("hi"):
+                hi = min(float(want), km_.get("max") or km_["hi"]) if km_.get("max") else min(float(want), km_["hi"])
+                f = hi / km_["hi"] if km_["hi"] else 1.0
+                km_["hi"], km_["lo"] = _r(hi), _r(min(km_.get("lo") or hi, 0.85 * hi))
+                if pt.get("durationMin") and f:
+                    pt["durationMin"] = (round(pt["durationMin"][0] * min(1.0, f)), round(pt["durationMin"][1] * f))
+        else:
+            pin_today = {"type": dp["type"], "applied": False,
+                         "why": (override or {}).get("title") or pt.get("why") or "Podle ranních dat to dnes nejde."}
+
     # ---- feedback #154/#158: an activity already done today shapes the rest of the day
     today_other = [x for x in sessions if not x["run"] and x["date"] == t_iso and x.get("sport") != "walking"]
     after_done = _after_done(typ, types, today_runs, today_other, vol_max, override, race_today)
@@ -1895,7 +1917,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                      "weekPlan": {c: _r(v, C.CHANNELS[c]["dec"]) for c, v in (coach_week or {}).items()} or None}
 
     return {
-        "date": t_iso, "engine": "v3", "type": typ, "typeLabel": TYPE_LABEL[typ],
+        "date": t_iso, "engine": "v3", "type": typ, "typeLabel": TYPE_LABEL[typ], "pin": pin_today,
         "provisional": provisional, "override": override, "referral": decision if referral else None,
         "pain": pain or 0, "readiness": ready, "readinessScore": rscore, "checkinReadiness": gscore if gscore < rscore else None,
         "types": types,

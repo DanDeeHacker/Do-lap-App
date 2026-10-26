@@ -68,6 +68,8 @@ const qs = (o: Record<string, string | number | undefined>) =>
     .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
     .join("&")
 
+export type DayPin = { date: string; type: string; km?: number | null; min?: number | null; session?: string | null; move_to?: string | null }
+
 export const api = {
   // auth
   authMe: () => call("GET", "/api/auth/me", undefined, { skipAuthRedirect: true }),
@@ -145,6 +147,15 @@ export const api = {
   saveDayTags: (id: string, body: { date?: string; tags: string[] }) => call("PUT", `/api/runners/${id}/day-tags`, body),
   dayToday: (id: string) => call("GET", `/api/runners/${id}/day-today`),
   weekPlan: (id: string) => call("GET", `/api/runners/${id}/week-plan`),
+  // Plán týdne → Změnit (owner 2026-10-26): the day's options, one change's preview, save / undo
+  weekPlanOptions: (id: string, day: string) => call("GET", `/api/runners/${id}/week-plan/options?day=${day}`),
+  weekPlanPreview: (id: string, body: DayPin) => call("POST", `/api/runners/${id}/week-plan/preview`, body),
+  weekPlanPin: (id: string, body: DayPin) => call("PUT", `/api/runners/${id}/week-plan/pins`, body),
+  weekPlanUnpin: (id: string, day: string) => call("DELETE", `/api/runners/${id}/week-plan/pins/${day}`),
+  // Profil → Kalendář (owner 2026-10-26): the secret .ics link Apple / Google Calendar subscribe to
+  calendarFeed: (id: string) => call("GET", `/api/runners/${id}/calendar-feed`),
+  calendarFeedNew: (id: string) => call("POST", `/api/runners/${id}/calendar-feed`, {}),
+  calendarFeedStop: (id: string) => call("DELETE", `/api/runners/${id}/calendar-feed`),
   reportAi: (id: string, kind: "morning" | "evening") => call("POST", `/api/runners/${id}/report/ai?kind=${kind}`, {}),
   finishSelfProgram: (id: string, pid: number, feel: string, extra: { easier?: boolean; sets?: Record<string, number> } = {}) =>
     call("POST", `/api/runners/${id}/self-programs/${pid}/finish`, { feel, ...extra }),

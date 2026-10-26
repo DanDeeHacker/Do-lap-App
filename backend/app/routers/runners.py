@@ -1249,6 +1249,106 @@ def get_week_plan(rid: str, user: models.User = Depends(get_current_user), db: D
     return {"plan": DR._week_plan(a, db, rid, E.today_date())}
 
 
+def _pin_of(body: schemas.DayPinRequest) -> dict:
+    from ..metrics import week_plan as WP
+    if body.type not in WP.PIN_TYPES:
+        raise HTTPException(status_code=422, detail="Neznámý typ tréninku")
+    pin = {"type": body.type}
+    if body.km is not None and body.type in WP.PIN_RUN:
+        if not 0 < body.km <= 100:
+            raise HTTPException(status_code=422, detail="Zkontrolujte kilometry")
+        pin["km"] = round(body.km, 1)
+    if body.min is not None and body.type in ("kolo", "voda"):
+        if not 0 < body.min <= 300:
+            raise HTTPException(status_code=422, detail="Zkontrolujte minuty")
+        pin["min"] = int(body.min)
+    if body.session in ("A", "B") and body.type == "posilování":
+        pin["session"] = body.session
+    return pin
+
+
+def _day_in_week(d: str) -> str:
+    try:
+        x = date.fromisoformat(d[:10])
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Neplatné datum") from None
+    t = E.today_date()
+    if x < t or x > t + timedelta(days=6 - t.weekday()):
+        raise HTTPException(status_code=422, detail="Měnit jde jen dnešek a zbytek tohoto týdne")
+    return x.isoformat()
+
+
+@router.get("/{rid}/week-plan/options")
+def week_plan_options(rid: str, day: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Plán týdne → Změnit: every type for the day with the app's verdict, size, slider and alternatives."""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import daily_report as DR
+    from ..metrics import week_plan as WP
+    today = E.today_date()
+    a = E.get_or_refresh_assessment(db, rid)
+    return WP.options(a, today, DR._program(db, rid), DR.week_pins(db, rid, today), _day_in_week(day))
+
+
+@router.post("/{rid}/week-plan/preview", dependencies=[Depends(verify_csrf)])
+def week_plan_preview(rid: str, body: schemas.DayPinRequest, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """One change with its size (or a move to another day): the verdict and what else in the week it moves."""
+    ensure_runner_read_access(db, user, rid)
+    from ..metrics import daily_report as DR
+    from ..metrics import week_plan as WP
+    today = E.today_date()
+    a = E.get_or_refresh_assessment(db, rid)
+    return WP.preview(a, today, DR._program(db, rid), DR.week_pins(db, rid, today), _day_in_week(body.date),
+                      _pin_of(body), _day_in_week(body.move_to) if body.move_to else None)
+
+
+@router.put("/{rid}/week-plan/pins", dependencies=[Depends(verify_csrf)])
+def week_plan_pin(rid: str, body: schemas.DayPinRequest, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Save the runner's change of a day (or a move); the week is laid again around it. A change the
+    rules don't allow is refused with its reason — the sheet offers the alternatives."""
+    ensure_runner_self(user, rid)
+    from ..metrics import daily_report as DR
+    from ..metrics import week_plan as WP
+    today = E.today_date()
+    day, pin = _day_in_week(body.date), _pin_of(body)
+    move_to = _day_in_week(body.move_to) if body.move_to else None
+    a = E.get_or_refresh_assessment(db, rid)
+    pins = DR.week_pins(db, rid, today)
+    pv = WP.preview(a, today, DR._program(db, rid), pins, day, pin, move_to)
+    if pv["status"] == "no":
+        raise HTTPException(status_code=422, detail=pv.get("why") or "Tuhle změnu plán týdne nedovolí.")
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    pj = dict(r.planner_json or {})
+    ws = (today - timedelta(days=today.weekday())).isoformat()
+    keep = {k: v for k, v in (pj.get("dayPins") or {}).items() if k >= ws}      # last weeks' changes are history
+    stamp = {"at": E.now_iso()}
+    if move_to:
+        keep[day] = {"type": "volno", **stamp}
+        keep[move_to] = {**pin, **stamp}
+    else:
+        keep[day] = {**pin, **stamp}
+    pj["dayPins"] = keep
+    r.planner_json = pj
+    db.commit()
+    a = E.recompute_assessment(db, rid, data_changed=False)
+    return {"plan": DR._week_plan(a, db, rid, today)}
+
+
+@router.delete("/{rid}/week-plan/pins/{day}", dependencies=[Depends(verify_csrf)])
+def week_plan_unpin(rid: str, day: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """Back to the app's own proposal for the day."""
+    ensure_runner_self(user, rid)
+    from ..metrics import daily_report as DR
+    r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
+    pj = dict(r.planner_json or {})
+    pins = dict(pj.get("dayPins") or {})
+    pins.pop(day[:10], None)
+    pj["dayPins"] = pins
+    r.planner_json = pj
+    db.commit()
+    a = E.recompute_assessment(db, rid, data_changed=False)
+    return {"plan": DR._week_plan(a, db, rid, E.today_date())}
+
+
 def _report_lang(db, r: dict, request) -> dict:
     """British English card notes when the app asks for it (the rest is translated in the page)."""
     if (request.headers.get("X-Doslap-Lang") or "").lower() != "en":

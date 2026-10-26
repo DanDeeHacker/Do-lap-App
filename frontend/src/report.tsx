@@ -622,12 +622,15 @@ function ItemDetail({ it }: { it: any }) {
   )
 }
 
-export function PlanDay({ d }: { d: any }) {
+export function PlanDay({ d, onEdit }: { d: any; onEdit?: (d: any) => void }) {
   const [open, setOpen] = useState(!!d.today)
   const rich = d.items.some((it: any) => it.kind !== "rest" && it.kind !== "done")
+  // Plán týdne → Změnit (owner 2026-10-26): today and the days ahead, not a race or a finished day
+  const editable = !!onEdit && !d.past && !d.items.some((it: any) => it.kind === "race" || it.kind === "done")
   return (
     <li className={`py-2 ${d.today ? "rounded-[12px] bg-white/[.05] px-2 -mx-2" : ""}`} data-testid={`plan-day-${d.date}`}>
-      <button type="button" onClick={() => rich && setOpen(!open)} aria-expanded={rich ? open : undefined} className="flex w-full items-start gap-3 text-left">
+      <div className="flex items-start gap-2">
+      <button type="button" onClick={() => rich && setOpen(!open)} aria-expanded={rich ? open : undefined} className="flex min-w-0 flex-1 items-start gap-3 text-left">
         <span className="w-9 shrink-0 pt-px">
           <b className={`block text-[13px] leading-4 ${d.today ? "text-accent" : d.past ? "text-fg-3" : "text-fg"}`}>{d.wd}</b>
           <span className="text-[10.5px] text-fg-3">{dm(d.date)}</span>
@@ -645,6 +648,13 @@ export function PlanDay({ d }: { d: any }) {
         </span>
         {rich && <ChevronRight className={`mt-0.5 size-4 shrink-0 text-fg-3 transition ${open ? "rotate-90" : ""}`} aria-hidden />}
       </button>
+      {editable && (
+        <button type="button" onClick={() => onEdit!(d)} data-testid={`plan-edit-${d.date}`}
+          className="shrink-0 rounded-full border border-white/12 px-2.5 py-1 text-[11px] font-bold text-fg-2 hover:border-accent/50 hover:text-fg">Změnit</button>
+      )}
+      </div>
+      {d.pinned && <p className="ml-12 mt-0.5 text-[11px] font-semibold text-accent">{d.pin?.status === "mod" && d.pin?.why ? `vaše volba · ${d.pin.why}` : "vaše volba"}</p>}
+      {d.pin?.status === "no" && !d.past && <p className="ml-12 mt-0.5 text-[11px] leading-4 text-watch">{`Vaše změna už nejde${d.pin.why ? `: ${d.pin.why}` : ""}`}</p>}
       {open && rich && (
         <div className="ml-12 mt-1 space-y-2 animate-[careReveal_.25s_ease-out]">
           {d.items.map((it: any, k: number) => <ItemDetail key={k} it={it} />)}

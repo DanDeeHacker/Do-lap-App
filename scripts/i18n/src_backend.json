@@ -1258,7 +1258,8 @@
    "metrics/guidance.py",
    "metrics/mobility.py",
    "metrics/week_plan.py",
-   "outcomes.py"
+   "outcomes.py",
+   "routers/runners.py"
   ]
  },
  {
@@ -1378,6 +1379,277 @@
   "t": "{} × {} s každá strana",
   "files": [
    "durability.py"
+  ]
+ },
+ {
+  "t": "Apr",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Aug",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Dec",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Feb",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Fri",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Friday",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Jan",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Jul",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Jun",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Mar",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "May",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Mon",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Monday",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Nov",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Oct",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Sat",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Saturday",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Sep",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Sun",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Sunday",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Thu",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Thursday",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Tue",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Tuesday",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Wed",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "Wednesday",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "[A-Za-zÀ-ž]",
+  "files": [
+   "i18n_static.py"
+  ]
+ },
+ {
+  "t": "neděle",
+  "files": [
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "neděli",
+  "files": [
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "pondělí",
+  "files": [
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "pá",
+  "files": [
+   "i18n_static.py",
+   "metrics/daily_report.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "pátek",
+  "files": [
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "středa",
+  "files": [
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "středu",
+  "files": [
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "út",
+  "files": [
+   "i18n_static.py",
+   "metrics/daily_report.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "úterý",
+  "files": [
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "čt",
+  "files": [
+   "i18n_static.py",
+   "metrics/daily_report.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "čtvrtek",
+  "files": [
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
   ]
  },
  {
@@ -1916,7 +2188,8 @@
  {
   "t": "Klesání",
   "files": [
-   "metrics/capacity.py"
+   "metrics/capacity.py",
+   "routers/calendar.py"
   ]
  },
  {
@@ -2000,7 +2273,8 @@
  {
   "t": "Stoupání",
   "files": [
-   "metrics/capacity.py"
+   "metrics/capacity.py",
+   "routers/calendar.py"
   ]
  },
  {
@@ -2293,6 +2567,7 @@
   "t": "Zátěž i mechanika sedí na vlastní normě.",
   "files": [
    "metrics/coach_facts.py",
+   "metrics/coach_texts.py",
    "metrics/sig_doc.py"
   ]
  },
@@ -2610,7 +2885,8 @@
    "metrics/guidance.py",
    "metrics/mobility.py",
    "metrics/week_plan.py",
-   "mobility_library.py"
+   "mobility_library.py",
+   "routers/calendar.py"
   ]
  },
  {
@@ -2627,7 +2903,8 @@
    "metrics/guidance.py",
    "metrics/mobility.py",
    "metrics/week_plan.py",
-   "mobility_library.py"
+   "mobility_library.py",
+   "routers/calendar.py"
   ]
  },
  {
@@ -2638,23 +2915,6 @@
    "metrics/mobility.py",
    "metrics/week_plan.py",
    "mobility_library.py"
-  ]
- },
- {
-  "t": "neděle",
-  "files": [
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
-  "t": "neděli",
-  "files": [
-   "metrics/coach_plan.py",
-   "plan_import.py"
   ]
  },
  {
@@ -2670,29 +2930,9 @@
   ]
  },
  {
-  "t": "pondělí",
-  "files": [
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
   "t": "pondělím",
   "files": [
    "metrics/coach_plan.py"
-  ]
- },
- {
-  "t": "pátek",
-  "files": [
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
   ]
  },
  {
@@ -2708,26 +2948,9 @@
   ]
  },
  {
-  "t": "středa",
-  "files": [
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
   "t": "středou",
   "files": [
    "metrics/coach_plan.py"
-  ]
- },
- {
-  "t": "středu",
-  "files": [
-   "metrics/coach_plan.py",
-   "plan_import.py"
   ]
  },
  {
@@ -2779,29 +3002,9 @@
   ]
  },
  {
-  "t": "úterý",
-  "files": [
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
   "t": "úterým",
   "files": [
    "metrics/coach_plan.py"
-  ]
- },
- {
-  "t": "čtvrtek",
-  "files": [
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
   ]
  },
  {
@@ -2884,6 +3087,12 @@
  },
  {
   "t": "Spánek v průměru {} h",
+  "files": [
+   "metrics/coach_texts.py"
+  ]
+ },
+ {
+  "t": "Stabil",
   "files": [
    "metrics/coach_texts.py"
   ]
@@ -3523,33 +3732,9 @@
   ]
  },
  {
-  "t": "pá",
-  "files": [
-   "metrics/daily_report.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
   "t": "víc",
   "files": [
    "metrics/daily_report.py"
-  ]
- },
- {
-  "t": "út",
-  "files": [
-   "metrics/daily_report.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
-  "t": "čt",
-  "files": [
-   "metrics/daily_report.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
   ]
  },
  {
@@ -4349,6 +4534,7 @@
   "t": "Tempo",
   "files": [
    "metrics/engine.py",
+   "routers/calendar.py",
    "seed.py"
   ]
  },
@@ -6842,6 +7028,13 @@
   "t": "Po tvrdém běhu až s odstupem aspoň 3 hodin, před tvrdým během aspoň 24 hodin.",
   "files": [
    "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Podle ranních dat to dnes nejde.",
+  "files": [
+   "metrics/guidance.py",
+   "metrics/week_plan.py"
   ]
  },
  {
@@ -10582,13 +10775,55 @@
   ]
  },
  {
+  "t": "Celková zátěž tento týden už další trénink neunese.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Cyklus nastavíme po 4 týdnech dat · cílem je vaše kapacita",
   "files": [
    "metrics/week_plan.py"
   ]
  },
  {
+  "t": "Den se závodem nebo s hotovým tréninkem se nemění.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Dlouhý běh se do týdne vejde jen jednou.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Dlouhý běh už tento týden máte za sebou.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Dnešní trénink už máte hotový.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Držte lehké běhy v Z2 — objem roste bezpečně a tělo zůstává pod stropem kapacity.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Dva dny po závodě bez dlouhého běhu.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Dva dny před závodem a po něm bez tvrdého tréninku.",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -10618,6 +10853,18 @@
   ]
  },
  {
+  "t": "Kratší, než jste chtěli — víc celková zátěž týdne neunese.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Kratší, než jste chtěli — víc nedovolí týdenní cíl nebo strop kapacity.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Ladění formy před závodem",
   "files": [
    "metrics/week_plan.py"
@@ -10630,13 +10877,61 @@
   ]
  },
  {
+  "t": "Mechanika se odchyluje od vaší normy — tento týden bez intenzity.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Možný začátek nemoci — první dva dny bez posilování.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Na dlouhý běh tento týden nezbývá objem — týdenní cíl je skoro splněný.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Na dlouhý běh tento týden nezbývá objem.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Na plán týdne zatím chybí data o vaší týdenní kapacitě — stačí pár týdnů běhů.",
   "files": [
    "metrics/week_plan.py"
   ]
  },
  {
+  "t": "Na plán týdne zatím chybí data o vaší týdenní kapacitě.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Na tento den se posilování podle pravidel nehodí.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Na tento den se to podle pravidel týdne nevejde.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Na tento týden zatím není plán od trenéra — vložte ho v Tréninku. Do té doby platí jen bezpečnostní limity.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Na tvrdý trénink tento týden nezbývá rozpočet intenzity.",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -10684,6 +10979,12 @@
   ]
  },
  {
+  "t": "Nízká připravenost nebo možný začátek nemoci — první dva dny bez {}.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Odběhnuto",
   "files": [
    "metrics/week_plan.py"
@@ -10702,7 +11003,25 @@
   ]
  },
  {
+  "t": "Plán běhu je teď pozastavený: {}",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Plán k cíli · {}, {}. týden z {}",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Po závodě ještě regenerace — bez {} do {}. {}.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Pod stropy kapacity na tento den už běh nezbývá.",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -10714,13 +11033,37 @@
   ]
  },
  {
+  "t": "Posilování aspoň 48 hodin od sebe.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Posilování aspoň 48 hodin od toho posledního.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Posilování ne den před tvrdým nebo dlouhým během, těžší A ani v ten den a den po něm.",
   "files": [
    "metrics/week_plan.py"
   ]
  },
  {
+  "t": "Posilování ne den před tvrdým nebo dlouhým během.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Posilování se tento týden vejde jen {}× — kolem tvrdých a dlouhých běhů a závodů na něj nezbývá den, který by ho unesl.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Posilování {}",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -10744,6 +11087,18 @@
   ]
  },
  {
+  "t": "Tento den se změnit nedá.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Tvrdé dny musí být aspoň 48 hodin od sebe a ne vedle dlouhého běhu nebo závodu.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Tvrdé tréninky aspoň 48 hodin od sebe a ne vedle dlouhého běhu, nejvýš {} za týden.",
   "files": [
    "metrics/week_plan.py"
@@ -10751,6 +11106,12 @@
  },
  {
   "t": "Tvrdý trénink se z dneška přesunul na {}: HRV je dnes pod vaším běžným pásmem.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Tvrdých tréninků už je tento týden dost — nejvýš {} za týden.",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -10768,6 +11129,12 @@
   ]
  },
  {
+  "t": "Týden před závodem bez dlouhého běhu.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Týden před závodem jen lehčí silová B: poslední těžší posilování má být 7–10 dní před startem.",
   "files": [
    "metrics/week_plan.py"
@@ -10780,13 +11147,37 @@
   ]
  },
  {
+  "t": "Těžší silová A se na tento den nehodí (vedle tvrdého nebo dlouhého běhu) — místo ní B.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Těžší silová A se tento týden nevejde mezi tvrdé dny — místo ní lehčí B, A přijde příště.",
   "files": [
    "metrics/week_plan.py"
   ]
  },
  {
+  "t": "Tři dny před závodem bez posilování.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "V den dlouhého běhu bez posilování.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
   "t": "Zbylých {} km se do týdne nevejde bez překročení stropu jednoho běhu nebo týdenní kapacity. Cíl je horní hranice, ne povinnost.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "Zátěž je zvýšená — tento týden bez {}.",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -10799,6 +11190,12 @@
  },
  {
   "t": "Závod {}: {} — dva dny před ním a po něm bez tvrdého tréninku, tři dny před ním bez posilování, týden bez dlouhého běhu.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "dlouhého běhu",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -10859,6 +11256,12 @@
  },
  {
   "t": "{} — tento týden bez intenzity a dlouhého běhu, běhy kratší a po rovině, dokud se to neuklidní.",
+  "files": [
+   "metrics/week_plan.py"
+  ]
+ },
+ {
+  "t": "{} — tento týden bez {}.",
   "files": [
    "metrics/week_plan.py"
   ]
@@ -15382,6 +15785,84 @@
   ]
  },
  {
+  "t": "Došlap · training",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "Došlap · trénink",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "Kalendář nenalezen — vytvořte nový odkaz v profilu.",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "Každé ráno Trénink den upraví podle připravenosti — aktuální verze je v aplikaci.",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "Kdy",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "Plán týdne z Došlapu — každé ráno ho Trénink upraví podle připravenosti.",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "Program",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "Tep",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "This week's plan from Došlap — every morning Training adjusts it to your readiness.",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "Trénink",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "Vaše volba v Plánu týdne.",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "{}–{} min · náročnost {}",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "Čas",
+  "files": [
+   "routers/calendar.py"
+  ]
+ },
+ {
   "t": "Nemáte přístup k tomuto závěru",
   "files": [
    "routers/conclusions.py"
@@ -15703,7 +16184,8 @@
  {
   "t": "Neznámý typ tréninku",
   "files": [
-   "routers/plan.py"
+   "routers/plan.py",
+   "routers/runners.py"
   ]
  },
  {
@@ -15950,6 +16432,12 @@
   ]
  },
  {
+  "t": "Měnit jde jen dnešek a zbytek tohoto týdne",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
   "t": "Nemáte přístup k tomuto cviku",
   "files": [
    "routers/runners.py"
@@ -16070,6 +16558,12 @@
   ]
  },
  {
+  "t": "Tuhle změnu plán týdne nedovolí.",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
   "t": "Týden cyklu musí být 1–4",
   "files": [
    "routers/runners.py"
@@ -16089,6 +16583,18 @@
  },
  {
   "t": "Zkontrolujte datum, délku (5–600 min) a náročnost (0–10)",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Zkontrolujte kilometry",
+  "files": [
+   "routers/runners.py"
+  ]
+ },
+ {
+  "t": "Zkontrolujte minuty",
   "files": [
    "routers/runners.py"
   ]

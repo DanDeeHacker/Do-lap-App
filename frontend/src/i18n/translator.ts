@@ -159,7 +159,7 @@ function translateCore(s: string, depth: number): string | null {
       const tr = sents.map((p) => translateCore(p, depth + 1))
       if (tr.some((x) => x != null)) return sents.map((p, k) => tr[k] ?? numbersEn(p)).join(" ")
     }
-    for (const sep of [" · ", " – ", " — ", ": "]) {
+    for (const sep of [" → ", " + ", " · ", " – ", " — ", ": "]) {
       if (s.includes(sep)) {
         // "Název: věta" — only the first colon is a label; the rest may hold one of its own
         const at = s.indexOf(sep)
