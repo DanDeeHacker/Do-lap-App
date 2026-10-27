@@ -15,10 +15,10 @@ type TeamMe = { role: string; perms: string[]; email: string; config: { github: 
 const ROLE: Record<string, string> = { owner: "vlastník", engineer: "inženýr", clinical: "klinický garant", support: "podpora", auditor: "auditor" }
 const STAGE: Record<string, [string, "ok" | "watch" | "alert" | "muted" | "info" | "load" | "accent"]> = {
   planned: ["Naplánováno", "muted"], queued: ["Ve frontě AI", "info"], in_progress: ["Rozpracováno", "load"],
-  needs_clinical: ["Čeká na klinika", "watch"], in_review: ["Ke kontrole", "info"], merged: ["Sloučeno", "ok"],
+  needs_clinical: ["Čeká na klinika", "watch"], needs_owner: ["Plán čeká na vlastníka", "watch"], in_review: ["Ke kontrole", "info"], merged: ["Sloučeno", "ok"],
   deployed: ["V produkci", "accent"], closed: ["Zavřeno", "muted"],
 }
-const STAGE_ORDER = ["needs_clinical", "in_review", "in_progress", "queued", "planned", "merged", "deployed", "closed"]
+const STAGE_ORDER = ["needs_owner", "needs_clinical", "in_review", "in_progress", "queued", "planned", "merged", "deployed", "closed"]
 const CHECKS: Record<string, [string, "ok" | "watch" | "alert"]> = { success: ["CI zelené", "ok"], pending: ["CI běží", "watch"], failure: ["CI červené", "alert"] }
 const TYPE: Record<string, string> = { bug: "chyba", feature: "funkce", engine: "engine", safety: "bezpečnost", copy: "text" }
 
@@ -362,7 +362,7 @@ function WorkCard({ w }: { w: any }) {
       <p className="mt-1 font-semibold leading-[17px] text-fg">{w.title}</p>
       <div className="mt-1.5 flex flex-wrap gap-1">
         {w.checks && CHECKS[w.checks] && <Chip tone={CHECKS[w.checks][1]}>{CHECKS[w.checks][0]}</Chip>}
-        {w.labels.filter((l: string) => !["ai-ready", "from-app"].includes(l)).map((l: string) => <Chip key={l}><span translate="no">{l}</span></Chip>)}
+        {w.labels.filter((l: string) => !["ai-ready", "from-app", "ai-working", "ai-plan"].includes(l)).map((l: string) => <Chip key={l}><span translate="no">{l}</span></Chip>)}
       </div>
       {w.summary && <p className="mt-1.5 line-clamp-3 text-[12px] leading-[16px] text-fg-2">{w.summary}</p>}
     </li>

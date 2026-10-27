@@ -27793,6 +27793,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Plán čeká na vlastníka",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Poslat AI týmu",
   "files": [
    "teamconsole.tsx"

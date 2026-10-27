@@ -219,6 +219,11 @@ def test_stage_order():
     assert T.stage(pr, {}) == "deployed"
     issue = models.WorkItem(kind="issue", number=2, state="open", labels=["ai-ready"])
     assert T.stage(issue, {}) == "queued" and T.stage(issue, {2: pr}) == "deployed"
+    # the scheduled AI team's progress labels
+    issue.labels = ["ai-ready", "ai-working"]
+    assert T.stage(issue, {}) == "in_progress"
+    issue.labels = ["ai-ready", "ai-plan"]
+    assert T.stage(issue, {}) == "needs_owner"
 
 
 def test_a_physio_guarantor_signs_in_through_the_runner_form(client, monkeypatch):

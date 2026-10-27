@@ -319,7 +319,13 @@ def stage(w: models.WorkItem, prs_by_issue: dict) -> str:
             return stage(pr, {})
         if w.state == "closed":
             return "closed"
-        return "planned" if "ai-ready" not in (w.labels or []) else "queued"
+        labels = set(w.labels or [])
+        # the scheduled AI team marks its progress on the issue (owner request 2026-10-27, option 2)
+        if "ai-plan" in labels:
+            return "needs_owner"
+        if "ai-working" in labels:
+            return "in_progress"
+        return "queued" if "ai-ready" in labels else "planned"
     labels = set(w.labels or [])
     if w.state == "merged":
         return "deployed" if w.deployed else "merged"

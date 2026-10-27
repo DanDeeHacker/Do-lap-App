@@ -1,7 +1,9 @@
 # The AI engineering team on GitHub: an issue labelled `ai-ready` (Team Console → Inbox →
 # "Send to AI team") or a comment mentioning @claude starts a Claude Code run with gstack.
 # It works on a branch and opens a pull request; it never merges. Needs the repository secret
-# CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`) or ANTHROPIC_API_KEY.
+# CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`) or ANTHROPIC_API_KEY, and the repository variable
+# CLAUDE_ACTION = on. Off by default (owner decision 2026-10-27): the AI team runs as a scheduled
+# Claude Code session instead ("Došlap AI team"), which needs no token in GitHub.
 name: claude
 on:
   issues:
@@ -15,8 +17,9 @@ on:
 jobs:
   claude:
     if: |
+      vars.CLAUDE_ACTION == 'on' && (
       (github.event_name == 'issues' && github.event.label.name == 'ai-ready') ||
-      (github.event_name != 'issues' && contains(github.event.comment.body || github.event.review.body || '', '@claude'))
+      (github.event_name != 'issues' && contains(github.event.comment.body || github.event.review.body || '', '@claude')))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:

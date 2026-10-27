@@ -53,6 +53,11 @@ chat), `havlickova@fyzioholesovice.cz` / `demo1234` (physio).
 
 ## Workflow (gstack sprint with Došlap's gates)
 
+0. The AI team is the scheduled Claude Code session "Došlap AI team" (claude.ai/code, four times a
+   day). It takes one `ai-ready` issue per run, marks it `ai-working`, and for a feature or engine
+   change first posts a plan and labels the issue `ai-plan` until an owner comments "go". It fixes
+   its own open PRs (branches `ai/…`) before taking new work. The GitHub `claude` workflow is off
+   unless the repository variable `CLAUDE_ACTION` is `on`.
 1. Work arrives as a GitHub issue — usually from Admin → Team Console → Inbox ("Send to AI team",
    label `ai-ready`). Bugs: `/investigate`. Features: `/office-hours`, then `/autoplan`; post the
    plan on the issue and wait for an owner's go.
