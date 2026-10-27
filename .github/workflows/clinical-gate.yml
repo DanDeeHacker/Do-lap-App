@@ -1,0 +1,24 @@
+# Report Section 10: the clinical guarantor approves every change to the early-warning states.
+# A pull request labelled `engine` or `safety` can't merge until it carries `clinical-approved`,
+# which Došlap's Team Console → Approvals adds when the clinical reviewer signs off.
+# Make "clinical-gate" a required check in branch protection.
+name: clinical-gate
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+jobs:
+  clinical-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clinical sign-off for engine and safety changes
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          echo "labels: $LABELS"
+          needs=$(echo "$LABELS" | jq 'any(.[]; . == "engine" or . == "safety")')
+          ok=$(echo "$LABELS" | jq 'any(.[]; . == "clinical-approved")')
+          changes=$(echo "$LABELS" | jq 'any(.[]; . == "clinical-changes")')
+          if [ "$needs" != "true" ]; then echo "No engine or safety label: no clinical sign-off needed."; exit 0; fi
+          if [ "$changes" = "true" ]; then echo "::error::The clinical reviewer asked for changes (Team Console → Approvals)."; exit 1; fi
+          if [ "$ok" != "true" ]; then echo "::error::Engine or safety change: waiting for the clinical sign-off in Team Console → Approvals."; exit 1; fi
+          echo "Clinical sign-off present."

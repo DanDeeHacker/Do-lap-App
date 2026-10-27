@@ -1,0 +1,59 @@
+# The AI engineering team on GitHub: an issue labelled `ai-ready` (Team Console → Inbox →
+# "Send to AI team") or a comment mentioning @claude starts a Claude Code run with gstack.
+# It works on a branch and opens a pull request; it never merges. Needs the repository secret
+# CLAUDE_CODE_OAUTH_TOKEN (`claude setup-token`) or ANTHROPIC_API_KEY.
+name: claude
+on:
+  issues:
+    types: [labeled, assigned]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issues' && github.event.label.name == 'ai-ready') ||
+      (github.event_name != 'issues' && contains(github.event.comment.body || github.event.review.body || '', '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@v2
+      - name: Dependencies and gstack
+        run: |
+          pip install -q -r backend/requirements.txt pytest
+          (cd frontend && npm ci --no-audit --no-fund --loglevel=error)
+          git clone -q --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack
+          (cd ~/.claude/skills/gstack && ./setup --team --quiet --no-browser) || echo "gstack setup failed; continuing without it"
+          ~/.claude/skills/gstack/bin/gstack-config set codex_reviews disabled || true
+          ~/.claude/skills/gstack/bin/gstack-config set telemetry off || true
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          label_trigger: ai-ready
+          prompt: |
+            You are Došlap's AI engineering team. Follow CLAUDE.md exactly, including the data rules.
+            Bugs: run /investigate first. Features and engine changes: /office-hours, then /autoplan,
+            and post the plan as a comment before building anything large.
+            Work on a new branch, write tests, run the backend tests, the type check and the i18n merge,
+            run /review, then open a pull request that fills the template (including "Change for runners")
+            and links this issue with "Closes #<number>". Add the `engine` or `safety` label when the change
+            alters what runners are told about their health. Never merge and never push to main.
