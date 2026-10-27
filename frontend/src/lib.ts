@@ -80,7 +80,7 @@ export const PHASE: Record<string, string> = { offload: "odlehčení", rebuild: 
 
 // Runner-only build: everyone lands on the runner dashboard; non-runner
 // accounts are gated in Layout with a "runner-only" notice.
-export const roleHome = (_role: string) => "/app/today"
+export const roleHome = (role: string) => (role === "physio" ? "/physio" : "/app/today")
 
 // Czech plural: 1 → one, 2–4 → few, 0 / 5+ → many ("1 běh", "3 běhy", "5 běhů").
 export const plural = (n: number, one: string, few: string, many: string) => {

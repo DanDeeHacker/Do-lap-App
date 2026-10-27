@@ -31,6 +31,7 @@ import { Training } from "@/training"
 import { RouteError, TabBoundary, installCrashReporting } from "@/crash"
 import { AssistantProvider, CoachFab, WhyButton } from "@/assistant"
 import { AdminPage, ViewAsBanner } from "@/admin"
+import { PhysioApp } from "@/physio/app"
 import { RunDetail } from "@/rundetail"
 import { track, useUsageTracking } from "@/usage"
 import { startUpdateWatcher } from "@/updateCheck"
@@ -274,7 +275,10 @@ function Layout() {
       </div>
     )
   if (!me) return <Navigate to="/auth" replace />
+  // owner request 2026-10-27: physiotherapists get their own application (frontend/src/physio)
+  if (me.role === "physio") return <PhysioApp />
   if (me.role !== "runner") return me.team ? <TeamOnlyShell /> : <RunnerOnlyNotice />
+  if (pathname.startsWith("/physio")) return <Navigate to="/app/today" replace />
   // the admin view shows every tab, not the viewed runner's Data a připojení or the engine lab
   if (viewing && (pathname === "/data" || pathname.startsWith("/engine"))) return <Navigate to="/app/today" replace />
   if (pathname.startsWith("/engine") && !realMe?.owner) return <Navigate to="/app/today" replace />
@@ -1509,7 +1513,8 @@ function AuthForm({ initialMode = "register", onDemo, demoBusy = false, autoFocu
 }) {
   const nav = useNavigate()
   const { reloadMe } = useApp()
-  const role = "runner"
+  // owner request 2026-10-27: physiotherapists sign up and sign in here too (the physio app, /physio)
+  const [role, setRole] = useState<"runner" | "physio">("runner")
   const [mode, setMode] = useState<"login" | "register">(initialMode)
   useEffect(() => setMode(initialMode), [initialMode])
   const [email, setEmail] = useState("")
@@ -1556,7 +1561,13 @@ function AuthForm({ initialMode = "register", onDemo, demoBusy = false, autoFocu
             className={`rounded-full py-2 text-[13px] font-extrabold transition ${mode === m ? "bg-accent text-ink" : "text-fg-2 hover:text-fg"}`}>{t}</button>
         ))}
       </div>
-      <p className="mt-4 font-serif text-[22px] leading-tight">{mode === "login" ? "Vítejte zpět" : "Vytvořte si účet"}</p>
+      <div className="mt-3 flex items-center justify-center gap-1 text-[12px] font-bold" role="group" aria-label="Typ účtu">
+        {([["runner", "Běžec"], ["physio", "Fyzioterapeut"]] as const).map(([k, t]) => (
+          <button key={k} type="button" aria-pressed={role === k} data-testid={`auth-role-${k}`} onClick={() => { setRole(k); setErr(null) }}
+            className={`rounded-full px-3 py-1.5 transition ${role === k ? "bg-white/[.1] text-fg" : "text-fg-3 hover:text-fg"}`}>{t}</button>
+        ))}
+      </div>
+      <p className="mt-3 font-serif text-[22px] leading-tight">{mode === "login" ? "Vítejte zpět" : role === "physio" ? "Účet pro fyzioterapeuty" : "Vytvořte si účet"}</p>
       <p className="mt-1 text-[12.5px] text-fg-2">{mode === "login" ? "Přihlaste se e-mailem a heslem." : "Zabere to minutu, pak vás provede průvodce."}</p>
       {mode === "register" && (
         <input ref={first} className={`${input} mt-4`} aria-label="Jméno" autoComplete="name" placeholder="Jméno" value={name} onChange={(e) => setName(e.target.value)} />
@@ -2098,6 +2109,8 @@ const router = createBrowserRouter([
       { path: "/app/post/:aid", Component: RunDetail },
       { path: "/data", Component: DataPage },
       { path: "/admin", Component: AdminPage },
+      { path: "/physio", Component: () => null },        // the physio app renders from Layout (PhysioApp)
+      { path: "/physio/*", Component: () => null },
       { path: "/engine", Component: EngineLab },
       { path: "/engines", Component: EngineCompare },
     ],

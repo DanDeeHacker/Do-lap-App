@@ -26,7 +26,7 @@ const add = (s, file, kind) => {
   if (!out.has(t)) out.set(t, { files: new Set(), kind })
   out.get(t).files.add(path.basename(file))
 }
-for (const dir of [SRC, path.join(SRC, "components")]) {
+for (const dir of [SRC, path.join(SRC, "components"), path.join(SRC, "physio")]) {
   for (const f of fs.readdirSync(dir)) {
     if (!/\.(tsx?|ts)$/.test(f) || f.endsWith(".d.ts")) continue
     const file = path.join(dir, f)

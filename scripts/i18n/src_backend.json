@@ -1675,6 +1675,7 @@
    "main.py",
    "plan_import.py",
    "routers/personas.py",
+   "routers/physios.py",
    "team.py"
   ]
  },
@@ -15903,6 +15904,7 @@
    "routers/booking.py",
    "routers/coach.py",
    "routers/goals.py",
+   "routers/physios.py",
    "routers/plan.py",
    "routers/runners.py",
    "routers/shoes.py"
@@ -16517,7 +16519,37 @@
   ]
  },
  {
+  "t": "Klienta nejdřív převezměte z fronty nebo potvrďte jeho termín.",
+  "files": [
+   "routers/physios.py"
+  ]
+ },
+ {
+  "t": "Nemáte přístup k tomuto klientovi",
+  "files": [
+   "routers/physios.py"
+  ]
+ },
+ {
   "t": "Nemáte přístup k tomuto profilu",
+  "files": [
+   "routers/physios.py"
+  ]
+ },
+ {
+  "t": "Praxe",
+  "files": [
+   "routers/physios.py"
+  ]
+ },
+ {
+  "t": "přehled klienta",
+  "files": [
+   "routers/physios.py"
+  ]
+ },
+ {
+  "t": "Účet není fyzioterapeut",
   "files": [
    "routers/physios.py"
   ]

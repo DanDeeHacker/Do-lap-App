@@ -96,6 +96,15 @@ An issue sent from Inbox carries the owner-edited text, the screen and the repor
 name, e-mail or health data. The clinical guarantor's decision adds `clinical-approved` or
 `clinical-changes` to the PR, which the `clinical-gate` check reads.
 
+## Physiotherapist app
+
+`frontend/src/physio/` (report v6 Section 6.2): a physio account lands on `/physio` — case queue,
+calendar (requests, slots, prep, conclusions), clients with overview / AI summary / programme /
+return to running / visits / chat, profile and clinic. Backend in `routers/physios.py`
+(`/api/physios/me…`), plus the existing triage, booking, program, rtr and conclusion routers.
+Client data opens only with a care assignment (claimed case or confirmed booking) and every read
+lands in the runner's access log. The legacy `physio.html` is superseded.
+
 ## Simulated runners (personas, staging only)
 
 `backend/app/personas/` (catalog, sim, checks, filing, calibration), API `routers/personas.py`,
