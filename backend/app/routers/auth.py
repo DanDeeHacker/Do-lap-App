@@ -50,8 +50,16 @@ def _user_dict(db: DBSession, u: models.User) -> dict:
         "runner_id": u.runner_id, "physio_id": u.physio_id,
         "employer_id": u.employer_id, "partner_id": u.partner_id,
         "provider": u.provider, "profile": profile, "owner": is_owner(u), "lang": u.lang or "cs",
+        "team": _team_role(db, u),
         **({"guest": True, "demo_rid": _demo_rid()} if u.provider == GUEST_PROVIDER else {}),
     }
+
+
+def _team_role(db: DBSession, u: models.User) -> str | None:
+    """Team Console role (owner request 2026-10-27): opens Admin for the clinical guarantor,
+    engineers, support and auditors, not only the owners."""
+    from ..team import role_of
+    return role_of(db, u)
 
 
 def _demo_rid() -> str:
@@ -133,7 +141,8 @@ def sign_in(body: schemas.LoginRequest, request: Request, response: Response, db
     if not user or not verify_password(body.password, user.password_hash):
         login_throttle.record_failure(email, ip)
         raise HTTPException(status_code=401, detail="Nesprávný e-mail nebo heslo.")
-    if body.expected_role and body.expected_role in ROLES and user.role != body.expected_role:
+    # a Team Console member signs in through the runner form whatever the account type (owner request 2026-10-27)
+    if body.expected_role and body.expected_role in ROLES and user.role != body.expected_role and not _team_role(db, user):
         login_throttle.record_failure(email, ip)
         raise HTTPException(
             status_code=403,

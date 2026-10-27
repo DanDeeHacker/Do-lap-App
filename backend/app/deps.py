@@ -7,6 +7,7 @@ program id, exercise id...), and an explicit `ensure_*` call at the top of
 each handler is easier to audit than dependency-injection indirection.
 """
 import os
+import time
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session as DBSession
@@ -83,10 +84,43 @@ def owner_emails() -> set[str]:
     return {e.strip().lower() for e in os.environ.get("DOSSLAP_OWNER_EMAILS", "").split(",") if e.strip()}
 
 
+_team_owners: tuple[float, set[str]] = (0.0, set())
+TEAM_CACHE_S = 30
+
+
+def team_owner_emails() -> set[str]:
+    """Owners added in Team Console (models.TeamMember, role owner) — read through a short
+    cache so is_owner stays a cheap check without a session; team.team_changed() clears it."""
+    global _team_owners
+    now = time.monotonic()
+    if now - _team_owners[0] < TEAM_CACHE_S:
+        return _team_owners[1]
+    from .db import SessionLocal
+    db = SessionLocal()
+    try:
+        rows = db.query(models.TeamMember.email).filter(models.TeamMember.role == "owner",
+                                                        models.TeamMember.active.is_(True)).all()
+        emails = {(e or "").lower() for (e,) in rows}
+    except Exception:  # noqa: BLE001 — before the table exists (first boot) there are none
+        emails = set()
+    finally:
+        db.close()
+    _team_owners = (now, emails)
+    return emails
+
+
+def reset_team_cache() -> None:
+    global _team_owners
+    _team_owners = (0.0, set())
+
+
 def is_owner(user: models.User | None) -> bool:
-    """The app's owners (DOSSLAP_OWNER_EMAILS): feedback for everyone, the owner-only
-    reports and the admin "Zobrazit jako" (read-only view of any runner)."""
-    return user is not None and (user.email or "").lower() in owner_emails()
+    """The app's owners (DOSSLAP_OWNER_EMAILS, plus owners added in Team Console): feedback for
+    everyone, the owner-only reports and the admin "Zobrazit jako" (read-only view of any runner)."""
+    if user is None:
+        return False
+    email = (user.email or "").lower()
+    return email in owner_emails() or email in team_owner_emails()
 
 
 def ensure_runner_read_access(db: DBSession, user: models.User, runner_id: str) -> None:

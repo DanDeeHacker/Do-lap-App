@@ -176,6 +176,22 @@ export const api = {
 
   // Physio AI Assistant (chat over the runner's data and the reviewed literature)
   adminRunners: () => call("GET", "/api/admin/runners"),
+  // Team Console (owner request 2026-10-27, backend routers/team.py)
+  teamMe: () => call("GET", "/api/team/me"),
+  teamMembers: () => call("GET", "/api/team/members"),
+  teamAddMember: (body: { email: string; name?: string; role: string }) => call("POST", "/api/team/members", body),
+  teamPatchMember: (id: number, body: { name?: string; role?: string; active?: boolean }) => call("PATCH", `/api/team/members/${id}`, body),
+  teamAudit: () => call("GET", "/api/team/audit"),
+  teamInbox: (status = "open") => call("GET", `/api/team/inbox?status=${status}`),
+  teamTriage: (id: number, body: { priority?: string; type?: string; assignee?: string; status?: string; approved?: boolean }) =>
+    call("PATCH", `/api/team/inbox/${id}`, body),
+  teamSend: (id: number, body: { title: string; text: string }) => call("POST", `/api/team/inbox/${id}/send`, body),
+  teamWork: () => call("GET", "/api/team/work"),
+  teamSync: () => call("POST", "/api/team/work/sync", {}),
+  teamApprovals: () => call("GET", "/api/team/approvals"),
+  teamDecide: (n: number, body: { decision: "approve" | "changes"; note: string }) => call("POST", `/api/team/approvals/${n}`, body),
+  teamReleases: () => call("GET", "/api/team/releases"),
+  teamPilot: () => call("GET", "/api/team/pilot"),
   adminEngagement: (days = 30, hours?: number) => call("GET", `/api/admin/engagement?days=${days}${hours ? `&hours=${hours}` : ""}`),
   adminGoalKpis: (replay = false) => call("GET", `/api/admin/goal-kpis${replay ? "?replay=true" : ""}`),
   assistant: (rid: string) => call("GET", `/api/runners/${rid}/assistant`),
@@ -290,6 +306,8 @@ export type Me = {
   provider?: string
   /** the app's owner (DOSSLAP_OWNER_EMAILS): feedback for everyone, admin "Zobrazit jako" */
   owner?: boolean
+  /** Team Console role (owner | engineer | clinical | support | auditor), null outside the team */
+  team?: string | null
   /** public demo ("Vyzkoušej hned!"): read-only guest session on the tutorial runner */
   guest?: boolean
   demo_rid?: string

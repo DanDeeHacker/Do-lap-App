@@ -87,7 +87,7 @@ export function Sidebar({ items }: { items: [string, string][] }) {
         <nav className="grid gap-1">
           {!viewing && link("/data", "Data a připojení", Database, "data")}
           {!viewing && link("/engine", "Citlivostní analýza", SlidersHorizontal, "engine")}
-          {realMe?.owner && link("/admin", "Správa uživatelů", Users, "admin")}
+          {(realMe?.owner || realMe?.team) && link("/admin", "Správa a tým", Users, "admin")}
         </nav>
       </div>
     </aside>

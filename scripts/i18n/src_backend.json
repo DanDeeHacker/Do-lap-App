@@ -916,7 +916,8 @@
  {
   "t": "DELETE",
   "files": [
-   "deps.py"
+   "deps.py",
+   "routers/team.py"
   ]
  },
  {
@@ -960,7 +961,8 @@
  {
   "t": "POST",
   "files": [
-   "deps.py"
+   "deps.py",
+   "routers/team.py"
   ]
  },
  {
@@ -1668,7 +1670,8 @@
   "t": "GET",
   "files": [
    "main.py",
-   "plan_import.py"
+   "plan_import.py",
+   "team.py"
   ]
  },
  {
@@ -5388,7 +5391,8 @@
   "t": "Accept",
   "files": [
    "metrics/geo_sample.py",
-   "plan_import.py"
+   "plan_import.py",
+   "team.py"
   ]
  },
  {
@@ -15552,7 +15556,8 @@
  {
   "t": "Poznámka nenalezena",
   "files": [
-   "routers/annotations.py"
+   "routers/annotations.py",
+   "routers/team.py"
   ]
  },
  {
@@ -16729,6 +16734,120 @@
   "t": "Jen pro vlastníka aplikace",
   "files": [
    "routers/simulate.py"
+  ]
+ },
+ {
+  "t": "Ctx",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Jen pro tým Došlapu",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Na tuto část Team Console nemáte oprávnění",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Napište, co je potřeba změnit",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Neplatné JSON",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Neplatný e-mail nebo role",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Neplatný podpis",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Neznámá priorita",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Neznámá role",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Neznámý stav",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Neznámý typ",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "PR s klinickou bránou nenalezen (zkuste Synchronizovat)",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Poznámku od uživatele musí nejdřív schválit vlastník",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Rozhodnutí je approve nebo changes",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Sami sobě roli vlastníka neodeberete",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Schválit poznámku k implementaci může jen vlastník",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Tento e-mail je vlastník z proměnné DOSSLAP_OWNER_EMAILS",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Už je na GitHubu jako #{}",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Člen týmu nenalezen",
+  "files": [
+   "routers/team.py"
   ]
  },
  {
@@ -19486,6 +19605,192 @@
   "t": "závodní",
   "files": [
    "shoes.py"
+  ]
+ },
+ {
+  "t": ", zařízení {}",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "- Nahlásil(a): {}, {}",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "200 událostí (Tabulka B11)",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "20–30 do 2028 · ≈300 platících pro Series A",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Aktivace do 7 dní",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Authorization",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Běžci v pilotu",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Chybí RAILWAY_PROJECT_ID / SERVICE_ID / ENVIRONMENT_ID (mimo Railway).",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "GitHub není připojený: nastavte DOSSLAP_GITHUB_TOKEN v proměnných Railway.",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "GitHub neodpovídá: {}",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Issue #{} zavřeno bez změny",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Měsíční odchod fyzioterapeutů",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Partnerští fyzioterapeuti",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Potvrzená zranění pro kalibraci",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Pozvaní běžci stále aktivní",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Railway neodpovídá: {}",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Railway token nemá přístup k projektu.",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Týdenní používání",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Vydáno v PR #{} ({})",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "aktivní před 31–60 dny, za posledních 30 dní ne",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "aktivní účty fyzioterapeutů za 30 dní (platby zatím nejsou)",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "běžci u fyzioterapeuta, aktivní za 14 dní",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "běžec",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "měří pilot",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "měří pilot (Sekce 11.3)",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "otevření aplikace za posledních 7 dní",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "první aktivita do 7 dní od registrace",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "vlastník",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "zranění potvrzená fyzioterapeutem",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "účty běžců bez demo a hostů",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "≤ 2 % měsíčně (brána expanze)",
+  "files": [
+   "team.py"
   ]
  },
  {

@@ -23,7 +23,7 @@ from .deps import is_owner, tutorial_demo_runner_id
 from .metrics import engine as E
 from .routers import (
     admin, ai, annotations, auth, booking, calendar, client_errors, coach, conclusions, employers, goals, integrations, partners, physios,
-    plan, programs, rtr, runners, self_programs, shoes, simulate, triage, assistant, usage,
+    plan, programs, rtr, runners, self_programs, shoes, simulate, team, triage, assistant, usage,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -130,6 +130,10 @@ def _migrate(engine):
     add("engine_daily_snapshots", "post_session", "post_session BOOLEAN")
     # feedback #152 — notes from other users wait for the owner's approval
     add("annotations", "approved_at", "approved_at VARCHAR")
+    # Team Console → Inbox (owner request 2026-10-27)
+    for col in ("priority", "triage_type", "assignee", "issue_url"):
+        add("annotations", col, f"{col} VARCHAR")
+    add("annotations", "issue_number", "issue_number INTEGER")
     # British English: the account's language (UI and AI assistant)
     add("users", "lang", "lang VARCHAR", "UPDATE users SET lang = 'cs' WHERE lang IS NULL")
     # v0.12.0 — profile gate (experience, body mass, menstrual cycle), breathing rate
@@ -179,6 +183,9 @@ def _seconds_until_next(hour: int, minute: int) -> float:
     return (target - now).total_seconds()
 
 
+AUTOSYNC_LAST: dict = {}   # Team Console → Vydání: the morning sync's last counts (no runner ids)
+
+
 async def _garmin_autosync_loop():
     """Fire integrations.auto_sync_all once a day just before 7 AM for every
     runner who opted into 'remember' on their Garmin connect. Errors per runner
@@ -193,6 +200,8 @@ async def _garmin_autosync_loop():
         try:
             result = await asyncio.to_thread(auto_sync_all, SessionLocal)
             log.info("Garmin auto-sync: %s", result)
+            AUTOSYNC_LAST.update(at=E.now_iso(), synced=(result or {}).get("synced"),
+                                 failed=(result or {}).get("failed"), total=(result or {}).get("total"))
             # fresh data → the day's AI texts for runners who opted in (metrics/coach_texts.py)
             from .metrics.coach_texts import generate_all
             coach = await asyncio.to_thread(generate_all, SessionLocal)
@@ -490,6 +499,8 @@ app.include_router(admin.router)
 app.include_router(usage.router)
 app.include_router(client_errors.router)
 app.include_router(calendar.router)
+app.include_router(team.router)
+app.include_router(team.hook_router)
 
 
 @app.get("/api/health")

@@ -217,6 +217,7 @@
    "metricsheet.tsx",
    "rundetail.tsx",
    "tabs.tsx",
+   "teamconsole.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -383,6 +384,13 @@
   "kind": "str"
  },
  {
+  "t": "Team Console",
+  "files": [
+   "admin.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "ukázka",
   "files": [
    "admin.tsx",
@@ -505,7 +513,8 @@
  {
   "t": "čeká na schválení",
   "files": [
-   "annotate.tsx"
+   "annotate.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -674,14 +683,16 @@
   "t": "schváleno",
   "files": [
    "annotate.tsx",
-   "assistant.tsx"
+   "assistant.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Schválit k implementaci",
   "files": [
-   "annotate.tsx"
+   "annotate.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -783,7 +794,8 @@
  {
   "t": "Znovu otevřít",
   "files": [
-   "annotate.tsx"
+   "annotate.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -802,7 +814,8 @@
  {
   "t": "Zrušit schválení",
   "files": [
-   "annotate.tsx"
+   "annotate.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -1717,7 +1730,8 @@
  {
   "t": "E-mail",
   "files": [
-   "App.tsx"
+   "App.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -1978,7 +1992,8 @@
  {
   "t": "Jméno",
   "files": [
-   "App.tsx"
+   "App.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -2615,7 +2630,8 @@
   "files": [
    "App.tsx",
    "coach.tsx",
-   "tabs.tsx"
+   "tabs.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -3127,7 +3143,7 @@
   "kind": "str"
  },
  {
-  "t": "Správa uživatelů",
+  "t": "Správa a tým",
   "files": [
    "App.tsx",
    "admin.tsx",
@@ -3202,7 +3218,8 @@
  {
   "t": "Synchronizovat",
   "files": [
-   "App.tsx"
+   "App.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -8432,7 +8449,8 @@
  {
   "t": "Přidat",
   "files": [
-   "coach.tsx"
+   "coach.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "jsx"
  },
@@ -8598,7 +8616,8 @@
  {
   "t": "splněno",
   "files": [
-   "coach.tsx"
+   "coach.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -9354,7 +9373,8 @@
   "t": "Odebrat",
   "files": [
    "coachview.tsx",
-   "goal.tsx"
+   "goal.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -9864,7 +9884,8 @@
  {
   "t": "běžec",
   "files": [
-   "datapage.tsx"
+   "datapage.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "jsx"
  },
@@ -13772,6 +13793,7 @@
   "files": [
    "goal.tsx",
    "selfprograms.tsx",
+   "teamconsole.tsx",
    "training.tsx"
   ],
   "kind": "jsx"
@@ -19154,7 +19176,8 @@
  {
   "t": "bezpečnost",
   "files": [
-   "outlook.tsx"
+   "outlook.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -20767,7 +20790,8 @@
  {
   "t": "Typ",
   "files": [
-   "profile.tsx"
+   "profile.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -25985,7 +26009,8 @@
  {
   "t": "Nepodařilo se",
   "files": [
-   "tabs.tsx"
+   "tabs.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -27411,6 +27436,812 @@
   "kind": "str"
  },
  {
+  "t": ", {} selhalo",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· n = {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· zástupný ukazatel",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "{}/{} OK",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "bez účtu",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Běžci",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Části správy",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Čeká na klinika",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "čeká na nasazení",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Chyby v prohlížeči",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "CI běží",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "CI červené",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "CI zelené",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Cíl: {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Čísla, na kterých stojí rozhodnutí z business plánu: aktivace a používání, fyzioterapeuti a jejich odchod, kalibrační data. Bez demo účtů.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Člen týmu přidán",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Člověk se přihlásí vlastním účtem Došlapu s tímto e-mailem (nebo si ho založí).",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Commit",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "CRASHED",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Databáze",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "dočasná",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Engine",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "FAILED",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "flex flex-wrap items-center gap-2 py-2.5 text-[13px] {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "GitHub není připojený — posílání AI týmu potřebuje proměnnou DOSSLAP_GITHUB_TOKEN v Railway.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "GitHub není připojený (DOSSLAP_GITHUB_TOKEN) — rozhodnutí se nedá zapsat do PR.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Inbox",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Inbox zpětné vazby",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "inženýr",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "issue #{}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Issue #{} je u AI týmu",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Issue opouští aplikaci. Odstraňte jména, e-maily a cokoli o zdraví konkrétního běžce — popište chybu nebo přání obecně.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Issues a pull requesty z GitHubu.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "jméno (nepovinné)",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "k úpravě",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kdo co v Team Console udělal. Záznam nejde upravit.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ke kontrole",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Klinické schválení",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "klinický garant",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "lokálně",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "měříme",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Naplánováno",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nasazení na Railway",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nebude",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nepodařilo se načíst",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nic nečeká na schválení.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Obnovit",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "od spuštění neproběhla",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Otevřené",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pilot",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pilot a rozhodovací brány",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Poslat AI týmu",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Poslední synchronizace: {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Poznámka (u vrácení povinná)",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Poznámky z aplikace. Roztřiďte je a pošlete AI týmu: vznikne issue na GitHubu se štítkem ai-ready a AI tým začne pracovat. Poznámka od uživatele jde k implementaci až po schválení vlastníkem.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "PR #{}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "PR změnu pro běžce nepopsal — otevřete ho na GitHubu.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Práce",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Práce AI týmu",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přidá se obrazovka, typ, priorita, build a štítky ai-ready a from-app (a engine nebo safety, které vyžadují klinické schválení).",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přidat člena",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Priorita",
+  "files": [
+   "teamconsole.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přístup se řídí e-mailem přihlášeného účtu. Klinický garant schvaluje změny enginu a bezpečnosti, podpora třídí Inbox, auditor jen čte. Vlastníky z proměnné DOSSLAP_OWNER_EMAILS tady změnit nelze.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Pro historii nasazení přidejte DOSSLAP_RAILWAY_TOKEN (token jen pro čtení).",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Produkce",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Prostředí",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Railway",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ranní synchronizace hodinek",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "řeší",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Řeší",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Role",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Rozhodnuto",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Rozpracováno",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Schválení",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Schváleno — štítek clinical-approved je v PR",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Schválit",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Sloučené změny",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Sloučeno",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Spuštěno",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "staging běží",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Staging není nastavený (DOSSLAP_STAGING_URL).",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "staging neodpovídá",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Stav k {}; týdenní snímek se ukládá.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Stav poznámek",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "SUCCESS",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Synchronizováno: {} issues, {} PR",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Text pro AI tým",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "trvalá",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Týden od",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Tým",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tým a role",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "v produkci",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "V produkci",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Ve frontě AI",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "vlastník",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "vráceno k úpravě",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vráceno k úpravě",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vrátit",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vrátit k úpravě",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vydání",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vyřešené",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vyřešeno",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vytvořit issue",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Webhook z GitHubu není nastavený (DOSSLAP_GITHUB_WEBHOOK_SECRET) — práce se obnoví jen tlačítkem Synchronizovat.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Za 24 hodin: {} · od spuštění: {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Žádné pády obrazovky.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Žádné poznámky.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "zatím ne",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zatím nic.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zatím žádná práce.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zatím žádné sloučené PR (Práce → Synchronizovat).",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zavřeno",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Záznam změn",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Změna pro běžce",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Změny, které mění, co aplikace běžcům říká o zdraví (prahy enginu, varování, bezpečnostní screening, cvičební programy), nesou štítek engine nebo safety. Bez schválení klinického garanta je nejde sloučit.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "— odlehčovací",
   "files": [
    "training.tsx"
@@ -28707,13 +29538,6 @@
  },
  {
   "t": "Přidat závod",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Priorita",
   "files": [
    "training.tsx"
   ],

@@ -23,6 +23,10 @@ log = logging.getLogger("dosslap.client")
 
 PER_IP_PER_MIN = 20
 _seen: dict[str, deque] = {}
+# Team Console → Vydání (owner request 2026-10-27): the last crashes since boot, in memory only —
+# message, page and build, no user — so a bad deploy shows without opening the Railway log
+RECENT: deque = deque(maxlen=30)
+COUNT = {"total": 0}
 
 
 class ClientError(BaseModel):
@@ -57,6 +61,9 @@ def report(body: ClientError, request: Request, db: DBSession = Depends(get_db),
     if _allow(ip):
         who = f"user={user.id} runner={user.runner_id}" if user else "user=-"
         stack = " | ".join(line.strip() for line in body.stack.splitlines()[:8])
+        COUNT["total"] += 1
+        RECENT.append({"at": time.time(), "message": body.message[:200], "path": body.path[:120],
+                       "where": body.where, "build": body.build})
         log.warning("client-error where=%s path=%s %s build=%s msg=%r stack=%r ua=%r",
                     body.where or "-", body.path or "-", who, body.build or "-", body.message, stack, body.ua)
     return Response(status_code=204)

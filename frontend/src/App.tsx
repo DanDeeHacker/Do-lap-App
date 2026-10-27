@@ -132,7 +132,7 @@ function Topbar() {
             )
           })}
         </nav>
-        <p className="hidden text-[15px] font-extrabold tracking-[-.02em] text-fg lg:block">{navItems.find(([id]) => pathname === `/app/${id}` || pathname.startsWith(`/app/${id}/`))?.[1] ?? (pathname === "/data" ? "Data a připojení" : pathname === "/admin" ? "Správa uživatelů" : pathname === "/engines" ? "Porovnání enginů" : pathname.startsWith("/engine") ? "Citlivostní analýza" : "")}</p>
+        <p className="hidden text-[15px] font-extrabold tracking-[-.02em] text-fg lg:block">{navItems.find(([id]) => pathname === `/app/${id}` || pathname.startsWith(`/app/${id}/`))?.[1] ?? (pathname === "/data" ? "Data a připojení" : pathname === "/admin" ? "Správa a tým" : pathname === "/engines" ? "Porovnání enginů" : pathname.startsWith("/engine") ? "Citlivostní analýza" : "")}</p>
         {demo.guest ? (
           <div className="flex shrink-0 items-center gap-1.5" data-testid="demo-controls">
             <button onClick={() => (tabRoute ? demo.startTabTour(tabRoute) : demo.restartTour())} aria-label="Průvodce touto záložkou" title="Průvodce touto záložkou" data-testid="tab-tour"
@@ -189,7 +189,7 @@ function Topbar() {
                   <button onClick={() => { setProfileOpen(false); setNewsOpen(true) }} data-testid="menu-news" className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Sparkles className="size-4 text-fg-2" aria-hidden />Co je nového</button>
                   {/* feedback #187 — the engine sandbox is for the app's owners only */}
                   {realMe?.owner && <Link to="/engine" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><SlidersHorizontal className="size-4 text-fg-2" aria-hidden />Citlivostní analýza</Link>}
-                  {realMe?.owner && <Link to="/admin" onClick={() => setProfileOpen(false)} data-testid="menu-admin" className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Users className="size-4 text-fg-2" aria-hidden />Správa uživatelů</Link>}
+                  {(realMe?.owner || realMe?.team) && <Link to="/admin" onClick={() => setProfileOpen(false)} data-testid="menu-admin" className="flex items-center gap-2.5 rounded-xl bg-white/[.05] px-3 py-2.5 text-left text-[13px] font-bold hover:bg-white/[.09]"><Users className="size-4 text-fg-2" aria-hidden />Správa a tým</Link>}
                 </div>
                 <button
                   onClick={async () => { setProfileOpen(false); await logout(); nav("/auth") }}
@@ -274,7 +274,7 @@ function Layout() {
       </div>
     )
   if (!me) return <Navigate to="/auth" replace />
-  if (me.role !== "runner") return <RunnerOnlyNotice />
+  if (me.role !== "runner") return me.team ? <TeamOnlyShell /> : <RunnerOnlyNotice />
   // the admin view shows every tab, not the viewed runner's Data a připojení or the engine lab
   if (viewing && (pathname === "/data" || pathname.startsWith("/engine"))) return <Navigate to="/app/today" replace />
   if (pathname.startsWith("/engine") && !realMe?.owner) return <Navigate to="/app/today" replace />
@@ -316,6 +316,26 @@ function Layout() {
       </AssistantProvider>
       </OnboardingProvider>
     </AnnotateProvider>
+  )
+}
+
+// Team Console (owner request 2026-10-27): the clinical guarantor usually signs in with a
+// physiotherapist account, which has no app UI yet — a team member gets the console alone.
+function TeamOnlyShell() {
+  const { me, logout } = useApp()
+  const { pathname } = useLocation()
+  if (pathname !== "/admin") return <Navigate to="/admin" replace />
+  return (
+    <div className="motion-shell min-h-screen bg-bg text-fg">
+      <header className="flex items-center justify-between gap-3 border-b border-white/[.07] px-5 py-3 md:px-9">
+        <span className="flex items-center gap-2 text-lg"><Mark /> <Wordmark /></span>
+        <span className="flex items-center gap-3 text-[12px] text-fg-2">
+          <span className="hidden sm:inline">{me?.email}</span>
+          <button onClick={logout} className="btn btn-secondary btn-sm">Odhlásit se</button>
+        </span>
+      </header>
+      <main className="mx-auto max-w-[1180px] px-5 pb-16 pt-6 md:px-9"><AdminPage /></main>
+    </div>
   )
 }
 

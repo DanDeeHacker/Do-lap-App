@@ -10,6 +10,7 @@ import { useApp } from "@/store"
 import { Card, Chip, Label } from "@/ui"
 import { fmtD, QUAD } from "@/lib"
 import { C } from "@/tokens"
+import { TeamConsole } from "@/teamconsole"
 
 type AdminRunner = {
   runnerId: string; name: string; email: string; joined?: string; demo: boolean; self: boolean
@@ -34,6 +35,7 @@ export function AdminPage() {
   const { realMe, viewing, startViewAs, endViewAs } = useApp()
   const nav = useNavigate()
   const owner = !!realMe?.owner
+  const team = !!realMe?.team
   const { items, err } = useAdminRunners(owner)
   const [q, setQ] = useState("")
   const [showDemo, setShowDemo] = useState(false)
@@ -42,7 +44,7 @@ export function AdminPage() {
     const t = q.trim().toLowerCase()
     return (items || []).filter((x) => (showDemo || !x.demo || x.self) && (!t || `${x.name} ${x.email}`.toLowerCase().includes(t)))
   }, [items, q, showDemo])
-  if (!owner) return <Navigate to="/app/today" replace />
+  if (!owner && !team) return <Navigate to="/app/today" replace />
   const open = async (x: AdminRunner) => {
     if (x.self) { endViewAs(); nav("/app/today"); return }
     setBusy(x.runnerId)
@@ -51,11 +53,11 @@ export function AdminPage() {
     if (ok) nav("/app/today")
   }
   const demoCount = (items || []).filter((x) => x.demo).length
-  return (
+  // Team Console (owner request 2026-10-27): the runners list is the owners' first tab
+  const runners = (
     <>
       <div>
-        <Label>Správa uživatelů</Label>
-        <h1 className="mt-1 font-serif text-[30px] leading-tight tracking-[-.03em] md:text-4xl">Registrovaní běžci</h1>
+        <h2 className="font-serif text-[24px] leading-tight tracking-[-.02em]">Registrovaní běžci</h2>
         <p className="mt-2 max-w-[640px] text-[13px] leading-5 text-fg-2">
           Zobrazit jako otevře celou aplikaci s daty vybraného běžce, kromě Profilu a Dat a připojení. Je to jen pro čtení
           a běžec uvidí každé zobrazení v přehledu Kdo přistupoval k vašim datům.
@@ -114,6 +116,13 @@ export function AdminPage() {
       </Card>
       <Engagement />
       <GoalKpis />
+    </>
+  )
+  return (
+    <>
+      <Label>Správa a tým</Label>
+      <h1 className="mt-1 font-serif text-[30px] leading-tight tracking-[-.03em] md:text-4xl">Team Console</h1>
+      <TeamConsole owner={owner} runners={runners} />
     </>
   )
 }

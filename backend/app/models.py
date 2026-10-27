@@ -808,9 +808,84 @@ class Annotation(Base):
     status = Column(String, default="open")         # open | done | wontfix
     resolution = Column(Text)                       # what was done about it (commit), from the sync script
     approved_at = Column(String)                    # owner approved a non-owner note for implementation
+    # Team Console → Inbox (owner request 2026-10-27): triage and the GitHub issue it became
+    priority = Column(String)                       # P1 | P2 | P3
+    triage_type = Column(String)                    # bug | feature | engine | safety | copy
+    assignee = Column(String)                       # a team member's e-mail
+    issue_number = Column(Integer)
+    issue_url = Column(String)
     created_at = Column(String)
     updated_at = Column(String)
     resolved_at = Column(String)
+
+
+class TeamMember(Base):
+    """Team Console (owner request 2026-10-27): the people who run Došlap, by e-mail and role.
+    owner — everything, manages the team; engineer — inbox, work queue, releases, pilot;
+    clinical — the clinical guarantor: approves engine and safety changes; support — inbox;
+    auditor — reads everything, changes nothing. The e-mails in DOSSLAP_OWNER_EMAILS are owners
+    without a row. Access follows the signed-in account's e-mail."""
+    __tablename__ = "team_members"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String)
+    role = Column(String, nullable=False)           # owner | engineer | clinical | support | auditor
+    active = Column(Boolean, default=True)
+    invited_by = Column(String)                     # the owner's e-mail
+    created_at = Column(String)
+    updated_at = Column(String)
+
+
+class TeamAudit(Base):
+    """Who did what in the Team Console: role changes, issues sent to the AI team, clinical
+    sign-offs, triage. Append-only; shown to owners and auditors."""
+    __tablename__ = "team_audit"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    at = Column(String, index=True, nullable=False)
+    actor_email = Column(String, index=True)
+    actor_role = Column(String)
+    action = Column(String, nullable=False)         # e.g. member.add, inbox.send, approval.approve
+    target = Column(String)                         # e.g. "member:3", "note:17", "pr:42"
+    detail_json = Column(JSON)
+
+
+class WorkItem(Base):
+    """A GitHub issue or pull request the AI team works on, mirrored from the webhook (or a manual
+    sync) so the console shows the week's work without calling GitHub on every view."""
+    __tablename__ = "work_items"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    kind = Column(String, nullable=False)           # issue | pr
+    number = Column(Integer, nullable=False, index=True)
+    title = Column(String)
+    state = Column(String)                          # open | closed | merged
+    draft = Column(Boolean, default=False)
+    labels = Column(JSON, default=list)
+    url = Column(String)
+    author = Column(String)
+    head_sha = Column(String)
+    merge_sha = Column(String)
+    merged_at = Column(String)
+    closes = Column(JSON, default=list)             # issue numbers a PR closes ("Closes #12")
+    checks = Column(String)                         # success | failure | pending | None
+    summary = Column(Text)                          # a PR's "Change for runners" section
+    annotation_id = Column(Integer, index=True)     # the in-app note an issue came from
+    clinical = Column(String)                       # approved | changes | None
+    clinical_by = Column(String)
+    clinical_at = Column(String)
+    clinical_note = Column(Text)
+    deployed = Column(Boolean, default=False)       # the merge commit is in the running production build
+    created_at = Column(String)
+    updated_at = Column(String)
+    __table_args__ = (UniqueConstraint("kind", "number", name="uq_work_item"),)
+
+
+class PilotSnapshot(Base):
+    """The pilot gates (report Sections 6.3 and 9) as of one week, kept for the trend."""
+    __tablename__ = "pilot_snapshots"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    week = Column(String, unique=True, index=True, nullable=False)   # the week's Monday, ISO
+    data_json = Column(JSON)
+    created_at = Column(String)
 
 
 class Race(Base):
