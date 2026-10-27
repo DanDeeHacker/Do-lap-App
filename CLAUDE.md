@@ -82,7 +82,8 @@ engineer, clinical, support, auditor (`team_members`; DOSSLAP_OWNER_EMAILS are o
 write lands in `team_audit`. The app writes issues, labels and comments; it never merges or deploys.
 Railway variables (all optional, the console says which one is missing):
 - `DOSSLAP_GITHUB_TOKEN` — fine-grained token for this repo only: Issues + Pull requests read/write,
-  Contents + Checks read (create it at github.com/settings/personal-access-tokens/new). `DOSSLAP_GITHUB_REPO` overrides `DanDeeHacker/Do-lap-App`.
+  Contents + Actions read (create it at github.com/settings/personal-access-tokens/new; fine-grained
+  tokens have no Checks permission, so the manual sync reads CI from the workflow runs). `DOSSLAP_GITHUB_REPO` overrides `DanDeeHacker/Do-lap-App`.
 - `DOSSLAP_GITHUB_WEBHOOK_SECRET` — GitHub webhook to `/api/github/webhook` (JSON; Issues,
   Pull requests, Check suites, Statuses). A merged PR with "Closes #N" resolves the app note behind #N.
 - `DOSSLAP_RAILWAY_TOKEN` — project token (Project Settings → Tokens, production) for the deployment list; `DOSSLAP_STAGING_URL`.

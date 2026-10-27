@@ -229,3 +229,23 @@ def test_a_physio_guarantor_signs_in_through_the_runner_form(client, monkeypatch
     assert login(client, "fyzio-cizi@tc.test.cz", "testpass123", expected_role="runner").status_code == 403
     r = login(client, "garant3@tc.test.cz", "testpass123", expected_role="runner")
     assert r.status_code == 200 and r.json()["team"] == "clinical" and r.json()["role"] == "physio"
+
+
+def test_sync_reads_ci_from_actions_when_the_token_has_no_checks(monkeypatch):
+    """A fine-grained token cannot read check runs (403); the workflow runs give the CI state."""
+    def fake(method, path, json=None, params=None):
+        if path.endswith("/check-runs"):
+            raise T.GitHubError(403, "Resource not accessible by personal access token")
+        if path == "/actions/runs":
+            return {"workflow_runs": [{"status": "completed", "conclusion": "success"},
+                                      {"status": "completed", "conclusion": "failure"}]}
+        return {}
+    monkeypatch.setattr(T, "gh", fake)
+    assert T.head_checks("abc") == "failure"
+
+    def fake2(method, path, json=None, params=None):
+        if path.endswith("/check-runs"):
+            raise T.GitHubError(403, "no")
+        return {"workflow_runs": [{"status": "in_progress", "conclusion": None}, {"status": "completed", "conclusion": "success"}]}
+    monkeypatch.setattr(T, "gh", fake2)
+    assert T.head_checks("abc") == "pending"

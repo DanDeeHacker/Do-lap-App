@@ -254,20 +254,37 @@ def sync(db: DBSession) -> dict:
         w = upsert_pr(db, pr)
         n_p += 1
         if w.state == "open" and w.head_sha:
-            try:
-                runs = (gh("GET", f"/commits/{w.head_sha}/check-runs", params={"per_page": 50}) or {}).get("check_runs") or []
-            except GitHubError:
-                runs = []
-            if runs:
-                concl = [r.get("conclusion") for r in runs]
-                w.checks = ("pending" if any(c is None for c in concl) else
-                            "failure" if any(c in ("failure", "cancelled", "timed_out", "action_required") for c in concl)
-                            else "success")
+            state = head_checks(w.head_sha)
+            if state:
+                w.checks = state
     db.flush()
     for w in db.query(models.WorkItem).filter(models.WorkItem.kind == "pr", models.WorkItem.state == "merged").all():
         resolve_notes_for(db, w)
     mark_deployed(db)
     return {"issues": n_i, "prs": n_p}
+
+
+def head_checks(sha: str) -> str | None:
+    """CI state of a commit for the manual sync. A fine-grained token has no Checks permission
+    (owner setup 2026-10-27: GitHub offers it to Apps only), so the CI comes from the workflow
+    runs (Actions: read); the check-runs API stays first for a token that can read it."""
+    concl = None
+    try:
+        runs = (gh("GET", f"/commits/{sha}/check-runs", params={"per_page": 50}) or {}).get("check_runs") or []
+        concl = [r.get("conclusion") for r in runs] or None
+    except GitHubError:
+        pass
+    if concl is None:
+        try:
+            runs = (gh("GET", "/actions/runs", params={"head_sha": sha, "per_page": 30}) or {}).get("workflow_runs") or []
+        except GitHubError:
+            return None
+        concl = [r.get("conclusion") if r.get("status") == "completed" else None for r in runs] or None
+    if concl is None:
+        return None
+    return ("pending" if any(c is None for c in concl) else
+            "failure" if any(c in ("failure", "cancelled", "timed_out", "action_required", "startup_failure") for c in concl)
+            else "success")
 
 
 def running_sha() -> str | None:
