@@ -41,6 +41,7 @@
    "content.py",
    "metrics/engine.py",
    "metrics/tendon.py",
+   "personas/catalog.py",
    "programs_library.py",
    "seed.py",
    "tutorial_demo.py"
@@ -943,6 +944,7 @@
   "files": [
    "deps.py",
    "routers/client_errors.py",
+   "routers/personas.py",
    "routers/plan.py"
   ]
  },
@@ -1261,6 +1263,7 @@
    "metrics/mobility.py",
    "metrics/week_plan.py",
    "outcomes.py",
+   "personas/sim.py",
    "routers/runners.py"
   ]
  },
@@ -1671,6 +1674,7 @@
   "files": [
    "main.py",
    "plan_import.py",
+   "routers/personas.py",
    "team.py"
   ]
  },
@@ -2715,6 +2719,7 @@
    "metrics/coach_plan.py",
    "metrics/guidance.py",
    "metrics/mobility.py",
+   "personas/sim.py",
    "seed.py",
    "tutorial_demo.py"
   ]
@@ -2733,6 +2738,7 @@
    "metrics/guidance.py",
    "metrics/mobility.py",
    "metrics/week_plan.py",
+   "personas/sim.py",
    "routers/runners.py",
    "tutorial_demo.py"
   ]
@@ -2749,7 +2755,8 @@
   "files": [
    "metrics/coach_plan.py",
    "metrics/guidance.py",
-   "metrics/mobility.py"
+   "metrics/mobility.py",
+   "personas/sim.py"
   ]
  },
  {
@@ -2776,6 +2783,7 @@
    "metrics/coach_plan.py",
    "metrics/guidance.py",
    "metrics/mobility.py",
+   "personas/sim.py",
    "routers/runners.py"
   ]
  },
@@ -2810,6 +2818,7 @@
    "metrics/guidance.py",
    "metrics/mobility.py",
    "metrics/week_plan.py",
+   "personas/sim.py",
    "routers/runners.py",
    "tutorial_demo.py"
   ]
@@ -2889,6 +2898,8 @@
    "metrics/mobility.py",
    "metrics/week_plan.py",
    "mobility_library.py",
+   "personas/checks.py",
+   "personas/sim.py",
    "routers/calendar.py"
   ]
  },
@@ -2907,6 +2918,8 @@
    "metrics/mobility.py",
    "metrics/week_plan.py",
    "mobility_library.py",
+   "personas/checks.py",
+   "personas/sim.py",
    "routers/calendar.py"
   ]
  },
@@ -2917,7 +2930,8 @@
    "metrics/guidance.py",
    "metrics/mobility.py",
    "metrics/week_plan.py",
-   "mobility_library.py"
+   "mobility_library.py",
+   "personas/sim.py"
   ]
  },
  {
@@ -7623,6 +7637,7 @@
   "t": "ráno",
   "files": [
    "metrics/guidance.py",
+   "personas/sim.py",
    "tutorial_demo.py"
   ]
  },
@@ -12793,6 +12808,315 @@
   ]
  },
  {
+  "t": "Eva",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "Jana",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "Martin",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "Pavel",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "Pražský podzimní maraton",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "Tereza",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "horečka, přesto chce běžet",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "maratonec, cíl maraton za 10 týdnů",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "nachlazení",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "noční směny",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "návrat po Achillově šlaše",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "padesátník, kopce a kolo, aplikaci otvírá nepravidelně",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "ráno ztuhlá šlacha",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "sleduje cyklus, běhá i nemocná",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "služební cesta, hodinky doma",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "začátečnice, první rok běhání",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "zhoršení po kopcích",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": "zkouškové, spí po 5 hodinách",
+  "files": [
+   "personas/catalog.py"
+  ]
+ },
+ {
+  "t": ", check-in hlásí nemoc",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "Chyba při výpočtu: {} ({})",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "Persona {} ({}), simulovaný den {} ({})",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "Plán týdne je nad týdenním rozpočtem",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "Plán týdne na dnešek je nad dnešním bezpečnostním limitem",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "Po třech dnech bez hodinek se aplikace nezeptala, co se dělo",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "Při bolesti 4/10 a víc aplikace dovoluje kvalitní trénink nebo dlouhý běh",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "Při nemoci aplikace dovoluje kvalitní trénink nebo dlouhý běh",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "Připravenost mimo rozsah 0–100",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "Ranní report doporučuje jiný trénink než Dnes",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "Trénink plánuje na dnešek „{}“, který Dnes nedovoluje",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "V závodním týdnu plán neubírá",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "hodnocení (engine)",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "plán týdne",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "přepočet po nových datech",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "ranní report",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "{}: Dnes doporučuje „{}“, ranní report „{}“.",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "{}: Dnes má typ „{}“ jako nedovolený, Plán týdne ho na dnešek přesto ukazuje ({} km).",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "{}: Plán týdne ukazuje {} až {} km, Dnes dovoluje nejvýš {} km.",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "{}: check-in hlásí bolest {}/10 ({}); Dnes dovoluje: {}.",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "{}: do konce týdne plán ještě počítá s {} km, z týdenního cíle {} km zbývá {} km (hotovo {} km).",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "{}: připravenost {}.",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "{}: tři dny bez dat z hodinek, ráno se otázka na mezeru v datech neobjevila.",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "{}: závodní týden {} má v plánu {} km, nejvyšší z předchozích 6 týdnů {} km (čekali bychom nejvýš 80 %).",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "{}: {}. den nemoci (klidový tep zhruba +8 tepů, HRV −30 %, zrychlený dech{}); Dnes dovoluje: {}.",
+  "files": [
+   "personas/checks.py"
+  ]
+ },
+ {
+  "t": "Dlouhý běh v kopcích",
+  "files": [
+   "personas/sim.py"
+  ]
+ },
+ {
+  "t": "Garmin Forerunner 265",
+  "files": [
+   "personas/sim.py",
+   "seed.py"
+  ]
+ },
+ {
+  "t": "Intervaly",
+  "files": [
+   "personas/sim.py",
+   "seed.py"
+  ]
+ },
+ {
+  "t": "Lesní běh",
+  "files": [
+   "personas/sim.py",
+   "seed.py",
+   "tutorial_demo.py"
+  ]
+ },
+ {
+  "t": "Praha",
+  "files": [
+   "personas/sim.py",
+   "seed.py",
+   "tutorial_demo.py"
+  ]
+ },
+ {
+  "t": "Rozklusání",
+  "files": [
+   "personas/sim.py",
+   "seed.py",
+   "tutorial_demo.py"
+  ]
+ },
+ {
+  "t": "Tempový běh",
+  "files": [
+   "personas/sim.py",
+   "tutorial_demo.py"
+  ]
+ },
+ {
   "t": "DESCRIPTION",
   "files": [
    "plan_import.py"
@@ -16143,6 +16467,49 @@
   ]
  },
  {
+  "t": "Jen pro vlastníky a inženýry, nebo s tokenem person",
+  "files": [
+   "routers/personas.py"
+  ]
+ },
+ {
+  "t": "Neplatné JSON",
+  "files": [
+   "routers/personas.py",
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Neznámá persona",
+  "files": [
+   "routers/personas.py"
+  ]
+ },
+ {
+  "t": "Persony jsou vypnuté (DOSSLAP_PERSONAS)",
+  "files": [
+   "routers/personas.py"
+  ]
+ },
+ {
+  "t": "Přihlášení za personu jen s tokenem person",
+  "files": [
+   "routers/personas.py"
+  ]
+ },
+ {
+  "t": "Simulace právě běží",
+  "files": [
+   "routers/personas.py"
+  ]
+ },
+ {
+  "t": "Tohle není profil chování z Došlapu (nebo má skupinu pod 5 lidí)",
+  "files": [
+   "routers/personas.py"
+  ]
+ },
+ {
   "t": "Fyzioterapeut nenalezen",
   "files": [
    "routers/physios.py",
@@ -16761,12 +17128,6 @@
   ]
  },
  {
-  "t": "Neplatné JSON",
-  "files": [
-   "routers/team.py"
-  ]
- },
- {
   "t": "Neplatný e-mail nebo role",
   "files": [
    "routers/team.py"
@@ -16774,6 +17135,12 @@
  },
  {
   "t": "Neplatný podpis",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Neplatný token person",
   "files": [
    "routers/team.py"
   ]
@@ -16840,6 +17207,12 @@
  },
  {
   "t": "Už je na GitHubu jako #{}",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Čekám objekt s items",
   "files": [
    "routers/team.py"
   ]
@@ -16972,12 +17345,6 @@
   ]
  },
  {
-  "t": "Garmin Forerunner 265",
-  "files": [
-   "seed.py"
-  ]
- },
- {
   "t": "Garmin Forerunner 965",
   "files": [
    "seed.py",
@@ -16999,12 +17366,6 @@
  },
  {
   "t": "Holeň (L)",
-  "files": [
-   "seed.py"
-  ]
- },
- {
-  "t": "Intervaly",
   "files": [
    "seed.py"
   ]
@@ -17037,13 +17398,6 @@
   "t": "Krkonošská 50",
   "files": [
    "seed.py"
-  ]
- },
- {
-  "t": "Lesní běh",
-  "files": [
-   "seed.py",
-   "tutorial_demo.py"
   ]
  },
  {
@@ -17179,13 +17533,6 @@
   ]
  },
  {
-  "t": "Praha",
-  "files": [
-   "seed.py",
-   "tutorial_demo.py"
-  ]
- },
- {
   "t": "Praha 5",
   "files": [
    "seed.py"
@@ -17239,13 +17586,6 @@
   "t": "Rehab Ostrava Poruba",
   "files": [
    "seed.py"
-  ]
- },
- {
-  "t": "Rozklusání",
-  "files": [
-   "seed.py",
-   "tutorial_demo.py"
   ]
  },
  {
@@ -19710,6 +20050,12 @@
   ]
  },
  {
+  "t": "Simulovaný běžec",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
   "t": "Týdenní používání",
   "files": [
    "team.py"
@@ -19777,6 +20123,12 @@
  },
  {
   "t": "zranění potvrzená fyzioterapeutem",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "· Znovu se objevilo {} (persona {}, simulovaný den {})",
   "files": [
    "team.py"
   ]
@@ -19921,12 +20273,6 @@
  },
  {
   "t": "Spal jsem špatně, tep vyšší než normálně.",
-  "files": [
-   "tutorial_demo.py"
-  ]
- },
- {
-  "t": "Tempový běh",
   "files": [
    "tutorial_demo.py"
   ]

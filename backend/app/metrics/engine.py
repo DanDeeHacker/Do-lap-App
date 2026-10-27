@@ -8,6 +8,7 @@ Nothing here is a diagnosis. See ai_brief.py's closing caveat, which every
 clinician-facing summary repeats verbatim.
 """
 import calendar
+import contextvars
 import math
 import re
 import threading
@@ -269,16 +270,37 @@ LOCAL_TZ = ZoneInfo("Europe/Prague")
 _today_override = threading.local()
 
 
+# Simulated runners on staging (app/personas, owner request 2026-10-27): a persona account lives
+# on its own clock, so weeks of training can be simulated in an hour. A context variable (it
+# follows a request into the threadpool, unlike the thread-local above) holds the persona's
+# local datetime; only app.personas sets it, and only where DOSSLAP_PERSONAS is on.
+_sim_now: contextvars.ContextVar = contextvars.ContextVar("doslap_sim_now", default=None)
+
+
 def today_date():
     o = getattr(_today_override, "value", None)
-    return o if o is not None else datetime.now(LOCAL_TZ).date()
+    if o is not None:
+        return o
+    s = _sim_now.get()
+    return s.date() if s is not None else datetime.now(LOCAL_TZ).date()
 
 
 def now_iso():
     o = getattr(_today_override, "value", None)
     if o is not None:
         return datetime.combine(o, datetime.min.time(), LOCAL_TZ).isoformat()
-    return datetime.now(LOCAL_TZ).isoformat()
+    s = _sim_now.get()
+    return s.isoformat() if s is not None else datetime.now(LOCAL_TZ).isoformat()
+
+
+@contextmanager
+def sim_clock(dt):
+    """Run the block on a persona's simulated local datetime (None = the real clock)."""
+    tok = _sim_now.set(dt)
+    try:
+        yield
+    finally:
+        _sim_now.reset(tok)
 
 
 @contextmanager

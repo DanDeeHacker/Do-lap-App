@@ -182,7 +182,15 @@ export const api = {
   teamAddMember: (body: { email: string; name?: string; role: string }) => call("POST", "/api/team/members", body),
   teamPatchMember: (id: number, body: { name?: string; role?: string; active?: boolean }) => call("PATCH", `/api/team/members/${id}`, body),
   teamAudit: () => call("GET", "/api/team/audit"),
-  teamInbox: (status = "open") => call("GET", `/api/team/inbox?status=${status}`),
+  teamInbox: (status = "open", source = "all") => call("GET", `/api/team/inbox?status=${status}&source=${source}`),
+  teamBehaviourProfile: () => call("GET", "/api/team/behaviour-profile"),
+  // simulated runners on staging (backend routers/personas.py)
+  personas: () => call("GET", "/api/personas"),
+  personaReset: (key: string) => call("POST", `/api/personas/${key}/reset`, { seed: 1 }),
+  personaAdvance: (key: string, days: number) => call("POST", `/api/personas/${key}/advance`, { days }),
+  personaAdvanceAll: (days: number) => call("POST", "/api/personas/advance-all", { days }),
+  personaDays: (key: string, limit = 14) => call("GET", `/api/personas/${key}/days?limit=${limit}`),
+  personaCalibrationPut: (profile: any) => call("POST", "/api/personas/calibration", profile),
   teamTriage: (id: number, body: { priority?: string; type?: string; assignee?: string; status?: string; approved?: boolean }) =>
     call("PATCH", `/api/team/inbox/${id}`, body),
   teamSend: (id: number, body: { title: string; text: string }) => call("POST", `/api/team/inbox/${id}/send`, body),

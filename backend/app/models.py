@@ -788,6 +788,10 @@ class Settings(Base):
     news_seen = Column(String, nullable=True)
     # owner decision 2026-10-14 — the milestones already announced on Dnes
     badges_seen = Column(JSON, nullable=True)
+    # owner request 2026-10-27 (personas stage 3): the runner agrees that when, where and how long
+    # they use the app counts towards an anonymous summary (groups of 5+) the test personas copy
+    share_usage = Column(Boolean, default=False)
+    share_usage_at = Column(String)
 
 
 class Annotation(Base):
@@ -814,6 +818,10 @@ class Annotation(Base):
     assignee = Column(String)                       # a team member's e-mail
     issue_number = Column(Integer)
     issue_url = Column(String)
+    # simulated runners (app/personas, owner request 2026-10-27): "synthetic" notes come from a
+    # persona's checks; the fingerprint dedupes them and reopens a resolved one that recurs
+    source = Column(String)                         # NULL = a person | synthetic | synthetic-ai
+    fingerprint = Column(String, index=True)
     created_at = Column(String)
     updated_at = Column(String)
     resolved_at = Column(String)
@@ -885,6 +893,48 @@ class PilotSnapshot(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     week = Column(String, unique=True, index=True, nullable=False)   # the week's Monday, ISO
     data_json = Column(JSON)
+    created_at = Column(String)
+
+
+class PersonaRun(Base):
+    """A simulated runner on staging (app/personas): which persona, its account, where its own
+    clock stands and what the checks found so far. Only where DOSSLAP_PERSONAS is on."""
+    __tablename__ = "persona_runs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String, unique=True, index=True, nullable=False)
+    runner_id = Column(String, nullable=False)
+    user_id = Column(Integer)
+    seed = Column(Integer, default=1)
+    start_date = Column(String, nullable=False)     # simulation day 0
+    sim_date = Column(String, nullable=False)       # the persona's "today"
+    phase = Column(String, default="night")         # night (day 0 not started) | morning (run not done) | evening
+    sim_time = Column(String, default="07:30")      # the clock the persona's app sees
+    status = Column(String, default="idle")         # idle | running | error
+    error = Column(Text)
+    behaviour_json = Column(JSON)                   # the habits in use (catalog, calibrated)
+    stats_json = Column(JSON)                       # days, findings, weekly plan totals
+    created_at = Column(String)
+    updated_at = Column(String)
+
+
+class PersonaDay(Base):
+    """One simulated day: what the persona's app said in the morning, what it did, what the
+    checks found. The journal the AI review and Team Console → Persony read."""
+    __tablename__ = "persona_days"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_id = Column(Integer, index=True, nullable=False)
+    date = Column(String, nullable=False)
+    data_json = Column(JSON)
+    __table_args__ = (UniqueConstraint("run_id", "date", name="uq_persona_day"),)
+
+
+class PersonaCalibration(Base):
+    """Personas stage 3: the pilot's aggregated behaviour profile (groups of 5+ consenting
+    runners, no health data) imported on staging; the newest row is the one in use."""
+    __tablename__ = "persona_calibrations"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    data_json = Column(JSON, nullable=False)
+    imported_by = Column(String)
     created_at = Column(String)
 
 

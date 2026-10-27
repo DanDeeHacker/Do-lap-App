@@ -268,6 +268,7 @@ class LangRequest(Lenient):
 class SettingsPatch(Lenient):
     share_with_physio: Optional[bool] = None
     share_bodymap: Optional[bool] = None
+    share_usage: Optional[bool] = None
     employer_aggregate: Optional[bool] = None
     notify_drift: Optional[bool] = None
     notify_checkin: Optional[bool] = None

@@ -138,17 +138,24 @@ def _note_out(a: models.Annotation, author: models.User | None, viewer_owner: bo
             "status": a.status, "priority": a.priority, "type": a.triage_type, "assignee": a.assignee,
             "issueNumber": a.issue_number, "issueUrl": a.issue_url, "ready": ready, "approvedAt": a.approved_at,
             "createdAt": a.created_at, "resolution": a.resolution, "heading": (a.context_json or {}).get("heading"),
+            # simulated runners (app/personas): which persona, how often it recurred, re-verified after a fix
+            "synthetic": {k: (a.context_json or {}).get(k) for k in ("persona", "simDate", "check", "repeats", "lastSeen", "verifiedAt")}
+            if a.source else None, "source": a.source,
             # a name only for owners; the rest of the team sees the reporter's role
             "author": {"role": author.role if author else None, "isOwner": bool(author and is_owner(author)),
                        **({"name": author.name} if viewer_owner and author else {})}}
 
 
 @router.get("/inbox")
-def inbox(status: str = "open", c: Ctx = Depends(ctx)):
+def inbox(status: str = "open", source: str = "all", c: Ctx = Depends(ctx)):
     c.need("inbox.read")
     q = c.db.query(models.Annotation, models.User).join(models.User, models.Annotation.user_id == models.User.id)
     if status in ("open", "done", "wontfix"):
         q = q.filter(models.Annotation.status == status)
+    if source == "people":
+        q = q.filter(models.Annotation.source.is_(None))
+    elif source == "synthetic":
+        q = q.filter(models.Annotation.source.isnot(None))
     rows = q.order_by(models.Annotation.id.desc()).limit(300).all()
     owner = c.role == "owner"
     items = [_note_out(a, u, owner) for a, u in rows]
@@ -361,3 +368,34 @@ def pilot(c: Ctx = Depends(ctx)):
     c.db.commit()
     hist = c.db.query(models.PilotSnapshot).order_by(models.PilotSnapshot.week.desc()).limit(26).all()
     return {**data, "history": [{"week": h.week, **(h.data_json or {})} for h in hist][::-1]}
+
+
+# ---------------------------------------------------------------- simulated runners (personas)
+@hook_router.post("/api/team/synthetic-notes")
+async def synthetic_notes(request: Request, db: DBSession = Depends(get_db)):
+    """Staging's simulated runners report here (app/personas/filing.py) with the shared
+    DOSSLAP_PERSONA_TOKEN; the notes wait in Inbox for an owner like anyone else's."""
+    if not T.persona_token_ok(request.headers.get("X-Persona-Token")):
+        raise HTTPException(status_code=401, detail="Neplatný token person")
+    try:
+        body = await request.json()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Neplatné JSON") from None
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=422, detail="Čekám objekt s items")
+    out = T.ingest_synthetic(db, body)
+    db.commit()
+    return out
+
+
+@router.get("/behaviour-profile")
+def behaviour_profile(c: Ctx = Depends(ctx)):
+    """Personas stage 3: the anonymous behaviour profile of runners who agreed to it (groups of
+    5 and more, no health data) — downloaded here, imported on staging (Persony)."""
+    c.need("pilot.read")
+    from ..personas import calibration as CAL
+    prof = CAL.profile(c.db)
+    c.audit("behaviour.export", None, groups={k: v.get("n") for k, v in prof["groups"].items()},
+            consenting=prof["consenting"])
+    c.db.commit()
+    return prof

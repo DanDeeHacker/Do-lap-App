@@ -11,6 +11,7 @@ import { Field, HowTo, Sheet, useAsync, useToast } from "@/ui"
 import { fmtD } from "@/lib"
 import { ZoneCheck } from "@/fitness"
 import { CalendarSync } from "@/calendarsync"
+import { UsageConsent } from "@/usageconsent"
 import { C } from "@/tokens"
 
 const todayIso = () => new Date().toLocaleDateString("sv-SE")
@@ -245,6 +246,7 @@ export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => 
       </div>
       {open && me?.runner_id && <CalendarSync rid={me.runner_id} />}
       {open && me?.runner_id && <Shoes rid={me.runner_id} />}
+      {open && me?.runner_id && <UsageConsent />}
     </Sheet>
   )
 }

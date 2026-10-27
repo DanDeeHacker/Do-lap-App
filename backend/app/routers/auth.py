@@ -248,6 +248,7 @@ def get_settings(user: models.User = Depends(get_current_user), db: DBSession = 
         "employer_aggregate": s.employer_aggregate, "notify_drift": s.notify_drift,
         "notify_checkin": s.notify_checkin, "rail_cards": s.rail_cards, "today_cards": s.today_cards,
         "news_seen": s.news_seen, "user_since": (user.created_at or "")[:10] or None, "badges_seen": s.badges_seen,
+        "share_usage": bool(s.share_usage), "share_usage_at": s.share_usage_at,
     }
 
 
@@ -264,6 +265,11 @@ def patch_settings(body: schemas.SettingsPatch, user: models.User = Depends(get_
             v = str(v)[:32]
         if k == "badges_seen" and v is not None:
             v = [str(x)[:24] for x in dict.fromkeys(v)][:40]
+        if k == "share_usage":
+            # personas stage 3: the consent is dated, and switching it off removes the person
+            # from the next behaviour profile (nothing per person is ever exported)
+            v = bool(v)
+            s.share_usage_at = E.now_iso() if v else None
         setattr(s, k, v)
     db.commit()
     db.refresh(s)
@@ -272,4 +278,5 @@ def patch_settings(body: schemas.SettingsPatch, user: models.User = Depends(get_
         "employer_aggregate": s.employer_aggregate, "notify_drift": s.notify_drift,
         "notify_checkin": s.notify_checkin, "rail_cards": s.rail_cards, "today_cards": s.today_cards,
         "news_seen": s.news_seen, "user_since": (user.created_at or "")[:10] or None, "badges_seen": s.badges_seen,
+        "share_usage": bool(s.share_usage), "share_usage_at": s.share_usage_at,
     }

@@ -96,6 +96,23 @@ An issue sent from Inbox carries the owner-edited text, the screen and the repor
 name, e-mail or health data. The clinical guarantor's decision adds `clinical-approved` or
 `clinical-changes` to the PR, which the `clinical-gate` check reads.
 
+## Simulated runners (personas, staging only)
+
+`backend/app/personas/` (catalog, sim, checks, filing, calibration), API `routers/personas.py`,
+Team Console → Persony, browser journeys `scripts/personas/journey.mjs`, AI review rubric
+`scripts/personas/REVIEW.md`. Five made-up runners live on their own clocks (engine `sim_clock`;
+the precompute worker uses the persona's clock too) and follow the app's own plan with life events;
+after each half-day `checks.py` compares the screens with each other and with the engine's rules,
+and findings become Inbox notes (`source` synthetic / synthetic-ai, deduped by `fingerprint`,
+capped per day, reopened when a fixed problem recurs, marked verified when the check passes again).
+They wait for an owner's approval like any user's note. Never on production
+(`RAILWAY_ENVIRONMENT_NAME=production` switches it off). Staging: `DOSSLAP_PERSONAS=on`,
+`DOSSLAP_PERSONA_TOKEN`, `DOSSLAP_PERSONA_REPORT_URL` = production URL (production holds the same
+token). Stage 3: runners can agree in Profil → Pomoc s vývojem that their *behaviour* (opens, tabs,
+minutes, check-ins) counts in an anonymous profile — groups of 5+, no health data — downloaded in
+Pilot and imported on staging. A new check needs a test in `tests/test_personas.py` and must be
+free of false positives on a full 12-week run of all five personas.
+
 ## gstack (recommended)
 
 This project uses [gstack](https://github.com/garrytan/gstack) for AI-assisted workflows.

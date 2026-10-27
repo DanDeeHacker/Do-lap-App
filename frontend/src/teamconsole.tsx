@@ -2,15 +2,15 @@
 // The founders run the AI engineering team (gstack sprints on GitHub) from the app; the backend
 // (routers/team.py) checks every permission, the tabs only follow the role it reports. The app
 // never merges or deploys: it writes issues, labels and comments, and reads what runs.
-import { useCallback, useEffect, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useSearchParams } from "react-router"
-import { CheckCircle2, ExternalLink, GitPullRequest, RefreshCw, Send, ShieldCheck, TriangleAlert } from "lucide-react"
+import { Bot, CheckCircle2, Download, ExternalLink, GitPullRequest, Play, RefreshCw, RotateCcw, Send, ShieldCheck, TriangleAlert, Upload } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, Segmented, Sheet, useToast } from "@/ui"
 import { fmtD, fmtDT } from "@/lib"
 import { C } from "@/tokens"
 
-type TeamMe = { role: string; perms: string[]; email: string; config: { github: boolean; githubRepo: string; webhook: boolean; railway: boolean; staging: string | null } }
+type TeamMe = { role: string; perms: string[]; email: string; config: { github: boolean; githubRepo: string; webhook: boolean; railway: boolean; staging: string | null; personas?: boolean; personaToken?: boolean } }
 
 const ROLE: Record<string, string> = { owner: "vlastník", engineer: "inženýr", clinical: "klinický garant", support: "podpora", auditor: "auditor" }
 const STAGE: Record<string, [string, "ok" | "watch" | "alert" | "muted" | "info" | "load" | "accent"]> = {
@@ -63,6 +63,8 @@ export function TeamConsole({ owner, runners }: { owner: boolean; runners: React
     ["approvals", "Schválení", has("approvals.read")],
     ["releases", "Vydání", has("releases.read")],
     ["pilot", "Pilot", has("pilot.read")],
+    // simulated runners — staging only (DOSSLAP_PERSONAS), owners and engineers
+    ["personas", "Persony", !!me?.config.personas && ["owner", "engineer"].includes(me?.role || "")],
   ] as const).filter((t) => t[2]).map(([k, l]) => [k, l] as const)
   const want = sp.get("tab") || (owner ? "runners" : me?.role === "clinical" ? "approvals" : "inbox")
   const tab = tabs.some(([k]) => k === want) ? want : tabs[0]?.[0]
@@ -81,6 +83,7 @@ export function TeamConsole({ owner, runners }: { owner: boolean; runners: React
         {me && tab === "approvals" && <ApprovalsTab />}
         {me && tab === "releases" && <ReleasesTab />}
         {me && tab === "pilot" && <PilotTab />}
+        {me && tab === "personas" && <PersonasTab />}
       </div>
     </>
   )
@@ -189,7 +192,8 @@ function TeamTab({ me }: { me: TeamMe }) {
 function InboxTab({ me }: { me: TeamMe }) {
   const toast = useToast()
   const [status, setStatus] = useState<"open" | "done" | "wontfix">("open")
-  const { d, err, reload } = useLoad<any>(() => api.teamInbox(status), [status])
+  const [source, setSource] = useState<"all" | "people" | "synthetic">("all")
+  const { d, err, reload } = useLoad<any>(() => api.teamInbox(status, source), [status, source])
   const [send, setSend] = useState<any>(null)
   const triage = me.perms.includes("inbox.triage")
   const owner = me.role === "owner"
@@ -206,8 +210,12 @@ function InboxTab({ me }: { me: TeamMe }) {
             Poznámka od uživatele jde k implementaci až po schválení vlastníkem.
           </p>
         </div>
-        <Segmented size="sm" value={status} onChange={setStatus} ariaLabel="Stav poznámek"
-          options={[["open", "Otevřené"], ["done", "Vyřešené"], ["wontfix", "Nebude"]] as const} />
+        <div className="flex flex-wrap gap-2">
+          <Segmented size="sm" value={source} onChange={setSource} ariaLabel="Odkud poznámky jsou"
+            options={[["all", "Vše"], ["people", "Od lidí"], ["synthetic", "Od person"]] as const} />
+          <Segmented size="sm" value={status} onChange={setStatus} ariaLabel="Stav poznámek"
+            options={[["open", "Otevřené"], ["done", "Vyřešené"], ["wontfix", "Nebude"]] as const} />
+        </div>
       </div>
       {d && !d.github && <Missing>GitHub není připojený — posílání AI týmu potřebuje proměnnou DOSSLAP_GITHUB_TOKEN v Railway.</Missing>}
       {!d ? <Loading err={err} /> : d.items.length === 0 ? <p className="mt-4 text-[13px] text-fg-3">Žádné poznámky.</p> : (
@@ -219,7 +227,16 @@ function InboxTab({ me }: { me: TeamMe }) {
                 <span translate="no">{n.route}</span>
                 {n.heading && <span>{`· ${n.heading}`}</span>}
                 <span>{`· ${fmtD(n.createdAt)}`}</span>
-                <span>· {n.author.isOwner ? "vlastník" : n.author.role === "physio" ? "fyzioterapeut" : "běžec"}{n.author.name ? ` (${n.author.name})` : ""}</span>
+                {n.synthetic ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Chip tone="load"><Bot className="size-3" aria-hidden />{`persona ${n.synthetic.persona || ""}`}</Chip>
+                    {n.source === "synthetic-ai" && <Chip>AI kontrola</Chip>}
+                    {(n.synthetic.repeats || 1) > 1 && <Chip>{`${n.synthetic.repeats}× (naposledy ${n.synthetic.lastSeen || "—"})`}</Chip>}
+                    {n.synthetic.verifiedAt && <Chip tone="ok">{`po opravě ověřeno ${fmtD(n.synthetic.verifiedAt)}`}</Chip>}
+                  </span>
+                ) : (
+                  <span>· {n.author.isOwner ? "vlastník" : n.author.role === "physio" ? "fyzioterapeut" : "běžec"}{n.author.name ? ` (${n.author.name})` : ""}</span>
+                )}
                 {n.ready ? <Chip tone="ok">schváleno</Chip> : <Chip tone="watch">čeká na schválení</Chip>}
                 {n.issueNumber && <Chip tone="info"><Ext href={n.issueUrl}>{`issue #${n.issueNumber}`}</Ext></Chip>}
               </div>
@@ -531,6 +548,7 @@ function PilotTab() {
   const tone = (s: string | null) => (s === "ok" ? "ok" : s === "alert" ? "alert" : s === "watch" ? "watch" : "muted") as "ok" | "alert" | "watch" | "muted"
   const word: Record<string, string> = { ok: "splněno", watch: "zatím ne", alert: "pozor", info: "měříme" }
   return (
+    <>
     <Card>
       <h2 className="font-serif text-xl">Pilot a rozhodovací brány</h2>
       <p className="mt-1 max-w-[700px] text-[12px] leading-[17px] text-fg-2">
@@ -574,5 +592,163 @@ function PilotTab() {
         </div>
       )}
     </Card>
+    <BehaviourExport />
+    </>
+  )
+}
+
+/* ---------------------------------------------------------------- Pilot → profile for the personas */
+// personas stage 3: an anonymous profile of how the consenting pilot runners use the app
+// (groups of 5+, behaviour only), downloaded here and imported on staging → Persony
+function BehaviourExport() {
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const get = async () => {
+    setBusy(true)
+    try {
+      const prof = await api.teamBehaviourProfile()
+      const groups = Object.keys(prof.groups || {})
+      if (!groups.length) { toast({ title: `Zatím málo souhlasů (${prof.consenting}) — skupina potřebuje aspoň ${prof.kMin} lidí` }); return }
+      const url = URL.createObjectURL(new Blob([JSON.stringify(prof, null, 1)], { type: "application/json" }))
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `doslap-profil-chovani-${(prof.generatedAt || "").slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+    finally { setBusy(false) }
+  }
+  return (
+    <Card className="mt-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="max-w-[640px]">
+          <h2 className="font-serif text-xl">Profil chování pro persony</h2>
+          <p className="mt-1 text-[12px] leading-[17px] text-fg-2">
+            Jak aplikaci používají běžci, kteří s tím v Profilu souhlasili: kdy ji otevírají, které části a jak dlouho, jak často
+            vyplní check-in a ohodnotí běh. Jen skupiny aspoň 5 lidí, žádná zdravotní data. Soubor nahrajte na stagingu v záložce Persony.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" icon={Download} busy={busy} onClick={get} data-testid="behaviour-export">Stáhnout profil chování</Button>
+      </div>
+    </Card>
+  )
+}
+
+/* ---------------------------------------------------------------- Persony (staging) */
+const PHASE: Record<string, string> = { night: "před 1. dnem", morning: "ráno", evening: "večer" }
+
+function PersonasTab() {
+  const toast = useToast()
+  const { d, err, reload } = useLoad<any>(() => api.personas())
+  const [sel, setSel] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const file = useRef<HTMLInputElement | null>(null)
+  const running = !!d?.personas?.some((p: any) => p.run?.status === "running")
+  useEffect(() => {
+    if (!running) return
+    const t = setInterval(reload, 4000)
+    return () => clearInterval(t)
+  }, [running, reload])
+  const act = async (k: string, fn: () => Promise<any>, msg: string) => {
+    setBusy(k)
+    try { await fn(); toast({ title: msg }); reload() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+    finally { setBusy(null) }
+  }
+  const upload = async (f: File) => {
+    try { const data = JSON.parse(await f.text()); await act("cal", () => api.personaCalibrationPut(data), "Profil chování nahraný — persony ho používají") }
+    catch { toast({ title: "Soubor není platné JSON" }) }
+  }
+  if (!d) return <Card><Loading err={err} /></Card>
+  return (
+    <div className="grid gap-4">
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="max-w-[680px]">
+            <h2 className="font-serif text-xl">Simulovaní běžci</h2>
+            <p className="mt-1 text-[12px] leading-[17px] text-fg-2">
+              {`Pět person žije na vlastních hodinách a prochází ${d.simDays} dní tréninku podle plánu aplikace. Po každém půldni se kontroluje, jestli `}
+              {"si obrazovky neodporují a jestli aplikace dodržuje vlastní pravidla; co nesedí, přijde do Inboxu jako poznámka od persony. "}
+              {d.reportsTo ? "Poznámky jdou do produkčního Inboxu." : "Poznámky zůstávají v Inboxu tohoto prostředí."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" icon={Play} busy={busy === "all"} disabled={running} onClick={() => act("all", () => api.personaAdvanceAll(7), "Všechny persony běží o týden dál")} data-testid="personas-week">Všichni o týden dál</Button>
+            <Button size="sm" variant="outline" icon={Upload} busy={busy === "cal"} onClick={() => file.current?.click()}>Nahrát profil chování</Button>
+            <input ref={file} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
+          </div>
+        </div>
+        {d.calibration
+          ? <p className="mt-2 text-[12px] text-fg-3">{`Chování podle profilu z ${fmtD(d.calibration.generatedAt)}: `}{Object.entries(d.calibration.groups || {}).map(([g, n]) => `${g} ${n}`).join(", ")}</p>
+          : <Missing>Persony se chovají podle vlastních zvyků — profil chování z pilotu zatím není nahraný (Pilot → Stáhnout profil chování v produkci).</Missing>}
+        <ul className="mt-3 divide-y divide-white/[.07]" data-testid="personas">
+          {d.personas.map((p: any) => {
+            const r = p.run
+            const checks = Object.entries(r?.stats?.checks || {})
+            return (
+              <li key={p.key} className="py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="min-w-0 flex-1">
+                    <b className="text-[14px] text-fg">{p.name}</b>
+                    <span className="block text-[12px] text-fg-3">{p.label}</span>
+                  </span>
+                  {r ? (
+                    <>
+                      <Chip tone={r.status === "error" ? "alert" : r.status === "running" ? "watch" : "muted"}>
+                        {r.status === "running" ? "běží…" : r.status === "error" ? "chyba" : `den ${r.day} · ${PHASE[r.phase] || r.phase}`}
+                      </Chip>
+                      <span className="text-[12px] text-fg-3">{fmtD(r.simDate)}</span>
+                      <Chip tone={(r.stats?.findings || 0) ? "watch" : "ok"}>{`${r.stats?.findings || 0} nálezů`}</Chip>
+                      {r.behaviour?.calibrated && <Chip tone="info">kalibrováno</Chip>}
+                    </>
+                  ) : <Chip>zatím nezačala</Chip>}
+                  <span className="flex gap-1.5">
+                    <Button size="sm" variant="outline" busy={busy === `d${p.key}`} disabled={running}
+                      onClick={() => act(`d${p.key}`, () => api.personaAdvance(p.key, 1), `${p.name}: další den`)}>+1 den</Button>
+                    <Button size="sm" variant="outline" busy={busy === `w${p.key}`} disabled={running}
+                      onClick={() => act(`w${p.key}`, () => api.personaAdvance(p.key, 7), `${p.name}: týden běží`)}>+7 dní</Button>
+                    <button type="button" disabled={running || busy !== null} aria-label={`Začít znovu: ${p.name}`} className="btn btn-outline btn-sm"
+                      onClick={() => act(`r${p.key}`, () => api.personaReset(p.key), `${p.name} začíná znovu`)}><RotateCcw className="size-3.5" aria-hidden /></button>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSel(sel === p.key ? null : p.key)}>Deník</button>
+                  </span>
+                </div>
+                {r?.error && <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-alert/[.07] p-2 text-[11px] text-alert-soft" translate="no">{r.error}</pre>}
+                {checks.length > 0 && <p className="mt-1.5 text-[11.5px] text-fg-3" translate="no">{checks.map(([k, v]) => `${k} ${v}×`).join(" · ")}</p>}
+                {sel === p.key && <PersonaJournal k={p.key} />}
+              </li>
+            )
+          })}
+        </ul>
+      </Card>
+    </div>
+  )
+}
+
+function PersonaJournal({ k }: { k: string }) {
+  const { d, err } = useLoad<any>(() => api.personaDays(k, 21), [k])
+  if (!d) return <Loading err={err} />
+  return (
+    <div className="mt-3 overflow-x-auto">
+      <table className="w-full min-w-[640px] text-[12px]">
+        <thead className="text-left text-fg-3">
+          <tr><th className="py-1 pr-3 font-semibold">Den</th><th className="py-1 pr-3 font-semibold">Události</th><th className="py-1 pr-3 font-semibold">Aplikace ráno</th>
+            <th className="py-1 pr-3 font-semibold">Persona udělala</th><th className="py-1 pr-3 font-semibold">Nálezy</th></tr>
+        </thead>
+        <tbody>
+          {d.days.map((x: any) => (
+            <tr key={x.date} className="border-t border-white/[.06] align-top">
+              <td className="py-1.5 pr-3 text-fg-2">{`${x.day ?? ""}. · ${fmtD(x.date)}`}</td>
+              <td className="py-1.5 pr-3 text-fg-2">{(x.events || []).join(", ") || "—"}{x.checkin ? " · check-in" : ""}</td>
+              <td className="py-1.5 pr-3 text-fg">
+                {x.morning?.typeLabel || "—"}
+                {x.morning?.readiness != null && <span className="text-fg-3">{` · připravenost ${x.morning.readiness}`}</span>}
+                {(x.morning?.planToday || []).filter((i: any) => i.kind === "run").map((i: any) => <span key={i.type} className="block text-fg-3">{`plán: ${i.label} ${i.km?.lo ?? ""}–${i.km?.hi ?? ""} km`}</span>)}
+              </td>
+              <td className="py-1.5 pr-3 text-fg">{(x.did || []).map((a: any) => `${a.kind} ${a.amount}${a.followed ? "" : " (mimo plán)"}`).join(", ") || "odpočinek"}</td>
+              <td className="py-1.5 pr-3">{(x.findings || []).length ? <span className="text-watch">{x.findings.join(" · ")}</span> : <span className="text-fg-3">—</span>}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }

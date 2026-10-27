@@ -23,7 +23,7 @@ from .deps import is_owner, tutorial_demo_runner_id
 from .metrics import engine as E
 from .routers import (
     admin, ai, annotations, auth, booking, calendar, client_errors, coach, conclusions, employers, goals, integrations, partners, physios,
-    plan, programs, rtr, runners, self_programs, shoes, simulate, team, triage, assistant, usage,
+    personas, plan, programs, rtr, runners, self_programs, shoes, simulate, team, triage, assistant, usage,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -134,6 +134,11 @@ def _migrate(engine):
     for col in ("priority", "triage_type", "assignee", "issue_url"):
         add("annotations", col, f"{col} VARCHAR")
     add("annotations", "issue_number", "issue_number INTEGER")
+    # simulated runners (app/personas): synthetic notes and their dedupe key; usage consent
+    add("annotations", "source", "source VARCHAR")
+    add("annotations", "fingerprint", "fingerprint VARCHAR")
+    add("settings", "share_usage", "share_usage BOOLEAN")
+    add("settings", "share_usage_at", "share_usage_at VARCHAR")
     # British English: the account's language (UI and AI assistant)
     add("users", "lang", "lang VARCHAR", "UPDATE users SET lang = 'cs' WHERE lang IS NULL")
     # v0.12.0 — profile gate (experience, body mass, menstrual cycle), breathing rate
@@ -474,6 +479,33 @@ async def audit_access(request, call_next):
     return response
 
 
+def _persona_clock_for(token: str | None):
+    from .personas import sim as PS
+    db = SessionLocal()
+    try:
+        return PS.clock_for_user(db, security.get_user_for_token(db, token))
+    finally:
+        db.close()
+
+
+@app.middleware("http")
+async def persona_clock(request, call_next):
+    """Simulated runners (app/personas, staging only): a request signed in as a persona runs on
+    the persona's own clock, so its app shows the simulated day."""
+    from .personas import sim as PS
+    token = request.cookies.get(security.SESSION_COOKIE)
+    if not token or not request.url.path.startswith("/api/") or not PS.enabled():
+        return await call_next(request)
+    clock = await asyncio.to_thread(_persona_clock_for, token)
+    if clock is None:
+        return await call_next(request)
+    tok = E._sim_now.set(clock)
+    try:
+        return await call_next(request)
+    finally:
+        E._sim_now.reset(tok)
+
+
 app.include_router(auth.router)
 app.include_router(runners.router)
 app.include_router(shoes.router)
@@ -501,6 +533,7 @@ app.include_router(client_errors.router)
 app.include_router(calendar.router)
 app.include_router(team.router)
 app.include_router(team.hook_router)
+app.include_router(personas.router)
 
 
 @app.get("/api/health")

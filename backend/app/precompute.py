@@ -88,18 +88,23 @@ def _run(rid: str) -> None:
     from .db import SessionLocal
     from .history import refresh_quadrant_history
     from .metrics import engine as E
+    from .personas import sim as PS
     db = SessionLocal()
     try:
         from .tutorial_demo import TUTORIAL_RID
-        fresh = False
-        if rid != TUTORIAL_RID:
-            fresh = _weather(db, rid)
-        # new weather (heat flags / today's forecast) → the guidance follows at once
-        a = E.recompute_assessment(db, rid, data_changed=False) if fresh else E.get_or_refresh_assessment(db, rid)
-        from .outcomes import record_snapshot
-        if rid != TUTORIAL_RID:          # synthetic tour data stays out of the outcome record
-            record_snapshot(db, rid, a)  # plan phase 0: the prospective daily record
-        st = refresh_quadrant_history(db, rid)
+        # a simulated runner (app/personas) is computed on its own clock, never the real one, and
+        # its made-up data stay out of the weather lookups and the outcome record
+        persona = PS.is_persona_rid(rid)
+        with E.sim_clock(PS.clock_for_runner(db, rid) if persona else None):
+            fresh = False
+            if rid != TUTORIAL_RID and not persona:
+                fresh = _weather(db, rid)
+            # new weather (heat flags / today's forecast) → the guidance follows at once
+            a = E.recompute_assessment(db, rid, data_changed=False) if fresh else E.get_or_refresh_assessment(db, rid)
+            from .outcomes import record_snapshot
+            if rid != TUTORIAL_RID and not persona:   # synthetic tour data stays out of the outcome record
+                record_snapshot(db, rid, a)  # plan phase 0: the prospective daily record
+            st = refresh_quadrant_history(db, rid)
         log.info("precomputed %s: %d days (%d replayed)", rid, len(st["rows"]), st["replayed"])
     finally:
         db.close()

@@ -74,7 +74,14 @@ def config() -> dict:
         "webhook": bool(os.environ.get("DOSSLAP_GITHUB_WEBHOOK_SECRET")),
         "railway": bool(os.environ.get("DOSSLAP_RAILWAY_TOKEN")),
         "staging": os.environ.get("DOSSLAP_STAGING_URL") or None,
+        "personas": personas_on(),
+        "personaToken": bool(os.environ.get("DOSSLAP_PERSONA_TOKEN")),
     }
+
+
+def personas_on() -> bool:
+    from .personas.sim import enabled
+    return enabled()
 
 
 def repo() -> str:
@@ -429,7 +436,7 @@ def _pilot_runner_users(db: DBSession) -> list:
     from .deps import GUEST_PROVIDER, tutorial_demo_runner_id
     demo = tutorial_demo_runner_id(db)
     us = (db.query(models.User).filter(models.User.role == "runner", models.User.runner_id.isnot(None)).all())
-    return [u for u in us if u.runner_id != demo and u.provider != GUEST_PROVIDER
+    return [u for u in us if u.runner_id != demo and u.provider not in (GUEST_PROVIDER, "persona")
             and not (u.email or "").lower().endswith("@demo.cz")]
 
 
@@ -507,3 +514,90 @@ def snapshot_pilot(db: DBSession, data: dict) -> None:
         db.add(models.PilotSnapshot(week=week, data_json=vals, created_at=E.now_iso()))
     else:
         row.data_json = vals
+
+
+# ---------------------------------------------------------------- synthetic notes (personas)
+SYNTH_EMAIL = "personas@system.doslap.invalid"
+
+
+def persona_token_ok(header: str | None) -> bool:
+    want = os.environ.get("DOSSLAP_PERSONA_TOKEN") or ""
+    return bool(want) and bool(header) and hmac.compare_digest(want, header)
+
+
+def _synth_user(db: DBSession) -> models.User:
+    from . import security
+    u = db.query(models.User).filter(models.User.email == SYNTH_EMAIL).first()
+    if u is None:
+        u = models.User(email=SYNTH_EMAIL, password_hash=security.hash_password(os.urandom(24).hex()),
+                        name="Persony (staging)", role="runner", provider="persona", lang="cs",
+                        created_at=datetime.now(E.LOCAL_TZ).isoformat(timespec="seconds"))
+        db.add(u)
+        db.flush()
+    return u
+
+
+def ingest_synthetic(db: DBSession, body: dict) -> dict:
+    """Findings of the simulated runners (app/personas) as Inbox notes. One note per problem
+    (fingerprint): a repeat counts on the open note, a recurrence reopens a resolved one, a
+    check that passed again marks its resolved notes as verified. At most
+    DOSSLAP_SYNTHETIC_DAILY_CAP new notes a day; every note waits for an owner's approval like
+    any other user's."""
+    real_now = datetime.now(E.LOCAL_TZ)
+    today = real_now.date().isoformat()
+    stamp = real_now.isoformat(timespec="seconds")
+    cap = int(os.environ.get("DOSSLAP_SYNTHETIC_DAILY_CAP") or 6)
+    source = body.get("source") if body.get("source") in ("synthetic", "synthetic-ai") else "synthetic"
+    from .personas import catalog as KAT
+    pname = (KAT.PERSONAS.get(body.get("persona") or "") or {}).get("name") or body.get("persona") or "?"
+    out = {"created": 0, "repeats": 0, "reopened": 0, "capped": 0, "verified": 0, "ignored": 0}
+    user = _synth_user(db)
+    made_today = (db.query(models.Annotation).filter(models.Annotation.source.like("synthetic%"),
+                                                     models.Annotation.created_at >= today).count())
+    for it in (body.get("items") or [])[:20]:
+        fp = str(it.get("fingerprint") or "")[:40]
+        if not fp or not it.get("title"):
+            continue
+        a = (db.query(models.Annotation).filter(models.Annotation.fingerprint == fp)
+             .order_by(models.Annotation.id.desc()).first())
+        if a is not None:
+            ctx = dict(a.context_json or {})
+            ctx["repeats"] = int(ctx.get("repeats") or 1) + 1
+            ctx["lastSeen"], ctx["lastPersona"] = it.get("simDate"), pname
+            a.context_json = ctx
+            if a.status == "done":
+                a.status, a.resolved_at = "open", None
+                a.resolution = ((a.resolution or "") + f" · Znovu se objevilo {today} (persona {pname}, "
+                                f"simulovaný den {it.get('simDate')})").strip(" ·")
+                ctx.pop("verifiedAt", None)
+                out["reopened"] += 1
+            elif a.status == "wontfix":
+                out["ignored"] += 1
+            else:
+                out["repeats"] += 1
+            a.updated_at = stamp
+            continue
+        if made_today >= cap:
+            out["capped"] += 1
+            continue
+        title = str(it["title"])[:200]
+        db.add(models.Annotation(
+            user_id=user.id, route=str(it.get("route") or "/app/today")[:200], anchor_text=title[:300],
+            context_json={"heading": "Simulovaný běžec", "persona": pname, "simDate": it.get("simDate"),
+                          "check": it.get("check"), "repeats": 1},
+            note=f"{title}\n\n{str(it.get('detail') or '')[:1500]}", kind="bug", status="open", source=source,
+            fingerprint=fp, triage_type=it.get("type") if it.get("type") in ("bug", "engine", "safety", "copy", "feature") else "bug",
+            created_at=stamp, updated_at=stamp))
+        made_today += 1
+        out["created"] += 1
+    passed = {str(c) for c in body.get("passed") or []}
+    if passed:
+        for a in (db.query(models.Annotation).filter(models.Annotation.source.like("synthetic%"),
+                                                     models.Annotation.status == "done").all()):
+            ctx = dict(a.context_json or {})
+            if ctx.get("check") in passed and not ctx.get("verifiedAt"):
+                ctx["verifiedAt"], ctx["verifiedBy"] = today, pname
+                a.context_json = ctx
+                out["verified"] += 1
+    db.flush()
+    return out

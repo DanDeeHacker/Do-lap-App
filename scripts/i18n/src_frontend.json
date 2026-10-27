@@ -16,7 +16,8 @@
  {
   "t": "{} {}×",
   "files": [
-   "admin.tsx"
+   "admin.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "tpl"
  },
@@ -1575,7 +1576,8 @@
    "assistant.tsx",
    "landing.tsx",
    "onboarding.tsx",
-   "rundetail.tsx"
+   "rundetail.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -2899,7 +2901,8 @@
   "files": [
    "App.tsx",
    "capacity.tsx",
-   "tabs.tsx"
+   "tabs.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "jsx"
  },
@@ -4558,7 +4561,8 @@
   "t": "Nepovedlo se",
   "files": [
    "calendarsync.tsx",
-   "coachview.tsx"
+   "coachview.tsx",
+   "usageconsent.tsx"
   ],
   "kind": "str"
  },
@@ -7610,7 +7614,8 @@
   "files": [
    "coach.tsx",
    "fitness.tsx",
-   "outlook.tsx"
+   "outlook.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "jsx"
  },
@@ -27450,6 +27455,13 @@
   "kind": "tpl"
  },
  {
+  "t": "· připravenost {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· zástupný ukazatel",
   "files": [
    "teamconsole.tsx"
@@ -27457,11 +27469,81 @@
   "kind": "str"
  },
  {
+  "t": "(mimo plán)",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "{} nálezů",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} začíná znovu",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}: další den",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}: týden běží",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{}/{} OK",
   "files": [
    "teamconsole.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "{}× (naposledy {})",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "+1 den",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "+7 dní",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "AI kontrola",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Aplikace ráno",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "bez účtu",
@@ -27472,6 +27554,13 @@
  },
  {
   "t": "Běžci",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "běží…",
   "files": [
    "teamconsole.tsx"
   ],
@@ -27497,6 +27586,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Chování podle profilu z {}:",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Chyby v prohlížeči",
@@ -27574,6 +27670,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "den {} · {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "dočasná",
@@ -27667,6 +27770,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Jak aplikaci používají běžci, kteří s tím v Profilu souhlasili: kdy ji otevírají, které části a jak dlouho, jak často vyplní check-in a ohodnotí běh. Jen skupiny aspoň 5 lidí, žádná zdravotní data. Soubor nahrajte na stagingu v záložce Persony.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "jméno (nepovinné)",
   "files": [
    "teamconsole.tsx"
@@ -27679,6 +27789,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "kalibrováno",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Kdo co v Team Console udělal. Záznam nejde upravit.",
@@ -27723,6 +27840,20 @@
   "kind": "str"
  },
  {
+  "t": "Nahrát profil chování",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nálezy",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Naplánováno",
   "files": [
    "teamconsole.tsx"
@@ -27765,7 +27896,35 @@
   "kind": "str"
  },
  {
+  "t": "Od lidí",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Od person",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "od spuštění neproběhla",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odkud poznámky jsou",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "odpočinek",
   "files": [
    "teamconsole.tsx"
   ],
@@ -27777,6 +27936,41 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "persona {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Persona udělala",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Persony",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Persony se chovají podle vlastních zvyků — profil chování z pilotu zatím není nahraný (Pilot → Stáhnout profil chování v produkci).",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Pět person žije na vlastních hodinách a prochází {} dní tréninku podle plánu aplikace. Po každém půldni se kontroluje, jestli",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Pilot",
@@ -27800,6 +27994,20 @@
   "kind": "str"
  },
  {
+  "t": "plán: {} {}–{} km",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "po opravě ověřeno {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Poslat AI týmu",
   "files": [
    "teamconsole.tsx"
@@ -27821,11 +28029,25 @@
   "kind": "str"
  },
  {
+  "t": "Poznámky jdou do produkčního Inboxu.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Poznámky z aplikace. Roztřiďte je a pošlete AI týmu: vznikne issue na GitHubu se štítkem ai-ready a AI tým začne pracovat. Poznámka od uživatele jde k implementaci až po schválení vlastníkem.",
   "files": [
    "teamconsole.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Poznámky zůstávají v Inboxu tohoto prostředí.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "PR #{}",
@@ -27854,6 +28076,13 @@
    "teamconsole.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "před 1. dnem",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Přidá se obrazovka, typ, priorita, build a štítky ai-ready a from-app (a engine nebo safety, které vyžadují klinické schválení).",
@@ -27893,6 +28122,20 @@
  },
  {
   "t": "Produkce",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Profil chování nahraný — persony ho používají",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Profil chování pro persony",
   "files": [
    "teamconsole.tsx"
   ],
@@ -27976,6 +28219,20 @@
   "kind": "jsx"
  },
  {
+  "t": "si obrazovky neodporují a jestli aplikace dodržuje vlastní pravidla; co nesedí, přijde do Inboxu jako poznámka od persony.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Simulovaní běžci",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Sloučené změny",
   "files": [
    "teamconsole.tsx"
@@ -27984,6 +28241,13 @@
  },
  {
   "t": "Sloučeno",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Soubor není platné JSON",
   "files": [
    "teamconsole.tsx"
   ],
@@ -28016,6 +28280,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Stáhnout profil chování",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Stav k {}; týdenní snímek se ukládá.",
@@ -28081,6 +28352,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Události",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "v produkci",
   "files": [
    "teamconsole.tsx"
@@ -28096,6 +28374,13 @@
  },
  {
   "t": "Ve frontě AI",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "večer",
   "files": [
    "teamconsole.tsx"
   ],
@@ -28131,6 +28416,27 @@
  },
  {
   "t": "Vrátit k úpravě",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vše",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Všechny persony běží o týden dál",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Všichni o týden dál",
   "files": [
    "teamconsole.tsx"
   ],
@@ -28179,6 +28485,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Začít znovu: {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Žádné pády obrazovky.",
   "files": [
    "teamconsole.tsx"
@@ -28193,11 +28506,25 @@
   "kind": "jsx"
  },
  {
+  "t": "Zatím málo souhlasů ({}) — skupina potřebuje aspoň {} lidí",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "zatím ne",
   "files": [
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "zatím nezačala",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Zatím nic.",
@@ -30543,6 +30870,41 @@
    "ui.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Aplikaci testují i simulovaní běžci. Smějí se při tom řídit tím, jak ji používáte vy: kdy ji otevíráte, které části a jak dlouho, jak často vyplníte check-in a ohodnotíte běh. Do souhrnu jdou jen skupiny aspoň 5 lidí, nikdy nic o vašem zdraví ani tréninku. Souhlas můžete kdykoli odvolat.",
+  "files": [
+   "usageconsent.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Díky — váš způsob používání se započítá do souhrnu",
+  "files": [
+   "usageconsent.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pomoc s vývojem",
+  "files": [
+   "usageconsent.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Souhlas je odvolaný",
+  "files": [
+   "usageconsent.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Započítat můj způsob používání do anonymního souhrnu",
+  "files": [
+   "usageconsent.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "block text-[10.5px] leading-[14px] text-fg-3 {}",
