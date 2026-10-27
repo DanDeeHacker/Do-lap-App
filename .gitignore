@@ -20,7 +20,9 @@ python-garminconnect-master/
 # Local tooling / OS
 .DS_Store
 .vscode/
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 _data/
 backend/backtest_engine_compare.xlsx
 
