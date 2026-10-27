@@ -82,10 +82,10 @@ engineer, clinical, support, auditor (`team_members`; DOSSLAP_OWNER_EMAILS are o
 write lands in `team_audit`. The app writes issues, labels and comments; it never merges or deploys.
 Railway variables (all optional, the console says which one is missing):
 - `DOSSLAP_GITHUB_TOKEN` — fine-grained token for this repo only: Issues + Pull requests read/write,
-  Contents + Commit statuses read. `DOSSLAP_GITHUB_REPO` overrides `DanDeeHacker/Do-lap-App`.
+  Contents + Checks read (create it at github.com/settings/personal-access-tokens/new). `DOSSLAP_GITHUB_REPO` overrides `DanDeeHacker/Do-lap-App`.
 - `DOSSLAP_GITHUB_WEBHOOK_SECRET` — GitHub webhook to `/api/github/webhook` (JSON; Issues,
   Pull requests, Check suites, Statuses). A merged PR with "Closes #N" resolves the app note behind #N.
-- `DOSSLAP_RAILWAY_TOKEN` — read-only token for the deployment list; `DOSSLAP_STAGING_URL`.
+- `DOSSLAP_RAILWAY_TOKEN` — project token (Project Settings → Tokens, production) for the deployment list; `DOSSLAP_STAGING_URL`.
 An issue sent from Inbox carries the owner-edited text, the screen and the reporter's role, never a
 name, e-mail or health data. The clinical guarantor's decision adds `clinical-approved` or
 `clinical-changes` to the PR, which the `clinical-gate` check reads.
