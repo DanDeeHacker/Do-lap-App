@@ -8,7 +8,7 @@ import { api } from "@/api"
 import { Button, useToast } from "@/ui"
 import { fmtD } from "@/lib"
 
-export function CalendarSync({ rid }: { rid: string }) {
+export function CalendarSync({ rid, bare = false }: { rid: string; bare?: boolean }) {
   const toast = useToast()
   const [f, setF] = useState<any>(undefined)
   const [busy, setBusy] = useState(false)
@@ -24,7 +24,7 @@ export function CalendarSync({ rid }: { rid: string }) {
     catch { toast({ title: "Odkaz označte a zkopírujte ručně" }) }
   }
   return (
-    <section className="mt-7 border-t border-white/[.08] pt-5" data-testid="calendar-sync">
+    <section className={bare ? "" : "mt-7 border-t border-white/[.08] pt-5"} data-testid="calendar-sync">
       <h3 className="flex items-center gap-2 font-serif text-xl"><CalendarPlus className="size-5 text-fg-2" aria-hidden />Tréninky v kalendáři</h3>
       <p className="mt-1 text-[12px] leading-[17px] text-fg-2">
         Plán týdne se zobrazí ve vašem Apple nebo Google Kalendáři jako celodenní události s tepem, tempem a náplní tréninku. Když plán
@@ -58,7 +58,7 @@ export function CalendarSync({ rid }: { rid: string }) {
           </details>
           <p className="text-[11.5px] leading-[17px] text-fg-3">
             {"Odkaz je tajný — kdo ho má, vidí váš plán. "}
-            {f.lastUsedAt ? `Kalendář si plán naposledy stáhl ${fmtD(f.lastUsedAt)}.` : "Zatím si ho žádný kalendář nestáhl."}
+            {f.lastUsedAt ? `Kalendář si plán naposledy stáhl: ${fmtD(f.lastUsedAt)}` : "Zatím si ho žádný kalendář nestáhl."}
           </p>
           <div className="flex flex-wrap gap-3 text-[12px] font-bold">
             <button type="button" disabled={busy} className="inline-flex items-center gap-1 text-accent hover:underline" data-testid="calendar-rotate"

@@ -79,5 +79,7 @@
   "Změna tréninku v plánu týdne": "Change a session in the week plan",
   "U každého dne v Tréninku → Den po dni klepněte na Změnit. Aplikace u každé možnosti řekne, jestli se vejde, a když ne, nabídne jinou. Zbytek týdne se přepočítá podle týdenních limitů.": "For any day in Training → Day by day, tap Change. For each option the app says whether it fits, and if it doesn't, offers another one. The rest of the week is recalculated within the weekly limits.",
   "Tréninky ve vašem kalendáři": "Training in your calendar",
-  "V profilu → Tréninky v kalendáři si plán týdne přidáte do Apple nebo Google Kalendáře. Aktualizuje se sám.": "In your profile → Training in your calendar, add the week's plan to Apple or Google Calendar. It updates itself."
+  "V profilu → Tréninky v kalendáři si plán týdne přidáte do Apple nebo Google Kalendáře. Aktualizuje se sám.": "In your profile → Training in your calendar, add the week's plan to Apple or Google Calendar. It updates itself.",
+  "Připojit kalendář": "Connect calendar",
+  "Kalendář si plán naposledy stáhl: {}": "Last fetched by your calendar: {0}"
 }

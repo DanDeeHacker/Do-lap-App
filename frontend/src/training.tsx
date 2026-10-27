@@ -12,6 +12,7 @@ import { ReadinessTrend } from "@/tabs"
 import { DayReadiness, DayToday, useDayToday } from "@/daytoday"
 import { PlanDay, WeekStrip, itemSummary } from "@/report"
 import { DayEditSheet } from "@/dayedit"
+import { CalendarSync } from "@/calendarsync"
 import { AlertBanner, Button, Card, Chip, HowTo, InfoDot, Label, Segmented, Sheet, useToast } from "@/ui"
 import { METRIC_INFO as MI } from "@/metricinfo"
 import { readinessCol } from "@/capacity"
@@ -19,7 +20,7 @@ import { EarlyNote, NoData, useDataStage } from "@/firstday"
 import { fmtD, leadReasons, paceStr } from "@/lib"
 import { C } from "@/tokens"
 import { BoundTag, TomorrowCard, WeekLoadCard, limitText, type TomorrowPlan } from "@/outlook"
-import { Bike, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Users, Waves, X, Zap, type LucideIcon } from "lucide-react"
+import { Bike, CalendarPlus, ChevronDown, ChevronRight, CircleCheck, Dumbbell, Flag, Footprints, Leaf, MoveDiagonal, Plus, Route, Sofa, Users, Waves, X, Zap, type LucideIcon } from "lucide-react"
 import { CoachProgress, CoachSection } from "@/coach"
 import { DataGapCard, GoalCard } from "@/goal"
 import { HabitsRow } from "@/habits"
@@ -1241,6 +1242,7 @@ function ActivityRow({ g, onPick }: { g: any; onPick: (k: string) => void }) {
 function WeekCard({ g, plan, rid, onPlan }: { g: any; plan: any; rid?: string; onPlan?: (p: any) => void }) {
   const [open, setOpen] = useState(false)
   const [edit, setEdit] = useState<any>(null)
+  const [cal, setCal] = useState(false)
   const canEdit = !!rid && !!onPlan && !!plan?.totals && plan?.mode !== "coach"
   const wk = g.week || {}
   const vol = wk.channels?.volume || {}
@@ -1254,7 +1256,16 @@ function WeekCard({ g, plan, rid, onPlan }: { g: any; plan: any; rid?: string; o
   return (
     <section className="card mt-4 p-4 md:p-6" data-testid="week-card">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="flex items-center gap-1.5"><Label>Plán týdne</Label><InfoDot text={MI.weekBudget} label="Týdenní cíl a cyklus" /></span>
+        <span className="flex items-center gap-1.5">
+          <Label>Plán týdne</Label><InfoDot text={MI.weekBudget} label="Týdenní cíl a cyklus" />
+          {/* owner 2026-10-27: the plan into the runner's own calendar, one tap from the plan itself */}
+          {rid && (
+            <button type="button" onClick={() => setCal(true)} aria-label="Připojit kalendář" title="Připojit kalendář" data-testid="week-calendar"
+              className="grid size-6 place-items-center rounded-full text-fg-3 transition hover:bg-white/[.06] hover:text-accent">
+              <CalendarPlus className="size-3.5" aria-hidden />
+            </button>
+          )}
+        </span>
         {vol.budget != null && <b className="text-[13px] tabular-nums text-fg">{`${num(vol.done ?? 0)} z ${num(vol.budget, 0)} km`}</b>}
       </div>
       <p className="mt-1 text-[12.5px] text-fg-2">
@@ -1297,6 +1308,7 @@ function WeekCard({ g, plan, rid, onPlan }: { g: any; plan: any; rid?: string; o
         </div>
       )}
       {edit && rid && onPlan && <DayEditSheet rid={rid} day={edit} onClose={() => setEdit(null)} onPlan={onPlan} />}
+      {cal && rid && <Sheet open onClose={() => setCal(false)}><CalendarSync rid={rid} bare /></Sheet>}
     </section>
   )
 }

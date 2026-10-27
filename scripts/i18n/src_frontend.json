@@ -4515,7 +4515,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Kalendář si plán naposledy stáhl {}.",
+  "t": "Kalendář si plán naposledy stáhl: {}",
   "files": [
    "calendarsync.tsx"
   ],
@@ -28721,6 +28721,13 @@
  },
  {
   "t": "Priorita závodu",
+  "files": [
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Připojit kalendář",
   "files": [
    "training.tsx"
   ],
