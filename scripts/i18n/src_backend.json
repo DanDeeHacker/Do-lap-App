@@ -970,7 +970,8 @@
  {
   "t": "PUT",
   "files": [
-   "deps.py"
+   "deps.py",
+   "routers/team.py"
   ]
  },
  {
@@ -1676,6 +1677,7 @@
    "plan_import.py",
    "routers/personas.py",
    "routers/physios.py",
+   "routers/team.py",
    "team.py"
   ]
  },
@@ -17142,6 +17144,12 @@
   ]
  },
  {
+  "t": "Heslo nesouhlasí.",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
   "t": "Jen pro tým Došlapu",
   "files": [
    "routers/team.py"
@@ -17149,6 +17157,12 @@
  },
  {
   "t": "Na tuto část Team Console nemáte oprávnění",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Napište přesně: MERGE #{}",
   "files": [
    "routers/team.py"
   ]
@@ -17208,7 +17222,25 @@
   ]
  },
  {
+  "t": "PR se mezitím změnil (nový commit). Otevřete kontrolu znovu.",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Plán čekající na vlastníka nenalezen (zkuste Synchronizovat)",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
   "t": "Poznámku od uživatele musí nejdřív schválit vlastník",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Příliš mnoho zamítnutých pokusů, zkuste to za {} minut.",
   "files": [
    "routers/team.py"
   ]
@@ -17232,6 +17264,12 @@
   ]
  },
  {
+  "t": "Sloučení z aplikace není zapnuté: nastavte DOSSLAP_GITHUB_MERGE_TOKEN v proměnných Railway.",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
   "t": "Tento e-mail je vlastník z proměnné DOSSLAP_OWNER_EMAILS",
   "files": [
    "routers/team.py"
@@ -17239,6 +17277,12 @@
  },
  {
   "t": "Už je na GitHubu jako #{}",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "go — schváleno vlastníkem {} (Team Console)",
   "files": [
    "routers/team.py"
   ]
@@ -20022,7 +20066,25 @@
   ]
  },
  {
+  "t": "CI je červené.",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "CI ještě běží.",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
   "t": "Chybí RAILWAY_PROJECT_ID / SERVICE_ID / ENVIRONMENT_ID (mimo Railway).",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "GitHub ještě počítá, zda jde PR sloučit — zkuste to za chvíli.",
   "files": [
    "team.py"
   ]
@@ -20047,6 +20109,30 @@
  },
  {
   "t": "Měsíční odchod fyzioterapeutů",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "PR je rozpracovaný (draft).",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "PR je v konfliktu s main — nejdřív ho musí AI tým aktualizovat.",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "PR nemíří do větve main.",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "PR už není otevřený.",
   "files": [
    "team.py"
   ]
@@ -20088,13 +20174,31 @@
   ]
  },
  {
+  "t": "Stav CI se nepodařilo zjistit.",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
   "t": "Týdenní používání",
   "files": [
    "team.py"
   ]
  },
  {
+  "t": "V PR chybí „Change for runners“.",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
   "t": "Vydáno v PR #{} ({})",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Změna enginu nebo bezpečnosti čeká na klinické schválení (Schválení).",
   "files": [
    "team.py"
   ]
@@ -20167,6 +20271,12 @@
  },
  {
   "t": "účty běžců bez demo a hostů",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Štítek security: potvrďte, že je v PR odkaz na zprávu /cso.",
   "files": [
    "team.py"
   ]

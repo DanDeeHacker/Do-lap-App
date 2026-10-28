@@ -196,6 +196,11 @@ export const api = {
   teamSend: (id: number, body: { title: string; text: string }) => call("POST", `/api/team/inbox/${id}/send`, body),
   teamWork: () => call("GET", "/api/team/work"),
   teamSync: () => call("POST", "/api/team/work/sync", {}),
+  // owner reviews and merges a PR from the app (issue #3)
+  teamPr: (n: number, cso = false) => call("GET", `/api/team/pr/${n}?cso=${cso}`),
+  teamMerge: (n: number, body: { sha: string; confirm: string; password: string; cso: boolean }) => call("POST", `/api/team/pr/${n}/merge`, body),
+  teamPrComment: (n: number, text: string) => call("POST", `/api/team/pr/${n}/comment`, { text }),
+  teamPlanGo: (n: number) => call("POST", `/api/team/work/${n}/go`, {}),
   teamApprovals: () => call("GET", "/api/team/approvals"),
   teamDecide: (n: number, body: { decision: "approve" | "changes"; note: string }) => call("POST", `/api/team/approvals/${n}`, body),
   teamReleases: () => call("GET", "/api/team/releases"),

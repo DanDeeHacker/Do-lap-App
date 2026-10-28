@@ -84,7 +84,15 @@ Weekly: `/retro` on Friday next to Team Console → Pilot.
 
 `backend/app/team.py` + `routers/team.py`, UI in `frontend/src/teamconsole.tsx`. Roles: owner,
 engineer, clinical, support, auditor (`team_members`; DOSSLAP_OWNER_EMAILS are owners too); every
-write lands in `team_audit`. The app writes issues, labels and comments; it never merges or deploys.
+write lands in `team_audit`. The app writes issues, labels and comments and never deploys. Since
+issue #3 an **owner** (and only an owner) can also review a PR and merge it from Práce → "Zkontrolovat
+a sloučit", and send "go" on an `ai-plan` issue (the app comments "go — schváleno vlastníkem …", which
+counts as the owner's go). Merging needs `DOSSLAP_GITHUB_MERGE_TOKEN` (fine-grained, this repository,
+Contents + Pull requests write; without it the button says so). The server re-reads GitHub at click time:
+open, not draft, no conflict, CI green on the exact head SHA the owner saw, `clinical-approved` for
+`engine`/`safety`, the `/cso` box for `security`, "Change for runners" filled in; the owner types
+`MERGE #<n>` and, on a password account, the password; five refused attempts lock it for 15 minutes.
+AI sessions never hold the merge token.
 Railway variables (all optional, the console says which one is missing):
 - `DOSSLAP_GITHUB_TOKEN` — fine-grained token for this repo only: Issues + Pull requests read/write,
   Contents + Actions read (create it at github.com/settings/personal-access-tokens/new; fine-grained
