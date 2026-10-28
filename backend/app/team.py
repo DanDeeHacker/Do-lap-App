@@ -2,10 +2,14 @@
 app's admin. Roles and the audit log live here, with the small GitHub and Railway clients the
 console needs and the pilot gates from the business plan.
 
-The app never merges or deploys: it writes issues, labels and comments to GitHub with a token
-limited to this repository (DOSSLAP_GITHUB_TOKEN), mirrors issues and pull requests from the
-webhook (DOSSLAP_GITHUB_WEBHOOK_SECRET), and reads deployments with a read-only Railway token
-(DOSSLAP_RAILWAY_TOKEN). Without them the console says which variable is missing.
+The app writes issues, labels and comments to GitHub with a token limited to this repository
+(DOSSLAP_GITHUB_TOKEN), mirrors issues and pull requests from the webhook
+(DOSSLAP_GITHUB_WEBHOOK_SECRET), and reads deployments with a read-only Railway token
+(DOSSLAP_RAILWAY_TOKEN). It never deploys. Merging (owner request 2026-10-28, issue #3) is the one
+exception and is owner-only: it uses its own token (DOSSLAP_GITHUB_MERGE_TOKEN, Contents + Pull
+requests write, this repository only), re-checks every gate on the server against GitHub at click
+time, needs a typed confirmation (and the password of a password account) and lands in the audit
+log, refused attempts included. Without the variables the console says which one is missing.
 Nothing here sends a runner's health data anywhere: an issue carries the note as the owner
 edited it, the screen and the reporter's role, never a name or e-mail."""
 import hashlib
@@ -24,7 +28,7 @@ from .metrics import engine as E
 ROLES = ("owner", "engineer", "clinical", "support", "auditor")
 PERMS = {
     "owner": {"team.manage", "audit.read", "inbox.read", "inbox.triage", "inbox.send", "work.read", "work.sync",
-              "approvals.read", "releases.read", "pilot.read"},
+              "approvals.read", "releases.read", "pilot.read", "pr.merge"},
     "engineer": {"inbox.read", "inbox.triage", "inbox.send", "work.read", "work.sync", "approvals.read",
                  "releases.read", "pilot.read"},
     # the clinical guarantor (report Section 10) is the only one who signs off engine and safety changes
@@ -70,6 +74,7 @@ def team_changed() -> None:
 def config() -> dict:
     return {
         "github": bool(os.environ.get("DOSSLAP_GITHUB_TOKEN")),
+        "mergeToken": bool(os.environ.get("DOSSLAP_GITHUB_MERGE_TOKEN")),
         "githubRepo": repo(),
         "webhook": bool(os.environ.get("DOSSLAP_GITHUB_WEBHOOK_SECRET")),
         "railway": bool(os.environ.get("DOSSLAP_RAILWAY_TOKEN")),
@@ -95,8 +100,8 @@ class GitHubError(Exception):
         self.status = status
 
 
-def gh(method: str, path: str, json: dict | None = None, params: dict | None = None):
-    token = os.environ.get("DOSSLAP_GITHUB_TOKEN")
+def gh(method: str, path: str, json: dict | None = None, params: dict | None = None, token: str | None = None):
+    token = token or os.environ.get("DOSSLAP_GITHUB_TOKEN")
     if not token:
         raise GitHubError(503, "GitHub není připojený: nastavte DOSSLAP_GITHUB_TOKEN v proměnných Railway.")
     url = f"https://api.github.com/repos/{repo()}{path}"
@@ -601,3 +606,81 @@ def ingest_synthetic(db: DBSession, body: dict) -> dict:
                 out["verified"] += 1
     db.flush()
     return out
+
+
+# ---------------------------------------------------------------- review and merge (issue #3)
+MERGE_METHOD = "squash"                       # the repository's merge method (CLAUDE.md)
+MERGE_TRIES = 5                               # refused attempts per owner in MERGE_WINDOW_MIN
+MERGE_WINDOW_MIN = 15
+BAD_CONCLUSIONS = ("failure", "cancelled", "timed_out", "action_required", "startup_failure")
+
+
+def merge_token() -> str | None:
+    return os.environ.get("DOSSLAP_GITHUB_MERGE_TOKEN") or None
+
+
+def ci_detail(sha: str) -> dict:
+    """CI of a commit for the review screen: {"state": success|pending|failure|None, "items": [...]}.
+    Same sources and same reasoning as head_checks (a fine-grained token has no Checks permission,
+    so the workflow runs are the fallback)."""
+    items = None
+    try:
+        runs = (gh("GET", f"/commits/{sha}/check-runs", params={"per_page": 50}) or {}).get("check_runs") or []
+        items = [{"name": r.get("name"), "conclusion": r.get("conclusion") if r.get("status") == "completed" else None}
+                 for r in runs] or None
+    except GitHubError:
+        pass
+    if items is None:
+        try:
+            runs = (gh("GET", "/actions/runs", params={"head_sha": sha, "per_page": 30}) or {}).get("workflow_runs") or []
+        except GitHubError:
+            return {"state": None, "items": []}
+        items = [{"name": r.get("name"), "conclusion": r.get("conclusion") if r.get("status") == "completed" else None}
+                 for r in runs] or None
+    if items is None:
+        return {"state": None, "items": []}
+    concl = [i["conclusion"] for i in items]
+    state = ("pending" if any(c is None for c in concl) else "failure" if any(c in BAD_CONCLUSIONS for c in concl)
+             else "success")
+    return {"state": state, "items": items}
+
+
+def merge_blockers(pr: dict, ci_state: str | None, cso_linked: bool = False) -> list[str]:
+    """Why this pull request may not be merged right now. Evaluated on the live GitHub data, both
+    for the review screen and again, authoritatively, when the owner clicks Merge."""
+    out = []
+    labels = set(_labels(pr))
+    if pr.get("state") != "open" or pr.get("merged_at"):
+        out.append("PR už není otevřený.")
+    if pr.get("draft"):
+        out.append("PR je rozpracovaný (draft).")
+    if (pr.get("base") or {}).get("ref") != "main":
+        out.append("PR nemíří do větve main.")
+    if pr.get("mergeable") is False:
+        out.append("PR je v konfliktu s main — nejdřív ho musí AI tým aktualizovat.")
+    elif pr.get("mergeable") is None:
+        out.append("GitHub ještě počítá, zda jde PR sloučit — zkuste to za chvíli.")
+    if ci_state != "success":
+        out.append({"pending": "CI ještě běží.", "failure": "CI je červené."}.get(ci_state or "", "Stav CI se nepodařilo zjistit."))
+    if "clinical-changes" in labels or (labels & set(GATED) and "clinical-approved" not in labels):
+        out.append("Změna enginu nebo bezpečnosti čeká na klinické schválení (Schválení).")
+    if "security" in labels and not cso_linked:
+        out.append("Štítek security: potvrďte, že je v PR odkaz na zprávu /cso.")
+    if not _summary(pr.get("body")):
+        out.append("V PR chybí „Change for runners“.")
+    return out
+
+
+def pr_review(number: int, cso_linked: bool = False) -> dict:
+    """Everything the owner needs to decide, read from GitHub just now."""
+    pr = gh("GET", f"/pulls/{number}") or {}
+    ci = ci_detail((pr.get("head") or {}).get("sha") or "") if (pr.get("head") or {}).get("sha") else {"state": None, "items": []}
+    return {
+        "number": pr.get("number"), "title": pr.get("title"), "url": pr.get("html_url"), "state": pr.get("state"),
+        "merged": bool(pr.get("merged_at")), "draft": bool(pr.get("draft")), "author": (pr.get("user") or {}).get("login"),
+        "head": (pr.get("head") or {}).get("ref"), "sha": (pr.get("head") or {}).get("sha"),
+        "labels": _labels(pr), "summary": _summary(pr.get("body")), "closes": sorted({int(n) for n in CLOSES.findall(pr.get("body") or "")}),
+        "files": pr.get("changed_files"), "additions": pr.get("additions"), "deletions": pr.get("deletions"),
+        "mergeable": pr.get("mergeable"), "checks": ci["state"], "checkItems": ci["items"],
+        "blockers": merge_blockers(pr, ci["state"], cso_linked), "diffUrl": (pr.get("html_url") or "") + "/files",
+    }

@@ -1920,7 +1920,8 @@
   "t": "Heslo",
   "files": [
    "App.tsx",
-   "datapage.tsx"
+   "datapage.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -29210,6 +29211,13 @@
   "kind": "tpl"
  },
  {
+  "t": "{} souborů · +{} −{}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} začíná znovu",
   "files": [
    "teamconsole.tsx"
@@ -29259,6 +29267,13 @@
   "kind": "jsx"
  },
  {
+  "t": "a své heslo.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "AI kontrola",
   "files": [
    "teamconsole.tsx"
@@ -29281,6 +29296,13 @@
  },
  {
   "t": "Běžci",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "běží",
   "files": [
    "teamconsole.tsx"
   ],
@@ -29341,6 +29363,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "CI neznámé",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "CI zelené",
@@ -29446,6 +29475,13 @@
    "teamconsole.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Go odesláno — AI tým plán převezme",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Inbox",
@@ -29558,6 +29594,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "MERGE #{}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "měříme",
@@ -29735,11 +29778,25 @@
   "kind": "jsx"
  },
  {
+  "t": "Poslat připomínku",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Poslední synchronizace: {}",
   "files": [
    "teamconsole.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Potvrzení",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Poznámka (u vrácení povinná)",
@@ -29778,6 +29835,13 @@
  },
  {
   "t": "PR změnu pro běžce nepopsal — otevřete ho na GitHubu.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "PR změnu pro běžce nepopsal.",
   "files": [
    "teamconsole.tsx"
   ],
@@ -29823,6 +29887,27 @@
   "files": [
    "teamconsole.tsx",
    "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Připomínka",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Připomínka je v PR",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Připomínka pro AI tým (přidá se do PR jako komentář)",
+  "files": [
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -29939,6 +30024,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Schválit plán (go)",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "si obrazovky neodporují a jestli aplikace dodržuje vlastní pravidla; co nesedí, přijde do Inboxu jako poznámka od persony.",
   "files": [
    "teamconsole.tsx"
@@ -29960,11 +30052,39 @@
   "kind": "jsx"
  },
  {
+  "t": "Sloučení z aplikace není zapnuté — nastavte DOSSLAP_GITHUB_MERGE_TOKEN v proměnných Railway. Do té doby sloučte na GitHubu.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Sloučením se změna nasadí do produkce. Pro potvrzení napište",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Sloučeno",
   "files": [
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Sloučeno — nasazení do produkce začne samo",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Sloučit do main",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Soubor není platné JSON",
@@ -30079,6 +30199,13 @@
   "kind": "jsx"
  },
  {
+  "t": "V PR je odkaz na zprávu /cso (štítek security).",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "v produkci",
   "files": [
    "teamconsole.tsx"
@@ -30154,6 +30281,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Všechny podmínky pro sloučení jsou splněné.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Všichni o týden dál",
@@ -30282,7 +30416,28 @@
   "kind": "jsx"
  },
  {
+  "t": "Zkontrolovat",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zkontrolovat a sloučit",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Změna pro běžce",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Změny na GitHubu",
   "files": [
    "teamconsole.tsx"
   ],
