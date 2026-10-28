@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { Link, useLocation, useNavigate } from "react-router"
 import {
-  Activity, ChevronDown, ChevronUp, Database, Flag, Footprints, Gauge, HeartHandshake, HeartPulse, House, Moon, NotebookPen, Pencil, SlidersHorizontal, Target, TrendingUp, Users, Zap,
+  Activity, BatteryLow, ChevronDown, ChevronUp, Database, Dumbbell, Flag, Footprints, Gauge, HeartHandshake, HeartPulse, House, Leaf, Moon, NotebookPen, Pencil, SlidersHorizontal, Target, TrendingUp, Users, Zap,
   type LucideIcon,
 } from "lucide-react"
 import { api } from "@/api"
@@ -12,7 +12,9 @@ import { useApp } from "@/store"
 import { QUAD } from "@/lib"
 import { C, goodCol } from "@/tokens"
 import { Label, MiniTrend, Sheet, Switch } from "@/ui"
-import { METRIC_IDS, MetricSheet, useTileTrends, type MetricId } from "@/metricsheet"
+import { METRIC_IDS, MetricSheet, isFitId, useFitnessTrend, useTileTrends, type MetricId } from "@/metricsheet"
+import { formWord, signed } from "@/fitness"
+import { num } from "@/outlook"
 import { readinessCol, readinessPct } from "@/capacity"
 import { dataStage } from "@/firstday"
 
@@ -142,9 +144,11 @@ function useCardChoice(where: Where): [string[] | null, (next: string[]) => void
   return [v ?? (where === "rail" ? DEFAULT_RAIL : DEFAULT_TODAY), save, v == null]
 }
 
-function useRailCards(): RailCard[] {
-  const { boot } = useApp()
+/** `want` = the ids on screen: the fitness trend is fetched only when one of its cards is chosen */
+function useRailCards(want: string[] = []): RailCard[] {
+  const { boot, me } = useApp()
   const a = boot?.assessment
+  const fitT = useFitnessTrend(String(me?.runner_id ?? ""), a?.computed_at || "", want.some(isFitId))?.today
   const rcv = a?.rcv
   const L = a?.loadDetail
   const tierCol = (v: number) => (v >= 25 ? C.alert : v >= 12 ? C.watch : C.ok)
@@ -159,7 +163,11 @@ function useRailCards(): RailCard[] {
     { id: "sleep", label: "Spánek", to: "/app/load", Icon: Moon, render: () => rcv?.sleep?.now == null ? null : ({ value: fmt1(rcv.sleep.now), unit: "h", sub: `obvykle ${fmt1(rcv.sleep.base)} h`, col: (rcv.sleep.debt || 0) >= 4 ? C.alert : (rcv.sleep.debt || 0) >= 1 ? C.watch : C.ok }) },
     { id: "readiness", label: "Připravenost", to: "/app/today", Icon: Gauge, render: () => { const rd = a?.readiness ?? a?.capacity?.readiness; if (!rd || rd.known === false) return null; const p = readinessPct(rd); return { value: String(p), unit: "%", sub: rd.label || "dnešní stropy kapacity", col: readinessCol(p), pct: p } } },
     { id: "race", label: "Další závod", to: "/app/training", Icon: Flag, render: () => !a?.races?.next ? null : ({ value: a.races.next.daysTo === 0 ? "dnes" : `za ${a.races.next.daysTo} d`, sub: `${a.races.next.name || (a.races.next.priority === "A" ? "Cílový závod" : "Závod")} · ${a.races.next.date?.slice(8, 10).replace(/^0/, "")}. ${a.races.next.date?.slice(5, 7).replace(/^0/, "")}.` }) },
-  ], [a, rcv, L, none])
+    // feedback #222 — the fitness trend of Trénink → Tělo a den
+    { id: "form", label: "Čerstvost", to: "/app/training", Icon: Leaf, render: () => fitT?.form == null ? null : ({ value: signed(fitT.form), unit: "%", sub: formWord(fitT.word)?.[0] ?? "málo zátěže na srovnání", col: formWord(fitT.word)?.[1] }) },
+    { id: "fit", label: "Kondice", to: "/app/training", Icon: Dumbbell, render: () => fitT?.fit == null ? null : ({ value: num(fitT.fit, 0), sub: "průměr ~6 týdnů" }) },
+    { id: "fat", label: "Únava", to: "/app/training", Icon: BatteryLow, render: () => fitT?.fat == null ? null : ({ value: num(fitT.fat, 0), sub: "průměr ~7 dní" }) },
+  ], [a, rcv, L, none, fitT])
 }
 
 /** Show / hide the cards and put them in order (arrows: a list of at most eight needs no drag). */
@@ -200,8 +208,8 @@ const isMetric = (id: string): id is MetricId => (METRIC_IDS as readonly string[
 export function StatRail() {
   const { boot } = useApp()
   const nav = useNavigate()
-  const cards = useRailCards()
   const [chosen, save] = useCardChoice("rail")
+  const cards = useRailCards(chosen || DEFAULT_RAIL)
   const [editing, setEditing] = useState(false)
   const [open, setOpen] = useState<MetricId | null>(null)
   const a = boot?.assessment
@@ -265,8 +273,8 @@ export function StatRail() {
  *  (the wide screen has the rail). Small tiles; a tap opens the number's trend. */
 export function TodayNumbers() {
   const nav = useNavigate()
-  const cards = useRailCards()
   const [chosen, save, isDefault] = useCardChoice("today")
+  const cards = useRailCards(chosen || [])
   const [editing, setEditing] = useState(false)
   const [open, setOpen] = useState<MetricId | null>(null)
   // the untouched default shows only the numbers this runner has (no "Zatím bez dat" tiles

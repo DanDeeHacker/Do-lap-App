@@ -232,7 +232,9 @@ def set_lang(body: schemas.LangRequest, user: models.User = Depends(get_current_
 
 
 # Card ids the desktop stat rail and the phone's Moje čísla understand (frontend shell.tsx).
-RAIL_CARD_IDS = {"recovery", "week", "load", "mech", "hrv", "rhr", "sleep", "readiness", "race"}
+# feedback #222: Čerstvost, Kondice and Únava (the fitness trend) join the choice, so the cap is 12.
+RAIL_CARD_IDS = {"recovery", "week", "load", "mech", "hrv", "rhr", "sleep", "readiness", "race", "form", "fit", "fat"}
+RAIL_CARD_MAX = 12
 
 
 @router.get("/settings")
@@ -260,7 +262,7 @@ def patch_settings(body: schemas.SettingsPatch, user: models.User = Depends(get_
         db.add(s)
     for k, v in body.model_dump(exclude_unset=True).items():
         if k in ("rail_cards", "today_cards") and v is not None:
-            v = [c for c in dict.fromkeys(v) if c in RAIL_CARD_IDS][:8]
+            v = [c for c in dict.fromkeys(v) if c in RAIL_CARD_IDS][:RAIL_CARD_MAX]
         if k == "news_seen" and v is not None:
             v = str(v)[:32]
         if k == "badges_seen" and v is not None:

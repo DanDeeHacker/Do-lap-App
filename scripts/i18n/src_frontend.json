@@ -3551,7 +3551,9 @@
   "files": [
    "App.tsx",
    "capacity.tsx",
-   "fitness.tsx"
+   "fitness.tsx",
+   "metricsheet.tsx",
+   "shell.tsx"
   ],
   "kind": "str"
  },
@@ -13657,7 +13659,9 @@
  {
   "t": "Čerstvost",
   "files": [
-   "fitness.tsx"
+   "fitness.tsx",
+   "metricsheet.tsx",
+   "shell.tsx"
   ],
   "kind": "str"
  },
@@ -13709,7 +13713,9 @@
  {
   "t": "Kondice",
   "files": [
-   "fitness.tsx"
+   "fitness.tsx",
+   "metricsheet.tsx",
+   "shell.tsx"
   ],
   "kind": "str"
  },
@@ -13766,7 +13772,8 @@
  {
   "t": "málo zátěže na srovnání",
   "files": [
-   "fitness.tsx"
+   "fitness.tsx",
+   "shell.tsx"
   ],
   "kind": "str"
  },
@@ -13879,14 +13886,16 @@
  {
   "t": "průměr ~6 týdnů",
   "files": [
-   "fitness.tsx"
+   "fitness.tsx",
+   "shell.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "průměr ~7 dní",
   "files": [
-   "fitness.tsx"
+   "fitness.tsx",
+   "shell.tsx"
   ],
   "kind": "str"
  },
@@ -13986,7 +13995,8 @@
  {
   "t": "vyrovnaná zátěž",
   "files": [
-   "fitness.tsx"
+   "fitness.tsx",
+   "metricsheet.tsx"
   ],
   "kind": "str"
  },
@@ -19079,6 +19089,13 @@
   "kind": "str"
  },
  {
+  "t": "Kondice minus Únava jako podíl Kondice. Kladná = poslední dny jste zatěžovali méně, než jste zvyklí. Záporná = poslední týden byl nad vaším průměrem.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "nejméně",
   "files": [
    "metricsheet.tsx"
@@ -19094,6 +19111,20 @@
  },
  {
   "t": "průměr",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Průměr celkové zátěže všech aktivit za zhruba 6 týdnů. Pomalu se mění, ukazuje, na co jste zvyklí.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Průměr celkové zátěže všech aktivit za zhruba týden. Stoupá po náročných dnech a klesá, když zatížení povolí.",
   "files": [
    "metricsheet.tsx"
   ],
@@ -19723,6 +19754,13 @@
   "kind": "str"
  },
  {
+  "t": "Mezi čísly na Dnes i v pravém sloupci přibyly Čerstvost, Kondice a Únava. Zapnete je přes Upravit, vybrat jich můžete až dvanáct.",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Moje čísla na Dnes",
   "files": [
    "news.tsx"
@@ -19759,6 +19797,13 @@
  },
  {
   "t": "V profilu → Tréninky v kalendáři si plán týdne přidáte do Apple nebo Google Kalendáře. Aktualizuje se sám.",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Víc čísel v Moje čísla",
   "files": [
    "news.tsx"
   ],

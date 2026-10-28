@@ -12,12 +12,12 @@ import { AxisLineChart, Label, Segmented, Sheet } from "@/ui"
 import { readinessPct } from "@/capacity"
 import { C } from "@/tokens"
 
-export const METRIC_IDS = ["readiness", "load", "mech", "hrv", "rhr", "sleep", "week"] as const
+export const METRIC_IDS = ["readiness", "load", "mech", "hrv", "rhr", "sleep", "week", "form", "fit", "fat"] as const
 export type MetricId = (typeof METRIC_IDS)[number]
 const RANGES = [["7", "7 dní"], ["30", "1 měsíc"], ["91", "3 měsíce"], ["183", "6 měsíců"]] as const
 type Range = (typeof RANGES)[number][0]
 
-type Def = { label: string; unit: string; dec: number; to: string; tab: string; about: string; source: "daily" | "hist" | "acts";
+type Def = { label: string; unit: string; dec: number; to: string; tab: string; about: string; source: "daily" | "hist" | "acts" | "fit";
   field?: string; yMin?: number; yMax?: number; threshold?: number; weekly?: boolean }
 const DEFS: Record<MetricId, Def> = {
   readiness: { label: "Připravenost", unit: " %", dec: 0, to: "/app/training", tab: "Trénink", source: "hist", field: "readinessMorning", yMin: 0, yMax: 100,
@@ -34,6 +34,43 @@ const DEFS: Record<MetricId, Def> = {
     about: "Délka spánku z hodinek. Rozhoduje vaše obvyklá délka, ne obecných 8 hodin." },
   week: { label: "Kilometry týdně", unit: " km", dec: 1, to: "/app/load", tab: "Zátěž", source: "acts", weekly: true,
     about: "Součet naběhaných kilometrů v každém týdnu (pondělí až neděle)." },
+  // feedback #222 — the fitness trend of Trénink → Tělo a den, as cards
+  form: { label: "Čerstvost", unit: " %", dec: 0, to: "/app/training", tab: "Trénink", source: "fit", field: "form",
+    about: "Kondice minus Únava jako podíl Kondice. Kladná = poslední dny jste zatěžovali méně, než jste zvyklí. Záporná = poslední týden byl nad vaším průměrem." },
+  fit: { label: "Kondice", unit: "", dec: 0, to: "/app/training", tab: "Trénink", source: "fit", field: "fit",
+    about: "Průměr celkové zátěže všech aktivit za zhruba 6 týdnů. Pomalu se mění, ukazuje, na co jste zvyklí." },
+  fat: { label: "Únava", unit: "", dec: 0, to: "/app/training", tab: "Trénink", source: "fit", field: "fat",
+    about: "Průměr celkové zátěže všech aktivit za zhruba týden. Stoupá po náročných dnech a klesá, když zatížení povolí." },
+}
+const FIT_IDS: readonly string[] = ["form", "fit", "fat"]
+export const isFitId = (id: string) => FIT_IDS.includes(id)
+
+// the fitness trend (days + today + bands), one request per assessment, shared by the sheet, the
+// tiles and their trend lines; rows get `date` so they read like the other sources
+let fitCache: { key: string; data: any } | null = null
+let fitInflight: { key: string; p: Promise<any> } | null = null
+function loadFit(rid: string, asOf: string): Promise<any> {
+  const key = `${rid}|${asOf}`
+  if (fitCache?.key === key) return Promise.resolve(fitCache.data)
+  if (fitInflight?.key === key) return fitInflight.p
+  const p = api.fitnessTrend(rid).then((d: any) => {
+    const data = d && d.available ? { ...d, days: (d.days || []).map((x: any) => ({ ...x, date: x.d })) } : { available: false, days: [] }
+    fitCache = { key, data }
+    return data
+  }).catch(() => ({ available: false, days: [] })).finally(() => { if (fitInflight?.key === key) fitInflight = null })
+  fitInflight = { key, p }
+  return p
+}
+export function useFitnessTrend(rid: string, asOf: string, enabled = true): any | null {
+  const key = `${rid}|${asOf}`
+  const [data, setData] = useState<any | null>(fitCache?.key === key ? fitCache.data : null)
+  useEffect(() => {
+    if (!enabled || !rid) return
+    let alive = true
+    loadFit(rid, asOf).then((d) => alive && setData(d))
+    return () => { alive = false }
+  }, [rid, asOf, enabled])
+  return data
 }
 // the usual range the readiness uses (mean ± 1 SD of the nights 8–56 days back)
 const RANGE_KEY: Partial<Record<MetricId, string>> = { hrv: "hrv", rhr: "rhr", sleep: "sleep" }
@@ -95,6 +132,7 @@ export function useTileTrends(ids: string[]): Record<string, (number | null)[]> 
   const metric = ids.filter((id): id is MetricId => (METRIC_IDS as readonly string[]).includes(id))
   const daily = useDailyRows(rid, asOf, metric.some((id) => DEFS[id].source === "daily"))
   const hist = useQuadHistory(rid)
+  const fit = useFitnessTrend(rid, asOf, metric.some((id) => DEFS[id].source === "fit"))
   const key = metric.join(",")
   return useMemo(() => {
     const out: Record<string, (number | null)[]> = {}
@@ -102,14 +140,14 @@ export function useTileTrends(ids: string[]): Record<string, (number | null)[]> 
     for (const id of metric) {
       const def = DEFS[id]
       if (def.source === "acts") { out[id] = weeklyKm(boot?.activities || [], 8).map((p) => p.v); continue }
-      const rows = def.source === "hist" ? hist : daily
+      const rows = def.source === "hist" ? hist : def.source === "fit" ? fit?.days : daily
       if (!rows) continue
       const by = new Map(rows.map((r: any) => [String(r.date).slice(0, 10), r]))
       out[id] = days.map((d) => valueOf(id, def, by.get(d)))
     }
     return out
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, hist, daily, boot?.activities])
+  }, [key, hist, daily, fit, boot?.activities])
 }
 
 export function MetricSheet({ id, onClose }: { id: MetricId; onClose: () => void }) {
@@ -120,12 +158,14 @@ export function MetricSheet({ id, onClose }: { id: MetricId; onClose: () => void
   const hist = useQuadHistory(rid)
   const asOf = a?.computed_at || ""
   const daily = useDailyRows(rid, asOf, def.source === "daily")
+  const fit = useFitnessTrend(rid, asOf, def.source === "fit")
   const [range, setRange] = useState<Range>(def.weekly ? "91" : "30")
   const all = useMemo((): { t: string; v: number | null }[] => {
     if (def.source === "hist") return (hist || []).map((h: any) => ({ t: String(h.date), v: valueOf(id, def, h) }))
+    if (def.source === "fit") return (fit?.days || []).map((r: any) => ({ t: String(r.date), v: valueOf(id, def, r) }))
     if (def.source === "daily") return (daily || []).map((r: any) => ({ t: String(r.date), v: valueOf(id, def, r) }))
     return weeklyKm(boot?.activities || [], 27)
-  }, [def, hist, daily, boot?.activities, id])
+  }, [def, hist, daily, fit, boot?.activities, id])
   const lo = iso(new Date(Date.now() - (Number(range) - 1) * 86400000))
   const pts = all.filter((p) => p.t >= (def.weekly ? monday(lo) : lo))
   const vals = pts.map((p) => p.v).filter((v): v is number => v != null)
@@ -134,12 +174,14 @@ export function MetricSheet({ id, onClose }: { id: MetricId; onClose: () => void
   // (the same number the card shows, so a tap never changes it)
   const live: number | null = id === "load" ? a?.load ?? null : id === "mech" ? a?.mech ?? null
     : id === "readiness" ? (rd && rd.known !== false ? readinessPct(rd) : null)
-    : id === "week" ? a?.loadDetail?.weekKm ?? null : a?.rcv?.[id]?.now ?? null
+    : id === "week" ? a?.loadDetail?.weekKm ?? null
+    : def.source === "fit" ? fit?.today?.[def.field!] ?? null : a?.rcv?.[id]?.now ?? null
   const last = [...all].reverse().find((p) => p.v != null)
   const now = live ?? last?.v ?? null
   const rng = RANGE_KEY[id] ? rd?.inputs?.range?.[RANGE_KEY[id]!] : null
-  const band = rng && rng.length === 2 ? { lo: rng[0], hi: rng[1], label: "vaše obvyklé rozmezí" } : undefined
-  const loading = (def.source === "daily" && daily === null) || (def.source === "hist" && hist === null)
+  const band = rng && rng.length === 2 ? { lo: rng[0], hi: rng[1], label: "vaše obvyklé rozmezí" }
+    : id === "form" && fit?.bands ? { lo: fit.bands.tired ?? -10, hi: fit.bands.fresh ?? 5, label: "vyrovnaná zátěž" } : undefined
+  const loading = (def.source === "daily" && daily === null) || (def.source === "hist" && hist === null) || (def.source === "fit" && fit === null)
   const stat = (label: string, v: number | null) => (
     <div className="min-w-0 rounded-[12px] bg-white/[.045] px-2.5 py-2">
       <span className="t-label block !text-fg-3">{label}</span>

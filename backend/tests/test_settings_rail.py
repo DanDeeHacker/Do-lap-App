@@ -38,3 +38,12 @@ def test_news_seen_is_stored_with_the_account_age(client):
     assert s["news_seen"] is None and len(s["user_since"]) == 10
     assert client.patch("/api/auth/settings", json={"news_seen": "2026-10-14"}).json()["news_seen"] == "2026-10-14"
     assert client.get("/api/auth/settings").json()["news_seen"] == "2026-10-14"
+
+
+def test_fitness_cards_are_accepted_and_the_cap_is_twelve(client):
+    """feedback #222 — Čerstvost, Kondice and Únava join the number cards; up to 12 are kept."""
+    register(client, "rail5@test.cz", "Rail Five", "runner")
+    r = client.patch("/api/auth/settings", json={"today_cards": ["form", "fit", "fat", "week"]})
+    assert r.json()["today_cards"] == ["form", "fit", "fat", "week"]
+    every = ["week", "load", "mech", "hrv", "rhr", "sleep", "readiness", "race", "recovery", "form", "fit", "fat"]
+    assert client.patch("/api/auth/settings", json={"rail_cards": every + ["bogus"]}).json()["rail_cards"] == every
