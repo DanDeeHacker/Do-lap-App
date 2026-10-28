@@ -4,7 +4,7 @@ team, which feedback goes to the AI team, what is being built, the clinical sign
 and safety changes, what production runs, and the pilot's numbers. The logic is in app/team.py;
 this module is the HTTP surface and the permission checks. Every write lands in the audit log."""
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import Field
@@ -15,6 +15,7 @@ from ..db import db_location_info, get_db
 from ..deps import get_current_user, is_owner, owner_emails, verify_csrf
 from ..metrics import engine as E
 from ..schemas import Lenient
+from ..security import verify_password
 
 router = APIRouter(prefix="/api/team", tags=["team"])
 hook_router = APIRouter(tags=["team"])
@@ -281,6 +282,118 @@ async def github_webhook(request: Request, db: DBSession = Depends(get_db)):
     handled = T.handle_event(db, request.headers.get("X-GitHub-Event", ""), payload)
     db.commit()
     return {"ok": True, "handled": handled}
+
+
+# ---------------------------------------------------------------- review and merge (issue #3)
+@router.get("/pr/{number}")
+def pr_review(number: int, cso: bool = False, c: Ctx = Depends(ctx)):
+    """The review screen: the pull request as GitHub has it right now, with what blocks a merge."""
+    c.need("work.read")
+    out = _gh(lambda: T.pr_review(number, cso_linked=cso))
+    return {**out, "canMerge": T.can(c.role, "pr.merge"), "mergeToken": bool(T.merge_token()),
+            "needsPassword": (c.user.provider or "password") == "password"}
+
+
+class MergeIn(Lenient):
+    sha: str = Field(min_length=7, max_length=64)       # the head commit the owner reviewed
+    confirm: str = Field(max_length=40)                 # "MERGE #<n>"
+    password: str = Field(default="", max_length=200)
+    cso: bool = False                                   # a /cso report is linked (label security)
+
+
+def _merge_refused(c: Ctx, number: int, status: int, why: str, action: str = "pr.merge.blocked", **detail) -> HTTPException:
+    """Every refusal is audited. Only a wrong confirmation or password ("pr.merge.refused") counts
+    toward the lockout; a gate that is not met ("pr.merge.blocked") is not the owner's fault."""
+    c.audit(action, f"pr:{number}", why=why[:200], **detail)
+    c.db.commit()
+    return HTTPException(status_code=status, detail=why)
+
+
+def _too_many_refusals(c: Ctx) -> bool:
+    rows = (c.db.query(models.TeamAudit).filter(models.TeamAudit.action == "pr.merge.refused",
+                                                models.TeamAudit.actor_email == (c.user.email or "").lower())
+            .order_by(models.TeamAudit.id.desc()).limit(T.MERGE_TRIES).all())
+    if len(rows) < T.MERGE_TRIES:
+        return False
+    oldest = datetime.fromisoformat(rows[-1].at)
+    return oldest >= datetime.now(E.LOCAL_TZ) - timedelta(minutes=T.MERGE_WINDOW_MIN)
+
+
+@router.post("/pr/{number}/merge", dependencies=[Depends(verify_csrf)])
+def pr_merge(number: int, body: MergeIn, c: Ctx = Depends(ctx)):
+    """Owner merges a pull request from the app (issue #3). Every gate is read from GitHub again
+    here; what the screen showed is not trusted. A push after the owner looked changes the head
+    commit, which cancels the merge (409), and GitHub itself refuses the merge for a different
+    head (the `sha` field) and, as the backstop, by branch protection."""
+    c.need("pr.merge")
+    token = T.merge_token()
+    if not token:
+        raise HTTPException(status_code=503, detail="Sloučení z aplikace není zapnuté: nastavte DOSSLAP_GITHUB_MERGE_TOKEN v proměnných Railway.")
+    if _too_many_refusals(c):
+        raise _merge_refused(c, number, 429, f"Příliš mnoho zamítnutých pokusů, zkuste to za {T.MERGE_WINDOW_MIN} minut.", action="pr.merge.locked")
+    if body.confirm.strip() != f"MERGE #{number}":
+        raise _merge_refused(c, number, 422, f"Napište přesně: MERGE #{number}", action="pr.merge.refused")
+    if (c.user.provider or "password") == "password" and not verify_password(body.password, c.user.password_hash):
+        raise _merge_refused(c, number, 403, "Heslo nesouhlasí.", action="pr.merge.refused")
+    pr = _gh(lambda: T.gh("GET", f"/pulls/{number}")) or {}
+    live = (pr.get("head") or {}).get("sha") or ""
+    if live != body.sha:
+        raise _merge_refused(c, number, 409, "PR se mezitím změnil (nový commit). Otevřete kontrolu znovu.", seen=body.sha[:7], live=live[:7])
+    ci = _gh(lambda: T.ci_detail(live))
+    blockers = T.merge_blockers(pr, ci["state"], cso_linked=body.cso)
+    if blockers:
+        raise _merge_refused(c, number, 409, " ".join(blockers), head=live[:7])
+    try:
+        done = T.gh("PUT", f"/pulls/{number}/merge", json={"merge_method": T.MERGE_METHOD, "sha": live,
+                                                         "commit_title": f"{pr.get('title')} (#{number})"}, token=token) or {}
+    except T.GitHubError as e:
+        raise _merge_refused(c, number, 409 if e.status in (403, 405, 409, 422) else 502, str(e), head=live[:7]) from None
+    w = c.db.query(models.WorkItem).filter(models.WorkItem.kind == "pr", models.WorkItem.number == number).first()
+    if w is not None:
+        w.state, w.merged_at, w.merge_sha, w.updated_at = "merged", E.now_iso(), done.get("sha"), E.now_iso()
+        c.db.flush()
+        T.resolve_notes_for(c.db, w)
+    c.audit("pr.merge", f"pr:{number}", head=live[:7], merge=(done.get("sha") or "")[:7], title=(pr.get("title") or "")[:120],
+            labels=T._labels(pr), cso=body.cso)
+    c.db.commit()
+    return {"merged": True, "sha": done.get("sha")}
+
+
+class RemarkIn(Lenient):
+    text: str = Field(min_length=1, max_length=4000)
+
+
+@router.post("/pr/{number}/comment", dependencies=[Depends(verify_csrf)])
+def pr_comment(number: int, body: RemarkIn, c: Ctx = Depends(ctx)):
+    """The owner's remark from the review screen: a comment on the pull request, which the AI
+    team answers like any review comment."""
+    c.need("pr.merge")
+    name = c.user.name or c.user.email
+    _gh(lambda: T.gh("POST", f"/issues/{number}/comments", json={"body": f"**Owner review** — {name} (Team Console)\n\n{body.text.strip()}"}))
+    c.audit("pr.comment", f"pr:{number}", text=body.text.strip()[:300])
+    c.db.commit()
+    return {"ok": True}
+
+
+@router.post("/work/{number}/go", dependencies=[Depends(verify_csrf)])
+def plan_go(number: int, c: Ctx = Depends(ctx)):
+    """An owner's “go” on a plan the AI team posted (label ai-plan): the issue goes back to ai-ready."""
+    c.need("pr.merge")
+    w = c.db.query(models.WorkItem).filter(models.WorkItem.kind == "issue", models.WorkItem.number == number).first()
+    if w is None or "ai-plan" not in (w.labels or []):
+        raise HTTPException(status_code=404, detail="Plán čekající na vlastníka nenalezen (zkuste Synchronizovat)")
+    name = c.user.name or c.user.email
+    _gh(lambda: T.gh("POST", f"/issues/{number}/comments", json={"body": f"go — schváleno vlastníkem {name} (Team Console)"}))
+    _gh(lambda: T.gh("POST", f"/issues/{number}/labels", json={"labels": ["ai-ready"]}))
+    try:
+        T.gh("DELETE", f"/issues/{number}/labels/ai-plan")
+    except T.GitHubError as e:
+        if e.status != 404:
+            raise HTTPException(status_code=502, detail=str(e)) from None
+    w.labels = sorted((set(w.labels or []) - {"ai-plan"}) | {"ai-ready"})
+    c.audit("plan.go", f"issue:{number}")
+    c.db.commit()
+    return T.work_out(w, {})
 
 
 # ---------------------------------------------------------------- clinical approvals

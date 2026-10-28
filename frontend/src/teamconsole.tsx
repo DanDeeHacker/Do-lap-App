@@ -1,7 +1,8 @@
 // Team Console (owner request 2026-10-27): Admin → Tým, Inbox, Práce, Schválení, Vydání, Pilot.
 // The founders run the AI engineering team (gstack sprints on GitHub) from the app; the backend
 // (routers/team.py) checks every permission, the tabs only follow the role it reports. The app
-// never merges or deploys: it writes issues, labels and comments, and reads what runs.
+// never deploys: it writes issues, labels and comments, reads what runs, and (issue #3) lets an
+// owner review a pull request and merge it, after the server re-checked every gate.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useSearchParams } from "react-router"
 import { Bot, CheckCircle2, Download, ExternalLink, GitPullRequest, Play, RefreshCw, RotateCcw, Send, ShieldCheck, TriangleAlert, Upload } from "lucide-react"
@@ -10,7 +11,7 @@ import { Button, Card, Chip, Segmented, Sheet, useToast } from "@/ui"
 import { fmtD, fmtDT } from "@/lib"
 import { C } from "@/tokens"
 
-type TeamMe = { role: string; perms: string[]; email: string; config: { github: boolean; githubRepo: string; webhook: boolean; railway: boolean; staging: string | null; personas?: boolean; personaToken?: boolean } }
+type TeamMe = { role: string; perms: string[]; email: string; config: { github: boolean; mergeToken?: boolean; githubRepo: string; webhook: boolean; railway: boolean; staging: string | null; personas?: boolean; personaToken?: boolean } }
 
 const ROLE: Record<string, string> = { owner: "vlastník", engineer: "inženýr", clinical: "klinický garant", support: "podpora", auditor: "auditor" }
 const STAGE: Record<string, [string, "ok" | "watch" | "alert" | "muted" | "info" | "load" | "accent"]> = {
@@ -357,7 +358,7 @@ function WorkTab({ me }: { me: TeamMe }) {
                 <Chip tone={STAGE[s][1]}>{STAGE[s][0]}</Chip><span className="tabular-nums">{items.filter((w) => w.stage === s).length}</span>
               </h3>
               <ul className="space-y-2">
-                {items.filter((w) => w.stage === s).slice(0, 12).map((w) => <WorkCard key={`${w.kind}${w.number}`} w={w} />)}
+                {items.filter((w) => w.stage === s).slice(0, 12).map((w) => <WorkCard key={`${w.kind}${w.number}`} w={w} me={me} onChanged={reload} />)}
               </ul>
             </section>
           ))}
@@ -367,7 +368,18 @@ function WorkTab({ me }: { me: TeamMe }) {
   )
 }
 
-function WorkCard({ w }: { w: any }) {
+function WorkCard({ w, me, onChanged }: { w: any; me: TeamMe; onChanged: () => void }) {
+  const toast = useToast()
+  const [review, setReview] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const owner = me.perms.includes("pr.merge")
+  const open = w.kind === "pr" && w.state === "open"
+  const go = async () => {
+    setBusy(true)
+    try { await api.teamPlanGo(w.number); toast({ title: "Go odesláno — AI tým plán převezme" }); onChanged() }
+    catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+    finally { setBusy(false) }
+  }
   return (
     <li className="rounded-xl bg-white/[.04] px-3 py-2.5 text-[12.5px]">
       <p className="flex items-center gap-1.5 text-[11px] text-fg-3">
@@ -382,7 +394,94 @@ function WorkCard({ w }: { w: any }) {
         {w.labels.filter((l: string) => !["ai-ready", "from-app", "ai-working", "ai-plan"].includes(l)).map((l: string) => <Chip key={l}><span translate="no">{l}</span></Chip>)}
       </div>
       {w.summary && <p className="mt-1.5 line-clamp-3 text-[12px] leading-[16px] text-fg-2">{w.summary}</p>}
+      {open && <Button size="sm" variant="outline" className="mt-2" icon={GitPullRequest} onClick={() => setReview(true)} data-testid={`review-${w.number}`}>{owner ? "Zkontrolovat a sloučit" : "Zkontrolovat"}</Button>}
+      {w.kind === "issue" && w.stage === "needs_owner" && owner && <Button size="sm" className="mt-2" busy={busy} onClick={go} data-testid={`go-${w.number}`}>Schválit plán (go)</Button>}
+      {review && <ReviewSheet number={w.number} onClose={() => setReview(false)} onMerged={onChanged} />}
     </li>
+  )
+}
+
+/** Issue #3 — review a pull request and, as an owner, merge it. Everything shown is read from
+ *  GitHub just now; the server checks the gates again when Merge is pressed. */
+function ReviewSheet({ number, onClose, onMerged }: { number: number; onClose: () => void; onMerged: () => void }) {
+  const toast = useToast()
+  const [cso, setCso] = useState(false)
+  const { d, err, reload } = useLoad<any>(() => api.teamPr(number, cso), [cso])
+  const [confirm, setConfirm] = useState("")
+  const [password, setPassword] = useState("")
+  const [remark, setRemark] = useState("")
+  const [busy, setBusy] = useState<string | null>(null)
+  const want = `MERGE #${number}`
+  const act = async (what: string, fn: () => Promise<unknown>, ok: string) => {
+    setBusy(what)
+    try { await fn(); toast({ title: ok }); return true }
+    catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }); reload(); return false }
+    finally { setBusy(null) }
+  }
+  const merge = async () => {
+    if (await act("merge", () => api.teamMerge(number, { sha: d.sha, confirm, password, cso }), "Sloučeno — nasazení do produkce začne samo")) { onMerged(); onClose() }
+  }
+  const blocked = !d || d.blockers.length > 0
+  const ready = d?.canMerge && d?.mergeToken && !blocked && confirm.trim() === want && (!d.needsPassword || password.length > 0)
+  return (
+    <Sheet open onClose={onClose}>
+      <div data-testid="review-sheet">
+        {!d ? <Loading err={err} /> : (
+          <>
+            <p className="flex flex-wrap items-center gap-2 text-[11.5px] text-fg-3">
+              <Ext href={d.url}>{`PR #${d.number}`}</Ext><span translate="no">{d.author}</span>
+              {d.labels.map((l: string) => <Chip key={l} tone={["engine", "safety", "security"].includes(l) ? "watch" : "muted"}><span translate="no">{l}</span></Chip>)}
+            </p>
+            <h3 className="mt-1 font-serif text-lg leading-[22px]">{d.title}</h3>
+            <div className="mt-3 rounded-lg bg-white/[.04] px-3 py-2">
+              <p className="text-[11px] font-bold uppercase tracking-[.06em] text-fg-3">Změna pro běžce</p>
+              <p className="mt-1 whitespace-pre-line text-[13px] leading-[18px] text-fg-soft">{d.summary || "PR změnu pro běžce nepopsal."}</p>
+            </div>
+            <p className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-fg-2">
+              {d.checks && CHECKS[d.checks] ? <Chip tone={CHECKS[d.checks][1]}>{CHECKS[d.checks][0]}</Chip> : <Chip tone="watch">CI neznámé</Chip>}
+              <span>{`${d.files ?? "?"} souborů · +${d.additions ?? 0} −${d.deletions ?? 0}`}</span>
+              <Ext href={d.diffUrl}>Změny na GitHubu</Ext>
+            </p>
+            {d.checkItems.length > 0 && (
+              <ul className="mt-2 space-y-0.5 text-[12px] text-fg-2" data-testid="review-checks">
+                {d.checkItems.map((c: any, i: number) => <li key={i}><span translate="no">{c.name}</span>{` — ${c.conclusion ?? "běží"}`}</li>)}
+              </ul>
+            )}
+            {d.labels.includes("security") && (
+              <label className="mt-3 flex items-start gap-2 text-[12.5px] text-fg-soft">
+                <input type="checkbox" checked={cso} onChange={(e) => setCso(e.target.checked)} className="mt-0.5" />
+                <span>V PR je odkaz na zprávu /cso (štítek security).</span>
+              </label>
+            )}
+            {d.blockers.length > 0 ? (
+              <ul className="mt-3 space-y-1 rounded-lg border border-white/[.08] px-3 py-2 text-[12.5px] text-watch" data-testid="review-blockers">
+                {d.blockers.map((b: string) => <li key={b}>{b}</li>)}
+              </ul>
+            ) : <p className="mt-3 text-[12.5px] text-ok">Všechny podmínky pro sloučení jsou splněné.</p>}
+            {d.canMerge && (
+              <>
+                <textarea value={remark} onChange={(e) => setRemark(e.target.value)} rows={2} placeholder="Připomínka pro AI tým (přidá se do PR jako komentář)" aria-label="Připomínka"
+                  className="mt-3 w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px] text-fg" />
+                <Button size="sm" variant="outline" className="mt-2" busy={busy === "remark"} disabled={!remark.trim()}
+                  onClick={async () => { if (await act("remark", () => api.teamPrComment(number, remark.trim()), "Připomínka je v PR")) setRemark("") }}>Poslat připomínku</Button>
+                <div className="mt-4 border-t border-white/[.07] pt-3">
+                  {!d.mergeToken ? <Missing>Sloučení z aplikace není zapnuté — nastavte DOSSLAP_GITHUB_MERGE_TOKEN v proměnných Railway. Do té doby sloučte na GitHubu.</Missing> : (
+                    <div className="grid gap-2">
+                      <p className="text-[12px] text-fg-2">{`Sloučením se změna nasadí do produkce. Pro potvrzení napište `}<b translate="no">{want}</b>{d.needsPassword ? " a své heslo." : "."}</p>
+                      <input value={confirm} onChange={(e) => setConfirm(e.target.value)} aria-label="Potvrzení" placeholder={want} autoComplete="off"
+                        className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px] text-fg" data-testid="merge-confirm" />
+                      {d.needsPassword && <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} aria-label="Heslo" placeholder="Heslo" autoComplete="current-password"
+                        className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px] text-fg" data-testid="merge-password" />}
+                      <Button busy={busy === "merge"} disabled={!ready} onClick={merge} data-testid="merge">Sloučit do main</Button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </Sheet>
   )
 }
 

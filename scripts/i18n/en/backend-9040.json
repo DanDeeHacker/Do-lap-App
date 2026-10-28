@@ -1,0 +1,20 @@
+{
+ "Heslo nesouhlasí.": "The password does not match.",
+ "Napište přesně: MERGE #{}": "Type exactly: MERGE #{0}",
+ "PR se mezitím změnil (nový commit). Otevřete kontrolu znovu.": "The PR has changed in the meantime (a new commit). Open the review again.",
+ "Plán čekající na vlastníka nenalezen (zkuste Synchronizovat)": "No plan waiting for the owner found (try Sync)",
+ "Příliš mnoho zamítnutých pokusů, zkuste to za {} minut.": "Too many refused attempts, try again in {0} minutes.",
+ "Sloučení z aplikace není zapnuté: nastavte DOSSLAP_GITHUB_MERGE_TOKEN v proměnných Railway.": "Merging from the app is not turned on: set DOSSLAP_GITHUB_MERGE_TOKEN in the Railway variables.",
+ "go — schváleno vlastníkem {} (Team Console)": "go — approved by owner {0} (Team Console)",
+ "CI je červené.": "CI is red.",
+ "CI ještě běží.": "CI is still running.",
+ "GitHub ještě počítá, zda jde PR sloučit — zkuste to za chvíli.": "GitHub is still working out whether the PR can be merged — try again shortly.",
+ "PR je rozpracovaný (draft).": "The PR is a draft.",
+ "PR je v konfliktu s main — nejdřív ho musí AI tým aktualizovat.": "The PR conflicts with main — the AI team has to update it first.",
+ "PR nemíří do větve main.": "The PR does not target main.",
+ "PR už není otevřený.": "The PR is no longer open.",
+ "Stav CI se nepodařilo zjistit.": "The CI state could not be determined.",
+ "V PR chybí „Change for runners“.": "The PR has no “Change for runners”.",
+ "Změna enginu nebo bezpečnosti čeká na klinické schválení (Schválení).": "The engine or safety change is waiting for the clinical sign-off (Approvals).",
+ "Štítek security: potvrďte, že je v PR odkaz na zprávu /cso.": "Label security: confirm that the PR links the /cso report."
+}
