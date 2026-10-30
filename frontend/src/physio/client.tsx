@@ -10,7 +10,7 @@ import { api } from "@/api"
 import { Button, Card, Chip, Segmented, Sheet, useToast } from "@/ui"
 import { fmtD, fmtDT } from "@/lib"
 import { C } from "@/tokens"
-import { Empty, KIND, Loading, QuadChip, RiskChip, Score, stripTags, useLoad } from "@/physio/common"
+import { Empty, KIND, Loading, QuadChip, RiskChip, Score, shownScore, stripTags, useLoad } from "@/physio/common"
 import { ConclusionSheet } from "@/physio/conclusion"
 
 const ATTN: Record<string, [string, "alert" | "watch" | "info"]> = {
@@ -52,7 +52,7 @@ export function ClientsPage() {
                   </span>
                   <span className="flex items-center gap-2">
                     <RiskChip tier={c.a?.tier} />
-                    <b className="w-9 text-right text-[18px] tabular-nums text-fg">{c.a?.overall == null ? "—" : Math.round(c.a.overall)}</b>
+                    <b className="w-9 text-right text-[18px] tabular-nums text-fg">{c.a?.overall == null ? "—" : Math.round(shownScore(c.a.overall)!)}</b>
                   </span>
                 </button>
               </li>
@@ -115,7 +115,7 @@ function Overview({ d }: { d: any }) {
       <Card>
         <h2 className="font-serif text-xl">Dnešní stav</h2>
         <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
-          <Score v={a.overall} label="Skóre" /><Score v={a.readiness} label="Připravenost" /><Score v={a.symp} label="Příznaky" />
+          <Score v={shownScore(a.overall)} label="Skóre" /><Score v={a.readiness} label="Připravenost" /><Score v={a.symp} label="Příznaky" />
           <Score v={a.load} label="Zátěž" /><Score v={a.mech} label="Mechanika" />
         </div>
         {a.guidance?.typeLabel && <p className="mt-3 text-[13px] text-fg-2">{"Aplikace dnes doporučuje: "}<b className="text-fg">{a.guidance.typeLabel}</b></p>}

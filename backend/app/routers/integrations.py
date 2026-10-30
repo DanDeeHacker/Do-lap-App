@@ -117,43 +117,67 @@ def _one_at_a_time(fn):
 
 @_one_at_a_time
 def _apply_seed(db: DBSession, rid: str, seed: dict, provider: str = "garmin") -> None:
-    db.query(models.Activity).filter(models.Activity.runner_id == rid).delete()
-    db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid).delete()
-    db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid).delete()
-    db.flush()
-
-    for a in seed.get("activities", []):
-        a = {k: v for k, v in a.items() if k != "id"}
+    """Merges an export into the runner's data. Review 2026-10-30 F2 (carried S1): it used to delete
+    every activity, daily metric and run rating first, so a re-import wiped manual runs, other
+    sources and the runner's own ratings. Now a recording already stored (same provider + id, else
+    the same start and sport) only gets the fields it was missing, new ones are added, days are
+    upserted and a run's rating is added only where the runner hasn't rated it."""
+    acts = [{k: v for k, v in a.items() if k != "id"} for a in seed.get("activities", [])]
+    have = db.query(models.Activity).filter(models.Activity.runner_id == rid).all()
+    by_ext = {(x.provider, x.external_id): x for x in have if x.external_id}
+    by_start = {(x.started_at, x.sport or "running"): x for x in have}
+    rows, added = [], []
+    for a in acts:
         a["runner_id"] = rid
-        db.add(models.Activity(**a))
+        old = (by_ext.get((a.get("provider"), a.get("external_id"))) if a.get("external_id") else None) \
+            or by_start.get((a.get("started_at"), a.get("sport") or "running"))
+        if old is not None:
+            for k, v in a.items():
+                if v is not None and getattr(old, k, None) is None and hasattr(old, k):
+                    setattr(old, k, v)
+            rows.append(old)
+        else:
+            row = models.Activity(**a)
+            db.add(row)
+            rows.append(row)
+            added.append(row)
+    days = {d.date: d for d in db.query(models.DailyMetric).filter(models.DailyMetric.runner_id == rid).all()}
     for d in seed.get("daily_metrics", []):
         d = {k: v for k, v in d.items() if k != "id"}
         d["runner_id"] = rid
-        db.add(models.DailyMetric(**d))
+        old = days.get(d.get("date"))
+        if old is None:
+            days[d.get("date")] = row = models.DailyMetric(**d)
+            db.add(row)
+        else:
+            for k, v in d.items():
+                if v is not None and hasattr(old, k):
+                    setattr(old, k, v)
     db.flush()
 
-    # activity_feedback references the seed's own 1..N activity id (assigned
-    # by garmin_ingest.py in started_at order) — re-fetching with the same
-    # sort order reproduces that same numbering against the real DB ids.
-    act_rows = (
-        db.query(models.Activity).filter(models.Activity.runner_id == rid)
-        .order_by(models.Activity.started_at.asc(), models.Activity.id.asc()).all()
-    )
+    # activity_feedback references the seed's own 1..N activity id (assigned by garmin_ingest.py in
+    # started_at order); the merged rows above keep the seed's order, so the same numbering applies
+    order = [rows[i] for i in sorted(range(len(acts)), key=lambda i: acts[i].get("started_at") or "")]
+    rated = {aid for (aid,) in db.query(models.ActivityFeedback.activity_id).filter(models.ActivityFeedback.runner_id == rid).all()}
     for f in seed.get("activity_feedback", []):
         f = dict(f)
         f.pop("id", None)
         orig_activity_id = f.pop("activity_id", None)
-        if not orig_activity_id or not (1 <= orig_activity_id <= len(act_rows)):
+        if not orig_activity_id or not (1 <= orig_activity_id <= len(order)):
             continue
+        target = order[orig_activity_id - 1]
+        if target.id in rated:
+            continue                        # the runner's own rating stays
         f["runner_id"] = rid
-        f["activity_id"] = act_rows[orig_activity_id - 1].id
+        f["activity_id"] = target.id
         f.setdefault("pain_points", [])
         db.add(models.ActivityFeedback(**f))
-    # activities the runner deleted stay deleted (after the feedback mapping, which counts them)
+        rated.add(target.id)
+    # activities the runner deleted stay deleted
     gone = E.deleted_activities(db, rid)
     if gone:
         db.flush()
-        for a in act_rows:
+        for a in added:
             if E.was_deleted(gone, {"external_id": a.external_id, "provider": a.provider, "started_at": a.started_at,
                                     "sport": a.sport, "duration_min": a.duration_min, "distance_km": a.distance_km}):
                 E.delete_activity(db, a)

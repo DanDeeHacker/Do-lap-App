@@ -127,8 +127,29 @@ def test_file_import_skips_deleted(client, db_session):
     seed["activities"].append({**seed["activities"][0], "external_id": "g-80", "started_at": E.day_ago(3)})
     I._apply_seed(db_session, rid, seed)
     db_session.expire_all()
-    left = db_session.query(models.Activity).filter_by(runner_id=rid).all()
-    assert [a.external_id for a in left] == ["g-80"]
+    left = {a.external_id for a in db_session.query(models.Activity).filter_by(runner_id=rid).all()}
+    assert "g-80" in left and "g-77" not in left
+
+
+def test_a_reimport_keeps_manual_runs_ratings_and_other_sources(client, db_session):
+    """Review 2026-10-30 F2 (carried S1): a re-import used to delete every activity, day and rating."""
+    rid, _ = _runner(client, db_session, "dup-f2@test.cz", days=5)
+    before = {a.id for a in db_session.query(models.Activity).filter_by(runner_id=rid).all()}
+    aid = client.post(f"/api/runners/{rid}/activities/manual",
+                      json={"sport": "strength", "date": E.day_ago(2), "duration_min": 40, "rpe": 7, "legs": 3}).json()["id"]
+    imported = _seed("g-f2", day=3)
+    I._apply_seed(db_session, rid, imported)
+    g = db_session.query(models.Activity).filter_by(runner_id=rid, external_id="g-f2").one()
+    db_session.add(models.ActivityFeedback(activity_id=g.id, runner_id=rid, submitted_at=E.now_iso(), feeling=2, rpe=8))
+    db_session.commit()
+    imported["activity_feedback"] = [{"activity_id": 1, "submitted_at": E.now_iso(), "feeling": 5, "rpe": 2}]
+    I._apply_seed(db_session, rid, imported)                      # the same file again
+    db_session.expire_all()
+    rows = db_session.query(models.Activity).filter_by(runner_id=rid).all()
+    assert before <= {a.id for a in rows} and aid in {a.id for a in rows}
+    assert sum(1 for a in rows if a.external_id == "g-f2") == 1
+    fb = db_session.query(models.ActivityFeedback).filter_by(activity_id=g.id).all()
+    assert [(f.feeling, f.rpe) for f in fb] == [(2, 8)]          # the runner's own rating stays
 
 
 def test_manual_delete_leaves_no_tombstone(client, db_session):

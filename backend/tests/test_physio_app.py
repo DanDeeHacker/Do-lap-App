@@ -29,7 +29,10 @@ def test_a_new_physio_sets_up_a_clinic(client):
     assert me["clinic"] is None and not me["complete"]
     me = client.patch("/api/physios/me", json={"credential": "Bc.", "clinic_name": "Fyzio Brno", "clinic_city": "Brno"}).json()
     assert me["clinic"]["city"] == "Brno" and me["complete"]
-    assert client.get("/api/physios/me/clients").json() == {"items": []}
+    # review 2026-10-30 F1: until an owner verifies the account, no runner data at all
+    assert not me["verified"]
+    assert client.get("/api/physios/me/clients").status_code == 403
+    assert client.get("/api/triage").status_code == 403
 
 
 def test_clients_overview_and_documentation_need_the_care_assignment(client, db_session):

@@ -32,6 +32,7 @@ import { RouteError, TabBoundary, installCrashReporting } from "@/crash"
 import { AssistantProvider, CoachFab, WhyButton } from "@/assistant"
 import { AdminPage, ViewAsBanner } from "@/admin"
 import { PhysioApp } from "@/physio/app"
+import { InvitePage } from "@/invite"
 import { RunDetail } from "@/rundetail"
 import { track, useUsageTracking } from "@/usage"
 import { startUpdateWatcher } from "@/updateCheck"
@@ -2101,6 +2102,8 @@ const router = createBrowserRouter([
   { path: "/auth", Component: Auth, ErrorBoundary: RouteError },
   // Plán od trenéra — the coach's overview through the runner's link (no account)
   { path: "/trener/:token", Component: CoachPage, ErrorBoundary: RouteError },
+  // review 2026-10-30 N1: a Team Console invitation is accepted by the invited account through its link
+  { path: "/pozvanka/:token", Component: InvitePage, ErrorBoundary: RouteError },
   {
     Component: Layout,
     ErrorBoundary: RouteError,

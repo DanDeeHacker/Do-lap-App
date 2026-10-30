@@ -60,6 +60,12 @@ export function PhysioApp() {
       </header>
       <div className="lg:pl-[220px]">
         <main className="mx-auto max-w-[1180px] px-5 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-6 md:px-9 lg:pb-16 lg:pt-10">
+          {prof && !prof.verified && (
+            <div className="mb-5 rounded-2xl border border-info/30 bg-info/10 px-4 py-3 text-[13px] text-fg-2" data-testid="physio-unverified" role="status">
+              <b className="text-fg">Účet čeká na ověření</b>
+              {" — tým Došlapu ověří, kdo jste a vaši odbornou způsobilost. Do té doby nevidíte frontu případů ani klienty; profil a volné termíny si můžete připravit."}
+            </div>
+          )}
           {prof && !prof.complete && !pathname.startsWith("/physio/profile") && (
             <Link to="/physio/profile" className="mb-5 block rounded-2xl border border-watch/30 bg-watch/10 px-4 py-3 text-[13px] text-watch-soft hover:bg-watch/15" data-testid="physio-setup">
               <b className="text-fg">Doplňte profil a praxi</b>{" — podle města praxe se vám řadí fronta případů a běžci vás najdou v záložce Péče."}

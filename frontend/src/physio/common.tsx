@@ -45,6 +45,10 @@ export const KIND: Record<string, string> = {
 // with whitespace-pre-line), the rest of the markup is dropped
 export const stripTags = (s: string) => (s || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "")
 
+// review 2026-10-30 N6: the runner's ring shows 100 − overall (railway#99: high = fine); the physio
+// app shows the same number, so "Skóre 100" never means a high-risk client
+export const shownScore = (overall?: number | null) => (overall == null ? null : 100 - Math.min(100, Math.max(0, overall)))
+
 export function Score({ v, label }: { v?: number | null; label: string }) {
   return (
     <div className="rounded-xl bg-white/[.04] px-3 py-2">

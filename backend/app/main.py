@@ -158,6 +158,20 @@ def _migrate(engine):
     add("activities", "gear_uuid", "gear_uuid VARCHAR")
     add("shoes", "is_default", "is_default BOOLEAN", "UPDATE shoes SET is_default = FALSE WHERE is_default IS NULL")
     add("shoes", "garmin_uuid", "garmin_uuid VARCHAR")
+    # review 2026-10-30 F1: physio accounts need an owner's verification; the ones that exist when
+    # this ships keep working (Team Console → Tým lists them, an owner can withdraw it)
+    add("physios", "verified_by", "verified_by VARCHAR")
+    add("physios", "verified_at", "verified_at VARCHAR",
+        "UPDATE physios SET verified_at = '2026-10-30', verified_by = 'stávající účet' WHERE verified_at IS NULL")
+    # review 2026-10-30 N1: a team role belongs to an account. A member row binds to the account
+    # with its e-mail only when that account is older than the invitation (it can't be a squatter
+    # who registered the invited address); the rest need a new invitation link.
+    add("work_items", "clinical_sha", "clinical_sha VARCHAR")
+    add("team_members", "invite_hash", "invite_hash VARCHAR")
+    add("team_members", "invite_expires_at", "invite_expires_at VARCHAR")
+    add("team_members", "user_id", "user_id INTEGER",
+        "UPDATE team_members SET user_id = (SELECT users.id FROM users WHERE lower(users.email) = team_members.email "
+        "AND users.created_at IS NOT NULL AND users.created_at <= team_members.created_at)")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.
