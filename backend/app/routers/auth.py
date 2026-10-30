@@ -115,7 +115,9 @@ def register(body: schemas.RegisterRequest, response: Response, db: DBSession = 
 
     user = models.User(
         email=email, password_hash=hash_password(body.password), name=body.name, role=role,
-        provider=body.provider or "password", created_at=E.now_iso(), lang=norm_lang(body.lang) or "cs", **fk,
+        # review 2026-10-30 N1: the client never picks the provider (a "google" account skipped the
+        # merge password check); self-registration is always a password account
+        provider="password", created_at=E.now_iso(), lang=norm_lang(body.lang) or "cs", **fk,
     )
     db.add(user)
     db.flush()

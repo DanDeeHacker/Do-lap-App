@@ -47,8 +47,32 @@ def role_of(db: DBSession, user: models.User | None) -> str | None:
     email = (user.email or "").lower()
     if email in owner_emails():
         return "owner"
-    m = db.query(models.TeamMember).filter(models.TeamMember.email == email, models.TeamMember.active.is_(True)).first()
+    # review 2026-10-30 N1: the role follows the account that accepted the invitation, never the
+    # e-mail string (registration verifies no e-mail, so an invited address could be squatted)
+    m = db.query(models.TeamMember).filter(models.TeamMember.user_id == user.id, models.TeamMember.active.is_(True)).first()
     return m.role if m else None
+
+
+INVITE_DAYS = 7
+
+
+def new_invite(m: models.TeamMember) -> str:
+    """A single-use invitation token for the member row; only its hash is stored."""
+    import secrets
+    token = secrets.token_urlsafe(24)
+    m.invite_hash = hashlib.sha256(token.encode()).hexdigest()
+    m.invite_expires_at = (datetime.now(E.LOCAL_TZ) + timedelta(days=INVITE_DAYS)).isoformat()
+    return token
+
+
+def find_invite(db: DBSession, token: str) -> models.TeamMember | None:
+    if not token or len(token) > 200:
+        return None
+    h = hashlib.sha256(token.encode()).hexdigest()
+    m = db.query(models.TeamMember).filter(models.TeamMember.invite_hash == h).first()
+    if m is None or not m.active or (m.invite_expires_at or "") < datetime.now(E.LOCAL_TZ).isoformat():
+        return None
+    return m
 
 
 def can(role: str | None, perm: str) -> bool:
@@ -62,8 +86,11 @@ def audit(db: DBSession, user: models.User, actor_role: str | None, action: str,
 
 
 def member_out(m: models.TeamMember) -> dict:
+    pending = m.user_id is None
     return {"id": m.id, "email": m.email, "name": m.name, "role": m.role, "active": bool(m.active),
-            "invitedBy": m.invited_by, "createdAt": m.created_at, "updatedAt": m.updated_at}
+            "invitedBy": m.invited_by, "createdAt": m.created_at, "updatedAt": m.updated_at,
+            "accepted": not pending,
+            "inviteExpiresAt": m.invite_expires_at if pending and m.invite_hash else None}
 
 
 def team_changed() -> None:

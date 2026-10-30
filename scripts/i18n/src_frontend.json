@@ -220,6 +220,7 @@
    "coachview.tsx",
    "common.tsx",
    "conclusion.tsx",
+   "invite.tsx",
    "metricsheet.tsx",
    "rundetail.tsx",
    "tabs.tsx",
@@ -918,6 +919,13 @@
   "kind": "str"
  },
  {
+  "t": "— tým Došlapu ověří, kdo jste a vaši odbornou způsobilost. Do té doby nevidíte frontu případů ani klienty; profil a volné termíny si můžete připravit.",
+  "files": [
+   "app.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Doplňte profil a praxi",
   "files": [
    "app.tsx"
@@ -984,6 +992,13 @@
    "app.tsx",
    "datapage.tsx",
    "profile.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Účet čeká na ověření",
+  "files": [
+   "app.tsx"
   ],
   "kind": "jsx"
  },
@@ -2868,6 +2883,7 @@
   "t": "Přihlásit se",
   "files": [
    "App.tsx",
+   "invite.tsx",
    "landing.tsx"
   ],
   "kind": "str"
@@ -4014,6 +4030,7 @@
    "habits.tsx",
    "onboarding.tsx",
    "profile.tsx",
+   "teamconsole.tsx",
    "ui.tsx"
   ],
   "kind": "str"
@@ -4742,6 +4759,7 @@
    "calendar.tsx",
    "client.tsx",
    "conclusion.tsx",
+   "invite.tsx",
    "profile.tsx",
    "queue.tsx",
    "tabs.tsx",
@@ -4900,7 +4918,8 @@
  {
   "t": "Zatím žádné.",
   "files": [
-   "calendar.tsx"
+   "calendar.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "jsx"
  },
@@ -4974,7 +4993,8 @@
   "files": [
    "calendarsync.tsx",
    "coachview.tsx",
-   "datapage.tsx"
+   "datapage.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "jsx"
  },
@@ -5047,7 +5067,8 @@
   "t": "Odkaz zkopírován",
   "files": [
    "calendarsync.tsx",
-   "coach.tsx"
+   "coach.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -16697,6 +16718,79 @@
    "habits.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": ". Musí to být e-mail, na který byla poslaná.",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "inženýr",
+  "files": [
+   "invite.tsx",
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jste v týmu Došlapu jako",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "klinický garant",
+  "files": [
+   "invite.tsx",
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Otevřít Team Console",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Pozvánka do týmu",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Pozvánku přijmete účtem",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přihlaste se (nebo si založte účet) s e-mailem, na který pozvánka přišla, a pak tento odkaz otevřete znovu. Odkaz platí 7 dní a jen jednou.",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přijmout pozvánku",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "vlastník",
+  "files": [
+   "invite.tsx",
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "-45% 0px -50% 0px",
@@ -29214,6 +29308,13 @@
   "kind": "str"
  },
  {
+  "t": "— otevře ho přihlášený tímto e-mailem. Kdo by ho zachytil, s jiným účtem nic nezíská.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": ", {} selhalo",
   "files": [
    "teamconsole.tsx"
@@ -29326,6 +29427,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Aplikace e-mail neposílá: odkaz z pozvánky pošlete sami. Platí 7 dní a jen jednou.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Aplikace ráno",
   "files": [
    "teamconsole.tsx"
@@ -29380,6 +29488,20 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "čeká na ověření",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "čeká na přijetí",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Chování podle profilu z {}:",
@@ -29438,18 +29560,11 @@
   "kind": "str"
  },
  {
-  "t": "Člen týmu přidán",
+  "t": "Člen týmu přidán — pošlete mu odkaz",
   "files": [
    "teamconsole.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "Člověk se přihlásí vlastním účtem Došlapu s tímto e-mailem (nebo si ho založí).",
-  "files": [
-   "teamconsole.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "Commit",
@@ -29508,6 +29623,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Fyzioterapeut uvidí frontu případů a klienty až po ověření. Ověřte, kdo to je a že má odbornou způsobilost, mimo aplikaci.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "GitHub není připojený — posílání AI týmu potřebuje proměnnou DOSSLAP_GITHUB_TOKEN v Railway.",
   "files": [
    "teamconsole.tsx"
@@ -29541,13 +29663,6 @@
    "teamconsole.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "inženýr",
-  "files": [
-   "teamconsole.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "issue #{}",
@@ -29627,13 +29742,6 @@
   "kind": "jsx"
  },
  {
-  "t": "klinický garant",
-  "files": [
-   "teamconsole.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "lokálně",
   "files": [
    "teamconsole.tsx"
@@ -29697,6 +29805,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Nový odkaz",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Obnovit",
   "files": [
    "teamconsole.tsx"
@@ -29725,6 +29840,13 @@
   "kind": "str"
  },
  {
+  "t": "Odkaz pro",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Odkud poznámky jsou",
   "files": [
    "teamconsole.tsx"
@@ -29744,6 +29866,20 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "ověřený",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ověřit",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "persona {}",
@@ -29957,13 +30093,6 @@
   "kind": "str"
  },
  {
-  "t": "Přístup se řídí e-mailem přihlášeného účtu. Klinický garant schvaluje změny enginu a bezpečnosti, podpora třídí Inbox, auditor jen čte. Vlastníky z proměnné DOSSLAP_OWNER_EMAILS tady změnit nelze.",
-  "files": [
-   "teamconsole.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Pro historii nasazení přidejte DOSSLAP_RAILWAY_TOKEN (token jen pro čtení).",
   "files": [
    "teamconsole.tsx"
@@ -30032,6 +30161,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Role platí pro účet, který otevřel odkaz z pozvánky přihlášený e-mailem, na který byla poslaná. Klinický garant schvaluje změny enginu a bezpečnosti, podpora třídí Inbox, auditor jen čte. Vlastníky z proměnné DOSSLAP_OWNER_EMAILS tady změnit nelze.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Rozhodnuto",
@@ -30237,6 +30373,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Účty fyzioterapeutů",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Události",
   "files": [
    "teamconsole.tsx"
@@ -30273,13 +30416,6 @@
  },
  {
   "t": "večer",
-  "files": [
-   "teamconsole.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "vlastník",
   "files": [
    "teamconsole.tsx"
   ],
@@ -30490,6 +30626,13 @@
  },
  {
   "t": "Změny, které mění, co aplikace běžcům říká o zdraví (prahy enginu, varování, bezpečnostní screening, cvičební programy), nesou štítek engine nebo safety. Bez schválení klinického garanta je nejde sloučit.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zrušit ověření",
   "files": [
    "teamconsole.tsx"
   ],

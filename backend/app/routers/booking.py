@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from .. import models, schemas
 from ..db import get_db
-from ..deps import ensure_runner_self, get_current_user, or_404, require_role, verify_csrf
+from ..deps import ensure_runner_self, get_current_user, or_404, physio_verified, require_role, require_verified_physio, verify_csrf
 from ..metrics import engine as E
 from ..serializers import to_dict, to_dicts
 
@@ -131,7 +131,7 @@ def booking_options(dow: str = "", daypart: str = "",
     out = []
     for pid, plist in by_physio.items():
         p = db.query(models.Physio).filter(models.Physio.id == pid).first()
-        if not p:
+        if not p or not p.verified_at:           # review 2026-10-30 F1: only verified physios take bookings
             continue
         clinic = db.query(models.Clinic).filter(models.Clinic.id == p.clinic_id).first()
         item = _physio_public(p, clinic)
@@ -149,7 +149,7 @@ def request_slot(body: schemas.SlotBookRequest,
     if not r or not r.physio_interest:
         raise HTTPException(status_code=409, detail="Nejprve potvrďte zájem o fyzioterapii.")
     slot = or_404(db.query(models.PhysioSlot).filter(models.PhysioSlot.id == body.slot_id).first(), "Termín nenalezen")
-    if slot.status != "open":
+    if slot.status != "open" or not physio_verified(db, slot.physio_id):
         raise HTTPException(status_code=409, detail="Tento termín už není volný.")
     slot.status = "held"
     b = models.Booking(
@@ -273,7 +273,7 @@ def remove_slot(sid: int, user: models.User = Depends(require_role("physio")), d
 
 
 @router.post("/api/bookings/{bid}/confirm", dependencies=[Depends(verify_csrf)])
-def confirm_booking(bid: int, user: models.User = Depends(require_role("physio")), db: DBSession = Depends(get_db)):
+def confirm_booking(bid: int, user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     b = or_404(db.query(models.Booking).filter(models.Booking.id == bid).first(), "Rezervace nenalezena")
     if b.physio_id != user.physio_id:
         raise HTTPException(status_code=403, detail="Tato rezervace nepatří vám.")

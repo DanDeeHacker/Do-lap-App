@@ -1,0 +1,12 @@
+{
+ "Účet fyzioterapeuta čeká na ověření týmem Došlapu.": "The physiotherapist account is awaiting verification by the Došlap team.",
+ "Pozvánka je pro jiný e-mail. Přihlaste se účtem, na který byla poslaná.": "The invitation is for another e-mail address. Sign in with the account it was sent to.",
+ "Pozvánka neplatí — je použitá, zrušená nebo starší než 7 dní.": "The invitation is no longer valid — it has been used, withdrawn or is older than 7 days.",
+ "Pozvánku už přijal": "Already accepted the invitation",
+ "Tento účet už v týmu je.": "This account is already on the team.",
+ "Běžec spolupráci s vámi ukončil.": "The runner has ended working with you.",
+ "Běžec zatím nepožádal o fyzioterapeuta.": "The runner hasn't asked for a physiotherapist yet.",
+ "Případ je uzavřený.": "The case is closed.",
+ "Případ už převzal jiný fyzioterapeut.": "Another physiotherapist has already taken the case.",
+ "UPDATE physios SET verified_at = '2026-10-30', verified_by = 'stávající účet' WHERE verified_at IS NULL": ""
+}

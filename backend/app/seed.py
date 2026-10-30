@@ -368,7 +368,7 @@ def build_and_seed(db: DBSession) -> None:
     for i, (n, ci, cr, rt, yrs, spec, price, bio) in enumerate(PHYS):
         physio = models.Physio(
             id=uid("phy", i + 1), clinic_id=clinics[ci].id, name=n, credential=cr, rating=rt,
-            bio=bio, years_exp=yrs, specialties=spec, price_czk=price,
+            bio=bio, years_exp=yrs, specialties=spec, price_czk=price, verified_at=E.now_iso(), verified_by="seed",
         )
         db.add(physio)
         physios.append(physio)

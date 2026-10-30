@@ -985,7 +985,8 @@ def get_bookings(rid: str, user: models.User = Depends(get_current_user), db: DB
 @router.post("/{rid}/bookings", dependencies=[Depends(verify_csrf)])
 def create_booking(rid: str, body: schemas.BookRequest, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_self(user, rid)
-    physio = or_404(db.query(models.Physio).filter(models.Physio.id == body.physio_id).first(), "Fyzioterapeut nenalezen")
+    physio = or_404(db.query(models.Physio).filter(models.Physio.id == body.physio_id,
+                                                   models.Physio.verified_at.isnot(None)).first(), "Fyzioterapeut nenalezen")
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
     slot_at = (datetime.now(timezone.utc) + timedelta(days=max(0, body.days_ahead))).isoformat()
     b = models.Booking(

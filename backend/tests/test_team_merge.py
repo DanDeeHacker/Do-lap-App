@@ -153,8 +153,9 @@ def test_only_an_owner_can_merge_and_nobody_without_the_token(client, db_session
     monkeypatch.setenv("DOSSLAP_OWNER_EMAILS", "")
     fake = FakeGH()
     monkeypatch.setattr(T, "gh", fake)
-    register(client, "merge-inzenyr@tc.test.cz", "Inženýr", "runner")
-    db_session.add(models.TeamMember(email="merge-inzenyr@tc.test.cz", role="engineer", active=True, created_at=T.E.now_iso()))
+    uid = register(client, "merge-inzenyr@tc.test.cz", "Inženýr", "runner").json()["id"]
+    db_session.add(models.TeamMember(email="merge-inzenyr@tc.test.cz", role="engineer", active=True, created_at=T.E.now_iso(),
+                                     user_id=uid))
     db_session.commit()
     reset_team_cache()
     assert client.get("/api/team/pr/2").status_code == 200       # may look

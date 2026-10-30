@@ -37,6 +37,10 @@ class Physio(Base):
     years_exp = Column(Integer)
     specialties = Column(JSON, default=list)
     price_czk = Column(Integer)        # indicative price per session
+    # review 2026-10-30 F1: a self-registered physio sees no runner until an owner verifies the
+    # account in Team Console (registration checks no credential)
+    verified_at = Column(String)
+    verified_by = Column(String)
 
 
 class Employer(Base):
@@ -832,10 +836,14 @@ class TeamMember(Base):
     owner — everything, manages the team; engineer — inbox, work queue, releases, pilot;
     clinical — the clinical guarantor: approves engine and safety changes; support — inbox;
     auditor — reads everything, changes nothing. The e-mails in DOSSLAP_OWNER_EMAILS are owners
-    without a row. Access follows the signed-in account's e-mail."""
+    without a row. Review 2026-10-30 N1: a role belongs to the account that accepted the invitation
+    link (user_id), not to whoever registers the e-mail first — registration verifies no e-mail."""
     __tablename__ = "team_members"
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String, unique=True, index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    invite_hash = Column(String)                    # sha256 of the single-use invitation token
+    invite_expires_at = Column(String)
     name = Column(String)
     role = Column(String, nullable=False)           # owner | engineer | clinical | support | auditor
     active = Column(Boolean, default=True)
