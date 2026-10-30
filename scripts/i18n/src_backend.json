@@ -918,7 +918,8 @@
   "t": "DELETE",
   "files": [
    "deps.py",
-   "routers/team.py"
+   "routers/team.py",
+   "team.py"
   ]
  },
  {
@@ -20164,6 +20165,12 @@
  },
  {
   "t": "Issue #{} zavřeno bez změny",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Klinické schválení platí pro starší verzi kódu — po nových změnách je potřeba schválit znovu.",
   "files": [
    "team.py"
   ]

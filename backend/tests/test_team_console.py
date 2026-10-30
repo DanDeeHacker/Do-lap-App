@@ -157,10 +157,20 @@ def test_inbox_send_needs_owner_approval_and_redacts(client, db_session, monkeyp
     body = payload["body"]
     assert "Graf přes tlačítko na Dnes" in body and f"<!-- doslap-note:{nid} -->" in body and "/app/today" in body
     assert "eva@tc.test.cz" not in body and "Eva" not in body and "priorita P1" in body
+    assert "Připravenost" not in body                                  # review 2026-10-30 N4: no screen text
     db_session.expire_all()
     a = db_session.get(models.Annotation, nid)
     assert a.approved_at and a.issue_number == 41
     assert client.post(f"/api/team/inbox/{nid}/send", json={"title": "znovu", "text": "x"}).status_code == 409
+
+
+def test_issue_body_carries_no_screen_text_or_ids():
+    """Review 2026-10-30 N4: a physio's note on a client screen."""
+    a = models.Annotation(id=5, route="/physio/client/run-0001?tab=overview", anchor_text="Adéla Nováková · bolest 6/10 Achillova šlacha",
+                          context_json={"heading": "Adéla Nováková"}, kind="bug", created_at="2026-10-30T10:00:00")
+    body = T.issue_body(a, "physio", "Edited neutral text")
+    assert "/physio/client/:id" in body and "Edited neutral text" in body
+    assert "Adéla" not in body and "6/10" not in body and "run-0001" not in body
 
 
 def test_send_without_github_says_what_is_missing(client, monkeypatch):

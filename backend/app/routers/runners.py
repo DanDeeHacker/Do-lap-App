@@ -1369,5 +1369,11 @@ def daily_report_ai(rid: str, request: Request, kind: str = "morning", user: mod
     from ..metrics import daily_report as DR
     from ..metrics import report_ai as RA
     r = DR.build(db, rid, kind)
+    # review 2026-10-30 F3: the report's facts go to the hosted model only under the same rule as the
+    # assistant (the runner's AI consent; demo data needs none) — otherwise the rule-based sentences
+    from ..assistant import service as AS
+    runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    if runner is None or not AS.access(db, runner, user)["enabled"]:
+        return _report_lang(db, {"notes": r.get("notes") or {}, "source": "rules"}, request)
     out = RA.generate(db, rid, r)
     return _report_lang(db, {"notes": out["notes"], "source": out["source"]}, request)

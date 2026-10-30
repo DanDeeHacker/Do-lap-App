@@ -109,12 +109,26 @@ def test_a_gate_blocks_the_merge(client, db_session, monkeypatch, over, words):
     assert db_session.query(models.TeamAudit).filter_by(action="pr.merge.blocked", actor_email=owner).count() == 1
 
 
-def test_gated_labels_pass_with_the_sign_off_and_security_with_the_cso_box(client, monkeypatch):
+def test_gated_labels_pass_with_the_sign_off_and_security_with_the_cso_box(client, db_session, monkeypatch):
     _owner(client, monkeypatch)
     fake = FakeGH(labels=[{"name": "engine"}, {"name": "clinical-approved"}, {"name": "security"}])
     monkeypatch.setattr(T, "gh", fake)
-    assert _go(client).status_code == 409                     # security without the /cso box
-    assert _go(client, cso=True).status_code == 200 and len(fake.merged()) == 1
+    w = db_session.query(models.WorkItem).filter(models.WorkItem.kind == "pr", models.WorkItem.number == 2).first()
+    if w is None:
+        w = models.WorkItem(kind="pr", number=2, title="Moje čísla", state="open", created_at=T.E.now_iso(), updated_at=T.E.now_iso())
+        db_session.add(w)
+    w.labels, w.clinical, w.clinical_sha = ["engine", "clinical-approved"], "approved", "old0000"
+    db_session.commit()
+    try:
+        assert _go(client, cso=True).status_code == 409           # review 2026-10-30 N5: approved an older commit
+        w.clinical_sha = "abc1234def"
+        db_session.commit()
+        assert _go(client).status_code == 409                     # security without the /cso box
+        assert _go(client, cso=True).status_code == 200 and len(fake.merged()) == 1
+    finally:
+        db_session.refresh(w)
+        w.clinical_sha = None
+        db_session.commit()
 
 
 @pytest.mark.parametrize("runs", [
@@ -215,3 +229,39 @@ def test_blocked_gates_do_not_lock_the_owner_out(client, monkeypatch):
         assert _go(client).status_code == 409                # red CI, again and again: never 429
     fake.runs = [{"name": "backend", "status": "completed", "conclusion": "success"}]
     assert _go(client).status_code == 200
+
+
+def test_clinical_sign_off_is_for_the_approved_commit():
+    """Review 2026-10-30 N5: thresholds pushed after the sign-off don't ride on the old label."""
+    pr = {"state": "open", "draft": False, "base": {"ref": "main"}, "mergeable": True, "head": {"sha": "bbbb"},
+          "labels": [{"name": "engine"}, {"name": "clinical-approved"}],
+          "body": "## Change for runners\nKratší běh při bolesti.\n"}
+    assert any("starší verzi" in b for b in T.merge_blockers(pr, "success", approved_sha="aaaa"))
+    assert any("starší verzi" in b for b in T.merge_blockers(pr, "success", approved_sha=None))
+    assert not any("starší verzi" in b for b in T.merge_blockers(pr, "success", approved_sha="bbbb"))
+
+
+def test_a_push_after_the_sign_off_drops_it(client, db_session, monkeypatch):
+    fake = FakeGH()
+    monkeypatch.setattr(T, "gh", fake)
+    db_session.add(models.WorkItem(kind="pr", number=77, title="Práh", state="open", labels=["engine", "clinical-approved"],
+                                   clinical="approved", clinical_sha="aaaa", head_sha="aaaa",
+                                   created_at=T.E.now_iso(), updated_at=T.E.now_iso()))
+    db_session.commit()
+    pr = {"number": 77, "title": "Práh", "state": "open", "html_url": "https://github.com/x/y/pull/77", "user": {"login": "ai"},
+          "head": {"sha": "bbbb", "ref": "ai/77"}, "labels": [{"name": "engine"}, {"name": "clinical-approved"}],
+          "body": "", "created_at": "2026-10-30T10:00:00Z", "updated_at": "2026-10-30T11:00:00Z"}
+    T.handle_event(db_session, "pull_request", {"action": "synchronize", "pull_request": pr})
+    db_session.commit()
+    w = db_session.query(models.WorkItem).filter(models.WorkItem.number == 77).first()
+    assert w.clinical is None and w.clinical_sha is None and "clinical-approved" not in w.labels
+    assert ("DELETE", "/issues/77/labels/clinical-approved") in [(m, p) for m, p, *_ in fake.calls]
+    db_session.delete(w)
+    db_session.commit()
+
+
+def test_non_ascii_secret_headers_are_refused_not_a_500(monkeypatch):
+    monkeypatch.setenv("DOSSLAP_GITHUB_WEBHOOK_SECRET", "tajne")
+    monkeypatch.setenv("DOSSLAP_PERSONA_TOKEN", "token")
+    assert T.verify_signature(b"{}", "sha256=žluťoučký") is False
+    assert T.persona_token_ok("žluťoučký") is False

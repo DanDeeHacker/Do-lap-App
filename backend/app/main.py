@@ -166,6 +166,7 @@ def _migrate(engine):
     # review 2026-10-30 N1: a team role belongs to an account. A member row binds to the account
     # with its e-mail only when that account is older than the invitation (it can't be a squatter
     # who registered the invited address); the rest need a new invitation link.
+    add("work_items", "clinical_sha", "clinical_sha VARCHAR")
     add("team_members", "invite_hash", "invite_hash VARCHAR")
     add("team_members", "invite_expires_at", "invite_expires_at VARCHAR")
     add("team_members", "user_id", "user_id INTEGER",

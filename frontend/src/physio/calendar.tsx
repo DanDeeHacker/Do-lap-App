@@ -7,7 +7,7 @@ import { CalendarPlus, Check, FileText, Trash2, X } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, useToast } from "@/ui"
 import { fmtDT } from "@/lib"
-import { Empty, KIND, Loading, useLoad } from "@/physio/common"
+import { Empty, KIND, Loading, shownScore, useLoad } from "@/physio/common"
 import { ConclusionSheet } from "@/physio/conclusion"
 
 const dayKey = (iso: string) => (iso || "").slice(0, 10)
@@ -147,7 +147,7 @@ function Visit({ b, reminder, onOpen, onConclusion, onSaved }: { b: any; reminde
         <button type="button" onClick={onOpen} className="font-bold text-accent hover:underline">{b.runner?.name}</button>
         <span className="text-fg-3">{KIND[b.kind] || b.kind}</span>
         {reminder && <Chip tone="watch">do 24 h · klient vidí připomínku</Chip>}
-        {a.overall != null && <span className="text-fg-3">{`· skóre ${Math.round(a.overall)}`}</span>}
+        {a.overall != null && <span className="text-fg-3">{`· skóre ${Math.round(shownScore(a.overall)!)}`}</span>}
         <span className="flex-1" />
         <Button size="sm" variant="outline" icon={FileText} onClick={onConclusion}>Závěr</Button>
       </div>

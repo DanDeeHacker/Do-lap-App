@@ -363,7 +363,8 @@ async def github_webhook(request: Request, db: DBSession = Depends(get_db)):
 def pr_review(number: int, cso: bool = False, c: Ctx = Depends(ctx)):
     """The review screen: the pull request as GitHub has it right now, with what blocks a merge."""
     c.need("work.read")
-    out = _gh(lambda: T.pr_review(number, cso_linked=cso))
+    w = c.db.query(models.WorkItem).filter(models.WorkItem.kind == "pr", models.WorkItem.number == number).first()
+    out = _gh(lambda: T.pr_review(number, cso_linked=cso, approved_sha=w.clinical_sha if w else None))
     return {**out, "canMerge": T.can(c.role, "pr.merge"), "mergeToken": bool(T.merge_token()),
             "needsPassword": True}           # review 2026-10-30 N1: every account confirms with its password
 
@@ -414,7 +415,8 @@ def pr_merge(number: int, body: MergeIn, c: Ctx = Depends(ctx)):
     if live != body.sha:
         raise _merge_refused(c, number, 409, "PR se mezitím změnil (nový commit). Otevřete kontrolu znovu.", seen=body.sha[:7], live=live[:7])
     ci = _gh(lambda: T.ci_detail(live))
-    blockers = T.merge_blockers(pr, ci["state"], cso_linked=body.cso)
+    w0 = c.db.query(models.WorkItem).filter(models.WorkItem.kind == "pr", models.WorkItem.number == number).first()
+    blockers = T.merge_blockers(pr, ci["state"], cso_linked=body.cso, approved_sha=w0.clinical_sha if w0 else None)
     if blockers:
         raise _merge_refused(c, number, 409, " ".join(blockers), head=live[:7])
     try:
@@ -500,20 +502,24 @@ def decide(number: int, body: DecisionIn, c: Ctx = Depends(ctx)):
     if w is None or not (set(w.labels or []) & set(T.GATED)):
         raise HTTPException(status_code=404, detail="PR s klinickou bránou nenalezen (zkuste Synchronizovat)")
     add, drop = ("clinical-approved", "clinical-changes") if body.decision == "approve" else ("clinical-changes", "clinical-approved")
+    # review 2026-10-30 N5: the decision is for the code as it is right now; a later push drops it
+    live = ((_gh(lambda: T.gh("GET", f"/pulls/{number}")) or {}).get("head") or {}).get("sha") or w.head_sha
     name = c.user.name or c.user.email
     verdict = "✅ Clinical sign-off" if body.decision == "approve" else "✋ Clinical changes requested"
-    comment = f"**{verdict}** — {name} (Team Console)\n\n{body.note.strip() or '—'}"
+    comment = f"**{verdict}** — {name} (Team Console) · commit `{live}`\n\n{body.note.strip() or '—'}"
+    # the comment first: the label's event re-runs clinical-gate, which looks for this commit's sign-off
+    _gh(lambda: T.gh("POST", f"/issues/{number}/comments", json={"body": comment}))
     _gh(lambda: T.gh("POST", f"/issues/{number}/labels", json={"labels": [add]}))
     try:
         T.gh("DELETE", f"/issues/{number}/labels/{drop}")
     except T.GitHubError as e:
         if e.status != 404:
             raise HTTPException(status_code=502, detail=str(e)) from None
-    _gh(lambda: T.gh("POST", f"/issues/{number}/comments", json={"body": comment}))
     w.labels = sorted((set(w.labels or []) - {drop}) | {add})
     w.clinical = "approved" if body.decision == "approve" else "changes"
     w.clinical_by, w.clinical_at, w.clinical_note = c.user.email, E.now_iso(), body.note.strip() or None
-    c.audit("approval." + body.decision, f"pr:{number}", note=body.note.strip()[:300], head=w.head_sha)
+    w.clinical_sha = live if body.decision == "approve" else None
+    c.audit("approval." + body.decision, f"pr:{number}", note=body.note.strip()[:300], head=live)
     c.db.commit()
     return T.work_out(w, {})
 

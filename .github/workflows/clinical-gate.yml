@@ -2,23 +2,51 @@
 # A pull request labelled `engine` or `safety` can't merge until it carries `clinical-approved`,
 # which Došlap's Team Console → Approvals adds when the clinical reviewer signs off.
 # Make "clinical-gate" a required check in branch protection.
+# Review 2026-10-30 N5: the sign-off is for one commit — Team Console's comment names the head SHA
+# it approved and a later push removes the label — and a PR that touches the engine or the
+# exercise programmes needs the `engine` or `safety` label whatever its author labelled it.
 name: clinical-gate
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled, unlabeled]
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
 jobs:
   clinical-gate:
     runs-on: ubuntu-latest
     steps:
       - name: Clinical sign-off for engine and safety changes
         env:
-          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
-          echo "labels: $LABELS"
-          needs=$(echo "$LABELS" | jq 'any(.[]; . == "engine" or . == "safety")')
-          ok=$(echo "$LABELS" | jq 'any(.[]; . == "clinical-approved")')
-          changes=$(echo "$LABELS" | jq 'any(.[]; . == "clinical-changes")')
-          if [ "$needs" != "true" ]; then echo "No engine or safety label: no clinical sign-off needed."; exit 0; fi
-          if [ "$changes" = "true" ]; then echo "::error::The clinical reviewer asked for changes (Team Console → Approvals)."; exit 1; fi
-          if [ "$ok" != "true" ]; then echo "::error::Engine or safety change: waiting for the clinical sign-off in Team Console → Approvals."; exit 1; fi
-          echo "Clinical sign-off present."
+          pr=$(gh api "repos/$REPO/pulls/$PR")
+          head=$(echo "$pr" | jq -r '.head.sha')
+          labels=$(echo "$pr" | jq -c '[.labels[].name]')
+          echo "head: $head  labels: $labels"
+          gated=$(echo "$labels" | jq 'any(.[]; . == "engine" or . == "safety")')
+          files=$(gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename')
+          if echo "$files" | grep -Eq '^backend/app/metrics/|^backend/app/programs_library\.py$|^backend/app/mobility_library\.py$'; then
+            if [ "$gated" != "true" ]; then
+              echo "::error::This PR changes the engine or the exercise programmes: add the label engine or safety (clinical sign-off)."
+              exit 1
+            fi
+          fi
+          if [ "$gated" != "true" ]; then echo "No engine or safety change: no clinical sign-off needed."; exit 0; fi
+          if echo "$labels" | jq -e 'any(.[]; . == "clinical-changes")' >/dev/null; then
+            echo "::error::The clinical reviewer asked for changes (Team Console → Approvals)."; exit 1
+          fi
+          if ! echo "$labels" | jq -e 'any(.[]; . == "clinical-approved")' >/dev/null; then
+            echo "::error::Engine or safety change: waiting for the clinical sign-off in Team Console → Approvals."; exit 1
+          fi
+          signed=$(gh api --paginate "repos/$REPO/issues/$PR/comments" \
+            --jq "[.[] | select(.body | startswith(\"**✅ Clinical sign-off**\")) | select(.body | contains(\"$head\"))] | length" \
+            | awk '{s+=$1} END {print s+0}')
+          if [ "$signed" -lt 1 ]; then
+            echo "::error::The clinical sign-off is for an older commit — the guarantor approves $head again in Team Console → Approvals."
+            exit 1
+          fi
+          echo "Clinical sign-off present for $head."

@@ -889,6 +889,7 @@ class WorkItem(Base):
     clinical_by = Column(String)
     clinical_at = Column(String)
     clinical_note = Column(Text)
+    clinical_sha = Column(String)                   # review 2026-10-30 N5: the head commit the guarantor approved
     deployed = Column(Boolean, default=False)       # the merge commit is in the running production build
     created_at = Column(String)
     updated_at = Column(String)

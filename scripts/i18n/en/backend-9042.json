@@ -8,5 +8,6 @@
  "Běžec zatím nepožádal o fyzioterapeuta.": "The runner hasn't asked for a physiotherapist yet.",
  "Případ je uzavřený.": "The case is closed.",
  "Případ už převzal jiný fyzioterapeut.": "Another physiotherapist has already taken the case.",
- "UPDATE physios SET verified_at = '2026-10-30', verified_by = 'stávající účet' WHERE verified_at IS NULL": ""
+ "UPDATE physios SET verified_at = '2026-10-30', verified_by = 'stávající účet' WHERE verified_at IS NULL": "",
+ "Klinické schválení platí pro starší verzi kódu — po nových změnách je potřeba schválit znovu.": "The clinical sign-off is for an older version of the code — after new changes it needs approving again."
 }

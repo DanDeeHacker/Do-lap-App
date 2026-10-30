@@ -8,7 +8,7 @@ import { Inbox, MapPin } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, Segmented, useToast } from "@/ui"
 import { fmtD } from "@/lib"
-import { Empty, Loading, QuadChip, RiskChip, useLoad } from "@/physio/common"
+import { Empty, Loading, QuadChip, RiskChip, shownScore, useLoad } from "@/physio/common"
 
 export function QueuePage({ pid }: { pid: string }) {
   const toast = useToast()
@@ -84,7 +84,7 @@ export function QueuePage({ pid }: { pid: string }) {
                         <span className="flex items-center gap-1 text-[11.5px] text-fg-3"><MapPin className="size-3" aria-hidden />{t.runner?.city || "—"}
                           {!t.in_region && <span>{" · mimo region"}</span>}</span>
                       </td>
-                      <td className="py-2.5 pr-3 text-[18px] font-bold tabular-nums text-fg">{t.a?.overall == null ? "—" : Math.round(t.a.overall)}</td>
+                      <td className="py-2.5 pr-3 text-[18px] font-bold tabular-nums text-fg">{t.a?.overall == null ? "—" : Math.round(shownScore(t.a.overall)!)}</td>
                       <td className="py-2.5 pr-3"><span className="flex flex-wrap gap-1"><RiskChip tier={t.a?.tier} /><QuadChip q={t.a?.quadrant} /></span></td>
                       <td className="py-2.5 pr-3 text-fg-2">{sig ? <>{sig.name}<span className="block text-[11.5px] text-fg-3">{sig.val}</span></> : "—"}</td>
                       <td className="py-2.5 pr-3 text-fg-2">
