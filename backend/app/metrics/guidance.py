@@ -1244,9 +1244,15 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if ill and not override:
         for k in ("dlouhý", "kvalitní", "posilování"):
             block(k, "Hlásíte nemoc — dnes bez náročného tréninku.")
+        # review 2026-10-30 N2: the day's no-run / easy-only default is a block too, so a day pin
+        # (Plán týdne → Změnit) can't put a run back on a sick day
         if ill_light:
+            block("lehký", "Příznaky jen nad krkem — dnes nanejvýš krátce a velmi volně.")
             types["regenerace"]["notes"].insert(0, "Příznaky jen nad krkem: nanejvýš krátce a velmi volně, a jen když "
                                                    "se při tom cítíte dobře.")
+        else:
+            for k in ("regenerace", "lehký"):
+                block(k, "Hlásíte nemoc — dnes odpočinek.")
     if ill_watch and not override:
         what, when = _ill_what(ill_sig)
         for k in ("kvalitní", "dlouhý"):
@@ -1264,6 +1270,8 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if gscore < READY_QUALITY:
         block("kvalitní", f"{rtxt()} — na tvrdý trénink je potřeba aspoň {READY_QUALITY} %.")
         block("dlouhý", f"{rtxt()} — dlouhý běh přesuňte na odpočatější den.")
+    if gscore < READY_EASY_ONLY:                 # review 2026-10-30 N2: the easy-only default holds for pins too
+        block("lehký", f"{rtxt()} — pod {READY_EASY_ONLY} % jen regenerace nebo volno.")
     elif hrv_low:
         block("kvalitní", "HRV je dnes pod vaším běžným pásmem — tvrdý trénink se přesouvá na jiný den tohoto týdne.")
     if load >= 25:
@@ -1377,7 +1385,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         typ = "lehký"
     else:
         typ = "regenerace" if types["regenerace"]["allowed"] else "volno"
-    if len(hist) < 3 and typ not in ("volno", "závod") and not override:
+    if len(hist) < 3 and typ not in ("volno", "závod") and not override and types["lehký"]["allowed"]:
         typ = "lehký"
     if extra_easy and typ == "regenerace":
         typ = "volno"                     # the optional easy run is offered, not recommended
@@ -1403,6 +1411,17 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
             xt_pick = "kolo"
     if xt_pick:
         typ = xt_pick
+        # review 2026-10-30 N2: the app spares the painful site today, so no running pin either
+        block("regenerace", (f"Bolest {pain}/10 — dnes místo běhu jízda na kole, šetří bolavé místo." if xt_pick == "kolo" else
+                             f"Bolest {pain}/10 — dnes místo běhu plavání, šetří bolavé místo.") if pain > 5 and not override else
+              "Dnes místo běhu jiný sport, který šetří bolavé místo.")
+    # review 2026-10-30 N2: on a day the app shortens (pain 3–5, symptoms above the neck, low readiness)
+    # a pinned run goes up to the day's recommendation, not to the safety ceiling
+    reduced = pain_mod or pain > 5 or bool(ill) or ill_watch or gscore < READY_EASY_ONLY
+    for k_ in RUN_TYPES:
+        km_k = types.get(k_, {}).get("km")
+        if isinstance(km_k, dict) and km_k.get("hi"):
+            km_k["pinMax"] = km_k["hi"] if reduced or not km_k.get("max") else max(km_k["max"], km_k["hi"])
 
     # owner request 2026-10-26 — the runner's own change of today in Plán týdne: it stands when this
     # morning's data allow that type (the same verdicts the day's options show), else today's pick does
@@ -1417,7 +1436,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
             want = dp.get("km")
             km_ = pt.get("km") if isinstance(pt.get("km"), dict) else None
             if want and km_ and typ in RUN_TYPES and km_.get("hi"):
-                hi = min(float(want), km_.get("max") or km_["hi"]) if km_.get("max") else min(float(want), km_["hi"])
+                hi = min(float(want), km_.get("pinMax") or km_["hi"])
                 f = hi / km_["hi"] if km_["hi"] else 1.0
                 km_["hi"], km_["lo"] = _r(hi), _r(min(km_.get("lo") or hi, 0.85 * hi))
                 if pt.get("durationMin") and f:
@@ -1633,7 +1652,7 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
         reasons.append(f"Tento týden (od pondělí) {_cz(vw['done'])} z cíle {_cz(vw['budget'])} km.")
     if typ == "kvalitní" and days_since_hard is not None:
         reasons.append(f"Poslední tvrdý trénink před {days_since_hard} dny — prostor na kvalitu.")
-    if typ == "dlouhý":
+    if typ == "dlouhý" and pat["longDay"] is not None:    # review 2026-10-30 N3: a pinned long run without a usual long-run day
         reasons.append(f"Dlouhý běh obvykle běháte {WD_IN[pat['longDay']]}.")
     if typ == "volno" and not override and pat["runDays"] and wd not in pat["runDays"]:
         reasons.append("Dnes obvykle neběháte — den volna pro regeneraci.")

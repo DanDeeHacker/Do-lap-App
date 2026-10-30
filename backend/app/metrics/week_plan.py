@@ -979,7 +979,7 @@ def _with_today(a: dict, typ: str | None, km=None) -> dict:
         g["type"], g["pin"] = typ, {"type": typ, "applied": True}
         k = t.get("km") if isinstance(t.get("km"), dict) else None
         if km and k and k.get("hi") and typ in PIN_RUN:
-            hi = min(float(km), k.get("max") or k["hi"])
+            hi = min(float(km), k.get("pinMax") or k["hi"])     # review 2026-10-30 N2: as guidance caps it
             k["hi"], k["lo"] = _r(hi), _r(min(k.get("lo") or hi, 0.85 * hi))
     a2["guidance"] = g
     return a2
@@ -1041,7 +1041,7 @@ def _range(a, today, program, pins, day_iso, typ, plan) -> dict | None:
         lo = max(MIN_RUN_KM, 0.5 * easy) if typ != "dlouhý" else 1.2 * easy
         if day_iso == today.isoformat():
             k = ((g.get("types") or {}).get(typ) or {}).get("km") or {}
-            hi = k.get("max") or k.get("hi")
+            hi = k.get("pinMax") or k.get("hi")
         else:
             big = simulate(a, today, program, {**pins, day_iso: {"type": typ, "km": 999}})
             day = next((d for d in (big or {}).get("days") or [] if d["date"] == day_iso), None)
