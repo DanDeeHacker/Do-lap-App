@@ -47,8 +47,32 @@ def role_of(db: DBSession, user: models.User | None) -> str | None:
     email = (user.email or "").lower()
     if email in owner_emails():
         return "owner"
-    m = db.query(models.TeamMember).filter(models.TeamMember.email == email, models.TeamMember.active.is_(True)).first()
+    # review 2026-10-30 N1: the role follows the account that accepted the invitation, never the
+    # e-mail string (registration verifies no e-mail, so an invited address could be squatted)
+    m = db.query(models.TeamMember).filter(models.TeamMember.user_id == user.id, models.TeamMember.active.is_(True)).first()
     return m.role if m else None
+
+
+INVITE_DAYS = 7
+
+
+def new_invite(m: models.TeamMember) -> str:
+    """A single-use invitation token for the member row; only its hash is stored."""
+    import secrets
+    token = secrets.token_urlsafe(24)
+    m.invite_hash = hashlib.sha256(token.encode()).hexdigest()
+    m.invite_expires_at = (datetime.now(E.LOCAL_TZ) + timedelta(days=INVITE_DAYS)).isoformat()
+    return token
+
+
+def find_invite(db: DBSession, token: str) -> models.TeamMember | None:
+    if not token or len(token) > 200:
+        return None
+    h = hashlib.sha256(token.encode()).hexdigest()
+    m = db.query(models.TeamMember).filter(models.TeamMember.invite_hash == h).first()
+    if m is None or not m.active or (m.invite_expires_at or "") < datetime.now(E.LOCAL_TZ).isoformat():
+        return None
+    return m
 
 
 def can(role: str | None, perm: str) -> bool:
@@ -62,8 +86,11 @@ def audit(db: DBSession, user: models.User, actor_role: str | None, action: str,
 
 
 def member_out(m: models.TeamMember) -> dict:
+    pending = m.user_id is None
     return {"id": m.id, "email": m.email, "name": m.name, "role": m.role, "active": bool(m.active),
-            "invitedBy": m.invited_by, "createdAt": m.created_at, "updatedAt": m.updated_at}
+            "invitedBy": m.invited_by, "createdAt": m.created_at, "updatedAt": m.updated_at,
+            "accepted": not pending,
+            "inviteExpiresAt": m.invite_expires_at if pending and m.invite_hash else None}
 
 
 def team_changed() -> None:
@@ -125,7 +152,7 @@ def verify_signature(body: bytes, header: str | None) -> bool:
     if not secret or not header or not header.startswith("sha256="):
         return False
     want = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(want, header)
+    return hmac.compare_digest(want.encode(), header.encode())      # review 2026-10-30: bytes, a non-ASCII header was a 500
 
 
 NOTE_MARK = re.compile(r"<!--\s*doslap-note:(\d+)\s*-->")
@@ -235,6 +262,14 @@ def handle_event(db: DBSession, event: str, payload: dict) -> str:
         resolve_notes_for(db, w)
         if payload.get("action") == "synchronize":
             w.checks = "pending"
+            if w.clinical == "approved" or "clinical-approved" in (w.labels or []):
+                # review 2026-10-30 N5: new code after the sign-off needs a new sign-off
+                try:
+                    gh("DELETE", f"/issues/{w.number}/labels/clinical-approved")
+                except GitHubError:
+                    pass                    # no token or already gone: merge_blockers still compares the SHA
+                w.labels = sorted(set(w.labels or []) - {"clinical-approved"})
+                w.clinical, w.clinical_sha = None, None
         return f"pr #{w.number}"
     if event == "check_suite" and payload.get("check_suite"):
         cs = payload["check_suite"]
@@ -368,9 +403,21 @@ def prs_by_issue(items: list) -> dict:
     return out
 
 
+_ID_SEG = re.compile(r"^(?:(?:run|phy|emp|par|cli|int)-[\w-]+|\d+|[A-Za-z0-9_-]{16,}|[0-9a-f-]{32,36})$")
+
+
+def route_pattern(route: str | None) -> str:
+    """The screen without anyone's id: /physio/client/run-0001?tab=x → /physio/client/:id."""
+    path = (route or "").split("?", 1)[0].split("#", 1)[0]
+    return "/".join(":id" if _ID_SEG.match(seg) else seg for seg in path.split("/")) or "/"
+
+
 def issue_body(a: models.Annotation, author_role: str | None, text: str) -> str:
     ctx = a.context_json or {}
-    where = a.route + (f" — „{a.anchor_text}“" if a.anchor_text else "") + (f" (sekce {ctx['heading']})" if ctx.get("heading") else "")
+    # review 2026-10-30 N4: the clicked element's text and the section heading can carry a client's
+    # name or pain ("Adéla Nováková · bolest 6/10"); the issue gets the route pattern and the
+    # owner-edited text only
+    where = route_pattern(a.route)
     lines = [
         f"**Z aplikace** (Team Console → Inbox, poznámka #{a.id})",
         f"- Typ: {a.triage_type or a.kind}" + (f" · priorita {a.priority}" if a.priority else ""),
@@ -527,7 +574,7 @@ SYNTH_EMAIL = "personas@system.doslap.invalid"
 
 def persona_token_ok(header: str | None) -> bool:
     want = os.environ.get("DOSSLAP_PERSONA_TOKEN") or ""
-    return bool(want) and bool(header) and hmac.compare_digest(want, header)
+    return bool(want) and bool(header) and hmac.compare_digest(want.encode(), header.encode())
 
 
 def _synth_user(db: DBSession) -> models.User:
@@ -645,7 +692,7 @@ def ci_detail(sha: str) -> dict:
     return {"state": state, "items": items}
 
 
-def merge_blockers(pr: dict, ci_state: str | None, cso_linked: bool = False) -> list[str]:
+def merge_blockers(pr: dict, ci_state: str | None, cso_linked: bool = False, approved_sha: str | None = None) -> list[str]:
     """Why this pull request may not be merged right now. Evaluated on the live GitHub data, both
     for the review screen and again, authoritatively, when the owner clicks Merge."""
     out = []
@@ -664,6 +711,9 @@ def merge_blockers(pr: dict, ci_state: str | None, cso_linked: bool = False) -> 
         out.append({"pending": "CI ještě běží.", "failure": "CI je červené."}.get(ci_state or "", "Stav CI se nepodařilo zjistit."))
     if "clinical-changes" in labels or (labels & set(GATED) and "clinical-approved" not in labels):
         out.append("Změna enginu nebo bezpečnosti čeká na klinické schválení (Schválení).")
+    elif labels & set(GATED) and approved_sha != (pr.get("head") or {}).get("sha"):
+        # review 2026-10-30 N5: the sign-off is for the code the guarantor saw, not for the label
+        out.append("Klinické schválení platí pro starší verzi kódu — po nových změnách je potřeba schválit znovu.")
     if "security" in labels and not cso_linked:
         out.append("Štítek security: potvrďte, že je v PR odkaz na zprávu /cso.")
     if not _summary(pr.get("body")):
@@ -671,7 +721,7 @@ def merge_blockers(pr: dict, ci_state: str | None, cso_linked: bool = False) -> 
     return out
 
 
-def pr_review(number: int, cso_linked: bool = False) -> dict:
+def pr_review(number: int, cso_linked: bool = False, approved_sha: str | None = None) -> dict:
     """Everything the owner needs to decide, read from GitHub just now."""
     pr = gh("GET", f"/pulls/{number}") or {}
     ci = ci_detail((pr.get("head") or {}).get("sha") or "") if (pr.get("head") or {}).get("sha") else {"state": None, "items": []}
@@ -682,5 +732,5 @@ def pr_review(number: int, cso_linked: bool = False) -> dict:
         "labels": _labels(pr), "summary": _summary(pr.get("body")), "closes": sorted({int(n) for n in CLOSES.findall(pr.get("body") or "")}),
         "files": pr.get("changed_files"), "additions": pr.get("additions"), "deletions": pr.get("deletions"),
         "mergeable": pr.get("mergeable"), "checks": ci["state"], "checkItems": ci["items"],
-        "blockers": merge_blockers(pr, ci["state"], cso_linked), "diffUrl": (pr.get("html_url") or "") + "/files",
+        "blockers": merge_blockers(pr, ci["state"], cso_linked, approved_sha), "diffUrl": (pr.get("html_url") or "") + "/files",
     }

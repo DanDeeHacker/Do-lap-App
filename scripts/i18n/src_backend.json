@@ -918,7 +918,8 @@
   "t": "DELETE",
   "files": [
    "deps.py",
-   "routers/team.py"
+   "routers/team.py",
+   "team.py"
   ]
  },
  {
@@ -982,6 +983,12 @@
  },
  {
   "t": "V ukázce se nic neukládá. Založte si účet a zapisujte vlastní data.",
+  "files": [
+   "deps.py"
+  ]
+ },
+ {
+  "t": "Účet fyzioterapeuta čeká na ověření týmem Došlapu.",
   "files": [
    "deps.py"
   ]
@@ -1695,6 +1702,12 @@
  },
  {
   "t": "Tutorial demo rebuild failed",
+  "files": [
+   "main.py"
+  ]
+ },
+ {
+  "t": "UPDATE physios SET verified_at = '2026-10-30', verified_by = 'stávající účet' WHERE verified_at IS NULL",
   "files": [
    "main.py"
   ]
@@ -16541,7 +16554,8 @@
   "t": "Fyzioterapeut nenalezen",
   "files": [
    "routers/physios.py",
-   "routers/runners.py"
+   "routers/runners.py",
+   "routers/team.py"
   ]
  },
  {
@@ -17264,6 +17278,24 @@
   ]
  },
  {
+  "t": "Pozvánka je pro jiný e-mail. Přihlaste se účtem, na který byla poslaná.",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Pozvánka neplatí — je použitá, zrušená nebo starší než 7 dní.",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Pozvánku už přijal",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
   "t": "Příliš mnoho zamítnutých pokusů, zkuste to za {} minut.",
   "files": [
    "routers/team.py"
@@ -17300,6 +17332,12 @@
   ]
  },
  {
+  "t": "Tento účet už v týmu je.",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
   "t": "Už je na GitHubu jako #{}",
   "files": [
    "routers/team.py"
@@ -17324,13 +17362,37 @@
   ]
  },
  {
+  "t": "Běžec spolupráci s vámi ukončil.",
+  "files": [
+   "routers/triage.py"
+  ]
+ },
+ {
+  "t": "Běžec zatím nepožádal o fyzioterapeuta.",
+  "files": [
+   "routers/triage.py"
+  ]
+ },
+ {
   "t": "Fyzioterapeut převzal váš případ.",
   "files": [
    "routers/triage.py"
   ]
  },
  {
+  "t": "Případ je uzavřený.",
+  "files": [
+   "routers/triage.py"
+  ]
+ },
+ {
   "t": "Případ nenalezen",
+  "files": [
+   "routers/triage.py"
+  ]
+ },
+ {
+  "t": "Případ už převzal jiný fyzioterapeut.",
   "files": [
    "routers/triage.py"
   ]
@@ -20127,6 +20189,12 @@
  },
  {
   "t": "Issue #{} zavřeno bez změny",
+  "files": [
+   "team.py"
+  ]
+ },
+ {
+  "t": "Klinické schválení platí pro starší verzi kódu — po nových změnách je potřeba schválit znovu.",
   "files": [
    "team.py"
   ]

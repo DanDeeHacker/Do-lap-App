@@ -11,12 +11,12 @@ of that patient.
 """
 import re
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
 
 from .. import models
 from ..db import get_db
-from ..deps import or_404, require_role, verify_csrf
+from ..deps import or_404, require_verified_physio, verify_csrf
 from ..metrics import engine as E
 from ..serializers import to_dict
 
@@ -39,7 +39,7 @@ def _physio_region(db: DBSession, physio_id: str) -> str | None:
 
 @router.get("")
 def queue(status: str = "open", scope: str = "clinic",
-          user: models.User = Depends(require_role("physio")), db: DBSession = Depends(get_db)):
+          user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     physio_region = _physio_region(db, user.physio_id)
     q = db.query(models.Triage)
     if status and status != "all":
@@ -69,8 +69,22 @@ def queue(status: str = "open", scope: str = "clinic",
 
 
 @router.patch("/{tid}/claim", dependencies=[Depends(verify_csrf)])
-def claim(tid: int, user: models.User = Depends(require_role("physio")), db: DBSession = Depends(get_db)):
+def claim(tid: int, user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     t = or_404(db.query(models.Triage).filter(models.Triage.id == tid).first(), "Případ nenalezen")
+    # review 2026-10-30 F1: a case is claimed once, while open, and only for a runner who asked for
+    # a physio (the queue's consent gate) and hasn't declined this one
+    if t.claimed_by and t.claimed_by != user.physio_id:
+        raise HTTPException(status_code=409, detail="Případ už převzal jiný fyzioterapeut.")
+    if t.status == "closed":
+        raise HTTPException(status_code=409, detail="Případ je uzavřený.")
+    r = db.query(models.Runner).filter(models.Runner.id == t.runner_id).first()
+    if not (r and r.physio_interest):
+        raise HTTPException(status_code=403, detail="Běžec zatím nepožádal o fyzioterapeuta.")
+    revoked = (db.query(models.CareAssignment)
+               .filter(models.CareAssignment.physio_id == user.physio_id, models.CareAssignment.runner_id == t.runner_id,
+                       models.CareAssignment.status == "revoked").first())
+    if revoked:
+        raise HTTPException(status_code=403, detail="Běžec spolupráci s vámi ukončil.")
     t.status = "claimed"
     t.claimed_by = user.physio_id
     existing = (

@@ -76,9 +76,9 @@ def members(c: Ctx = Depends(ctx)):
     rows = c.db.query(models.TeamMember).order_by(models.TeamMember.active.desc(), models.TeamMember.role,
                                                   models.TeamMember.email).all()
     accounts = {(u.email or "").lower() for u in c.db.query(models.User).filter(
-        models.User.email.in_([m.email for m in rows] + sorted(owner_emails()))).all()}
+        models.User.email.in_(sorted(owner_emails()))).all()}
     env = [{"email": e, "role": "owner", "active": True, "env": True, "hasAccount": e in accounts} for e in sorted(owner_emails())]
-    return {"env": env, "items": [{**T.member_out(m), "hasAccount": m.email in accounts} for m in rows], "roles": list(T.ROLES)}
+    return {"env": env, "items": [{**T.member_out(m), "hasAccount": m.user_id is not None} for m in rows], "roles": list(T.ROLES)}
 
 
 @router.post("/members", dependencies=[Depends(verify_csrf)])
@@ -95,10 +95,50 @@ def add_member(body: MemberIn, c: Ctx = Depends(ctx)):
         m = models.TeamMember(email=email, created_at=now, invited_by=c.user.email)
         c.db.add(m)
     m.name, m.role, m.active, m.updated_at = body.name or m.name, body.role, True, now
+    # review 2026-10-30 N1: the role starts only when the person opens the single-use link with
+    # their own account; the owner passes the link on themselves (the app sends no e-mail)
+    token = T.new_invite(m) if m.user_id is None else None
     c.audit("member.add", email, role=body.role)
     c.db.commit()
     T.team_changed()
-    return T.member_out(m)
+    return {**T.member_out(m), **({"invitePath": f"/pozvanka/{token}"} if token else {})}
+
+
+@router.post("/members/{mid}/invite", dependencies=[Depends(verify_csrf)])
+def reinvite(mid: int, c: Ctx = Depends(ctx)):
+    """A new invitation link (the old one stops working) for a member who hasn't accepted yet."""
+    c.need("team.manage")
+    m = c.db.get(models.TeamMember, mid)
+    if m is None:
+        raise HTTPException(status_code=404, detail="Člen týmu nenalezen")
+    if m.user_id is not None:
+        raise HTTPException(status_code=409, detail="Pozvánku už přijal")
+    token = T.new_invite(m)
+    m.updated_at = E.now_iso()
+    c.audit("member.invite", m.email)
+    c.db.commit()
+    return {**T.member_out(m), "invitePath": f"/pozvanka/{token}"}
+
+
+class InviteAccept(Lenient):
+    token: str = Field(min_length=10, max_length=200)
+
+
+@router.post("/invite/accept", dependencies=[Depends(verify_csrf)])
+def accept_invite(body: InviteAccept, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+    """The invited person opens the link signed in with the account the invitation names."""
+    m = T.find_invite(db, body.token)
+    if m is None:
+        raise HTTPException(status_code=404, detail="Pozvánka neplatí — je použitá, zrušená nebo starší než 7 dní.")
+    if (user.email or "").lower() != m.email:
+        raise HTTPException(status_code=403, detail="Pozvánka je pro jiný e-mail. Přihlaste se účtem, na který byla poslaná.")
+    if db.query(models.TeamMember).filter(models.TeamMember.user_id == user.id, models.TeamMember.id != m.id).first():
+        raise HTTPException(status_code=409, detail="Tento účet už v týmu je.")
+    m.user_id, m.invite_hash, m.invite_expires_at, m.updated_at = user.id, None, None, E.now_iso()
+    T.audit(db, user, m.role, "member.accept", m.email, {"role": m.role})
+    db.commit()
+    T.team_changed()
+    return {"role": m.role}
 
 
 @router.patch("/members/{mid}", dependencies=[Depends(verify_csrf)])
@@ -109,7 +149,7 @@ def patch_member(mid: int, body: MemberPatch, c: Ctx = Depends(ctx)):
         raise HTTPException(status_code=404, detail="Člen týmu nenalezen")
     if body.role is not None and body.role not in T.ROLES:
         raise HTTPException(status_code=422, detail="Neznámá role")
-    if m.email == (c.user.email or "").lower() and (body.active is False or (body.role and body.role != "owner")):
+    if m.user_id == c.user.id and (body.active is False or (body.role and body.role != "owner")):
         raise HTTPException(status_code=409, detail="Sami sobě roli vlastníka neodeberete")
     changes = {}
     for k in ("name", "role", "active"):
@@ -122,6 +162,40 @@ def patch_member(mid: int, body: MemberPatch, c: Ctx = Depends(ctx)):
     c.db.commit()
     T.team_changed()
     return T.member_out(m)
+
+
+# ---------------------------------------------------------------- physio accounts (review 2026-10-30 F1)
+@router.get("/physios")
+def physio_accounts(c: Ctx = Depends(ctx)):
+    """Every physio account with its e-mail, profile and whether an owner has verified it."""
+    c.need("team.manage")
+    users = {u.physio_id: u for u in c.db.query(models.User).filter(models.User.physio_id.isnot(None)).all()}
+    out = []
+    for p in c.db.query(models.Physio).order_by(models.Physio.verified_at.isnot(None), models.Physio.id).all():
+        u = users.get(p.id)
+        clinic = c.db.get(models.Clinic, p.clinic_id) if p.clinic_id else None
+        out.append({"id": p.id, "name": p.name, "email": u.email if u else None, "credential": p.credential,
+                    "clinic": clinic.name if clinic else None, "city": clinic.city if clinic else None,
+                    "createdAt": u.created_at if u else None, "verified": bool(p.verified_at),
+                    "verifiedAt": p.verified_at, "verifiedBy": p.verified_by})
+    return {"items": out}
+
+
+class PhysioVerifyIn(Lenient):
+    verified: bool
+
+
+@router.post("/physios/{pid}/verify", dependencies=[Depends(verify_csrf)])
+def verify_physio(pid: str, body: PhysioVerifyIn, c: Ctx = Depends(ctx)):
+    """An owner checked the person and their professional registration outside the app."""
+    c.need("team.manage")
+    p = c.db.get(models.Physio, pid)
+    if p is None:
+        raise HTTPException(status_code=404, detail="Fyzioterapeut nenalezen")
+    p.verified_at, p.verified_by = (E.now_iso(), c.user.email) if body.verified else (None, None)
+    c.audit("physio.verify" if body.verified else "physio.unverify", pid)
+    c.db.commit()
+    return {"id": p.id, "verified": bool(p.verified_at)}
 
 
 @router.get("/audit")
@@ -289,9 +363,10 @@ async def github_webhook(request: Request, db: DBSession = Depends(get_db)):
 def pr_review(number: int, cso: bool = False, c: Ctx = Depends(ctx)):
     """The review screen: the pull request as GitHub has it right now, with what blocks a merge."""
     c.need("work.read")
-    out = _gh(lambda: T.pr_review(number, cso_linked=cso))
+    w = c.db.query(models.WorkItem).filter(models.WorkItem.kind == "pr", models.WorkItem.number == number).first()
+    out = _gh(lambda: T.pr_review(number, cso_linked=cso, approved_sha=w.clinical_sha if w else None))
     return {**out, "canMerge": T.can(c.role, "pr.merge"), "mergeToken": bool(T.merge_token()),
-            "needsPassword": (c.user.provider or "password") == "password"}
+            "needsPassword": True}           # review 2026-10-30 N1: every account confirms with its password
 
 
 class MergeIn(Lenient):
@@ -333,14 +408,15 @@ def pr_merge(number: int, body: MergeIn, c: Ctx = Depends(ctx)):
         raise _merge_refused(c, number, 429, f"Příliš mnoho zamítnutých pokusů, zkuste to za {T.MERGE_WINDOW_MIN} minut.", action="pr.merge.locked")
     if body.confirm.strip() != f"MERGE #{number}":
         raise _merge_refused(c, number, 422, f"Napište přesně: MERGE #{number}", action="pr.merge.refused")
-    if (c.user.provider or "password") == "password" and not verify_password(body.password, c.user.password_hash):
+    if not verify_password(body.password or "", c.user.password_hash):
         raise _merge_refused(c, number, 403, "Heslo nesouhlasí.", action="pr.merge.refused")
     pr = _gh(lambda: T.gh("GET", f"/pulls/{number}")) or {}
     live = (pr.get("head") or {}).get("sha") or ""
     if live != body.sha:
         raise _merge_refused(c, number, 409, "PR se mezitím změnil (nový commit). Otevřete kontrolu znovu.", seen=body.sha[:7], live=live[:7])
     ci = _gh(lambda: T.ci_detail(live))
-    blockers = T.merge_blockers(pr, ci["state"], cso_linked=body.cso)
+    w0 = c.db.query(models.WorkItem).filter(models.WorkItem.kind == "pr", models.WorkItem.number == number).first()
+    blockers = T.merge_blockers(pr, ci["state"], cso_linked=body.cso, approved_sha=w0.clinical_sha if w0 else None)
     if blockers:
         raise _merge_refused(c, number, 409, " ".join(blockers), head=live[:7])
     try:
@@ -426,20 +502,24 @@ def decide(number: int, body: DecisionIn, c: Ctx = Depends(ctx)):
     if w is None or not (set(w.labels or []) & set(T.GATED)):
         raise HTTPException(status_code=404, detail="PR s klinickou bránou nenalezen (zkuste Synchronizovat)")
     add, drop = ("clinical-approved", "clinical-changes") if body.decision == "approve" else ("clinical-changes", "clinical-approved")
+    # review 2026-10-30 N5: the decision is for the code as it is right now; a later push drops it
+    live = ((_gh(lambda: T.gh("GET", f"/pulls/{number}")) or {}).get("head") or {}).get("sha") or w.head_sha
     name = c.user.name or c.user.email
     verdict = "✅ Clinical sign-off" if body.decision == "approve" else "✋ Clinical changes requested"
-    comment = f"**{verdict}** — {name} (Team Console)\n\n{body.note.strip() or '—'}"
+    comment = f"**{verdict}** — {name} (Team Console) · commit `{live}`\n\n{body.note.strip() or '—'}"
+    # the comment first: the label's event re-runs clinical-gate, which looks for this commit's sign-off
+    _gh(lambda: T.gh("POST", f"/issues/{number}/comments", json={"body": comment}))
     _gh(lambda: T.gh("POST", f"/issues/{number}/labels", json={"labels": [add]}))
     try:
         T.gh("DELETE", f"/issues/{number}/labels/{drop}")
     except T.GitHubError as e:
         if e.status != 404:
             raise HTTPException(status_code=502, detail=str(e)) from None
-    _gh(lambda: T.gh("POST", f"/issues/{number}/comments", json={"body": comment}))
     w.labels = sorted((set(w.labels or []) - {drop}) | {add})
     w.clinical = "approved" if body.decision == "approve" else "changes"
     w.clinical_by, w.clinical_at, w.clinical_note = c.user.email, E.now_iso(), body.note.strip() or None
-    c.audit("approval." + body.decision, f"pr:{number}", note=body.note.strip()[:300], head=w.head_sha)
+    w.clinical_sha = live if body.decision == "approve" else None
+    c.audit("approval." + body.decision, f"pr:{number}", note=body.note.strip()[:300], head=live)
     c.db.commit()
     return T.work_out(w, {})
 

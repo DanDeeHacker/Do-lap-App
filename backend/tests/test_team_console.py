@@ -53,8 +53,11 @@ def test_owner_adds_a_clinical_guarantor_and_the_role_limits_them(client, db_ses
     _owner(client, monkeypatch, "majitel2@tc.test.cz")
     r = client.post("/api/team/members", json={"email": "Garant@TC.test.cz", "name": "MUDr. Garant", "role": "clinical"})
     assert r.status_code == 200 and r.json()["email"] == "garant@tc.test.cz"
+    invite = r.json()["invitePath"]
     assert client.post("/api/team/members", json={"email": "x@tc.test.cz", "role": "boss"}).status_code == 422
     register(client, "garant@tc.test.cz", "Garant", "physio")
+    assert client.get("/api/team/me").status_code == 403          # the role starts with the invitation link
+    _accept(client, invite)
     me = client.get("/api/team/me").json()
     assert me["role"] == "clinical" and "approvals.decide" in me["perms"]
     assert client.post("/api/team/members", json={"email": "y@tc.test.cz", "role": "owner"}).status_code == 403
@@ -64,11 +67,49 @@ def test_owner_adds_a_clinical_guarantor_and_the_role_limits_them(client, db_ses
     assert any(a.target == "garant@tc.test.cz" and a.actor_email == "majitel2@tc.test.cz" for a in audit)
 
 
+def _accept(client, invite_path):
+    r = client.post("/api/team/invite/accept", json={"token": invite_path.rsplit("/", 1)[1]})
+    assert r.status_code == 200, r.text
+    return r
+
+
+def test_invited_email_registered_by_stranger_gets_no_role(client, db_session, monkeypatch):
+    """Review 2026-10-30 N1: registration verifies no e-mail, so an invitation binds to the account
+    that opens its single-use link — whoever registers the invited address gets nothing by it."""
+    _owner(client, monkeypatch, "majitel-n1@tc.test.cz")
+    invite = client.post("/api/team/members", json={"email": "cofounder@tc.test.cz", "role": "owner"}).json()["invitePath"]
+    register(client, "cofounder@tc.test.cz", "Squatter", "runner")             # registers the invited address first
+    assert client.get("/api/team/me").status_code == 403
+    me = client.get("/api/auth/me").json()
+    assert me["owner"] is False and not me["team"]
+    assert client.get("/api/runners/run-0001").status_code == 403
+    assert client.post("/api/team/members", json={"email": "more@tc.test.cz", "role": "owner"}).status_code == 403
+    register(client, "jiny-n1@tc.test.cz", "Jiný", "runner")                   # the link alone, another account
+    r = client.post("/api/team/invite/accept", json={"token": invite.rsplit("/", 1)[1]})
+    assert r.status_code == 403
+    login(client, "cofounder@tc.test.cz", "testpass123")                        # the invited address + the link
+    _accept(client, invite)
+    assert client.get("/api/team/me").json()["role"] == "owner"
+    r = client.post("/api/team/invite/accept", json={"token": invite.rsplit("/", 1)[1]})
+    assert r.status_code == 404                                                # single use
+    m = db_session.query(models.TeamMember).filter(models.TeamMember.email == "cofounder@tc.test.cz").first()
+    db_session.refresh(m)
+    assert m.user_id and m.invite_hash is None
+
+
+def test_register_ignores_a_client_supplied_provider(client, db_session):
+    r = client.post("/api/auth/register", json={"email": "prov-n1@tc.test.cz", "password": "heslo1234", "name": "P",
+                                                 "role": "runner", "provider": "google"})
+    assert r.status_code == 200 and r.json()["provider"] == "password"
+
+
 def test_a_team_owner_is_an_app_owner(client, db_session, monkeypatch):
     monkeypatch.setenv("DOSSLAP_OWNER_EMAILS", "")
     register(client, "spolutc-majitel@tc.test.cz", "Spolumajitel", "runner")
     assert client.get("/api/auth/me").json()["owner"] is False
-    db_session.add(models.TeamMember(email="spolutc-majitel@tc.test.cz", role="owner", active=True, created_at=T.E.now_iso()))
+    uid = db_session.query(models.User).filter(models.User.email == "spolutc-majitel@tc.test.cz").first().id
+    db_session.add(models.TeamMember(email="spolutc-majitel@tc.test.cz", role="owner", active=True, created_at=T.E.now_iso(),
+                                     user_id=uid))
     db_session.commit()
     reset_team_cache()
     assert client.get("/api/auth/me").json()["owner"] is True
@@ -87,11 +128,12 @@ def test_inbox_send_needs_owner_approval_and_redacts(client, db_session, monkeyp
     nid = _note(client, "eva@tc.test.cz")
     owner = "majitel3@tc.test.cz"
     _owner(client, monkeypatch, owner)
-    client.post("/api/team/members", json={"email": "podpora@tc.test.cz", "role": "support"})
-    client.post("/api/team/members", json={"email": "inzenyr@tc.test.cz", "role": "engineer"})
+    inv_s = client.post("/api/team/members", json={"email": "podpora@tc.test.cz", "role": "support"}).json()["invitePath"]
+    inv_e = client.post("/api/team/members", json={"email": "inzenyr@tc.test.cz", "role": "engineer"}).json()["invitePath"]
 
     # support triages, cannot approve; the inbox shows the reporter's role, not the name
     register(client, "podpora@tc.test.cz", "Podpora", "runner")
+    _accept(client, inv_s)
     items = client.get("/api/team/inbox").json()["items"]
     mine = next(x for x in items if x["id"] == nid)
     assert mine["author"] == {"role": "runner", "isOwner": False} and not mine["ready"]
@@ -100,6 +142,7 @@ def test_inbox_send_needs_owner_approval_and_redacts(client, db_session, monkeyp
 
     # an engineer cannot send an unapproved user note
     register(client, "inzenyr@tc.test.cz", "Inženýr", "runner")
+    _accept(client, inv_e)
     fake = FakeGH()
     monkeypatch.setattr(T, "gh", fake)
     r = client.post(f"/api/team/inbox/{nid}/send", json={"title": "Graf se překrývá", "text": "Graf přes tlačítko"})
@@ -114,10 +157,20 @@ def test_inbox_send_needs_owner_approval_and_redacts(client, db_session, monkeyp
     body = payload["body"]
     assert "Graf přes tlačítko na Dnes" in body and f"<!-- doslap-note:{nid} -->" in body and "/app/today" in body
     assert "eva@tc.test.cz" not in body and "Eva" not in body and "priorita P1" in body
+    assert "Připravenost" not in body                                  # review 2026-10-30 N4: no screen text
     db_session.expire_all()
     a = db_session.get(models.Annotation, nid)
     assert a.approved_at and a.issue_number == 41
     assert client.post(f"/api/team/inbox/{nid}/send", json={"title": "znovu", "text": "x"}).status_code == 409
+
+
+def test_issue_body_carries_no_screen_text_or_ids():
+    """Review 2026-10-30 N4: a physio's note on a client screen."""
+    a = models.Annotation(id=5, route="/physio/client/run-0001?tab=overview", anchor_text="Adéla Nováková · bolest 6/10 Achillova šlacha",
+                          context_json={"heading": "Adéla Nováková"}, kind="bug", created_at="2026-10-30T10:00:00")
+    body = T.issue_body(a, "physio", "Edited neutral text")
+    assert "/physio/client/:id" in body and "Edited neutral text" in body
+    assert "Adéla" not in body and "6/10" not in body and "run-0001" not in body
 
 
 def test_send_without_github_says_what_is_missing(client, monkeypatch):
@@ -170,14 +223,16 @@ def test_clinical_sign_off_labels_the_pr(client, db_session, monkeypatch):
                                    created_at=T.E.now_iso(), updated_at=T.E.now_iso(), head_sha="h90"))
     db_session.commit()
     _owner(client, monkeypatch, "majitel6@tc.test.cz")
-    client.post("/api/team/members", json={"email": "inz2@tc.test.cz", "role": "engineer"})
-    client.post("/api/team/members", json={"email": "garant2@tc.test.cz", "role": "clinical"})
+    inv_e = client.post("/api/team/members", json={"email": "inz2@tc.test.cz", "role": "engineer"}).json()["invitePath"]
+    inv_c = client.post("/api/team/members", json={"email": "garant2@tc.test.cz", "role": "clinical"}).json()["invitePath"]
     fake = FakeGH()
     monkeypatch.setattr(T, "gh", fake)
     assert client.post("/api/team/approvals/90", json={"decision": "approve"}).status_code == 403   # owner is not the guarantor
     register(client, "inz2@tc.test.cz", "Inženýr", "runner")
+    _accept(client, inv_e)
     assert client.post("/api/team/approvals/90", json={"decision": "approve"}).status_code == 403
     register(client, "garant2@tc.test.cz", "Garant", "physio")
+    _accept(client, inv_c)
     pend = client.get("/api/team/approvals").json()
     assert [x["number"] for x in pend["pending"]] == [90] and pend["canDecide"]
     assert client.post("/api/team/approvals/90", json={"decision": "changes"}).status_code == 422
@@ -228,8 +283,9 @@ def test_stage_order():
 
 def test_a_physio_guarantor_signs_in_through_the_runner_form(client, monkeypatch):
     _owner(client, monkeypatch, "majitel8@tc.test.cz")
-    client.post("/api/team/members", json={"email": "garant3@tc.test.cz", "role": "clinical"})
+    inv = client.post("/api/team/members", json={"email": "garant3@tc.test.cz", "role": "clinical"}).json()["invitePath"]
     register(client, "garant3@tc.test.cz", "Garant", "physio")
+    _accept(client, inv)
     register(client, "fyzio-cizi@tc.test.cz", "Cizí fyzio", "physio")
     assert login(client, "fyzio-cizi@tc.test.cz", "testpass123", expected_role="runner").status_code == 403
     r = login(client, "garant3@tc.test.cz", "testpass123", expected_role="runner")

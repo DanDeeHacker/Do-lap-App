@@ -91,9 +91,17 @@ def test_physio_allowed_after_seeded_claim(client):
 
 
 def test_physio_can_claim_then_access(client):
-    register(client, "physio2@test.cz", "Fyzio Dva", "physio", "testpass123")
+    pid = register(client, "physio2@test.cz", "Fyzio Dva", "physio", "testpass123").json()["physio_id"]
+    assert client.get("/api/triage?status=open").status_code == 403      # review 2026-10-30 F1: not verified yet
+    from app import models
+    from app.db import SessionLocal
+    from app.metrics import engine as E
+    with SessionLocal() as db:
+        p = db.get(models.Physio, pid)
+        p.verified_at, p.verified_by = E.now_iso(), "test"
+        db.commit()
     q = client.get("/api/triage?status=open").json()
-    unclaimed = next((t for t in q if t["runner_id"] != "run-0001"), None)
+    unclaimed = next((t for t in q if t["runner_id"] != "run-0001" and not t["claimed_by"]), None)
     assert unclaimed is not None, "expected at least one open seeded triage case besides run-0001"
     rid = unclaimed["runner_id"]
 

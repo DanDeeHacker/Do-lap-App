@@ -100,11 +100,20 @@ function TeamTab({ me }: { me: TeamMe }) {
   const [name, setName] = useState("")
   const [role, setRole] = useState("engineer")
   const [busy, setBusy] = useState(false)
+  // review 2026-10-30 N1: the role starts when the person opens this link with the invited account
+  const [link, setLink] = useState<{ email: string; url: string } | null>(null)
+  const showLink = (m: any) => m.invitePath && setLink({ email: m.email, url: `${location.origin}${m.invitePath}` })
   const add = async () => {
     setBusy(true)
-    try { await api.teamAddMember({ email, name: name || undefined, role }); setEmail(""); setName(""); reload(); audit.reload(); toast({ title: "Člen týmu přidán" }) }
+    try {
+      const m = await api.teamAddMember({ email, name: name || undefined, role })
+      showLink(m); setEmail(""); setName(""); reload(); audit.reload(); toast({ title: "Člen týmu přidán — pošlete mu odkaz" })
+    }
     catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
     finally { setBusy(false) }
+  }
+  const reinvite = async (id: number) => {
+    try { showLink(await api.teamReinvite(id)); audit.reload() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
   }
   const patch = async (id: number, body: any) => {
     try { await api.teamPatchMember(id, body); reload(); audit.reload() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
@@ -114,8 +123,9 @@ function TeamTab({ me }: { me: TeamMe }) {
       <Card>
         <h2 className="font-serif text-xl">Tým a role</h2>
         <p className="mt-1 text-[12px] leading-[17px] text-fg-2">
-          Přístup se řídí e-mailem přihlášeného účtu. Klinický garant schvaluje změny enginu a bezpečnosti, podpora třídí Inbox,
-          auditor jen čte. Vlastníky z proměnné DOSSLAP_OWNER_EMAILS tady změnit nelze.
+          Role platí pro účet, který otevřel odkaz z pozvánky přihlášený e-mailem, na který byla poslaná. Klinický garant
+          schvaluje změny enginu a bezpečnosti, podpora třídí Inbox, auditor jen čte. Vlastníky z proměnné DOSSLAP_OWNER_EMAILS
+          tady změnit nelze.
         </p>
         {!d ? <Loading err={err} /> : (
           <ul className="mt-3 divide-y divide-white/[.07]" data-testid="team-members">
@@ -132,7 +142,10 @@ function TeamTab({ me }: { me: TeamMe }) {
                   <b className="block truncate text-fg">{m.name || m.email}</b>
                   {m.name && <span className="block truncate text-[11.5px] text-fg-3">{m.email}</span>}
                 </span>
-                {!m.hasAccount && <Chip tone="watch">bez účtu</Chip>}
+                {!m.accepted && <Chip tone="watch">čeká na přijetí</Chip>}
+                {manage && !m.accepted && m.active && (
+                  <button type="button" onClick={() => reinvite(m.id)} className="text-[12px] font-bold text-accent hover:underline">Nový odkaz</button>
+                )}
                 {manage ? (
                   <>
                     <select value={m.role} onChange={(e) => patch(m.id, { role: e.target.value })} aria-label="Role"
@@ -164,10 +177,24 @@ function TeamTab({ me }: { me: TeamMe }) {
               </select>
               <Button busy={busy} disabled={!email.includes("@")} onClick={add}>Přidat</Button>
             </div>
-            <p className="text-[11.5px] text-fg-3">Člověk se přihlásí vlastním účtem Došlapu s tímto e-mailem (nebo si ho založí).</p>
+            <p className="text-[11.5px] text-fg-3">Aplikace e-mail neposílá: odkaz z pozvánky pošlete sami. Platí 7 dní a jen jednou.</p>
+          </div>
+        )}
+        {link && (
+          <div className="mt-3 grid gap-2 rounded-xl border border-accent/30 bg-accent/10 p-3 text-[12px]" data-testid="team-invite-link">
+            <p className="text-fg">
+              <b>{"Odkaz pro "}<span translate="no">{link.email}</span></b>
+              {" — otevře ho přihlášený tímto e-mailem. Kdo by ho zachytil, s jiným účtem nic nezíská."}
+            </p>
+            <code translate="no" className="break-all rounded-lg bg-panel px-2 py-1.5 text-fg-2">{link.url}</code>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => { void navigator.clipboard?.writeText(link.url); toast({ title: "Odkaz zkopírován" }) }}>Kopírovat</Button>
+              <Button size="sm" variant="outline" onClick={() => setLink(null)}>Zavřít</Button>
+            </div>
           </div>
         )}
       </Card>
+      {manage && <PhysioAccounts onChange={() => audit.reload()} />}
       {me.perms.includes("audit.read") && (
         <Card>
           <h2 className="font-serif text-xl">Záznam změn</h2>
@@ -186,6 +213,44 @@ function TeamTab({ me }: { me: TeamMe }) {
         </Card>
       )}
     </div>
+  )
+}
+
+/* review 2026-10-30 F1: anyone can register as a physio — an owner verifies the account (who the
+   person is, their professional registration) before it sees any runner */
+function PhysioAccounts({ onChange }: { onChange: () => void }) {
+  const toast = useToast()
+  const { d, err, reload } = useLoad<any>(() => api.teamPhysios())
+  const set = async (pid: string, verified: boolean) => {
+    try { await api.teamPhysioVerify(pid, verified); reload(); onChange() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+  }
+  return (
+    <Card>
+      <h2 className="font-serif text-xl">Účty fyzioterapeutů</h2>
+      <p className="mt-1 text-[12px] leading-[17px] text-fg-2">
+        Fyzioterapeut uvidí frontu případů a klienty až po ověření. Ověřte, kdo to je a že má odbornou způsobilost, mimo aplikaci.
+      </p>
+      {!d ? <Loading err={err} /> : d.items.length === 0 ? <p className="mt-3 text-[12px] text-fg-3">Zatím žádné.</p> : (
+        <ul className="mt-3 divide-y divide-white/[.07]" data-testid="team-physios">
+          {d.items.map((p: any) => (
+            <li key={p.id} className="flex flex-wrap items-center gap-2 py-2.5 text-[13px]">
+              <span className="min-w-0 flex-1">
+                <b className="block truncate text-fg">{p.name}</b>
+                <span className="block truncate text-[11.5px] text-fg-3">
+                  <span translate="no">{p.email || p.id}</span>
+                  {p.credential ? <>{" · "}{p.credential}</> : null}
+                  {p.clinic ? <>{" · "}{p.clinic}{p.city ? `, ${p.city}` : ""}</> : null}
+                </span>
+              </span>
+              {p.verified ? <Chip tone="ok">ověřený</Chip> : <Chip tone="watch">čeká na ověření</Chip>}
+              {p.verified
+                ? <button type="button" onClick={() => set(p.id, false)} className="text-[12px] font-bold text-fg-3 hover:text-fg">Zrušit ověření</button>
+                : <Button size="sm" onClick={() => set(p.id, true)}>Ověřit</Button>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   )
 }
 

@@ -181,6 +181,11 @@ export const api = {
   teamMembers: () => call("GET", "/api/team/members"),
   teamAddMember: (body: { email: string; name?: string; role: string }) => call("POST", "/api/team/members", body),
   teamPatchMember: (id: number, body: { name?: string; role?: string; active?: boolean }) => call("PATCH", `/api/team/members/${id}`, body),
+  // review 2026-10-30 N1/F1: invitation links bound to an account, owner-verified physio accounts
+  teamReinvite: (id: number) => call("POST", `/api/team/members/${id}/invite`, {}),
+  teamInviteAccept: (token: string) => call("POST", "/api/team/invite/accept", { token }),
+  teamPhysios: () => call("GET", "/api/team/physios"),
+  teamPhysioVerify: (pid: string, verified: boolean) => call("POST", `/api/team/physios/${pid}/verify`, { verified }),
   teamAudit: () => call("GET", "/api/team/audit"),
   teamInbox: (status = "open", source = "all") => call("GET", `/api/team/inbox?status=${status}&source=${source}`),
   teamBehaviourProfile: () => call("GET", "/api/team/behaviour-profile"),

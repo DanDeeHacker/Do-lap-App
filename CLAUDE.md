@@ -84,13 +84,18 @@ Weekly: `/retro` on Friday next to Team Console → Pilot.
 
 `backend/app/team.py` + `routers/team.py`, UI in `frontend/src/teamconsole.tsx`. Roles: owner,
 engineer, clinical, support, auditor (`team_members`; DOSSLAP_OWNER_EMAILS are owners too); every
-write lands in `team_audit`. The app writes issues, labels and comments and never deploys. Since
+write lands in `team_audit`. A role belongs to the account that opened the single-use invitation link
+(Tým → Přidat → copy the link; 7 days) signed in with the invited e-mail — never to an e-mail string,
+registration verifies no e-mail (review 2026-10-30 N1). Physio accounts see no runner until an owner
+verifies them in Tým → Účty fyzioterapeutů (F1). The app writes issues, labels and comments and never deploys. Since
 issue #3 an **owner** (and only an owner) can also review a PR and merge it from Práce → "Zkontrolovat
 a sloučit", and send "go" on an `ai-plan` issue (the app comments "go — schváleno vlastníkem …", which
 counts as the owner's go). Merging needs `DOSSLAP_GITHUB_MERGE_TOKEN` (fine-grained, this repository,
 Contents + Pull requests write; without it the button says so). The server re-reads GitHub at click time:
 open, not draft, no conflict, CI green on the exact head SHA the owner saw, `clinical-approved` for
-`engine`/`safety`, the `/cso` box for `security`, "Change for runners" filled in; the owner types
+`engine`/`safety` given for the exact head SHA (a push drops it; `clinical-gate` checks the sign-off
+comment names the head and requires `engine`/`safety` for `backend/app/metrics/**` and the exercise
+libraries), the `/cso` box for `security`, "Change for runners" filled in; the owner types
 `MERGE #<n>` and, on a password account, the password; five refused attempts lock it for 15 minutes.
 AI sessions never hold the merge token.
 Railway variables (all optional, the console says which one is missing):

@@ -985,7 +985,8 @@ def get_bookings(rid: str, user: models.User = Depends(get_current_user), db: DB
 @router.post("/{rid}/bookings", dependencies=[Depends(verify_csrf)])
 def create_booking(rid: str, body: schemas.BookRequest, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_self(user, rid)
-    physio = or_404(db.query(models.Physio).filter(models.Physio.id == body.physio_id).first(), "Fyzioterapeut nenalezen")
+    physio = or_404(db.query(models.Physio).filter(models.Physio.id == body.physio_id,
+                                                   models.Physio.verified_at.isnot(None)).first(), "Fyzioterapeut nenalezen")
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
     slot_at = (datetime.now(timezone.utc) + timedelta(days=max(0, body.days_ahead))).isoformat()
     b = models.Booking(
@@ -1368,5 +1369,11 @@ def daily_report_ai(rid: str, request: Request, kind: str = "morning", user: mod
     from ..metrics import daily_report as DR
     from ..metrics import report_ai as RA
     r = DR.build(db, rid, kind)
+    # review 2026-10-30 F3: the report's facts go to the hosted model only under the same rule as the
+    # assistant (the runner's AI consent; demo data needs none) — otherwise the rule-based sentences
+    from ..assistant import service as AS
+    runner = db.query(models.Runner).filter(models.Runner.id == rid).first()
+    if runner is None or not AS.access(db, runner, user)["enabled"]:
+        return _report_lang(db, {"notes": r.get("notes") or {}, "source": "rules"}, request)
     out = RA.generate(db, rid, r)
     return _report_lang(db, {"notes": out["notes"], "source": out["source"]}, request)

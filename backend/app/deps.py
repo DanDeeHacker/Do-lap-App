@@ -61,8 +61,17 @@ def verify_csrf(request: Request, db: DBSession = Depends(get_db)) -> None:
 
 
 # ------------------------------------------------------------ scoping
+def physio_verified(db: DBSession, physio_id: str | None) -> bool:
+    """review 2026-10-30 F1: anyone can register as a physio, so a physio account reads no runner
+    until an owner has verified it (Team Console → Tým)."""
+    if not physio_id:
+        return False
+    p = db.query(models.Physio).filter(models.Physio.id == physio_id).first()
+    return bool(p and p.verified_at)
+
+
 def has_care_assignment(db: DBSession, physio_id: str, runner_id: str) -> bool:
-    return (
+    return physio_verified(db, physio_id) and (
         db.query(models.CareAssignment)
         .filter(
             models.CareAssignment.physio_id == physio_id,
@@ -72,6 +81,12 @@ def has_care_assignment(db: DBSession, physio_id: str, runner_id: str) -> bool:
         .first()
         is not None
     )
+
+
+def require_verified_physio(user: models.User = Depends(require_role("physio")), db: DBSession = Depends(get_db)) -> models.User:
+    if not physio_verified(db, user.physio_id):
+        raise HTTPException(status_code=403, detail="Účet fyzioterapeuta čeká na ověření týmem Došlapu.")
+    return user
 
 
 def tutorial_demo_runner_id(db: DBSession | None = None) -> str:
@@ -88,9 +103,10 @@ _team_owners: tuple[float, set[str]] = (0.0, set())
 TEAM_CACHE_S = 30
 
 
-def team_owner_emails() -> set[str]:
-    """Owners added in Team Console (models.TeamMember, role owner) — read through a short
-    cache so is_owner stays a cheap check without a session; team.team_changed() clears it."""
+def team_owner_ids() -> set[int]:
+    """Owners added in Team Console (models.TeamMember, role owner, bound to an account — review
+    2026-10-30 N1) — read through a short cache so is_owner stays a cheap check without a session;
+    team.team_changed() clears it."""
     global _team_owners
     now = time.monotonic()
     if now - _team_owners[0] < TEAM_CACHE_S:
@@ -98,15 +114,16 @@ def team_owner_emails() -> set[str]:
     from .db import SessionLocal
     db = SessionLocal()
     try:
-        rows = db.query(models.TeamMember.email).filter(models.TeamMember.role == "owner",
-                                                        models.TeamMember.active.is_(True)).all()
-        emails = {(e or "").lower() for (e,) in rows}
+        rows = db.query(models.TeamMember.user_id).filter(models.TeamMember.role == "owner",
+                                                          models.TeamMember.active.is_(True),
+                                                          models.TeamMember.user_id.isnot(None)).all()
+        ids = {u for (u,) in rows}
     except Exception:  # noqa: BLE001 — before the table exists (first boot) there are none
-        emails = set()
+        ids = set()
     finally:
         db.close()
-    _team_owners = (now, emails)
-    return emails
+    _team_owners = (now, ids)
+    return ids
 
 
 def reset_team_cache() -> None:
@@ -119,8 +136,7 @@ def is_owner(user: models.User | None) -> bool:
     everyone, the owner-only reports and the admin "Zobrazit jako" (read-only view of any runner)."""
     if user is None:
         return False
-    email = (user.email or "").lower()
-    return email in owner_emails() or email in team_owner_emails()
+    return (user.email or "").lower() in owner_emails() or user.id in team_owner_ids()
 
 
 def ensure_runner_read_access(db: DBSession, user: models.User, runner_id: str) -> None:

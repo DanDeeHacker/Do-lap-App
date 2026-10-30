@@ -193,6 +193,14 @@ def test_report_cards_get_validated_ai_notes_or_keep_the_rules(client, db_sessio
     good = "Spánek byl v pořádku a hluboký spánek odpovídal normě. Držte pravidelný čas usínání i dnes večer."
     bad = "Spali jste 11 hodin, to je skvělé. Vezměte si ibuprofen na nohy."          # number not in facts + medication
     monkeypatch.setattr(llm, "assistant_available", lambda: True)
+    # review 2026-10-30 F3: without the runner's AI consent the model is never called
+    monkeypatch.setenv("DOSSLAP_ASSISTANT", "on")
+    monkeypatch.setattr(llm, "chat_messages", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no consent")))
+    out = client.post(f"/api/runners/{rid}/report/ai?kind=morning").json()
+    assert out["source"] == "rules" and out["notes"]["sleep"] == m["notes"]["sleep"]
+    db_session.refresh(r)
+    r.coach_consent = True
+    db_session.commit()
     monkeypatch.setattr(llm, "chat_messages", lambda *a, **k: json.dumps({"sleep": good, "plan": bad, "nonsense": "x"}))
     out = client.post(f"/api/runners/{rid}/report/ai?kind=morning").json()
     assert out["source"] == "ai" and out["notes"]["sleep"] == good and out["notes"]["plan"] == m["notes"]["plan"]

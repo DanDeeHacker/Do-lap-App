@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session as DBSession
 
 from .. import models
 from ..db import get_db
-from ..deps import require_role
+from ..deps import require_role, require_verified_physio
 from ..metrics import engine as E
 from ..serializers import to_dict, to_dicts
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/physios", tags=["physios"])
 
 
 @router.get("/{pid}/bootstrap")
-def bootstrap(pid: str, user: models.User = Depends(require_role("physio")), db: DBSession = Depends(get_db)):
+def bootstrap(pid: str, user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     if user.physio_id != pid:
         raise HTTPException(status_code=403, detail="Nemáte přístup k tomuto profilu")
     physio = db.query(models.Physio).filter(models.Physio.id == pid).first()
@@ -116,7 +116,8 @@ def _profile_out(db: DBSession, p: models.Physio, user: models.User) -> dict:
     return {"id": p.id, "name": p.name, "credential": p.credential, "bio": p.bio, "years_exp": p.years_exp,
             "specialties": p.specialties or [], "price_czk": p.price_czk, "rating": p.rating,
             "clinic": {"id": clinic.id, "name": clinic.name, "city": clinic.city} if clinic else None,
-            "email": user.email, "complete": bool(p.credential and clinic and clinic.city)}
+            "email": user.email, "complete": bool(p.credential and clinic and clinic.city),
+            "verified": bool(p.verified_at)}
 
 
 @router.get("/me")
@@ -177,7 +178,7 @@ def _a_summary(a: dict | None) -> dict:
 
 
 @router.get("/me/clients")
-def my_clients(user: models.User = Depends(require_role("physio")), db: DBSession = Depends(get_db)):
+def my_clients(user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     """Everyone in my care, the most urgent first: state, pain, next visit, programme adherence,
     the return to running and the last message."""
     pid = _pid(user)
@@ -240,7 +241,7 @@ def _weeks_km(acts: list, today: date, n: int = 12) -> list:
 
 
 @router.get("/me/clients/{rid}")
-def client_overview(rid: str, user: models.User = Depends(require_role("physio")), db: DBSession = Depends(get_db)):
+def client_overview(rid: str, user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     """The client overview before a visit (report Figure A9): the history, the symptom record and
     the data trends; the AI summary comes separately (POST /api/ai/brief) because it can be slow."""
     pid = _pid(user)
@@ -303,7 +304,7 @@ def client_overview(rid: str, user: models.User = Depends(require_role("physio")
 
 
 @router.get("/me/clients/{rid}/documentation")
-def documentation(rid: str, user: models.User = Depends(require_role("physio")), db: DBSession = Depends(get_db)):
+def documentation(rid: str, user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     """Standardised client documentation (report Figure A11): the approved conclusions with the
     structured outcome, in date order — the printable record a practice keeps."""
     pid = _pid(user)
