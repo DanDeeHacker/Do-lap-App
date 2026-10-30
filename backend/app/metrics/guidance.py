@@ -1412,9 +1412,9 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
     if xt_pick:
         typ = xt_pick
         # review 2026-10-30 N2: the app spares the painful site today, so no running pin either
-        block("regenerace", f"Bolest {pain}/10 — dnes místo běhu {'kolo' if xt_pick == 'kolo' else 'plavání'}, "
-                            "šetří bolavé místo." if pain > 5 and not override else
-                            "Dnes místo běhu jiný sport, který šetří bolavé místo.")
+        block("regenerace", (f"Bolest {pain}/10 — dnes místo běhu jízda na kole, šetří bolavé místo." if xt_pick == "kolo" else
+                             f"Bolest {pain}/10 — dnes místo běhu plavání, šetří bolavé místo.") if pain > 5 and not override else
+              "Dnes místo běhu jiný sport, který šetří bolavé místo.")
     # review 2026-10-30 N2: on a day the app shortens (pain 3–5, symptoms above the neck, low readiness)
     # a pinned run goes up to the day's recommendation, not to the safety ceiling
     reduced = pain_mod or pain > 5 or bool(ill) or ill_watch or gscore < READY_EASY_ONLY

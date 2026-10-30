@@ -6547,6 +6547,18 @@
   ]
  },
  {
+  "t": "Bolest {}/10 — dnes místo běhu jízda na kole, šetří bolavé místo.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Bolest {}/10 — dnes místo běhu plavání, šetří bolavé místo.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
   "t": "Bolest {}/10{} a zároveň engine doporučuje fyzioterapeuta ({}). Kombinace bolesti a rizikového stavu je důvod běh vynechat a nechat to posoudit.",
   "files": [
    "metrics/guidance.py"
@@ -6602,6 +6614,12 @@
  },
  {
   "t": "Dlouhý běh obvykle běháte {}.",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Dnes místo běhu jiný sport, který šetří bolavé místo.",
   "files": [
    "metrics/guidance.py"
   ]
@@ -7186,6 +7204,12 @@
  },
  {
   "t": "Připravenost {}{} % ({} proti vaší normě) — dnešní stropy jsou úměrně nižší",
+  "files": [
+   "metrics/guidance.py"
+  ]
+ },
+ {
+  "t": "Příznaky jen nad krkem — dnes nanejvýš krátce a velmi volně.",
   "files": [
    "metrics/guidance.py"
   ]
