@@ -58,6 +58,18 @@ export function FitnessPanel({ rid, asOf = "" }: { rid: string; asOf?: string })
   )
 }
 
+/** feedback #226 — the app's own VO2max estimate beside Kondice: an estimate from the best effort, never a measurement */
+export function Vo2Line({ vo2 }: { vo2?: { value: number; low: number; high: number; basisMin: number; windowDays: number } | null }) {
+  if (!vo2) return null
+  return (
+    <p className="mt-2 text-[12px] leading-[17px] text-fg-2" data-testid="vo2-estimate">
+      <b className="tabular-nums text-fg">{`Odhad VO2max asi ${num(vo2.value, 0)}`}</b>
+      <span className="ml-1">{`(${num(vo2.low, 0)}–${num(vo2.high, 0)} ml/kg/min)`}</span>
+      <span className="mt-0.5 block text-fg-3">{`Odhad z vašeho nejlepšího výkonu za posledních ${vo2.windowDays} dní (${vo2.basisMin} min), ne měření. Kondice je jiné číslo: průměr zátěže, ne kapacita.`}</span>
+    </p>
+  )
+}
+
 function TrendBody({ data, t, range, setRange }: { data: any; t: any; range: Range; setRange: (r: Range) => void }) {
   const [table, setTable] = useState(false)
   const days: any[] = (data.days || []).slice(-Number(range))
@@ -69,6 +81,7 @@ function TrendBody({ data, t, range, setRange }: { data: any; t: any; range: Ran
         <Stat label="Únava" col={FAT_COL} value={num(t.fat, 0)} sub="průměr ~7 dní" />
         <Stat label="Čerstvost" value={t.form != null ? `${signed(t.form)} %` : "—"} sub={w ? w[0] : "málo zátěže na srovnání"} />
       </div>
+      <Vo2Line vo2={data.vo2} />
       {data.settling && <p className="mt-2 text-[12px] text-fg-3">Historie je zatím kratší než 6 týdnů, takže se Kondice teprve ustaluje.</p>}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <Segmented options={RANGES} value={range} onChange={setRange} ariaLabel="Období" size="sm" />

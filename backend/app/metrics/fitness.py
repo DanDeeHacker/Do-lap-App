@@ -96,7 +96,10 @@ def trend(db, rid: str, a: dict | None = None, today: date | None = None) -> dic
     _run(loads, max(first, lo), today, fit, fat, rows)
     now = rows[-1]
     ago = rows[-29] if len(rows) >= 29 else None
+    from . import vo2
     return {"available": True, "days": rows, "since": first.isoformat(), "settling": (today - first).days < WARM_DAYS,
+            # v0.12.22 (#226): the app's own VO2max estimate from the best efforts, beside Kondice (vo2.py)
+            "vo2": vo2.estimate(((a or {}).get("capacity") or {}).get("bestCurve")),
             "tc": [FIT_TC, FAT_TC], "bands": {"fresh": FORM_FRESH, "tired": FORM_TIRED},
             "today": {**now, "word": form_word(now["form"]),
                       "fitChange": round((now["fit"] - ago["fit"]) / ago["fit"] * 100) if ago and ago["fit"] >= FORM_MIN_FIT else None}}
