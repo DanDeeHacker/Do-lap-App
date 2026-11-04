@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react"
 import { Link, useLocation, useNavigate } from "react-router"
 import {
-  Activity, BatteryLow, ChevronDown, ChevronUp, Database, Dumbbell, Flag, Footprints, Gauge, HeartHandshake, HeartPulse, House, Leaf, Moon, NotebookPen, Pencil, SlidersHorizontal, Target, TrendingUp, Users, Zap,
+  Activity, BatteryLow, ChevronDown, ChevronUp, Clock, Database, Dumbbell, Flag, Footprints, Gauge, HeartHandshake, HeartPulse, House, Leaf, Moon, Mountain, NotebookPen, Pencil, SlidersHorizontal, Target, Timer, TrendingUp, Users, Zap,
   type LucideIcon,
 } from "lucide-react"
 import { api } from "@/api"
@@ -15,6 +15,7 @@ import { Label, MiniTrend, Sheet, Switch } from "@/ui"
 import { METRIC_IDS, MetricSheet, isFitId, useFitnessTrend, useTileTrends, type MetricId } from "@/metricsheet"
 import { formWord, signed } from "@/fitness"
 import { num } from "@/outlook"
+import { FLOOR_M, hm, lastActivity, paceStr, weekStats } from "@/runstats"
 import { readinessCol, readinessPct } from "@/capacity"
 import { dataStage } from "@/firstday"
 
@@ -154,6 +155,7 @@ function useRailCards(want: string[] = []): RailCard[] {
   const tierCol = (v: number) => (v >= 25 ? C.alert : v >= 12 ? C.watch : C.ok)
   // UX audit F01 — no run or night yet: no "0 /100 pod prahem" cards
   const none = dataStage(boot) === "none"
+  const acts = boot?.activities
   return useMemo(() => none ? [] : [
     { id: "week", label: "Tento týden", to: "/app/load", Icon: TrendingUp, render: () => L?.weekKm == null ? null : ({ value: fmt1(L.weekKm), unit: "km", sub: `posledních 7 dní ${fmt1(L.runKm7)} km` }) },
     { id: "load", label: "Zátěž", to: "/app/load", Icon: Zap, render: () => a?.load == null ? null : ({ value: String(a.load), unit: "/100", sub: a.load >= 25 ? "nad prahem 25" : "pod prahem 25", col: a.load >= 25 ? C.alert : C.load, pct: a.load }) },
@@ -167,7 +169,25 @@ function useRailCards(want: string[] = []): RailCard[] {
     { id: "form", label: "Čerstvost", to: "/app/training", Icon: Leaf, render: () => fitT?.form == null ? null : ({ value: signed(fitT.form), unit: "%", sub: formWord(fitT.word)?.[0] ?? "málo zátěže na srovnání", col: formWord(fitT.word)?.[1] }) },
     { id: "fit", label: "Kondice", to: "/app/training", Icon: Dumbbell, render: () => fitT?.fit == null ? null : ({ value: num(fitT.fit, 0), sub: "průměr ~6 týdnů" }) },
     { id: "fat", label: "Únava", to: "/app/training", Icon: BatteryLow, render: () => fitT?.fat == null ? null : ({ value: num(fitT.fat, 0), sub: "průměr ~7 dní" }) },
-  ], [a, rcv, L, none, fitT])
+    // feedback #225 — basic running statistics, from the activities the app already holds
+    { id: "ttime", label: "Čas tréninku týdne", to: "/app/load", Icon: Clock, render: () => {
+      const w = weekStats(acts || []); return w.allMin <= 0 ? null : ({ value: hm(w.allMin), sub: w.runMin > 0 ? `z toho běh ${hm(w.runMin)}` : "tento týden, všechny sporty" })
+    } },
+    { id: "rtime", label: "Čas běhu týdne", to: "/app/load", Icon: Timer, render: () => {
+      const w = weekStats(acts || []); return w.runMin <= 0 ? null : ({ value: hm(w.runMin), sub: "tento týden, jen běh" })
+    } },
+    { id: "elev", label: "Převýšení týdne", to: "/app/load", Icon: Mountain, render: () => {
+      const w = weekStats(acts || []); return w.ascent + w.descent <= 0 ? null : ({ value: `${w.ascent}`, unit: "m nahoru", sub: `${w.descent} m dolů · asi ${w.floors} pater (${FLOOR_M} m = patro)` })
+    } },
+    { id: "last", label: "Poslední aktivita", to: "/app/load", Icon: Activity, render: () => {
+      const x = lastActivity(acts || []); if (!x) return null
+      const run = !x.sport || x.sport === "running"
+      const bits = [x.duration_min ? hm(x.duration_min) : null, run && paceStr(x.pace_s_km) ? `${paceStr(x.pace_s_km)}/km` : null,
+        x.avg_hr ? `${Math.round(x.avg_hr)} tep/min` : null, x.rpe ? `RPE ${x.rpe}` : null].filter(Boolean)
+      return x.distance_km ? { value: fmt1(x.distance_km), unit: "km", sub: bits.join(" · ") }
+        : { value: x.duration_min ? hm(x.duration_min) : "—", sub: bits.slice(1).join(" · ") || undefined }
+    } },
+  ], [a, rcv, L, none, fitT, acts])
 }
 
 /** Show / hide the cards and put them in order (arrows: a list of at most eight needs no drag). */
