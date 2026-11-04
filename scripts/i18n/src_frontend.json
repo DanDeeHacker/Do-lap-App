@@ -50,6 +50,7 @@
    "outlook.tsx",
    "report.tsx",
    "rundetail.tsx",
+   "runstats.ts",
    "tabs.tsx",
    "training.tsx"
   ],
@@ -387,6 +388,7 @@
    "news.tsx",
    "outlook.tsx",
    "report.tsx",
+   "runstats.ts",
    "training.tsx"
   ],
   "kind": "str"
@@ -8538,7 +8540,8 @@
   "t": "RPE {}",
   "files": [
    "client.tsx",
-   "coachview.tsx"
+   "coachview.tsx",
+   "shell.tsx"
   ],
   "kind": "tpl"
  },
@@ -13629,7 +13632,8 @@
  {
   "t": "{} tep/min",
   "files": [
-   "fitness.tsx"
+   "fitness.tsx",
+   "shell.tsx"
   ],
   "kind": "tpl"
  },
@@ -23067,6 +23071,7 @@
   "t": "{} h {} min",
   "files": [
    "report.tsx",
+   "runstats.ts",
    "tabs.tsx"
   ],
   "kind": "tpl"
@@ -26343,6 +26348,27 @@
   "kind": "jsx"
  },
  {
+  "t": "{} m dolů · asi {} pater ({} m = patro)",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Čas běhu týdne",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Čas tréninku týdne",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Další závod",
   "files": [
    "shell.tsx"
@@ -26365,6 +26391,13 @@
  },
  {
   "t": "drží na normě",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "m nahoru",
   "files": [
    "shell.tsx"
   ],
@@ -26413,6 +26446,13 @@
   "kind": "str"
  },
  {
+  "t": "Poslední aktivita",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "posledních 7 dní {} km",
   "files": [
    "shell.tsx"
@@ -26434,6 +26474,27 @@
   "kind": "tpl"
  },
  {
+  "t": "Převýšení týdne",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "tento týden, jen běh",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "tento týden, všechny sporty",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "translate(0 3)",
   "files": [
    "shell.tsx"
@@ -26453,6 +26514,13 @@
    "shell.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "z toho běh {}",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "za {} d",
