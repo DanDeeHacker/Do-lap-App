@@ -1180,14 +1180,19 @@ def readiness_inputs(db, rid, day: str) -> dict:
                   "sleep": r1(night.sleep_h) if night else None,
                   "eff": r2(night.sleep_efficiency) if night else None, "rest": r2(rest_share(night)) if night else None},
         "week": {"hrv": r0(avg(week, "hrv_ms", 3)), "rhr": r0(avg(week, "resting_hr", 3)), "sleep": r1(avg(recent, "sleep_h", 2)),
-                 "eff": r2(avg(recent, "sleep_efficiency", 2))},
+                 "eff": r2(avg(recent, "sleep_efficiency", 2)),
+                 # v0.12.21 (feedback #227) — display only: the day's still heart rate (dayload.py)
+                 "dayRhr": r0(avg(week, "rest_hr_med", 3))},
         "base": {"hrv": r0(avg(base, "hrv_ms", 10)), "rhr": r0(avg(base, "resting_hr", 10)), "sleep": r1(avg(base, "sleep_h", 10)),
-                 "eff": r2(avg(base, "sleep_efficiency", 10)), "rest": r2(avg(base, "rest_share", 10))},
+                 "eff": r2(avg(base, "sleep_efficiency", 10)), "rest": r2(avg(base, "rest_share", 10)),
+                 "dayRhr": r0(avg(base, "rest_hr_med", 10))},
         # v0.9.0 — the usual range (mean ± 1 SD of the baseline nights; HRV on the log
         # scale), for the Připravenost detail: where last week sits against the norm
-        "range": {k: _range(base, f, dec) for k, f, dec in (("hrv", "hrv_ms", 0), ("rhr", "resting_hr", 0), ("sleep", "sleep_h", 1))},
+        "range": {k: _range(base, f, dec) for k, f, dec in (("hrv", "hrv_ms", 0), ("rhr", "resting_hr", 0), ("sleep", "sleep_h", 1),
+                                                    ("dayRhr", "rest_hr_med", 0))},
         # the last 7 nights, oldest first (the dots behind the week's mean)
-        "nights": [{"d": k, "hrv": r0(dm[k].hrv_ms), "rhr": r0(dm[k].resting_hr), "sleep": r1(dm[k].sleep_h)}
+        "nights": [{"d": k, "hrv": r0(dm[k].hrv_ms), "rhr": r0(dm[k].resting_hr), "sleep": r1(dm[k].sleep_h),
+                    "dayRhr": r0(dm[k].rest_hr_med)}
                    for k in sorted(x for x in ((d0 - timedelta(days=j)).isoformat() for j in range(7)) if x in dm)],
         "checkin": None,
     }

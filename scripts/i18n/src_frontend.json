@@ -2209,6 +2209,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Klidový tep přes den · 7 dní",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "km (",
   "files": [
    "App.tsx"
@@ -2986,6 +2993,13 @@
   "kind": "str"
  },
  {
+  "t": "pro orientaci",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Proč bez podílů",
   "files": [
    "App.tsx"
@@ -2998,6 +3012,13 @@
    "App.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "průměr 7 dní, bez noci a tréninku",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "průměr 7 nocí",
