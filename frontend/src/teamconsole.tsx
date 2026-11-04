@@ -11,7 +11,7 @@ import { Button, Card, Chip, Segmented, Sheet, useToast } from "@/ui"
 import { fmtD, fmtDT } from "@/lib"
 import { C } from "@/tokens"
 
-type TeamMe = { role: string; perms: string[]; email: string; config: { github: boolean; mergeToken?: boolean; githubRepo: string; webhook: boolean; railway: boolean; staging: string | null; personas?: boolean; personaToken?: boolean } }
+type TeamMe = { role: string; roles?: string[]; perms: string[]; email: string; config: { github: boolean; mergeToken?: boolean; githubRepo: string; webhook: boolean; railway: boolean; staging: string | null; personas?: boolean; personaToken?: boolean } }
 
 const ROLE: Record<string, string> = { owner: "vlastník", engineer: "inženýr", clinical: "klinický garant", support: "podpora", auditor: "auditor" }
 const STAGE: Record<string, [string, "ok" | "watch" | "alert" | "muted" | "info" | "load" | "accent"]> = {
@@ -91,6 +91,21 @@ export function TeamConsole({ owner, runners }: { owner: boolean; runners: React
 }
 
 /* ---------------------------------------------------------------- Tým */
+/** issue #8: a person may hold several roles; at least one stays checked */
+function RoleBoxes({ value, all, onChange }: { value: string[]; all: string[]; onChange: (next: string[]) => void }) {
+  return (
+    <span className="flex flex-wrap gap-x-3 gap-y-1" role="group" aria-label="Role">
+      {all.map((r) => (
+        <label key={r} className="inline-flex items-center gap-1 text-[12px] text-fg-soft">
+          <input type="checkbox" checked={value.includes(r)} disabled={value.includes(r) && value.length === 1}
+            onChange={() => onChange(value.includes(r) ? value.filter((x) => x !== r) : [...value, r])} />
+          {ROLE[r] || r}
+        </label>
+      ))}
+    </span>
+  )
+}
+
 function TeamTab({ me }: { me: TeamMe }) {
   const toast = useToast()
   const manage = me.perms.includes("team.manage")
@@ -98,16 +113,30 @@ function TeamTab({ me }: { me: TeamMe }) {
   const audit = useLoad<any>(() => (me.perms.includes("audit.read") ? api.teamAudit() : Promise.resolve({ items: [] })))
   const [email, setEmail] = useState("")
   const [name, setName] = useState("")
-  const [role, setRole] = useState("engineer")
+  const [roles, setRoles] = useState<string[]>(["engineer"])
   const [busy, setBusy] = useState(false)
+  // issue #8 note #224: the member being edited (name, and the address while the invitation is pending)
+  const [editing, setEditing] = useState<{ id: number; name: string; email: string } | null>(null)
+  const linkRef = useRef<HTMLDivElement | null>(null)
   // review 2026-10-30 N1: the role starts when the person opens this link with the invited account
   const [link, setLink] = useState<{ email: string; url: string } | null>(null)
-  const showLink = (m: any) => m.invitePath && setLink({ email: m.email, url: `${location.origin}${m.invitePath}` })
+  const showLink = (m: any) => {
+    if (!m.invitePath) return
+    setLink({ email: m.email, url: `${location.origin}${m.invitePath}` })
+    // on a phone the box sits below the list: bring it into view so "Přidat" visibly did something
+    setTimeout(() => linkRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 50)
+  }
+  const shareLink = async (url: string, email: string) => {
+    try {
+      if (navigator.share) await navigator.share({ title: "Pozvánka do týmu Došlap", text: `Pozvánka pro ${email}`, url })
+      else { await navigator.clipboard?.writeText(url); toast({ title: "Odkaz zkopírován" }) }
+    } catch { /* the person closed the share sheet */ }
+  }
   const add = async () => {
     setBusy(true)
     try {
-      const m = await api.teamAddMember({ email, name: name || undefined, role })
-      showLink(m); setEmail(""); setName(""); reload(); audit.reload(); toast({ title: "Člen týmu přidán — pošlete mu odkaz" })
+      const m = await api.teamAddMember({ email, name: name || undefined, roles })
+      showLink(m); setEmail(""); setName(""); reload(); audit.reload(); toast({ title: "Člen týmu přidán — pošlete mu odkaz pod seznamem" })
     }
     catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
     finally { setBusy(false) }
@@ -116,7 +145,16 @@ function TeamTab({ me }: { me: TeamMe }) {
     try { showLink(await api.teamReinvite(id)); audit.reload() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
   }
   const patch = async (id: number, body: any) => {
-    try { await api.teamPatchMember(id, body); reload(); audit.reload() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+    try { const m = await api.teamPatchMember(id, body); showLink(m); reload(); audit.reload(); return true }
+    catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }); return false }
+  }
+  const saveEdit = async () => {
+    if (!editing) return
+    const m = d.items.find((x: any) => x.id === editing.id)
+    const body: any = {}
+    if (editing.name !== (m?.name || "")) body.name = editing.name
+    if (!m?.accepted && editing.email.trim().toLowerCase() !== m?.email) body.email = editing.email
+    if (!Object.keys(body).length || (await patch(editing.id, body))) setEditing(null)
   }
   return (
     <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
@@ -148,15 +186,25 @@ function TeamTab({ me }: { me: TeamMe }) {
                 )}
                 {manage ? (
                   <>
-                    <select value={m.role} onChange={(e) => patch(m.id, { role: e.target.value })} aria-label="Role"
-                      className="rounded-lg border border-white/10 bg-panel px-2 py-1 text-[12px]">
-                      {d.roles.map((r: string) => <option key={r} value={r}>{ROLE[r] || r}</option>)}
-                    </select>
+                    <RoleBoxes value={m.roles || [m.role]} all={d.roles} onChange={(next) => patch(m.id, { roles: next })} />
+                    <button type="button" onClick={() => setEditing({ id: m.id, name: m.name || "", email: m.email })} className="text-[12px] font-bold text-accent hover:underline">Upravit</button>
                     <button type="button" onClick={() => patch(m.id, { active: !m.active })} className="text-[12px] font-bold text-fg-3 hover:text-fg">
                       {m.active ? "Odebrat" : "Vrátit"}
                     </button>
                   </>
-                ) : <Chip>{ROLE[m.role] || m.role}</Chip>}
+                ) : <span className="flex flex-wrap gap-1">{(m.roles || [m.role]).map((r: string) => <Chip key={r}>{ROLE[r] || r}</Chip>)}</span>}
+                {editing && editing.id === m.id && (
+                  <div className="grid basis-full gap-2 rounded-xl bg-white/[.04] p-3" data-testid="member-edit">
+                    <input value={editing.name} onChange={(e) => setEditing((x) => x && { ...x, name: e.target.value })} placeholder="jméno" aria-label="Jméno"
+                      className="rounded-lg border border-white/10 bg-panel px-3 py-2 text-[13px]" />
+                    {!m.accepted ? (
+                      <input value={editing.email} onChange={(e) => setEditing((x) => x && { ...x, email: e.target.value })} placeholder="e-mail" aria-label="E-mail"
+                        className="rounded-lg border border-white/10 bg-panel px-3 py-2 text-[13px]" />
+                    ) : <p className="text-[11.5px] text-fg-3">E-mail jde změnit jen u pozvánky, kterou ještě nikdo nepřijal.</p>}
+                    {!m.accepted && <p className="text-[11.5px] text-fg-3">Změna e-mailu vytvoří nový odkaz, starý přestane platit.</p>}
+                    <div className="flex gap-2"><Button size="sm" onClick={saveEdit}>Uložit</Button><Button size="sm" variant="outline" onClick={() => setEditing(null)}>Zrušit</Button></div>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -171,17 +219,14 @@ function TeamTab({ me }: { me: TeamMe }) {
                 className="rounded-lg border border-white/10 bg-panel px-3 py-2 text-[13px]" />
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Role"
-                className="rounded-lg border border-white/10 bg-panel px-2 py-2 text-[13px]">
-                {Object.keys(ROLE).map((r) => <option key={r} value={r}>{ROLE[r]}</option>)}
-              </select>
-              <Button busy={busy} disabled={!email.includes("@")} onClick={add}>Přidat</Button>
+              <RoleBoxes value={roles} all={Object.keys(ROLE)} onChange={setRoles} />
+              <Button busy={busy} disabled={!email.includes("@") || !roles.length} onClick={add}>Přidat</Button>
             </div>
             <p className="text-[11.5px] text-fg-3">Aplikace e-mail neposílá: odkaz z pozvánky pošlete sami. Platí 7 dní a jen jednou.</p>
           </div>
         )}
         {link && (
-          <div className="mt-3 grid gap-2 rounded-xl border border-accent/30 bg-accent/10 p-3 text-[12px]" data-testid="team-invite-link">
+          <div ref={linkRef} className="mt-3 grid gap-2 rounded-xl border border-accent/30 bg-accent/10 p-3 text-[12px]" data-testid="team-invite-link">
             <p className="text-fg">
               <b>{"Odkaz pro "}<span translate="no">{link.email}</span></b>
               {" — otevře ho přihlášený tímto e-mailem. Kdo by ho zachytil, s jiným účtem nic nezíská."}
@@ -189,6 +234,7 @@ function TeamTab({ me }: { me: TeamMe }) {
             <code translate="no" className="break-all rounded-lg bg-panel px-2 py-1.5 text-fg-2">{link.url}</code>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => { void navigator.clipboard?.writeText(link.url); toast({ title: "Odkaz zkopírován" }) }}>Kopírovat</Button>
+              <Button size="sm" variant="outline" onClick={() => shareLink(link.url, link.email)}>Sdílet</Button>
               <Button size="sm" variant="outline" onClick={() => setLink(null)}>Zavřít</Button>
             </div>
           </div>
@@ -517,6 +563,11 @@ function ReviewSheet({ number, onClose, onMerged }: { number: number; onClose: (
                 <input type="checkbox" checked={cso} onChange={(e) => setCso(e.target.checked)} className="mt-0.5" />
                 <span>V PR je odkaz na zprávu /cso (štítek security).</span>
               </label>
+            )}
+            {d.selfSignoff && (
+              <p className="mt-3 rounded-lg bg-watch/10 px-3 py-2 text-[12.5px] text-watch-soft" data-testid="self-signoff">
+                Klinické schválení u tohoto PR dal tentýž člověk, který ho teď slučuje. Záznam o tom zůstane v záznamu změn.
+              </p>
             )}
             {d.blockers.length > 0 ? (
               <ul className="mt-3 space-y-1 rounded-lg border border-white/[.08] px-3 py-2 text-[12.5px] text-watch" data-testid="review-blockers">

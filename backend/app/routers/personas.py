@@ -28,7 +28,7 @@ def actor(request: Request, db: DBSession = Depends(get_db),
         raise HTTPException(status_code=404, detail="Persony jsou vypnuté (DOSSLAP_PERSONAS)")
     if T.persona_token_ok(request.headers.get("X-Persona-Token")):
         return Actor(user, True)
-    if user is not None and T.role_of(db, user) in ("owner", "engineer"):
+    if user is not None and any(r in ("owner", "engineer") for r in T.roles_of(db, user)):
         if request.method != "GET" and not security.same_origin(request):
             raise HTTPException(status_code=403, detail="Neplatný požadavek (cross-origin)")
         return Actor(user, False)
