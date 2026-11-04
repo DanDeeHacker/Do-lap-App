@@ -2679,6 +2679,13 @@
   "kind": "str"
  },
  {
+  "t": "Plná — nic ji dnes nesnižuje.",
+  "files": [
+   "App.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Po připojení hodinek tu uvidíte",
   "files": [
    "App.tsx"
