@@ -3692,7 +3692,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Velký bod = průměr, malé tečky = jednotlivé noci, zelené pásmo = vaše obvyklé rozmezí (průměr ± 1 SD nocí 8–56 dní zpět).",
+  "t": "Velký bod = průměr, malé tečky = jednotlivé noci nebo dny, zelené pásmo = vaše obvyklé rozmezí (průměr ± 1 SD z hodnot 8–56 dní zpět).",
   "files": [
    "App.tsx"
   ],

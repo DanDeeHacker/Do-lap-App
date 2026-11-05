@@ -548,7 +548,7 @@ function ReadinessDetail({ r, fallback }: { r: any; fallback: number | null }) {
       </div>
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5"><span className="t-label">Připravenost vs. norma</span><InfoDot label="Připravenost vs. norma" text="Velký bod = průměr, malé tečky = jednotlivé noci, zelené pásmo = vaše obvyklé rozmezí (průměr ± 1 SD nocí 8–56 dní zpět)." /></span>
+          <span className="flex items-center gap-1.5"><span className="t-label">Připravenost vs. norma</span><InfoDot label="Připravenost vs. norma" text="Velký bod = průměr, malé tečky = jednotlivé noci nebo dny, zelené pásmo = vaše obvyklé rozmezí (průměr ± 1 SD z hodnot 8–56 dní zpět)." /></span>
           <WeeklyCheckButton />
         </div>
         <RecoveryRanges rows={readinessRows(r)} />
