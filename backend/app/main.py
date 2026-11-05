@@ -167,6 +167,7 @@ def _migrate(engine):
     # with its e-mail only when that account is older than the invitation (it can't be a squatter
     # who registered the invited address); the rest need a new invitation link.
     add("work_items", "clinical_sha", "clinical_sha VARCHAR")
+    add("team_members", "extra_roles", "extra_roles JSON")
     add("team_members", "invite_hash", "invite_hash VARCHAR")
     add("team_members", "invite_expires_at", "invite_expires_at VARCHAR")
     add("team_members", "user_id", "user_id INTEGER",

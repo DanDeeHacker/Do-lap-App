@@ -25,23 +25,24 @@ TYPES = ("bug", "feature", "engine", "safety", "copy")
 
 
 class Ctx:
-    def __init__(self, user: models.User, role: str | None, db: DBSession):
-        self.user, self.role, self.db = user, role, db
+    def __init__(self, user: models.User, roles: list[str], db: DBSession):
+        # issue #8: a person may hold several roles; `role` is the main one, permissions are the union
+        self.user, self.roles, self.role, self.db = user, roles, (roles[0] if roles else None), db
 
     def need(self, perm: str) -> "Ctx":
-        if not T.can(self.role, perm):
+        if not T.can(self.roles, perm):
             raise HTTPException(status_code=403, detail="Na tuto část Team Console nemáte oprávnění")
         return self
 
     def audit(self, action: str, target: str | None = None, **detail) -> None:
-        T.audit(self.db, self.user, self.role, action, target, detail)
+        T.audit(self.db, self.user, "+".join(self.roles), action, target, detail)
 
 
 def ctx(user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)) -> Ctx:
-    role = T.role_of(db, user)
-    if role is None:
+    roles = T.roles_of(db, user)
+    if not roles:
         raise HTTPException(status_code=403, detail="Jen pro tým Došlapu")
-    return Ctx(user, role, db)
+    return Ctx(user, roles, db)
 
 
 def _gh(fn):
@@ -54,24 +55,42 @@ def _gh(fn):
 # ---------------------------------------------------------------- me / team / audit
 @router.get("/me")
 def me(c: Ctx = Depends(ctx)):
-    return {"role": c.role, "perms": sorted(T.PERMS[c.role]), "config": T.config(), "email": c.user.email}
+    perms = sorted({p for r in c.roles for p in T.PERMS[r]})
+    return {"role": c.role, "roles": c.roles, "perms": perms, "config": T.config(), "email": c.user.email}
 
 
 class MemberIn(Lenient):
     email: str = Field(min_length=3, max_length=200)
     name: str | None = Field(default=None, max_length=120)
-    role: str
+    role: str | None = None
+    roles: list[str] | None = None          # issue #8: several roles at once
 
 
 class MemberPatch(Lenient):
     name: str | None = Field(default=None, max_length=120)
+    email: str | None = Field(default=None, max_length=200)      # only while the invitation is pending
     role: str | None = None
+    roles: list[str] | None = None
     active: bool | None = None
+
+
+def _wanted_roles(role: str | None, roles: list[str] | None) -> list[str] | None:
+    """The requested roles in ROLES order, or None when none were sent; unknown roles are a 422."""
+    asked = roles if roles is not None else ([role] if role else None)
+    if asked is None:
+        return None
+    if not asked or any(r not in T.ROLES for r in asked):
+        raise HTTPException(status_code=422, detail="Vyberte aspoň jednu platnou roli")
+    return [r for r in T.ROLES if r in set(asked)]
+
+
+def _set_roles(m: models.TeamMember, roles: list[str]) -> None:
+    m.role, m.extra_roles = roles[0], roles[1:]
 
 
 @router.get("/members")
 def members(c: Ctx = Depends(ctx)):
-    if not (T.can(c.role, "team.manage") or T.can(c.role, "audit.read")):
+    if not (T.can(c.roles, "team.manage") or T.can(c.roles, "audit.read")):
         c.need("team.manage")
     rows = c.db.query(models.TeamMember).order_by(models.TeamMember.active.desc(), models.TeamMember.role,
                                                   models.TeamMember.email).all()
@@ -85,20 +104,25 @@ def members(c: Ctx = Depends(ctx)):
 def add_member(body: MemberIn, c: Ctx = Depends(ctx)):
     c.need("team.manage")
     email = body.email.strip().lower()
-    if body.role not in T.ROLES or "@" not in email:
+    roles = _wanted_roles(body.role, body.roles)
+    if roles is None or "@" not in email:
         raise HTTPException(status_code=422, detail="Neplatný e-mail nebo role")
     if email in owner_emails():
-        raise HTTPException(status_code=409, detail="Tento e-mail je vlastník z proměnné DOSSLAP_OWNER_EMAILS")
+        # an owner from DOSSLAP_OWNER_EMAILS is owner without a row; a row adds the other roles
+        roles = [r for r in roles if r != "owner"]
+        if not roles:
+            raise HTTPException(status_code=409, detail="Tento e-mail je vlastník z proměnné DOSSLAP_OWNER_EMAILS; přidejte mu jinou roli")
     m = c.db.query(models.TeamMember).filter(models.TeamMember.email == email).first()
     now = E.now_iso()
     if m is None:
         m = models.TeamMember(email=email, created_at=now, invited_by=c.user.email)
         c.db.add(m)
-    m.name, m.role, m.active, m.updated_at = body.name or m.name, body.role, True, now
+    m.name, m.active, m.updated_at = body.name or m.name, True, now
+    _set_roles(m, roles)
     # review 2026-10-30 N1: the role starts only when the person opens the single-use link with
     # their own account; the owner passes the link on themselves (the app sends no e-mail)
     token = T.new_invite(m) if m.user_id is None else None
-    c.audit("member.add", email, role=body.role)
+    c.audit("member.add", email, roles=roles)
     c.db.commit()
     T.team_changed()
     return {**T.member_out(m), **({"invitePath": f"/pozvanka/{token}"} if token else {})}
@@ -135,10 +159,10 @@ def accept_invite(body: InviteAccept, user: models.User = Depends(get_current_us
     if db.query(models.TeamMember).filter(models.TeamMember.user_id == user.id, models.TeamMember.id != m.id).first():
         raise HTTPException(status_code=409, detail="Tento účet už v týmu je.")
     m.user_id, m.invite_hash, m.invite_expires_at, m.updated_at = user.id, None, None, E.now_iso()
-    T.audit(db, user, m.role, "member.accept", m.email, {"role": m.role})
+    T.audit(db, user, "+".join(T.member_roles(m)), "member.accept", m.email, {"roles": T.member_roles(m)})
     db.commit()
     T.team_changed()
-    return {"role": m.role}
+    return {"role": m.role, "roles": T.member_roles(m)}
 
 
 @router.patch("/members/{mid}", dependencies=[Depends(verify_csrf)])
@@ -147,21 +171,39 @@ def patch_member(mid: int, body: MemberPatch, c: Ctx = Depends(ctx)):
     m = c.db.get(models.TeamMember, mid)
     if m is None:
         raise HTTPException(status_code=404, detail="Člen týmu nenalezen")
-    if body.role is not None and body.role not in T.ROLES:
-        raise HTTPException(status_code=422, detail="Neznámá role")
-    if m.user_id == c.user.id and (body.active is False or (body.role and body.role != "owner")):
+    roles = _wanted_roles(body.role, body.roles)
+    mine = (c.user.email or "").lower() in owner_emails()
+    # nobody takes their own owner role away, or switches themselves off (an owner from the Railway variable stays owner)
+    if m.user_id == c.user.id and not mine and "owner" in T.member_roles(m) and (
+            body.active is False or (roles is not None and "owner" not in roles)):
         raise HTTPException(status_code=409, detail="Sami sobě roli vlastníka neodeberete")
     changes = {}
-    for k in ("name", "role", "active"):
-        v = getattr(body, k)
-        if v is not None and v != getattr(m, k):
-            changes[k] = [getattr(m, k), v]
-            setattr(m, k, v)
+    new_link = None
+    if roles is not None and roles != T.member_roles(m):
+        changes["roles"] = [T.member_roles(m), roles]
+        _set_roles(m, roles)
+    if body.name is not None and body.name != m.name:
+        changes["name"] = [m.name, body.name]
+        m.name = body.name
+    if body.active is not None and body.active != bool(m.active):
+        changes["active"] = [bool(m.active), body.active]
+        m.active = body.active
+    if body.email is not None and body.email.strip().lower() != m.email:
+        email = body.email.strip().lower()
+        if m.user_id is not None:
+            raise HTTPException(status_code=409, detail="E-mail jde změnit jen u pozvánky, kterou ještě nikdo nepřijal")
+        if "@" not in email or email in owner_emails():
+            raise HTTPException(status_code=422, detail="Neplatný e-mail")
+        if c.db.query(models.TeamMember).filter(models.TeamMember.email == email, models.TeamMember.id != m.id).first():
+            raise HTTPException(status_code=409, detail="Tento e-mail už v týmu je")
+        changes["email"] = [m.email, email]
+        m.email = email
+        new_link = T.new_invite(m)             # the old link names the old address and stops working
     m.updated_at = E.now_iso()
     c.audit("member.update", m.email, **changes)
     c.db.commit()
     T.team_changed()
-    return T.member_out(m)
+    return {**T.member_out(m), **({"invitePath": f"/pozvanka/{new_link}"} if new_link else {})}
 
 
 # ---------------------------------------------------------------- physio accounts (review 2026-10-30 F1)
@@ -232,7 +274,7 @@ def inbox(status: str = "open", source: str = "all", c: Ctx = Depends(ctx)):
     elif source == "synthetic":
         q = q.filter(models.Annotation.source.isnot(None))
     rows = q.order_by(models.Annotation.id.desc()).limit(300).all()
-    owner = c.role == "owner"
+    owner = "owner" in c.roles
     items = [_note_out(a, u, owner) for a, u in rows]
     rank = {"P1": 0, "P2": 1, "P3": 2}
     items.sort(key=lambda x: (x["issueNumber"] is not None, rank.get(x["priority"], 3), -x["id"]))
@@ -273,7 +315,7 @@ def triage(aid: int, body: TriageIn, c: Ctx = Depends(ctx)):
         a.resolved_at = E.now_iso() if body.status != "open" else None
     if body.approved is not None:
         # CLAUDE.md: a note from anyone but an owner is implemented only after an owner approved it
-        if c.role != "owner":
+        if "owner" not in c.roles:
             raise HTTPException(status_code=403, detail="Schválit poznámku k implementaci může jen vlastník")
         a.approved_at = E.now_iso() if body.approved else None
         changes["approved"] = body.approved
@@ -281,7 +323,7 @@ def triage(aid: int, body: TriageIn, c: Ctx = Depends(ctx)):
     c.audit("inbox.triage", f"note:{a.id}", **changes)
     c.db.commit()
     author = c.db.get(models.User, a.user_id)
-    return _note_out(a, author, c.role == "owner")
+    return _note_out(a, author, "owner" in c.roles)
 
 
 class SendIn(Lenient):
@@ -302,7 +344,7 @@ def send_to_ai(aid: int, body: SendIn, c: Ctx = Depends(ctx)):
         raise HTTPException(status_code=409, detail=f"Už je na GitHubu jako #{a.issue_number}")
     author = c.db.get(models.User, a.user_id)
     if not (author and is_owner(author)) and not a.approved_at:
-        if c.role != "owner":
+        if "owner" not in c.roles:
             raise HTTPException(status_code=409, detail="Poznámku od uživatele musí nejdřív schválit vlastník")
         a.approved_at = E.now_iso()        # an owner sending it approves it
     labels = ["ai-ready", "from-app"]
@@ -365,7 +407,10 @@ def pr_review(number: int, cso: bool = False, c: Ctx = Depends(ctx)):
     c.need("work.read")
     w = c.db.query(models.WorkItem).filter(models.WorkItem.kind == "pr", models.WorkItem.number == number).first()
     out = _gh(lambda: T.pr_review(number, cso_linked=cso, approved_sha=w.clinical_sha if w else None))
-    return {**out, "canMerge": T.can(c.role, "pr.merge"), "mergeToken": bool(T.merge_token()),
+    # issue #8 (option b): an owner who is also the clinical guarantor may merge what they signed
+    # off; the screen says so and the audit log marks it
+    same = bool(w and w.clinical == "approved" and (w.clinical_by or "").lower() == (c.user.email or "").lower())
+    return {**out, "canMerge": T.can(c.roles, "pr.merge"), "mergeToken": bool(T.merge_token()), "selfSignoff": same,
             "needsPassword": True}           # review 2026-10-30 N1: every account confirms with its password
 
 
@@ -429,8 +474,9 @@ def pr_merge(number: int, body: MergeIn, c: Ctx = Depends(ctx)):
         w.state, w.merged_at, w.merge_sha, w.updated_at = "merged", E.now_iso(), done.get("sha"), E.now_iso()
         c.db.flush()
         T.resolve_notes_for(c.db, w)
+    same = bool(w and (w.clinical_by or "").lower() == (c.user.email or "").lower() and w.clinical == "approved")
     c.audit("pr.merge", f"pr:{number}", head=live[:7], merge=(done.get("sha") or "")[:7], title=(pr.get("title") or "")[:120],
-            labels=T._labels(pr), cso=body.cso)
+            labels=T._labels(pr), cso=body.cso, **({"self_signoff": True} if same else {}))
     c.db.commit()
     return {"merged": True, "sha": done.get("sha")}
 
@@ -480,7 +526,7 @@ def approvals(c: Ctx = Depends(ctx)):
     gated = [w for w in rows if set(w.labels or []) & set(T.GATED)]
     pending = [T.work_out(w, {}) for w in gated if w.state == "open" and w.clinical != "approved"]
     decided = [T.work_out(w, {}) for w in gated if w.clinical_at][:30]
-    return {"pending": pending, "decided": decided, "canDecide": T.can(c.role, "approvals.decide"),
+    return {"pending": pending, "decided": decided, "canDecide": T.can(c.roles, "approvals.decide"),
             "github": T.config()["github"]}
 
 
