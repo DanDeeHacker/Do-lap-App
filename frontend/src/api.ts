@@ -179,8 +179,8 @@ export const api = {
   // Team Console (owner request 2026-10-27, backend routers/team.py)
   teamMe: () => call("GET", "/api/team/me"),
   teamMembers: () => call("GET", "/api/team/members"),
-  teamAddMember: (body: { email: string; name?: string; role: string }) => call("POST", "/api/team/members", body),
-  teamPatchMember: (id: number, body: { name?: string; role?: string; active?: boolean }) => call("PATCH", `/api/team/members/${id}`, body),
+  teamAddMember: (body: { email: string; name?: string; roles: string[] }) => call("POST", "/api/team/members", body),
+  teamPatchMember: (id: number, body: { name?: string; email?: string; roles?: string[]; active?: boolean }) => call("PATCH", `/api/team/members/${id}`, body),
   // review 2026-10-30 N1/F1: invitation links bound to an account, owner-verified physio accounts
   teamReinvite: (id: number) => call("POST", `/api/team/members/${id}/invite`, {}),
   teamInviteAccept: (token: string) => call("POST", "/api/team/invite/accept", { token }),

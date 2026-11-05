@@ -760,6 +760,7 @@
    "coach.tsx",
    "goal.tsx",
    "report.tsx",
+   "teamconsole.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -773,7 +774,8 @@
    "coach.tsx",
    "coachview.tsx",
    "goal.tsx",
-   "shell.tsx"
+   "shell.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "jsx"
  },
@@ -822,6 +824,7 @@
    "coach.tsx",
    "profile.tsx",
    "tabs.tsx",
+   "teamconsole.tsx",
    "training.tsx"
   ],
   "kind": "jsx"
@@ -29649,7 +29652,7 @@
   "kind": "str"
  },
  {
-  "t": "Člen týmu přidán — pošlete mu odkaz",
+  "t": "Člen týmu přidán — pošlete mu odkaz pod seznamem",
   "files": [
    "teamconsole.tsx"
   ],
@@ -29689,6 +29692,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "E-mail jde změnit jen u pozvánky, kterou ještě nikdo nepřijal.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Engine",
@@ -29789,6 +29799,13 @@
   "kind": "jsx"
  },
  {
+  "t": "jméno",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "jméno (nepovinné)",
   "files": [
    "teamconsole.tsx"
@@ -29825,6 +29842,13 @@
  },
  {
   "t": "Klinické schválení",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klinické schválení u tohoto PR dal tentýž člověk, který ho teď slučuje. Záznam o tom zůstane v záznamu změn.",
   "files": [
    "teamconsole.tsx"
   ],
@@ -30097,6 +30121,20 @@
   "kind": "str"
  },
  {
+  "t": "Pozvánka do týmu Došlap",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pozvánka pro {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "PR #{}",
   "files": [
    "teamconsole.tsx"
@@ -30295,6 +30333,13 @@
  },
  {
   "t": "Schválit plán (go)",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Sdílet",
   "files": [
    "teamconsole.tsx"
   ],
@@ -30698,6 +30743,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Změna e-mailu vytvoří nový odkaz, starý přestane platit.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Změna pro běžce",
