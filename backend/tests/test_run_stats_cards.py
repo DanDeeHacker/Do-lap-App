@@ -13,7 +13,7 @@ from .conftest import register
 SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "src", "runstats.ts"))
 
 PROBE = """
-import { weekStats, lastActivity, hm, paceStr } from %r
+import { weekStats, lastActivity, hm, paceStr, recentActivities, sportCs } from %r
 const acts = [
   { started_at: "2026-11-02T07:00:00", sport: "running", duration_min: 50, ascent_m: 300, descent_m: 290 },
   { started_at: "2026-11-03T18:00:00", sport: "cycling", duration_min: 70 },
@@ -21,7 +21,9 @@ const acts = [
   { started_at: "2026-10-30T07:00:00", sport: "running", duration_min: 60, ascent_m: 500, descent_m: 500 },
 ]
 console.log(JSON.stringify({ week: weekStats(acts, "2026-11-04"), last: lastActivity(acts).started_at,
-  empty: weekStats([], "2026-11-04"), a: hm(95), b: hm(42), c: hm(120), p: paceStr(307), none: paceStr(null) }))
+  empty: weekStats([], "2026-11-04"),
+  recent: recentActivities(acts, 2).map((x) => x.started_at), all: recentActivities(acts).length, none_recent: recentActivities([]).length,
+  sports: [sportCs("running"), sportCs(null), sportCs("cycling"), sportCs("kayak")], a: hm(95), b: hm(42), c: hm(120), p: paceStr(307), none: paceStr(null) }))
 """
 
 
@@ -54,3 +56,11 @@ def test_the_four_new_cards_are_accepted_and_the_cap_is_sixteen(client):
     every = ["week", "load", "mech", "hrv", "rhr", "sleep", "readiness", "race", "recovery", "form", "fit", "fat"] + ids
     assert len(every) == 16
     assert client.patch("/api/auth/settings", json={"rail_cards": every + ["bogus"]}).json()["rail_cards"] == every
+
+
+def test_recent_activities_are_newest_first_skip_excluded_and_cap(tmp_path):
+    """feedback #231 — the list behind the cards: newest first, an excluded activity never shows, at most n"""
+    out = _node(tmp_path)
+    assert out["recent"] == ["2026-11-03T18:00:00", "2026-11-02T07:00:00"]   # the excluded run of 3 Nov 19:00 is skipped
+    assert out["all"] == 3 and out["none_recent"] == 0
+    assert out["sports"] == ["běh", "běh", "kolo", "jiný sport"]
