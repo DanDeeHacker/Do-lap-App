@@ -1,0 +1,10 @@
+{
+ "Člen týmu přidán — pošlete mu odkaz pod seznamem": "Team member added — send them the link below the list",
+ "E-mail jde změnit jen u pozvánky, kterou ještě nikdo nepřijal.": "The e-mail can be changed only while nobody has accepted the invitation.",
+ "jméno": "name",
+ "Klinické schválení u tohoto PR dal tentýž člověk, který ho teď slučuje. Záznam o tom zůstane v záznamu změn.": "The clinical sign-off on this PR was given by the same person who is merging it now. This is recorded in the change log.",
+ "Pozvánka do týmu Došlap": "Invitation to the Došlap team",
+ "Pozvánka pro {}": "Invitation for {0}",
+ "Sdílet": "Share",
+ "Změna e-mailu vytvoří nový odkaz, starý přestane platit.": "Changing the e-mail creates a new link; the old one stops working."
+}

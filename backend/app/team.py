@@ -41,16 +41,29 @@ BOOTED_AT = datetime.now(E.LOCAL_TZ).isoformat()
 
 
 # ---------------------------------------------------------------- roles and audit
-def role_of(db: DBSession, user: models.User | None) -> str | None:
+def member_roles(m: models.TeamMember) -> list[str]:
+    """All roles of a member row, in ROLES order (owner first when present)."""
+    have = {m.role, *(m.extra_roles or [])}
+    return [r for r in ROLES if r in have]
+
+
+def roles_of(db: DBSession, user: models.User | None) -> list[str]:
+    """Every role of an account (issue #8: one person may be owner and clinical guarantor)."""
     if user is None:
-        return None
-    email = (user.email or "").lower()
-    if email in owner_emails():
-        return "owner"
+        return []
     # review 2026-10-30 N1: the role follows the account that accepted the invitation, never the
     # e-mail string (registration verifies no e-mail, so an invited address could be squatted)
     m = db.query(models.TeamMember).filter(models.TeamMember.user_id == user.id, models.TeamMember.active.is_(True)).first()
-    return m.role if m else None
+    roles = member_roles(m) if m else []
+    if (user.email or "").lower() in owner_emails() and "owner" not in roles:
+        roles = ["owner", *roles]
+    return roles
+
+
+def role_of(db: DBSession, user: models.User | None) -> str | None:
+    """The first (main) role, for display; permission checks use roles_of."""
+    roles = roles_of(db, user)
+    return roles[0] if roles else None
 
 
 INVITE_DAYS = 7
@@ -75,8 +88,9 @@ def find_invite(db: DBSession, token: str) -> models.TeamMember | None:
     return m
 
 
-def can(role: str | None, perm: str) -> bool:
-    return bool(role) and perm in PERMS.get(role, set())
+def can(role: str | list[str] | None, perm: str) -> bool:
+    roles = [role] if isinstance(role, str) else list(role or [])
+    return any(perm in PERMS.get(r, set()) for r in roles)
 
 
 def audit(db: DBSession, user: models.User, actor_role: str | None, action: str, target: str | None = None,
@@ -87,7 +101,7 @@ def audit(db: DBSession, user: models.User, actor_role: str | None, action: str,
 
 def member_out(m: models.TeamMember) -> dict:
     pending = m.user_id is None
-    return {"id": m.id, "email": m.email, "name": m.name, "role": m.role, "active": bool(m.active),
+    return {"id": m.id, "email": m.email, "name": m.name, "role": m.role, "roles": member_roles(m), "active": bool(m.active),
             "invitedBy": m.invited_by, "createdAt": m.created_at, "updatedAt": m.updated_at,
             "accepted": not pending,
             "inviteExpiresAt": m.invite_expires_at if pending and m.invite_hash else None}

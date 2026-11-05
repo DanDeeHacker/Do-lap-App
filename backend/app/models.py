@@ -846,6 +846,9 @@ class TeamMember(Base):
     invite_expires_at = Column(String)
     name = Column(String)
     role = Column(String, nullable=False)           # owner | engineer | clinical | support | auditor
+    # issue #8: one person can hold several roles (owner and clinical guarantor); `role` is the
+    # first of them in team.ROLES order, the rest are here. Permissions are the union.
+    extra_roles = Column(JSON, default=list)
     active = Column(Boolean, default=True)
     invited_by = Column(String)                     # the owner's e-mail
     created_at = Column(String)
