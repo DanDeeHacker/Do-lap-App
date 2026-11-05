@@ -12,6 +12,11 @@ type Release = { id: string; date: string; items: [LucideIcon, string, string][]
 // newest first; the id is what the account remembers as seen
 export const NEWS: Release[] = [
   {
+    id: "2026-11-04", date: "2026-11-04", items: [
+      [LayoutGrid, "Běžecké statistiky v Moje čísla", "Přibyly čas tréninku a běhu za týden, převýšení nahoru i dolů (s přepočtem na patra) a poslední aktivita. Zapnete je v Moje čísla přes Upravit."],
+    ],
+  },
+  {
     id: "2026-10-28", date: "2026-10-28", items: [
       [LayoutGrid, "Víc čísel v Moje čísla", "Mezi čísly na Dnes i v pravém sloupci přibyly Čerstvost, Kondice a Únava. Zapnete je přes Upravit, vybrat jich můžete až dvanáct."],
     ],

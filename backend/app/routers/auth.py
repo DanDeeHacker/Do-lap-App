@@ -235,8 +235,10 @@ def set_lang(body: schemas.LangRequest, user: models.User = Depends(get_current_
 
 # Card ids the desktop stat rail and the phone's Moje čísla understand (frontend shell.tsx).
 # feedback #222: Čerstvost, Kondice and Únava (the fitness trend) join the choice, so the cap is 12.
-RAIL_CARD_IDS = {"recovery", "week", "load", "mech", "hrv", "rhr", "sleep", "readiness", "race", "form", "fit", "fat"}
-RAIL_CARD_MAX = 12
+# feedback #225: Čas tréninku týdne, Čas běhu týdne, Převýšení týdne and Poslední aktivita, so the cap is 16.
+RAIL_CARD_IDS = {"recovery", "week", "load", "mech", "hrv", "rhr", "sleep", "readiness", "race", "form", "fit", "fat",
+                 "ttime", "rtime", "elev", "last"}
+RAIL_CARD_MAX = 16
 
 
 @router.get("/settings")

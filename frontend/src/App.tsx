@@ -496,7 +496,8 @@ function ReadinessDetail({ r, fallback }: { r: any; fallback: number | null }) {
           <span className="flex items-center gap-1.5"><p className="t-label">Připravenost dnes</p><InfoDot text={MI.readiness} label="Připravenost" /></span>
           {delta != null && (
             <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-bold" style={{ background: `${deltaCol}1f`, color: deltaCol }} data-testid="readiness-delta">
-              <span>{delta > 0 ? "▲" : delta < 0 ? "▼" : "▬"}</span>
+              {/* feedback #223: at 100 % two equal mornings showed a bare bar ("-"); a zero change gets words only */}
+              {!!delta && <span>{delta > 0 ? "▲" : "▼"}</span>}
               <span>{delta > 0 ? `+${delta}` : delta < 0 ? `−${-delta}` : "beze změny"}</span>
               <span className="font-medium opacity-80">oproti včerejšímu ránu</span>
             </span>
@@ -530,6 +531,10 @@ function ReadinessDetail({ r, fallback }: { r: any; fallback: number | null }) {
           <p className="mt-1 text-[12px] text-fg-2" data-testid="readiness-after">
             {afterLine(r)}
           </p>
+        )}
+        {/* feedback #223 — at 100 % there is nothing to list, so say it in words */}
+        {score != null && score >= 100 && !drop && !Object.values((r?.parts || {}) as Record<string, number>).some((v) => v > 0.05) && (
+          <p className="mt-2 text-[12px] text-fg-2" data-testid="readiness-full">Plná — nic ji dnes nesnižuje.</p>
         )}
         {(i.week?.hrv != null || i.night?.hrv != null) && (
           <div className="mt-4 flex items-center gap-3 border-t border-white/[.08] pt-3.5 text-[13px]">
