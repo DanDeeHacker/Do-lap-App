@@ -42,3 +42,13 @@ export function paceStr(s: number | null | undefined): string | null {
   const t = Math.round(s)
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`
 }
+
+// feedback #231 — the list behind the running-statistics cards: the newest activities that count
+// (not excluded), newest first, with the basics the cards already show
+const SPORT_CS: Record<string, string> = { running: "běh", cycling: "kolo", swimming: "plavání", strength: "síla", walking: "chůze" }
+export const sportCs = (sport: string | null | undefined) => SPORT_CS[sport || "running"] || "jiný sport"
+
+export function recentActivities(acts: any[], n = 7): any[] {
+  return (acts || []).filter((x) => !x.excluded && x.started_at)
+    .sort((a, b) => String(b.started_at).localeCompare(String(a.started_at))).slice(0, n)
+}
