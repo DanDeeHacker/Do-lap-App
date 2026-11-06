@@ -1,0 +1,5 @@
+{
+ "({}–{} ml/kg/min)": "({0}–{1} ml/kg/min)",
+ "Odhad VO2max asi {}": "Estimated VO2max about {0}",
+ "Odhad z vašeho nejlepšího výkonu za posledních {} dní ({} min), ne měření. Kondice je jiné číslo: průměr zátěže, ne kapacita.": "Estimated from your best effort in the last {0} days ({1} min), not a measurement. Fitness is a different number: an average of load, not capacity."
+}

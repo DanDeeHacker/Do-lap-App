@@ -38,7 +38,7 @@ import { track, useUsageTracking } from "@/usage"
 import { startUpdateWatcher } from "@/updateCheck"
 import { AnnotateProvider, AnnotateToggle, AnnotationLayer } from "@/annotate"
 import { C, badCol, goodCol } from "@/tokens"
-import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, Users, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, NotebookPen, LogOut, Moon, RefreshCw, SlidersHorizontal, Sparkles, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
+import { Activity as ActivityIcon, Bandage, ClipboardCheck, Footprints, MessageSquare, ChevronDown, Compass, Play, UserPlus, Users, ChevronLeft, ChevronRight, Database, Flag, Heart, HeartPulse, NotebookPen, LogOut, Moon, RefreshCw, SlidersHorizontal, Sparkles, Sun, Timer, TrendingUp, TriangleAlert, UserPen, X, Zap, type LucideIcon } from "lucide-react"
 import { Mark, NAV_ICON, Sidebar, StatRail, TodayNumbers, Wordmark } from "@/shell"
 import { NewsPrompt, NewsSheet } from "@/news"
 import { NewMilestone } from "@/habits"
@@ -415,7 +415,7 @@ function Metric({
 function RecoveryRanges({ rows }: { rows?: any[] }) {
   const col = (t: string) => (t === "ok" ? C.ok : t === "watch" ? C.watch : t === "alert" ? C.alert : C.fg2)
   // Plain status words; an alert above the usual level (resting HR) reads "nad normou".
-  const word = (r: any) => (r.tone === "ok" ? "v normě" : r.tone === "watch" ? "sledovat" : r.tone === "alert" ? (r.valNum > r.baseNum ? "nad normou" : "pod normou") : "—")
+  const word = (r: any) => (r.tone === "info" ? "pro orientaci" : r.tone === "ok" ? "v normě" : r.tone === "watch" ? "sledovat" : r.tone === "alert" ? (r.valNum > r.baseNum ? "nad normou" : "pod normou") : "—")
   const fmt = (n: number) => (Number.isInteger(n) ? `${n}` : `${Math.round(n * 10) / 10}`.replace(".", ","))
   if (!rows || !rows.length) return <p className="mt-4 text-sm text-fg-3">Chybí souvislá data z hodinek za posledních 35 dní.</p>
   return (
@@ -464,6 +464,8 @@ const READY_ROWS: [string, string, LucideIcon, string, string][] = [
   ["hrv", "HRV · 7 nocí", HeartPulse, "ms", "průměr 7 nocí"],
   ["rhr", "Klidový tep · 7 nocí", Timer, "", "průměr 7 nocí"],
   ["sleep", "Spánek · poslední noci", Moon, "h", "průměr posledních nocí"],
+  // feedback #227 — the awake day outside training and sleep; shown for orientation, not scored
+  ["dayRhr", "Klidový tep přes den · 7 dní", Sun, "", "průměr 7 dní, bez noci a tréninku"],
 ]
 function readinessRows(r: any) {
   const i = r?.inputs || {}
@@ -471,7 +473,7 @@ function readinessRows(r: any) {
   return READY_ROWS.flatMap(([k, label, icon, unit, note]) => {
     const rng = i.range?.[k], val = i.week?.[k] ?? i.night?.[k], base = i.base?.[k]
     if (!rng || val == null || base == null) return []
-    const tone = (eff[k] || 0) >= 10 ? "alert" : (part[k] || 0) > 0 ? "watch" : "ok"
+    const tone = k === "dayRhr" ? "info" : (eff[k] || 0) >= 10 ? "alert" : (part[k] || 0) > 0 ? "watch" : "ok"
     return [{ label, icon, unit, tone, valNum: val, baseNum: base, lo: rng[0], hi: rng[1], note,
               nights: ((i.nights || []) as any[]).map((n) => n[k]) }]
   })
@@ -546,7 +548,7 @@ function ReadinessDetail({ r, fallback }: { r: any; fallback: number | null }) {
       </div>
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5"><span className="t-label">Připravenost vs. norma</span><InfoDot label="Připravenost vs. norma" text="Velký bod = průměr, malé tečky = jednotlivé noci, zelené pásmo = vaše obvyklé rozmezí (průměr ± 1 SD nocí 8–56 dní zpět)." /></span>
+          <span className="flex items-center gap-1.5"><span className="t-label">Připravenost vs. norma</span><InfoDot label="Připravenost vs. norma" text="Velký bod = průměr, malé tečky = jednotlivé noci nebo dny, zelené pásmo = vaše obvyklé rozmezí (průměr ± 1 SD z hodnot 8–56 dní zpět)." /></span>
           <WeeklyCheckButton />
         </div>
         <RecoveryRanges rows={readinessRows(r)} />
