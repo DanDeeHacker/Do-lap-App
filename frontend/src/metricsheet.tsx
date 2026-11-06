@@ -11,6 +11,7 @@ import { useQuadHistory } from "@/history"
 import { AxisLineChart, Label, Segmented, Sheet } from "@/ui"
 import { readinessPct } from "@/capacity"
 import { C } from "@/tokens"
+import { RecentActivities } from "@/recents"
 
 export const METRIC_IDS = ["readiness", "load", "mech", "hrv", "rhr", "sleep", "week", "form", "fit", "fat"] as const
 export type MetricId = (typeof METRIC_IDS)[number]
@@ -211,6 +212,7 @@ export function MetricSheet({ id, onClose }: { id: MetricId; onClose: () => void
           </div>
         )}
         <p className="mt-3 text-[12.5px] leading-5 text-fg-2">{def.about}{id === "readiness" && " Graf ukazuje ranní hodnotu každého dne."}</p>
+        {id === "week" && <RecentActivities onClose={onClose} />}
         <Link to={def.to} onClick={onClose} className="mt-3 inline-flex items-center gap-1 text-[13px] font-bold text-accent">{`Více na stránce ${def.tab}`}<ChevronRight className="size-4" aria-hidden /></Link>
       </div>
     </Sheet>
