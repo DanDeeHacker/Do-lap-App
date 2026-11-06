@@ -1,0 +1,7 @@
+{
+ "E-mail jde změnit jen u pozvánky, kterou ještě nikdo nepřijal": "The e-mail can be changed only while nobody has accepted the invitation",
+ "Neplatný e-mail": "Invalid e-mail",
+ "Tento e-mail je vlastník z proměnné DOSSLAP_OWNER_EMAILS; přidejte mu jinou roli": "This e-mail is an owner from the DOSSLAP_OWNER_EMAILS variable; give them another role",
+ "Tento e-mail už v týmu je": "This e-mail is already on the team",
+ "Vyberte aspoň jednu platnou roli": "Choose at least one valid role"
+}

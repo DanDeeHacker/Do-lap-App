@@ -114,10 +114,9 @@ def team_owner_ids() -> set[int]:
     from .db import SessionLocal
     db = SessionLocal()
     try:
-        rows = db.query(models.TeamMember.user_id).filter(models.TeamMember.role == "owner",
-                                                          models.TeamMember.active.is_(True),
-                                                          models.TeamMember.user_id.isnot(None)).all()
-        ids = {u for (u,) in rows}
+        rows = db.query(models.TeamMember.user_id, models.TeamMember.role, models.TeamMember.extra_roles).filter(
+            models.TeamMember.active.is_(True), models.TeamMember.user_id.isnot(None)).all()
+        ids = {u for (u, role, extra) in rows if role == "owner" or "owner" in (extra or [])}
     except Exception:  # noqa: BLE001 — before the table exists (first boot) there are none
         ids = set()
     finally:

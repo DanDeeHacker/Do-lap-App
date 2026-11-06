@@ -15,6 +15,7 @@ import { Label, MiniTrend, Sheet, Switch } from "@/ui"
 import { METRIC_IDS, MetricSheet, isFitId, useFitnessTrend, useTileTrends, type MetricId } from "@/metricsheet"
 import { formWord, signed } from "@/fitness"
 import { num } from "@/outlook"
+import { RunStatSheet } from "@/recents"
 import { FLOOR_M, hm, lastActivity, paceStr, weekStats } from "@/runstats"
 import { readinessCol, readinessPct } from "@/capacity"
 import { dataStage } from "@/firstday"
@@ -224,6 +225,9 @@ function CardEditor({ cards, chosen, onChange, hint }: { cards: RailCard[]; chos
 }
 
 const isMetric = (id: string): id is MetricId => (METRIC_IDS as readonly string[]).includes(id)
+// feedback #231 — these cards open a sheet with the latest activities instead of jumping to Zátěž
+const RUN_STAT_IDS = ["ttime", "rtime", "elev", "last"]
+const isRunStat = (id: string) => RUN_STAT_IDS.includes(id)
 
 export function StatRail() {
   const { boot } = useApp()
@@ -232,6 +236,7 @@ export function StatRail() {
   const cards = useRailCards(chosen || DEFAULT_RAIL)
   const [editing, setEditing] = useState(false)
   const [open, setOpen] = useState<MetricId | null>(null)
+  const [runStat, setRunStat] = useState<string | null>(null)
   const a = boot?.assessment
   const q = a?.quadrant ? QUAD[a.quadrant] : null
   const qCol = a?.quadrant === "critical" ? C.alert : a?.quadrant === "overreaching" ? C.watch : a?.quadrant === "silent" ? C.self : C.ok
@@ -261,7 +266,7 @@ export function StatRail() {
         {list.map((c) => {
           const v = c.render()
           return (
-            <button key={c.id} type="button" onClick={() => (isMetric(c.id) ? setOpen(c.id) : nav(c.to))} data-testid={`rail-${c.id}`}
+            <button key={c.id} type="button" onClick={() => (isMetric(c.id) ? setOpen(c.id) : isRunStat(c.id) ? setRunStat(c.id) : nav(c.to))} data-testid={`rail-${c.id}`}
               className="card group/rc p-3.5 text-left transition hover:-translate-y-0.5 hover:border-info/45 hover:shadow-[0_14px_34px_rgb(0_0_0_/_0.35)]">
               <span className="flex items-center justify-between gap-2">
                 <span className="t-label">{c.label}</span>
@@ -285,6 +290,7 @@ export function StatRail() {
         {!list.length && <p className="text-[12px] text-fg-3">Žádné karty — přidejte je přes Upravit.</p>}
       </div>
       {open && <MetricSheet id={open} onClose={() => setOpen(null)} />}
+      {runStat && (() => { const c = cards.find((x) => x.id === runStat); const v = c?.render(); return c ? <RunStatSheet label={c.label} value={v?.value} unit={v?.unit} sub={v?.sub} onClose={() => setRunStat(null)} /> : null })()}
     </aside>
   )
 }
@@ -297,6 +303,7 @@ export function TodayNumbers() {
   const cards = useRailCards(chosen || [])
   const [editing, setEditing] = useState(false)
   const [open, setOpen] = useState<MetricId | null>(null)
+  const [runStat, setRunStat] = useState<string | null>(null)
   // the untouched default shows only the numbers this runner has (no "Zatím bez dat" tiles
   // for a runner without nights from a watch); a saved choice shows what was chosen
   const list = ((chosen || []).map((id) => cards.find((c) => c.id === id)).filter(Boolean) as RailCard[])
@@ -317,7 +324,7 @@ export function TodayNumbers() {
           {list.map((c) => {
             const v = c.render()
             return (
-              <button key={c.id} type="button" onClick={() => (isMetric(c.id) ? setOpen(c.id) : nav(c.to))} data-testid={`num-${c.id}`}
+              <button key={c.id} type="button" onClick={() => (isMetric(c.id) ? setOpen(c.id) : isRunStat(c.id) ? setRunStat(c.id) : nav(c.to))} data-testid={`num-${c.id}`}
                 className="card min-w-0 p-3 text-left transition active:scale-[.98] hover:border-info/45">
                 <span className="flex items-center justify-between gap-2">
                   <span className="t-label truncate">{c.label}</span>
@@ -345,6 +352,7 @@ export function TodayNumbers() {
         </div>
       </Sheet>
       {open && <MetricSheet id={open} onClose={() => setOpen(null)} />}
+      {runStat && (() => { const c = cards.find((x) => x.id === runStat); const v = c?.render(); return c ? <RunStatSheet label={c.label} value={v?.value} unit={v?.unit} sub={v?.sub} onClose={() => setRunStat(null)} /> : null })()}
     </section>
   )
 }

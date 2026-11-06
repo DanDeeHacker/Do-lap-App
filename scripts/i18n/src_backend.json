@@ -17158,6 +17158,12 @@
   ]
  },
  {
+  "t": "E-mail jde změnit jen u pozvánky, kterou ještě nikdo nepřijal",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
   "t": "Heslo nesouhlasí.",
   "files": [
    "routers/team.py"
@@ -17188,6 +17194,12 @@
   ]
  },
  {
+  "t": "Neplatný e-mail",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
   "t": "Neplatný e-mail nebo role",
   "files": [
    "routers/team.py"
@@ -17207,12 +17219,6 @@
  },
  {
   "t": "Neznámá priorita",
-  "files": [
-   "routers/team.py"
-  ]
- },
- {
-  "t": "Neznámá role",
   "files": [
    "routers/team.py"
   ]
@@ -17302,7 +17308,13 @@
   ]
  },
  {
-  "t": "Tento e-mail je vlastník z proměnné DOSSLAP_OWNER_EMAILS",
+  "t": "Tento e-mail je vlastník z proměnné DOSSLAP_OWNER_EMAILS; přidejte mu jinou roli",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Tento e-mail už v týmu je",
   "files": [
    "routers/team.py"
   ]
@@ -17315,6 +17327,12 @@
  },
  {
   "t": "Už je na GitHubu jako #{}",
+  "files": [
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Vyberte aspoň jednu platnou roli",
   "files": [
    "routers/team.py"
   ]

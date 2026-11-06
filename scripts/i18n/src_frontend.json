@@ -387,6 +387,7 @@
    "metricsheet.tsx",
    "news.tsx",
    "outlook.tsx",
+   "recents.tsx",
    "report.tsx",
    "runstats.ts",
    "training.tsx"
@@ -760,6 +761,7 @@
    "coach.tsx",
    "goal.tsx",
    "report.tsx",
+   "teamconsole.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -773,7 +775,8 @@
    "coach.tsx",
    "coachview.tsx",
    "goal.tsx",
-   "shell.tsx"
+   "shell.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "jsx"
  },
@@ -822,6 +825,7 @@
    "coach.tsx",
    "profile.tsx",
    "tabs.tsx",
+   "teamconsole.tsx",
    "training.tsx"
   ],
   "kind": "jsx"
@@ -1099,6 +1103,7 @@
    "goal.tsx",
    "outlook.tsx",
    "profile.tsx",
+   "recents.tsx",
    "report.tsx",
    "rundetail.tsx",
    "tabs.tsx",
@@ -5428,6 +5433,7 @@
    "outlook.tsx",
    "profile.tsx",
    "report.tsx",
+   "runstats.ts",
    "tabs.tsx"
   ],
   "kind": "jsx"
@@ -5842,7 +5848,8 @@
   "t": "jiný sport",
   "files": [
    "capacity.tsx",
-   "outlook.tsx"
+   "outlook.tsx",
+   "runstats.ts"
   ],
   "kind": "str"
  },
@@ -8443,7 +8450,8 @@
  {
   "t": "Poslední aktivity",
   "files": [
-   "client.tsx"
+   "client.tsx",
+   "recents.tsx"
   ],
   "kind": "jsx"
  },
@@ -8541,6 +8549,7 @@
   "files": [
    "client.tsx",
    "coachview.tsx",
+   "recents.tsx",
    "shell.tsx"
   ],
   "kind": "tpl"
@@ -13640,6 +13649,7 @@
   "t": "{} tep/min",
   "files": [
    "fitness.tsx",
+   "recents.tsx",
    "shell.tsx"
   ],
   "kind": "tpl"
@@ -19317,6 +19327,7 @@
   "t": "Zatím bez dat",
   "files": [
    "metricsheet.tsx",
+   "recents.tsx",
    "shell.tsx"
   ],
   "kind": "jsx"
@@ -19887,6 +19898,13 @@
   "kind": "str"
  },
  {
+  "t": "Klepnutím na Čas tréninku, Čas běhu, Převýšení, Poslední aktivitu nebo Kilometry týdně uvidíte seznam posledních sedmi aktivit s vzdáleností, časem, tempem a tepem. U běhu otevřete jeho detail.",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Mezi čísly na Dnes i v pravém sloupci přibyly Čerstvost, Kondice a Únava. Zapnete je přes Upravit, vybrat jich můžete až dvanáct.",
   "files": [
    "news.tsx"
@@ -19902,6 +19920,13 @@
  },
  {
   "t": "Pod kartou Dnes si vyberte a seřaďte čísla. Každé ukazuje vývoj za poslední dny, klepnutím otevřete celý graf.",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Poslední aktivity v Moje čísla",
   "files": [
    "news.tsx"
   ],
@@ -22991,6 +23016,13 @@
   "kind": "str"
  },
  {
+  "t": "Více na stránce Zátěž",
+  "files": [
+   "recents.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": ": u vás obvykle",
   "files": [
    "report.tsx"
@@ -25429,6 +25461,27 @@
   "t": "Zvětšit mapu trasy",
   "files": [
    "runprofile.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "chůze",
+  "files": [
+   "runstats.ts"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "plavání",
+  "files": [
+   "runstats.ts"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "síla",
+  "files": [
+   "runstats.ts"
   ],
   "kind": "str"
  },
@@ -29670,7 +29723,7 @@
   "kind": "str"
  },
  {
-  "t": "Člen týmu přidán — pošlete mu odkaz",
+  "t": "Člen týmu přidán — pošlete mu odkaz pod seznamem",
   "files": [
    "teamconsole.tsx"
   ],
@@ -29710,6 +29763,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "E-mail jde změnit jen u pozvánky, kterou ještě nikdo nepřijal.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Engine",
@@ -29810,6 +29870,13 @@
   "kind": "jsx"
  },
  {
+  "t": "jméno",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "jméno (nepovinné)",
   "files": [
    "teamconsole.tsx"
@@ -29846,6 +29913,13 @@
  },
  {
   "t": "Klinické schválení",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klinické schválení u tohoto PR dal tentýž člověk, který ho teď slučuje. Záznam o tom zůstane v záznamu změn.",
   "files": [
    "teamconsole.tsx"
   ],
@@ -30118,6 +30192,20 @@
   "kind": "str"
  },
  {
+  "t": "Pozvánka do týmu Došlap",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pozvánka pro {}",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "PR #{}",
   "files": [
    "teamconsole.tsx"
@@ -30316,6 +30404,13 @@
  },
  {
   "t": "Schválit plán (go)",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Sdílet",
   "files": [
    "teamconsole.tsx"
   ],
@@ -30719,6 +30814,13 @@
    "teamconsole.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Změna e-mailu vytvoří nový odkaz, starý přestane platit.",
+  "files": [
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Změna pro běžce",
