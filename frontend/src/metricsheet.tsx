@@ -10,6 +10,7 @@ import { useApp } from "@/store"
 import { useQuadHistory } from "@/history"
 import { AxisLineChart, Label, Segmented, Sheet } from "@/ui"
 import { readinessPct } from "@/capacity"
+import { Vo2Line } from "@/fitness"
 import { C } from "@/tokens"
 import { RecentActivities } from "@/recents"
 
@@ -211,6 +212,7 @@ export function MetricSheet({ id, onClose }: { id: MetricId; onClose: () => void
             {stat("nejvíc", Math.max(...vals))}
           </div>
         )}
+        {id === "fit" && <Vo2Line vo2={fit?.vo2} />}
         <p className="mt-3 text-[12.5px] leading-5 text-fg-2">{def.about}{id === "readiness" && " Graf ukazuje ranní hodnotu každého dne."}</p>
         {id === "week" && <RecentActivities onClose={onClose} />}
         <Link to={def.to} onClick={onClose} className="mt-3 inline-flex items-center gap-1 text-[13px] font-bold text-accent">{`Více na stránce ${def.tab}`}<ChevronRight className="size-4" aria-hidden /></Link>

@@ -13646,6 +13646,13 @@
   "kind": "jsx"
  },
  {
+  "t": "({}–{} ml/kg/min)",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "{} % za 4 týdny",
   "files": [
    "fitness.tsx"
@@ -13902,6 +13909,20 @@
    "fitness.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Odhad VO2max asi {}",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Odhad z vašeho nejlepšího výkonu za posledních {} dní ({} min), ne měření. Kondice je jiné číslo: průměr zátěže, ne kapacita.",
+  "files": [
+   "fitness.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "odhad z věku (208 − 0,7 × věk = {})",
