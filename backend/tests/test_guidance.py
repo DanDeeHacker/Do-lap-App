@@ -81,7 +81,9 @@ def test_physio_override_needs_pain_over_5_and_a_referral(client, db_session):
     # the same pain WITHOUT a referral → cross-training instead of running (v0.8.5), no physio override
     g2 = _guide(db_session, rid, r, quadrant="stable", tier="ok")
     assert g2["override"] is None and g2["type"] in ("kolo", "voda")
-    assert g2["types"]["regenerace"]["allowed"] and not g2["types"]["lehký"]["allowed"]
+    # review 2026-10-30 N2: the app spares the painful site today, so a regeneration run is refused too
+    # (a day pin can't put a run back)
+    assert not g2["types"]["regenerace"]["allowed"] and not g2["types"]["lehký"]["allowed"]
 
 
 def test_moderate_pain_modifies_instead_of_cancelling(client, db_session):
