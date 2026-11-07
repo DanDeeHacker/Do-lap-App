@@ -50,4 +50,5 @@ def test_the_readiness_score_does_not_depend_on_it(client, db_session):
 
 
 def test_the_engine_version_names_the_change():
-    assert E.ENGINE_VERSION == "v0.12.21"
+    # the version moves on with later engine changes (v0.12.22 added the VO2max estimate); this one must stay in the history
+    assert "v0.12.21 (" in open(E.__file__).read()
