@@ -52,3 +52,21 @@ export function recentActivities(acts: any[], n = 7): any[] {
   return (acts || []).filter((x) => !x.excluded && x.started_at)
     .sort((a, b) => String(b.started_at).localeCompare(String(a.started_at))).slice(0, n)
 }
+
+// feedback #228-#230 — the same totals per week for the trend in the number's sheet: Monday to
+// Sunday, the last `weeks` weeks (the running one last), excluded activities left out, the rules of weekStats
+export type WeekKind = "all" | "run" | "ascent"
+export function weeklyTotals(acts: any[], weeks: number, kind: WeekKind, today = iso(new Date())): { t: string; v: number }[] {
+  const wk = new Map<string, number>()
+  for (const x of acts || []) {
+    if (x.excluded || !x.started_at) continue
+    const run = !x.sport || x.sport === "running"
+    if (kind !== "all" && !run) continue
+    const m = monday(String(x.started_at))
+    wk.set(m, (wk.get(m) || 0) + (kind === "ascent" ? x.ascent_m || 0 : x.duration_min || 0))
+  }
+  const out: { t: string; v: number }[] = []
+  const d = new Date(monday(today) + "T12:00:00")
+  for (let k = weeks - 1; k >= 0; k--) { const m = new Date(d); m.setDate(d.getDate() - 7 * k); const t = iso(m); out.push({ t, v: Math.round(wk.get(t) || 0) }) }
+  return out
+}
