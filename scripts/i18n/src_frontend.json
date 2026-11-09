@@ -19211,9 +19211,46 @@
   "kind": "str"
  },
  {
+  "t": "12 týdnů",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "4 týdny",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "7 dní",
   "files": [
    "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "8 týdnů",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Čas běhu týdne",
+  "files": [
+   "metricsheet.tsx",
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Čas tréninku týdne",
+  "files": [
+   "metricsheet.tsx",
+   "shell.tsx"
   ],
   "kind": "str"
  },
@@ -19267,6 +19304,14 @@
   "kind": "str"
  },
  {
+  "t": "Převýšení týdne",
+  "files": [
+   "metricsheet.tsx",
+   "shell.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "průměr",
   "files": [
    "metricsheet.tsx"
@@ -19288,6 +19333,13 @@
   "kind": "str"
  },
  {
+  "t": "Průměr předchozích týdnů {}{}. Tento týden ještě neskončil, do průměru se nepočítá.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Ranní připravenost po noci: HRV, klidový tep a spánek proti vaší normě.",
   "files": [
    "metricsheet.tsx"
@@ -19302,7 +19354,28 @@
   "kind": "str"
  },
  {
+  "t": "Součet času běhu v každém týdnu (pondělí až neděle), bez ručně vyřazených.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Součet času všech aktivit v každém týdnu (pondělí až neděle), bez ručně vyřazených.",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Součet naběhaných kilometrů v každém týdnu (pondělí až neděle).",
+  "files": [
+   "metricsheet.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Součet převýšení nahoru z běhů v každém týdnu (pondělí až neděle), bez ručně vyřazených.",
   "files": [
    "metricsheet.tsx"
   ],
@@ -19911,6 +19984,13 @@
   "kind": "str"
  },
  {
+  "t": "Čas tréninku, Čas běhu, Převýšení a Kilometry týdně ukazují po klepnutí sloupce za 4, 8 nebo 12 týdnů a průměr předchozích týdnů. Rozpracovaný týden se do průměru nepočítá.",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Detail běhu",
   "files": [
    "news.tsx",
@@ -19962,6 +20042,13 @@
  },
  {
   "t": "Trasa (vidíte ji jen vy), mezičasy a průběh tempa a tepu. Otevřete ho z Deníku i ze seznamů běhů na Mechanice a Zátěži, kde běh poznáte podle tvaru trasy.",
+  "files": [
+   "news.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Trend po týdnech v Moje čísla",
   "files": [
    "news.tsx"
   ],
@@ -26464,20 +26551,6 @@
   "kind": "tpl"
  },
  {
-  "t": "Čas běhu týdne",
-  "files": [
-   "shell.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Čas tréninku týdne",
-  "files": [
-   "shell.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Další závod",
   "files": [
    "shell.tsx"
@@ -26581,13 +26654,6 @@
    "shell.tsx"
   ],
   "kind": "tpl"
- },
- {
-  "t": "Převýšení týdne",
-  "files": [
-   "shell.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "tento týden, jen běh",

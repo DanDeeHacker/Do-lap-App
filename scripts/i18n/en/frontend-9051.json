@@ -1,0 +1,11 @@
+{
+ "4 týdny": "4 weeks",
+ "8 týdnů": "8 weeks",
+ "12 týdnů": "12 weeks",
+ "Průměr předchozích týdnů {}{}. Tento týden ještě neskončil, do průměru se nepočítá.": "Average of the previous weeks {0}{1}. This week is not over yet, so it is left out of the average.",
+ "Součet času všech aktivit v každém týdnu (pondělí až neděle), bez ručně vyřazených.": "Total time of all activities in each week (Monday to Sunday), without those you excluded by hand.",
+ "Součet času běhu v každém týdnu (pondělí až neděle), bez ručně vyřazených.": "Total running time in each week (Monday to Sunday), without those you excluded by hand.",
+ "Součet převýšení nahoru z běhů v každém týdnu (pondělí až neděle), bez ručně vyřazených.": "Total climb from runs in each week (Monday to Sunday), without those you excluded by hand.",
+ "Trend po týdnech v Moje čísla": "Weekly trend in My numbers",
+ "Čas tréninku, Čas běhu, Převýšení a Kilometry týdně ukazují po klepnutí sloupce za 4, 8 nebo 12 týdnů a průměr předchozích týdnů. Rozpracovaný týden se do průměru nepočítá.": "Tap Training time, Run time, Elevation or Kilometres per week to see bars for 4, 8 or 12 weeks and the average of the previous weeks. The week in progress is left out of the average."
+}
