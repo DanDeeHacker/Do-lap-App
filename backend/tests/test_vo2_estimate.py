@@ -55,4 +55,10 @@ def test_the_trend_carries_it_and_nothing_else_changes(client, db_session):
 
 
 def test_the_engine_version_names_the_change():
-    assert E.ENGINE_VERSION == "v0.12.22"
+    # the change is in the version history; a later bump must not break this test (2026-11-09: two
+    # parallel PRs each pinned their own version and main could never pass both)
+    import inspect
+    from app.metrics import engine as engine_mod
+    line = next(x for x in inspect.getsource(engine_mod).splitlines() if x.startswith("ENGINE_VERSION"))
+    assert tuple(int(n) for n in E.ENGINE_VERSION[1:].split(".")) >= (0, 12, 22)
+    assert "v0.12.22 (" in line and "VO2max" in line.split("v0.12.22 (", 1)[1].split("; v0.", 1)[0]
