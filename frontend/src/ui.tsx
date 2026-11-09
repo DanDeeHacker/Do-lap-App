@@ -736,7 +736,8 @@ export function ToastHost({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="fixed bottom-5 left-1/2 z-[60] flex w-[min(92vw,26rem)] -translate-x-1/2 flex-col gap-2" role="status" aria-live="polite">
+      {/* physio brief 2026-11-09 P0.11: toasts sit above sheets and dialogs (z-80…260), not under the overlay */}
+      <div className="fixed bottom-5 left-1/2 z-[300] flex w-[min(92vw,26rem)] -translate-x-1/2 flex-col gap-2" role="status" aria-live="polite">
         {items.map((t) => (
           <div key={t.id} className="animate-[careReveal_.28s_ease-out] rounded-2xl border border-white/14 bg-raised px-4 py-3 text-fg shadow-[0_16px_44px_rgba(0,0,0,.55)]">
             <b className="text-sm">{t.title}</b>

@@ -5,6 +5,7 @@ README) so the app is testable immediately without registering fresh.
 """
 import math
 from datetime import datetime, timedelta, timezone
+from datetime import time as dtime
 
 from sqlalchemy.orm import Session as DBSession
 
@@ -301,6 +302,8 @@ def ensure_demo_accounts(db: DBSession) -> None:
                 city=s["city"], goal_race=s["race"],
                 goal_date=E.iso_date(E.today_date() + timedelta(days=s["gd"])),
                 prior_injury=s["pi"], prior_injury_months_ago=s["pim"], device="Garmin Forerunner 265",
+                # physio brief 2026-11-09 P0.12: running since well before the first seeded run
+                running_since=E.iso_date(E.today_date() - timedelta(days=365 * (4 + idx % 5))),
             )
             db.add(r)
             db.flush()
@@ -419,6 +422,8 @@ def build_and_seed(db: DBSession) -> None:
             employer_id=employers[s["emp"]].id if s["emp"] is not None else None,
             partner_id=partners[s["par"]].id if s["par"] is not None else None,
             prior_injury=s["pi"], prior_injury_months_ago=s["pim"], device=devices[i % 3],
+            # physio brief 2026-11-09 P0.12: running since well before the first seeded run
+            running_since=E.iso_date(E.today_date() - timedelta(days=365 * (4 + i % 5))),
             physio_interest=(i in consented),
             physio_interest_at=(E.now_iso() if i in consented else None),
         )
@@ -573,16 +578,19 @@ def build_and_seed(db: DBSession) -> None:
         slot_at=(datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
         kind="gait_analysis", status="confirmed", price_czk=1490, payer="employer", created_at=E.day_ago(9),
     ))
-    for sender, body, d in [
-        ("system", "Triáž zachytila drift vertikálního poměru dřív, než se objevila bolest.", 9),
-        ("physio", "Dobrý den Adélo, vertikální poměr vám za tři týdny vyskočil o 0,8 na srovnatelných "
-                   "trasách. Vysadíme intervaly na 10 dní. Zvládnete video ze strany?", 9),
-        ("runner", "Video pošlu zítra. Můžu zatím plavat?", 8),
-        ("physio", "Plavání a kolo ano, bez odrazu z přední nohy. Bolest při běhu držte pod 3/10.", 8),
-        ("runner", "Po výponech to včera bolelo 4/10, tak jsem jeden den vynechala.", 4),
-        ("physio", "Dobře, snížil jsem frekvenci na 5× týdně. Uvidíme se ve čtvrtek.", 4),
+    # physio brief 2026-11-09 P0.12: the physio is Tereza (feminine forms), messages have real times,
+    # and the chat does not act on vertical-ratio drift, which the thesis calls unproven
+    for sender, body, d, hm in [
+        ("physio", "Dobrý den Adélo, v check-inech hlásíte bolest Achillovy šlachy a za poslední tři týdny "
+                   "jste přidala objem. Vysadíme intervaly na 10 dní. Zvládnete video ze strany?", 9, (8, 40)),
+        ("runner", "Video pošlu zítra. Můžu zatím plavat?", 8, (19, 12)),
+        ("physio", "Plavání a kolo ano, bez odrazu z přední nohy. Bolest při běhu držte pod 3/10.", 8, (20, 5)),
+        ("runner", "Po výponech to včera bolelo 4/10, tak jsem jeden den vynechala.", 4, (7, 55)),
+        ("physio", "Dobře, snížila jsem frekvenci na 5× týdně. Uvidíme se ve čtvrtek.", 4, (12, 30)),
     ]:
-        db.add(models.Message(runner_id=a0.id, physio_id=p0.id, sender=sender, body=body, created_at=E.day_ago(d)))
+        at = datetime.combine(E.today_date() - timedelta(days=d), dtime(*hm), E.LOCAL_TZ).isoformat()
+        db.add(models.Message(runner_id=a0.id, physio_id=p0.id, sender=sender, body=body, created_at=at,
+                              read_at_physio=at, read_at_runner=at))
     db.commit()
 
     # ---------------------------------------------------------- demo logins

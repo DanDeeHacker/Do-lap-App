@@ -2350,7 +2350,9 @@ export function Program() {
                 <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-accent/15 text-accent"><Dumbbell className="size-4" aria-hidden /></span>
                 <div className="min-w-0 flex-1">
                   <b className="text-sm font-bold">{e.name}</b>
-                  <span className="block text-[12px] text-fg-3">{e.dose} · {e.per_week}× týdně — {e.cue}</span>
+                  <span className="block text-[12px] text-fg-3">{e.dose} · {e.per_week}× týdně{e.cue ? <>{" — "}{e.cue}</> : null}</span>
+                  {/* physio brief 2026-11-09 P0.8: the target is per_week × weeks, in Czech plurals */}
+                  {p.weeks ? <span className="block text-[11.5px] text-fg-3">{`Cíl: ${e.target_count}× za ${p.weeks} ${plural(p.weeks, "týden", "týdny", "týdnů")}`}</span> : null}
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-accent" style={{ width: `${Math.round(((e.done_count || 0) / (e.target_count || 12)) * 100)}%` }} /></div>
                 </div>
                 <span className="tabular-nums text-[12px] text-fg-2">{e.done_count}/{e.target_count}</span>
@@ -2360,7 +2362,7 @@ export function Program() {
           </div>
         </Card>
         <div className="grid gap-4">
-          <Card><Label>Jak to funguje</Label><p className="mt-2 text-sm text-fg-2">Cíl je 12 opakování každého cviku za 4 týdny. Když cvik provokuje bolest nad 3/10, je to informace pro fyzioterapeuta, ne důvod ho zatnout zuby dodělat.</p></Card>
+          <Card><Label>Jak to funguje</Label><p className="mt-2 text-sm text-fg-2">Cíl máte u každého cviku. Když cvik provokuje bolest nad 3/10, je to informace pro fyzioterapeuta, ne důvod ho zatnout zuby dodělat.</p></Card>
           {(p.revisions || []).length > 0 && (
             <Card><Label>Změny v programu</Label><div className="mt-2 space-y-3">{p.revisions.slice().reverse().map((rv: any) => (
               <div key={rv.id}><b className="text-sm">{fmtD(rv.at)}</b><p className="text-[12px] text-fg-3">{rv.note}</p>{(rv.changes || []).map((c: string, i: number) => <div key={i} className="mt-1"><Chip>{c}</Chip></div>)}</div>

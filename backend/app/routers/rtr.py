@@ -9,10 +9,12 @@ completed at or below `pain_threshold`, and levels must be cleared in order.
 A session above the threshold is a logged setback that never advances the
 ladder (and pings the physio).
 """
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
 
-from .. import models, schemas
+from .. import care_view as CV, models, schemas
 from ..db import get_db
 from ..deps import (
     ensure_runner_read_access, ensure_runner_self, get_current_user,
@@ -99,7 +101,8 @@ def create_plan(body: schemas.CreateRtrRequest, user: models.User = Depends(requ
     db.flush()
     db.add(models.Message(
         runner_id=body.runner_id, physio_id=user.physio_id, sender="physio",
-        body="Připravil jsem vám plán návratu k běhu — najdete ho v aplikaci. Po každém sezení zaznamenejte, jak vás to bolelo.",
+        body="Máte připravený plán návratu k běhu. Najdete ho v záložce Péče → Zranění. Po každém sezení zapište, "
+             "jak vás to bolelo." + (f" Poznámka: {body.note}" if body.note else ""),
         created_at=E.now_iso(),
     ))
     db.commit()
@@ -121,18 +124,36 @@ def log_session(pid: int, body: schemas.LogRtrSessionRequest,
     ensure_runner_self(user, plan.runner_id)
     if plan.status == "completed":
         raise HTTPException(status_code=409, detail="Plán je už dokončený.")
-    pain = max(0, min(10, body.pain or 0))
-    counted = bool(body.completed) and pain <= plan.pain_threshold
+    if plan.status == "paused":
+        raise HTTPException(status_code=409, detail="Plán je pozastavený. Počkejte na pokyn fyzioterapeuta.")
+    if body.pain is None or not 0 <= body.pain <= 10:
+        raise HTTPException(status_code=422, detail="Zapište bolest během sezení (0–10).")
+    pain = body.pain
+    # physio brief 2026-11-09 P0.7: pain over the limit pauses the plan (the UI promised it); a session
+    # sooner than MIN_HOURS_BETWEEN_SESSIONS after the last one is kept but never advances the ladder
+    nxt = CV.next_session_at(db, plan)
+    now = datetime.fromisoformat(E.now_iso())
+    if nxt is not None and nxt.tzinfo is None:
+        nxt = nxt.replace(tzinfo=now.tzinfo)
+    reason = None
+    if pain > plan.pain_threshold:
+        reason = "pain_over_limit"
+    elif not body.completed:
+        reason = "not_completed"
+    elif nxt is not None and now < nxt:
+        reason = "too_soon"
     s = models.RtrSession(
         plan_id=plan.id, runner_id=plan.runner_id, level=plan.current_level, logged_at=E.now_iso(),
-        pain=pain, rpe=body.rpe, completed=bool(body.completed), counted=counted, note=body.note,
+        pain=pain, rpe=body.rpe, completed=bool(body.completed), counted=reason is None, count_reason=reason,
+        note=body.note,
     )
     db.add(s)
-    # a setback (pain well over threshold) is worth surfacing to the physio
-    if pain >= plan.pain_threshold + 2:
+    if reason == "pain_over_limit":
+        plan.status, plan.paused_reason = "paused", "pain_over_limit"
         db.add(models.Message(
-            runner_id=plan.runner_id, physio_id=plan.physio_id, sender="system",
-            body=f"Návrat k běhu: pacient hlásí bolest {pain}/10 na úrovni {plan.current_level} — plán zůstává na místě.",
+            runner_id=plan.runner_id, physio_id=plan.physio_id, sender="system", audience="physio",
+            body=f"Návrat k běhu: klient hlásí bolest {pain}/10 na úrovni {plan.current_level} (hranice "
+                 f"{plan.pain_threshold}/10). Plán je pozastavený, dokud ho neobnovíte.",
             created_at=E.now_iso(),
         ))
     db.flush()
@@ -151,6 +172,7 @@ def update_plan(pid: int, user: models.User = Depends(require_role("physio")), d
         raise HTTPException(status_code=403, detail="Nemáte přístup k tomuto plánu")
     if status in ("active", "paused"):
         plan.status = status
+        plan.paused_reason = "physio" if status == "paused" else None
     db.commit()
     db.refresh(plan)
     return _plan_dict(db, plan)

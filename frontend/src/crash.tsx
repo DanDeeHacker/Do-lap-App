@@ -92,3 +92,17 @@ export function RouteError() {
     </div>
   )
 }
+
+// physio brief 2026-11-09 P0.10: an unknown address shows a Czech page, not the router's developer screen
+export function NotFound() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-bg px-5 text-fg" data-testid="not-found">
+      <div className="card w-full max-w-md p-8 text-center">
+        <p className="t-label">404</p>
+        <h1 className="mt-2 font-serif text-3xl">Tahle stránka neexistuje</h1>
+        <p className="mt-3 text-sm leading-6 text-fg-2">Odkaz je možná starý nebo neúplný.</p>
+        <a href="/" className="btn btn-primary mt-6">Na úvod</a>
+      </div>
+    </div>
+  )
+}

@@ -3,7 +3,7 @@
 // before (booking.due_reminders); after the visit the physio writes the conclusion here.
 import { useState } from "react"
 import { useNavigate } from "react-router"
-import { CalendarPlus, Check, FileText, Trash2, X } from "lucide-react"
+import { CalendarPlus, Check, FileText, MoreHorizontal, Trash2, X } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, useToast } from "@/ui"
 import { fmtDT } from "@/lib"
@@ -28,11 +28,21 @@ export function CalendarPage({ pid }: { pid: string }) {
     finally { setBusy(null) }
   }
   if (!d) return <Loading err={err} />
-  const now = new Date().toISOString()
+  const nowMs = Date.now()
+  const t = (b: any) => new Date(b.slot_at).getTime()
   const remind = new Set((d.reminders || []).map((r: any) => r.booking_id ?? r.id))
   const confirmed = (d.bookings || []).filter((b: any) => b.status === "confirmed")
-  const upcoming = confirmed.filter((b: any) => (b.slot_at || "") >= now.slice(0, 10))
-  const past = confirmed.filter((b: any) => (b.slot_at || "") < now.slice(0, 10)).reverse().slice(0, 12)
+  // physio brief 2026-11-09 P0.6: a visit is past once it started; completed and no-show stay listed
+  const upcoming = confirmed.filter((b: any) => t(b) > nowMs)
+  const past = (d.bookings || []).filter((b: any) => ["confirmed", "completed", "no_show"].includes(b.status) && t(b) <= nowMs)
+    .sort((a: any, b: any) => t(b) - t(a)).slice(0, 12)
+  const openSlots = (d.slots || []).filter((s: any) => s.status === "open")
+  // P0.6.10: a request that clashes with a confirmed visit says so
+  const clash = (r: any) => {
+    const a0 = t(r), a1 = a0 + (r.duration_min || 45) * 60000
+    const x = confirmed.find((b: any) => b.id !== r.id && t(b) < a1 && a0 < t(b) + (b.duration_min || 45) * 60000)
+    return x ? `Koliduje s návštěvou ${x.runner?.name || "klienta"} v ${new Date(x.slot_at).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}` : null
+  }
   const byDay: Record<string, any[]> = {}
   for (const b of upcoming) (byDay[dayKey(b.slot_at)] ||= []).push(b)
   const addSlot = () => {
@@ -55,6 +65,7 @@ export function CalendarPage({ pid }: { pid: string }) {
                     <span className="min-w-0 flex-1">
                       <b className="text-fg">{b.runner?.name}</b>
                       <span className="block text-[12px] text-fg-3">{fmtDT(b.slot_at)}{" · "}{KIND[b.kind] || b.kind}</span>
+                      {clash(b) && <span className="block text-[12px] font-bold text-alert" data-testid="request-clash">{clash(b)}</span>}
                     </span>
                     <Button size="sm" icon={Check} busy={busy === `c${b.id}`} onClick={() => act(`c${b.id}`, () => api.bookingConfirm(b.id), "Termín potvrzen — klient dostal zprávu")}>Potvrdit</Button>
                     <Button size="sm" variant="outline" icon={X} busy={busy === `d${b.id}`} onClick={() => act(`d${b.id}`, () => api.bookingDecline(b.id), "Termín odmítnut")}>Odmítnout</Button>
@@ -72,7 +83,7 @@ export function CalendarPage({ pid }: { pid: string }) {
                     <h3 className="text-[12px] font-extrabold uppercase tracking-[.06em] text-fg-3">{dayLabel(day)}</h3>
                     <ul className="mt-1.5 grid gap-2">
                       {bs.map((b: any) => <Visit key={b.id} b={b} reminder={remind.has(b.id)} onOpen={() => nav(`/physio/client/${b.runner_id}`)}
-                        onConclusion={() => setConcl(b)} onSaved={reload} />)}
+                        onConclusion={() => setConcl(b)} onSaved={reload} openSlots={openSlots} />)}
                     </ul>
                   </section>
                 ))}
@@ -87,9 +98,12 @@ export function CalendarPage({ pid }: { pid: string }) {
                   <li key={b.id} className="flex flex-wrap items-center gap-2 py-2.5">
                     <span className="min-w-0 flex-1"><b className="text-fg">{b.runner?.name}</b>
                       <span className="block text-[12px] text-fg-3">{fmtDT(b.slot_at)}{" · "}{KIND[b.kind] || b.kind}</span></span>
-                    {b.conclusion?.status === "approved" ? <Chip tone="ok">závěr sdílen</Chip>
-                      : b.conclusion ? <Chip tone="watch">rozepsaný závěr</Chip> : <Chip tone="alert">bez závěru</Chip>}
-                    <Button size="sm" variant="outline" icon={FileText} onClick={() => setConcl(b)}>Závěr</Button>
+                    {b.status === "no_show" ? <Chip>nedostavil(a) se</Chip> : <RecordChip c={b.conclusion} />}
+                    {b.status === "confirmed" && <>
+                      <Button size="sm" variant="outline" busy={busy === `p${b.id}`} onClick={() => act(`p${b.id}`, () => api.bookingComplete(b.id), "Návštěva označena jako proběhlá")}>Proběhla</Button>
+                      <Button size="sm" variant="outline" busy={busy === `n${b.id}`} onClick={() => act(`n${b.id}`, () => api.bookingNoShow(b.id), "Zaznamenáno: nedostavil(a) se")}>Nedostavil(a) se</Button>
+                    </>}
+                    {b.status !== "no_show" && <Button size="sm" variant="outline" icon={FileText} onClick={() => setConcl(b)}>Záznam</Button>}
                   </li>
                 ))}
               </ul>
@@ -101,7 +115,7 @@ export function CalendarPage({ pid }: { pid: string }) {
             <h2 className="font-serif text-xl">Volné termíny</h2>
             <p className="mt-1 text-[12px] text-fg-2">Běžci si z nich vybírají v záložce Péče; termín platí až po vašem potvrzení.</p>
             <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Den"
+              <input type="date" value={date} min={new Date().toLocaleDateString("sv-SE")} onChange={(e) => setDate(e.target.value)} aria-label="Den"
                 className="rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]" />
               <input type="time" value={time} step={900} onChange={(e) => setTime(e.target.value)} aria-label="Čas"
                 className="rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]" />
@@ -131,8 +145,22 @@ export function CalendarPage({ pid }: { pid: string }) {
   )
 }
 
-function Visit({ b, reminder, onOpen, onConclusion, onSaved }: { b: any; reminder: boolean; onOpen: () => void; onConclusion: () => void; onSaved: () => void }) {
+// physio brief 2026-11-09 P0.5: an empty draft (left by merely opening the sheet before the fix)
+// is not "rozepsaný"; an approved record says whether the summary went to the client.
+function RecordChip({ c }: { c: any }) {
+  if (c?.status === "approved") return c.shared_at ? <Chip tone="ok">shrnutí odesláno</Chip> : <Chip tone="watch">schváleno · shrnutí neodesláno</Chip>
+  if (c && [c.summary, c.finding, c.transcript].some((t: any) => (t || "").trim())) return <Chip tone="watch">rozepsaný záznam</Chip>
+  return <Chip tone="alert">bez záznamu</Chip>
+}
+
+function Visit({ b, reminder, onOpen, onConclusion, onSaved, openSlots }: { b: any; reminder: boolean; onOpen: () => void; onConclusion: () => void; onSaved: () => void; openSlots: any[] }) {
   const toast = useToast()
+  const [menu, setMenu] = useState<"" | "move" | "cancel">("")
+  const [to, setTo] = useState<string>("")
+  const [why, setWhy] = useState("")
+  const run = async (fn: () => Promise<any>, msg: string) => {
+    try { await fn(); toast({ title: msg }); setMenu(""); onSaved() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+  }
   const [prep, setPrep] = useState<string>(b.prep_info || "")
   const [edit, setEdit] = useState(false)
   const save = async () => {
@@ -149,8 +177,36 @@ function Visit({ b, reminder, onOpen, onConclusion, onSaved }: { b: any; reminde
         {reminder && <Chip tone="watch">do 24 h · klient vidí připomínku</Chip>}
         {a.overall != null && <span className="text-fg-3">{`· skóre ${Math.round(shownScore(a.overall)!)}`}</span>}
         <span className="flex-1" />
-        <Button size="sm" variant="outline" icon={FileText} onClick={onConclusion}>Závěr</Button>
+        {new Date(b.slot_at).getTime() <= Date.now() &&
+          <Button size="sm" variant="outline" icon={FileText} onClick={onConclusion}>Záznam</Button>}
+        <details className="relative" data-testid="visit-menu">
+          <summary aria-label="Další akce" className="cursor-pointer list-none rounded-lg px-2 py-1 text-fg-2 hover:bg-white/[.06]"><MoreHorizontal className="size-4" aria-hidden /></summary>
+          <div className="absolute right-0 z-20 mt-1 grid w-40 rounded-xl border border-white/10 bg-panel p-1 text-[13px] shadow-lg">
+            <button type="button" className="rounded-lg px-3 py-2 text-left hover:bg-white/[.06]" onClick={() => setMenu("move")}>Přesunout</button>
+            <button type="button" className="rounded-lg px-3 py-2 text-left text-alert hover:bg-white/[.06]" onClick={() => setMenu("cancel")}>Zrušit</button>
+          </div>
+        </details>
       </div>
+      {menu === "move" && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          <select value={to} onChange={(e) => setTo(e.target.value)} aria-label="Nový termín" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]">
+            <option value="">{openSlots.length ? "— vyberte volný termín —" : "Žádný volný termín — nejdřív ho přidejte"}</option>
+            {openSlots.map((s: any) => <option key={s.id} value={s.id}>{fmtDT(s.slot_at)}</option>)}
+          </select>
+          <Button size="sm" disabled={!to} onClick={() => run(() => api.bookingReschedule(b.id, { slot_id: Number(to) }), "Návštěva přesunuta — klient dostal zprávu")}>Přesunout</Button>
+          <Button size="sm" variant="outline" onClick={() => setMenu("")}>Zpět</Button>
+        </div>
+      )}
+      {menu === "cancel" && (
+        <div className="mt-2 grid gap-2">
+          <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Důvod zrušení (klient ho uvidí)" aria-label="Důvod zrušení"
+            className="rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]" />
+          <div className="flex gap-2">
+            <Button size="sm" variant="danger" disabled={!why.trim()} onClick={() => run(() => api.bookingCancelPhysio(b.id, why), "Návštěva zrušena — klient dostal zprávu")}>Zrušit návštěvu</Button>
+            <Button size="sm" variant="outline" onClick={() => setMenu("")}>Zpět</Button>
+          </div>
+        </div>
+      )}
       {edit ? (
         <div className="mt-2 grid gap-2">
           <textarea value={prep} onChange={(e) => setPrep(e.target.value)} rows={2} aria-label="Pokyny k přípravě"

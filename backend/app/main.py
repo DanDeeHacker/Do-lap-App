@@ -41,6 +41,27 @@ DIST_DIR = os.path.join(FRONTEND_DIR, "frontend", "dist")
 HAS_SPA = os.path.isfile(os.path.join(DIST_DIR, "index.html"))
 
 
+def _booking_guard(engine):
+    """physio brief 2026-11-09 P0.6: the database refuses a second requested/confirmed visit at the same
+    start for one physio. Existing duplicates are reported, never cancelled silently — the index then
+    waits until someone resolves them."""
+    from sqlalchemy import inspect, text
+    if not inspect(engine).has_table("bookings"):
+        return
+    with engine.begin() as conn:
+        dups = conn.execute(text(
+            "SELECT physio_id, slot_at, COUNT(*) FROM bookings WHERE status IN ('requested','confirmed') "
+            "GROUP BY physio_id, slot_at HAVING COUNT(*) > 1")).fetchall()
+        if dups:
+            for pid, at, n in dups:
+                logging.getLogger("dosslap.db").warning(
+                    "bookings: %s active visits of %s at %s — resolve them; the unique index waits", n, pid, at)
+            return
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_bookings_active_start ON bookings(physio_id, slot_at) "
+            "WHERE status IN ('requested','confirmed')"))
+
+
 def _migrate(engine):
     """Additive column back-fills for columns added after a table already exists —
     create_all() never ALTERs. `ALTER TABLE ... ADD COLUMN` is standard SQL, so
@@ -167,12 +188,33 @@ def _migrate(engine):
     # with its e-mail only when that account is older than the invitation (it can't be a squatter
     # who registered the invited address); the rest need a new invitation link.
     add("work_items", "clinical_sha", "clinical_sha VARCHAR")
+    add("conclusions", "ai_draft", "ai_draft BOOLEAN")
+    add("conclusions", "outcome_kind", "outcome_kind VARCHAR")
+    add("conclusions", "shared_at", "shared_at VARCHAR",
+        "UPDATE conclusions SET shared_at = approved_at WHERE status = 'approved' AND shared_at IS NULL")
     add("team_members", "extra_roles", "extra_roles JSON")
     add("team_members", "invite_hash", "invite_hash VARCHAR")
     add("team_members", "invite_expires_at", "invite_expires_at VARCHAR")
     add("team_members", "user_id", "user_id INTEGER",
         "UPDATE team_members SET user_id = (SELECT users.id FROM users WHERE lower(users.email) = team_members.email "
         "AND users.created_at IS NOT NULL AND users.created_at <= team_members.created_at)")
+    # physio brief 2026-11-09 P0.6: a visit knows its length, and one physio has one active visit per start
+    add("bookings", "duration_min", "duration_min INTEGER",
+        "UPDATE bookings SET duration_min = COALESCE((SELECT physio_slots.duration_min FROM physio_slots "
+        "WHERE physio_slots.id = bookings.slot_id), 45) WHERE duration_min IS NULL")
+    add("bookings", "cancel_reason", "cancel_reason VARCHAR")
+    _booking_guard(engine)
+    add("rtr_sessions", "count_reason", "count_reason VARCHAR")      # physio brief P0.7
+    add("return_to_run", "paused_reason", "paused_reason VARCHAR")
+    # physio brief P0.10: message audience; the old system notes meant for the physio stay with the physio
+    add("messages", "audience", "audience VARCHAR",
+        "UPDATE messages SET audience = CASE WHEN sender = 'system' AND (body LIKE 'Pacient %' OR body LIKE 'Návrat k běhu:%' "
+        "OR body LIKE 'Triáž%') THEN 'physio' ELSE 'both' END WHERE audience IS NULL")
+    # physio brief P0.8: exercise order and library origin
+    add("exercises", "position", "position INTEGER", "UPDATE exercises SET position = id WHERE position IS NULL")
+    add("exercises", "library_id", "library_id VARCHAR")
+    add("messages", "read_at_physio", "read_at_physio VARCHAR")
+    add("messages", "read_at_runner", "read_at_runner VARCHAR")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.
@@ -425,7 +467,10 @@ async def lifespan(app: FastAPI):
                 pass
 
 
-app = FastAPI(title="Došlap API", lifespan=lifespan)
+# physio brief 2026-11-09 P0.10: the API description is for development, not for anyone on production
+_PROD = os.environ.get("RAILWAY_ENVIRONMENT_NAME") == "production"
+app = FastAPI(title="Došlap API", lifespan=lifespan, docs_url=None if _PROD else "/docs",
+              redoc_url=None if _PROD else "/redoc", openapi_url=None if _PROD else "/openapi.json")
 # Compress responses for clients that accept it (every mobile browser) — the
 # JS bundle drops ~445 KB → ~140 KB on the wire, a big win on phone networks.
 # Applies to API JSON and the served SPA assets alike.

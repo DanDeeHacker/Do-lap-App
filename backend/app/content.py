@@ -31,7 +31,7 @@ _RAW = [
      ["Achillova tendinopatie — akutní fáze"], ["Achillova šlacha", "m. soleus"], "rehab"),
     ("ach-soleus-bent", "Soleus výpon s pokrčeným kolenem", "achilles", "3 × 12", 4,
      "Koleno v 30°, cílí hluboký lýtkový sval.",
-     ["Achillova tendinopatie", "insercní bolest paty"], ["m. soleus"], "rehab"),
+     ["Achillova tendinopatie", "inserční bolest paty"], ["m. soleus"], "rehab"),
     ("ach-straight-heel-raise", "Výpony na rovné noze", "achilles", "4 × 15", 3,
      "Plný rozsah, nahoře krátká výdrž.",
      ["prevence Achillovy tendinopatie"], ["m. gastrocnemius", "Achillova šlacha"], "strength"),

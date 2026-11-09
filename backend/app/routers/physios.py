@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session as DBSession
 from .. import models
 from ..db import get_db
 from ..deps import require_role, require_verified_physio
-from ..metrics import engine as E
+from .. import care_view as CV
+from ..metrics import ai_brief, engine as E
 from ..serializers import to_dict, to_dicts
 
 router = APIRouter(prefix="/api/physios", tags=["physios"])
@@ -47,7 +48,9 @@ def bootstrap(pid: str, user: models.User = Depends(require_verified_physio), db
     programs_out = []
     for p in programs:
         item = _with_runner_and_assessment(p, p.runner_id)
-        item["exercises"] = to_dicts(db.query(models.Exercise).filter(models.Exercise.program_id == p.id).all())
+        from .programs import exercises_of, ends_on
+        item["exercises"] = to_dicts(exercises_of(db, p.id))
+        item["ends_on"] = ends_on(p)
         item["revision_count"] = db.query(models.ProgramRevision).filter(models.ProgramRevision.program_id == p.id).count()
         programs_out.append(item)
     programmed_runner_ids = {p.runner_id for p in programs}
@@ -117,7 +120,9 @@ def _profile_out(db: DBSession, p: models.Physio, user: models.User) -> dict:
             "specialties": p.specialties or [], "price_czk": p.price_czk, "rating": p.rating,
             "clinic": {"id": clinic.id, "name": clinic.name, "city": clinic.city} if clinic else None,
             "email": user.email, "complete": bool(p.credential and clinic and clinic.city),
-            "verified": bool(p.verified_at)}
+            "verified": bool(p.verified_at),
+            # physio brief 2026-11-09 P0.1: what the app may offer, from configuration, no network call
+            "capabilities": ai_brief.capabilities()}
 
 
 @router.get("/me")
@@ -172,9 +177,26 @@ def _a_summary(a: dict | None) -> dict:
     ps = a.get("painState") or {}
     rd = a.get("readiness") or {}
     return {"overall": a.get("overall"), "quadrant": a.get("quadrant"), "tier": a.get("tier"),
-            "readiness": rd.get("score") if isinstance(rd, dict) else None,
+            # physio brief P0.3: an unknown readiness is "—", never 100
+            "readiness": rd.get("score") if isinstance(rd, dict) and rd.get("known") else None,
             "signal": ({"name": sig[0].get("name"), "grade": sig[0].get("grade"), "val": sig[0].get("val")} if sig else None),
-            "todayPain": ps.get("todayPain"), "lastPainDay": ps.get("lastPainDay")}
+            "todayPain": ps.get("todayPain"), "lastPainDay": ps.get("lastPainDay"),
+            # physio brief 2026-11-09 P0.2–P0.4: the same view the runner gets
+            "freshness": a.get("freshness"), "lastPain": a.get("lastPain"), "display_state": a.get("display_state"),
+            "display_label": a.get("display_label"), "careDirective": a.get("careDirective")}
+
+
+
+def _claim_info(db: DBSession, pid: str, rid: str) -> dict | None:
+    t = db.query(models.Triage).filter(models.Triage.runner_id == rid, models.Triage.claimed_by == pid).first()
+    if not t:
+        return None
+    busy = (db.query(models.Booking.id).filter(models.Booking.physio_id == pid, models.Booking.runner_id == rid,
+                                               models.Booking.status.in_(("requested", "confirmed", "completed"))).first()
+            or db.query(models.Conclusion.id).filter(models.Conclusion.physio_id == pid, models.Conclusion.runner_id == rid).first()
+            or db.query(models.Program.id).filter(models.Program.physio_id == pid, models.Program.runner_id == rid,
+                                                 models.Program.status == "sent").first())
+    return {"id": t.id, "releasable": not busy}
 
 
 @router.get("/me/clients")
@@ -193,7 +215,7 @@ def my_clients(user: models.User = Depends(require_verified_physio), db: DBSessi
         if r is None:
             continue
         a_row = db.query(models.Assessment).filter(models.Assessment.runner_id == rid).first()
-        a = _a_summary(E.assessment_row_to_dict(a_row) if a_row else None)
+        a = _a_summary(CV.present(db, rid, E.assessment_row_to_dict(a_row)) if a_row else CV.present(db, rid, {}))
         ci = (db.query(models.Checkin).filter(models.Checkin.runner_id == rid)
               .order_by(models.Checkin.submitted_at.desc()).first())
         nxt = (db.query(models.Booking).filter(models.Booking.runner_id == rid, models.Booking.physio_id == pid,
@@ -212,9 +234,14 @@ def my_clients(user: models.User = Depends(require_verified_physio), db: DBSessi
         msg = (db.query(models.Message).filter(models.Message.runner_id == rid)
                .order_by(models.Message.created_at.desc()).first())
         pain_recent = bool(ci and (ci.pain_score or 0) >= 4 and (ci.submitted_at or "") >= since)
-        setback = bool(msg and msg.sender == "system" and "bolest" in (msg.body or "") and (msg.created_at or "") >= since)
+        # physio brief 2026-11-09 P0.11: return-to-run pain over the limit is a setback; "nová zpráva"
+        # means an unread message from the client and clears once the thread is opened
+        setback = bool((rtr and rtr.paused_reason == "pain_over_limit") or
+                       (msg and msg.sender == "system" and "bolest" in (msg.body or "") and (msg.created_at or "") >= since))
+        unread = db.query(models.Message.id).filter(models.Message.runner_id == rid, models.Message.sender == "runner",
+                                                    models.Message.read_at_physio.is_(None)).first() is not None
         attention = [x for x, on in (("pain", pain_recent), ("alert", a.get("tier") == "alert"), ("setback", setback),
-                                     ("message", bool(msg and msg.sender == "runner"))) if on]
+                                     ("message", unread)) if on]
         out.append({
             "runnerId": rid, "name": r.name, "city": r.city, "since": ca.created_at, "a": a,
             "checkin": {"at": ci.submitted_at, "pain": ci.pain_score, "site": ci.pain_site} if ci else None,
@@ -224,7 +251,7 @@ def my_clients(user: models.User = Depends(require_verified_physio), db: DBSessi
             "lastMessage": {"sender": msg.sender, "at": msg.created_at, "body": (msg.body or "")[:120]} if msg else None,
             "attention": attention,
         })
-    out.sort(key=lambda x: (-len(x["attention"]), -(x["a"].get("overall") or 0)))
+    out.sort(key=lambda x: (-len(x["attention"]), CV.urgency(x["a"]), -(x["a"].get("overall") or 0)))
     return {"items": out}
 
 
@@ -251,7 +278,7 @@ def client_overview(rid: str, user: models.User = Depends(require_verified_physi
     if r is None:
         raise HTTPException(status_code=404, detail="Běžec nenalezen")
     _log_read(db, rid, pid, "přehled klienta")
-    a = E.get_or_refresh_assessment(db, rid)
+    a = CV.present(db, rid, E.get_or_refresh_assessment(db, rid))   # physio brief P0.2: "Klient dnes vidí"
     today = E.today_date()
     u = db.query(models.User).filter(models.User.runner_id == rid).first()
     st = db.query(models.Settings).filter(models.Settings.user_id == u.id).first() if u else None
@@ -281,6 +308,8 @@ def client_overview(rid: str, user: models.User = Depends(require_verified_physi
                    "prior_injury": r.prior_injury, "prior_injury_date": r.prior_injury_date,
                    "prior_injury_side": r.prior_injury_side, "physio_interest": bool(r.physio_interest)},
         "share": share,
+        # physio brief 2026-11-09 P0.9: a case I claimed can go back to the queue before any visit or record
+        "claim": _claim_info(db, pid, rid),
         "a": {**_a_summary(a), "signals": [{k: s.get(k) for k in ("id", "name", "grade", "pts", "val", "detail", "axis")}
                                           for s in sig[:6]],
               "painState": a.get("painState"), "load": (a.get("load") or {}).get("score") if isinstance(a.get("load"), dict) else a.get("load"),
@@ -294,7 +323,7 @@ def client_overview(rid: str, user: models.User = Depends(require_verified_physi
                         "pain": fb.get(x.id).pain_during if fb.get(x.id) else None} for x in acts[:14]] if share else [],
         "checkins": [{"date": c.submitted_at[:10], "pain": c.pain_score, "site": c.pain_site, "soreness": c.soreness,
                       "limits": c.limits_movement, "modified": c.run_modified, "note": c.notes} for c in cis],
-        "injuries": [{"at": i.submitted_at, "source": i.source, "status": i.status, "severity": i.severity,
+        "injuries": [{"id": i.id, "at": i.submitted_at, "source": i.source, "status": i.status, "severity": i.severity,
                       "region": i.body_region, "side": i.body_side, "confirmed": bool(i.confirmed)} for i in inj],
         "bookings": [{"id": b.id, "at": b.slot_at, "kind": b.kind, "status": b.status, "prep_info": b.prep_info,
                       "conclusion": ({"id": concl[b.id].id, "status": concl[b.id].status} if b.id in concl else None)}
@@ -327,3 +356,24 @@ def documentation(rid: str, user: models.User = Depends(require_verified_physio)
                                      "performance": c.out_performance, "pain": c.out_pain} if c.has_outcome else None)}
                        for c in rows],
             "generated_at": E.now_iso()}
+
+
+@router.post("/me/clients/{rid}/injuries/{iid}/close", dependencies=[Depends(verify_csrf)])
+def close_injury(rid: str, iid: int, user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
+    """physio brief 2026-11-09 P0.5: a physio-confirmed injury is closed by the physio (the client can
+    only let the physio know they feel better)."""
+    pid = _pid(user)
+    if not has_care_assignment(db, pid, rid):
+        raise HTTPException(status_code=403, detail="Klienta nejdřív převezměte z fronty nebo potvrďte jeho termín.")
+    rep = db.get(models.InjuryReport, iid)
+    if rep is None or rep.runner_id != rid:
+        raise HTTPException(status_code=404, detail="Zranění nenalezeno")
+    if rep.status != "active":
+        raise HTTPException(status_code=409, detail="Zranění už není aktivní.")
+    rep.status, rep.resolved_at = "resolved", E.iso_date(E.today_date())
+    db.add(models.Message(runner_id=rid, physio_id=pid, sender="system", created_at=E.now_iso(),
+                          body="Fyzioterapeut uzavřel zranění. Další postup najdete v záložce Péče."))
+    _log_read(db, rid, pid, "uzavření zranění")
+    db.commit()
+    E.recompute_assessment(db, rid)
+    return {"id": rep.id, "status": rep.status, "resolved_at": rep.resolved_at}

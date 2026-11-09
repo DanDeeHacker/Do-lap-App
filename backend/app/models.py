@@ -582,13 +582,16 @@ class Booking(Base):
     slot_id = Column(Integer, ForeignKey("physio_slots.id"))
     slot_at = Column(String)
     kind = Column(String)
-    # requested (runner asked, awaiting physio) | confirmed | declined | cancelled | confirmed-direct(legacy default)
+    # requested (runner asked, awaiting physio) | confirmed | declined | cancelled | completed | no_show
+    # (physio brief 2026-11-09 P0.6) | confirmed-direct(legacy default)
     status = Column(String, default="confirmed")
     price_czk = Column(Integer)
     payer = Column(String)
     requested_at = Column(String)
     prep_info = Column(String)      # day-before info, managed by the physio/clinic
     reminded = Column(Boolean, default=False)
+    duration_min = Column(Integer, default=45)   # physio brief 2026-11-09 P0.6: overlap checks
+    cancel_reason = Column(String)
     created_at = Column(String)
 
 
@@ -613,6 +616,11 @@ class Conclusion(Base):
     transcript = Column(String)
     transcript_source = Column(String)  # asr | manual | None
     summary = Column(String)   # free-text conclusion / recommendation (LLM draft, physio-edited)
+    ai_draft = Column(Boolean, default=False)   # physio brief 2026-11-09 P0.1: a model filled the summary draft
+    # physio brief 2026-11-09 P0.5: an explicit outcome (None | injury | no_injury) instead of a switch that
+    # saved zeros, and approving the record is separate from sending the summary to the client
+    outcome_kind = Column(String)
+    shared_at = Column(String)
     finding = Column(String)   # short clinical finding / diagnosis line
     # structured OSTRC-H outcome, only when has_outcome — mirrors InjuryReport
     has_outcome = Column(Boolean, default=False)
@@ -647,6 +655,7 @@ class ReturnToRun(Base):
     sessions_per_level = Column(Integer, default=3)
     levels_json = Column(JSON, default=list)
     note = Column(String)
+    paused_reason = Column(String)   # physio brief 2026-11-09 P0.7: pain_over_limit | physio
 
 
 class RtrSession(Base):
@@ -660,6 +669,7 @@ class RtrSession(Base):
     rpe = Column(Integer)
     completed = Column(Boolean, default=True)
     counted = Column(Boolean, default=False)  # completed AND pain <= threshold → advances the ladder
+    count_reason = Column(String)   # physio brief 2026-11-09 P0.7: pain_over_limit | too_soon | not_completed
     note = Column(String)
 
 
@@ -687,6 +697,8 @@ class Exercise(Base):
     cue = Column(String)
     done_count = Column(Integer, default=0)
     target_count = Column(Integer, default=12)
+    position = Column(Integer)       # physio brief 2026-11-09 P0.8: the order never jumps
+    library_id = Column(String)      # the library item it came from — added once per programme
 
 
 class SelfProgram(Base):
@@ -715,6 +727,16 @@ class ProgramRevision(Base):
     changes = Column(JSON, default=list)
 
 
+class TriagePass(Base):
+    """physio brief 2026-11-09 P0.9: a queue case one physio passed on (or released), hidden for them only."""
+    __tablename__ = "triage_passes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    triage_id = Column(Integer, ForeignKey("triage.id"), index=True, nullable=False)
+    physio_id = Column(String, ForeignKey("physios.id"), index=True, nullable=False)
+    reason = Column(String)
+    created_at = Column(String)
+
+
 class Message(Base):
     __tablename__ = "messages"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -723,6 +745,10 @@ class Message(Base):
     sender = Column(String)
     body = Column(String)
     created_at = Column(String)
+    # physio brief 2026-11-09 P0.10: who sees it (physio | runner | both) and when each side read it
+    audience = Column(String, default="both")
+    read_at_physio = Column(String)
+    read_at_runner = Column(String)
 
 
 class Referral(Base):

@@ -2,17 +2,28 @@
 can opt into the whole platform, and a physio with no clinic on file falls
 back to seeing everything.
 """
+from app import models
+
 from .conftest import login, register
 
 PHYSIO_EMAIL = "havlickova@fyzioholesovice.cz"   # phy-0001 · Fyzio Holešovice, Praha 7 → region "praha"
 
 
-def test_clinic_scope_is_region_only(client):
-    login(client, PHYSIO_EMAIL, expected_role="physio")
-    clinic = client.get("/api/triage?status=open&scope=clinic").json()
-    assert clinic, "expected open cases in the physio's own region"
-    assert all(t["region"] == "praha" for t in clinic)
-    assert all(t["in_region"] for t in clinic)
+def test_clinic_scope_is_region_only(client, db_session):
+    # physio brief 2026-11-09 P0.9: the seed's own Praha case (run-0001) is claimed, so it lives in
+    # Klienti now; an open Praha case of a runner who asked for a physio stands in for it
+    r = db_session.get(models.Runner, "run-0011")
+    before, r.physio_interest = r.physio_interest, True
+    db_session.commit()
+    try:
+        login(client, PHYSIO_EMAIL, expected_role="physio")
+        clinic = client.get("/api/triage?status=open&scope=clinic").json()
+        assert clinic, "expected open cases in the physio's own region"
+        assert all(t["region"] == "praha" for t in clinic)
+        assert all(t["in_region"] for t in clinic)
+    finally:
+        r.physio_interest = before
+        db_session.commit()
 
 
 def test_all_scope_includes_other_regions(client):

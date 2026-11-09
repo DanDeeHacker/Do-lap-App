@@ -23,6 +23,60 @@ AI_INTENTS = [
 ]
 AI_INTENT_LABEL = dict(AI_INTENTS)
 
+import os  # noqa: E402
+import time  # noqa: E402
+
+# physio brief 2026-11-09 D10: tissue-level hypotheses ("Směry ke zvážení", "Kde může být problém") stay
+# off for external pilots until there is an MDR opinion — software informing diagnostic decisions
+# typically falls at least into Class IIa
+def hypotheses_on() -> bool:
+    return os.environ.get("DOSSLAP_TISSUE_HYPOTHESES", "off").strip().lower() == "on"
+
+
+def capabilities() -> dict:
+    """What the physio app may offer, from configuration only (no network call)."""
+    return {"llm": llm.available(), "asr": llm.asr_available(), "hypotheses": hypotheses_on()}
+
+
+def consent_ok(db: DBSession, rid: str) -> bool:
+    """Runner-derived data goes to an external model only with the runner's AI consent (the same
+    consent as PUT /api/runners/{rid}/coach/consent); synthetic demo runners need none."""
+    from ..assistant import service as AS
+    r = db.get(models.Runner, rid)
+    return bool(r and (r.coach_consent or AS.is_demo(db, rid)))
+
+
+_CACHE: dict = {}
+CACHE_S = 3600
+
+
+def _cache_key(db: DBSession, rid: str, intent: str):
+    row = db.query(models.Assessment.computed_at).filter(models.Assessment.runner_id == rid).first()
+    last = (db.query(models.Conclusion.id).filter(models.Conclusion.runner_id == rid, models.Conclusion.status == "approved")
+            .order_by(models.Conclusion.id.desc()).first())
+    return (rid, intent, row[0] if row else None, last[0] if last else None)
+
+
+def _care_items(db: DBSession, rid: str) -> list[str]:
+    """The latest approved visit conclusion and an active physio-confirmed injury come first: the
+    brief once ignored an approved Achilles finding (physio brief P0.1 item 7)."""
+    out = []
+    c = (db.query(models.Conclusion).filter(models.Conclusion.runner_id == rid, models.Conclusion.status == "approved")
+         .order_by(models.Conclusion.approved_at.desc()).first())
+    if c:
+        bk = db.get(models.Booking, c.booking_id)
+        when = (bk.slot_at if bk and bk.slot_at else c.approved_at or "")[:10]
+        d = f"{int(when[8:10])}. {int(when[5:7])}." if len(when) == 10 else ""
+        text = " ".join(x for x in ((c.finding or "").strip(), (c.summary or "").strip()) if x)
+        out.append(f"Poslední závěr ({d}): {text[:400]}")
+    inj = (db.query(models.InjuryReport).filter(models.InjuryReport.runner_id == rid, models.InjuryReport.confirmed.is_(True),
+                                                 models.InjuryReport.status == "active")
+           .order_by(models.InjuryReport.submitted_at.desc()).first())
+    if inj:
+        where = " ".join(x for x in (inj.body_region, inj.body_side) if x) or "bez upřesnění místa"
+        out.append(f"Aktivní zranění potvrzené fyzioterapeutem: {where}, závažnost {inj.severity}/100.")
+    return out
+
 
 def _g(ctx: dict, *path, default=None):
     cur = ctx
@@ -175,6 +229,9 @@ def _compute(db: DBSession, rid: str, intent: str = "summary") -> dict:
     fb = a.get("fb")
     rcv = a.get("rcv")
     S = []
+    care = _care_items(db, rid)
+    if care:
+        S.append({"h": "Péče", "items": care})
 
     def grade_tag(g):
         return f"[{g}]"
@@ -224,7 +281,11 @@ def _compute(db: DBSession, rid: str, intent: str = "summary") -> dict:
             ch.append("Žádná metrika se od minulé kontroly nepohnula nad prahovou hodnotu.")
         S.append({"h": "Změny", "items": ch})
 
-    if intent in ("summary", "where", "all"):
+    if intent in ("summary", "where", "all") and not hypotheses_on():
+        if intent == "where":
+            S.append({"h": "Směry ke zvážení", "items": ["Hypotézy o konkrétní tkáni jsou vypnuté, dokud nebude "
+                                                         "stanovisko k zařazení podle MDR. Vyšetření začíná u anamnézy."]})
+    elif intent in ("summary", "where", "all"):
         dirs = []
         for d in DIRECTIONS:
             try:
@@ -313,11 +374,30 @@ def _compute(db: DBSession, rid: str, intent: str = "summary") -> dict:
 
 
 def brief(db: DBSession, rid: str, intent: str = "summary") -> dict:
+    """physio brief 2026-11-09 P0.1: the structured overview always; a model-written paragraph on top
+    only when a model is configured, the runner consented, and it answers in time — and the answer
+    says which (`source`, `reason`) so the UI can title it honestly."""
     result = _compute(db, rid, intent)
-    narrative = _llm_narrative(result) if llm.available() else None
+    result.update({"llm": False, "source": "template", "reason": None})
+    if not llm.available():
+        result["reason"] = "not_configured"
+        return result
+    if not consent_ok(db, rid):
+        result["reason"] = "no_consent"
+        return result
+    key = _cache_key(db, rid, intent)
+    hit = _CACHE.get(key)
+    if hit and time.time() - hit[0] < CACHE_S:
+        narrative, reason = hit[1], None
+    else:
+        narrative, reason = _llm_narrative(result)
+        if narrative:
+            _CACHE[key] = (time.time(), narrative)
     if narrative:
         result["sections"] = [{"h": "AI shrnutí", "items": [narrative]}] + result["sections"]
-        result["llm"] = True
+        result.update({"llm": True, "source": "llm"})
+    else:
+        result["reason"] = reason
     return result
 
 
@@ -357,7 +437,6 @@ def _fallback_reply(db: DBSession, rid: str, message: str) -> str:
         lines.append(s["h"] + ":")
         lines.extend(f"- {_TAG_RE.sub(' ', it).strip()}" for it in s["items"])
         lines.append("")
-    lines.append("Bez nakonfigurovaného AI modelu odpovídám nejbližší strukturovanou sekcí, ne na míru dotazu.")
     return "\n".join(lines).strip()
 
 
@@ -368,7 +447,9 @@ def chat_reply(db: DBSession, rid: str, message: str, history: list[dict] | None
     prior turns from this browser session (role/content dicts), replayed
     so follow-up questions keep context; nothing is persisted server-side."""
     if not llm.available():
-        return {"reply": _fallback_reply(db, rid, message), "llm": False}
+        return {"reply": _fallback_reply(db, rid, message), "llm": False, "source": "template", "reason": "not_configured"}
+    if not consent_ok(db, rid):
+        return {"reply": _fallback_reply(db, rid, message), "llm": False, "source": "template", "reason": "no_consent"}
 
     full = _compute(db, rid, "all")
     facts_text = _facts_text(full["sections"])
@@ -394,10 +475,10 @@ def chat_reply(db: DBSession, rid: str, message: str, history: list[dict] | None
             messages.append({"role": role, "content": str(content)[:2000]})
     messages.append({"role": "user", "content": str(message)[:1000]})
 
-    reply = llm.chat_messages(messages)
+    reply, reason = llm.chat_ex(messages)
     if not reply:
-        return {"reply": _fallback_reply(db, rid, message), "llm": False}
-    return {"reply": reply, "llm": True}
+        return {"reply": _fallback_reply(db, rid, message), "llm": False, "source": "template", "reason": reason or "error"}
+    return {"reply": reply, "llm": True, "source": "llm", "reason": None}
 
 
 def draft_conclusion(db: DBSession, rid: str, transcript: str):
@@ -408,7 +489,7 @@ def draft_conclusion(db: DBSession, rid: str, transcript: str):
     may never be the sole source of a fact), the transcript *is* the source
     here: it's a record of what was actually said in the room, and the physio
     edits and approves before anything reaches the runner."""
-    if not llm.available() or not (transcript or "").strip():
+    if not llm.available() or not (transcript or "").strip() or not consent_ok(db, rid):
         return None
     facts = _compute(db, rid, "summary")
     facts_text = _facts_text(facts["sections"])
@@ -425,7 +506,7 @@ def draft_conclusion(db: DBSession, rid: str, transcript: str):
         "3. Piš stručně a konkrétně k tomuto pacientovi."
     )
     user = f"Pacient: {facts['runner']}\n\nPřepis sezení:\n{transcript}\n\nDoplňková data pacienta:\n{facts_text}"
-    return llm.chat(system, user, max_tokens=650)
+    return llm.chat_ex([{"role": "system", "content": system}, {"role": "user", "content": user}], max_tokens=650)[0]
 
 
 def _llm_narrative(result: dict):
@@ -450,4 +531,4 @@ def _llm_narrative(result: dict):
         "5. Odpovídej výhradně v češtině, prostým textem bez markdownu."
     )
     user = f"Pacient: {result['runner']}\nDotaz: {result['title']}\n\nVypočítaná fakta:\n{facts_text}"
-    return llm.chat(system, user)
+    return llm.chat_ex([{"role": "system", "content": system}, {"role": "user", "content": user}])

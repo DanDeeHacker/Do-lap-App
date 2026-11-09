@@ -2,6 +2,10 @@
 only after approval, and that approval with a structured OSTRC outcome writes
 the authoritative grade-A InjuryReport (source='physio_conclusion').
 """
+from datetime import datetime, timedelta, timezone
+
+from app import models
+
 from .conftest import login, register
 
 RUNNER_EMAIL = "adela@demo.cz"          # run-0001, already claimed by phy-0001 in the seed
@@ -18,22 +22,29 @@ def _book(client):
     return r.json()["id"]
 
 
+def _visit_happened(db, bid):
+    """physio brief 2026-11-09 P0.5: a record is approved only after the visit started."""
+    db.get(models.Booking, bid).slot_at = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    db.commit()
+
+
 def _signal_ids(a):
     return {s["id"] for s in a.get("signals", [])}
 
 
-def test_full_conclusion_flow_writes_grade_a_outcome(client):
+def test_full_conclusion_flow_writes_grade_a_outcome(client, db_session):
     bid = _book(client)
+    _visit_happened(db_session, bid)
 
     login(client, PHYSIO_EMAIL, expected_role="physio")
-    c = client.post(f"/api/bookings/{bid}/conclusion").json()
+    c = client.post(f"/api/bookings/{bid}/conclusion/draft", json={}).json()
     cid = c["id"]
     assert c["status"] == "draft"
 
     client.patch(f"/api/conclusions/{cid}", json={
         "summary": "Přetížení lýtkového komplexu, bez známek strukturální léze.",
         "finding": "Tendinopatie Achillovy šlachy, časná fáze",
-        "has_outcome": True, "out_participation": 17, "out_volume": 8,
+        "outcome_kind": "injury", "out_participation": 17, "out_volume": 8,
         "out_performance": 8, "out_pain": 17, "out_region": "achilles", "out_side": "P",
     })
 
@@ -77,9 +88,10 @@ def test_other_physio_cannot_conclude_unowned_booking(client):
     assert client.post(f"/api/bookings/{bid}/conclusion").status_code == 403
 
 
-def test_approve_empty_conclusion_rejected(client):
+def test_approve_empty_conclusion_rejected(client, db_session):
     bid = _book(client)
+    _visit_happened(db_session, bid)
     login(client, PHYSIO_EMAIL, expected_role="physio")
-    cid = client.post(f"/api/bookings/{bid}/conclusion").json()["id"]
+    cid = client.post(f"/api/bookings/{bid}/conclusion/draft", json={}).json()["id"]
     r = client.post(f"/api/conclusions/{cid}/approve")
     assert r.status_code == 422   # no summary yet

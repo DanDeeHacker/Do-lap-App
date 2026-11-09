@@ -1495,8 +1495,12 @@ def build_guidance(db, rid, a, runner=None) -> dict | None:
                        + ("odpočinek nebo velmi volný pohyb." if race_rest else "bez intenzity a dlouhého běhu."))
     if typ == "volno" and not override and vol_max is not None and vol_max < MIN_RUN_KM:
         lim = vw["limitedBy"]
-        if lim == "week":
+        if lim == "week" and (vw.get("budget") or 0) > 0 and (vw.get("done") or 0) >= vw["budget"]:
             reasons.append(f"Týdenní cíl je splněný (od pondělí {_cz(vw['done'])} z {_cz(vw['budget'])} km) — dnes volno.")
+        elif lim == "week":
+            # physio brief 2026-11-09 P0.3: "splněný" only with a positive target actually reached
+            reasons.append(f"Do týdenního cíle zbývá méně než nejkratší běh (od pondělí {_cz(vw.get('done') or 0)} "
+                           f"z {_cz(vw.get('budget') or 0)} km) — dnes volno.")
         elif lim == "7d" and vw.get("absorbedMax") is not None:
             reasons.append(f"Nevstřebaná zátěž z posledních dní {_cz(vw['absorbed'])} km je na stropu týdenní kapacity "
                            f"({_cz(vw['absorbedMax'])} km), dnes volno. Starší běhy se počítají jen zčásti, jak tělo zátěž vstřebává.")

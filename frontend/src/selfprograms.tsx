@@ -19,6 +19,14 @@ type Prog = { key: string; group?: string; sub?: string; minutes?: number; physi
   perWeek?: number; sessions?: Record<string, string[]>; sessionLabels?: Record<string, string>; sessionDoses?: Record<string, Record<string, string>>; phases?: Phase[] }
 
 /** railway#133 — the most recent marked region, shortened for the chip. */
+// physio brief 2026-11-09 P0.2: a programme's "Běhat se může dál" never shows on a day the runner
+// may not run (an injury, a return-to-run plan, a red flag)
+function useNoRun() {
+  const { boot } = useApp()
+  return boot?.assessment?.careDirective?.running_allowed === false
+}
+const runText = (s: string, noRun: boolean) => (noRun ? s.replace(/\s*Běhat se může dál[^.]*\./g, "") : s)
+
 export function shortRegion(r: string) {
   // "Úpon plantární fascie (pata)" → "Pata", "Lýtko (gastrocnemius)" → "Lýtko": the shorter name wins
   const m = r.match(/^(.*?)\s*\((.+)\)\s*$/)
@@ -417,6 +425,7 @@ export function ExerciseSheet({ id, ex, onClose }: { id: string; ex: Ex; onClose
 }
 
 function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: Prog; lib: any; onClose: () => void; onStart: () => void; busy: boolean; onOpenEx: (id: string) => void }) {
+  const noRun = useNoRun()
   const [refs, setRefs] = useState(false)
   const perf = prog.group === "performance" || prog.group === "mobility"
   return (
@@ -424,7 +433,7 @@ function ProgramSheet({ prog, lib, onClose, onStart, busy, onOpenEx }: { prog: P
       <div data-testid="program-sheet">
         <p className="t-label !text-fg-3">{prog.group === "mobility" ? `Mobilita před spaním · zhruba ${prog.minutes} min · denně` : `Program · ${prog.weeks} týdnů${prog.perWeek ? ` · ${prog.perWeek}× týdně` : ""}`}</p>
         <h2 className="mt-1 font-serif text-[24px] leading-tight text-fg">{prog.name}</h2>
-        <p className="mt-1 text-[13px] leading-5 text-fg-2">{prog.summary}</p>
+        <p className="mt-1 text-[13px] leading-5 text-fg-2">{runText(prog.summary, noRun)}</p>
         {/* feedback #173 — start above the exercises, not at the very bottom */}
         <Button className="mt-4 w-full" disabled={busy} onClick={onStart} data-testid="program-start">{prog.group === "mobility" ? "Uložit do mých programů" : "Začít program"}</Button>
         {prog.phases && (
@@ -663,7 +672,10 @@ function ActiveProgram({ act, lib, rid, onChange, onEnd, onOpenEx }: { act: any;
 }
 
 export function SelfPrograms() {
-  const { me } = useApp()
+  const { me, boot } = useApp()
+  const noRun = useNoRun()
+  // P0.2.6: with the physio's programme running, the self-serve suggestions fold under "Další programy"
+  const physioProg = !!boot?.program
   const rid = me!.runner_id!
   const toast = useToast()
   const [d, setD] = useState<any | null>(null)
@@ -719,7 +731,7 @@ export function SelfPrograms() {
       <span className={`grid size-[34px] shrink-0 place-items-center rounded-[10px] ${recommended ? "bg-accent/15 text-accent" : "bg-white/[.06] text-fg-2"}`}>{p.group === "mobility" ? <PersonStanding className="size-4" aria-hidden /> : <Dumbbell className="size-4" aria-hidden />}</span>
       <span className="min-w-0 flex-1">
         <b className="text-sm font-bold text-fg">{p.name}</b>
-        <span className="block truncate text-[12px] text-fg-3">{p.group === "mobility" ? `zhruba ${p.minutes} min` : `${p.weeks} týdnů`} · {p.exercises.length} {plural(p.exercises.length, "cvik", "cviky", "cviků")} · {p.summary}</span>
+        <span className="block truncate text-[12px] text-fg-3">{p.group === "mobility" ? `zhruba ${p.minutes} min` : `${p.weeks} týdnů`} · {p.exercises.length} {plural(p.exercises.length, "cvik", "cviky", "cviků")} · {runText(p.summary, noRun)}</span>
       </span>
       <ChevronRight className="size-4 shrink-0 text-fg-3" aria-hidden />
     </button>
@@ -745,21 +757,31 @@ export function SelfPrograms() {
           </div>
         </div>
       )}
-      <Card>
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <Label><span className="inline-flex items-center gap-1.5"><Sparkles className="size-3.5 text-accent" aria-hidden />Doporučeno podle bolesti</span></Label>
-          {regions.length > 0 && (
-            <span className="flex min-w-0 max-w-[48%] justify-end" title={regions.join(", ")} data-testid="pain-region-chip">
-              <Chip className="max-w-full"><span className="block min-w-0 truncate">{shortRegion(regions[0])}{regions.length > 1 ? ` +${regions.length - 1}` : ""}</span></Chip>
-            </span>
-          )}
-        </div>
-        {rec.length ? (
-          <div className="mt-1 divide-y divide-white/[.07]">{rec.map((k) => progs.find((p) => p.key === k)).filter(Boolean).map((p) => row(p as Prog, true))}</div>
-        ) : (
-          <p className="mt-2 text-sm text-fg-2">Za poslední 4 týdny jste neoznačili bolest, ke které máme program. Níže jsou všechny programy.</p>
-        )}
-      </Card>
+      {(() => {
+        const rec_card = (
+          <Card>
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <Label><span className="inline-flex items-center gap-1.5"><Sparkles className="size-3.5 text-accent" aria-hidden />Doporučeno podle bolesti</span></Label>
+              {regions.length > 0 && (
+                <span className="flex min-w-0 max-w-[48%] justify-end" title={regions.join(", ")} data-testid="pain-region-chip">
+                  <Chip className="max-w-full"><span className="block min-w-0 truncate">{shortRegion(regions[0])}{regions.length > 1 ? ` +${regions.length - 1}` : ""}</span></Chip>
+                </span>
+              )}
+            </div>
+            {rec.length ? (
+              <div className="mt-1 divide-y divide-white/[.07]">{rec.map((k) => progs.find((p) => p.key === k)).filter(Boolean).map((p) => row(p as Prog, true))}</div>
+            ) : (
+              <p className="mt-2 text-sm text-fg-2">Za poslední 4 týdny jste neoznačili bolest, ke které máme program. Níže jsou všechny programy.</p>
+            )}
+          </Card>
+        )
+        return physioProg ? (
+          <details className="card px-4 py-3" data-testid="more-programs">
+            <summary className="cursor-pointer text-[13px] font-bold text-fg-2">Další programy</summary>
+            <div className="mt-2">{rec_card}</div>
+          </details>
+        ) : rec_card
+      })()}
       <div data-testid="program-tabs"><Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Segmented size="sm" ariaLabel="Zaměření programů" value={tab} onChange={setTab}

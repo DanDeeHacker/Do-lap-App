@@ -3,14 +3,14 @@
 // AI-enhanced summary (the figures come from the engine first, a language model only turns them
 // into text — metrics/ai_brief.py), the programme between visits, the return-to-running plan, the
 // visits with their conclusions and the chat.
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router"
 import { AlertTriangle, ArrowLeft, Bot, FileText, MessageCircle, Pause, Play, Plus, Printer, Search, Send, Sparkles, Trash2 } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, Segmented, Sheet, useToast } from "@/ui"
 import { fmtD, fmtDT } from "@/lib"
 import { C } from "@/tokens"
-import { Empty, KIND, Loading, QuadChip, RiskChip, Score, shownScore, stripTags, useLoad } from "@/physio/common"
+import { Empty, KIND, Loading, PainAgo, QuadChip, RiskChip, Score, noData, shownScore, stripTags, useLoad } from "@/physio/common"
 import { ConclusionSheet } from "@/physio/conclusion"
 
 const ATTN: Record<string, [string, "alert" | "watch" | "info"]> = {
@@ -51,7 +51,7 @@ export function ClientsPage() {
                     {c.lastMessage && <span className="block truncate text-[12px] text-fg-3">{`${c.lastMessage.sender === "runner" ? "Klient" : c.lastMessage.sender === "physio" ? "Vy" : "Systém"}: ${c.lastMessage.body}`}</span>}
                   </span>
                   <span className="flex items-center gap-2">
-                    <RiskChip tier={c.a?.tier} />
+                    <RiskChip tier={c.a?.tier} a={c.a} />
                     <b className="w-9 text-right text-[18px] tabular-nums text-fg">{c.a?.overall == null ? "—" : Math.round(shownScore(c.a.overall)!)}</b>
                   </span>
                 </button>
@@ -69,6 +69,7 @@ type Tab = "overview" | "ai" | "program" | "rtr" | "visits" | "chat"
 export function ClientPage({ pid, rid }: { pid: string; rid: string }) {
   const [sp, setSp] = useSearchParams()
   const tab = (sp.get("tab") as Tab) || "overview"
+  const toast = useToast()
   const { d, err, reload } = useLoad<any>(() => api.physioClient(rid), [rid])
   if (!d) return <><Back /><Loading err={err} /></>
   const r = d.runner
@@ -81,20 +82,31 @@ export function ClientPage({ pid, rid }: { pid: string; rid: string }) {
           <h1 className="mt-1 font-serif text-[30px] leading-tight tracking-[-.03em] md:text-4xl">{r.name}</h1>
           <p className="mt-1 text-[12.5px] text-fg-2">
             {[r.age ? `${r.age} let` : null, r.sex === "f" ? "žena" : r.sex === "m" ? "muž" : null, r.city,
-              r.running_since ? `běhá od ${fmtD(r.running_since)}` : null, r.device].filter(Boolean).join(" · ")}
+              r.running_since ? `běhá od roku ${String(r.running_since).slice(0, 4)}` : null, r.device].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <span className="flex flex-wrap items-center gap-2"><RiskChip tier={d.a.tier} /><QuadChip q={d.a.quadrant} /></span>
+        <span className="flex flex-wrap items-center gap-2"><RiskChip tier={d.a.tier} a={d.a} /><QuadChip q={d.a.quadrant} a={d.a} />
+          {d.claim?.releasable && (
+            <Button size="sm" variant="outline" onClick={async () => {
+              if (!window.confirm("Vrátit případ do fronty? Klient dostane zprávu a jeho data se vám zavřou.")) return
+              try { await api.triageRelease(d.claim.id); toast({ title: "Případ je zpět ve frontě" }); window.location.assign("/physio/queue") }
+              catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+            }}>Vrátit do fronty</Button>
+          )}</span>
       </div>
       {!d.share && <p className="mt-3 flex items-center gap-2 rounded-xl bg-watch/10 px-3 py-2 text-[12.5px] text-watch-soft">
         <AlertTriangle className="size-4" aria-hidden />Klient vypnul sdílení dat z hodinek — vidíte jen hodnocení, check-iny a zprávy.</p>}
       <Segmented className="mt-4" value={tab} onChange={(k) => setSp({ tab: k }, { replace: true })} ariaLabel="Části přehledu klienta"
         options={[["overview", "Přehled"], ["ai", "AI shrnutí"], ["program", "Program"], ["rtr", "Návrat k běhu"], ["visits", "Návštěvy"], ["chat", "Zprávy"]] as const} />
       <div className="mt-4" data-testid={`client-tab-${tab}`}>
-        {tab === "overview" && <Overview d={d} />}
+        {tab === "overview" && <Overview d={d} onClose={async (iid) => {
+          if (!window.confirm("Uzavřít zranění? Klient dostane zprávu a engine přejde do návratu k běhu.")) return
+          try { await api.physioCloseInjury(rid, iid); toast({ title: "Zranění uzavřeno" }); reload() }
+          catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+        }} />}
         {tab === "ai" && <AiTab rid={rid} />}
         {tab === "program" && <ProgramTab rid={rid} />}
-        {tab === "rtr" && <RtrTab rid={rid} plan={d.rtr} onChange={reload} />}
+        {tab === "rtr" && <RtrTab rid={rid} plan={d.rtr} a={d.a} onChange={reload} />}
         {tab === "visits" && <VisitsTab rid={rid} d={d} onChange={reload} pid={pid} />}
         {tab === "chat" && <ChatTab rid={rid} />}
       </div>
@@ -102,11 +114,16 @@ export function ClientPage({ pid, rid }: { pid: string; rid: string }) {
   )
 }
 
+// physio brief 2026-11-09 P0.11: back goes where the physio came from (Kalendář, Fronta…), Klienti otherwise
 function Back() {
-  return <Link to="/physio/clients" className="inline-flex items-center gap-1 text-[12.5px] font-bold text-fg-2 hover:text-fg"><ArrowLeft className="size-4" aria-hidden />Klienti</Link>
+  const nav = useNavigate()
+  const hasHistory = typeof window !== "undefined" && (window.history.state?.idx ?? 0) > 0
+  return hasHistory
+    ? <button type="button" onClick={() => nav(-1)} className="inline-flex items-center gap-1 text-[12.5px] font-bold text-fg-2 hover:text-fg"><ArrowLeft className="size-4" aria-hidden />Zpět</button>
+    : <Link to="/physio/clients" className="inline-flex items-center gap-1 text-[12.5px] font-bold text-fg-2 hover:text-fg"><ArrowLeft className="size-4" aria-hidden />Klienti</Link>
 }
 
-function Overview({ d }: { d: any }) {
+function Overview({ d, onClose }: { d: any; onClose?: (iid: number) => void }) {
   const a = d.a
   const maxKm = Math.max(1, ...d.weeks.map((w: any) => w.km))
   const painDays = d.checkins.filter((c: any) => (c.pain || 0) > 0)
@@ -114,12 +131,25 @@ function Overview({ d }: { d: any }) {
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <h2 className="font-serif text-xl">Dnešní stav</h2>
+        {noData(a) && (
+          <p className="mt-2 rounded-xl bg-white/[.05] px-3 py-2 text-[12.5px] leading-[17px] text-fg-2" data-testid="stale-banner">
+            {a.freshness?.last_data_at
+              ? `Data nejsou aktuální. Poslední záznam ${fmtD(a.freshness.last_data_at)} (před ${a.freshness.days_since} dny). Stav ani doporučení se nepočítají.`
+              : "Klient zatím nemá žádná data. Stav ani doporučení se nepočítají."}
+          </p>
+        )}
         <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">
-          <Score v={shownScore(a.overall)} label="Skóre" /><Score v={a.readiness} label="Připravenost" /><Score v={a.symp} label="Příznaky" />
-          <Score v={a.load} label="Zátěž" /><Score v={a.mech} label="Mechanika" />
+          <Score v={shownScore(a.overall)} label="Skóre" hint="100 = bez obtíží" /><Score v={a.readiness} label="Připravenost" hint="100 = plná" />
+          <Score v={a.symp} label="Příznaky" hint="0 = v normě" />
+          <Score v={a.load} label="Zátěž" hint="0 = v normě" /><Score v={a.mech} label="Mechanika" hint="0 = v normě" />
         </div>
-        {a.guidance?.typeLabel && <p className="mt-3 text-[13px] text-fg-2">{"Aplikace dnes doporučuje: "}<b className="text-fg">{a.guidance.typeLabel}</b></p>}
-        {(a.guidance?.reasons || []).slice(0, 3).map((x: string, i: number) => <p key={i} className="mt-1 text-[12px] leading-[17px] text-fg-3">{`• ${stripTags(x)}`}</p>)}
+        <p className="mt-2 text-[12px] text-fg-3">{"Poslední bolest: "}<PainAgo p={a.lastPain} />{a.lastPain?.site ? ` · ${a.lastPain.site}` : ""}</p>
+        {/* physio brief 2026-11-09 P0.2: exactly what the client's Dnes and Trénink say today */}
+        {(a.careDirective?.headline_cs || a.guidance?.typeLabel) && (
+          <p className="mt-3 text-[13px] text-fg-2" data-testid="client-sees">{"Klient dnes vidí: "}
+            <b className="text-fg">{a.careDirective?.headline_cs || a.guidance?.typeLabel}</b></p>
+        )}
+        {a.careDirective?.source === "engine" && (a.guidance?.reasons || []).slice(0, 3).map((x: string, i: number) => <p key={i} className="mt-1 text-[12px] leading-[17px] text-fg-3">{`• ${stripTags(x)}`}</p>)}
       </Card>
       <Card>
         <h2 className="font-serif text-xl">Co nejvíc ovlivňuje skóre</h2>
@@ -192,7 +222,11 @@ function Overview({ d }: { d: any }) {
           <ul className="mt-2 grid gap-1 text-[12.5px]">
             {d.injuries.map((i: any, k: number) => (
               <li key={k} className="text-fg-2">{fmtD(i.at)}{" · "}{i.status === "none" ? "bez obtíží" : `${i.region || "obtíže"} ${i.side || ""}`}
-                {i.severity ? ` · závažnost ${i.severity}` : ""}{" "}{i.confirmed ? <Chip tone="ok">potvrzeno fyzioterapeutem</Chip> : <Chip>hlášení běžce</Chip>}</li>
+                {i.severity ? ` · závažnost ${i.severity}` : ""}{" "}{i.confirmed ? <Chip tone="ok">potvrzeno fyzioterapeutem</Chip> : <Chip>hlášení běžce</Chip>}
+                {i.status === "resolved" && <>{" "}<Chip>uzavřeno</Chip></>}
+                {i.status === "active" && i.confirmed && onClose && (
+                  <button type="button" className="ml-2 text-[12px] font-bold text-accent hover:underline" onClick={() => onClose(i.id)}>Uzavřít zranění</button>
+                )}</li>
             ))}
           </ul>
         )}
@@ -203,62 +237,88 @@ function Overview({ d }: { d: any }) {
 
 const INTENTS: [string, string][] = [["summary", "Posledních 28 dní"], ["change", "Co se změnilo"], ["where", "Kde může být problém"], ["program", "Co upravit v programu"], ["missing", "Jaká data chybí"]]
 
+// physio brief 2026-11-09 P0.1: say where the text comes from, never show a stale answer, and offer the
+// free-text question only when a language model is actually switched on
+const AI_REASON: Record<string, string> = {
+  not_configured: "Jazykový model není zapnutý. Přehled skládá aplikace přímo z dat.",
+  no_consent: "Klient nedal souhlas s AI. Přehled je složený přímo z dat a nic se neodesílá mimo Došlap.",
+  timeout: "Jazykový model neodpověděl včas. Zobrazuji přehled přímo z dat.",
+  error: "Jazykový model selhal. Zobrazuji přehled přímo z dat.",
+}
+
 function AiTab({ rid }: { rid: string }) {
   const toast = useToast()
+  const caps = useLoad<any>(() => api.physioMe().then((m: any) => m.capabilities || {}), [])
   const [intent, setIntent] = useState("summary")
   const [b, setB] = useState<any>(null)
   const [busy, setBusy] = useState(false)
   const [hist, setHist] = useState<{ role: string; content: string }[]>([])
   const [q, setQ] = useState("")
+  const seq = useRef(0)
   useEffect(() => {
+    const mine = ++seq.current                  // only the answer to the latest preset may land
     setB(null)
-    api.aiBrief(rid, intent).then(setB).catch((e: any) => setB({ error: e?.message || "Nepodařilo se" }))
+    api.aiBrief(rid, intent).then((r: any) => { if (seq.current === mine) setB(r) })
+      .catch((e: any) => { if (seq.current === mine) setB({ error: e?.message || "Nepodařilo se" }) })
   }, [rid, intent])
+  const intents = INTENTS.filter(([k]) => k !== "where" || caps.d?.hypotheses)
   const ask = async () => {
-    if (!q.trim()) return
-    const h = [...hist, { role: "user", content: q.trim() }]
-    setHist(h); setQ(""); setBusy(true)
-    try { const r = await api.aiChat(rid, h[h.length - 1].content, hist); setHist([...h, { role: "assistant", content: r.reply }]) }
-    catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }); setHist(hist) }
+    const text = q.trim()
+    if (!text) return
+    const h = [...hist, { role: "user", content: text }]
+    setHist(h); setBusy(true)
+    setQ((cur) => (cur.trim() === text ? "" : cur))   // keep anything typed while sending
+    try { const r = await api.aiChat(rid, text, hist); setHist([...h, { role: "assistant", content: r.reply }]) }
+    catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }); setHist(hist); setQ(text) }
     finally { setBusy(false) }
   }
+  const llmText = b?.source === "llm"
   return (
     <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
       <Card>
         <div className="flex flex-wrap items-center gap-2">
-          <Sparkles className="size-4 text-accent" aria-hidden /><h2 className="font-serif text-xl">AI shrnutí před návštěvou</h2>
+          <Sparkles className="size-4 text-accent" aria-hidden />
+          <h2 className="font-serif text-xl" data-testid="ai-title">{llmText ? "AI shrnutí před návštěvou" : "Přehled z dat před návštěvou"}</h2>
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {INTENTS.map(([k, l]) => (
+          {intents.map(([k, l]) => (
             <button key={k} type="button" aria-pressed={intent === k} onClick={() => setIntent(k)}
               className={`rounded-full px-3 py-1.5 text-[12px] font-bold ${intent === k ? "bg-fg text-ink" : "bg-white/[.06] text-fg-2 hover:text-fg"}`}>{l}</button>
           ))}
         </div>
         {!b ? <p className="mt-4 animate-pulse text-sm text-fg-2">Počítám z dat…</p> : b.error ? <p className="mt-4 text-sm text-alert">{b.error}</p> : (
           <div className="mt-4 grid gap-3" data-testid="ai-brief">
+            {b.reason && AI_REASON[b.reason] && <p className="rounded-lg border border-white/10 px-3 py-2 text-[12px] text-fg-2" data-testid="ai-reason">{AI_REASON[b.reason]}</p>}
             {b.sections.map((s: any, i: number) => (
               <section key={i}>
                 <h3 className="text-[12px] font-extrabold uppercase tracking-[.06em] text-fg-3">{s.h}</h3>
                 <ul className="mt-1 grid gap-1.5 text-[13px] leading-[19px] text-fg-soft">{s.items.map((it: string, k: number) => <li key={k} className="whitespace-pre-line">{stripTags(it)}</li>)}</ul>
               </section>
             ))}
-            <p className="rounded-lg bg-white/[.04] px-3 py-2 text-[11.5px] text-fg-3">{b.caveat}{b.llm ? " Text upravil jazykový model, čísla jsou z enginu." : ""}</p>
+            <p className="rounded-lg bg-white/[.04] px-3 py-2 text-[11.5px] text-fg-3">{b.caveat}{llmText ? " Text upravil jazykový model, čísla jsou z enginu." : ""}</p>
           </div>
         )}
       </Card>
       <Card>
         <h2 className="flex items-center gap-2 font-serif text-xl"><Bot className="size-5 text-fg-2" aria-hidden />Zeptejte se na data klienta</h2>
-        <div className="mt-3 grid max-h-[420px] gap-2 overflow-y-auto">
-          {hist.length === 0 && <p className="text-[12px] text-fg-3">Např. „Jak se měnila zátěž poslední dva týdny?“ Odpovědi vycházejí z dat a nenahrazují vyšetření.</p>}
-          {hist.map((m, i) => (
-            <p key={i} className={`whitespace-pre-line rounded-xl px-3 py-2 text-[13px] leading-[18px] ${m.role === "user" ? "ml-8 bg-accent/12 text-fg" : "mr-4 bg-white/[.05] text-fg-soft"}`}>{m.content}</p>
-          ))}
-        </div>
-        <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); void ask() }}>
-          <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="Otázka" maxLength={1000}
-            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]" placeholder="Otázka k datům klienta" />
-          <Button size="sm" icon={Send} busy={busy} type="submit">Zeptat se</Button>
-        </form>
+        {!caps.d ? <Loading err={caps.err} /> : !caps.d.llm ? (
+          <p className="mt-3 text-[13px] text-fg-2" data-testid="ai-chat-off">Dotazy vlastními slovy zatím nejsou zapnuté.</p>
+        ) : (
+          <>
+            <div className="mt-3 grid max-h-[420px] gap-2 overflow-y-auto">
+              {hist.length === 0 && <p className="text-[12px] text-fg-3">Např. „Jak se měnila zátěž poslední dva týdny?“ Odpovědi vycházejí z dat a nenahrazují vyšetření.</p>}
+              {hist.map((m, i) => (
+                <p key={i} className={`whitespace-pre-line rounded-xl px-3 py-2 text-[13px] leading-[18px] ${m.role === "user" ? "ml-8 bg-accent/12 text-fg" : "mr-4 bg-white/[.05] text-fg-soft"}`}>{m.content}</p>
+              ))}
+            </div>
+            <form className="mt-3 flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); void ask() }}>
+              <textarea value={q} onChange={(e) => setQ(e.target.value)} aria-label="Otázka" maxLength={1000} rows={2}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void ask() } }}
+                className="min-w-0 flex-1 resize-y rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]" placeholder="Otázka k datům klienta" />
+              <Button size="sm" icon={Send} busy={busy} type="submit">Zeptat se</Button>
+            </form>
+          </>
+        )}
       </Card>
     </div>
   )
@@ -295,19 +355,21 @@ function ProgramTab({ rid }: { rid: string }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="font-serif text-xl">{p.name}</h2>
-            <p className="text-[12px] text-fg-3">{p.status === "sent" ? `poslán ${fmtD(p.sent_at)}` : "koncept — klient ho zatím nevidí"}</p>
+            <p className="text-[12px] text-fg-3">{p.status === "sent" ? `poslán ${fmtD(p.sent_at)}` : "koncept — klient ho zatím nevidí"}
+              {p.ends_on ? (p.ended ? ` · program skončil ${fmtD(p.ends_on)}` : ` · končí ${fmtD(p.ends_on)}`) : ""}</p>
           </div>
           <Button size="sm" variant="outline" icon={Plus} onClick={() => setLib(true)}>Přidat cvik</Button>
         </div>
         {ex.length === 0 ? <Empty>Program je prázdný.</Empty> : (
           <ul className="mt-3 grid gap-2" data-testid="program-exercises">
-            {ex.map((e: any) => <ExerciseRow key={e.id} e={e} onChange={reload} />)}
+            {ex.map((e: any) => <ExerciseRow key={e.id} e={e} sent={p.status === "sent"} onChange={reload} />)}
           </ul>
         )}
         <div className="mt-4 grid gap-2">
           <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Zpráva pro klienta k programu (nepovinné)" aria-label="Zpráva k programu"
             className="rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]" />
-          <Button icon={Send} busy={busy === "send"} disabled={!ex.length} onClick={() => act("send", () => api.programSend(p.id, note || undefined), "Program je u klienta")}>
+          {/* physio brief 2026-11-09 P0.8: the message box clears after a successful send */}
+          <Button icon={Send} busy={busy === "send"} disabled={!ex.length} onClick={() => act("send", async () => { await api.programSend(p.id, note || undefined); setNote("") }, "Program je u klienta")}>
             {p.status === "sent" ? "Poslat aktualizaci" : "Poslat klientovi"}
           </Button>
         </div>
@@ -325,14 +387,14 @@ function ProgramTab({ rid }: { rid: string }) {
           </ul>
         )}
       </Card>
-      <Library open={lib} onClose={() => setLib(false)} onPick={async (x) => {
-        await act(`add${x.id}`, () => api.exerciseAdd(p.id, { name: x.name, dose: x.dose, per_week: x.per_week, cue: x.cue }), `Přidáno: ${x.name}`)
+      <Library open={lib} onClose={() => setLib(false)} have={new Set(ex.map((e: any) => e.library_id).filter(Boolean))} onPick={async (x) => {
+        await act(`add${x.id}`, () => api.exerciseAdd(p.id, { name: x.name, dose: x.dose, per_week: x.per_week, cue: x.cue, library_id: x.id }), `Přidáno: ${x.name}`)
       }} />
     </div>
   )
 }
 
-function ExerciseRow({ e, onChange }: { e: any; onChange: () => void }) {
+function ExerciseRow({ e, sent, onChange }: { e: any; sent: boolean; onChange: () => void }) {
   const toast = useToast()
   const [edit, setEdit] = useState(false)
   const [dose, setDose] = useState(e.dose || "")
@@ -363,15 +425,15 @@ function ExerciseRow({ e, onChange }: { e: any; onChange: () => void }) {
             {[1, 2, 3, 4, 5, 6, 7].map((n) => <option key={n} value={n}>{`${n}× týdně`}</option>)}
           </select>
           <input value={cue} onChange={(x) => setCue(x.target.value)} aria-label="Pokyn" placeholder="Pokyn k provedení" className={`${inp} sm:col-span-2`} />
-          <input value={why} onChange={(x) => setWhy(x.target.value)} aria-label="Důvod změny" placeholder="Důvod změny (klient ho uvidí)" className={`${inp} sm:col-span-2`} />
-          <Button size="sm" onClick={save}>Uložit</Button>
+          <input value={why} onChange={(x) => setWhy(x.target.value)} aria-label="Důvod změny" placeholder={sent ? "Důvod změny (povinný, klient ho uvidí)" : "Důvod změny (klient ho uvidí)"} className={`${inp} sm:col-span-2`} />
+          <Button size="sm" disabled={!dose.trim() || (sent && !why.trim())} onClick={save}>Uložit</Button>
         </div>
       )}
     </li>
   )
 }
 
-function Library({ open, onClose, onPick }: { open: boolean; onClose: () => void; onPick: (x: any) => Promise<void> }) {
+function Library({ open, onClose, onPick, have }: { open: boolean; onClose: () => void; onPick: (x: any) => Promise<void>; have: Set<string> }) {
   const [q, setQ] = useState("")
   const [cat, setCat] = useState("")
   const [d, setD] = useState<any>(null)
@@ -398,7 +460,8 @@ function Library({ open, onClose, onPick }: { open: boolean; onClose: () => void
               <span className="min-w-0 flex-1"><b className="text-fg">{x.name}</b>
                 <span className="block text-[12px] text-fg-2">{`${x.dose} · ${x.per_week}× týdně`}</span>
                 <span className="block text-[11.5px] text-fg-3">{(x.treats || []).join(", ")}</span></span>
-              <Button size="sm" variant="outline" icon={Plus} onClick={() => onPick(x)}>Přidat</Button>
+              {have.has(x.id) ? <Chip tone="ok">V programu</Chip>
+                : <Button size="sm" variant="outline" icon={Plus} onClick={() => onPick(x)}>Přidat</Button>}
             </li>
           ))}
         </ul>
@@ -407,9 +470,12 @@ function Library({ open, onClose, onPick }: { open: boolean; onClose: () => void
   )
 }
 
-function RtrTab({ rid, plan, onChange }: { rid: string; plan: any; onChange: () => void }) {
+const COUNT_REASON: Record<string, string> = { pain_over_limit: "bolest nad hranicí", too_soon: "příliš brzy po minulém", not_completed: "nedokončeno" }
+
+function RtrTab({ rid, plan, a, onChange }: { rid: string; plan: any; a: any; onChange: () => void }) {
   const toast = useToast()
   const [pain, setPain] = useState(3)
+  const [ack, setAck] = useState(false)
   const [per, setPer] = useState(3)
   const [note, setNote] = useState("")
   const [busy, setBusy] = useState(false)
@@ -442,7 +508,25 @@ function RtrTab({ rid, plan, onChange }: { rid: string; plan: any; onChange: () 
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Poznámka pro klienta (nepovinné)" aria-label="Poznámka"
             className="rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px] sm:col-span-2" />
         </div>
-        <Button className="mt-3" icon={Play} busy={busy} onClick={create} data-testid="rtr-create">Začít návrat k běhu</Button>
+        {/* physio brief 2026-11-09 P0.7: starting with recent pain at the limit, or without current data, needs a tick */}
+        {(() => {
+          const lp = a?.lastPain
+          const hot = lp && lp.score != null && lp.score >= pain && (Date.now() - new Date(lp.at).getTime()) < 7 * 86400000
+          const stale = noData(a)
+          if (!hot && !stale) return null
+          return (
+            <label className="mt-3 flex items-start gap-2 rounded-xl bg-watch/10 px-3 py-2 text-[12.5px] leading-[17px] text-watch" data-testid="rtr-warning">
+              <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} className="mt-0.5" />
+              <span>{hot ? `Poslední hlášená bolest je ${lp.score}/10, na zvolené hranici nebo nad ní. ` : ""}
+                {stale ? "Klient nemá aktuální data. " : ""}Potvrzuji, že jsem stav klienta ověřil(a).</span>
+            </label>
+          )
+        })()}
+        <Button className="mt-3" icon={Play} busy={busy} disabled={(() => {
+          const lp = a?.lastPain
+          const hot = lp && lp.score != null && lp.score >= pain && (Date.now() - new Date(lp.at).getTime()) < 7 * 86400000
+          return (hot || noData(a)) && !ack
+        })()} onClick={create} data-testid="rtr-create">Začít návrat k běhu</Button>
       </Card>
     )
   }
@@ -471,12 +555,12 @@ function RtrTab({ rid, plan, onChange }: { rid: string; plan: any; onChange: () 
       {(plan.sessions || []).length === 0 ? <Empty>Klient zatím žádné sezení nezaznamenal.</Empty> : (
         <ul className="mt-1 grid gap-1 text-[12.5px]">
           {[...plan.sessions].reverse().slice(0, 12).map((s: any) => (
-            <li key={s.id} className="text-fg-2">{fmtDT(s.logged_at)}{` · úroveň ${s.level} · bolest ${s.pain}/10`}
-              {" "}{s.counted ? <Chip tone="ok">započteno</Chip> : <Chip tone="watch">nezapočteno</Chip>}{s.note ? ` — ${s.note}` : ""}</li>
+            <li key={s.id} className="text-fg-2">{fmtDT(s.logged_at)}{` · úroveň ${s.level} · bolest ${s.pain}/10`}{s.rpe != null ? ` · RPE ${s.rpe}` : ""}
+              {" "}{s.counted ? <Chip tone="ok">započteno</Chip> : <Chip tone="watch">{`nezapočteno${s.count_reason ? ` · ${COUNT_REASON[s.count_reason] || s.count_reason}` : ""}`}</Chip>}{s.note ? ` — ${s.note}` : ""}</li>
           ))}
         </ul>
       )}
-      {plan.status === "paused" && <p className="mt-2 text-[12px] text-watch">Plán je pozastavený.</p>}
+      {plan.status === "paused" && <p className="mt-2 text-[12px] text-watch">{plan.paused_reason === "pain_over_limit" ? "Plán se pozastavil: klient hlásil bolest nad hranicí. Obnovíte ho tlačítkem Pokračovat." : "Plán je pozastavený."}</p>}
     </Card>
   )
 }
@@ -533,9 +617,12 @@ function ChatTab({ rid }: { rid: string }) {
   const [busy, setBusy] = useState(false)
   const msgs = useMemo(() => d || [], [d])
   const send = async () => {
-    if (!body.trim()) return
+    const sent = body
+    if (!sent.trim() || busy) return
     setBusy(true)
-    try { await api.send(rid, "physio", body.trim()); setBody(""); reload() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+    // physio brief 2026-11-09 P0.11: clear only what was sent — text typed while sending stays
+    try { await api.send(rid, "physio", sent.trim()); setBody((cur) => (cur.startsWith(sent) ? cur.slice(sent.length) : cur)); reload() }
+    catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
     finally { setBusy(false) }
   }
   return (
@@ -550,8 +637,10 @@ function ChatTab({ rid }: { rid: string }) {
           </div>
         ))}
       </div>
-      <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); void send() }}>
-        <input value={body} onChange={(e) => setBody(e.target.value)} aria-label="Zpráva" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]" placeholder="Napište klientovi" />
+      <form className="mt-3 flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); void send() }}>
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} aria-label="Zpráva" rows={2}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send() } }}
+          className="min-w-0 flex-1 resize-y rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]" placeholder="Napište klientovi (Shift+Enter = nový řádek)" />
         <Button size="sm" icon={Send} busy={busy} type="submit">Odeslat</Button>
       </form>
     </Card>

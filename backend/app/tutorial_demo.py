@@ -331,6 +331,7 @@ def _care(db, rid, iso) -> None:
     db.flush()
     db.add(models.Conclusion(
         booking_id=past.id, runner_id=rid, physio_id=pid, status="approved", created_at=at(13, "17:00"), approved_at=at(13, "18:10"),
+        shared_at=at(13, "18:10"),   # physio brief 2026-11-09 P0.5: approval and sending are separate
         transcript_source="asr",
         finding="Přetížení pravé Achillovy šlachy bez známek poškození, snížená síla lýtka vpravo.",
         summary="Achillova šlacha vpravo reaguje na rychlé zvýšení objemu. Doporučuji excentrické posilování lýtka "

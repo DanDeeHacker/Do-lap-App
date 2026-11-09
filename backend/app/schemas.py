@@ -187,12 +187,25 @@ class AddSlotRequest(Lenient):
     duration_min: int = 45
 
 
+class TriagePassRequest(Lenient):
+    reason: str = ""
+
+
+class BookingCancelRequest(Lenient):
+    reason: str = ""
+
+
+class BookingRescheduleRequest(Lenient):
+    slot_id: int | None = None
+    starts_at: str | None = None
+
+
 class PrepInfoRequest(Lenient):
     prep_info: str
 
 
 class SendMessageRequest(Lenient):
-    sender: str
+    sender: Optional[str] = None    # ignored: the server derives it from the session (physio brief P0.10)
     body: str
 
 
@@ -211,6 +224,7 @@ class AddExerciseRequest(Lenient):
     dose: str
     per_week: int
     cue: Optional[str] = None
+    library_id: Optional[str] = None   # physio brief P0.8: one library item once per programme
 
 
 class SendProgramRequest(Lenient):
@@ -240,7 +254,7 @@ class CreateRtrRequest(Lenient):
 
 
 class LogRtrSessionRequest(Lenient):
-    pain: int = 0
+    pain: Optional[int] = None    # physio brief 2026-11-09 P0.7: no default — the runner says it
     rpe: Optional[int] = None
     completed: bool = True
     note: Optional[str] = None
@@ -259,6 +273,11 @@ class ConclusionPatch(Lenient):
     out_pain: Optional[int] = None
     out_region: Optional[str] = None
     out_side: Optional[str] = None
+    outcome_kind: Optional[str] = None      # injury | no_injury | "" (clears the outcome)
+
+
+class ConclusionApprove(Lenient):
+    send_summary: bool = True               # physio brief 2026-11-09 D5: approving ≠ sending
 
 
 class LangRequest(Lenient):

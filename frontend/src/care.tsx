@@ -177,6 +177,15 @@ function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; on
   const rtr = boot?.rtr
   const conclusion = (boot?.conclusions || [])[0]
   const injActive = a?.injury?.active
+  const cd = a?.careDirective
+  const toast = useToast()
+  const { busy, run } = useAsync()
+  // physio brief 2026-11-09 P0.5: an injury the physio confirmed is closed by the physio; the
+  // client lets them know instead of marking it healed.
+  const tellPhysio = () => run(async () => {
+    await api.send(rid, "runner", `Cítím se lépe — ${injActive?.site || "zranění"} mě už neomezuje. Můžeme zranění uzavřít?`)
+    toast({ title: "Zpráva odešla fyzioterapeutovi" })
+  })
 
   return (
     <>
@@ -186,8 +195,13 @@ function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; on
           <Card>
             <Label>Nahlášené zranění</Label>
             <AlertBanner tone="alert" className="mt-2" title={<>{injActive.site} · OSTRC {injActive.severity}/100</>}
-              action={<Button size="sm" variant="outline" onClick={onHealed} data-testid="healed-open">Označit jako zahojené</Button>}>
-              Pak následují 3 týdny postupného návratu (50 → 75 → 90 % týdne před zraněním), první 2 týdny bez intenzity.
+              action={injActive.confirmed
+                ? <Button size="sm" variant="outline" busy={busy} onClick={tellPhysio} data-testid="healed-tell-physio">Cítím se lépe — dát vědět fyzioterapeutovi</Button>
+                : <Button size="sm" variant="outline" onClick={onHealed} data-testid="healed-open">Označit jako zahojené</Button>}>
+              {/* physio brief 2026-11-09 P0.2.5: the generic return only when no physio leads it */}
+              {(cd?.source === "engine" || (cd?.source === "injury" && !cd?.physio_involved))
+                ? "Pak následují 3 týdny postupného návratu (50 → 75 → 90 % týdne před zraněním), první 2 týdny bez intenzity."
+                : cd?.headline_cs || "Řiďte se pokyny fyzioterapeuta."}
             </AlertBanner>
             <button onClick={onReport} className="mt-3 text-[12px] font-bold text-fg-3 underline underline-offset-2 hover:text-fg-2">Nahlásit další obtíže</button>
           </Card>
@@ -204,16 +218,18 @@ function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; on
             <div className="flex items-center justify-between"><Label>Návrat k běhu</Label><Chip tone="accent">úroveň {rtr.current_level}/{rtr.level_count}</Chip></div>
             <p className="mt-2 font-serif text-lg">{rtr.current?.label}</p>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-accent" style={{ width: `${Math.round(((rtr.current_level - 1 + (rtr.cleared_at_current || 0) / (rtr.sessions_per_level || 1)) / (rtr.level_count || 1)) * 100)}%` }} /></div>
-            <p className="mt-2 text-[12px] text-fg-3">Splněno {rtr.cleared_at_current}/{rtr.sessions_per_level} sezení · bolest do {rtr.pain_threshold}/10 posune dál.</p>
-            <Button variant="outline" className="mt-3 w-full" onClick={onRtr}>Zaznamenat sezení</Button>
+            <p className="mt-2 text-[12px] text-fg-3">{`Splněno ${rtr.cleared_at_current}/${rtr.sessions_per_level} sezení na této úrovni.`}</p>
+            {rtr.note && <p className="mt-2 rounded-xl bg-white/[.04] px-3 py-2 text-[13px] text-fg-2">{"Poznámka fyzioterapeuta: "}{rtr.note}</p>}
+            {rtr.status === "paused" ? (
+              <p className="mt-3 text-[13px] font-bold text-watch">Plán je pozastavený. Počkejte na pokyn fyzioterapeuta.</p>
+            ) : <Button variant="outline" className="mt-3 w-full" onClick={onRtr}>Zaznamenat sezení</Button>}
           </Card>
         )}
 
         {conclusion && (
           <Card className="lg:col-span-2">
-            <Label>Závěr z prohlídky</Label>
-            {conclusion.finding && <p className="mt-2 font-serif text-lg">{conclusion.finding}</p>}
-            <p translate="no" className="mt-1 whitespace-pre-wrap text-sm text-fg-2">{conclusion.summary}</p>
+            <Label>Shrnutí z návštěvy</Label>
+            <p translate="no" className="mt-2 whitespace-pre-wrap text-sm text-fg-2">{conclusion.summary}</p>
           </Card>
         )}
       </div>
@@ -313,7 +329,8 @@ export function InjurySheet({ rid, onClose, onDone, initialRegions = [], initial
 }
 
 function RtrSheet({ plan, onClose, onDone }: { plan: any; onClose: () => void; onDone: () => void }) {
-  const [pain, setPain] = useState(0)
+  // physio brief 2026-11-09 P0.7: pain has no default — saving waits until the runner sets it
+  const [pain, setPain] = useState<number | null>(null)
   const [rpe, setRpe] = useState(4)
   const [completed, setCompleted] = useState(true)
   const { busy, err, run } = useAsync()
@@ -321,12 +338,19 @@ function RtrSheet({ plan, onClose, onDone }: { plan: any; onClose: () => void; o
   return (
     <Sheet open onClose={onClose}>
       <h2 className="font-serif text-2xl">Sezení návratu k běhu</h2>
-      <p className="mt-1 text-[13px] text-fg-2">Úroveň {plan.current_level}: <b>{plan.current?.label}</b>. Bolest do {plan.pain_threshold}/10 vás posune dál.</p>
+      <p className="mt-1 text-[13px] text-fg-2">Úroveň {plan.current_level}: <b>{plan.current?.label}</b>.</p>
+      <p className="mt-1 text-[12.5px] text-fg-3">Zapište bolest tak, jak ji opravdu cítíte. Postup určuje váš fyzioterapeut.</p>
       <Field label="Dokončil/a jsem sezení"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} className="accent-accent" /> odškrtněte, pokud jste musel/a přerušit</label></Field>
-      <Field label="Bolest během sezení" hint="0 žádná"><Slider name="pain" min={0} max={10} value={pain} onChange={setPain} tone="pain" /></Field>
+      <Field label="Bolest během sezení" hint={pain == null ? "posuňte jezdec" : "0 žádná"}><Slider name="pain" min={0} max={10} value={pain ?? 0} onChange={setPain} tone="pain" /></Field>
       <Field label="Vnímaná námaha (RPE)"><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>
       {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
-      <button disabled={busy} onClick={() => run(async () => { const p = await api.logRtrSession(plan.id, { pain, rpe, completed }); toast({ title: p.status === "completed" ? "Návrat k běhu dokončen! 🎉" : `Úroveň ${p.current_level}/${p.level_count}` }); onDone() })} className="btn btn-primary mt-5 w-full py-3 text-sm">Uložit sezení</button>
+      <button disabled={busy || pain == null} data-testid="rtr-save" onClick={() => run(async () => {
+        const p = await api.logRtrSession(plan.id, { pain, rpe, completed })
+        toast({ title: p.status === "completed" ? "Návrat k běhu je dokončený"
+          : p.status === "paused" ? "Plán je pozastavený. Fyzioterapeut se vám ozve."
+          : `Úroveň ${p.current_level}/${p.level_count}` })
+        onDone()
+      })} className="btn btn-primary mt-5 w-full py-3 text-sm disabled:opacity-50">Uložit sezení</button>
     </Sheet>
   )
 }

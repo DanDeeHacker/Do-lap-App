@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session as DBSession
 
 from .. import history as H
 from .. import models, precompute, schemas
+from . import conclusions as CO
+from .. import care_view as CV
 from ..db import get_db
 from ..deps import (
     ensure_runner_read_access, ensure_runner_self, ensure_runner_write_access, get_current_user, or_404, verify_csrf,
@@ -84,7 +86,7 @@ def set_engine(rid: str, body: schemas.EngineModeRequest,
     r.engine_mode = mode
     db.commit()
     a = E.recompute_assessment(db, rid)
-    return {"ok": True, "engine_mode": mode, "assessment": a}
+    return {"ok": True, "engine_mode": mode, "assessment": CV.present(db, rid, a)}
 
 
 @router.put("/{rid}/cycle", dependencies=[Depends(verify_csrf)])
@@ -112,7 +114,7 @@ def set_cycle_week(rid: str, body: schemas.CycleWeekRequest,
         r.cycle_override = ({**keep} or None) if body.pos is None else {
             **keep, "week": week_start(E.today_date()).isoformat(), "pos": body.pos, "setAt": E.now_iso()}
     db.commit()
-    return {"ok": True, "assessment": E.recompute_assessment(db, rid)}
+    return {"ok": True, "assessment": CV.present(db, rid, E.recompute_assessment(db, rid))}
 
 
 @router.get("/{rid}/races")
@@ -147,7 +149,7 @@ def add_race(rid: str, body: schemas.RaceRequest,
     if r.goal_date and r.goal_date[:10] == d.isoformat():
         r.goal_race, r.goal_date = None, None          # the calendar entry replaces the profile's goal race
     db.commit()
-    return {"races": E.races_for(db, r), "assessment": E.recompute_assessment(db, rid)}
+    return {"races": E.races_for(db, r), "assessment": CV.present(db, rid, E.recompute_assessment(db, rid))}
 
 
 def _check_race_extra(ascent, pace):
@@ -189,7 +191,7 @@ def update_race(rid: str, race_id: str, body: schemas.RaceUpdateRequest,
     if "target_pace_s_km" in sent:
         row.target_pace_s_km = sent["target_pace_s_km"]
     db.commit()
-    return {"races": E.races_for(db, r), "assessment": E.recompute_assessment(db, rid)}
+    return {"races": E.races_for(db, r), "assessment": CV.present(db, rid, E.recompute_assessment(db, rid))}
 
 
 @router.get("/{rid}/races/{race_id}/plan")
@@ -218,7 +220,7 @@ def delete_race(rid: str, race_id: str,
         or_404(row, "Závod nenalezen")
         db.delete(row)
     db.commit()
-    return {"races": E.races_for(db, r), "assessment": E.recompute_assessment(db, rid)}
+    return {"races": E.races_for(db, r), "assessment": CV.present(db, rid, E.recompute_assessment(db, rid))}
 
 
 @router.patch("/{rid}", dependencies=[Depends(verify_csrf)])
@@ -301,7 +303,7 @@ def bootstrap(rid: str, user: models.User = Depends(get_current_user), db: DBSes
     ensure_runner_read_access(db, user, rid)
     r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
 
-    assessment = E.get_or_refresh_assessment(db, rid)
+    assessment = CV.present(db, rid, E.get_or_refresh_assessment(db, rid))   # physio brief P0.2–P0.4
 
     triage = (
         db.query(models.Triage).filter(models.Triage.runner_id == rid, models.Triage.status != "closed")
@@ -324,13 +326,9 @@ def bootstrap(rid: str, user: models.User = Depends(get_current_user), db: DBSes
     )
     program_out = None
     if program:
-        program_out = to_dict(program)
-        program_out["exercises"] = to_dicts(db.query(models.Exercise).filter(models.Exercise.program_id == program.id).all())
-        program_out["revisions"] = to_dicts(
-            db.query(models.ProgramRevision).filter(models.ProgramRevision.program_id == program.id)
-            .order_by(models.ProgramRevision.id.asc()).all()
-        )
-    messages = db.query(models.Message).filter(models.Message.runner_id == rid).order_by(models.Message.created_at.asc()).all()
+        from .programs import program_out as _pout
+        program_out = _pout(db, program)
+    messages = visible_messages(db, rid, user)
     integration = db.query(models.Integration).filter(models.Integration.runner_id == rid).first()
     device_history = (
         db.query(models.DeviceHistory).filter(models.DeviceHistory.runner_id == rid)
@@ -380,7 +378,11 @@ def bootstrap(rid: str, user: models.User = Depends(get_current_user), db: DBSes
         "bookings": to_dicts(bookings), "program": program_out, "messages": to_dicts(messages),
         "physios": physios, "integration": to_dict(integration), "device_history": to_dicts(device_history),
         "injury_reports": to_dicts(injury_reports), "injury_prompt_due": injury_prompt_due,
-        "conclusions": to_dicts(conclusions), "rtr": rtr_out, "access_log": access_out,
+        # physio brief 2026-11-09 P0.5 / D6: the client gets the summary written for them once it is sent,
+        # never the clinical finding, the transcript or the OSTRC answers
+        "conclusions": ([CO.runner_view(c) for c in conclusions if c.shared_at] if user.role == "runner"
+                        else to_dicts(conclusions)),
+        "rtr": rtr_out, "access_log": access_out,
         "reminders": reminders,
     }
 
@@ -735,7 +737,7 @@ def _access_log(db: DBSession, rid: str, limit: int) -> list[dict]:
 @router.get("/{rid}/assessment")
 def get_assessment(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_read_access(db, user, rid)
-    return E.get_or_refresh_assessment(db, rid)
+    return CV.present(db, rid, E.get_or_refresh_assessment(db, rid))
 
 
 @router.get("/{rid}/run-segments")
@@ -847,7 +849,7 @@ def exclude_activity(rid: str, aid: int, body: schemas.ExcludeActivityRequest, b
     db.commit()
     out = E.recompute_assessment(db, rid)
     background.add_task(coach_texts.refresh_bg, rid)
-    return {"ok": True, "id": aid, "excluded": a.excluded, "scope": scope, "assessment": out}
+    return {"ok": True, "id": aid, "excluded": a.excluded, "scope": scope, "assessment": CV.present(db, rid, out)}
 
 
 @router.post("/{rid}/activities/{aid}/rate", dependencies=[Depends(verify_csrf)])
@@ -886,7 +888,7 @@ def rate_activity(rid: str, aid: int, body: schemas.RateActivityRequest,
         if body.strength_type in E.STRENGTH_TYPES:
             act.strength_type = body.strength_type
     db.commit()
-    return E.recompute_assessment(db, rid)
+    return CV.present(db, rid, E.recompute_assessment(db, rid))
 
 
 CROSS_TITLE = {"cycling": "Kolo", "swimming": "Plavání", "strength": "Posilování",
@@ -927,7 +929,7 @@ def add_manual_activity(rid: str, body: schemas.ManualActivityRequest,
     db.add(models.ActivityFeedback(activity_id=a.id, runner_id=rid, submitted_at=day.isoformat(), rpe=body.rpe,
                                    legs=body.legs, note=body.note, pain_points=[]))
     db.commit()
-    return {"id": a.id, "assessment": E.recompute_assessment(db, rid)}
+    return {"id": a.id, "assessment": CV.present(db, rid, E.recompute_assessment(db, rid))}
 
 
 @router.delete("/{rid}/activities/{aid}", dependencies=[Depends(verify_csrf)])
@@ -941,7 +943,7 @@ def delete_activity(rid: str, aid: int, user: models.User = Depends(get_current_
                "Aktivita nenalezena")
     E.forget_activity(db, a)
     db.commit()
-    return {"ok": True, "assessment": E.recompute_assessment(db, rid)}
+    return {"ok": True, "assessment": CV.present(db, rid, E.recompute_assessment(db, rid))}
 
 
 @router.get("/{rid}/daily")
@@ -1013,15 +1015,8 @@ def get_program(rid: str, user: models.User = Depends(get_current_user), db: DBS
     )
     if not p:
         return None
-    ex = db.query(models.Exercise).filter(models.Exercise.program_id == p.id).all()
-    rv = (
-        db.query(models.ProgramRevision).filter(models.ProgramRevision.program_id == p.id)
-        .order_by(models.ProgramRevision.id.asc()).all()
-    )
-    out = to_dict(p)
-    out["exercises"] = to_dicts(ex)
-    out["revisions"] = to_dicts(rv)
-    return out
+    from .programs import program_out
+    return program_out(db, p)   # physio brief P0.8: stable order, ends_on
 
 
 @router.patch("/{rid}/exercises/{ex_id}/log", dependencies=[Depends(verify_csrf)])
@@ -1040,8 +1035,24 @@ def log_exercise(rid: str, ex_id: int, user: models.User = Depends(get_current_u
 @router.get("/{rid}/messages")
 def get_messages(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_read_access(db, user, rid)
-    rows = db.query(models.Message).filter(models.Message.runner_id == rid).order_by(models.Message.created_at.asc()).all()
+    rows = visible_messages(db, rid, user)
+    # physio brief 2026-11-09 P0.10: opening the thread marks it read for this side
+    col = "read_at_physio" if user.role == "physio" else "read_at_runner" if user.role == "runner" else None
+    if col:
+        now = E.now_iso()
+        for m in rows:
+            if getattr(m, col) is None:
+                setattr(m, col, now)
+        db.commit()
     return to_dicts(rows)
+
+
+def visible_messages(db: DBSession, rid: str, user: models.User) -> list:
+    """A runner never sees notes meant for the physio (physio brief P0.10)."""
+    q = db.query(models.Message).filter(models.Message.runner_id == rid)
+    if user.role != "physio":
+        q = q.filter((models.Message.audience.is_(None)) | (models.Message.audience != "physio"))
+    return q.order_by(models.Message.created_at.asc()).all()
 
 
 @router.post("/{rid}/messages", dependencies=[Depends(verify_csrf)])
@@ -1051,7 +1062,10 @@ def post_message(rid: str, body: schemas.SendMessageRequest, user: models.User =
     physio_id = user.physio_id if user.role == "physio" else (
         db.query(models.Program.physio_id).filter(models.Program.runner_id == rid).scalar()
     )
-    m = models.Message(runner_id=rid, physio_id=physio_id, sender=sender, body=body.body, created_at=E.now_iso())
+    if not (body.body or "").strip():
+        raise HTTPException(status_code=422, detail="Zpráva je prázdná.")
+    m = models.Message(runner_id=rid, physio_id=physio_id, sender=sender, body=body.body, created_at=E.now_iso(),
+                       **{"read_at_physio" if sender == "physio" else "read_at_runner": E.now_iso()})
     db.add(m)
     db.commit()
     db.refresh(m)
@@ -1085,7 +1099,9 @@ def report_injury(rid: str, body: schemas.InjuryReportRequest,
         now = E.iso_date(E.today_date())
         for active in (
             db.query(models.InjuryReport)
-            .filter(models.InjuryReport.runner_id == rid, models.InjuryReport.status == "active").all()
+            # physio brief 2026-11-09 P0.5: an injury the physio confirmed is closed by the physio only
+            .filter(models.InjuryReport.runner_id == rid, models.InjuryReport.status == "active",
+                    models.InjuryReport.confirmed.isnot(True)).all()
         ):
             active.status = "resolved"
             active.resolved_at = now
@@ -1109,7 +1125,7 @@ def report_injury(rid: str, body: schemas.InjuryReportRequest,
     db.flush()
     E.record_injury(db, rid, rep)          # plan B3: a reported injury becomes the injury history
     db.commit()
-    return E.recompute_assessment(db, rid)
+    return CV.present(db, rid, E.recompute_assessment(db, rid))
 
 
 @router.post("/{rid}/checkins", dependencies=[Depends(verify_csrf)])
@@ -1136,7 +1152,7 @@ def create_checkin(rid: str, body: schemas.CheckinRequest, background: Backgroun
     db.commit()
     out = E.recompute_assessment(db, rid)
     background.add_task(coach_texts.refresh_bg, rid)   # pain / feeling changed → the day's AI texts follow
-    return out
+    return CV.present(db, rid, out)
 
 
 @router.get("/{rid}/tendon-checks")
@@ -1246,7 +1262,7 @@ def get_week_plan(rid: str, user: models.User = Depends(get_current_user), db: D
     report (week_plan.py), so the three never name different sessions. None without data."""
     ensure_runner_read_access(db, user, rid)
     from ..metrics import daily_report as DR
-    a = E.get_or_refresh_assessment(db, rid)
+    a = CV.present(db, rid, E.get_or_refresh_assessment(db, rid))   # physio brief P0.2: the care directive
     return {"plan": DR._week_plan(a, db, rid, E.today_date())}
 
 
@@ -1286,7 +1302,7 @@ def week_plan_options(rid: str, day: str, user: models.User = Depends(get_curren
     from ..metrics import daily_report as DR
     from ..metrics import week_plan as WP
     today = E.today_date()
-    a = E.get_or_refresh_assessment(db, rid)
+    a = CV.present(db, rid, E.get_or_refresh_assessment(db, rid))
     return WP.options(a, today, DR._program(db, rid), DR.week_pins(db, rid, today), _day_in_week(day))
 
 
@@ -1297,7 +1313,7 @@ def week_plan_preview(rid: str, body: schemas.DayPinRequest, user: models.User =
     from ..metrics import daily_report as DR
     from ..metrics import week_plan as WP
     today = E.today_date()
-    a = E.get_or_refresh_assessment(db, rid)
+    a = CV.present(db, rid, E.get_or_refresh_assessment(db, rid))
     return WP.preview(a, today, DR._program(db, rid), DR.week_pins(db, rid, today), _day_in_week(body.date),
                       _pin_of(body), _day_in_week(body.move_to) if body.move_to else None)
 
@@ -1312,7 +1328,7 @@ def week_plan_pin(rid: str, body: schemas.DayPinRequest, user: models.User = Dep
     today = E.today_date()
     day, pin = _day_in_week(body.date), _pin_of(body)
     move_to = _day_in_week(body.move_to) if body.move_to else None
-    a = E.get_or_refresh_assessment(db, rid)
+    a = CV.present(db, rid, E.get_or_refresh_assessment(db, rid))
     pins = DR.week_pins(db, rid, today)
     pv = WP.preview(a, today, DR._program(db, rid), pins, day, pin, move_to)
     if pv["status"] == "no":
@@ -1330,7 +1346,7 @@ def week_plan_pin(rid: str, body: schemas.DayPinRequest, user: models.User = Dep
     pj["dayPins"] = keep
     r.planner_json = pj
     db.commit()
-    a = E.recompute_assessment(db, rid, data_changed=False)
+    a = CV.present(db, rid, E.recompute_assessment(db, rid, data_changed=False))
     return {"plan": DR._week_plan(a, db, rid, today)}
 
 
@@ -1346,7 +1362,7 @@ def week_plan_unpin(rid: str, day: str, user: models.User = Depends(get_current_
     pj["dayPins"] = pins
     r.planner_json = pj
     db.commit()
-    a = E.recompute_assessment(db, rid, data_changed=False)
+    a = CV.present(db, rid, E.recompute_assessment(db, rid, data_changed=False))
     return {"plan": DR._week_plan(a, db, rid, E.today_date())}
 
 
