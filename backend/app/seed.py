@@ -562,7 +562,8 @@ def build_and_seed(db: DBSession) -> None:
                                       pain=math.floor(rand() * 4), difficulty=3, created_at=E.day_ago(0)))
     db.add(models.ProgramRevision(
         program_id=prog.id, physio_id=p0.id, at=E.day_ago(4),
-        note="Pacientka hlásila bolest 4/10 po výponech — snížena frekvence z 6 na 5× týdně.",
+        # round 2 F6.7: the client reads this — in words written for them
+        note="Po výponech vás bolelo 4/10, proto jsem snížila frekvenci na 5× týdně.",
         changes=["Excentrické výpony na schodu: 6× → 5× týdně"],
     ))
     db.add(models.CareAssignment(physio_id=p0.id, runner_id=a0.id, status="active", created_at=E.day_ago(9)))

@@ -386,6 +386,7 @@ def close_injury(rid: str, iid: int, user: models.User = Depends(require_verifie
         raise HTTPException(status_code=404, detail="Zranění nenalezeno")
     if rep.status != "active":
         raise HTTPException(status_code=409, detail="Zranění už není aktivní.")
+    E.record_injury(db, rid, rep)        # round 2 F8.4: history once it is over (plan B3)
     rep.status, rep.resolved_at = "resolved", E.iso_date(E.today_date())
     db.add(models.Message(runner_id=rid, physio_id=pid, sender="system", created_at=E.now_iso(),
                           body="Fyzioterapeut uzavřel zranění. Další postup najdete v záložce Péče."))

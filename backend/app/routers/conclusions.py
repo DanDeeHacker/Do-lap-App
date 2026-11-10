@@ -288,7 +288,8 @@ def approve_conclusion(cid: int, body: schemas.ConclusionApprove | None = None,
         )
         db.add(rep)
         db.flush()
-        E.record_injury(db, c.runner_id, rep)   # plan B3: a confirmed injury becomes the injury history
+        # round 2 F8.4 (P0.5.9): a confirmed injury is the current injury, not a prior one — it enters the
+        # runner's injury history (runner.prior_injury*) when the physio closes it
         c.out_severity = severity
         c.injury_report_id = rep.id
 
