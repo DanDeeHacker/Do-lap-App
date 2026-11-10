@@ -264,7 +264,13 @@ def approve_conclusion(cid: int, body: schemas.ConclusionApprove | None = None,
         raise HTTPException(status_code=409, detail="Před prvním záznamem doplňte údaje poskytovatele v Praxi.")
     patient = R.card(db, clinic.id, c.runner_id)
     if R.patient_missing(patient):
-        raise HTTPException(status_code=409, detail="Doplňte identifikační údaje klienta.")
+        # round 2 F10.4: say what is missing, so the physio can fill it in without guessing
+        from fastapi.responses import JSONResponse
+        miss = R.missing_grouped(patient)
+        db.rollback()
+        return JSONResponse(status_code=409, content={
+            "detail": "Doplňte v kartě klienta: " + ", ".join(R.PATIENT_LABEL.get(k, k) for k in miss) + ".",
+            "missing": miss})
     visit_day = (bk.slot_at if bk and bk.slot_at else E.now_iso())[:10]
     if c.outcome_kind == "injury":
         vals = [getattr(c, f) for f in ("out_participation", "out_volume", "out_performance", "out_pain")]

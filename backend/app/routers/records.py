@@ -90,8 +90,8 @@ def put_practice(body: PracticeIn, user: models.User = Depends(require_verified_
     p = _physio(db, user)
     c = R.clinic_of(db, p)
     given = body.model_fields_set
-    if body.ico is not None and body.ico.strip() and not (body.ico.strip().isdigit() and len(body.ico.strip()) == 8):
-        raise HTTPException(status_code=422, detail="IČO má 8 číslic.")
+    if body.ico is not None and body.ico.strip() and not R.ico_valid(body.ico.strip()):
+        raise HTTPException(status_code=422, detail="Neplatné IČO.")      # round 2 F10.1
     changed = []
     for k in CLINIC_FIELDS:
         if k in given:

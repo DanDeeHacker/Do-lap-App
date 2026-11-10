@@ -152,7 +152,7 @@ def plan(db, extra: dict[str, str]) -> list[tuple[str, object]]:
         clinic = db.get(models.Clinic, ph0.clinic_id)
     if clinic is not None and (_marked(clinic.legal_name) or clinic.ico == "12345678"):
         def provider(c=clinic):
-            c.legal_name, c.legal_form, c.ico = "Fyzio Holešovice (ukázková praxe)", "s.r.o.", "00000000"
+            c.legal_name, c.legal_form, c.ico = "Fyzio Holešovice (ukázková praxe)", "s.r.o.", "00000001"
         out.append(("obnovit údaje poskytovatele z ukázky", provider))
     for b in db.query(models.Booking).all():
         if _marked(b.reason, b.questions, b.cancel_reason):

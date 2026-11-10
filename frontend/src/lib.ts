@@ -107,3 +107,14 @@ export function leadReasons(type: string | null | undefined, reasons: string[]):
 
 // round 2 F5.3: a pain slider's caption follows its value (0 žádná, 1–3 mírná, 4–6 střední, 7–10 silná)
 export const painWord = (v: number | null) => (v == null ? "posuňte jezdec" : v === 0 ? "žádná" : v <= 3 ? "mírná" : v <= 6 ? "střední" : "silná")
+
+// round 2 F10.1: the IČO checksum (the same rule the server checks)
+export function icoValid(ico: string): boolean {
+  if (!/^\d{8}$/.test(ico)) return false
+  const r = [...ico.slice(0, 7)].reduce((s, d, i) => s + Number(d) * (8 - i), 0) % 11
+  return (11 - r) % 10 === Number(ico[7])
+}
+// round 2 F10.3: "TEST s.r.o." + "s.r.o." prints once
+const squash = (x: string) => x.toLowerCase().replace(/[.\s,]/g, "")
+export const nameHasForm = (name?: string | null, form?: string | null) => !!form && squash(name || "").endsWith(squash(form))
+export const providerName = (name?: string | null, form?: string | null) => (!form || nameHasForm(name, form) ? (name || "") : `${name || ""}, ${form}`)

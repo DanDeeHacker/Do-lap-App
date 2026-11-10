@@ -22,6 +22,38 @@ from .metrics import engine as E
 PATIENT_REQUIRED = ("first_name", "last_name", "birth_date", "sex_at_birth",
                     "permanent_street", "permanent_city", "permanent_postal_code")     # brief C.4
 PROVIDER_REQUIRED = ("legal_name", "ico", "care_site_street", "care_site_city", "care_site_postal_code")
+PATIENT_LABEL = {"first_name": "jméno", "last_name": "příjmení", "birth_date": "datum narození",
+                 "sex_at_birth": "pohlaví při narození", "permanent_address": "adresa trvalého pobytu"}
+
+
+def ico_valid(ico: str) -> bool:
+    """Round 2 F10.1: the IČO checksum — weights 8…2 over the first 7 digits, r = sum % 11, check = (11 - r) % 10."""
+    if not (ico.isdigit() and len(ico) == 8):
+        return False
+    r = sum(int(d) * w for d, w in zip(ico[:7], range(8, 1, -1))) % 11
+    return (11 - r) % 10 == int(ico[7])
+
+
+def provider_name(legal_name: str | None, legal_form: str | None) -> str:
+    """Round 2 F10.3: never 's.r.o., s.r.o.' — the form is appended only when the name does not already end with it."""
+    name = (legal_name or "").strip()
+    form = (legal_form or "").strip()
+    if not form:
+        return name
+    squash = lambda x: "".join(ch for ch in x.lower() if ch not in ". ,")   # noqa: E731
+    return name if squash(name).endswith(squash(form)) else f"{name}, {form}"
+
+
+def missing_grouped(p) -> list[str]:
+    """The approval gate's missing list with the address as one item (F10.4)."""
+    out = []
+    for k in patient_missing(p):
+        k = "permanent_address" if k.startswith("permanent_") else k
+        if k not in out:
+            out.append(k)
+    return out
+
+
 RETENTION_YEARS = 5           # vyhl. 444/2024 § 13/2, příloha 3 bod 2: from 1 January after the last service
 DESTRUCTION_LOG_YEARS = 40    # vyhl. § 17/2
 ENC_FIELDS = ("rodne_cislo", "insurance_no", "id_doc_no")

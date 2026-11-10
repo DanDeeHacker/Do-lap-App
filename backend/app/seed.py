@@ -624,7 +624,7 @@ def _seed_records(db, physio, runner) -> None:
     from . import records as R
     clinic = db.get(models.Clinic, physio.clinic_id)
     if clinic is not None and not clinic.legal_name:
-        clinic.legal_name, clinic.legal_form, clinic.ico = "Fyzio Holešovice (ukázková praxe)", "s.r.o.", "00000000"
+        clinic.legal_name, clinic.legal_form, clinic.ico = "Fyzio Holešovice (ukázková praxe)", "s.r.o.", "00000001"   # a synthetic IČO that passes the checksum (round 2 F10.1)
         clinic.registered_street = clinic.care_site_street = "Ukázková 1"
         clinic.registered_city = clinic.care_site_city = "Praha 7"
         clinic.registered_postal_code = clinic.care_site_postal_code = "170 00"

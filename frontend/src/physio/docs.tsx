@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { Download, FilePlus2, Pencil, Printer, Send } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, Sheet, useToast } from "@/ui"
-import { fmtD, fmtDT } from "@/lib"
+import { fmtD, fmtDT, providerName } from "@/lib"
 import { Empty, KIND, Loading, REGIONS, useLoad } from "@/physio/common"
 
 const SOAP: [string, string][] = [
@@ -19,7 +19,8 @@ const inp = "mt-1 w-full rounded-xl border border-white/10 bg-panel px-3 py-2 te
 
 export function DocsTab({ rid }: { rid: string }) {
   const { d, err, reload } = useLoad<any>(() => api.physioDocumentation(rid), [rid])
-  const [card, setCard] = useState(false)
+  // round 2 F10.4: "Otevřít kartu" from the approval gate opens the card directly
+  const [card, setCard] = useState(() => new URLSearchParams(window.location.search).get("karta") === "1")
   const [handover, setHandover] = useState(false)
   const toast = useToast()
   if (!d) return <Card><Loading err={err} /></Card>
@@ -339,7 +340,7 @@ export function PrintPage({ rid }: { rid: string }) {
       <div className="no-print"><button type="button" onClick={() => window.print()} style={{ border: "1px solid #000", padding: "6px 12px", borderRadius: 8 }}>Vytisknout</button></div>
       <div className="head">
         <h1>Zdravotnická dokumentace — fyzioterapie</h1>
-        <div>{`${pv.legal_name || pv.name || ""}${pv.legal_form ? `, ${pv.legal_form}` : ""} · IČO ${pv.ico || "—"} · ${[pv.care_site_street, pv.care_site_postal_code, pv.care_site_city].filter(Boolean).join(", ")}`}</div>
+        <div>{`${providerName(pv.legal_name || pv.name, pv.legal_form)} · IČO ${pv.ico || "—"} · ${[pv.care_site_street, pv.care_site_postal_code, pv.care_site_city].filter(Boolean).join(", ")}`}</div>
         {pt ? <div>{`Pacient: ${pt.first_name} ${pt.last_name} · nar. ${pt.birth_date ? fmtD(pt.birth_date) : "—"} · ${pt.sex_at_birth === "f" ? "žena" : pt.sex_at_birth === "m" ? "muž" : "—"} · ${[pt.permanent_address?.street, pt.permanent_address?.postal_code, pt.permanent_address?.city].filter(Boolean).join(", ")} · identifikátor ${pt.identifier}`}</div> : <div>Karta pacienta není založená.</div>}
       </div>
       {d.records.map((r: any) => {

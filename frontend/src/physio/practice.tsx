@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { api } from "@/api"
 import { Button, Card, Chip, useToast } from "@/ui"
-import { fmtDT } from "@/lib"
+import { fmtDT, icoValid, nameHasForm } from "@/lib"
 import { Loading } from "@/physio/common"
 import { ClinicReport, Money, Subscription } from "@/physio/business"
 
@@ -21,7 +21,9 @@ export function PracticePage() {
   const [err, setErr] = useState<string | null>(null)
   useEffect(() => { api.practice().then((x: any) => { setD(x); setF({ ...x.clinic, ...x.physio }) }).catch((e: any) => setErr(e?.message || "Nepodařilo se")) }, [])
   if (!d) return <Loading err={err} />
+  const icoBad = !!(f.ico || "").trim() && !icoValid((f.ico || "").trim())
   const save = async (confirm: boolean) => {
+    if (icoBad) { toast({ title: "Neplatné IČO." }); return }
     const body: any = { confirm }
     for (const [k] of [...CLINIC, ...PERSON]) body[k] = f[k] ?? null
     try { const x = await api.practiceSave(body); setD(x); toast({ title: confirm ? "Údaje poskytovatele potvrzené" : "Uloženo" }) }
@@ -44,7 +46,10 @@ export function PracticePage() {
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {CLINIC.map(([k, label]) => (
               <label key={k} className="text-[12px] font-bold text-fg-2">{label}
-                <input className={inp} value={f[k] || ""} inputMode={k === "ico" ? "numeric" : undefined} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></label>
+                <input className={inp} value={f[k] || ""} inputMode={k === "ico" ? "numeric" : undefined} onChange={(e) => setF({ ...f, [k]: e.target.value })}
+                  aria-invalid={k === "ico" && icoBad ? true : undefined} />
+                {k === "ico" && icoBad && <span className="mt-1 block text-[12px] font-normal text-alert">Neplatné IČO.</span>}
+                {k === "legal_name" && nameHasForm(f.legal_name, f.legal_form) && <span className="mt-1 block text-[12px] font-normal text-watch">Název už obsahuje právní formu — v tisku se nezopakuje.</span>}</label>
             ))}
           </div>
         </Card>

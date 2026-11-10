@@ -386,7 +386,7 @@ export function VisitEditor({ rid, bid }: { rid: string; bid: number }) {
           {gate?.missing && (
             <p className="mt-2 rounded-xl bg-watch/10 px-3 py-2 text-[13px]" data-testid="gate">
               {gate.detail}{" "}
-              <Link className="font-bold text-accent underline" to={`/physio/client/${encodeURIComponent(rid)}?tab=docs#karta`}>Otevřít kartu</Link>
+              <Link className="font-bold text-accent underline" to={`/physio/client/${encodeURIComponent(rid)}?tab=docs&karta=1`}>Otevřít kartu</Link>
             </p>
           )}
           {!done ? (

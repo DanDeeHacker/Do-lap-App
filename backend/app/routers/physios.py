@@ -156,6 +156,8 @@ def update_profile(body: PhysioProfileIn, user: models.User = Depends(require_ro
     """The physio's own card the runners pick from (Care tab) and the clinic whose city sets the
     region of the case queue (triage._physio_region)."""
     p = db.get(models.Physio, _pid(user))
+    if body.name is not None and not 2 <= len(body.name.strip()) <= 120:
+        raise HTTPException(status_code=422, detail="Jméno musí mít 2 až 120 znaků.")   # round 2 F10.2
     for k in ("name", "credential", "bio", "years_exp", "price_czk"):
         v = getattr(body, k)
         if v is not None:
