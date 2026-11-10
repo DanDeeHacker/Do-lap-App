@@ -258,8 +258,20 @@ SEVERITY = {"rtr_paused_pain": "high", "rtr_morning_worse": "high", "checkin_pai
 ALERT_CS = {"rtr_paused_pain": "Návrat k běhu: bolest nad hranicí", "rtr_morning_worse": "Návrat k běhu: ráno hůř",
             "checkin_pain_high": "Vysoká bolest v check-inu", "limit_exceeded": "Překročené omezení tréninku",
             "adherence_drop": "Program se plní pod 50 %", "load_spike": "Skok v zátěži",
-            "no_data_7d": "7 dní bez dat", "note_unsigned": "Nepodepsaný záznam", "programme_ended": "Program skončil",
+            "no_data_7d": "Bez dat", "note_unsigned": "Nepodepsaný záznam", "programme_ended": "Program skončil",
             "no_morning_data": "Návrat k běhu: chybí ranní odpověď"}
+
+
+def alert_title(rule: str, payload: dict | None) -> str:
+    """Round 2 F4.4 / F7.5: the title carries the real number — "Bez dat 54 dní", "Program splněn na 38 %"."""
+    p = payload or {}
+    if rule == "no_data_7d":
+        if p.get("days") is not None:
+            return f"Bez dat {p['days']} dní"
+        return "Bez dat" if not p.get("last") else f"Bez dat od {int(p['last'][8:10])}. {int(p['last'][5:7])}."
+    if rule == "adherence_drop" and p.get("pct") is not None:
+        return f"Program splněn na {round(p['pct'])} %"
+    return ALERT_CS.get(rule, rule)
 
 
 def _clients(db: DBSession, physio_id: str) -> list[str]:
@@ -310,7 +322,9 @@ def _rule_hits(db: DBSession, physio_id: str, rid: str) -> dict[str, dict]:
         hits["load_spike"] = {}
     fr = CV.freshness_for(db, rid)
     if fr["status"] == "none" or (fr["days_since"] or 0) >= NO_DATA_DAYS:
-        hits["no_data_7d"] = {"last": fr["last_data_at"]}
+        # round 2 F4.4: the real N, and the severity from the freshness thresholds (stale is high)
+        hits["no_data_7d"] = {"last": fr["last_data_at"], "days": fr["days_since"],
+                              "severity": "high" if fr["status"] in ("stale", "none") else "medium"}
     return hits
 
 
@@ -329,10 +343,12 @@ def refresh_alerts(db: DBSession, physio_id: str) -> None:
     for key, payload in current.items():
         x = existing.get(key)
         if x is None:
-            db.add(models.PhysioAlert(physio_id=physio_id, runner_id=key[1], rule=key[0], severity=SEVERITY[key[0]],
+            db.add(models.PhysioAlert(physio_id=physio_id, runner_id=key[1], rule=key[0],
+                                      severity=payload.get("severity") or SEVERITY[key[0]],
                                       payload_json=payload, created_at=now, status="active"))
         else:
             x.payload_json = payload
+            x.severity = payload.get("severity") or x.severity
             if x.status == "snoozed" and x.snoozed_until and x.snoozed_until <= now:
                 x.status = "active"
     for key, x in existing.items():

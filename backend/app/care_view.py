@@ -75,26 +75,85 @@ def freshness_for(db: DBSession, rid: str, today: date | None = None) -> dict:
                           clamp(_day(max(syncs) if syncs else None)), today)
 
 
+PAIN_SOURCE_CS = {"checkin": "check-in", "activity": "po běhu", "rtr_session": "návrat k běhu",
+                  "rtr_morning": "ráno po sezení", "exercise": "cvičení"}
+
+
+def pain_events(db: DBSession, rid: str, frm: str | None = None, to: str | None = None) -> list[dict]:
+    """Round 2 F4.1: every pain the runner reported, from one query — check-ins, post-run ratings, return-to-run
+    sessions and their next-morning answers, programme exercises. Each event is
+    {at, score, region, side, source, ref}; return-to-run pain takes the plan's episode or injury region and side.
+    `frm` / `to` are ISO dates or datetimes (inclusive day bounds). Sorted by time; zero scores are kept (a
+    report of no pain is still a report) — consumers count `score > 0` as pain."""
+    lo = (frm or "")[:10]
+    hi = (to or "9999-12-31")[:10] + "~"          # "~" sorts after any time on that day
+    out: list[dict] = []
+
+    def add(at, score, region, side, source, ref):
+        if at and score is not None and lo <= at < hi:
+            out.append({"at": at, "score": int(score), "region": region, "side": side, "source": source, "ref": ref})
+
+    q = db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.pain_score.isnot(None))
+    for c in q.all():
+        pts = [pt for pt in (c.pain_points or []) if isinstance(pt, dict) and pt.get("region")]
+        if pts and (c.pain_score or 0) > 0:
+            for pt in pts:
+                add(c.submitted_at, c.pain_score, pt.get("region"), pt.get("side"), "checkin", f"checkin:{c.id}")
+        else:
+            add(c.submitted_at, c.pain_score, c.pain_site, None, "checkin", f"checkin:{c.id}")
+    for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid,
+                                                      models.ActivityFeedback.pain_during.isnot(None)).all():
+        add(f.submitted_at, f.pain_during, f.pain_site, None, "activity", f"activity:{f.activity_id}")
+    plans = {p.id: p for p in db.query(models.ReturnToRun).filter_by(runner_id=rid).all()}
+    where: dict[int, tuple] = {}
+    for pid, plan in plans.items():
+        ep = db.get(models.CareEpisode, plan.episode_id) if getattr(plan, "episode_id", None) else None
+        reg, side = (ep.region, ep.side) if ep and ep.region else (None, None)
+        if reg is None:
+            inj = (db.query(models.InjuryReport).filter(models.InjuryReport.runner_id == rid,
+                                                        models.InjuryReport.body_region.isnot(None))
+                   .order_by(models.InjuryReport.submitted_at.desc()).first())
+            reg, side = (inj.body_region, inj.body_side) if inj else (None, None)
+        where[pid] = (reg, side)
+    for s in db.query(models.RtrSession).filter(models.RtrSession.runner_id == rid).all():
+        reg, side = where.get(s.plan_id, (None, None))
+        add(s.logged_at, s.pain, reg, side, "rtr_session", f"rtr_session:{s.id}")
+        if s.next_morning_pain is not None:
+            add(s.morning_at or s.logged_at, s.next_morning_pain, reg, side, "rtr_morning",
+                f"rtr_session:{s.id}")
+    for lg in db.query(models.ExerciseLog).filter(models.ExerciseLog.runner_id == rid, models.ExerciseLog.pain.isnot(None)).all():
+        add(lg.created_at or lg.logged_on, lg.pain, None, None, "exercise", f"exercise_log:{lg.id}")
+    out.sort(key=lambda e: e["at"])
+    return out
+
+
 def last_pain(db: DBSession, rid: str) -> dict | None:
-    cands = []
-    ci = (db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.pain_score.isnot(None))
-          .order_by(models.Checkin.submitted_at.desc()).first())
-    if ci:
-        cands.append((ci.submitted_at, ci.pain_score, ci.pain_site, "checkin"))
-    fb = (db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid,
-                                                   models.ActivityFeedback.pain_during.isnot(None))
-          .order_by(models.ActivityFeedback.submitted_at.desc()).first())
-    if fb:
-        cands.append((fb.submitted_at, fb.pain_during, fb.pain_site, "run_rating"))
-    s = (db.query(models.RtrSession).filter(models.RtrSession.runner_id == rid, models.RtrSession.pain.isnot(None))
-         .order_by(models.RtrSession.logged_at.desc()).first())
-    if s:
-        cands.append((s.logged_at, s.pain, None, "rtr_session"))
-    cands = [c for c in cands if c[0]]
-    if not cands:
+    ev = pain_events(db, rid)
+    if not ev:
         return None
-    at, score, site, source = max(cands, key=lambda c: c[0])
-    return {"score": score, "site": site, "at": at, "source": source}
+    e = ev[-1]
+    return {"score": e["score"], "site": e["region"], "at": e["at"], "source": e["source"]}
+
+
+def pain_summary(events: list[dict]) -> dict:
+    """Counts for 'Příznaky' and 'Kde to bolí' from pain_events: every source counts and is named."""
+    pains = [e for e in events if e["score"] > 0]
+    by_src: dict[str, int] = {}
+    for e in pains:
+        by_src[e["source"]] = by_src.get(e["source"], 0) + 1
+    regions: dict[str, dict] = {}
+    for e in pains:
+        if not e["region"]:
+            continue
+        x = regions.setdefault(e["region"], {"region": e["region"], "count": 0, "max": 0, "last": None, "sides": []})
+        x["count"] += 1
+        x["max"] = max(x["max"], e["score"])
+        x["last"] = max(x["last"] or "", e["at"][:10])
+        if e["side"] and e["side"] not in x["sides"]:
+            x["sides"].append(e["side"])
+    return {"count": len(pains), "days": len({e["at"][:10] for e in pains}), "max": max((e["score"] for e in pains), default=None),
+            "by_source": by_src, "sources_cs": ", ".join(f"{PAIN_SOURCE_CS[k]} {v}×" for k, v in sorted(by_src.items(), key=lambda kv: -kv[1])),
+            "regions": sorted(regions.values(), key=lambda x: -x["count"])}
 
 
 def _active_plan(db: DBSession, rid: str) -> models.ReturnToRun | None:

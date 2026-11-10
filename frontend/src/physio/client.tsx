@@ -310,7 +310,7 @@ function Overview({ d, rid, onChange, onClose }: { d: any; rid: string; onChange
               <li key={x.region} className="flex items-center gap-2">
                 <span className={`grid h-6 w-10 place-items-center rounded text-[12px] font-bold tabular-nums ${x.max >= 5 ? "ph-risk-high" : x.max >= 3 ? "ph-risk-med" : "ph-unknown"}`}>{`${x.max}/10`}</span>
                 <b className="min-w-0 flex-1">{REGION_CS[x.region] || x.region}</b>
-                <span className="text-[12px] text-fg-3">{`${x.count}× · naposledy ${fmtD(x.last)}`}</span>
+                <span className="text-[12px] text-fg-3">{`${x.count}× · naposledy ${fmtD(x.last)}`}{x.sides?.length ? ` · ${x.sides.map((v: string) => (v === "L" ? "vlevo" : v === "P" ? "vpravo" : "obě strany")).join(", ")}` : ""}</span>
               </li>
             ))}
           </ul>
@@ -334,7 +334,8 @@ function Overview({ d, rid, onChange, onClose }: { d: any; rid: string; onChange
       </Card>
       <Card>
         <h2 className="font-serif text-xl">Příznaky za 6 týdnů</h2>
-        <p className="mt-1 text-[12px] text-fg-2">{`Check-in ${d.checkins.length}×, bolest hlášena ${painDays.length}×.`}</p>
+        {/* round 2 F4.2: the pain count covers every source and names them */}
+        <p className="mt-1 text-[12px] text-fg-2" data-testid="symptom-counts">{`Check-in ${d.checkins.length}×, bolest hlášena ${d.pain_summary?.count ?? painDays.length}×`}{d.pain_summary?.sources_cs ? ` (${d.pain_summary.sources_cs})` : ""}{"."}</p>
         <div className="mt-3 flex flex-wrap gap-1" role="img" aria-label="Bolest v check-inech">
           {d.checkins.map((c: any, i: number) => {
             const p = c.pain || 0

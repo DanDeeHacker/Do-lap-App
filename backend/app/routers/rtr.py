@@ -254,6 +254,7 @@ def morning(pid: int, sid: int, body: schemas.RtrMorningRequest, user: models.Us
     if s.state != "pending":
         raise HTTPException(status_code=409, detail="Na toto sezení už se ráno neptáme.")
     s.next_morning_pain, s.morning_stiffness_min = body.pain, body.stiffness_min
+    s.morning_at = E.now_iso()
     if body.pain > plan.pain_threshold:
         s.state, s.counted, s.count_reason = "not_counted", False, "morning_over_limit"
         plan.status, plan.paused_reason = "paused", "pain_over_limit"

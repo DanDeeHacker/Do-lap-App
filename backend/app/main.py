@@ -242,6 +242,7 @@ def _migrate(engine):
     add("bookings", "cancel_reason", "cancel_reason VARCHAR")
     _booking_guard(engine)
     add("rtr_sessions", "count_reason", "count_reason VARCHAR")      # physio brief P0.7
+    add("rtr_sessions", "morning_at", "morning_at VARCHAR")          # round 2 F4/F5
     add("return_to_run", "paused_reason", "paused_reason VARCHAR")
     # physio brief P0.10: message audience; the old system notes meant for the physio stay with the physio
     add("messages", "audience", "audience VARCHAR",

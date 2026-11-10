@@ -352,21 +352,8 @@ def _header(db: DBSession, pid: str, rid: str, cis: list) -> dict:
                                            models.Booking.slot_at >= E.now_iso()[:16])
            .order_by(models.Booking.slot_at.asc()).first())
     prog = (db.query(models.Program).filter_by(runner_id=rid, physio_id=pid, active=True).order_by(models.Program.id.desc()).first())
-    pains: dict[str, dict] = {}
-    for c in cis:
-        for pt in (getattr(c, "pain_points", None) or []):
-            reg = pt.get("region") or c.pain_site
-            if not reg:
-                continue
-            x = pains.setdefault(reg, {"region": reg, "count": 0, "max": 0, "last": None})
-            x["count"] += 1
-            x["max"] = max(x["max"], c.pain_score or 0)
-            x["last"] = max(x["last"] or "", c.submitted_at[:10])
-        if not getattr(c, "pain_points", None) and c.pain_site and (c.pain_score or 0) > 0:
-            x = pains.setdefault(c.pain_site, {"region": c.pain_site, "count": 0, "max": 0, "last": None})
-            x["count"] += 1
-            x["max"] = max(x["max"], c.pain_score or 0)
-            x["last"] = max(x["last"] or "", c.submitted_at[:10])
+    # round 2 F4.2: Kde to bolí and the symptom counts come from pain_events (every source), 6 weeks
+    ps = CV.pain_summary(CV.pain_events(db, rid, (E.today_date() - timedelta(weeks=6)).isoformat()))
     me = db.get(models.Physio, pid)
     colleagues = [{"id": m.physio_id, "name": db.get(models.Physio, m.physio_id).name}
                   for m in db.query(models.ClinicMember).filter_by(clinic_id=me.clinic_id, active=True).all()
@@ -377,7 +364,8 @@ def _header(db: DBSession, pid: str, rid: str, cis: list) -> dict:
             "phase": prog.phase if prog else None,
             "next_visit": {"id": nxt.id, "at": nxt.slot_at, "kind": nxt.kind} if nxt else None,
             "freshness": CV.freshness_for(db, rid),
-            "pain_map": sorted(pains.values(), key=lambda x: -x["count"]),
+            "pain_map": ps["regions"],
+            "pain_summary": {k: ps[k] for k in ("count", "days", "max", "by_source", "sources_cs")},
             "adherence": W.adherence(db, prog) if prog else None,
             "limits": [W.limit_text(x) for x in W.active_limits(db, rid)],
             "anamnesis": card.anamnesis if card else None,

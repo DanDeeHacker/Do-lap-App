@@ -1,7 +1,8 @@
 // Časová osa (physio brief 2026-11-09 W7): one date axis for everything the physio needs to read cause and
 // effect — running volume, the engine's three domains, pain per place, exercise sessions, the return to
 // running and markers for visits, programme changes, injuries and limits. Small multiples share the x axis,
-// each with its own y scale (never two scales on one plot). Days without data are gaps, never interpolated.
+// each with its own y scale (never two scales on one plot). Days without data are gaps, never interpolated;
+// round 2 F4.3: a range without any data is shaded and labelled "bez dat" on every row.
 import { useMemo, useState } from "react"
 import { api } from "@/api"
 import { Card, Chip, Segmented } from "@/ui"
@@ -37,8 +38,17 @@ export function Timeline({ rid }: { rid: string }) {
   const idx = (iso: string) => days.indexOf((iso || "").slice(0, 10))
   const h = hover ? by[hover] || { date: hover } : null
   const empty = d.days.length === 0 && d.events.length === 0
+  const gaps: any[] = d.gaps || []
   const Markers = ({ height }: { height: number }) => (
-    <>{d.events.map((e: any, k: number) => {
+    <>{gaps.map((g: any, k: number) => {
+      const a = idx(g.from), b = idx(g.to)
+      if (a < 0 || b < 0) return null
+      const step = (W - PAD - 8) / n
+      const x0 = x(a) - step / 2, w = x(b) - x(a) + step
+      return <g key={`g${k}`} data-testid="timeline-gap"><rect x={x0} y={0} width={w} height={height} fill="currentColor" opacity={0.06} />
+        {w > 40 && height >= 30 && <text x={x0 + w / 2} y={12} fontSize={9} textAnchor="middle" fill="currentColor" opacity={0.6}>bez dat</text>}</g>
+    })}
+    {d.events.map((e: any, k: number) => {
       const i = idx(e.at)
       return i < 0 ? null : <line key={k} x1={x(i)} x2={x(i)} y1={0} y2={height} stroke="currentColor" strokeOpacity={e.type === "injury" ? 0.55 : 0.22} strokeDasharray={e.type === "visit" ? "0" : "3 3"} />
     })}</>

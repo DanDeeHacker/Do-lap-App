@@ -334,7 +334,7 @@ def today(user: models.User = Depends(require_verified_physio), db: DBSession = 
     db.commit()
     return {"visits": sorted([_visit_out(db, b) for b in visits], key=lambda x: x["slot_at"]),
             "alerts": [{"id": a.id, "runner_id": a.runner_id, "name": names.get(a.runner_id), "rule": a.rule,
-                        "title": W.ALERT_CS.get(a.rule, a.rule), "severity": a.severity, "payload": a.payload_json,
+                        "title": W.alert_title(a.rule, a.payload_json), "severity": a.severity, "payload": a.payload_json,
                         "created_at": a.created_at} for a in alerts],
             "unread": [{"runner_id": m.runner_id, "name": names.get(m.runner_id), "at": m.created_at,
                         "preview": (m.body or "")[:120]} for m in sorted(unread, key=lambda m: m.created_at, reverse=True)],
@@ -666,23 +666,32 @@ def timeline(rid: str, weeks: int = 12, user: models.User = Depends(require_veri
         x = day((a.started_at or "")[:10])
         if (a.sport or "running") == "running":
             x["km"] = round((x.get("km") or 0) + (a.distance_km or 0), 2)
-    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= d0).all():
-        x = day(c.submitted_at[:10])
-        if c.pain_score is not None:
-            x.setdefault("pain", {})[c.pain_site or "bez místa"] = c.pain_score
-    for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid,
-                                                      models.ActivityFeedback.submitted_at >= d0).all():
-        if f.pain_during:
-            x = day(f.submitted_at[:10])
-            x.setdefault("pain", {})[f.pain_site or "při běhu"] = max(f.pain_during, (x.get("pain") or {}).get(f.pain_site or "při běhu", 0))
+    from .. import care_view as CV
+    seen: set[str] = set()            # days with any data at all (round 2 F4.3)
+    for a in db.query(models.Activity.started_at).filter(models.Activity.runner_id == rid, models.Activity.started_at >= d0).all():
+        seen.add((a[0] or "")[:10])
+    for c in db.query(models.Checkin.submitted_at).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= d0).all():
+        seen.add((c[0] or "")[:10])
+    # round 2 F4.2: the pain row from pain_events — check-ins, runs, return-to-run sessions and mornings, exercises
+    for e in CV.pain_events(db, rid, d0):
+        d = e["at"][:10]
+        seen.add(d)
+        if e["score"] <= 0 and e["source"] != "checkin":
+            continue
+        place = e["region"] or ("při běhu" if e["source"] == "activity" else "bez místa")
+        x = day(d)
+        x.setdefault("pain", {})[place] = max(e["score"], (x.get("pain") or {}).get(place, 0))
     from .. import history as H
     try:
         hist = H.quadrant_cache_fresh(db, rid) or H.build_quadrant_history(db, rid, min(190, weeks * 7 + 1))
     except Exception:
         hist = []
+    # round 2 F4.3: a day without data is a gap — no engine value is drawn there (never 0, never carried over)
+    gaps = _gaps(d0, t, seen)
+    in_gap = {g_d for g in gaps for g_d in _span(g["from"], g["to"])}
     for h in hist or []:
         d = (h.get("date") or "")[:10]
-        if d >= d0:
+        if d >= d0 and d not in in_gap:
             x = day(d)
             for k in ("load", "mech", "symp", "overall", "readiness", "quadrant"):
                 if h.get(k) is not None:
@@ -718,7 +727,32 @@ def timeline(rid: str, weeks: int = 12, user: models.User = Depends(require_veri
     R.physio_event(db, p, "read", "runner", rid, runner_id=rid, detail={"screen": "timeline"})
     db.commit()
     return {"from": d0, "to": t.isoformat(), "weeks": weeks, "days": sorted(days.values(), key=lambda x: x["date"]),
-            "events": sorted(events, key=lambda e: e["at"] or "")}
+            "events": sorted(events, key=lambda e: e["at"] or ""), "gaps": gaps}
+
+
+def _span(a: str, b: str) -> list[str]:
+    d, end, out = date.fromisoformat(a), date.fromisoformat(b), []
+    while d <= end:
+        out.append(d.isoformat())
+        d += timedelta(days=1)
+    return out
+
+
+def _gaps(d0: str, today: date, seen: set[str]) -> list[dict]:
+    """Ranges with no data longer than the freshness window (CV.FRESH_MAX_DAYS): shaded "bez dat" in the timeline.
+    The range starts the day after the freshness window runs out, so a short pause between runs is no gap."""
+    from .. import care_view as CV
+    out, run = [], []
+    for d in _span(d0, today.isoformat()):
+        if d in seen:
+            if len(run) > CV.FRESH_MAX_DAYS:
+                out.append({"from": run[CV.FRESH_MAX_DAYS], "to": run[-1], "days": len(run)})
+            run = []
+        else:
+            run.append(d)
+    if len(run) > CV.FRESH_MAX_DAYS:
+        out.append({"from": run[CV.FRESH_MAX_DAYS], "to": run[-1], "days": len(run)})
+    return out
 
 
 # =============================================================================================== W8 previsit
@@ -756,8 +790,9 @@ def previsit(rid: str, booking_id: int | None = None, user: models.User = Depend
     since = (last.approved_at if last else (E.today_date() - timedelta(days=28)).isoformat())[:10]
     runs = [a for a in db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.started_at >= since).all()
             if (a.sport or "running") == "running"]
-    pains = [c for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= since).all()
-             if (c.pain_score or 0) > 0]
+    ev = CV.pain_events(db, rid, since)             # round 2 F4.2: every source, one query
+    pains = [e for e in ev if e["score"] > 0]
+    psum = CV.pain_summary(ev)
     prog = (db.query(models.Program).filter_by(runner_id=rid, physio_id=p.id, active=True).order_by(models.Program.id.desc()).first())
     po = program_out(db, prog) if prog else None
     a = CV.present(db, rid, E.get_or_refresh_assessment(db, rid)) or {}
@@ -770,9 +805,9 @@ def previsit(rid: str, booking_id: int | None = None, user: models.User = Depend
     out = {"reason": b.reason if b else None, "questions": b.questions if b else None,
            "intake": intake.data if intake else None,
            "since": {"from": since, "runs": len(runs), "km": round(sum(r.distance_km or 0 for r in runs), 1),
-                     "pain_days": len({c.submitted_at[:10] for c in pains}),
-                     "pain_max": max((c.pain_score for c in pains), default=None),
-                     "sites": sorted({c.pain_site for c in pains if c.pain_site})},
+                     "pain_days": psum["days"], "pain_count": psum["count"], "pain_max": psum["max"],
+                     "pain_sources": psum["sources_cs"],
+                     "sites": sorted({e["region"] for e in pains if e["region"]})},
            "plan_vs_reality": ({"program": po["name"], "adherence": po["adherence"],
                                 "exercises": [{"name": e["name"], "per_week": e["per_week"], "done": e["done_count"],
                                                "target": e["target_count"]} for e in po["exercises"]]} if po else None),

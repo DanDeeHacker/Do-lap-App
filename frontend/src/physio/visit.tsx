@@ -49,7 +49,7 @@ export function PrevisitPage({ rid, bid }: { rid: string; bid?: number }) {
         <Card>
           <h2 className="font-serif text-xl">2. Od poslední návštěvy</h2>
           <p className="mt-2 text-[14px]">{`Od ${fmtD(d.since.from)}: ${d.since.runs} běhů, ${String(d.since.km).replace(".", ",")} km.`}</p>
-          <p className="text-[14px]">{d.since.pain_days ? `Bolest ve ${d.since.pain_days} dnech, nejvýš ${d.since.pain_max}/10${d.since.sites.length ? ` (${d.since.sites.join(", ")})` : ""}.` : "Žádná hlášená bolest."}</p>
+          <p className="text-[14px]" data-testid="previsit-pain">{d.since.pain_count ? `Bolest hlášena ${d.since.pain_count}× (${d.since.pain_sources}), nejvýš ${d.since.pain_max}/10${d.since.sites.length ? ` — ${d.since.sites.join(", ")}` : ""}.` : "Žádná hlášená bolest."}</p>
           {d.care_directive?.headline_cs && <p className="mt-1 text-[13px] text-fg-2">{"Klient dnes vidí: "}<b>{d.care_directive.headline_cs}</b></p>}
         </Card>
         <Card>
@@ -440,7 +440,7 @@ function PrevisitBrief({ d }: { d: any }) {
       {d.reason && <p><b>{"Důvod: "}</b>{d.reason}</p>}
       {d.questions && <p><b>{"Chce probrat: "}</b>{d.questions}</p>}
       <p>{`Od ${fmtD(d.since.from)}: ${d.since.runs} běhů, ${String(d.since.km).replace(".", ",")} km`}</p>
-      <p>{d.since.pain_text || (d.since.pain_days ? `Bolest hlášena ${d.since.pain_days}×, nejvýš ${d.since.pain_max}/10` : "Žádná hlášená bolest.")}</p>
+      <p>{d.since.pain_count ? `Bolest hlášena ${d.since.pain_count}× (${d.since.pain_sources}), nejvýš ${d.since.pain_max}/10` : "Žádná hlášená bolest."}</p>
       {d.plan_vs_reality && <p>{d.plan_vs_reality.adherence?.text || `Program splněn na ${d.plan_vs_reality.adherence?.pct ?? "—"} %`}</p>}
       {d.limits.length > 0 && <p className="text-fg-2">{`Omezení: ${d.limits.join(" · ")}`}</p>}
       <div className="mt-2 border-t border-white/[.08] pt-2">

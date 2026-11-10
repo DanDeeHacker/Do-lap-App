@@ -721,6 +721,7 @@ class RtrSession(Base):
     count_reason = Column(String)   # physio brief 2026-11-09 P0.7: pain_over_limit | too_soon | not_completed
     next_morning_pain = Column(Integer)      # physio brief W11
     morning_stiffness_min = Column(Integer)
+    morning_at = Column(String)              # round 2 F4/F5: when the next-morning answer was given
     matched_activity_id = Column(Integer)
     state = Column(String)                   # pending | counted | not_counted
     note = Column(String)
