@@ -809,12 +809,24 @@ def add_note_template(body: NoteTplIn, user: models.User = Depends(require_verif
 
 
 @router.get("/api/physios/me/clients/{rid}/last-note")
-def last_note(rid: str, user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
-    """W9.6: Zkopírovat z minula — the text fields of the last approved record, never the OSTRC."""
+def last_note(rid: str, bid: int | None = None, user: models.User = Depends(require_verified_physio),
+              db: DBSession = Depends(get_db)):
+    """W9.6: Zkopírovat z minula — the text fields of the last approved record, never the OSTRC.
+    Round 2 F1.9: from the same care episode as the visit being written (bid); without one, the open episode."""
     p = _me(db, user)
     _client(db, p, rid)
-    c = (db.query(models.Conclusion).filter_by(runner_id=rid, physio_id=p.id, status="approved")
-         .order_by(models.Conclusion.approved_at.desc()).first())
+    bk = db.get(models.Booking, bid) if bid else None
+    ep_id = bk.episode_id if bk is not None and bk.runner_id == rid else None
+    if ep_id is None:
+        ep = (db.query(models.CareEpisode).filter_by(runner_id=rid, physio_id=p.id, status="open")
+              .order_by(models.CareEpisode.id.desc()).first())
+        ep_id = ep.id if ep else None
+    q = db.query(models.Conclusion).filter_by(runner_id=rid, physio_id=p.id, status="approved")
+    if ep_id is not None:
+        q = q.filter(models.Conclusion.episode_id == ep_id)
+    if bid:
+        q = q.filter(models.Conclusion.booking_id != bid)
+    c = q.order_by(models.Conclusion.approved_at.desc()).first()
     if c is None:
         return {"fields": None}
     return {"fields": {k: getattr(c, k) for k in ("subjective", "objective", "assessment", "plan", "services_provided",

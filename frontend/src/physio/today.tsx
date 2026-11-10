@@ -40,7 +40,7 @@ export function TodayPage() {
                     : v.record ? <Chip tone="watch">rozepsaný záznam</Chip> : null}
                   {!v.prep && <Chip>bez pokynů k přípravě</Chip>}
                   <Link to={`/physio/client/${v.runner_id}/priprava/${v.id}`} className="btn btn-outline btn-sm">Příprava</Link>
-                  <Link to={`/physio/client/${v.runner_id}/navsteva/${v.id}`} className="btn btn-outline btn-sm"><FileText className="size-3.5" aria-hidden />Záznam</Link>
+                  <Link to={`/physio/client/${v.runner_id}/visit/${v.id}`} className="btn btn-outline btn-sm"><FileText className="size-3.5" aria-hidden />Záznam</Link>
                 </li>
               ))}
             </ol>
@@ -74,7 +74,7 @@ export function TodayPage() {
               <ul className="mt-2 grid gap-1 text-[13px]" data-testid="unsigned">
                 {d.unsigned.map((u: any) => (
                   <li key={u.booking_id} className="flex items-center gap-2">
-                    <Link to={`/physio/client/${u.runner_id}/navsteva/${u.booking_id}`} className="min-w-0 flex-1 truncate font-bold text-fg hover:underline">{u.name}</Link>
+                    <Link to={`/physio/client/${u.runner_id}/visit/${u.booking_id}`} className="min-w-0 flex-1 truncate font-bold text-fg hover:underline">{u.name}</Link>
                     <span className="text-fg-3">{fmtDT(u.slot_at)}</span>
                     {u.overdue && <AlertTriangle className="size-4 text-alert" aria-label="po termínu" />}
                   </li>

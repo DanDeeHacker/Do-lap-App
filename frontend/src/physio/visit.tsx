@@ -1,9 +1,11 @@
-// The visit, full page (physio brief 2026-11-09 W8, W9). Příprava works with or without a language model;
-// the note editor saves itself every 5 seconds after a change, warns before leaving with unsaved text, offers
-// templates and "Zkopírovat z minula" (text only, never the OSTRC), records only with the client's consent,
-// and after approval leads to the programme, the next visit and the return to running.
+// The visit, full page (physio brief 2026-11-09 W8, W9; round 2 F1). Příprava works with or without a language
+// model. The note editor never loses text (round 2 F1): it saves changed fields 2 s after the last keystroke and
+// at least every 5 s while typing, retries with backoff, keeps a copy on this device until the server has it,
+// asks before leaving with unsaved text, offers templates and "Zkopírovat z minula" (text only, never the OSTRC),
+// records only with the client's consent, and after approval leads to the programme, the next visit and the
+// return to running.
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Link, useNavigate } from "react-router"
+import { Link, useBlocker, useNavigate } from "react-router"
 import { ArrowLeft, CalendarPlus, Copy, Dumbbell, Footprints, Mic, Save, Square } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, useToast } from "@/ui"
@@ -82,19 +84,43 @@ export function PrevisitPage({ rid, bid }: { rid: string; bid?: number }) {
           <Card><h2 className="font-serif text-xl">6. {d.hypotheses.label}</h2><Empty>Žádná hypotéza.</Empty></Card>
         )}
       </div>
-      {bid && <Link to={`/physio/client/${rid}/navsteva/${bid}`} className="btn btn-primary mt-4">Otevřít záznam z návštěvy</Link>}
+      {bid && <Link to={`/physio/client/${rid}/visit/${bid}`} className="btn btn-primary mt-4">Otevřít záznam z návštěvy</Link>}
     </>
   )
 }
 
-// ---------------------------------------------------------------- W9 the note editor
+
+// ---------------------------------------------------------------- W9 / F1 the note editor
+export const visitPath = (rid: string, bid: number | string) => `/physio/client/${encodeURIComponent(rid)}/visit/${bid}`
+const localKey = (bid: number) => `doslap:note:${bid}`
+type Local = { at: string; fields: Record<string, any> }
+function readLocal(bid: number): Local | null {
+  try { const raw = localStorage.getItem(localKey(bid)); return raw ? JSON.parse(raw) : null } catch { return null }
+}
+function writeLocal(bid: number, fields: Record<string, any>) {
+  try { localStorage.setItem(localKey(bid), JSON.stringify({ at: new Date().toISOString(), fields })) } catch { /* private window or full storage */ }
+}
+function dropLocal(bid: number) {
+  try { localStorage.removeItem(localKey(bid)) } catch { /* ignore */ }
+}
+const norm = (v: any) => (v === "" || v === undefined ? null : v)
+const pick = (x: any) => Object.fromEntries(FIELDS.map((k) => [k, norm(x?.[k])]))
+const hhmm = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }) : "")
+const BACKOFF = [2000, 4000, 8000, 16000, 30000]
+
 export function VisitEditor({ rid, bid }: { rid: string; bid: number }) {
   const toast = useToast()
   const nav = useNavigate()
   const [c, setC] = useState<any>(null)
   const [err, setErr] = useState<string | null>(null)
-  const [dirty, setDirty] = useState(false)
+  const saved = useRef<Record<string, any>>({})        // the field values the server has
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [savedAt, setSavedAt] = useState<string | null>(null)
+  const [restore, setRestore] = useState<Local | null>(null)
+  const [tries, setTries] = useState(0)
+  const first = useRef<number | null>(null)            // first unsaved change, for the 5 s ceiling
+  const last = useRef<number>(0)                       // last change, for the 2 s debounce
+  const [tick, setTick] = useState(0)
   const [send, setSend] = useState(true)
   const [caps, setCaps] = useState<any>({})
   const [consent, setConsent] = useState(false)
@@ -102,43 +128,92 @@ export function VisitEditor({ rid, bid }: { rid: string; bid: number }) {
   const chunks = useRef<Blob[]>([])
   const [templates, setTemplates] = useState<any[]>([])
   const [marks, setMarks] = useState<string[]>([])
+  const [gate, setGate] = useState<any>(null)
   const cRef = useRef<any>(null)
   cRef.current = c
   const pre = useLoad<any>(() => api.previsit(rid, bid), [rid, bid])
   useEffect(() => {
-    api.conclusionOpen(bid).then(setC).catch((e: any) => setErr(e?.message || "Záznam nelze otevřít"))
+    api.conclusionOpen(bid).then((x: any) => {
+      saved.current = x.id ? pick(x) : pick({})
+      setSavedAt(x.autosaved_at || null)
+      setC(x)
+      // F1.4: a copy on this device that is newer than the server's last save
+      const loc = readLocal(bid)
+      if (loc && x.status !== "approved") {
+        const serverAt = new Date(x.autosaved_at || x.created_at || 0).getTime()
+        const differs = Object.entries(loc.fields).some(([k, v]) => norm(v) !== norm(x[k]))
+        if (new Date(loc.at).getTime() > serverAt && differs) setRestore(loc); else dropLocal(bid)
+      }
+    }).catch((e: any) => setErr(e?.message || "Záznam nelze otevřít"))
     api.physioMe().then((m: any) => setCaps(m.capabilities || {})).catch(() => null)
     api.noteTemplates().then((x: any) => setTemplates(x.items || [])).catch(() => null)
   }, [bid])
-  const body = (x: any) => Object.fromEntries(FIELDS.map((k) => [k, x[k] === "" ? null : x[k] ?? null]))
+  const changed = (x: any) => Object.fromEntries(FIELDS.filter((k) => norm(x?.[k]) !== saved.current[k]).map((k) => [k, norm(x[k])]))
+  const pending = !!c && c.status !== "approved" && Object.keys(changed(c)).length > 0
+  const busy = useRef(false)
   const save = useCallback(async () => {
     const x = cRef.current
-    if (!x || x.status === "approved") return null
-    const out = x.id ? await api.conclusionEdit(x.id, body(x)) : await api.conclusionDraft(bid, body(x))
-    setC((cur: any) => ({ ...cur, id: out.id, status: out.status }))
-    setDirty(false)
-    setSavedAt(new Date().toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }))
-    return out
+    if (!x || x.status === "approved" || busy.current) return null
+    const diff = changed(x)
+    if (x.id && Object.keys(diff).length === 0) return x
+    busy.current = true
+    setState("saving")
+    try {
+      // F1.3: changed fields only; the server stamps autosaved_at
+      const out = x.id ? await api.conclusionEdit(x.id, diff) : await api.conclusionDraft(bid, diff)
+      saved.current = { ...saved.current, ...diff }
+      setC((cur: any) => ({ ...cur, id: out.id, status: out.status, autosaved_at: out.autosaved_at }))
+      setSavedAt(out.autosaved_at || new Date().toISOString())
+      setState("saved")
+      setTries(0)
+      first.current = null
+      if (Object.keys(changed(cRef.current)).length === 0) dropLocal(bid)
+      return out
+    } catch (e) {
+      setState("error")
+      setTries((t) => t + 1)
+      throw e
+    } finally { busy.current = false; setTick((t) => t + 1) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bid])
-  // W9.3: autosave 5 s after the last change
+  // F1.3: 2 s after the last change, and never more than 5 s after the first unsaved one
   useEffect(() => {
-    if (!dirty) return
-    const t = setTimeout(() => { save().catch((e: any) => toast({ title: e?.message || "Automatické uložení selhalo" })) }, 5000)
+    if (!pending || state === "error" || busy.current) return
+    const now = Date.now()
+    const due = Math.min(last.current + 2000, (first.current ?? now) + 5000)
+    const t = setTimeout(() => { save().catch(() => null) }, Math.max(0, due - now))
     return () => clearTimeout(t)
-  }, [dirty, c, save, toast])
-  // W9.4: warn before leaving with unsaved text
+  }, [c, pending, state, tick, save])
+  // retry with backoff while the server cannot be reached
   useEffect(() => {
-    const h = (e: BeforeUnloadEvent) => { if (dirty) { e.preventDefault(); e.returnValue = "" } }
+    if (state !== "error") return
+    const t = setTimeout(() => { save().catch(() => null) }, BACKOFF[Math.min(tries - 1, BACKOFF.length - 1)] || 2000)
+    return () => clearTimeout(t)
+  }, [state, tries, save])
+  // F1.5: the browser asks before closing the tab with unsaved text…
+  useEffect(() => {
+    const h = (e: BeforeUnloadEvent) => { if (pending) { e.preventDefault(); e.returnValue = "" } }
     window.addEventListener("beforeunload", h)
     return () => window.removeEventListener("beforeunload", h)
-  }, [dirty])
+  }, [pending])
+  // …and the app asks before any in-app navigation
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => pending && currentLocation.pathname !== nextLocation.pathname)
   if (!c) return <><Back rid={rid} /><Loading err={err} /></>
   const done = c.status === "approved"
-  const set = (k: string, v: any) => { setC((x: any) => ({ ...x, [k]: v })); setDirty(true) }
-  const applyFields = (f: any) => { setC((x: any) => ({ ...x, ...Object.fromEntries(Object.entries(f).filter(([, v]) => v != null)) })); setDirty(true) }
+  const touch = () => { const now = Date.now(); last.current = now; if (first.current == null) first.current = now }
+  const update = (patch: Record<string, any>) => {
+    touch()
+    setC((x: any) => {
+      const next = { ...x, ...patch }
+      writeLocal(bid, pick(next))       // F1.4: every change also lands on this device
+      return next
+    })
+  }
+  const set = (k: string, v: any) => update({ [k]: v })
+  const applyFields = (f: any) => update(Object.fromEntries(Object.entries(f).filter(([, v]) => v != null)))
   const copyLast = async () => {
-    const x = await api.lastNote(rid)
-    if (!x.fields) { toast({ title: "Předchozí schválený záznam není" }); return }
+    const x = await api.lastNote(rid, bid)
+    if (!x.fields) { toast({ title: "V této epizodě péče zatím není schválený záznam" }); return }
     applyFields(x.fields)
     toast({ title: `Zkopírováno ze záznamu ${fmtD(x.at)} — bez OSTRC` })
   }
@@ -150,25 +225,32 @@ export function VisitEditor({ rid, bid }: { rid: string; bid: number }) {
     (!send || (c.summary || "").trim()) && (!injury || (complete && c.out_region && c.out_side))
   const approve = async () => {
     try {
-      const saved = await save()
-      const x = await api.conclusionApprove((saved || c).id, send)
+      const out = await save()
+      const x = await api.conclusionApprove((out || cRef.current).id, send)
+      saved.current = pick(x)
+      dropLocal(bid)
       setC(x)
+      setGate(null)
       toast({ title: x.shared_at ? "Záznam je schválený, shrnutí odešlo klientovi" : "Záznam je schválený" })
-    } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+    } catch (e: any) {
+      if (e?.data?.missing) setGate(e.data)
+      toast({ title: e?.message || "Nepodařilo se" })
+    }
   }
+  // F1.8: the same client, the same service, +14 days, the same time
   const followUp = async () => {
-    const at = new Date(Date.now() + 14 * 86400000)
-    at.setHours(new Date(c.slot_at || Date.now()).getHours(), new Date(c.slot_at || Date.now()).getMinutes(), 0, 0)
+    const base = new Date(c.slot_at || Date.now())
+    const at = new Date(base.getTime() + 14 * 86400000)
     try {
-      const r = await api.visitAdd({ runner_id: rid, starts_at: at.toISOString(), kind: "follow_up" })
+      const r = await api.visitAdd({ runner_id: rid, starts_at: at.toISOString(), kind: c.kind || "follow_up", service_id: c.service_id ?? undefined })
       toast({ title: r.created.length ? `Kontrola naplánována na ${fmtDT(at.toISOString())}` : "Termín za 2 týdny koliduje — vyberte jiný v Kalendáři" })
     } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
   }
   const upload = async (blob: Blob, name: string) => {
     try {
-      const saved = c.id ? c : await save()
-      const r = await api.conclusionAudio(saved.id, blob, name)
-      if (r.conclusion) setC(r.conclusion)
+      const out = c.id ? c : await save()
+      const r = await api.conclusionAudio(out.id, blob, name)
+      if (r.conclusion) { saved.current = pick(r.conclusion); setC(r.conclusion) }
       toast({ title: r.note || "Přepis hotový — zkontrolujte ho" })
     } catch (e: any) { toast({ title: e?.message || "Nahrání selhalo" }) }
   }
@@ -183,26 +265,35 @@ export function VisitEditor({ rid, bid }: { rid: string; bid: number }) {
       setRec(r)
     } catch { toast({ title: "Mikrofon není dostupný" }) }
   }
+  const status = done ? `Schváleno ${fmtDT(c.approved_at)}`
+    : state === "error" ? "Neuloženo — zkouším znovu"
+    : state === "saving" ? "Ukládám…"
+    : pending ? "Neuložené změny…"
+    : savedAt ? `Uloženo ${hhmm(savedAt)}` : ""
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="sticky top-12 z-20 -mx-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/[.08] bg-bg/95 px-4 py-2 backdrop-blur lg:-mx-8 lg:px-8">
         <Back rid={rid} />
-        <span className="text-[12px] text-fg-3" aria-live="polite" data-testid="autosave">{done ? `Schváleno ${fmtDT(c.approved_at)}` : dirty ? "Neuložené změny…" : savedAt ? `Uloženo ${savedAt}` : ""}</span>
+        <span className={`text-[12.5px] ${state === "error" ? "font-bold text-alert" : "text-fg-3"}`} aria-live="polite" data-testid="autosave">
+          {status}
+          {state === "error" && <button type="button" className="ml-2 font-bold text-accent underline" onClick={() => { save().catch(() => null) }}>Uložit teď</button>}
+        </span>
       </div>
-      <h1 className="mt-2 font-serif text-[30px]">{`Záznam z návštěvy ${c.slot_at ? fmtDT(c.slot_at) : ""}`}</h1>
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1.4fr]">
-        <div className="grid content-start gap-4">
+      <h1 className="mt-3 font-serif text-[30px]">{`Záznam z návštěvy ${c.slot_at ? fmtDT(c.slot_at) : ""}`}</h1>
+      {pre.d?.runner_name && <p className="text-[14px] text-fg-2">{pre.d.runner_name}{c.kind ? ` · ${KIND[c.kind] || c.kind}` : ""}</p>}
+      {restore && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-watch/10 px-4 py-3 text-[13.5px]" role="alert" data-testid="restore">
+          <span className="flex-1">{`Na tomto zařízení je neuložený text z ${fmtDT(restore.at)}.`}</span>
+          <Button size="sm" onClick={() => { applyFields(restore.fields); setRestore(null) }}>Obnovit</Button>
+          <Button size="sm" variant="outline" onClick={() => { dropLocal(bid); setRestore(null) }}>Zahodit</Button>
+        </div>
+      )}
+      <div className="mt-4 grid gap-4 min-[1200px]:grid-cols-[1fr_1.4fr]">
+        {/* F1.2: two columns from 1200 px; below that the note comes first */}
+        <div className="order-4 grid content-start gap-4 min-[1200px]:order-none">
           <Card>
             <h2 className="font-serif text-xl">Před návštěvou</h2>
-            {!pre.d ? <Loading err={pre.err} /> : (
-              <div className="mt-2 grid gap-1 text-[13px]">
-                {pre.d.reason && <p><b>{"Důvod: "}</b>{pre.d.reason}</p>}
-                <p>{`Od ${fmtD(pre.d.since.from)}: ${pre.d.since.runs} běhů, bolest ve ${pre.d.since.pain_days} dnech${pre.d.since.pain_max != null ? `, max ${pre.d.since.pain_max}/10` : ""}`}</p>
-                {pre.d.plan_vs_reality && <p>{`Program splněn na ${pre.d.plan_vs_reality.adherence?.pct ?? "—"} %`}</p>}
-                {pre.d.last_record?.plan && <p className="text-fg-2"><b>{"Minule: "}</b>{pre.d.last_record.plan}</p>}
-                {pre.d.since.sites.length > 0 && <p className="text-fg-2">{`Hlášená místa: ${pre.d.since.sites.join(", ")}`}</p>}
-              </div>
-            )}
+            {!pre.d ? <Loading err={pre.err} /> : <PrevisitBrief d={pre.d} />}
           </Card>
           <Card>
             <h2 className="font-serif text-xl">Nález na mapě těla</h2>
@@ -233,10 +324,10 @@ export function VisitEditor({ rid, bid }: { rid: string; bid: number }) {
             </Card>
           )}
         </div>
-        <Card>
+        <Card className="order-1 min-[1200px]:order-none">
           {!done && (
             <div className="flex flex-wrap items-center gap-2">
-              <select className="rounded-lg border border-white/15 bg-panel px-2 py-1.5 text-[13px]" defaultValue="" aria-label="Šablona"
+              <select className="rounded-lg border border-white/15 bg-panel px-2 py-1.5 text-[13px]" value="" aria-label="Šablona"
                 onChange={(e) => { const t = templates[Number(e.target.value)]; if (t) applyFields(t.fields) }}>
                 <option value="">Šablona…</option>
                 {templates.map((t, i) => <option key={i} value={i}>{t.name}</option>)}
@@ -253,40 +344,51 @@ export function VisitEditor({ rid, bid }: { rid: string; bid: number }) {
           <div className="mt-3 grid gap-3" data-testid="visit-editor">
             {SOAP.map(([k, label]) => (
               <label key={k} className="text-[13px] font-bold text-fg-2">{label}
-                <textarea rows={k === "objective" || k === "subjective" ? 4 : 2} disabled={done} value={c[k] || ""} onChange={(e) => set(k, e.target.value)} className={inp} />
+                <textarea rows={k === "objective" || k === "subjective" ? 5 : 3} disabled={done} value={c[k] || ""} onChange={(e) => set(k, e.target.value)} className={inp} data-field={k} />
               </label>
             ))}
-            {!done && <DiagnosisPicker value={c} onPick={(x) => { set("diagnosis_code", x.code); set("diagnosis_label", x.label) }} />}
-            {c.diagnosis_label && <p className="-mt-1 text-[13px]">{`Diagnóza: ${c.diagnosis_code ? `${c.diagnosis_code} ` : ""}${c.diagnosis_label}`}</p>}
-            <div className="rounded-lg border border-white/[.1] p-3">
-              <p className="text-[13px] font-bold">Výsledek návštěvy (OSTRC)</p>
-              <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Výsledek návštěvy">
-                {([[null, "Nevyplňovat"], ["injury", "Zranění"], ["no_injury", "Potvrdit: bez zranění"]] as [string | null, string][]).map(([k, t]) => (
-                  <button key={t} type="button" role="radio" aria-checked={(c.outcome_kind ?? null) === k} disabled={done} onClick={() => set("outcome_kind", k)}
-                    className={`rounded-full border px-3 py-1.5 text-[13px] ${(c.outcome_kind ?? null) === k ? "border-accent bg-accent/12 text-accent" : "border-white/15 text-fg-2"}`}>{t}</button>
-                ))}
-              </div>
-              {injury && (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {OSTRC.map(([k, label, opts]) => (
-                    <label key={k} className="text-[12.5px] font-bold text-fg-2">{label}
-                      <select disabled={done} value={c[k] ?? ""} onChange={(e) => set(k, e.target.value === "" ? null : Number(e.target.value))} className={inp}>
-                        <option value="">— vyberte —</option>{opts.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></label>
-                  ))}
-                  <label className="text-[12.5px] font-bold text-fg-2">Oblast
-                    <select disabled={done} value={c.out_region || ""} onChange={(e) => set("out_region", e.target.value || null)} className={inp}>
-                      <option value="">— vyberte —</option>{REGIONS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></label>
-                  <label className="text-[12.5px] font-bold text-fg-2">Strana
-                    <select disabled={done} value={c.out_side || ""} onChange={(e) => set("out_side", e.target.value || null)} className={inp}>
-                      <option value="">— vyberte —</option><option value="L">levá</option><option value="P">pravá</option><option value="both">obě</option></select></label>
-                  <p className="text-[13px] sm:col-span-2">{sev == null ? "Závažnost se spočítá, až budou vyplněné všechny čtyři otázky." : `Závažnost ${sev}/100`}</p>
-                </div>
-              )}
-            </div>
-            <label className="text-[13px] font-bold text-fg-2">Shrnutí pro klienta
-              <textarea rows={4} disabled={done} value={c.summary || ""} onChange={(e) => set("summary", e.target.value)} className={inp} placeholder="Co jste zjistili, co dělat do příští návštěvy." /></label>
-            <p className="-mt-1 text-[12px] text-fg-3">Klinický nález se klientovi automaticky neodesílá. Klient má právo nahlížet do dokumentace.</p>
+            {!done && <DiagnosisPicker value={c} onPick={(x) => update({ diagnosis_code: x.code, diagnosis_label: x.label })} />}
+            {c.diagnosis_label && <p className="-mt-1 text-[13px]">{"Diagnóza: "}{c.diagnosis_code ? `${c.diagnosis_code} ` : ""}{c.diagnosis_label}</p>}
           </div>
+        </Card>
+        {/* F1.7: OSTRC gets the full width, so no select is cut */}
+        <Card className="order-2 min-[1200px]:order-none min-[1200px]:col-span-2">
+          <h2 className="font-serif text-xl">Výsledek návštěvy (OSTRC)</h2>
+          <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Výsledek návštěvy">
+            {([[null, "Nevyplňovat"], ["injury", "Zranění"], ["no_injury", "Potvrdit: bez zranění"]] as [string | null, string][]).map(([k, t]) => (
+              <button key={t} type="button" role="radio" aria-checked={(c.outcome_kind ?? null) === k} disabled={done}
+                // P0.5.4: choosing Zranění never prefills the answers; every select starts at "— vyberte —"
+                onClick={() => update({ outcome_kind: k, ...(k === "injury" && c.outcome_kind !== "injury" ? { out_participation: null, out_volume: null, out_performance: null, out_pain: null } : {}) })}
+                className={`rounded-full border px-3 py-1.5 text-[13px] ${(c.outcome_kind ?? null) === k ? "border-accent bg-accent/12 text-accent" : "border-white/15 text-fg-2"}`}>{t}</button>
+            ))}
+          </div>
+          {injury && (
+            <div className="mt-3 grid gap-3 md:grid-cols-2" data-testid="ostrc">
+              {OSTRC.map(([k, label, opts]) => (
+                <label key={k} className="text-[12.5px] font-bold text-fg-2">{label}
+                  <select disabled={done} value={c[k] ?? ""} onChange={(e) => set(k, e.target.value === "" ? null : Number(e.target.value))} className={inp}>
+                    <option value="">— vyberte —</option>{opts.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></label>
+              ))}
+              <label className="text-[12.5px] font-bold text-fg-2">Oblast
+                <select disabled={done} value={c.out_region || ""} onChange={(e) => set("out_region", e.target.value || null)} className={inp}>
+                  <option value="">— vyberte —</option>{REGIONS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></label>
+              <label className="text-[12.5px] font-bold text-fg-2">Strana
+                <select disabled={done} value={c.out_side || ""} onChange={(e) => set("out_side", e.target.value || null)} className={inp}>
+                  <option value="">— vyberte —</option><option value="L">levá</option><option value="P">pravá</option><option value="both">obě</option></select></label>
+              <p className="text-[13px] md:col-span-2">{sev == null ? "Závažnost se spočítá, až budou vyplněné všechny čtyři otázky." : `Závažnost ${sev}/100`}</p>
+            </div>
+          )}
+        </Card>
+        <Card className="order-3 min-[1200px]:order-none min-[1200px]:col-span-2">
+          <label className="text-[13px] font-bold text-fg-2">Shrnutí pro klienta
+            <textarea rows={4} disabled={done} value={c.summary || ""} onChange={(e) => set("summary", e.target.value)} className={inp} placeholder="Co jste zjistili, co dělat do příští návštěvy." /></label>
+          <p className="mt-1 text-[12px] text-fg-3">Klinický nález se klientovi automaticky neodesílá. Klient má právo nahlížet do dokumentace.</p>
+          {gate?.missing && (
+            <p className="mt-2 rounded-xl bg-watch/10 px-3 py-2 text-[13px]" data-testid="gate">
+              {gate.detail}{" "}
+              <Link className="font-bold text-accent underline" to={`/physio/client/${encodeURIComponent(rid)}?tab=docs#karta`}>Otevřít kartu</Link>
+            </p>
+          )}
           {!done ? (
             <div className="mt-4 grid gap-2 border-t border-white/[.08] pt-3">
               <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={send} onChange={(e) => setSend(e.target.checked)} />Poslat shrnutí klientovi</label>
@@ -299,14 +401,56 @@ export function VisitEditor({ rid, bid }: { rid: string; bid: number }) {
           ) : (
             <div className="mt-4 flex flex-wrap gap-2 border-t border-white/[.08] pt-3" data-testid="after-approve">
               <Chip tone="ok">{c.shared_at ? "Shrnutí odesláno" : "Shrnutí neodesláno"}</Chip>
-              <Button variant="outline" icon={Dumbbell} onClick={() => nav(`/physio/client/${rid}?tab=plan`)}>Upravit program</Button>
+              <Button variant="outline" icon={Dumbbell} onClick={() => nav(`/physio/client/${encodeURIComponent(rid)}?tab=plan`)}>Upravit program</Button>
               <Button variant="outline" icon={CalendarPlus} onClick={followUp}>Naplánovat kontrolu</Button>
-              <Button variant="outline" icon={Footprints} onClick={() => nav(`/physio/client/${rid}?tab=plan#rtr`)}>Začít návrat k běhu</Button>
+              <Button variant="outline" icon={Footprints} onClick={() => nav(`/physio/client/${encodeURIComponent(rid)}?tab=plan#rtr`)}>Začít návrat k běhu</Button>
             </div>
           )}
-          <p className="mt-2 text-[12px] text-fg-3">{KIND[c.kind] || ""}</p>
         </Card>
       </div>
+      {blocker.state === "blocked" && <LeaveDialog onStay={() => blocker.reset()} onLeave={() => blocker.proceed()} />}
     </>
+  )
+}
+
+// F1.5: an in-app dialog, never window.confirm; Escape means "stay"
+function LeaveDialog({ onStay, onLeave }: { onStay: () => void; onLeave: () => void }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onStay() } }
+    window.addEventListener("keydown", k, true)
+    return () => window.removeEventListener("keydown", k, true)
+  }, [onStay])
+  return (
+    <div className="fixed inset-0 z-[90] grid place-items-center bg-black/40 p-4" role="alertdialog" aria-modal="true" aria-labelledby="leave-t" data-testid="leave-dialog">
+      <div className="w-full max-w-sm rounded-2xl bg-panel p-5 shadow-xl">
+        <p id="leave-t" className="text-[15px] font-bold">Máte neuložené změny. Odejít bez uložení?</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button autoFocus variant="outline" onClick={onStay}>Zůstat</Button>
+          <Button variant="danger" onClick={onLeave}>Odejít</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// the compact Příprava beside the note (F1.2; the same data as the Příprava page)
+function PrevisitBrief({ d }: { d: any }) {
+  return (
+    <div className="mt-2 grid gap-1.5 text-[13px]">
+      {d.reason && <p><b>{"Důvod: "}</b>{d.reason}</p>}
+      {d.questions && <p><b>{"Chce probrat: "}</b>{d.questions}</p>}
+      <p>{`Od ${fmtD(d.since.from)}: ${d.since.runs} běhů, ${String(d.since.km).replace(".", ",")} km`}</p>
+      <p>{d.since.pain_text || (d.since.pain_days ? `Bolest hlášena ${d.since.pain_days}×, nejvýš ${d.since.pain_max}/10` : "Žádná hlášená bolest.")}</p>
+      {d.plan_vs_reality && <p>{d.plan_vs_reality.adherence?.text || `Program splněn na ${d.plan_vs_reality.adherence?.pct ?? "—"} %`}</p>}
+      {d.limits.length > 0 && <p className="text-fg-2">{`Omezení: ${d.limits.join(" · ")}`}</p>}
+      <div className="mt-2 border-t border-white/[.08] pt-2">
+        <p className="text-[11px] font-bold uppercase tracking-[.06em] text-fg-3">Poslední schválený záznam</p>
+        {!d.last_record ? <p className="text-fg-3">Zatím žádný.</p> : <>
+          <p className="text-[12px] text-fg-3">{fmtDT(d.last_record.at)}</p>
+          {d.last_record.assessment && <p><b>{"Závěr: "}</b>{d.last_record.assessment}</p>}
+          {d.last_record.plan && <p><b>{"Plán: "}</b>{d.last_record.plan}</p>}
+        </>}
+      </div>
+    </div>
   )
 }

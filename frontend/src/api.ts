@@ -5,9 +5,11 @@ import { getLang } from "@/i18n/lang"
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  data: any     // the whole error body (round 2 F10.4: the approval gate lists what is missing)
+  constructor(status: number, message: string, data: any = null) {
     super(message)
     this.status = status
+    this.data = data
     this.name = "ApiError"
   }
 }
@@ -57,7 +59,7 @@ async function call<T = any>(
         : Array.isArray(d)
           ? d[0]?.msg || "Neplatný vstup."
           : `Chyba serveru (${res.status})`
-    throw new ApiError(res.status, msg)
+    throw new ApiError(res.status, msg, data)
   }
   return data as T
 }
@@ -308,7 +310,7 @@ export const api = {
   previsit: (rid: string, bid?: number) => call("GET", `/api/physios/me/clients/${rid}/previsit${bid ? `?booking_id=${bid}` : ""}`),
   noteTemplates: () => call("GET", "/api/physios/me/note-templates"),
   noteTemplateAdd: (body: any) => call("POST", "/api/physios/me/note-templates", body),
-  lastNote: (rid: string) => call("GET", `/api/physios/me/clients/${rid}/last-note`),
+  lastNote: (rid: string, bid?: number) => call("GET", `/api/physios/me/clients/${rid}/last-note${bid ? `?bid=${bid}` : ""}`),
   limits: (rid: string) => call("GET", `/api/physios/me/clients/${rid}/limits`),
   limitAdd: (rid: string, body: any) => call("POST", `/api/physios/me/clients/${rid}/limits`, body),
   limitEnd: (id: number) => call("DELETE", `/api/limits/${id}`),

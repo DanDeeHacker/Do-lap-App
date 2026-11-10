@@ -60,7 +60,8 @@ export function PhysioApp() {
   // R9: the printout renders on its own, black on white, without the app shell
   const print = pathname.match(/^\/physio\/client\/([^/]+)\/tisk$/)
   if (print) return <PrintPage rid={decodeURIComponent(print[1])} />
-  const visit = pathname.match(/^\/physio\/client\/([^/]+)\/navsteva\/(\d+)$/)
+  // round 2 F1.1: the note is a full page at /visit/:bookingId; the older /navsteva/ links still open it
+  const visit = pathname.match(/^\/physio\/client\/([^/]+)\/(?:visit|navsteva)\/(\d+)$/)
   const prep = pathname.match(/^\/physio\/client\/([^/]+)\/priprava\/(\d+)$/)
   let page = <TodayPage />
   if (visit) page = <VisitEditor rid={decodeURIComponent(visit[1])} bid={Number(visit[2])} />

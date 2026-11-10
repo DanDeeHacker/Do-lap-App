@@ -48,6 +48,9 @@ def _booking_owned(db: DBSession, bid: int, physio_id: str) -> models.Booking:
 def _out(c: models.Conclusion, bk: models.Booking | None) -> dict:
     d = to_dict(c)
     d["slot_at"] = bk.slot_at if bk else None
+    # physio brief round 2 F1.8: the follow-up keeps the same service and kind
+    d["service_id"] = bk.service_id if bk else None
+    d["kind"] = bk.kind if bk else None
     d["severity_complete"] = c.outcome_kind == "injury" and all(
         getattr(c, f) in OSTRC_VALUES for f in ("out_participation", "out_volume", "out_performance", "out_pain"))
     return d
@@ -77,7 +80,8 @@ def open_conclusion(bid: int, user: models.User = Depends(require_role("physio")
     return {"id": None, "booking_id": bid, "runner_id": bk.runner_id, "physio_id": user.physio_id, "status": "new",
             "transcript": None, "summary": None, "finding": None, "outcome_kind": None, "has_outcome": False,
             "out_participation": None, "out_volume": None, "out_performance": None, "out_pain": None,
-            "out_region": None, "out_side": None, "slot_at": bk.slot_at, "severity_complete": False}
+            "out_region": None, "out_side": None, "slot_at": bk.slot_at, "severity_complete": False,
+            "service_id": bk.service_id, "kind": bk.kind, "autosaved_at": None}
 
 
 SOAP = ("subjective", "objective", "assessment", "plan", "services_provided")
@@ -157,6 +161,7 @@ def save_new_conclusion(bid: int, body: schemas.ConclusionPatch,
     elif c.status != "draft":
         raise HTTPException(status_code=409, detail="Schválený závěr už nelze upravovat.")
     _apply(c, body)
+    c.autosaved_at = E.now_iso()          # round 2 F1.3: the server's own time of the last save
     db.commit()
     db.refresh(c)
     return _out(c, bk)
@@ -216,6 +221,7 @@ def edit_conclusion(cid: int, body: schemas.ConclusionPatch,
     if c.status != "draft":
         raise HTTPException(status_code=409, detail="Schválený závěr už nelze upravovat.")
     _apply(c, body)
+    c.autosaved_at = E.now_iso()          # round 2 F1.3
     db.commit()
     db.refresh(c)
     return _out(c, db.get(models.Booking, c.booking_id))

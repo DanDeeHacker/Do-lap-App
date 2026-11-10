@@ -7,8 +7,8 @@ import { CalendarPlus, Check, FileText, MoreHorizontal, Trash2, X } from "lucide
 import { api } from "@/api"
 import { Button, Card, Chip, useToast } from "@/ui"
 import { fmtDT } from "@/lib"
+import { visitPath } from "@/physio/visit"
 import { Empty, KIND, Loading, shownScore, useLoad } from "@/physio/common"
-import { ConclusionSheet } from "@/physio/conclusion"
 import { AddVisit, IcsLink, Services, WeekView, WorkingHours } from "@/physio/schedule"
 import { Waitlist } from "@/physio/business"
 
@@ -23,7 +23,6 @@ export function CalendarPage({ pid }: { pid: string }) {
   const [time, setTime] = useState("09:00")
   const [dur, setDur] = useState(45)
   const [busy, setBusy] = useState<string | null>(null)
-  const [concl, setConcl] = useState<any>(null)
   const [ver, setVer] = useState(0)
   const [allSlots, setAllSlots] = useState(false)
   const free = useLoad<any>(() => api.availability().then((x: any) => x.preview || []), [ver])
@@ -90,7 +89,7 @@ export function CalendarPage({ pid }: { pid: string }) {
                     <h3 className="text-[12px] font-extrabold uppercase tracking-[.06em] text-fg-3">{dayLabel(day)}</h3>
                     <ul className="mt-1.5 grid gap-2">
                       {bs.map((b: any) => <Visit key={b.id} b={b} reminder={remind.has(b.id)} onOpen={() => nav(`/physio/client/${b.runner_id}`)}
-                        onConclusion={() => setConcl(b)} onSaved={refresh} openSlots={openSlots} freeTimes={free.d || []} />)}
+                        onConclusion={() => nav(visitPath(b.runner_id, b.id))} onSaved={refresh} openSlots={openSlots} freeTimes={free.d || []} />)}
                     </ul>
                   </section>
                 ))}
@@ -110,7 +109,7 @@ export function CalendarPage({ pid }: { pid: string }) {
                       <Button size="sm" variant="outline" busy={busy === `p${b.id}`} onClick={() => act(`p${b.id}`, () => api.bookingComplete(b.id), "Návštěva označena jako proběhlá")}>Proběhla</Button>
                       <Button size="sm" variant="outline" busy={busy === `n${b.id}`} onClick={() => act(`n${b.id}`, () => api.bookingNoShow(b.id), "Zaznamenáno: nedostavil(a) se")}>Nedostavil(a) se</Button>
                     </>}
-                    {b.status !== "no_show" && <Button size="sm" variant="outline" icon={FileText} onClick={() => setConcl(b)}>Záznam</Button>}
+                    {b.status !== "no_show" && <Button size="sm" variant="outline" icon={FileText} onClick={() => nav(visitPath(b.runner_id, b.id))}>Záznam</Button>}
                   </li>
                 ))}
               </ul>
@@ -153,7 +152,6 @@ export function CalendarPage({ pid }: { pid: string }) {
           </Card>
         </div>
       </div>
-      <ConclusionSheet booking={concl} onClose={() => setConcl(null)} onDone={() => { setConcl(null); reload() }} />
     </>
   )
 }

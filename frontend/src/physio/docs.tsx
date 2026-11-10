@@ -1,7 +1,7 @@
 // Dokumentace (physio brief 2026-11-09, Phase 1): the client card (R2), care episodes (R3), the approved
 // records from the ledger with corrections and addenda (R5/R6), printout, handover and export (R9) and the
 // access history (R7). After a withdrawal of consent only this tab stays (R13).
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Download, FilePlus2, Pencil, Printer, Send } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, Sheet, useToast } from "@/ui"
@@ -215,21 +215,34 @@ function Episodes({ rid }: { rid: string }) {
   )
 }
 
+// round 2 F1.6: Escape closes only this list (never the page or a sheet under it); an outside click closes it too
 export function DiagnosisPicker({ value, onPick }: { value: any; onPick: (x: { code: string | null; label: string }) => void }) {
   const [q, setQ] = useState("")
   const [res, setRes] = useState<any>(null)
+  const box = useRef<HTMLDivElement>(null)
+  const open = !!res && q.trim().length >= 2
+  const close = () => setRes(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setRes(null) }
+    // capture phase, so the sheet's own window listener never sees the Escape that closed the list
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault(); setRes(null) } }
+    document.addEventListener("mousedown", onDown)
+    window.addEventListener("keydown", onKey, true)
+    return () => { document.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey, true) }
+  }, [open])
   const search = async (v: string) => { setQ(v); if (v.trim().length >= 2) setRes(await api.diagnoses(v).catch(() => null)) }
   return (
-    <div className="relative sm:col-span-3">
-      <input className={inp} value={q} onChange={(e) => search(e.target.value)} aria-label="Diagnóza"
+    <div ref={box} className="relative sm:col-span-3">
+      <input className={inp} value={q} onChange={(e) => search(e.target.value)} aria-label="Diagnóza" role="combobox" aria-expanded={open} aria-controls="dg-list"
         placeholder={value?.diagnosis_label ? `${value.diagnosis_code || ""} ${value.diagnosis_label}` : "Diagnóza (MKN-10)"} />
-      {res && q.trim().length >= 2 && (
-        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-white/10 bg-panel p-1 text-[12.5px] shadow-lg">
+      {open && (
+        <div id="dg-list" role="listbox" data-testid="diagnosis-list" className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-white/10 bg-panel p-1 text-[12.5px] shadow-lg">
           {res.items.map((x: any) => (
-            <button key={x.code} type="button" className="block w-full rounded-lg px-3 py-1.5 text-left hover:bg-white/[.06]" onClick={() => { onPick(x); setQ(""); setRes(null) }}>{`${x.code} ${x.label}`}</button>
+            <button key={x.code} type="button" role="option" aria-selected={false} className="block w-full rounded-lg px-3 py-1.5 text-left hover:bg-white/[.06]" onClick={() => { onPick(x); setQ(""); close() }}>{`${x.code} ${x.label}`}</button>
           ))}
-          {!res.imported && <p className="px-3 py-1.5 text-fg-3">Číselník MKN-10 zatím není importovaný.</p>}
-          <button type="button" className="block w-full rounded-lg px-3 py-1.5 text-left text-fg-2 hover:bg-white/[.06]" onClick={() => { onPick({ code: null, label: q.trim() }); setQ(""); setRes(null) }}>{`Použít text „${q.trim()}“ bez kódu`}</button>
+          {!res.imported && res.items.length === 0 && <p className="px-3 py-1.5 text-fg-3">Kód nenalezen.</p>}
+          <button type="button" className="block w-full rounded-lg px-3 py-1.5 text-left text-fg-2 hover:bg-white/[.06]" onClick={() => { onPick({ code: null, label: q.trim() }); setQ(""); close() }}>{`Použít text „${q.trim()}“ bez kódu`}</button>
         </div>
       )}
     </div>

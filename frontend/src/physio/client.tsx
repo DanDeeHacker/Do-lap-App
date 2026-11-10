@@ -10,8 +10,8 @@ import { api } from "@/api"
 import { Button, Card, Chip, Segmented, Sheet, useToast } from "@/ui"
 import { fmtD, fmtDT } from "@/lib"
 import { C } from "@/tokens"
+import { visitPath } from "@/physio/visit"
 import { Empty, KIND, Loading, PainAgo, QuadChip, REGIONS, RiskChip, Score, noData, shownScore, stripTags, useLoad } from "@/physio/common"
-import { ConclusionSheet } from "@/physio/conclusion"
 import { DocsTab } from "@/physio/docs"
 import { AdherenceGrid, PlanTab } from "@/physio/plan"
 import { Timeline } from "@/physio/timeline"
@@ -504,9 +504,9 @@ function AiTab({ rid }: { rid: string }) {
   )
 }
 
-function VisitsTab({ rid, d, onChange }: { rid: string; d: any; onChange: () => void; pid: string }) {
-  const [concl, setConcl] = useState<any>(null)
+function VisitsTab({ rid, d }: { rid: string; d: any; onChange: () => void; pid: string }) {
   const toast = useToast()
+  const nav = useNavigate()
   return (
     <div className="grid gap-4">
       <Card>
@@ -518,7 +518,7 @@ function VisitsTab({ rid, d, onChange }: { rid: string; d: any; onChange: () => 
                 <span className="min-w-0 flex-1"><b className="text-fg">{fmtDT(b.at)}</b><span className="block text-[12px] text-fg-3">{KIND[b.kind] || b.kind}{` · ${STATUS[b.status] || b.status}`}</span></span>
                 {b.conclusion?.status === "approved" ? <Chip tone="ok">záznam schválen</Chip> : b.conclusion ? <Chip tone="watch">rozepsaný záznam</Chip> : null}
                 {["confirmed", "completed"].includes(b.status) && new Date(b.at).getTime() <= Date.now() &&
-                  <Button size="sm" variant="outline" icon={FileText} onClick={() => setConcl({ id: b.id, slot_at: b.at, kind: b.kind, runner: d.runner })}>Záznam</Button>}
+                  <Button size="sm" variant="outline" icon={FileText} onClick={() => nav(visitPath(rid, b.id))}>Záznam</Button>}
                 {["confirmed", "completed"].includes(b.status) && new Date(b.at).getTime() <= Date.now() &&
                   <Button size="sm" variant="outline" onClick={async () => {
                     try { const i = await api.invoiceIssue(b.id); toast({ title: `Doklad ${i.number}` }) } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
@@ -530,7 +530,6 @@ function VisitsTab({ rid, d, onChange }: { rid: string; d: any; onChange: () => 
       </Card>
       <Packages rid={rid} />
       <DocsTab rid={rid} />
-      <ConclusionSheet booking={concl} onClose={() => setConcl(null)} onDone={() => { setConcl(null); onChange() }} />
     </div>
   )
 }
