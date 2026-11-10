@@ -186,6 +186,7 @@ def put_card(rid: str, body: CardIn, user: models.User = Depends(require_verifie
     if r is not None and live:
         card.source_snapshot = R.runner_snapshot(r)
     card.updated_at = E.now_iso()
+    card.incomplete = 1 if R.patient_missing(card) else 0      # round 2 F2.1
     db.flush()
     R.physio_event(db, p, "create" if created else "update", "patient_card", card.id, runner_id=rid,
                    detail={"fields": changed})
@@ -305,7 +306,10 @@ def _version_out(db: DBSession, rec: models.ClinicalRecord) -> dict:
     cur = vs[-1]
     addenda = (db.query(models.ClinicalRecord).filter_by(corrects_record_id=rec.id, kind="addendum")
                .order_by(models.ClinicalRecord.created_at).all())
+    body = R.content_of(rec)
     return {"id": rec.id, "kind": rec.kind, "encounter_at": rec.encounter_at, "episode_id": rec.episode_id,
+            # round 2 F2.7: notes brought in from before the ledger, and what the backfill flagged
+            "legacy": bool(body.get("legacy")), "flags": body.get("flags") or [],
             "booking_id": rec.booking_id, "current_id": cur.id, "current": R.content_of(cur)["content"],
             "author": rec.author_name, "author_identifier": rec.author_identifier, "authorised_at": rec.authorised_at,
             "corrections": [{"id": v.id, "at": v.authorised_at, "by": v.author_name, "reason": v.correction_reason,

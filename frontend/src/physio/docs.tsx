@@ -48,9 +48,10 @@ export function DocsTab({ rid }: { rid: string }) {
         {d.patient ? (
           <p className="mt-2 text-[13px] text-fg-2">
             <b className="text-fg">{`${d.patient.first_name} ${d.patient.last_name}`}</b>
-            {d.patient.birth_date ? ` · nar. ${fmtD(d.patient.birth_date)}` : ""}
-            {d.patient.sex_at_birth ? ` · ${d.patient.sex_at_birth === "f" ? "žena" : "muž"}` : ""}
-            {d.patient.permanent_address?.city ? ` · ${[d.patient.permanent_address.street, d.patient.permanent_address.postal_code, d.patient.permanent_address.city].filter(Boolean).join(", ")}` : ""}
+            {/* round 2 F2.7: missing identity reads "neuvedeno", never a guess */}
+            {" · nar. "}{d.patient.birth_date ? fmtD(d.patient.birth_date) : "neuvedeno"}
+            {" · pohlaví při narození: "}{d.patient.sex_at_birth ? (d.patient.sex_at_birth === "f" ? "žena" : "muž") : "neuvedeno"}
+            {" · adresa: "}{d.patient.permanent_address?.city ? [d.patient.permanent_address.street, d.patient.permanent_address.postal_code, d.patient.permanent_address.city].filter(Boolean).join(", ") : "neuvedeno"}
             <span className="block text-[11.5px] text-fg-3">{`Identifikátor ${d.patient.identifier}`}</span>
           </p>
         ) : <Empty>Karta zatím není založená. Bez ní nejde schválit záznam z návštěvy.</Empty>}
@@ -110,6 +111,8 @@ function RecordView({ r, onChange }: { r: any; onChange: () => void }) {
       <div className="flex flex-wrap items-center gap-2">
         <b className="text-fg">{fmtDT(r.encounter_at)}</b>
         <span className="text-fg-3">{r.kind === "discharge" ? "Ukončení péče" : KIND[c.visit_kind] || "Návštěva"}</span>
+        {r.legacy && <Chip>převzato ze staršího záznamu</Chip>}
+        {r.flags?.includes("approved_before_encounter") && <Chip tone="watch">schváleno před začátkem návštěvy</Chip>}
         {r.corrections.length > 0 && <Chip tone="watch">{`Opraveno ${fmtD(r.corrections.at(-1).at)}, ${r.corrections.at(-1).by}`}</Chip>}
         <span className="flex-1" />
         {r.kind !== "discharge" && <>

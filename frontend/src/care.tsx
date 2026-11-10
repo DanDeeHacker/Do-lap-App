@@ -145,7 +145,7 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
             <div className="mt-2 grid gap-3">
               {(boot.conclusions as any[]).map((c) => (
                 <div key={c.id}>
-                  <b className="text-[13px]">{`${fmtD(c.approved_at || c.shared_at)} · ${pn(c.physio_id)}`}</b>
+                  <b className="text-[13px]">{`${fmtD(c.visit_at || c.approved_at || c.shared_at)} · ${pn(c.physio_id)}`}</b>
                   {c.corrected_at && <span className="ml-2 text-[11.5px] text-fg-3">{`opraveno ${fmtD(c.corrected_at)}`}</span>}
                   <p translate="no" className="mt-1 whitespace-pre-wrap text-[13px] text-fg-2">{c.summary}</p>
                 </div>

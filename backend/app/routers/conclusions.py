@@ -65,7 +65,10 @@ def runner_view(c: models.Conclusion, db: DBSession | None = None) -> dict:
         vs = R.versions(db, c.record_id)
         if len(vs) > 1:
             summary, corrected = R.content_of(vs[-1])["content"].get("summary") or summary, vs[-1].authorised_at
+    # round 2 F2: the client sees the note under the visit's date, never the day it was approved
+    bk = db.get(models.Booking, c.booking_id) if db is not None and c.booking_id else None
     return {"id": c.id, "booking_id": c.booking_id, "physio_id": c.physio_id, "summary": summary,
+            "visit_at": bk.slot_at if bk else None,
             "shared_at": c.shared_at, "approved_at": c.approved_at, "status": c.status, "corrected_at": corrected}
 
 

@@ -1377,6 +1377,9 @@ class PatientRecord(Base):
     retain_until = Column(String)                     # R11: from the last service in the record
     created_at = Column(String)
     updated_at = Column(String)
+    # round 2 F2: a card created from the runner's name only (backfill); identity is never invented, and
+    # completeness is still enforced at approval (records.patient_missing)
+    incomplete = Column(Integer, default=0)
 
 
 class CareEpisode(Base):
@@ -1832,3 +1835,11 @@ class ClinicTest(Base):
     involved = Column(String)                           # L | R | None
     tested_on = Column(String)
     created_at = Column(String)
+
+
+class MigrationApplied(Base):
+    """Round 2 F2: one-off data scripts run once; a row here guards a second run."""
+    __tablename__ = "migrations_applied"
+    name = Column(String, primary_key=True)
+    applied_at = Column(String)
+    detail = Column(JSON)

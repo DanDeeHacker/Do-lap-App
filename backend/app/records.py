@@ -198,7 +198,8 @@ def _last_chain(db: DBSession, clinic_id: str) -> str:
 def write_record(db: DBSession, *, clinic: models.Clinic, patient: models.PatientRecord, author: models.Physio,
                  kind: str, encounter_at: str, content: dict, booking_id=None, conclusion_id=None, episode_id=None,
                  corrects: str | None = None, reason: str | None = None, at_patient_request: bool = False,
-                 legacy: bool = False) -> models.ClinicalRecord:
+                 legacy: bool = False, authorised_at: str | None = None,
+                 flags: list[str] | None = None) -> models.ClinicalRecord:
     """One ledger row, in the caller's transaction (flush only). The content carries provider, author and
     patient identity as they are now, so the record reads the same years later."""
     now = E.now_iso()
@@ -211,6 +212,8 @@ def write_record(db: DBSession, *, clinic: models.Clinic, patient: models.Patien
             "episode_id": episode_id, "booking_id": booking_id}
     if legacy:
         body["legacy"] = True
+    if flags:
+        body["flags"] = list(flags)        # round 2 F2.4, e.g. approved_before_encounter
     text = canonical(body)
     h = sha256(text)
     rec = models.ClinicalRecord(
@@ -219,7 +222,8 @@ def write_record(db: DBSession, *, clinic: models.Clinic, patient: models.Patien
         content_json=text, content_sha256=h, chain_sha256=sha256(_last_chain(db, clinic.id) + h),
         corrects_record_id=corrects, correction_reason=reason, at_patient_request=1 if at_patient_request else 0,
         author_physio_id=author.id, author_name=author.name, author_identifier=author.hcp_identifier,
-        authorised_at=now, retain_until=retain_until_for(last_service), created_at=now)
+        # round 2 F2.3: a legacy note keeps the time it was approved; created_at stays the insert time (chain order)
+        authorised_at=authorised_at or now, retain_until=retain_until_for(last_service), created_at=now)
     db.add(rec)
     # R11: the card's retention follows the last service in the record
     ru = retain_until_for(last_service)

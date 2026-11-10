@@ -105,7 +105,7 @@ export function CalendarPage({ pid }: { pid: string }) {
                     <span className="min-w-0 flex-1"><b className="text-fg">{b.runner?.name}</b>
                       <span className="block text-[12px] text-fg-3">{fmtDT(b.slot_at)}{" · "}{KIND[b.kind] || b.kind}</span></span>
                     {b.status === "no_show" ? <Chip>nedostavil(a) se</Chip> : <RecordChip c={b.conclusion} />}
-                    {b.status === "confirmed" && <>
+                    {b.status === "confirmed" && b.conclusion?.status !== "approved" && <>
                       <Button size="sm" variant="outline" busy={busy === `p${b.id}`} onClick={() => act(`p${b.id}`, () => api.bookingComplete(b.id), "Návštěva označena jako proběhlá")}>Proběhla</Button>
                       <Button size="sm" variant="outline" busy={busy === `n${b.id}`} onClick={() => act(`n${b.id}`, () => api.bookingNoShow(b.id), "Zaznamenáno: nedostavil(a) se")}>Nedostavil(a) se</Button>
                     </>}

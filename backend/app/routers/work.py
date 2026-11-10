@@ -722,6 +722,24 @@ def timeline(rid: str, weeks: int = 12, user: models.User = Depends(require_veri
 
 
 # =============================================================================================== W8 previsit
+def _last_record(db: DBSession, last: models.Conclusion | None) -> dict | None:
+    """Round 2 F2 / F16.4: the last note's assessment and plan — from the ledger's current version when there is
+    one (corrections count), and for older notes without SOAP fields the finding and the client summary."""
+    if last is None:
+        return None
+    cur = {}
+    if last.record_id:
+        vs = R.versions(db, last.record_id)
+        cur = R.content_of(vs[-1])["content"] if vs else {}
+    get = lambda k: cur.get(k) if cur.get(k) is not None else getattr(last, k)   # noqa: E731
+    bk = db.get(models.Booking, last.booking_id) if last.booking_id else None
+    dx = " ".join(x for x in (get("diagnosis_code"), get("diagnosis_label")) if x)
+    return {"at": bk.slot_at if bk and bk.slot_at else last.approved_at, "approved_at": last.approved_at,
+            "record_id": last.record_id, "booking_id": last.booking_id,
+            "assessment": get("assessment") or get("finding") or dx or None,
+            "plan": get("plan") or get("summary") or None, "summary": get("summary")}
+
+
 @router.get("/api/physios/me/clients/{rid}/previsit")
 def previsit(rid: str, booking_id: int | None = None, user: models.User = Depends(require_verified_physio),
              db: DBSession = Depends(get_db)):
@@ -759,8 +777,7 @@ def previsit(rid: str, booking_id: int | None = None, user: models.User = Depend
                                 "exercises": [{"name": e["name"], "per_week": e["per_week"], "done": e["done_count"],
                                                "target": e["target_count"]} for e in po["exercises"]]} if po else None),
            "limits": [W.limit_text(x) for x in W.active_limits(db, rid)],
-           "last_record": ({"at": last.approved_at, "assessment": last.assessment, "plan": last.plan, "summary": last.summary}
-                           if last else None),
+           "last_record": _last_record(db, last),
            "missing": missing, "care_directive": a.get("careDirective"),
            "hypotheses": None}
     if AB.hypotheses_on():
