@@ -12,7 +12,7 @@ import { Empty, Loading, useLoad } from "@/physio/common"
 const SERIES: [string, string, string][] = [["load", "Zátěž", "#2F5F7A"], ["mech", "Mechanika", "#7A4FA0"], ["symp", "Příznaky", "#A0522D"]]
 const EVENT: Record<string, string> = { visit: "Návštěva", program: "Program", injury: "Zranění", limit: "Omezení" }
 const W = 720
-const PAD = 70
+const PAD = 108
 
 export function Timeline({ rid }: { rid: string }) {
   const [weeks, setWeeks] = useState("12")
@@ -100,7 +100,7 @@ export function Timeline({ rid }: { rid: string }) {
               <Markers height={places.length * 16 + 4} />
               {places.map((pl, r) => (
                 <g key={pl}>
-                  <text x={2} y={r * 16 + 12} fontSize={9} fill="currentColor" opacity={0.75}>{pl.length > 13 ? `${pl.slice(0, 12)}…` : pl}</text>
+                  <text x={2} y={r * 16 + 12} fontSize={9} fill="currentColor" opacity={0.75}>{pl.length > 22 ? `${pl.slice(0, 21)}…` : pl}</text>
                   {days.map((dd, i) => {
                     const v = by[dd]?.pain?.[pl]
                     return v == null ? null : <circle key={dd} cx={x(i)} cy={r * 16 + 9} r={v ? 2 + v * 0.45 : 1.5}

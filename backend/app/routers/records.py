@@ -482,7 +482,10 @@ ACTION_CS = {"read": "zobrazil(a)", "create": "vytvořil(a)", "update": "upravil
 RESOURCE_CS = {"documentation": "dokumentaci", "patient_card": "kartu klienta", "clinical_record": "záznam z návštěvy",
                "program": "program", "rtr": "plán návratu k běhu", "booking": "návštěvu", "conclusion": "záznam z návštěvy",
                "runner": "data z aplikace", "triage": "případ", "episode": "epizodu péče", "addendum": "doplněk záznamu",
-               "practice": "údaje praxe", "messages": "zprávy", "limit": "omezení tréninku", "injury": "zranění"}
+               "practice": "údaje praxe", "messages": "zprávy", "limit": "omezení tréninku", "injury": "zranění",
+               # physio brief Phases 3 and 4: the history showed the raw keys (clinic_test, prom, package)
+               "clinic_test": "test v ordinaci", "prom": "dotazník", "package": "balíček návštěv", "invoice": "doklad",
+               "waitlist": "pořadník", "video_note": "poznámku k videu", "outcomes": "výsledky", "recall": "seznam k oslovení"}
 
 
 def _event_out(e: models.RecordEvent) -> dict:

@@ -97,7 +97,7 @@ export function PhysioApp() {
         </div>
       </aside>
       <div className="lg:pl-[208px]">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-white/[.08] bg-panel/95 px-4 py-2 backdrop-blur lg:px-8">
+        <header className="sticky top-0 z-30 flex h-12 items-center justify-between gap-3 border-b border-white/[.08] bg-panel/95 px-4 py-2 backdrop-blur lg:px-8">
           <Link to="/physio" className="flex items-center gap-2 text-lg lg:invisible"><Mark size={26} /><Wordmark /></Link>
           <div className="flex items-center gap-1">
             <button type="button" onClick={() => setSearch(true)} aria-label="Hledat klienta" className="grid size-9 place-items-center rounded-lg text-fg-2 hover:bg-white/[.06] lg:hidden"><Search className="size-5" aria-hidden /></button>

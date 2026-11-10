@@ -11619,9 +11619,10 @@
   ]
  },
  {
-  "t": "Dřep na jedné noze (opakování)",
+  "t": "Dřep na jedné noze",
   "files": [
-   "moat.py"
+   "moat.py",
+   "programs_library.py"
   ]
  },
  {
@@ -13829,12 +13830,6 @@
  },
  {
   "t": "Dřep místo předklonu v kyčlích.",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
-  "t": "Dřep na jedné noze",
   "files": [
    "programs_library.py"
   ]
@@ -17935,7 +17930,19 @@
   ]
  },
  {
+  "t": "balíček návštěv",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
   "t": "doplněk záznamu",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "dotazník",
   "files": [
    "routers/records.py"
   ]
@@ -17960,6 +17967,18 @@
   ]
  },
  {
+  "t": "poznámku k videu",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "pořadník",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
   "t": "předal(a)",
   "files": [
    "routers/records.py"
@@ -17978,6 +17997,12 @@
   ]
  },
  {
+  "t": "seznam k oslovení",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
   "t": "uzavřel(a)",
   "files": [
    "routers/records.py"
@@ -17985,6 +18010,12 @@
  },
  {
   "t": "vytvořil(a)",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "výsledky",
   "files": [
    "routers/records.py"
   ]

@@ -168,7 +168,7 @@ export function ClientPage({ pid, rid }: { pid: string; rid: string }) {
     <>
       <Back />
       {/* W6.2: sticky header — who, what, which phase, when next, how fresh the data are */}
-      <div className="sticky top-0 z-10 -mx-4 mt-2 border-b border-white/[.08] bg-bg/95 px-4 py-2 backdrop-blur" data-testid="client-header">
+      <div className="sticky top-12 z-10 -mx-4 mt-2 border-b border-white/[.08] bg-bg/95 px-4 py-2 backdrop-blur" data-testid="client-header">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <h1 className="font-serif text-[26px] leading-tight tracking-[-.02em]">{r.name}

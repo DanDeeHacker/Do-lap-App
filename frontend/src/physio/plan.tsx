@@ -230,7 +230,7 @@ function Library({ open, onClose, onPick, have }: { open: boolean; onClose: () =
               <span className="grid size-12 shrink-0 place-items-center rounded-md ph-unknown text-[10px]" aria-hidden>{x.thumbnail_url ? <img src={x.thumbnail_url} alt="" className="size-12 rounded-md object-cover" /> : "bez videa"}</span>
               <span className="min-w-0 flex-1"><b>{x.name}</b>
                 <span className="block text-[12px] text-fg-2">{x.dose ? `${x.dose} · ${x.per_week}× týdně` : "vlastní cvik"}</span>
-                <span className="block text-[11.5px] text-fg-3">{(x.treats || []).join(", ")}</span></span>
+                <span className="block text-[11.5px] text-fg-3">{(x.treats || []).map((t: string, i: number) => <span key={i}>{i ? ", " : ""}{t}</span>)}</span></span>
               {have.has(x.id) ? <Chip tone="ok">V programu</Chip> : added.has(x.id) ? <Chip tone="ok">Přidáno</Chip>
                 : <Button size="sm" variant="outline" icon={Plus} onClick={async () => { await onPick(x); setAdded(new Set([...added, x.id])) }}>Přidat</Button>}
             </li>

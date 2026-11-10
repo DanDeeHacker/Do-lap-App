@@ -4893,13 +4893,6 @@
   "kind": "tpl"
  },
  {
-  "t": "5 kontrol",
-  "files": [
-   "business.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "aktivní",
   "files": [
    "business.tsx",
@@ -5141,6 +5134,13 @@
   "kind": "str"
  },
  {
+  "t": "např. 5 kontrol",
+  "files": [
+   "business.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Napsat",
   "files": [
    "business.tsx",
@@ -5238,6 +5238,7 @@
   "t": "Od",
   "files": [
    "business.tsx",
+   "docs.tsx",
    "schedule.tsx"
   ],
   "kind": "jsx"
@@ -9816,7 +9817,8 @@
  {
   "t": "oboustranně",
   "files": [
-   "client.tsx"
+   "client.tsx",
+   "docs.tsx"
   ],
   "kind": "str"
  },
@@ -14982,20 +14984,6 @@
   "kind": "tpl"
  },
  {
-  "t": "{} {} · závažnost {}/100 ·",
-  "files": [
-   "docs.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{} {}, závažnost {}/100;",
-  "files": [
-   "docs.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "{}{} · IČO {} · {}",
   "files": [
    "docs.tsx"
@@ -15028,7 +15016,7 @@
   "files": [
    "docs.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "Chybí údaje potřebné ke schválení záznamu.",
@@ -15254,13 +15242,6 @@
    "docs.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "Od {}",
-  "files": [
-   "docs.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "Oprava zapsaná jako nový záznam",
@@ -15577,6 +15558,13 @@
    "docs.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "závažnost {}/100",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Závěrečná poznámka",

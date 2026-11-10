@@ -125,8 +125,7 @@ function RecordView({ r, onChange }: { r: any; onChange: () => void }) {
           {shown?.diagnosis_label && <div><dt className="text-[11.5px] font-bold text-fg-3">Diagnóza</dt><dd className="text-fg-soft">{`${shown.diagnosis_code ? `${shown.diagnosis_code} ` : ""}${shown.diagnosis_label}`}</dd></div>}
           {shown?.finding && <div><dt className="text-[11.5px] font-bold text-fg-3">Klinický nález</dt><dd className="whitespace-pre-line text-fg-soft">{shown.finding}</dd></div>}
           {shown?.outcome && <div><dt className="text-[11.5px] font-bold text-fg-3">Výsledek (OSTRC)</dt><dd className="text-fg-soft">
-            {shown.outcome.kind === "no_injury" ? "bez zranění" : `${shown.outcome.region_label || ""} ${shown.outcome.side || ""} · závažnost ${shown.outcome.severity}/100 · `}
-            {Object.entries(shown.outcome.answers || {}).map(([q, a]) => `${q}: ${a}`).join(" · ")}</dd></div>}
+            <Outcome o={shown.outcome} />{/* separate text nodes so each answer is translated */}</dd></div>}
           {shown?.summary && <div><dt className="text-[11.5px] font-bold text-fg-3">Shrnutí pro klienta</dt><dd className="whitespace-pre-line text-fg-soft">{shown.summary}</dd></div>}
           {shown?.note_patient_request && <p className="text-[12px] text-fg-3">{shown.note_patient_request}</p>}
         </dl>
@@ -178,7 +177,7 @@ function Episodes({ rid }: { rid: string }) {
           {items.map((ep: any) => (
             <li key={ep.id} className="rounded-xl border border-white/[.07] p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <b className="text-fg">{`Od ${fmtD(ep.opened_at)}`}</b>
+                <b className="text-fg">{"Od "}{fmtD(ep.opened_at)}</b>
                 {ep.status === "open" ? <Chip tone="info">probíhá</Chip> : <Chip>{`ukončeno ${fmtD(ep.closed_at)} · ${OUTCOME[ep.discharge_outcome] || ""}`}</Chip>}
                 <span className="flex-1" />
                 {ep.status === "open" && <Button size="sm" variant="outline" onClick={() => setClosing(ep)}>Ukončit péči</Button>}
@@ -335,7 +334,7 @@ export function PrintPage({ rid }: { rid: string }) {
               {SOAP.map(([k, label]) => c[k] ? <div key={k}><dt>{label}</dt><dd>{c[k]}</dd></div> : null)}
               {c.diagnosis_label && <div><dt>Diagnóza</dt><dd>{`${c.diagnosis_code || ""} ${c.diagnosis_label}`}</dd></div>}
               {c.finding && <div><dt>Klinický nález</dt><dd>{c.finding}</dd></div>}
-              {c.outcome && <div><dt>Výsledek (OSTRC)</dt><dd>{c.outcome.kind === "no_injury" ? "bez zranění" : `${c.outcome.region_label || ""} ${c.outcome.side || ""}, závažnost ${c.outcome.severity}/100; `}{Object.entries(c.outcome.answers || {}).map(([q, a]) => `${q}: ${a}`).join("; ")}</dd></div>}
+              {c.outcome && <div><dt>Výsledek (OSTRC)</dt><dd><Outcome o={c.outcome} /></dd></div>}
               {r.kind === "discharge" && <div><dt>Výsledek péče</dt><dd>{`${OUTCOME[c.episode?.discharge_outcome] || ""}${c.episode?.closing_note ? ` — ${c.episode.closing_note}` : ""}`}</dd></div>}
             </dl>
             {r.corrections.map((k: any) => <div key={k.id}>{`Opraveno ${fmtDT(k.at)}, ${k.by}: ${k.reason}${k.at_patient_request ? " (na žádost pacienta)" : ""}. Původní znění: záznam ${r.id}.`}</div>)}
@@ -347,5 +346,19 @@ export function PrintPage({ rid }: { rid: string }) {
       })}
       <p style={{ marginTop: 16, fontSize: 10 }}>{`Vytištěno ${fmtDT(d.generated_at)} z aplikace Došlap.`}</p>
     </div>
+  )
+}
+
+// the OSTRC outcome: region, side in words, severity and each answer as its own text, so the English view
+// translates them (one joined string stayed Czech)
+const SIDE_CS: Record<string, string> = { L: "vlevo", P: "vpravo", R: "vpravo", both: "oboustranně" }
+function Outcome({ o }: { o: any }) {
+  if (o.kind === "no_injury") return <>bez zranění</>
+  return (
+    <>
+      <span>{o.region_label || ""}</span>{o.side ? <>{", "}<span>{SIDE_CS[o.side] || o.side}</span></> : null}
+      {" · "}<span>{`závažnost ${o.severity}/100`}</span>
+      {Object.entries(o.answers || {}).map(([q, a]) => <span key={q}>{" · "}<span>{q}</span>{": "}<span>{String(a)}</span></span>)}
+    </>
   )
 }

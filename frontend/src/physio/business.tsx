@@ -172,7 +172,7 @@ export function Recall() {
 export function Packages({ rid }: { rid: string }) {
   const toast = useToast()
   const { d, reload } = useLoad<any>(() => api.packages(rid), [rid])
-  const [f, setF] = useState({ name: "5 kontrol", visits_total: 5, price_czk: 4500, paid: true })
+  const [f, setF] = useState({ name: "", visits_total: 5, price_czk: 4500, paid: true })
   return (
     <Card>
       <h2 className="font-serif text-xl">Balíčky návštěv</h2>
@@ -182,10 +182,10 @@ export function Packages({ rid }: { rid: string }) {
             <Chip tone={p.status === "open" ? "ok" : "muted"}>{p.status === "open" ? "aktivní" : "vyčerpáno"}</Chip></li>))}</ul>
       )}
       <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
-        <label className="text-[12px] font-bold text-fg-2">Název<input className={inp} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
+        <label className="text-[12px] font-bold text-fg-2">Název<input className={inp} value={f.name} placeholder="např. 5 kontrol" onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
         <label className="w-20 text-[12px] font-bold text-fg-2">Návštěv<input type="number" min={2} max={50} className={inp} value={f.visits_total} onChange={(e) => setF({ ...f, visits_total: Number(e.target.value) })} /></label>
         <label className="w-24 text-[12px] font-bold text-fg-2">Cena Kč<input type="number" min={0} className={inp} value={f.price_czk} onChange={(e) => setF({ ...f, price_czk: Number(e.target.value) })} /></label>
-        <Button size="sm" className="self-end" onClick={async () => { try { await api.packageAdd(rid, f); toast({ title: "Balíček přidán" }); reload() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) } }}>Přidat</Button>
+        <Button size="sm" className="self-end" disabled={!f.name.trim()} onClick={async () => { try { await api.packageAdd(rid, f); toast({ title: "Balíček přidán" }); reload() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) } }}>Přidat</Button>
       </div>
       <p className="mt-1 text-[11.5px] text-fg-3">Každá proběhlá návštěva u vás odečte jednu; doklad k ní bude na 0 Kč s odkazem na balíček.</p>
     </Card>
