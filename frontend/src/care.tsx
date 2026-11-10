@@ -124,7 +124,11 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
                   <Label>Spolupráce</Label>
                   {[...carePids].map((pid) => (
                     <ListRow key={pid} icon={UserRound} tone="accent" title={pn(pid)}
-                      trailing={<Button size="sm" variant="outline" onClick={async () => { await api.declinePhysio(rid, pid); toast({ title: "Spolupráce odvolána" }); refresh() }}>Odvolat</Button>} />
+                      trailing={<Button size="sm" variant="outline" onClick={async () => {
+                        // physio brief 2026-11-09 R13.4: what stays after the withdrawal, before it happens
+                        if (!window.confirm("Odvolat sdílení dat? Fyzioterapeut uvidí jen záznamy z vašich návštěv, které musí ze zákona uchovávat. Program a plán návratu k běhu skončí.")) return
+                        await api.declinePhysio(rid, pid); toast({ title: "Spolupráce odvolána" }); refresh()
+                      }}>Odvolat</Button>} />
                   ))}
                 </div>
               )}

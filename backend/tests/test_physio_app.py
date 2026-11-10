@@ -51,7 +51,8 @@ def test_clients_overview_and_documentation_need_the_care_assignment(client, db_
     log = db_session.query(models.AccessLog).filter(models.AccessLog.runner_id == rid, models.AccessLog.physio_id == pid).all()
     assert any(x.resource in ("přehled klienta", "dokumentace") or x.action == "read" for x in log)
     doc = client.get(f"/api/physios/me/clients/{rid}/documentation").json()
-    assert doc["physio"]["email"] == PHYSIO and isinstance(doc["visits"], list)
+    # physio brief 2026-11-09 R9: the documentation is the ledger with provider, author and patient identity
+    assert doc["author"]["id"] == "phy-0001" and isinstance(doc["records"], list) and "provider" in doc
     # someone not in my care
     other = db_session.query(models.Runner).filter(~models.Runner.id.in_([i["runnerId"] for i in items])).first()
     assert client.get(f"/api/physios/me/clients/{other.id}").status_code == 403

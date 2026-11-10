@@ -353,7 +353,7 @@ def bootstrap(rid: str, user: models.User = Depends(get_current_user), db: DBSes
     )
     rtr_plan = (
         db.query(models.ReturnToRun)
-        .filter(models.ReturnToRun.runner_id == rid, models.ReturnToRun.status != "completed")
+        .filter(models.ReturnToRun.runner_id == rid, models.ReturnToRun.status.notin_(("completed", "ended")))
         .order_by(models.ReturnToRun.id.desc()).first()
     )
     rtr_out = None
@@ -380,7 +380,7 @@ def bootstrap(rid: str, user: models.User = Depends(get_current_user), db: DBSes
         "injury_reports": to_dicts(injury_reports), "injury_prompt_due": injury_prompt_due,
         # physio brief 2026-11-09 P0.5 / D6: the client gets the summary written for them once it is sent,
         # never the clinical finding, the transcript or the OSTRC answers
-        "conclusions": ([CO.runner_view(c) for c in conclusions if c.shared_at] if user.role == "runner"
+        "conclusions": ([CO.runner_view(c, db) for c in conclusions if c.shared_at] if user.role == "runner"
                         else to_dicts(conclusions)),
         "rtr": rtr_out, "access_log": access_out,
         "reminders": reminders,
@@ -1059,8 +1059,14 @@ def visible_messages(db: DBSession, rid: str, user: models.User) -> list:
 def post_message(rid: str, body: schemas.SendMessageRequest, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
     ensure_runner_write_access(db, user, rid)
     sender = "physio" if user.role == "physio" else "runner"
+    # the runner's physio: the active care assignment, else the latest programme's author (a runner may
+    # have had several programmes — .scalar() over all of them raised MultipleResultsFound)
     physio_id = user.physio_id if user.role == "physio" else (
-        db.query(models.Program.physio_id).filter(models.Program.runner_id == rid).scalar()
+        db.query(models.CareAssignment.physio_id).filter(models.CareAssignment.runner_id == rid,
+                                                         models.CareAssignment.status == "active")
+        .order_by(models.CareAssignment.id.desc()).limit(1).scalar()
+        or db.query(models.Program.physio_id).filter(models.Program.runner_id == rid)
+        .order_by(models.Program.id.desc()).limit(1).scalar()
     )
     if not (body.body or "").strip():
         raise HTTPException(status_code=422, detail="Zpráva je prázdná.")

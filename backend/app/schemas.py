@@ -274,6 +274,14 @@ class ConclusionPatch(Lenient):
     out_region: Optional[str] = None
     out_side: Optional[str] = None
     outcome_kind: Optional[str] = None      # injury | no_injury | "" (clears the outcome)
+    # physio brief 2026-11-09 R4: structured visit content
+    subjective: Optional[str] = None
+    objective: Optional[str] = None
+    assessment: Optional[str] = None
+    plan: Optional[str] = None
+    services_provided: Optional[str] = None
+    diagnosis_code: Optional[str] = None
+    diagnosis_label: Optional[str] = None
 
 
 class ConclusionApprove(Lenient):

@@ -597,6 +597,7 @@ def build_and_seed(db: DBSession) -> None:
     hashed = hash_password(DEMO_PASSWORD)
     _mk_user(db, "adela@demo.cz", "Adéla Kučerová", "runner", hashed, runner_id=runner_rows[0].id)
     _mk_user(db, "havlickova@fyzioholesovice.cz", "Mgr. Tereza Havlíčková", "physio", hashed, physio_id=physios[0].id)
+    _seed_records(db, physios[0], runner_rows[0])
     _mk_user(db, "hexanet@demo.cz", "Hexanet s.r.o. (HR)", "employer", hashed, employer_id=employers[0].id)
     _mk_user(db, "letna@demo.cz", "Běžecká speciálka Letná", "partner", hashed, partner_id=partners[0].id)
     # Two runner-only demo logins the app actually uses — password "demo",
@@ -604,4 +605,26 @@ def build_and_seed(db: DBSession) -> None:
     demo_hashed = hash_password("demo")
     _mk_user(db, "tichydrift@demo.cz", "Tichý drift", "runner", demo_hashed, runner_id=runner_rows[10].id)
     _mk_user(db, "kritickepretizeni@demo.cz", "Kritické přetížení", "runner", demo_hashed, runner_id=runner_rows[11].id)
+    db.commit()
+
+
+def _seed_records(db, physio, runner) -> None:
+    """physio brief 2026-11-09 R1/R2: the demo practice has a provider identity and Adéla has a patient
+    card, so a demo visit can be approved. Synthetic values, clearly not a real provider or person."""
+    from . import records as R
+    clinic = db.get(models.Clinic, physio.clinic_id)
+    if clinic is not None and not clinic.legal_name:
+        clinic.legal_name, clinic.legal_form, clinic.ico = "Fyzio Holešovice (ukázková praxe)", "s.r.o.", "00000000"
+        clinic.registered_street = clinic.care_site_street = "Ukázková 1"
+        clinic.registered_city = clinic.care_site_city = "Praha 7"
+        clinic.registered_postal_code = clinic.care_site_postal_code = "170 00"
+        clinic.provider_details_confirmed_at = E.now_iso()
+        physio.title, physio.qualification = "Mgr.", "Fyzioterapeut (ukázkový účet)"
+    if clinic is not None and R.card(db, clinic.id, runner.id) is None:
+        first, last = R._split_name(runner.name)
+        db.add(models.PatientRecord(
+            id=R.new_record_id(), clinic_id=clinic.id, runner_id=runner.id, first_name=first, last_name=last,
+            birth_date=f"{runner.birth_year}-05-14" if runner.birth_year else None, sex_at_birth=runner.sex,
+            permanent_street="Ukázková 12", permanent_city=runner.city or "Praha", permanent_postal_code="170 00",
+            source_snapshot=R.runner_snapshot(runner), created_at=E.now_iso(), updated_at=E.now_iso()))
     db.commit()

@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session as DBSession
 
 from .. import llm, models, schemas
+from .. import records as R
 from .. import regions as REG
 from ..db import get_db
 from ..deps import get_current_user, has_care_assignment, or_404, require_role, verify_csrf
@@ -52,11 +53,17 @@ def _out(c: models.Conclusion, bk: models.Booking | None) -> dict:
     return d
 
 
-def runner_view(c: models.Conclusion) -> dict:
+def runner_view(c: models.Conclusion, db: DBSession | None = None) -> dict:
     """What a client ever receives: the summary written for them, never the clinical finding, the
-    transcript or the OSTRC answers (physio brief 2026-11-09 P0.5 / D6)."""
-    return {"id": c.id, "booking_id": c.booking_id, "physio_id": c.physio_id, "summary": c.summary,
-            "shared_at": c.shared_at, "approved_at": c.approved_at, "status": c.status}
+    transcript or the OSTRC answers (physio brief 2026-11-09 P0.5 / D6). After a correction (R6) the
+    current version from the ledger, marked as corrected."""
+    summary, corrected = c.summary, None
+    if db is not None and c.record_id:
+        vs = R.versions(db, c.record_id)
+        if len(vs) > 1:
+            summary, corrected = R.content_of(vs[-1])["content"].get("summary") or summary, vs[-1].authorised_at
+    return {"id": c.id, "booking_id": c.booking_id, "physio_id": c.physio_id, "summary": summary,
+            "shared_at": c.shared_at, "approved_at": c.approved_at, "status": c.status, "corrected_at": corrected}
 
 
 @router.post("/api/bookings/{bid}/conclusion", dependencies=[Depends(verify_csrf)])
@@ -71,6 +78,27 @@ def open_conclusion(bid: int, user: models.User = Depends(require_role("physio")
             "transcript": None, "summary": None, "finding": None, "outcome_kind": None, "has_outcome": False,
             "out_participation": None, "out_volume": None, "out_performance": None, "out_pain": None,
             "out_region": None, "out_side": None, "slot_at": bk.slot_at, "severity_complete": False}
+
+
+SOAP = ("subjective", "objective", "assessment", "plan", "services_provided")
+OSTRC_WORDS = {"out_participation": ("Účast na tréninku a závodech", {0: "plná, bez problému", 8: "plná, ale s obtížemi",
+                                                                      17: "omezená", 25: "nemůže trénovat"}),
+               "out_volume": ("Omezení objemu tréninku", {0: "žádné", 8: "mírné", 17: "střední", 25: "výrazné"}),
+               "out_performance": ("Vliv na výkon", {0: "žádný", 8: "mírný", 17: "střední", 25: "výrazný"}),
+               "out_pain": ("Bolest", {0: "žádná", 8: "mírná", 17: "střední", 25: "silná"})}
+
+
+def record_content(c: models.Conclusion, bk: models.Booking | None) -> dict:
+    """R5.2: a snapshot of every clinical field (identity is added by records.write_record)."""
+    out = {f: getattr(c, f) for f in (*SOAP, "diagnosis_code", "diagnosis_label", "finding", "summary", "transcript")}
+    out["visit_kind"] = bk.kind if bk else None
+    out["outcome"] = None
+    if c.outcome_kind:
+        out["outcome"] = {"kind": c.outcome_kind, "severity": c.out_severity, "region": c.out_region,
+                          "region_label": REG.label(c.out_region) if c.out_region else None, "side": c.out_side,
+                          "answers": {OSTRC_WORDS[f][0]: OSTRC_WORDS[f][1].get(getattr(c, f))
+                                      for f in OSTRC_WORDS if getattr(c, f) is not None}}
+    return out
 
 
 def _visit_started(bk: models.Booking) -> bool:
@@ -88,7 +116,7 @@ def _visit_started(bk: models.Booking) -> bool:
 
 def _apply(c: models.Conclusion, body: schemas.ConclusionPatch) -> None:
     given = body.model_fields_set
-    for field in ("transcript", "summary", "finding", "out_region", "out_side"):
+    for field in ("transcript", "summary", "finding", "out_region", "out_side", *SOAP, "diagnosis_code", "diagnosis_label"):
         if field in given:
             setattr(c, field, getattr(body, field))
     if body.transcript is not None:
@@ -122,6 +150,9 @@ def save_new_conclusion(bid: int, body: schemas.ConclusionPatch,
         c = models.Conclusion(booking_id=bid, runner_id=bk.runner_id, physio_id=user.physio_id, status="draft",
                               created_at=E.now_iso(), has_outcome=False)
         c.out_participation = c.out_volume = c.out_performance = c.out_pain = c.out_severity = None
+        # physio brief R3: every visit belongs to an episode
+        c.episode_id = bk.episode_id or R.episode_for(db, user.physio_id, bk.runner_id).id
+        bk.episode_id = bk.episode_id or c.episode_id
         db.add(c)
     elif c.status != "draft":
         raise HTTPException(status_code=409, detail="Schválený závěr už nelze upravovat.")
@@ -137,7 +168,7 @@ def get_conclusion(cid: int, user: models.User = Depends(get_current_user), db: 
     if user.role == "physio" and c.physio_id == user.physio_id and has_care_assignment(db, user.physio_id, c.runner_id):
         return _out(c, db.get(models.Booking, c.booking_id))
     if user.role == "runner" and c.runner_id == user.runner_id and c.status == "approved" and c.shared_at:
-        return runner_view(c)
+        return runner_view(c, db)
     raise HTTPException(status_code=403, detail="Nemáte přístup k tomuto závěru")
 
 
@@ -155,6 +186,10 @@ async def upload_audio(cid: int, file: UploadFile = File(...),
     if not llm.asr_available():
         return {"conclusion": to_dict(c), "asr_available": False,
                 "note": "Přepis zatím není zapnutý. Závěr napište ručně."}
+    # physio brief 2026-11-09 R10: no recording without the client's consent, noted for this visit
+    from .records import has_recording_consent
+    if not has_recording_consent(db, c.booking_id):
+        raise HTTPException(status_code=409, detail="Nejdřív potvrďte, že klient s nahráváním souhlasil.")
     raw = await file.read()
     try:
         transcript = llm.transcribe(raw, filename=file.filename or "session.webm",
@@ -209,10 +244,18 @@ def approve_conclusion(cid: int, body: schemas.ConclusionApprove | None = None,
     bk = db.get(models.Booking, c.booking_id)
     if bk and not _visit_started(bk):
         raise HTTPException(status_code=409, detail="Závěr lze schválit až po začátku návštěvy.")
-    if not ((c.summary or "").strip() or (c.finding or "").strip()):
+    if not any((getattr(c, f) or "").strip() for f in ("summary", "finding", *SOAP)):
         raise HTTPException(status_code=422, detail="Záznam nelze schválit prázdný — doplňte nález nebo shrnutí.")
     if body.send_summary and not (c.summary or "").strip():
         raise HTTPException(status_code=422, detail="Pro odeslání klientovi doplňte shrnutí.")
+    # physio brief 2026-11-09 R1/R2: a record needs the provider's and the client's identity
+    physio = db.get(models.Physio, user.physio_id)
+    clinic = R.clinic_of(db, physio)
+    if R.provider_missing(clinic):
+        raise HTTPException(status_code=409, detail="Před prvním záznamem doplňte údaje poskytovatele v Praxi.")
+    patient = R.card(db, clinic.id, c.runner_id)
+    if R.patient_missing(patient):
+        raise HTTPException(status_code=409, detail="Doplňte identifikační údaje klienta.")
     visit_day = (bk.slot_at if bk and bk.slot_at else E.now_iso())[:10]
     if c.outcome_kind == "injury":
         vals = [getattr(c, f) for f in ("out_participation", "out_volume", "out_performance", "out_pain")]
@@ -244,6 +287,22 @@ def approve_conclusion(cid: int, body: schemas.ConclusionApprove | None = None,
     c.approved_at = E.now_iso()
     if bk and bk.status == "confirmed":
         bk.status = "completed"                 # an approved record means the visit took place
+    # R3/R5/R8: in the same transaction — the episode, the ledger row, the audit event
+    ep = db.get(models.CareEpisode, c.episode_id) if c.episode_id else None
+    ep = ep or R.episode_for(db, user.physio_id, c.runner_id)
+    if ep.patient_record_id is None:
+        ep.patient_record_id = patient.id
+    c.episode_id = ep.id
+    if bk is not None and bk.episode_id is None:
+        bk.episode_id = ep.id
+    encounter = (bk.slot_at if bk and bk.slot_at else c.created_at) or E.now_iso()
+    deadline = R.sign_by(encounter)
+    late = bool(deadline and E.now_iso() > deadline)
+    rec = R.write_record(db, clinic=clinic, patient=patient, author=physio, kind="visit_note", encounter_at=encounter,
+                         content=record_content(c, bk), booking_id=c.booking_id, conclusion_id=c.id, episode_id=ep.id)
+    c.record_id = rec.id
+    R.physio_event(db, physio, "approve", "clinical_record", rec.id, runner_id=c.runner_id,
+                   detail={"conclusion_id": c.id, "late": late, "sign_by": deadline, "send_summary": body.send_summary})
     if body.send_summary:
         _share(db, c, bk)
     db.commit()

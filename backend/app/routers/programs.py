@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
 
-from .. import content, models, schemas
+from .. import content, models, records as R, schemas
 from ..content import lib_for
 from ..db import get_db
 from ..deps import ensure_program_owner, has_care_assignment, or_404, require_role, verify_csrf
@@ -79,9 +79,12 @@ def draft_program(body: schemas.DraftProgramRequest, user: models.User = Depends
         runner_id=body.runner_id, physio_id=user.physio_id,
         name=f"{body.site or 'Preventivní'} — fáze 1", phase="offload" if body.site else "prevent",
         weeks=4, started_on=E.iso_date(E.today_date()), active=True, status="draft", sent_at=None,
+        episode_id=R.episode_for(db, user.physio_id, body.runner_id).id,     # physio brief R3
     )
     db.add(p)
     db.flush()
+    ph = db.get(models.Physio, user.physio_id)
+    R.physio_event(db, ph, "create", "program", p.id, runner_id=body.runner_id)       # physio brief R7
     for k, (name, dose, per_week, cue) in enumerate(lib_for(body.site)):
         db.add(models.Exercise(program_id=p.id, name=name, dose=dose, per_week=per_week, cue=cue, position=k + 1,
                                 done_count=0, target_count=(per_week or 1) * (p.weeks or 4)))

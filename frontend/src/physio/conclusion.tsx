@@ -9,6 +9,7 @@ import { api } from "@/api"
 import { Button, Chip, Sheet, useToast } from "@/ui"
 import { fmtDT } from "@/lib"
 import { KIND, REGIONS } from "@/physio/common"
+import { DiagnosisPicker } from "@/physio/docs"
 
 const OSTRC: [string, string, [number, string][]][] = [
   ["out_participation", "Účast na tréninku a závodech", [[0, "plná, bez problému"], [8, "plná, ale s obtížemi"], [17, "omezená"], [25, "nemůže trénovat"]]],
@@ -16,13 +17,19 @@ const OSTRC: [string, string, [number, string][]][] = [
   ["out_performance", "Vliv na výkon", [[0, "žádný"], [8, "mírný"], [17, "střední"], [25, "výrazný"]]],
   ["out_pain", "Bolest", [[0, "žádná"], [8, "mírná"], [17, "střední"], [25, "silná"]]],
 ]
-const FIELDS = ["transcript", "summary", "finding", "outcome_kind", "out_participation", "out_volume", "out_performance", "out_pain", "out_region", "out_side"]
+const SOAP: [string, string][] = [
+  ["subjective", "Subjektivně (co uvádí klient)"], ["objective", "Objektivně (cílený nález)"],
+  ["assessment", "Pracovní závěr / diagnóza"], ["plan", "Doporučený další postup"], ["services_provided", "Provedené výkony"],
+]
+const FIELDS = ["subjective", "objective", "assessment", "plan", "services_provided", "diagnosis_code", "diagnosis_label",
+  "transcript", "summary", "finding", "outcome_kind", "out_participation", "out_volume", "out_performance", "out_pain", "out_region", "out_side"]
 
 export function ConclusionSheet({ booking, onClose, onDone }: { booking: any; onClose: () => void; onDone: () => void }) {
   const toast = useToast()
   const [c, setC] = useState<any>(null)
   const [asr, setAsr] = useState(false)
   const [send, setSend] = useState(true)
+  const [consent, setConsent] = useState(false)   // physio brief R10: recording only after the client agreed
   const [busy, setBusy] = useState<string | null>(null)
   const [rec, setRec] = useState<MediaRecorder | null>(null)
   const chunks = useRef<Blob[]>([])
@@ -30,6 +37,7 @@ export function ConclusionSheet({ booking, onClose, onDone }: { booking: any; on
   useEffect(() => {
     setC(null)
     setSend(true)
+    setConsent(false)
     if (!booking) return
     api.conclusionOpen(booking.id).then(setC).catch((e: any) => { toast({ title: e?.message || "Záznam nelze otevřít" }); onClose() })
     api.physioMe().then((m: any) => setAsr(!!m.capabilities?.asr)).catch(() => setAsr(false))
@@ -89,7 +97,7 @@ export function ConclusionSheet({ booking, onClose, onDone }: { booking: any; on
   const injury = c?.outcome_kind === "injury"
   const complete = injury && OSTRC.every(([k]) => c[k] != null && c[k] !== "")
   const sev = complete ? OSTRC.reduce((s, [k]) => s + Number(c[k]), 0) : null
-  const hasText = !!((c?.summary || "").trim() || (c?.finding || "").trim())
+  const hasText = ["summary", "finding", ...SOAP.map(([k]) => k)].some((k) => (c?.[k] || "").trim())
   const canApprove = started && hasText && (!send || !!(c?.summary || "").trim()) &&
     (!injury || (complete && !!c.out_region && !!c.out_side))
   const inp = "mt-1 w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px] font-normal text-fg"
@@ -128,10 +136,18 @@ export function ConclusionSheet({ booking, onClose, onDone }: { booking: any; on
                   Nahrávka se jen přepíše do textu a hned se smaže; uloží se přepis. Klient o nahrávání musí vědět.
                 </p>
               ) : <p className="mt-1 text-[11.5px] leading-[16px] text-fg-3" data-testid="asr-off">Přepis zatím není zapnutý. Záznam napište ručně.</p>}
+              {asr && (
+                <label className="mt-2 flex items-center gap-2 text-[12.5px] text-fg-2" data-testid="recording-consent">
+                  <input type="checkbox" checked={consent} onChange={async (e) => {
+                    if (!e.target.checked) return setConsent(false)
+                    try { await api.recordingConsent(booking.id); setConsent(true) } catch (x: any) { toast({ title: x?.message || "Nepodařilo se" }) }
+                  }} />Klient s nahráváním souhlasil.
+                </label>
+              )}
               <div className="mt-2 flex flex-wrap gap-2">
                 {rec ? <Button size="sm" variant="danger" icon={Square} onClick={stopRec}>Ukončit nahrávání</Button>
-                  : <Button size="sm" icon={Mic} busy={busy === "audio"} disabled={!asr} onClick={startRec}>Nahrát návštěvu</Button>}
-                <Button size="sm" variant="outline" icon={Upload} disabled={!asr || !!rec || busy === "audio"} onClick={() => file.current?.click()}>Nahrát soubor</Button>
+                  : <Button size="sm" icon={Mic} busy={busy === "audio"} disabled={!asr || !consent} onClick={startRec}>Nahrát návštěvu</Button>}
+                <Button size="sm" variant="outline" icon={Upload} disabled={!asr || !consent || !!rec || busy === "audio"} onClick={() => file.current?.click()}>Nahrát soubor</Button>
                 <input ref={file} type="file" accept="audio/*" className="hidden" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0], e.target.files[0].name)} />
               </div>
             </div>
@@ -142,12 +158,19 @@ export function ConclusionSheet({ booking, onClose, onDone }: { booking: any; on
                 placeholder="Doplní se z nahrávky, nebo ho napište." />
             </label>
           )}
+          {SOAP.map(([k, label]) => (
+            <label key={k} className="text-[12px] font-bold text-fg-2">{label}
+              <textarea rows={k === "objective" ? 3 : 2} disabled={done} value={c[k] || ""} onChange={(e) => set(k, e.target.value)} className={inp} data-testid={`soap-${k}`} />
+            </label>
+          ))}
+          {!done && <DiagnosisPicker value={c} onPick={(x) => { set("diagnosis_code", x.code); set("diagnosis_label", x.label) }} />}
+          {c.diagnosis_label && <p className="-mt-2 text-[12px] text-fg-2">{`Diagnóza: ${c.diagnosis_code ? `${c.diagnosis_code} ` : ""}${c.diagnosis_label}`}</p>}
           <label className="text-[12px] font-bold text-fg-2">Shrnutí pro klienta
             <textarea rows={5} disabled={done} value={c.summary || ""} onChange={(e) => set("summary", e.target.value)} className={inp}
               placeholder="Co jste zjistili, co dělat do příští návštěvy." data-testid="conclusion-summary" />
           </label>
-          <label className="text-[12px] font-bold text-fg-2">Klinický nález
-            <textarea rows={3} disabled={done} value={c.finding || ""} onChange={(e) => set("finding", e.target.value)} className={inp} />
+          <label className="text-[12px] font-bold text-fg-2">Další klinický nález
+            <textarea rows={2} disabled={done} value={c.finding || ""} onChange={(e) => set("finding", e.target.value)} className={inp} />
             <span className="mt-1 block text-[11.5px] font-normal leading-[16px] text-fg-3">
               Neodesílá se klientovi automaticky. Klient má právo nahlížet do dokumentace.
             </span>

@@ -23,7 +23,7 @@ from .deps import is_owner, tutorial_demo_runner_id
 from .metrics import engine as E
 from .routers import (
     admin, ai, annotations, auth, booking, calendar, client_errors, coach, conclusions, employers, goals, integrations, partners, physios,
-    personas, plan, programs, rtr, runners, self_programs, shoes, simulate, team, triage, assistant, usage,
+    personas, plan, programs, records, rtr, runners, self_programs, shoes, simulate, team, triage, assistant, usage,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -60,6 +60,43 @@ def _booking_guard(engine):
         conn.execute(text(
             "CREATE UNIQUE INDEX IF NOT EXISTS ux_bookings_active_start ON bookings(physio_id, slot_at) "
             "WHERE status IN ('requested','confirmed')"))
+
+
+APPEND_ONLY = ("clinical_records", "record_events", "record_destructions")
+
+
+def _ledger_guard(engine):
+    """physio brief 2026-11-09 R5/R7/R11: the ledger, the activity log and the destruction log refuse UPDATE
+    and DELETE in the database itself. The one exception: a clinical record past its retention whose patient
+    card has a logged destruction (record_destructions) can be deleted. Idempotent, SQLite and Postgres."""
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    if not all(insp.has_table(t) for t in APPEND_ONLY):
+        return
+    with engine.begin() as conn:
+        if engine.dialect.name == "sqlite":
+            for t in APPEND_ONLY:
+                conn.execute(text(f"CREATE TRIGGER IF NOT EXISTS {t}_no_update BEFORE UPDATE ON {t} "
+                                  f"BEGIN SELECT RAISE(ABORT, '{t} are append-only'); END"))
+            for t in ("record_events", "record_destructions"):
+                conn.execute(text(f"CREATE TRIGGER IF NOT EXISTS {t}_no_delete BEFORE DELETE ON {t} "
+                                  f"BEGIN SELECT RAISE(ABORT, '{t} are append-only'); END"))
+            conn.execute(text(
+                "CREATE TRIGGER IF NOT EXISTS clinical_records_no_delete BEFORE DELETE ON clinical_records "
+                "WHEN OLD.retain_until > date('now') OR NOT EXISTS (SELECT 1 FROM record_destructions d "
+                "WHERE d.patient_record_id = OLD.patient_record_id) "
+                "BEGIN SELECT RAISE(ABORT, 'clinical_records are append-only'); END"))
+        elif engine.dialect.name == "postgresql":
+            conn.execute(text(
+                "CREATE OR REPLACE FUNCTION dosslap_append_only() RETURNS trigger AS $$ BEGIN "
+                "IF TG_OP = 'DELETE' AND TG_TABLE_NAME = 'clinical_records' AND OLD.retain_until <= to_char(now(), 'YYYY-MM-DD') "
+                "AND EXISTS (SELECT 1 FROM record_destructions d WHERE d.patient_record_id = OLD.patient_record_id) "
+                "THEN RETURN OLD; END IF; "
+                "RAISE EXCEPTION '% are append-only', TG_TABLE_NAME; END $$ LANGUAGE plpgsql"))
+            for t in APPEND_ONLY:
+                conn.execute(text(f"DROP TRIGGER IF EXISTS {t}_append_only ON {t}"))
+                conn.execute(text(f"CREATE TRIGGER {t}_append_only BEFORE UPDATE OR DELETE ON {t} "
+                                  f"FOR EACH ROW EXECUTE FUNCTION dosslap_append_only()"))
 
 
 def _migrate(engine):
@@ -213,6 +250,20 @@ def _migrate(engine):
     # physio brief P0.8: exercise order and library origin
     add("exercises", "position", "position INTEGER", "UPDATE exercises SET position = id WHERE position IS NULL")
     add("exercises", "library_id", "library_id VARCHAR")
+    # physio brief Phase 1: provider identity (R1), structured visit content (R4), episodes (R3)
+    for col in ("legal_name", "legal_form", "ico", "registered_street", "registered_city", "registered_postal_code",
+                "care_site_street", "care_site_city", "care_site_postal_code", "provider_details_confirmed_at"):
+        add("clinics", col, f"{col} VARCHAR")
+    add("clinics", "is_solo", "is_solo BOOLEAN")
+    for col in ("title", "qualification", "hcp_identifier"):
+        add("physios", col, f"{col} VARCHAR")
+    for col in ("subjective", "objective", "assessment", "plan", "services_provided"):
+        add("conclusions", col, f"{col} TEXT")
+    for col in ("diagnosis_code", "diagnosis_label", "autosaved_at", "record_id"):
+        add("conclusions", col, f"{col} VARCHAR")
+    for t in ("conclusions", "bookings", "programs", "return_to_run", "injury_reports"):
+        add(t, "episode_id", "episode_id INTEGER")
+    _ledger_guard(engine)
     add("messages", "read_at_physio", "read_at_physio VARCHAR")
     add("messages", "read_at_runner", "read_at_runner VARCHAR")
 
@@ -511,32 +562,63 @@ def _record_admin_access(db, rid: str, user_id: int, resource: str) -> None:
 
 @app.middleware("http")
 async def audit_access(request, call_next):
-    """Logs a physio's access to a runner's record (GDPR right-of-access
-    transparency). Runs after the response so it never blocks the request,
-    and swallows its own errors — auditing must not break the API."""
+    """Logs access to a runner's record: the daily access_log roll-up the runner sees (GDPR transparency)
+    and, physio brief 2026-11-09 R7, one record_events row per successful request on every route declared
+    in app/audit.py. Runs after the response so it never blocks the request, and swallows its own errors —
+    auditing must not break the API."""
     response = await call_next(request)
     try:
-        path = request.url.path
-        parts = path.split("/")
-        # /api/runners/{rid}/...  (skip the access-log read itself would still
-        # be a physio touching the record, so it's fine to log)
-        if path.startswith("/api/runners/") and len(parts) > 3 and response.status_code < 400:
-            rid = parts[3]
-            token = request.cookies.get(security.SESSION_COOKIE)
-            db = SessionLocal()
-            try:
-                user = security.get_user_for_token(db, token)
-                if user and user.role == "physio" and user.physio_id:
-                    _record_access(db, rid, user.physio_id, request.method,
-                                   parts[4] if len(parts) > 4 else "profil")
-                elif user and user.runner_id != rid and is_owner(user) and rid != tutorial_demo_runner_id():
-                    # the owner's admin view of someone else's record (read-only by construction)
-                    _record_admin_access(db, rid, user.id, parts[4] if len(parts) > 4 else "profil")
-            finally:
-                db.close()
+        if response.status_code < 400 and request.url.path.startswith("/api/"):
+            await asyncio.to_thread(_audit_after, request.scope, request.method, request.url.path,
+                                    request.cookies.get(security.SESSION_COOKIE))
     except Exception:
         pass
     return response
+
+
+def _audit_after(scope, method: str, path: str, token: str | None) -> None:
+    from . import audit as AU
+    from . import records as RC
+    route = scope.get("route")
+    template = getattr(route, "path", None)
+    params = scope.get("path_params") or {}
+    decl = AU.declaration(method, template) if template else None
+    parts = path.split("/")
+    db = SessionLocal()
+    try:
+        user = security.get_user_for_token(db, token)
+        if user is None:
+            return
+        # the daily roll-up, as before, for /api/runners/{rid}/…
+        if path.startswith("/api/runners/") and len(parts) > 3:
+            rid = parts[3]
+            if user.role == "physio" and user.physio_id:
+                _record_access(db, rid, user.physio_id, method, parts[4] if len(parts) > 4 else "profil")
+            elif user.runner_id != rid and is_owner(user) and rid != tutorial_demo_runner_id():
+                _record_admin_access(db, rid, user.id, parts[4] if len(parts) > 4 else "profil")
+        if decl is None and template and template.startswith("/api/runners/{rid}") and user.role == "physio":
+            decl = ("read" if method == "GET" else "update", "runner")
+        if not decl or decl[0] in ("self", "exempt"):
+            return
+        action, rtype = decl
+        rid = AU.runner_of(db, template, params)
+        if user.role == "physio" and user.physio_id:
+            ph = db.get(models.Physio, user.physio_id)
+            if ph is None:
+                return
+            RC.physio_event(db, ph, action, rtype, AU.resource_id(params), runner_id=rid,
+                            detail={"route": f"{method} {template}"})
+            if rid and not path.startswith("/api/runners/"):
+                _record_access(db, rid, ph.id, method, rtype)
+        elif user.role == "runner" and method != "GET":
+            RC.event(db, actor_type="runner", actor_id=user.runner_id, actor_name=user.name, action=action,
+                     resource_type=rtype, resource_id=AU.resource_id(params), runner_id=user.runner_id,
+                     detail={"route": f"{method} {template}"})
+        else:
+            return
+        db.commit()
+    finally:
+        db.close()
 
 
 def _persona_clock_for(token: str | None):
@@ -571,6 +653,7 @@ app.include_router(runners.router)
 app.include_router(shoes.router)
 app.include_router(shoes.catalog_router)
 app.include_router(physios.router)
+app.include_router(records.router)
 app.include_router(triage.router)
 app.include_router(programs.router)
 app.include_router(booking.router)

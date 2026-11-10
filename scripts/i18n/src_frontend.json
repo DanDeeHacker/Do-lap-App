@@ -760,6 +760,7 @@
    "client.tsx",
    "coach.tsx",
    "goal.tsx",
+   "practice.tsx",
    "report.tsx",
    "teamconsole.tsx",
    "training.tsx"
@@ -774,6 +775,7 @@
    "client.tsx",
    "coach.tsx",
    "coachview.tsx",
+   "docs.tsx",
    "goal.tsx",
    "shell.tsx",
    "teamconsole.tsx"
@@ -982,6 +984,14 @@
   "t": "Navigace fyzioterapeuta",
   "files": [
    "app.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Praxe",
+  "files": [
+   "app.tsx",
+   "practice.tsx"
   ],
   "kind": "str"
  },
@@ -1864,6 +1874,7 @@
   "t": "E-mail",
   "files": [
    "App.tsx",
+   "docs.tsx",
    "teamconsole.tsx"
   ],
   "kind": "str"
@@ -2137,6 +2148,7 @@
   "t": "Jméno",
   "files": [
    "App.tsx",
+   "docs.tsx",
    "profile.tsx",
    "teamconsole.tsx"
   ],
@@ -4864,7 +4876,8 @@
  {
   "t": "nedostavil(a) se",
   "files": [
-   "calendar.tsx"
+   "calendar.tsx",
+   "client.tsx"
   ],
   "kind": "jsx"
  },
@@ -4881,7 +4894,10 @@
    "calendar.tsx",
    "client.tsx",
    "conclusion.tsx",
+   "datapage.tsx",
+   "docs.tsx",
    "invite.tsx",
+   "practice.tsx",
    "profile.tsx",
    "queue.tsx",
    "tabs.tsx",
@@ -4969,7 +4985,8 @@
  {
   "t": "rozepsaný záznam",
   "files": [
-   "calendar.tsx"
+   "calendar.tsx",
+   "client.tsx"
   ],
   "kind": "jsx"
  },
@@ -5089,7 +5106,8 @@
  {
   "t": "Záznam",
   "files": [
-   "calendar.tsx"
+   "calendar.tsx",
+   "client.tsx"
   ],
   "kind": "jsx"
  },
@@ -7555,6 +7573,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Odvolat sdílení dat? Fyzioterapeut uvidí jen záznamy z vašich návštěv, které musí ze zákona uchovávat. Program a plán návratu k běhu skončí.",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Omezená",
   "files": [
    "care.tsx"
@@ -8020,13 +8045,6 @@
   "kind": "tpl"
  },
  {
-  "t": "· nar. {}",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "· návrat k běhu {}/{}",
   "files": [
    "client.tsx"
@@ -8318,20 +8336,6 @@
   "kind": "str"
  },
  {
-  "t": "Dokumentace",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Dokumentace klienta",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Dotazy vlastními slovy zatím nejsou zapnuté.",
   "files": [
    "client.tsx"
@@ -8553,6 +8557,7 @@
   "t": "muž",
   "files": [
    "client.tsx",
+   "docs.tsx",
    "profile.tsx"
   ],
   "kind": "jsx"
@@ -8563,13 +8568,6 @@
    "client.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Nález:",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Napište klientovi (Shift+Enter = nový řádek)",
@@ -8607,13 +8605,6 @@
   "kind": "str"
  },
  {
-  "t": "Návštěvy a závěry",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "nedokončeno",
   "files": [
    "client.tsx"
@@ -8646,6 +8637,7 @@
   "files": [
    "client.tsx",
    "conclusion.tsx",
+   "docs.tsx",
    "queue.tsx"
   ],
   "kind": "str"
@@ -8679,11 +8671,11 @@
   "kind": "tpl"
  },
  {
-  "t": "OSTRC: účast {}, objem {}, výkon {}, bolest {} — závažnost {}/100",
+  "t": "odmítnuto",
   "files": [
    "client.tsx"
   ],
-  "kind": "tpl"
+  "kind": "str"
  },
  {
   "t": "Otázka",
@@ -8895,6 +8887,13 @@
   "kind": "jsx"
  },
  {
+  "t": "proběhla",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Program je prázdný.",
   "files": [
    "client.tsx"
@@ -8907,13 +8906,6 @@
    "client.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "rozepsaný závěr",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
  },
  {
   "t": "RPE {}",
@@ -9033,20 +9025,6 @@
   "kind": "str"
  },
  {
-  "t": "Vytisknout",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Vytvořeno {} v aplikaci Došlap.",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "Začít návrat k běhu",
   "files": [
    "client.tsx"
@@ -9082,21 +9060,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Zatím žádný schválený závěr.",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Závěr",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "závěr sdílen",
+  "t": "záznam schválen",
   "files": [
    "client.tsx"
   ],
@@ -9106,6 +9070,7 @@
   "t": "žena",
   "files": [
    "client.tsx",
+   "docs.tsx",
    "profile.tsx"
   ],
   "kind": "jsx"
@@ -9161,6 +9126,13 @@
  },
  {
   "t": "Zranění uzavřeno",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "zrušeno",
   "files": [
    "client.tsx"
   ],
@@ -10589,6 +10561,7 @@
   "t": "Uloženo",
   "files": [
    "coach.tsx",
+   "practice.tsx",
    "report.tsx"
   ],
   "kind": "str"
@@ -11486,6 +11459,20 @@
   "kind": "str"
  },
  {
+  "t": "Další klinický nález",
+  "files": [
+   "conclusion.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Diagnóza: {}{}",
+  "files": [
+   "conclusion.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Doplní se z nahrávky, nebo ho napište.",
   "files": [
    "conclusion.tsx"
@@ -11493,7 +11480,15 @@
   "kind": "str"
  },
  {
-  "t": "Klinický nález",
+  "t": "Doporučený další postup",
+  "files": [
+   "conclusion.tsx",
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Klient s nahráváním souhlasil.",
   "files": [
    "conclusion.tsx"
   ],
@@ -11503,6 +11498,7 @@
   "t": "levá",
   "files": [
    "conclusion.tsx",
+   "docs.tsx",
    "profile.tsx",
    "report.tsx"
   ],
@@ -11589,9 +11585,18 @@
   "t": "obě",
   "files": [
    "conclusion.tsx",
+   "docs.tsx",
    "profile.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Objektivně (cílený nález)",
+  "files": [
+   "conclusion.tsx",
+   "docs.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "omezená",
@@ -11643,9 +11648,18 @@
   "kind": "jsx"
  },
  {
+  "t": "Pracovní závěr / diagnóza",
+  "files": [
+   "conclusion.tsx",
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "pravá",
   "files": [
    "conclusion.tsx",
+   "docs.tsx",
    "profile.tsx",
    "report.tsx"
   ],
@@ -11678,6 +11692,14 @@
    "conclusion.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Provedené výkony",
+  "files": [
+   "conclusion.tsx",
+   "docs.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "rounded-full border px-3 py-1.5 text-[12.5px] {}",
@@ -11717,7 +11739,8 @@
  {
   "t": "Shrnutí pro klienta",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "docs.tsx"
   ],
   "kind": "jsx"
  },
@@ -11732,6 +11755,7 @@
   "t": "Strana",
   "files": [
    "conclusion.tsx",
+   "docs.tsx",
    "profile.tsx"
   ],
   "kind": "str"
@@ -11740,6 +11764,14 @@
   "t": "střední",
   "files": [
    "conclusion.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Subjektivně (co uvádí klient)",
+  "files": [
+   "conclusion.tsx",
+   "docs.tsx"
   ],
   "kind": "str"
  },
@@ -12770,6 +12802,13 @@
   "kind": "str"
  },
  {
+  "t": "Pro potvrzení napište SMAZAT",
+  "files": [
+   "datapage.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Ranní synchronizace",
   "files": [
    "datapage.tsx"
@@ -12824,6 +12863,34 @@
    "datapage.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "SMAZAT",
+  "files": [
+   "datapage.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Smazat účet",
+  "files": [
+   "datapage.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Smazat účet a data",
+  "files": [
+   "datapage.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Smažeme vaše běhy, check-iny, deník, zprávy a přihlášení. Záznamy z návštěv u fyzioterapeuta ale zůstávají u poskytovatele po dobu, kterou stanoví zákon (obvykle 5 let), bez vazby na tento účet.",
+  "files": [
+   "datapage.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "šotolina",
@@ -12963,6 +13030,13 @@
   "kind": "str"
  },
  {
+  "t": "Účet je smazaný",
+  "files": [
+   "datapage.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Určení povrchu selhalo.",
   "files": [
    "datapage.tsx"
@@ -13059,6 +13133,13 @@
    "datapage.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Žádné podrobné záznamy.",
+  "files": [
+   "datapage.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "zápis",
@@ -13200,6 +13281,13 @@
    "datapage.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Zobrazit detail",
+  "files": [
+   "datapage.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "zpevněný",
@@ -13681,6 +13769,713 @@
   "files": [
    "daytoday.tsx",
    "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "— oblast —",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "— strana —",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": ".doc-print{background:#fff;color:#000;font:12px/1.45 Manrope,system-ui,sans-serif;padding:16px;max-width:190mm;margin:0 auto} .doc-print h1{font-size:18px;margin:0 0 4px}.doc-print h2{font-size:13px;margin:14px 0 4px} .doc-print .head{border-bottom:1px solid #000;padding-bottom:8px;margin-bottom:8px} .doc-print section{break-inside:avoid;border-top:1px solid #999;padding-top:6px;margin-top:10px} .doc-print dt{font-weight:700}.doc-print dd{margin:0 0 4px;white-space:pre-line} .doc-print .sig{margin-top:18px;border-top:1px solid #000;width:60mm;padding-top:2px;font-size:10px} .doc-print .no-print{margin-bottom:12px} @media print{@page{size:A4;margin:14mm}.doc-print .no-print{display:none}body{background:#fff}}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· nar. {}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "(na žádost pacienta)",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "(v aplikaci rok {})",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} · {} · záznam {}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} {} · závažnost {}/100 ·",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} {}, závažnost {}/100;",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}{} · IČO {} · {}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "1px solid #000",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "6px 12px",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Anamnéza a červené vlajky",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "bez zranění",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Chybí údaje potřebné ke schválení záznamu.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Číselník MKN-10 zatím není importovaný.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Číslo pojištěnce (šifrováno)",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Datum narození{}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Datum návratu k běhu",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Diagnóza",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Diagnóza (MKN-10)",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Doplněk {}, {}:",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Doplněk {}, {}: {}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Doplněk k záznamu",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Doplněk zapsán",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Doplnit záznam",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Důvod opravy",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Epizoda vznikne s první návštěvou, programem nebo plánem.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Epizody péče",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Export",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Historie přístupů",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Identifikátor {}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Karta klienta",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Karta klienta uložena",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Karta pacienta není založená.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Karta zatím není založená. Bez ní nejde schválit záznam z návštěvy.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kdy, kdo a v jakém rozsahu s dokumentací a daty klienta pracoval (vyhl. 444/2024 § 3/1 t).",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klient změnil údaje v aplikaci.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Klinický nález",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kód pojišťovny",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kontakt na lékaře",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Na žádost klienta",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "návrat k plnému běhu",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "návrat s omezením",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Návštěva",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Obec",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Od {}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Oprava zapsaná jako nový záznam",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Opraveno {}, {}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Opraveno {}, {}: {}{}. Původní znění: záznam {}.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Opravit záznam",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Pacient: {} {} · nar. {} · {} · {} · identifikátor {}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Patří poskytovateli a zůstává i po smazání účtu v aplikaci. Údaje z profilu klienta jsou předvyplněné, potvrďte je.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "péče ukončena",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Péče ukončena, záznam o ukončení zapsán",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pohlaví při narození",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Použít text „{}“ bez kódu",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Praktický lékař",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Praxi",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Před prvním záznamem doplňte údaje poskytovatele v",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "předán jinam",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Předání zapsáno do historie přístupů",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Předat dokumentaci",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Převzít změny",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Příjemce",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Příjmení",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "probíhá",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "PSČ",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Původní znění zůstane čitelné, oprava se uloží jako nový záznam.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Rodné číslo (šifrováno)",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Rodné číslo a číslo pojištěnce lze uložit, až bude nastavené šifrování (FIELD_ENCRYPTION_KEY).",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Rozsah",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Telefon",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Účel",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Ukončení péče",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "ukončeno {} · {}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Ukončit a zapsat záznam",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ukončit péči",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ulice a číslo (trvalý pobyt)",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uložit doplněk",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Uložit kartu",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Uložit opravu",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Výsledek",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Výsledek (OSTRC)",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Výsledek péče",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vytisknout",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vytištěno {} z aplikace Došlap.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Za 3 měsíce se aplikace klienta zeptá, jak se mu daří.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Začátek obtíží",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Založit kartu",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zapíše se, komu, proč a v jakém rozsahu jste dokumentaci předali (§ 4/1 i). Elektronické odeslání vyžaduje elektronickou pečeť nebo podpis a zatím není zapnuté.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zapsal(a): {}{} · autorizováno {}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Zapsat předání",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zatím žádný schválený záznam.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zatím žádný záznam.",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Závěrečná poznámka",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Záznam {} · {}{} · schváleno {}",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Záznamy z návštěv",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zdravotnická dokumentace — fyzioterapie",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zobrazit aktuální znění",
+  "files": [
+   "docs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zobrazit původní znění",
+  "files": [
+   "docs.tsx"
   ],
   "kind": "str"
  },
@@ -20255,6 +21050,7 @@
    "MuscleAnatomy.tsx",
    "capacity.tsx",
    "conclusion.tsx",
+   "docs.tsx",
    "enginecompare.tsx",
    "enginelab.tsx",
    "exfigure.tsx",
@@ -20306,7 +21102,8 @@
   "t": "P",
   "files": [
    "MuscleAnatomy.tsx",
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "docs.tsx"
   ],
   "kind": "str"
  },
@@ -22676,6 +23473,160 @@
   "t": "Zítra v plánu týdne",
   "files": [
    "outlook.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "IČO",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Identifikátor zdravotnického pracovníka",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "kompletní",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Místo poskytování — obec",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Místo poskytování — PSČ",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Místo poskytování — ulice",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Název poskytovatele",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "neúplné",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odborná způsobilost",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Poskytovatel",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "potvrzeno {}",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Právní forma",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Sídlo — obec",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Sídlo — PSČ",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Sídlo — ulice",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Titul",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Tyto údaje se otisknou do každého záznamu z návštěvy a do tisku dokumentace. Bez nich nejde první záznam schválit.",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Údaje poskytovatele",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Údaje poskytovatele potvrzené",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uložit a potvrdit",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "V profilu máte specializaci „{}“. Do odborné způsobilosti ji nepřenášíme automaticky.",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Vy jako autor záznamů",
+  "files": [
+   "practice.tsx"
   ],
   "kind": "jsx"
  },

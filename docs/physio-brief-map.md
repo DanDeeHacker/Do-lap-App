@@ -61,3 +61,26 @@ Appendix C, Phase 3 needs payments).
 `engine` (guidance wording, version bump) and `safety` (what runners are told: care directive, return to
 run pause, stale-data rule, programme texts) → clinical guarantor's sign-off. `security` (queue
 privacy, message audience, API docs) → a `/cso` report.
+
+## Phase 1 — record foundations
+
+| Item | Code | Tests |
+|---|---|---|
+| R1 provider identity | `models.Clinic` legal fields, `Physio.title/qualification/hcp_identifier`; `routers/records.py` `/api/physios/me/practice`; UI `physio/practice.tsx`; approval 409 until complete | `test_records_ledger.py` |
+| R2 patient card | `models.PatientRecord` (AES-GCM `*_enc`, `FIELD_ENCRYPTION_KEY`), `records.card_*`; `/api/physios/me/clients/{rid}/card`; UI Karta klienta in `physio/docs.tsx`; approval 409 without name, birth date, sex, address | `test_records_ledger.py`, `test_retention.py` |
+| R3 episodes | `models.CareEpisode`, `episode_id` on bookings/programs/rtr/conclusions/injuries, `records.episode_for` (draft, programme, plan, confirmed booking, approval); `/api/episodes/{id}` edit + close → discharge record; MKN-10 table + `app/scripts/import_mkn10.py` (official ÚZIS file only) | `test_records_ledger.py` |
+| R4 SOAP | `Conclusion.subjective/objective/assessment/plan/services_provided/diagnosis_*`; fields in `physio/conclusion.tsx` | |
+| R5 ledger | `models.ClinicalRecord`, triggers in `main._ledger_guard` (SQLite and Postgres), `records.write_record` (canonical JSON, sha256, per-clinic chain), approval in one transaction, `app/scripts/verify_records.py`, `app/scripts/backfill_records.py` (legacy, idempotent) | `test_records_ledger.py` |
+| R6 corrections | `/api/clinical-records/{id}/corrections` and `/addenda`; versions in the documentation view; corrected summary reaches the client | `test_records_corrections.py` |
+| R7 activity log | `models.RecordEvent` (append-only), `app/audit.py` registry + `main.audit_access` middleware, explicit events in handlers; runner "Zobrazit detail", physio "Historie přístupů" | `test_audit_coverage.py` |
+| R8 authorisation | approval records author and time; `records.sign_by` (end of the visit's local day), late approval flagged in the event; `/api/physios/me/unsigned` | |
+| R9 printout | print route `/physio/client/:rid/tisk` (`docs.PrintPage`), print / handover / export events, `SigningProvider` null default | |
+| R10 recording consent | required tick → `/api/bookings/{bid}/recording-consent`; audio refused without it | `test_records_ledger.py` |
+| R11 retention | `records.retain_until_for`, card-level `retain_until`, `/api/physios/me/retention-due`, `/api/physios/me/destructions` → `record_destructions` (append-only, 40 years); delete trigger allows only past retention with a logged destruction; runner account deletion keeps cards and records | `test_retention.py` |
+| R12 backups | `app/scripts/backup_db.py` (AES-GCM, `BACKUP_ENCRYPTION_KEY`), `app/scripts/restore_test.py` | `test_backup_restore.py` |
+| R13 withdrawal | `booking.decline_physio` ends programmes and plans, logs consent; documentation stays (`records.doc_access`); runner sees what stays before confirming | `test_consent_withdrawal.py` |
+
+**Not doable in code (owner / lawyer):** R12 EU storage separate from the database, the written retention
+policy and the yearly object-locked copy; the production database decision (SQLite volume vs managed
+Postgres in the EU). Provider documents from Appendix C. The MKN-10 file must be downloaded from ÚZIS by a
+person and imported with the script; the running-injury shortlist needs a physio's review.

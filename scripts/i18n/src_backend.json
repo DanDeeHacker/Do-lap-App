@@ -4170,7 +4170,8 @@
   "files": [
    "metrics/engine.py",
    "metrics/guidance.py",
-   "metrics/week_plan.py"
+   "metrics/week_plan.py",
+   "routers/conclusions.py"
   ]
  },
  {
@@ -6100,7 +6101,8 @@
  {
   "t": "omezení tréninku",
   "files": [
-   "metrics/goal_plan.py"
+   "metrics/goal_plan.py",
+   "routers/records.py"
   ]
  },
  {
@@ -7915,7 +7917,8 @@
   "t": "zranění",
   "files": [
    "metrics/guidance.py",
-   "metrics/week_plan.py"
+   "metrics/week_plan.py",
+   "routers/records.py"
   ]
  },
  {
@@ -8488,7 +8491,8 @@
  {
   "t": "střední",
   "files": [
-   "metrics/race_plan.py"
+   "metrics/race_plan.py",
+   "routers/conclusions.py"
   ]
  },
  {
@@ -16017,6 +16021,24 @@
   ]
  },
  {
+  "t": "FIELD_ENCRYPTION_KEY není nastavený — citlivé údaje nelze uložit.",
+  "files": [
+   "records.py"
+  ]
+ },
+ {
+  "t": "muž",
+  "files": [
+   "records.py"
+  ]
+ },
+ {
+  "t": "žena",
+  "files": [
+   "records.py"
+  ]
+ },
+ {
   "t": "Dolní břicho",
   "files": [
    "regions.py"
@@ -16129,7 +16151,8 @@
  {
   "t": "Karta nenalezena",
   "files": [
-   "routers/assistant.py"
+   "routers/assistant.py",
+   "routers/records.py"
   ]
  },
  {
@@ -16331,9 +16354,16 @@
   ]
  },
  {
-  "t": "Tato rezervace nepatří vám.",
+  "t": "Sdílení dat s fyzioterapeutem je odvolané. Ukončeno:",
   "files": [
    "routers/booking.py"
+  ]
+ },
+ {
+  "t": "Tato rezervace nepatří vám.",
+  "files": [
+   "routers/booking.py",
+   "routers/records.py"
   ]
  },
  {
@@ -16413,6 +16443,13 @@
   "t": "návštěva proběhla",
   "files": [
    "routers/booking.py"
+  ]
+ },
+ {
+  "t": "plán návratu k běhu",
+  "files": [
+   "routers/booking.py",
+   "routers/records.py"
   ]
  },
  {
@@ -16506,6 +16543,19 @@
   ]
  },
  {
+  "t": "Doplňte identifikační údaje klienta.",
+  "files": [
+   "routers/conclusions.py",
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Nejdřív potvrďte, že klient s nahráváním souhlasil.",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
   "t": "Nejdřív záznam schvalte.",
   "files": [
    "routers/conclusions.py"
@@ -16533,6 +16583,13 @@
  {
   "t": "Oblast vyberte ze seznamu",
   "files": [
+   "routers/conclusions.py",
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Omezení objemu tréninku",
+  "files": [
    "routers/conclusions.py"
   ]
  },
@@ -16540,6 +16597,13 @@
   "t": "Pro odeslání klientovi doplňte shrnutí.",
   "files": [
    "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "Před prvním záznamem doplňte údaje poskytovatele v Praxi.",
+  "files": [
+   "routers/conclusions.py",
+   "routers/records.py"
   ]
  },
  {
@@ -16579,6 +16643,12 @@
   ]
  },
  {
+  "t": "Vliv na výkon",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
   "t": "Vyplňte všechny čtyři otázky strukturovaného hodnocení.",
   "files": [
    "routers/conclusions.py"
@@ -16610,6 +16680,90 @@
  },
  {
   "t": "Záznam nemá shrnutí pro klienta.",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "mírná",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "mírné",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "mírný",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "nemůže trénovat",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "omezená",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "plná, ale s obtížemi",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "plná, bez problému",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "silná",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "výrazné",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "výrazný",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "Účast na tréninku a závodech",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "žádná",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "žádné",
+  "files": [
+   "routers/conclusions.py"
+  ]
+ },
+ {
+  "t": "žádný",
   "files": [
    "routers/conclusions.py"
   ]
@@ -16898,12 +17052,6 @@
   ]
  },
  {
-  "t": "Nemáte přístup k tomuto klientovi",
-  "files": [
-   "routers/physios.py"
-  ]
- },
- {
   "t": "Nemáte přístup k tomuto profilu",
   "files": [
    "routers/physios.py"
@@ -17122,6 +17270,240 @@
   "t": "{}: {}× → {}× týdně",
   "files": [
    "routers/programs.py"
+  ]
+ },
+ {
+  "t": "Datum narození není platné.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Doba uchování ještě neuplynula.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Doplněk je prázdný.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Doplňte název, IČO a adresu místa poskytování.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Epizoda nenalezena",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Epizoda už je ukončená.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "IČO má 8 číslic.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Klient nemá kartu ani záznamy.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Klient odvolal sdílení dat. Vidíte pouze zdravotnickou dokumentaci.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Kód MKN-10 není v číselníku.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Nemáte přístup k tomuto klientovi",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Oprava provedena na žádost pacienta.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Opravit lze jen obsah záznamu.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Pohlaví při narození: žena nebo muž.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Pro smazání napište SMAZAT.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "SMAZAT",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Shrnutí z návštěvy bylo opraveno. Aktuální znění najdete v záložce Péče.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Strana: L, P nebo obě",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Tento záznam nelze opravit.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Uveďte důvod opravy.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Uveďte způsob skartace a kdo ji schválil.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Vyberte výsledek péče.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Vyplňte příjemce, účel a rozsah.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Záznam nenalezen",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Záznamy z návštěv zůstávají u poskytovatelů po dobu stanovenou zákonem.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "doplněk záznamu",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "epizodu péče",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "nechal(a) přepsat",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "návštěvu",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "předal(a)",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "případ",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "schválil(a)",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "uzavřel(a)",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "vytvořil(a)",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "zprávy",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "záznam z návštěvy",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Účet fyzioterapeuta nenalezen",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "údaje praxe",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Šifrování citlivých údajů není nastavené — pole nelze uložit.",
+  "files": [
+   "routers/records.py"
   ]
  },
  {
@@ -17857,6 +18239,102 @@
   ]
  },
  {
+  "t": "by se převedlo (přidejte --apply).",
+  "files": [
+   "scripts/backfill_records.py"
+  ]
+ },
+ {
+  "t": "převedeno.",
+  "files": [
+   "scripts/backfill_records.py"
+  ]
+ },
+ {
+  "t": "{} záznamů",
+  "files": [
+   "scripts/backfill_records.py"
+  ]
+ },
+ {
+  "t": "BACKUP_ENCRYPTION_KEY musí být 32 bajtů v base64.",
+  "files": [
+   "scripts/backup_db.py"
+  ]
+ },
+ {
+  "t": "Záloha zapsána: {}",
+  "files": [
+   "scripts/backup_db.py"
+  ]
+ },
+ {
+  "t": "neznámý formát zálohy",
+  "files": [
+   "scripts/backup_db.py"
+  ]
+ },
+ {
+  "t": "pg_dump není nainstalovaný.",
+  "files": [
+   "scripts/backup_db.py"
+  ]
+ },
+ {
+  "t": "CODE",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
+  "t": "Importováno {} kódů MKN-10.",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
+  "t": "KOD",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
+  "t": "KÓD",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
+  "t": "LABEL",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
+  "t": "NAZ",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
+  "t": "NAZEV",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
+  "t": "NÁZEV",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
+  "t": "Soubor je prázdný.",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
   "t": "(nic se nezměnilo, přidejte --apply)",
   "files": [
    "scripts/reset_demo.py"
@@ -17959,6 +18437,36 @@
   ]
  },
  {
+  "t": "NESEDÍ {}",
+  "files": [
+   "scripts/restore_test.py"
+  ]
+ },
+ {
+  "t": "záznamy sedí",
+  "files": [
+   "scripts/restore_test.py"
+  ]
+ },
+ {
+  "t": "Žádná záloha k obnově.",
+  "files": [
+   "scripts/restore_test.py"
+  ]
+ },
+ {
+  "t": "NESEDÍ: záznam {} ({}), zkontrolováno {}.",
+  "files": [
+   "scripts/verify_records.py"
+  ]
+ },
+ {
+  "t": "OK: {} záznamů, hashe i řetěz sedí.",
+  "files": [
+   "scripts/verify_records.py"
+  ]
+ },
+ {
   "t": "Achillova šlacha (P)",
   "files": [
    "seed.py",
@@ -18057,6 +18565,18 @@
  },
  {
   "t": "Fyzio Holešovice",
+  "files": [
+   "seed.py"
+  ]
+ },
+ {
+  "t": "Fyzio Holešovice (ukázková praxe)",
+  "files": [
+   "seed.py"
+  ]
+ },
+ {
+  "t": "Fyzioterapeut (ukázkový účet)",
   "files": [
    "seed.py"
   ]
@@ -18398,6 +18918,18 @@
  },
  {
   "t": "Trailpoint",
+  "files": [
+   "seed.py"
+  ]
+ },
+ {
+  "t": "Ukázková 1",
+  "files": [
+   "seed.py"
+  ]
+ },
+ {
+  "t": "Ukázková 12",
   "files": [
    "seed.py"
   ]

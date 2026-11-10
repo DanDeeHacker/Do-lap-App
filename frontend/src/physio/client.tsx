@@ -12,6 +12,7 @@ import { fmtD, fmtDT } from "@/lib"
 import { C } from "@/tokens"
 import { Empty, KIND, Loading, PainAgo, QuadChip, RiskChip, Score, noData, shownScore, stripTags, useLoad } from "@/physio/common"
 import { ConclusionSheet } from "@/physio/conclusion"
+import { DocsTab } from "@/physio/docs"
 
 const ATTN: Record<string, [string, "alert" | "watch" | "info"]> = {
   pain: ["bolest 4+/10", "alert"], alert: ["vysoké riziko", "alert"], setback: ["zhoršení v návratu", "watch"], message: ["nová zpráva", "info"],
@@ -71,6 +72,8 @@ export function ClientPage({ pid, rid }: { pid: string; rid: string }) {
   const tab = (sp.get("tab") as Tab) || "overview"
   const toast = useToast()
   const { d, err, reload } = useLoad<any>(() => api.physioClient(rid), [rid])
+  // physio brief R13: after a withdrawal only the documentation stays
+  if (!d && err) return <><Back /><div className="mt-4"><DocsTab rid={rid} /></div></>
   if (!d) return <><Back /><Loading err={err} /></>
   const r = d.runner
   return (
@@ -567,48 +570,30 @@ function RtrTab({ rid, plan, a, onChange }: { rid: string; plan: any; a: any; on
 
 function VisitsTab({ rid, d, onChange }: { rid: string; d: any; onChange: () => void; pid: string }) {
   const [concl, setConcl] = useState<any>(null)
-  const [doc, setDoc] = useState<any>(null)
-  const openDoc = async () => setDoc(await api.physioDocumentation(rid))
   return (
-    <Card>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-serif text-xl">Návštěvy a závěry</h2>
-        <Button size="sm" variant="outline" icon={Printer} onClick={openDoc}>Dokumentace</Button>
-      </div>
-      {d.bookings.length === 0 ? <Empty>S tímto klientem zatím nemáte termín.</Empty> : (
-        <ul className="mt-2 divide-y divide-white/[.07] text-[13px]" data-testid="visits">
-          {d.bookings.map((b: any) => (
-            <li key={b.id} className="flex flex-wrap items-center gap-2 py-2.5">
-              <span className="min-w-0 flex-1"><b className="text-fg">{fmtDT(b.at)}</b><span className="block text-[12px] text-fg-3">{KIND[b.kind] || b.kind}{` · ${b.status === "confirmed" ? "potvrzeno" : b.status === "requested" ? "čeká na potvrzení" : b.status}`}</span></span>
-              {b.conclusion?.status === "approved" ? <Chip tone="ok">závěr sdílen</Chip> : b.conclusion ? <Chip tone="watch">rozepsaný závěr</Chip> : null}
-              {b.status === "confirmed" && <Button size="sm" variant="outline" icon={FileText} onClick={() => setConcl({ id: b.id, slot_at: b.at, kind: b.kind, runner: d.runner })}>Závěr</Button>}
-            </li>
-          ))}
-        </ul>
-      )}
-      <ConclusionSheet booking={concl} onClose={() => setConcl(null)} onDone={() => { setConcl(null); onChange() }} />
-      <Sheet open={!!doc} onClose={() => setDoc(null)}
-        footer={<Button className="w-full" icon={Printer} onClick={() => window.print()}>Vytisknout</Button>}>
-        {doc && (
-          <div className="print-area" data-testid="documentation">
-            <h2 className="font-serif text-2xl">Dokumentace klienta</h2>
-            <p className="mt-1 text-[12.5px] text-fg-2">{doc.runner.name}{doc.runner.birth_year ? ` · nar. ${doc.runner.birth_year}` : ""}</p>
-            <p className="text-[12.5px] text-fg-2">{doc.physio.name}{doc.physio.credential ? `, ${doc.physio.credential}` : ""}{doc.physio.clinic ? ` · ${doc.physio.clinic.name}, ${doc.physio.clinic.city || ""}` : ""}</p>
-            {doc.visits.length === 0 ? <Empty>Zatím žádný schválený závěr.</Empty> : doc.visits.map((v: any, i: number) => (
-              <section key={i} className="mt-4 border-t border-white/[.08] pt-3 text-[13px]">
-                <p className="font-bold text-fg">{fmtDT(v.at)}{v.kind ? ` · ${KIND[v.kind] || v.kind}` : ""}</p>
-                {v.finding && <p className="mt-1 text-fg-2"><b className="text-fg">{"Nález: "}</b>{v.finding}</p>}
-                <p className="mt-1 whitespace-pre-line text-fg-soft">{v.summary}</p>
-                {v.outcome && <p className="mt-1 text-[12px] text-fg-3">{`OSTRC: účast ${v.outcome.participation}, objem ${v.outcome.volume}, výkon ${v.outcome.performance}, bolest ${v.outcome.pain} — závažnost ${v.outcome.severity}/100`}{v.outcome.region ? ` · ${v.outcome.region} ${v.outcome.side || ""}` : ""}</p>}
-              </section>
+    <div className="grid gap-4">
+      <Card>
+        <h2 className="font-serif text-xl">Návštěvy</h2>
+        {d.bookings.length === 0 ? <Empty>S tímto klientem zatím nemáte termín.</Empty> : (
+          <ul className="mt-2 divide-y divide-white/[.07] text-[13px]" data-testid="visits">
+            {d.bookings.map((b: any) => (
+              <li key={b.id} className="flex flex-wrap items-center gap-2 py-2.5">
+                <span className="min-w-0 flex-1"><b className="text-fg">{fmtDT(b.at)}</b><span className="block text-[12px] text-fg-3">{KIND[b.kind] || b.kind}{` · ${STATUS[b.status] || b.status}`}</span></span>
+                {b.conclusion?.status === "approved" ? <Chip tone="ok">záznam schválen</Chip> : b.conclusion ? <Chip tone="watch">rozepsaný záznam</Chip> : null}
+                {["confirmed", "completed"].includes(b.status) && new Date(b.at).getTime() <= Date.now() &&
+                  <Button size="sm" variant="outline" icon={FileText} onClick={() => setConcl({ id: b.id, slot_at: b.at, kind: b.kind, runner: d.runner })}>Záznam</Button>}
+              </li>
             ))}
-            <p className="mt-4 text-[11px] text-fg-3">{`Vytvořeno ${fmtDT(doc.generated_at)} v aplikaci Došlap.`}</p>
-          </div>
+          </ul>
         )}
-      </Sheet>
-    </Card>
+      </Card>
+      <DocsTab rid={rid} />
+      <ConclusionSheet booking={concl} onClose={() => setConcl(null)} onDone={() => { setConcl(null); onChange() }} />
+    </div>
   )
 }
+
+const STATUS: Record<string, string> = { confirmed: "potvrzeno", requested: "čeká na potvrzení", completed: "proběhla", no_show: "nedostavil(a) se", cancelled: "zrušeno", declined: "odmítnuto" }
 
 function ChatTab({ rid }: { rid: string }) {
   const toast = useToast()

@@ -4,7 +4,7 @@
 // and the physio's own profile. Same platform and data as the runner app, another level of detail.
 import { useEffect, useState } from "react"
 import { Link, Navigate, useLocation } from "react-router"
-import { CalendarDays, Inbox, LogOut, Settings, Users, UserRound, type LucideIcon } from "lucide-react"
+import { Building2, CalendarDays, Inbox, LogOut, Settings, Users, UserRound, type LucideIcon } from "lucide-react"
 import { api } from "@/api"
 import { useApp } from "@/store"
 import { Mark, Wordmark } from "@/shell"
@@ -13,10 +13,12 @@ import { QueuePage } from "@/physio/queue"
 import { CalendarPage } from "@/physio/calendar"
 import { ClientPage, ClientsPage } from "@/physio/client"
 import { ProfilePage } from "@/physio/profile"
+import { PracticePage } from "@/physio/practice"
+import { PrintPage } from "@/physio/docs"
 
 const NAV: [string, string, LucideIcon][] = [
   ["/physio", "Fronta případů", Inbox], ["/physio/calendar", "Kalendář", CalendarDays],
-  ["/physio/clients", "Klienti", Users], ["/physio/profile", "Profil", UserRound],
+  ["/physio/clients", "Klienti", Users], ["/physio/practice", "Praxe", Building2], ["/physio/profile", "Profil", UserRound],
 ]
 
 export function PhysioApp() {
@@ -29,11 +31,15 @@ export function PhysioApp() {
   if (!pathname.startsWith("/physio") && !(pathname === "/admin" && me?.team)) return <Navigate to="/physio" replace />
   const on = (to: string) => (to === "/physio" ? pathname === "/physio" : pathname === to || pathname.startsWith(to + "/") || (to === "/physio/clients" && pathname.startsWith("/physio/client/")))
   const nav = [...NAV, ...(me?.team ? [["/admin", "Správa a tým", Settings] as [string, string, LucideIcon]] : [])]
+  // physio brief R9: the printout renders on its own, black on white, without the app shell
+  const print = pathname.match(/^\/physio\/client\/([^/]+)\/tisk$/)
+  if (print) return <PrintPage rid={decodeURIComponent(print[1])} />
   let page = <QueuePage pid={pid} />
   if (pathname.startsWith("/physio/calendar")) page = <CalendarPage pid={pid} />
   else if (pathname.startsWith("/physio/client/")) page = <ClientPage pid={pid} rid={decodeURIComponent(pathname.slice("/physio/client/".length).split("/")[0])} />
   else if (pathname.startsWith("/physio/clients")) page = <ClientsPage />
   else if (pathname.startsWith("/physio/profile")) page = <ProfilePage onSaved={loadProf} />
+  else if (pathname.startsWith("/physio/practice")) page = <PracticePage />
   else if (pathname === "/admin") page = <AdminPage />
   return (
     <div className="motion-shell min-h-screen bg-bg text-fg" data-testid="physio-app">

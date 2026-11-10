@@ -24,6 +24,18 @@ class Clinic(Base):
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     city = Column(String)
+    # physio brief 2026-11-09 R1: the provider's identity, required before the first record
+    legal_name = Column(String)
+    legal_form = Column(String)
+    ico = Column(String)
+    registered_street = Column(String)
+    registered_city = Column(String)
+    registered_postal_code = Column(String)
+    care_site_street = Column(String)
+    care_site_city = Column(String)
+    care_site_postal_code = Column(String)
+    is_solo = Column(Boolean, default=False)
+    provider_details_confirmed_at = Column(String)
 
 
 class Physio(Base):
@@ -41,6 +53,11 @@ class Physio(Base):
     # account in Team Console (registration checks no credential)
     verified_at = Column(String)
     verified_by = Column(String)
+    # physio brief R1: title, qualification and the health-professional identifier (credential stays as
+    # the specialism; it is moved to qualification only after a person checked it)
+    title = Column(String)
+    qualification = Column(String)
+    hcp_identifier = Column(String)
 
 
 class Employer(Base):
@@ -466,6 +483,7 @@ class InjuryReport(Base):
     physio_id = Column(String, ForeignKey("physios.id"))  # set when source=physio_conclusion
     confirmed = Column(Boolean, default=False)  # physio-confirmed → evidence grade A
     resolved_at = Column(String)
+    episode_id = Column(Integer)     # physio brief R3
 
 
 class Assessment(Base):
@@ -592,6 +610,7 @@ class Booking(Base):
     reminded = Column(Boolean, default=False)
     duration_min = Column(Integer, default=45)   # physio brief 2026-11-09 P0.6: overlap checks
     cancel_reason = Column(String)
+    episode_id = Column(Integer)   # physio brief R3
     created_at = Column(String)
 
 
@@ -621,6 +640,17 @@ class Conclusion(Base):
     # saved zeros, and approving the record is separate from sending the summary to the client
     outcome_kind = Column(String)
     shared_at = Column(String)
+    # physio brief 2026-11-09 R4: structured visit content (vyhl. 444/2024 § 3/1); `finding` stays for old rows
+    subjective = Column(Text)
+    objective = Column(Text)
+    assessment = Column(Text)
+    plan = Column(Text)
+    services_provided = Column(Text)
+    diagnosis_code = Column(String)
+    diagnosis_label = Column(String)
+    autosaved_at = Column(String)
+    episode_id = Column(Integer)
+    record_id = Column(String)          # R5: the ledger row written on approval
     finding = Column(String)   # short clinical finding / diagnosis line
     # structured OSTRC-H outcome, only when has_outcome — mirrors InjuryReport
     has_outcome = Column(Boolean, default=False)
@@ -656,6 +686,7 @@ class ReturnToRun(Base):
     levels_json = Column(JSON, default=list)
     note = Column(String)
     paused_reason = Column(String)   # physio brief 2026-11-09 P0.7: pain_over_limit | physio
+    episode_id = Column(Integer)     # physio brief R3
 
 
 class RtrSession(Base):
@@ -685,6 +716,7 @@ class Program(Base):
     active = Column(Boolean, default=True)
     status = Column(String, default="draft")
     sent_at = Column(String)
+    episode_id = Column(Integer)     # physio brief R3
 
 
 class Exercise(Base):
@@ -1267,3 +1299,146 @@ class CoachAccessLog(Base):
     first_at = Column(String)
     last_at = Column(String)
     __table_args__ = (UniqueConstraint("token", "date", "action", name="uq_coach_access_daily"),)
+
+
+
+# ======================================================================== physio brief 2026-11-09 Phase 1
+class PatientRecord(Base):
+    """R2: the provider's patient card. It belongs to the clinic and outlives the runner account; a client
+    may have no app account at all. *_enc fields are AES-GCM (records.encrypt), never clear text."""
+    __tablename__ = "patient_records"
+    __table_args__ = (UniqueConstraint("clinic_id", "runner_id", name="ux_patient_clinic_runner"),)
+    id = Column(String, primary_key=True)            # UUID, the patient identifier until the standard format
+    clinic_id = Column(String, nullable=False, index=True)
+    runner_id = Column(String, index=True)           # set to NULL when the runner deletes the account
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    birth_date = Column(String)
+    sex_at_birth = Column(String)
+    rodne_cislo_enc = Column(Text)
+    insurance_no_enc = Column(Text)
+    insurer_code = Column(String)
+    id_doc_type = Column(String)
+    id_doc_no_enc = Column(Text)
+    permanent_street = Column(String)
+    permanent_city = Column(String)
+    permanent_postal_code = Column(String)
+    delivery_street = Column(String)
+    delivery_city = Column(String)
+    delivery_postal_code = Column(String)
+    phone = Column(String)
+    email = Column(String)
+    gp_name = Column(String)
+    gp_contact = Column(String)
+    legal_representative = Column(JSON)
+    anamnesis = Column(Text)                          # W6: editable history and red flags
+    red_flags = Column(JSON)
+    source_snapshot = Column(JSON)                    # the runner profile the card was confirmed from
+    retain_until = Column(String)                     # R11: from the last service in the record
+    created_at = Column(String)
+    updated_at = Column(String)
+
+
+class CareEpisode(Base):
+    """R3: one problem cared for — links visits, programmes, return-to-run plans and records."""
+    __tablename__ = "care_episodes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    clinic_id = Column(String)
+    physio_id = Column(String, index=True)
+    runner_id = Column(String, index=True)
+    patient_record_id = Column(String)
+    region = Column(String)
+    side = Column(String)
+    diagnosis_code = Column(String)
+    diagnosis_label = Column(String)
+    onset_date = Column(String)
+    opened_at = Column(String)
+    closed_at = Column(String)
+    status = Column(String, default="open")           # open | discharged | abandoned
+    discharge_outcome = Column(String)                 # returned_full | returned_reduced | referred | stopped
+    return_to_run_date = Column(String)
+    closing_note = Column(Text)
+
+
+class DiagnosisCode(Base):
+    """R3: the MKN-10 list, imported from the official ÚZIS file (app/scripts/import_mkn10.py), never typed."""
+    __tablename__ = "diagnosis_codes"
+    code = Column(String, primary_key=True)
+    label = Column(String, nullable=False)
+    running_shortlist = Column(Boolean, default=False)   # set only after a physio reviewed it
+
+
+class ClinicalRecord(Base):
+    """R5: the append-only ledger. Approving a visit copies it here; UPDATE and DELETE are refused by
+    database triggers (main._ledger_guard), destruction only after a logged, approved destruction (R11)."""
+    __tablename__ = "clinical_records"
+    id = Column(String, primary_key=True)
+    clinic_id = Column(String, nullable=False, index=True)
+    patient_record_id = Column(String, nullable=False, index=True)
+    episode_id = Column(Integer)
+    booking_id = Column(Integer)
+    conclusion_id = Column(Integer)
+    kind = Column(String, nullable=False)              # visit_note | correction | addendum | discharge | consent
+    encounter_at = Column(String, nullable=False)
+    content_json = Column(Text, nullable=False)
+    content_sha256 = Column(String, nullable=False)
+    chain_sha256 = Column(String, nullable=False)
+    corrects_record_id = Column(String)
+    correction_reason = Column(Text)
+    at_patient_request = Column(Integer, nullable=False, default=0)
+    author_physio_id = Column(String, nullable=False)
+    author_name = Column(String, nullable=False)
+    author_identifier = Column(String)
+    authorised_at = Column(String, nullable=False)
+    retain_until = Column(String, nullable=False)
+    created_at = Column(String, nullable=False)
+
+
+class RecordEvent(Base):
+    """R7: every read and change of clinical or runner health data, append-only (same triggers as the
+    ledger). detail_json carries changed field names, never the clinical text."""
+    __tablename__ = "record_events"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    at = Column(String, nullable=False)
+    actor_type = Column(String, nullable=False)        # physio | runner | staff | system
+    actor_id = Column(String)
+    actor_name = Column(String)
+    clinic_id = Column(String)
+    runner_id = Column(String, index=True)
+    patient_record_id = Column(String, index=True)
+    action = Column(String, nullable=False)
+    resource_type = Column(String, nullable=False)
+    resource_id = Column(String)
+    detail_json = Column(Text)
+    request_id = Column(String)
+
+
+class RecordDestruction(Base):
+    """R11: the destruction log — what, when, how and by whom; kept 40 years (vyhl. § 17/2), append-only.
+    A clinical record can be deleted only after a row here names its patient card."""
+    __tablename__ = "record_destructions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    patient_record_id = Column(String, nullable=False, index=True)
+    clinic_id = Column(String)
+    records_count = Column(Integer)
+    method = Column(String, nullable=False)
+    approved_by = Column(String, nullable=False)
+    approval_ref = Column(String)
+    executed_by = Column(String, nullable=False)
+    executed_at = Column(String, nullable=False)
+    keep_until = Column(String, nullable=False)
+
+
+class OutcomeFollowup(Base):
+    """M1: three months after discharge the runner app asks how it went (calibration labels)."""
+    __tablename__ = "outcome_followups"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    episode_id = Column(Integer, index=True)
+    runner_id = Column(String, index=True)
+    due_on = Column(String)
+    status = Column(String, default="scheduled")      # scheduled | answered | skipped
+    answered_at = Column(String)
+    running_normally = Column(Boolean)
+    recurrence = Column(Boolean)
+    pain = Column(Integer)
+    created_at = Column(String)

@@ -14,7 +14,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
 
-from .. import care_view as CV, models, schemas
+from .. import care_view as CV, models, records as R, schemas
 from ..db import get_db
 from ..deps import (
     ensure_runner_read_access, ensure_runner_self, get_current_user,
@@ -85,7 +85,7 @@ def create_plan(body: schemas.CreateRtrRequest, user: models.User = Depends(requ
         raise HTTPException(status_code=403, detail="Nejprve musíte tento případ převzít z fronty.")
     active = (
         db.query(models.ReturnToRun)
-        .filter(models.ReturnToRun.runner_id == body.runner_id, models.ReturnToRun.status != "completed")
+        .filter(models.ReturnToRun.runner_id == body.runner_id, models.ReturnToRun.status.notin_(("completed", "ended")))
         .first()
     )
     if active:
@@ -96,9 +96,11 @@ def create_plan(body: schemas.CreateRtrRequest, user: models.User = Depends(requ
         created_at=E.now_iso(), started_on=E.iso_date(E.today_date()), status="active",
         current_level=1, pain_threshold=body.pain_threshold, sessions_per_level=body.sessions_per_level,
         levels_json=levels, note=body.note,
+        episode_id=R.episode_for(db, user.physio_id, body.runner_id).id,     # physio brief R3
     )
     db.add(plan)
     db.flush()
+    R.physio_event(db, db.get(models.Physio, user.physio_id), "create", "rtr", plan.id, runner_id=body.runner_id)
     db.add(models.Message(
         runner_id=body.runner_id, physio_id=user.physio_id, sender="physio",
         body="Máte připravený plán návratu k běhu. Najdete ho v záložce Péče → Zranění. Po každém sezení zapište, "

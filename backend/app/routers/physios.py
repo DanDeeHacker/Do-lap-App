@@ -230,7 +230,7 @@ def my_clients(user: models.User = Depends(require_verified_physio), db: DBSessi
             tgt = sum(e.target_count or 0 for e in ex)
             adher = round(100 * sum(e.done_count or 0 for e in ex) / tgt) if tgt else None
         rtr = (db.query(models.ReturnToRun).filter(models.ReturnToRun.runner_id == rid,
-                                                    models.ReturnToRun.status != "completed").first())
+                                                    models.ReturnToRun.status.notin_(("completed", "ended"))).first())
         msg = (db.query(models.Message).filter(models.Message.runner_id == rid)
                .order_by(models.Message.created_at.desc()).first())
         pain_recent = bool(ci and (ci.pain_score or 0) >= 4 and (ci.submitted_at or "") >= since)
@@ -330,32 +330,6 @@ def client_overview(rid: str, user: models.User = Depends(require_verified_physi
                      for b in bks],
         "rtr": _plan_dict(db, rtr) if rtr else None,
     }
-
-
-@router.get("/me/clients/{rid}/documentation")
-def documentation(rid: str, user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
-    """Standardised client documentation (report Figure A11): the approved conclusions with the
-    structured outcome, in date order — the printable record a practice keeps."""
-    pid = _pid(user)
-    if not has_care_assignment(db, pid, rid):
-        raise HTTPException(status_code=403, detail="Nemáte přístup k tomuto klientovi")
-    _log_read(db, rid, pid, "dokumentace")
-    r = db.get(models.Runner, rid)
-    p = db.get(models.Physio, pid)
-    rows = (db.query(models.Conclusion).filter(models.Conclusion.runner_id == rid, models.Conclusion.physio_id == pid,
-                                               models.Conclusion.status == "approved")
-            .order_by(models.Conclusion.approved_at.asc()).all())
-    bk = {b.id: b for b in db.query(models.Booking).filter(models.Booking.id.in_([c.booking_id for c in rows])).all()} if rows else {}
-    return {"runner": {"name": r.name if r else rid, "birth_year": r.birth_year if r else None, "sex": r.sex if r else None},
-            "physio": _profile_out(db, p, user),
-            "visits": [{"at": (bk.get(c.booking_id).slot_at if bk.get(c.booking_id) else c.created_at),
-                        "kind": bk.get(c.booking_id).kind if bk.get(c.booking_id) else None,
-                        "summary": c.summary, "finding": c.finding, "approved_at": c.approved_at,
-                        "outcome": ({"severity": c.out_severity, "region": c.out_region, "side": c.out_side,
-                                     "participation": c.out_participation, "volume": c.out_volume,
-                                     "performance": c.out_performance, "pain": c.out_pain} if c.has_outcome else None)}
-                       for c in rows],
-            "generated_at": E.now_iso()}
 
 
 @router.post("/me/clients/{rid}/injuries/{iid}/close", dependencies=[Depends(verify_csrf)])

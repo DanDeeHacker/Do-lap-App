@@ -210,6 +210,9 @@ def request_slot(body: schemas.SlotBookRequest,
         requested_at=E.now_iso(), created_at=E.now_iso(),
     )
     db.add(b)
+    from .. import records as R
+    R.event(db, actor_type="runner", actor_id=rid, actor_name=user.name, action="create", resource_type="booking",
+            runner_id=rid, detail={"slot_id": slot.id})          # physio brief R7
     db.add(models.Message(
         runner_id=rid, physio_id=slot.physio_id, sender="system", audience="physio",
         body="Pacient požádal o termín — čeká na vaše potvrzení.", created_at=E.now_iso(),
@@ -264,6 +267,23 @@ def decline_physio(rid: str, pid: str, user: models.User = Depends(get_current_u
             slot = db.query(models.PhysioSlot).filter(models.PhysioSlot.id == b.slot_id).first()
             if slot and slot.status in ("held", "booked"):
                 slot.status = "open"
+    # physio brief 2026-11-09 R13: live access stops at once; open programmes and return-to-run plans end
+    # with a notice to both sides; the physio keeps the documentation the law requires, nothing else
+    ended = []
+    for prog in db.query(models.Program).filter(models.Program.runner_id == rid, models.Program.physio_id == pid,
+                                                models.Program.active.is_(True)).all():
+        prog.active, prog.status = False, "ended"
+        ended.append(f"program „{prog.name}“")
+    for plan in db.query(models.ReturnToRun).filter(models.ReturnToRun.runner_id == rid, models.ReturnToRun.physio_id == pid,
+                                                    models.ReturnToRun.status.in_(("active", "paused"))).all():
+        plan.status, plan.paused_reason = "ended", "consent_withdrawn"
+        ended.append("plán návratu k běhu")
+    if ended:
+        db.add(models.Message(runner_id=rid, physio_id=pid, sender="system", audience="both", created_at=E.now_iso(),
+                              body="Sdílení dat s fyzioterapeutem je odvolané. Ukončeno: " + ", ".join(ended) + "."))
+    from .. import records as R
+    R.event(db, actor_type="runner", actor_id=rid, actor_name=user.name, action="consent", resource_type="runner",
+            runner_id=rid, detail={"withdrawn_from": pid})
     tri = db.query(models.Triage).filter(
         models.Triage.runner_id == rid, models.Triage.claimed_by == pid
     ).first()
@@ -345,6 +365,8 @@ def confirm_booking(bid: int, user: models.User = Depends(require_verified_physi
         if clash:
             raise HTTPException(status_code=409, detail=clash)
     b.status = "confirmed"
+    from .. import records as R
+    b.episode_id = b.episode_id or R.episode_for(db, user.physio_id, b.runner_id).id     # physio brief R3
     if b.slot_id:
         slot = db.query(models.PhysioSlot).filter(models.PhysioSlot.id == b.slot_id).first()
         if slot:
@@ -411,8 +433,12 @@ def _physio_booking(db: DBSession, bid: int, user: models.User) -> models.Bookin
 
 
 def _audit(db: DBSession, b: models.Booking, what: str) -> None:
+    from .. import records as R
     from ..main import _record_access
     _record_access(db, b.runner_id, b.physio_id, "POST", what)
+    ph = db.get(models.Physio, b.physio_id)
+    if ph is not None:
+        R.physio_event(db, ph, "update", "booking", b.id, runner_id=b.runner_id, detail={"what": what})
 
 
 def _free_slot(db: DBSession, b: models.Booking) -> None:
