@@ -1038,7 +1038,10 @@ function Continuity() {
       </div>
       <Reveal className="mt-6">
         <p className="rounded-2xl border border-white/8 bg-white/3 px-4 py-3 text-[13px] leading-6 text-fg-2">
-          Pro fyzioterapeuty připravujeme vlastní rozhraní: kalendář a rezervace, digitální registraci klientů, tvorbu programů, databázi cviků a přehled dat klientů. Je zatím ve vývoji.
+          {/* round 2 F18: the physio app exists — say what it does and where to sign up */}
+          <b className="text-fg">Pro fyzioterapeuty:</b>{" "}
+          {"vlastní aplikace s frontou případů, kalendářem a rezervacemi, kartou klienta a zdravotnickou dokumentací, programy cviků, plánem návratu k běhu a zprávami. Data klienta vidíte jen s jeho souhlasem a každé nahlédnutí se zapisuje. "}
+          <a href="/auth?role=physio" className="font-bold text-accent hover:underline">Registrace pro fyzioterapeuty</a>
         </p>
       </Reveal>
     </Section>

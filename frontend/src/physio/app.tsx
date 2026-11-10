@@ -63,6 +63,9 @@ export function PhysioApp() {
   // round 2 F1.1: the note is a full page at /visit/:bookingId; the older /navsteva/ links still open it
   const visit = pathname.match(/^\/physio\/client\/([^/]+)\/(?:visit|navsteva)\/(\d+)$/)
   const prep = pathname.match(/^\/physio\/client\/([^/]+)\/priprava\/(\d+)$/)
+  // round 2 F18: /physio/clients/:id is the client, not the list
+  const oldClient = pathname.match(/^\/physio\/clients\/([^/]+)/)
+  if (oldClient) return <Navigate to={`/physio/client/${oldClient[1]}${window.location.search}`} replace />
   let page = <TodayPage />
   if (visit) page = <VisitEditor rid={decodeURIComponent(visit[1])} bid={Number(visit[2])} />
   else if (prep) page = <PrevisitPage rid={decodeURIComponent(prep[1])} bid={Number(prep[2])} />

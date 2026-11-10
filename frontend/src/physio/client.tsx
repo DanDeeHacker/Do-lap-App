@@ -75,16 +75,19 @@ function InviteClient() {
   const [open, setOpen] = useState(false)
   const [f, setF] = useState({ name: "", email: "", message: "" })
   const [link, setLink] = useState<string | null>(null)
-  const list = useLoad<any>(() => (open ? api.invites() : Promise.resolve({ items: [] })), [open, link])
+  const [cur, setCur] = useState<number | null>(null)
+  const [revoked, setRevoked] = useState(false)
+  const list = useLoad<any>(() => (open ? api.invites() : Promise.resolve({ items: [] })), [open, link, revoked])
   const inp = "mt-1 w-full rounded-lg border border-white/15 bg-panel px-2.5 py-1.5 text-[13px] font-normal"
   const ST: Record<string, string> = { open: "čeká", accepted: "přijato", revoked: "zrušeno", expired: "vypršelo" }
   return (
     <>
-      <Button size="sm" icon={Plus} onClick={() => { setOpen(true); setLink(null) }}>Pozvat klienta</Button>
+      <Button size="sm" icon={Plus} onClick={() => { setOpen(true); setLink(null); setRevoked(false); setCur(null) }}>Pozvat klienta</Button>
       <Sheet open={open} onClose={() => setOpen(false)}>
         <h2 className="font-serif text-2xl">Pozvat klienta</h2>
         <p className="mt-1 text-[12.5px] text-fg-2">Klient po přijetí odkazu přejde rovnou do vaší péče, bez fronty. Odkaz platí jednou.</p>
-        {link ? (
+        {/* round 2 F18: a cancelled invitation shows no link, code or copy button */}
+        {link && revoked ? <p className="mt-3 rounded-xl bg-white/[.04] px-3 py-2 text-[13px] font-bold" data-testid="invite-revoked">Pozvánka zrušena</p> : link ? (
           <div className="mt-3 grid gap-2" data-testid="invite-link">
             <input readOnly className={inp} value={link} onFocus={(e) => e.target.select()} aria-label="Odkaz pozvánky" />
             <span className="flex flex-wrap gap-2">
@@ -98,7 +101,7 @@ function InviteClient() {
             <label className="text-[12px] font-bold text-fg-2">Jméno (pro vás)<input className={inp} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
             <label className="text-[12px] font-bold text-fg-2">E-mail (nepovinné)<input type="email" className={inp} value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
             <label className="text-[12px] font-bold text-fg-2">Vzkaz (klient ho uvidí)<textarea rows={2} className={inp} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} /></label>
-            <Button size="sm" onClick={async () => { try { setLink((await api.inviteCreate(f)).link) } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) } }}>Vytvořit odkaz</Button>
+            <Button size="sm" onClick={async () => { try { const x = await api.inviteCreate(f); setCur(x.id); setLink(x.link) } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) } }}>Vytvořit odkaz</Button>
           </div>
         )}
         {(list.d?.items || []).length > 0 && (
@@ -106,7 +109,7 @@ function InviteClient() {
             {list.d.items.slice(0, 10).map((i: any) => (
               <li key={i.id} className="flex items-center gap-2 py-1.5"><span className="flex-1">{i.name || i.email || "bez jména"}<span className="ml-1 text-fg-3">{fmtD(i.created_at)}</span></span>
                 <Chip tone={i.status === "accepted" ? "ok" : "muted"}>{ST[i.status] || i.status}</Chip>
-                {i.status === "open" && <button type="button" className="text-[12px] font-bold text-accent hover:underline" onClick={async () => { await api.inviteRevoke(i.id); list.reload() }}>Zrušit</button>}</li>
+                {i.status === "open" && <button type="button" className="text-[12px] font-bold text-accent hover:underline" onClick={async () => { await api.inviteRevoke(i.id); if (i.id === cur) setRevoked(true); list.reload() }}>Zrušit</button>}</li>
             ))}
           </ul>
         )}
@@ -191,7 +194,9 @@ export function ClientPage({ pid, rid }: { pid: string; rid: string }) {
             <ClientMenu d={d} rid={rid} onChange={reload} />
           </span>
         </div>
-        <Segmented className="mt-2" value={tab} onChange={(k) => setSp({ tab: k }, { replace: true })} ariaLabel="Části karty klienta"
+        {/* round 2 F18: at 390 px the active tab scrolls into view; the scroller keeps room on the right */}
+        <Segmented className="mt-2 pr-4" value={tab} onChange={(k) => { setSp({ tab: k }, { replace: true }); requestAnimationFrame(() =>
+          document.querySelector('[aria-label="Části karty klienta"] [aria-pressed="true"]')?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" })) }} ariaLabel="Části karty klienta"
           options={[["overview", "Přehled"], ["timeline", "Časová osa"], ["plan", "Plán"], ["docs", "Dokumentace"], ["chat", "Zprávy"]] as const} />
       </div>
       {!d.share && <p className="mt-3 flex items-center gap-2 rounded-xl bg-watch/10 px-3 py-2 text-[12.5px] text-watch-soft">

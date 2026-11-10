@@ -1533,7 +1533,8 @@ function AuthForm({ initialMode = "register", onDemo, demoBusy = false, autoFocu
   const nav = useNavigate()
   const { reloadMe } = useApp()
   // owner request 2026-10-27: physiotherapists sign up and sign in here too (the physio app, /physio)
-  const [role, setRole] = useState<"runner" | "physio">("runner")
+  // round 2 F18: the landing page's physio sign-up link opens the form with "fyzioterapeut" chosen
+  const [role, setRole] = useState<"runner" | "physio">(() => (new URLSearchParams(window.location.search).get("role") === "physio" ? "physio" : "runner"))
   const [mode, setMode] = useState<"login" | "register">(initialMode)
   useEffect(() => setMode(initialMode), [initialMode])
   const [email, setEmail] = useState("")
