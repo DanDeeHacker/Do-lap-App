@@ -299,8 +299,9 @@ def request_slot(body: schemas.SlotBookRequest,
         sv0 = db.get(models.Service, body.service_id) if body.service_id else None
         mins0 = sv0.duration_minutes if sv0 else 45
         step0 = (mins0 + (sv0.buffer_minutes or 0)) if sv0 else None      # round 2 F13.4: the times offered for it
-        offered = {_aware(ft["start"]) for ft in W.free_times(db, body.physio_id, start.astimezone(E.LOCAL_TZ).date(),
-                                                      start.astimezone(E.LOCAL_TZ).date(), minutes=step0)}
+        day0 = start.astimezone(E.LOCAL_TZ).date()
+        # a time from the service's grid or the working-hours grid, as long as the whole service fits (is_free)
+        offered = {_aware(ft["start"]) for m in {step0, None} for ft in W.free_times(db, body.physio_id, day0, day0, minutes=m)}
         if start not in offered or not W.is_free(db, body.physio_id, start, mins0):   # datetimes, not strings: the offset may differ
             raise HTTPException(status_code=409, detail="Tento termín už není volný.")
         slot0 = models.PhysioSlot(physio_id=body.physio_id, slot_at=start.isoformat(), duration_min=mins0, status="open",

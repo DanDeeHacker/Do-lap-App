@@ -57,6 +57,11 @@ def test_demo_login_never_shares_a_runner_with_a_real_account(client, db_session
     idx = int(rid.split("-")[1]) - 1
     monkeypatch.setattr(seed, "DEMO_LOGINS", [("ghost@demo.cz", idx)])
     monkeypatch.setattr(seed, "RUNS", {**{i: v for i, v in enumerate(seed.RUNS)}, idx: seed.RUNS[10]})
+    # the ghost is a copy of persona 10, so it gets persona 10's random stream too: its data used to depend on how
+    # many runners earlier tests had registered (1000 + idx), and some streams expose a known simulator/engine
+    # rounding mismatch that test_sensitivity then reports (round 2: run-0304 and run-0330, also on main)
+    _m = seed.mulberry32
+    monkeypatch.setattr(seed, "mulberry32", lambda n, _m=_m: _m(1010 if n == 1000 + idx else n))
     # the old bug: a demo login attached to the real runner
     db.add(models.User(email="ghost@demo.cz", password_hash="x", name="Ghost", role="runner", runner_id=rid))
     db.commit()
