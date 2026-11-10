@@ -556,6 +556,9 @@ def calendar(pid: str, start: str = "", end: str = "", user: models.User = Depen
     return {"bookings": out_b, "free": W.free_times(db, pid, max(d0, E.today_date()), d1),
             "time_off": to_dicts([t for t in db.query(models.TimeOff).filter_by(physio_id=pid).all()
                                   if t.ends_at >= lo and t.starts_at < hi]),
+            # round 2 F14: the grid shades working hours
+            "rules": [{"weekday": r.weekday, "start": r.start_local, "end": r.end_local}
+                      for r in db.query(models.AvailabilityRule).filter_by(physio_id=pid, active=True).all()],
             "from": d0.isoformat(), "to": d1.isoformat()}
 
 

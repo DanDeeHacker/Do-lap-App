@@ -32,6 +32,9 @@ def bootstrap(pid: str, user: models.User = Depends(require_verified_physio), db
         out["runner"] = to_dict(r)
         a = db.query(models.Assessment).filter(models.Assessment.runner_id == runner_id).first()
         out["assessment"] = E.assessment_row_to_dict(a)
+        # round 2 F14.4: the calendar shows the display state, never a stale score
+        if out["assessment"] is not None:
+            out["assessment"]["freshness"] = CV.freshness_for(db, runner_id)
         return out
 
     conclusions = db.query(models.Conclusion).filter(models.Conclusion.physio_id == pid).all()

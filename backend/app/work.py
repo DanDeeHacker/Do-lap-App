@@ -140,6 +140,20 @@ def free_times(db: DBSession, physio_id: str, start: date, end: date, minutes: i
     return sorted(out, key=lambda x: x["start"])
 
 
+def within_hours(db: DBSession, physio_id: str, start: datetime, minutes: int) -> bool:
+    """Round 2 F14.1: does [start, start + minutes) fall inside one of the working-hours rules?"""
+    loc = start.astimezone(E.LOCAL_TZ)
+    end = loc + timedelta(minutes=minutes)
+    for r in db.query(models.AvailabilityRule).filter_by(physio_id=physio_id, active=True).all():
+        if r.weekday != loc.weekday():
+            continue
+        if (r.valid_from and loc.date().isoformat() < r.valid_from) or (r.valid_until and loc.date().isoformat() > r.valid_until):
+            continue
+        if _local(loc.date(), r.start_local) <= loc and end <= _local(loc.date(), r.end_local):
+            return True
+    return False
+
+
 def is_free(db: DBSession, physio_id: str, start: datetime, minutes: int) -> bool:
     end = start + timedelta(minutes=minutes)
     return not any(start < b1 and b0 < end for b0, b1 in busy_intervals(db, physio_id))

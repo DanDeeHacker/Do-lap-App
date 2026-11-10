@@ -650,7 +650,8 @@ def physio_reschedule(bid: int, body: schemas.BookingRescheduleRequest,
     from .. import work as W
     W.NOTIFY.send(db, "booking_moved", "Návštěva má nový termín", runner_id=b.runner_id, ref=f"booking:{b.id}")
     db.commit()
-    return to_dict(b)
+    # round 2 F14.1: any time is allowed; outside working hours the physio is told, not stopped
+    return {**to_dict(b), "outside_hours": not W.within_hours(db, b.physio_id, start, mins)}
 
 
 def _past_visit(db: DBSession, bid: int, user: models.User) -> models.Booking:

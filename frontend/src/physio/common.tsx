@@ -1,5 +1,5 @@
 // The physio app's shared pieces (owner request 2026-10-27, report v6 Section 6.2.8).
-import { useCallback, useEffect, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { Button, Chip, useToast } from "@/ui"
 import { api } from "@/api"
 import { QUAD, fmtDT } from "@/lib"
@@ -117,5 +117,26 @@ export function RequestItem({ b, onDone }: { b: any; onDone: () => void }) {
         <Button size="sm" variant="outline" busy={busy === "d"} onClick={() => act("d", () => api.bookingDecline(b.id), "Termín odmítnut")}>Odmítnout</Button>
       </div>
     </li>
+  )
+}
+
+// round 2 F14.5: a menu that closes on an item click, an outside click and Escape (the <details> one stayed open)
+export function Menu({ label, children, className = "" }: { label: string; children: (close: () => void) => ReactNode; className?: string }) {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const down = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false) }
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setOpen(false) } }
+    document.addEventListener("mousedown", down)
+    window.addEventListener("keydown", key, true)
+    return () => { document.removeEventListener("mousedown", down); window.removeEventListener("keydown", key, true) }
+  }, [open])
+  return (
+    <div ref={box} className={`relative ${className}`} data-testid="visit-menu">
+      <button type="button" aria-label={label} aria-expanded={open} onClick={() => setOpen(!open)}
+        className="rounded-lg px-2 py-1 text-fg-2 hover:bg-white/[.06]">⋯</button>
+      {open && <div role="menu" className="absolute right-0 z-30 mt-1 grid w-44 rounded-xl border border-white/10 bg-panel p-1 text-[13px] shadow-lg">{children(() => setOpen(false))}</div>}
+    </div>
   )
 }
