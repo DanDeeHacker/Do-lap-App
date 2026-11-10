@@ -122,7 +122,8 @@ def pain_events(db: DBSession, rid: str, frm: str | None = None, to: str | None 
             add(s.morning_at or s.logged_at, s.next_morning_pain, reg, side, "rtr_morning",
                 f"rtr_session:{s.id}")
     for lg in db.query(models.ExerciseLog).filter(models.ExerciseLog.runner_id == rid, models.ExerciseLog.pain.isnot(None)).all():
-        add(lg.created_at or lg.logged_on, lg.pain, None, None, "exercise", f"exercise_log:{lg.id}")
+        # the day of the session, not when the row was written (seeded and synced logs are written later)
+        add(lg.logged_on or lg.created_at, lg.pain, None, None, "exercise", f"exercise_log:{lg.id}")
     out.sort(key=lambda e: e["at"])
     return out
 
