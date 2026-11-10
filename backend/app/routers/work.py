@@ -328,7 +328,8 @@ def today(user: models.User = Depends(require_verified_physio), db: DBSession = 
     unread = (db.query(models.Message).filter(models.Message.runner_id.in_(clients), models.Message.sender == "runner",
                                               models.Message.read_at_physio.is_(None)).all()) if clients else []
     requests = db.query(models.Booking).filter_by(physio_id=p.id, status="requested").all()
-    new_cases = (db.query(models.Triage).filter(models.Triage.claimed_by.is_(None), models.Triage.status != "closed").count())
+    from .triage import queue_rows
+    new_cases = len(queue_rows(db, p.id))          # round 2 F17.1: the same query and filters as Fronta
     names = {rid: (db.get(models.Runner, rid).name if db.get(models.Runner, rid) else rid)
              for rid in {a.runner_id for a in alerts if a.runner_id} | {m.runner_id for m in unread}}
     R.physio_event(db, p, "read", "runner", None, detail={"screen": "today"})

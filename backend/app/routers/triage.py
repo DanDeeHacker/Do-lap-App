@@ -61,17 +61,15 @@ def _anonymous(t: models.Triage, r: models.Runner, a: dict, region: str | None, 
     }
 
 
-@router.get("")
-def queue(status: str = "open", scope: str = "clinic",
-          user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
-    physio_region = _physio_region(db, user.physio_id)
+def queue_rows(db: DBSession, physio_id: str, status: str = "open", scope: str = "clinic") -> list[tuple]:
+    """Round 2 F17.1: the one query behind Fronta and the Dnes count — (triage, runner, region, in_region)."""
+    physio_region = _physio_region(db, physio_id)
     q = db.query(models.Triage)
     if status and status != "all":
         q = q.filter(models.Triage.status != "closed") if status == "open" else q.filter(models.Triage.status == status)
-    rows = q.all()
-    passed = {x.triage_id for x in db.query(models.TriagePass).filter(models.TriagePass.physio_id == user.physio_id).all()}
+    passed = {x.triage_id for x in db.query(models.TriagePass).filter(models.TriagePass.physio_id == physio_id).all()}
     out = []
-    for t in rows:
+    for t in q.all():
         # physio brief 2026-11-09 P0.9: the queue holds only cases nobody claimed — someone else's case is
         # not shown at all and mine belong in Klienti; a case I passed on stays hidden for me
         if t.claimed_by or t.id in passed:
@@ -84,6 +82,15 @@ def queue(status: str = "open", scope: str = "clinic",
         in_region = physio_region is None or rreg == physio_region
         if not in_region and scope != "all":
             continue
+        out.append((t, r, rreg, in_region))
+    return out
+
+
+@router.get("")
+def queue(status: str = "open", scope: str = "clinic",
+          user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
+    out = []
+    for t, r, rreg, in_region in queue_rows(db, user.physio_id, status, scope):
         a_row = db.query(models.Assessment).filter(models.Assessment.runner_id == t.runner_id).first()
         a = CV.present(db, t.runner_id, E.assessment_row_to_dict(a_row) if a_row else E.recompute_assessment(db, t.runner_id))
         out.append(_anonymous(t, r, a, rreg, in_region))
@@ -109,6 +116,7 @@ def claim(tid: int, user: models.User = Depends(require_verified_physio), db: DB
                        models.CareAssignment.status == "revoked").first())
     if revoked:
         raise HTTPException(status_code=403, detail="Běžec spolupráci s vámi ukončil.")
+    from .. import work as W
     t.status = "claimed"
     t.claimed_by = user.physio_id
     existing = (
@@ -124,7 +132,10 @@ def claim(tid: int, user: models.User = Depends(require_verified_physio), db: DB
         existing.status = "active"
     db.add(models.Message(
         runner_id=t.runner_id, physio_id=user.physio_id, sender="system",
-        body="Fyzioterapeut převzal váš případ.", created_at=E.now_iso(),
+        # round 2 F15.2: the physio's grammatical gender, neutral without one
+        body=W.by_gender(
+            db.get(models.Physio, user.physio_id), "Fyzioterapeutka převzala váš případ.", "Fyzioterapeut převzal váš případ.",
+            "Váš případ má teď na starosti fyzioterapeut."), created_at=E.now_iso(),
     ))
     db.commit()
     db.refresh(t)

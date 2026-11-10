@@ -250,10 +250,7 @@ def my_clients(user: models.User = Depends(require_verified_physio), db: DBSessi
         a = _a_summary(CV.present(db, rid, E.assessment_row_to_dict(a_row)) if a_row else CV.present(db, rid, {}))
         ci = (db.query(models.Checkin).filter(models.Checkin.runner_id == rid)
               .order_by(models.Checkin.submitted_at.desc()).first())
-        nxt = (db.query(models.Booking).filter(models.Booking.runner_id == rid, models.Booking.physio_id == pid,
-                                               models.Booking.status.in_(("confirmed", "requested")),
-                                               models.Booking.slot_at >= now[:16])
-               .order_by(models.Booking.slot_at.asc()).first())
+        nxt = next_visit(db, rid, pid)
         prog = (db.query(models.Program).filter(models.Program.runner_id == rid, models.Program.active.is_(True))
                 .order_by(models.Program.id.desc()).first())
         adher, adh = None, {"method": None}
@@ -365,6 +362,21 @@ def client_overview(rid: str, user: models.User = Depends(require_verified_physi
     }
 
 
+def next_visit(db: DBSession, rid: str, pid: str) -> models.Booking | None:
+    """Round 2 F17.2: the next visit from now on, later today included. Times are compared as datetimes — the
+    stored UTC string against the local 'now' string skipped a visit later the same day."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    rows = db.query(models.Booking).filter(models.Booking.runner_id == rid, models.Booking.physio_id == pid,
+                                           models.Booking.status.in_(("confirmed", "requested"))).all()
+
+    def at(b):
+        d = datetime.fromisoformat(b.slot_at)
+        return d if d.tzinfo else d.replace(tzinfo=E.LOCAL_TZ)
+    ahead = [b for b in rows if b.slot_at and at(b) >= now]
+    return min(ahead, key=at) if ahead else None
+
+
 def _header(db: DBSession, pid: str, rid: str, cis: list) -> dict:
     """physio brief W6.2: the sticky header (diagnosis and side, phase, next visit, last data) and the body map
     from the check-ins' pain points (W6.5); the clinic's colleagues for a transfer (W1.5)."""
@@ -372,10 +384,7 @@ def _header(db: DBSession, pid: str, rid: str, cis: list) -> dict:
     from .. import work as W
     ep = (db.query(models.CareEpisode).filter_by(physio_id=pid, runner_id=rid, status="open")
           .order_by(models.CareEpisode.id.desc()).first())
-    nxt = (db.query(models.Booking).filter(models.Booking.runner_id == rid, models.Booking.physio_id == pid,
-                                           models.Booking.status.in_(("confirmed", "requested")),
-                                           models.Booking.slot_at >= E.now_iso()[:16])
-           .order_by(models.Booking.slot_at.asc()).first())
+    nxt = next_visit(db, rid, pid)
     prog = (db.query(models.Program).filter_by(runner_id=rid, physio_id=pid, active=True).order_by(models.Program.id.desc()).first())
     # round 2 F4.2: Kde to bolí and the symptom counts come from pain_events (every source), 6 weeks
     ps = CV.pain_summary(CV.pain_events(db, rid, (E.today_date() - timedelta(weeks=6)).isoformat()))

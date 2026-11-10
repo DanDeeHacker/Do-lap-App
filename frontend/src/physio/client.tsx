@@ -8,7 +8,7 @@ import { Link, useNavigate, useSearchParams } from "react-router"
 import { AlertTriangle, ArrowLeft, Bot, FileText, MessageCircle, Paperclip, Pause, Play, Plus, Printer, Search, Send, Sparkles, Trash2 } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, Segmented, Sheet, useToast } from "@/ui"
-import { fmtD, fmtDT } from "@/lib"
+import { fmtD, fmtDT, PHASE } from "@/lib"
 import { C } from "@/tokens"
 import { visitPath } from "@/physio/visit"
 import { Empty, KIND, Loading, PainAgo, QuadChip, REGIONS, RiskChip, Score, noData, shownScore, stripTags, useLoad } from "@/physio/common"
@@ -176,7 +176,7 @@ export function ClientPage({ pid, rid }: { pid: string; rid: string }) {
                 {[r.age ? `${r.age} let` : null, r.sex === "f" ? "žena" : r.sex === "m" ? "muž" : null, r.city].filter(Boolean).join(" · ")}</span></h1>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-fg-2">
               <span>{ep?.diagnosis ? `${ep.code ? `${ep.code} ` : ""}${ep.diagnosis}${ep.side ? ` (${ep.side === "L" ? "vlevo" : ep.side === "R" ? "vpravo" : "oboustranně"})` : ""}` : "bez diagnózy"}</span>
-              {d.phase && <span>{`fáze: ${d.phase}`}</span>}
+              {d.phase && <span>{`fáze: ${PHASE[d.phase] || d.phase}`}</span>}{/* round 2 F17.3: the runner app's labels */}
               <span>{d.next_visit ? `další návštěva ${fmtDT(d.next_visit.at)}` : "bez další návštěvy"}</span>
               <span className={fr?.status === "fresh" ? "" : "text-watch"}>{fr?.last_data_at ? `data ${fmtD(fr.last_data_at)}` : "bez dat z hodinek"}</span>
               {d.no_app && <Chip>bez aplikace</Chip>}
