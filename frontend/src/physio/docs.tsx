@@ -289,7 +289,8 @@ function CardSheet({ rid, onClose, onSaved }: { rid: string; onClose: () => void
           {field("permanent_postal_code", "PSČ")}{field("phone", "Telefon", "tel")}{field("email", "E-mail", "email")}
           {field("insurer_code", "Kód pojišťovny")}{field("gp_name", "Praktický lékař")}{field("gp_contact", "Kontakt na lékaře")}
           {d?.crypto ? <>{field("rodne_cislo", "Rodné číslo (šifrováno)")}{field("insurance_no", "Číslo pojištěnce (šifrováno)")}</>
-            : <p className="text-[11.5px] text-fg-3 sm:col-span-2">Rodné číslo a číslo pojištěnce lze uložit, až bude nastavené šifrování (FIELD_ENCRYPTION_KEY).</p>}
+            // round 2 F9.2: no configuration names in the UI
+            : <p className="text-[11.5px] text-fg-3 sm:col-span-2">Rodné číslo zatím nelze uložit.</p>}
           <label className="text-[12px] font-bold text-fg-2 sm:col-span-2">Anamnéza a červené vlajky
             <textarea rows={4} className={inp} value={f.anamnesis || ""} onChange={(e) => set("anamnesis", e.target.value)} /></label>
         </div>

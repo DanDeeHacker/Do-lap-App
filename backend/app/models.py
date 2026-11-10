@@ -1411,6 +1411,7 @@ class DiagnosisCode(Base):
     code = Column(String, primary_key=True)
     label = Column(String, nullable=False)
     running_shortlist = Column(Boolean, default=False)   # set only after a physio reviewed it
+    search = Column(String, index=True)                  # round 2 F9.3: code + label folded (no diacritics)
 
 
 class ClinicalRecord(Base):

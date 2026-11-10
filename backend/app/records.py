@@ -32,8 +32,7 @@ SEX_LABEL = {"f": "žena", "m": "muž"}
 
 
 # ---- field encryption (R2) ---------------------------------------------------------------------------
-def _key() -> bytes | None:
-    raw = os.environ.get("FIELD_ENCRYPTION_KEY")
+def _parse_key(raw: str | None) -> bytes | None:
     if not raw:
         return None
     try:
@@ -43,17 +42,26 @@ def _key() -> bytes | None:
     return k if len(k) in (16, 24, 32) else None
 
 
+def _key() -> bytes | None:
+    return _parse_key(os.environ.get("FIELD_ENCRYPTION_KEY"))
+
+
+def _previous_key() -> bytes | None:
+    """Round 2 F9.1: during a rotation the old key still reads what it wrote (docs/field-encryption.md)."""
+    return _parse_key(os.environ.get("FIELD_ENCRYPTION_KEY_PREVIOUS"))
+
+
 def crypto_on() -> bool:
     return _key() is not None
 
 
 def encrypt(value: str | None) -> str | None:
-    """AES-GCM with FIELD_ENCRYPTION_KEY. Without the key nothing is stored (the inputs are hidden)."""
+    """AES-GCM with the field key. Without the key nothing is stored (the inputs are hidden)."""
     if value in (None, ""):
         return None
     key = _key()
     if key is None:
-        raise RuntimeError("FIELD_ENCRYPTION_KEY není nastavený — citlivé údaje nelze uložit.")
+        raise RuntimeError("Šifrování citlivých údajů není zapnuté — nelze je uložit.")
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     nonce = os.urandom(12)
     ct = AESGCM(key).encrypt(nonce, value.encode("utf-8"), b"dosslap-field-v1")
@@ -61,14 +69,19 @@ def encrypt(value: str | None) -> str | None:
 
 
 def decrypt(blob: str | None) -> str | None:
-    if not blob:
+    if not blob or not blob.startswith("v1:"):
         return None
-    key = _key()
-    if key is None or not blob.startswith("v1:"):
-        return None
+    from cryptography.exceptions import InvalidTag
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     raw = base64.b64decode(blob[3:])
-    return AESGCM(key).decrypt(raw[:12], raw[12:], b"dosslap-field-v1").decode("utf-8")
+    for key in (_key(), _previous_key()):
+        if key is None:
+            continue
+        try:
+            return AESGCM(key).decrypt(raw[:12], raw[12:], b"dosslap-field-v1").decode("utf-8")
+        except InvalidTag:
+            continue
+    return None
 
 
 # ---- identity -----------------------------------------------------------------------------------------

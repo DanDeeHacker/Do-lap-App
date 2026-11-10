@@ -9,6 +9,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session as DBSession
 
 from .. import models
@@ -291,11 +292,25 @@ def _schedule_followup(db: DBSession, ep: models.CareEpisode) -> None:
 @router.get("/api/diagnoses")
 def search_diagnoses(q: str = "", user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     """R3.3: the imported MKN-10 list. Empty until the official ÚZIS file is imported."""
+    from ..scripts.import_mkn10 import fold
     qs = db.query(models.DiagnosisCode)
-    if q:
-        like = f"%{q.strip()}%"
-        qs = qs.filter((models.DiagnosisCode.code.ilike(like)) | (models.DiagnosisCode.label.ilike(like)))
-    rows = qs.order_by(models.DiagnosisCode.running_shortlist.desc(), models.DiagnosisCode.code).limit(30).all()
+    rows = []
+    if q.strip():
+        # round 2 F9.3: a code prefix ("M76", "m766") first, then text, both without diacritics; every word must match
+        f = fold(q.strip())
+        code = f.upper().replace(" ", "")
+        rows = (qs.filter((models.DiagnosisCode.code.ilike(f"{code}%")) |
+                          (func.replace(models.DiagnosisCode.code, ".", "").ilike(f"{code.replace('.', '')}%")))
+                .order_by(models.DiagnosisCode.code).limit(30).all())
+        if len(rows) < 30:
+            tq = qs
+            for w in f.split():
+                tq = tq.filter(models.DiagnosisCode.search.like(f"%{w}%"))
+            seen = {r.code for r in rows}
+            rows += [r for r in tq.order_by(models.DiagnosisCode.running_shortlist.desc(), models.DiagnosisCode.code)
+                     .limit(30).all() if r.code not in seen][:30 - len(rows)]
+    else:
+        rows = qs.order_by(models.DiagnosisCode.running_shortlist.desc(), models.DiagnosisCode.code).limit(30).all()
     return {"items": [{"code": d.code, "label": d.label, "shortlist": bool(d.running_shortlist)} for d in rows],
             "imported": db.query(models.DiagnosisCode.code).first() is not None}
 

@@ -287,6 +287,7 @@ def _migrate(engine):
     add("programs", "draft_note", "draft_note TEXT")
     add("patient_records", "incomplete", "incomplete INTEGER DEFAULT 0")   # round 2 F2
     add("exercises", "target_set", "target_set BOOLEAN DEFAULT FALSE")        # round 2 F6.3
+    add("diagnosis_codes", "search", "search VARCHAR")                         # round 2 F9.3
     for col, ddl in (("next_morning_pain", "INTEGER"), ("morning_stiffness_min", "INTEGER"),
                      ("matched_activity_id", "INTEGER"), ("state", "VARCHAR")):
         add("rtr_sessions", col, f"{col} {ddl}")
@@ -521,6 +522,12 @@ async def lifespan(app: FastAPI):
         # appear on an already-seeded / redeployed database. Idempotent.
         seed_module.ensure_demo_accounts(db)
         _dedupe_activities(db)
+        # round 2 F9.3: the official MKN-10 list (ÚZIS, bundled) when the table is empty
+        try:
+            from .scripts.import_mkn10 import ensure_imported
+            ensure_imported(db)
+        except Exception:  # noqa: BLE001 — a missing code list must never block startup
+            logging.getLogger("dosslap").exception("MKN-10 import failed")
         # Physio AI Assistant: built-in knowledge (cards, summaries, app guide) from the repo
         try:
             from .assistant import knowledge as KB
