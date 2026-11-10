@@ -75,7 +75,8 @@ def bootstrap(pid: str, user: models.User = Depends(require_verified_physio), db
         .filter(models.Booking.physio_id == pid, models.Booking.status == "requested")
         .order_by(models.Booking.slot_at.asc()).all()
     )
-    requests_out = [_with_runner_and_assessment(b, b.runner_id) for b in requests]
+    from .booking import request_detail
+    requests_out = [{**_with_runner_and_assessment(b, b.runner_id), "detail": request_detail(db, b)} for b in requests]
     slots = (
         db.query(models.PhysioSlot)
         .filter(models.PhysioSlot.physio_id == pid, models.PhysioSlot.slot_at > E.now_iso())

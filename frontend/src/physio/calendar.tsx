@@ -8,7 +8,7 @@ import { api } from "@/api"
 import { Button, Card, Chip, useToast } from "@/ui"
 import { fmtDT } from "@/lib"
 import { visitPath } from "@/physio/visit"
-import { Empty, KIND, Loading, shownScore, useLoad } from "@/physio/common"
+import { Empty, KIND, Loading, RequestItem, shownScore, useLoad } from "@/physio/common"
 import { AddVisit, IcsLink, Services, WeekView, WorkingHours } from "@/physio/schedule"
 import { Waitlist } from "@/physio/business"
 
@@ -42,12 +42,6 @@ export function CalendarPage({ pid }: { pid: string }) {
   const past = (d.bookings || []).filter((b: any) => ["confirmed", "completed", "no_show"].includes(b.status) && t(b) <= nowMs)
     .sort((a: any, b: any) => t(b) - t(a)).slice(0, 12)
   const openSlots = (d.slots || []).filter((s: any) => s.status === "open")
-  // P0.6.10: a request that clashes with a confirmed visit says so
-  const clash = (r: any) => {
-    const a0 = t(r), a1 = a0 + (r.duration_min || 45) * 60000
-    const x = confirmed.find((b: any) => b.id !== r.id && t(b) < a1 && a0 < t(b) + (b.duration_min || 45) * 60000)
-    return x ? `Koliduje s návštěvou ${x.runner?.name || "klienta"} v ${new Date(x.slot_at).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}` : null
-  }
   const byDay: Record<string, any[]> = {}
   for (const b of upcoming) (byDay[dayKey(b.slot_at)] ||= []).push(b)
   const addSlot = () => {
@@ -66,17 +60,7 @@ export function CalendarPage({ pid }: { pid: string }) {
             <h2 className="font-serif text-xl">Žádosti o termín</h2>
             {(d.requests || []).length === 0 ? <Empty>Žádné nové žádosti.</Empty> : (
               <ul className="mt-2 divide-y divide-white/[.07]" data-testid="requests">
-                {d.requests.map((b: any) => (
-                  <li key={b.id} className="flex flex-wrap items-center gap-2 py-2.5 text-[13px]">
-                    <span className="min-w-0 flex-1">
-                      <b className="text-fg">{b.runner?.name}</b>
-                      <span className="block text-[12px] text-fg-3">{fmtDT(b.slot_at)}{" · "}{KIND[b.kind] || b.kind}</span>
-                      {clash(b) && <span className="block text-[12px] font-bold text-alert" data-testid="request-clash">{clash(b)}</span>}
-                    </span>
-                    <Button size="sm" icon={Check} busy={busy === `c${b.id}`} onClick={() => act(`c${b.id}`, () => api.bookingConfirm(b.id), "Termín potvrzen — klient dostal zprávu")}>Potvrdit</Button>
-                    <Button size="sm" variant="outline" icon={X} busy={busy === `d${b.id}`} onClick={() => act(`d${b.id}`, () => api.bookingDecline(b.id), "Termín odmítnut")}>Odmítnout</Button>
-                  </li>
-                ))}
+                {d.requests.map((b: any) => <RequestItem key={b.id} b={b} onDone={refresh} />)}
               </ul>
             )}
           </Card>

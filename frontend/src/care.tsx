@@ -114,7 +114,7 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
               {bookings.length > 0 && (
                 <div className="mt-2 divide-y divide-white/[.07]">{bookings.map((b: any) => (
                   <ListRow key={b.id} icon={CalendarDays} tone={b.status === "confirmed" ? "ok" : "watch"} title={pn(b.physio_id)}
-                    meta={`${fmtSlot(b.slot_at)} · ${b.status === "requested" ? "čeká na potvrzení" : "potvrzeno"}`}
+                    meta={fmtSlot(b.slot_at)}   // round 2 F18: the status is the chip, said once
                     trailing={<>
                       <Chip tone={b.status === "confirmed" ? "ok" : "watch"}>{b.status === "requested" ? "čeká" : "potvrzeno"}</Chip>
                       {b.status === "confirmed" && b.kind === "assessment" && <button onClick={() => setIntakeFor(b)} className="shrink-0 text-[12px] font-bold text-accent hover:underline">Dotazník</button>}
@@ -161,8 +161,11 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
 }
 
 // physio brief 2026-11-09 W16.4: before the first visit, the client can fill in the intake at home
-function IntakeSheet({ rid, booking, onClose }: { rid: string; booking: any; onClose: () => void }) {
-  const [f, setF] = useState<any>({ history: "", medications: "", surgeries: "", goals: "", red_flags: [] as string[], consent: false })
+function IntakeSheet({ rid, booking, onClose, identity = false }: { rid: string; booking: any; onClose: () => void; identity?: boolean }) {
+  const { boot } = useApp()
+  const [first0, ...rest0] = String(boot?.runner?.name || "").split(" ")
+  const [f, setF] = useState<any>({ history: "", medications: "", surgeries: "", goals: "", red_flags: [] as string[], consent: false,
+    first_name: first0 || "", last_name: rest0.join(" "), birth_date: "", sex_at_birth: boot?.runner?.sex || "", street: "", city: boot?.runner?.city || "", postal_code: "", phone: "", gp: "" })
   const { busy, err, run } = useAsync()
   const toast = useToast()
   const FLAGS: [string, string][] = [["night_pain", "Bolest v noci nebo v klidu"], ["weight_loss", "Nevysvětlené hubnutí"], ["fever", "Horečka nebo celková slabost"], ["numbness", "Necitlivost, mravenčení, slabost nohy"]]
@@ -171,6 +174,15 @@ function IntakeSheet({ rid, booking, onClose }: { rid: string; booking: any; onC
     <Sheet open onClose={onClose}>
       <h2 className="font-serif text-2xl">Vstupní dotazník</h2>
       <p className="mt-1 text-[13px] text-fg-2">{`Před návštěvou ${fmtSlot(booking.slot_at)}. Fyzioterapeut ho uvidí v kartě a nemusíte vše říkat znovu.`}</p>
+      {/* round 2 F13.6: the first visit at a clinic — the identity the record needs, filled once, confirmed by the physio */}
+      {identity && <div className="mt-2 grid gap-2 sm:grid-cols-2" data-testid="intake-identity">
+        {([["first_name", "Jméno"], ["last_name", "Příjmení"], ["birth_date", "Datum narození", "date"], ["street", "Ulice a číslo (trvalý pobyt)"],
+          ["city", "Obec"], ["postal_code", "PSČ"], ["phone", "Telefon", "tel"], ["gp", "Praktický lékař"]] as [string, string, string?][]).map(([k, l, type]) => (
+          <Field key={k} label={l}><input type={type || "text"} className={ta} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></Field>
+        ))}
+        <Field label="Pohlaví při narození"><select className={ta} value={f.sex_at_birth} onChange={(e) => setF({ ...f, sex_at_birth: e.target.value })}>
+          <option value="">—</option><option value="f">žena</option><option value="m">muž</option></select></Field>
+      </div>}
       <Field label="Dřívější zranění a obtíže"><textarea rows={2} className={ta} value={f.history} onChange={(e) => setF({ ...f, history: e.target.value })} /></Field>
       <Field label="Léky"><textarea rows={1} className={ta} value={f.medications} onChange={(e) => setF({ ...f, medications: e.target.value })} /></Field>
       <Field label="Operace"><textarea rows={1} className={ta} value={f.surgeries} onChange={(e) => setF({ ...f, surgeries: e.target.value })} /></Field>
@@ -334,9 +346,17 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
   const toggle = (s: Set<string>, set: (x: Set<string>) => void, k: string) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); set(n); return n }
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // physio brief 2026-11-09 W16: a confirmation step — service, reason, questions and the cancellation policy
+  // physio brief 2026-11-09 W16: a confirmation step — service, reason, questions and the cancellation policy.
+  // Round 2 F13.4: the service comes first (preselected when there is one); the times fit its length
   const [pick, setPick] = useState<{ pp: any; s: any } | null>(null)
   const [svc, setSvc] = useState("")
+  const [svcFor, setSvcFor] = useState<Record<string, string>>({})
+  const [intakeFor, setIntakeFor] = useState<any>(null)
+  const chooseSvc = (pid: string, id: string) => {
+    setSvcFor({ ...svcFor, [pid]: id })
+    run(async () => setOpts(await api.bookingOptions([...dow].join(","), [...part].join(","), id ? Number(id) : undefined)))
+  }
+  if (intakeFor) return <IntakeSheet rid={intakeFor.runner_id} booking={intakeFor} identity onClose={onDone} />
   const [reason, setReason] = useState("")
   const [questions, setQuestions] = useState("")
   if (pick) {
@@ -360,9 +380,10 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
         <div className="mt-4 flex gap-2">
           <button className="btn btn-outline flex-1" onClick={() => setPick(null)}>Zpět</button>
           <button className="btn btn-primary flex-1" disabled={busy || ((pp.services || []).length > 0 && !svc)} data-testid="book-confirm" onClick={() => run(async () => {
-            await api.bookingRequestAt({ slot_id: s.id ?? undefined, physio_id: s.id ? undefined : pp.id, starts_at: s.id ? undefined : s.slot_at,
-              service_id: svc ? Number(svc) : undefined, reason: reason || undefined, questions: questions || undefined, kind: "assessment" })
-            toast({ title: "Požádáno — čeká na potvrzení" }); onDone()
+            const bk = await api.bookingRequestAt({ slot_id: s.id ?? undefined, physio_id: s.id ? undefined : pp.id, starts_at: s.id ? undefined : s.slot_at,
+              service_id: svc ? Number(svc) : undefined, reason: reason || undefined, questions: questions || undefined })
+            toast({ title: "Požádáno — čeká na potvrzení" })
+            if (pp.needs_intake) setIntakeFor(bk); else onDone()
           })}>Požádat o termín</button>
         </div>
       </Sheet>
@@ -382,7 +403,7 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
             <div className="flex items-start gap-3">
               <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-extrabold text-accent">{initials(pp.name)}</span>
               <div className="min-w-0 flex-1"><b className="font-bold">{pp.name}</b><p className="text-[12px] text-fg-3">{pp.clinic?.name || ""}{pp.clinic?.city ? ` · ${pp.clinic.city}` : ""} · {pp.years_exp || "—"} let · <Star className="inline size-3 -translate-y-px fill-watch text-watch" aria-hidden /> {pp.rating || "—"}</p></div>
-              {pp.price_czk ? <Chip tone="accent">{czk(pp.price_czk)}</Chip> : null}
+              {pp.price_czk ? <Chip tone="accent">{pp.price_from ? `od ${czk(pp.price_czk)}` : czk(pp.price_czk)}</Chip> : null}
             </div>
             {pp.bio && <p className="mt-2 text-[13px] leading-5 text-fg-2">{pp.bio}</p>}
             {pp.response_time_text && <p className="mt-1 text-[12px] text-fg-3">{`Obvykle odpovídá ${pp.response_time_text}`}</p>}
@@ -390,9 +411,20 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
             <button className="mt-2 text-[12px] font-bold text-fg-3 underline underline-offset-2 hover:text-fg-2" onClick={() => run(async () => {
               await api.waitlistJoin(pp.id, { dow: [...dow].join(","), dayparts: [...part].join(",") }); toast({ title: "Jste v pořadníku — ozveme se, až se uvolní termín" })
             })}>Nic se nehodí — zapsat do pořadníku</button>
+            {(pp.services || []).length > 1 && (
+              <div className="mt-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Služba">
+                {pp.services.map((x: any) => {
+                  const on = svcFor[pp.id] === String(x.id)
+                  return <button key={x.id} type="button" role="radio" aria-checked={on} onClick={() => chooseSvc(pp.id, on ? "" : String(x.id))}
+                    className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${on ? "border-accent bg-accent/12 text-accent" : "border-white/15 text-fg-2"}`}>
+                    {`${x.name} · ${x.duration_minutes} min${x.price_czk != null ? ` · ${czk(x.price_czk)}` : ""}`}</button>
+                })}
+              </div>
+            )}
+            {(pp.services || []).length > 1 && !svcFor[pp.id] ? <p className="mt-2 text-[12px] text-fg-3">Nejdřív vyberte službu — časy se ukážou podle její délky.</p> : (
             <div className="mt-3 flex flex-wrap gap-2">{pp.slots.map((s: any) => (
-              <button key={s.id ?? s.slot_at} onClick={() => setPick({ pp, s })} className="rounded-full border border-accent/35 px-3 py-1.5 text-[12px] font-bold text-accent hover:bg-accent/10">{fmtSlot(s.slot_at)}</button>
-            ))}</div>
+              <button key={s.id ?? s.slot_at} onClick={() => { setSvc(svcFor[pp.id] || (pp.services?.length === 1 ? String(pp.services[0].id) : "")); setPick({ pp, s }) }} className="rounded-full border border-accent/35 px-3 py-1.5 text-[12px] font-bold text-accent hover:bg-accent/10">{fmtSlot(s.slot_at)}</button>
+            ))}</div>)}
           </div>
         ))}
       </div>

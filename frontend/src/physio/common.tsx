@@ -1,7 +1,8 @@
 // The physio app's shared pieces (owner request 2026-10-27, report v6 Section 6.2.8).
 import { useCallback, useEffect, useState, type ReactNode } from "react"
-import { Chip } from "@/ui"
-import { QUAD } from "@/lib"
+import { Button, Chip, useToast } from "@/ui"
+import { api } from "@/api"
+import { QUAD, fmtDT } from "@/lib"
 
 export function useLoad<T>(fn: () => Promise<T>, deps: unknown[] = []) {
   const [d, setD] = useState<T | null>(null)
@@ -85,3 +86,36 @@ export const REGIONS: [string, string][] = [
   ["hamstring", "Zadní strana stehna"], ["hip", "Kyčel a hýždě"], ["groin", "Tříslo (adduktory)"],
   ["lower_abdomen", "Dolní břicho"], ["other", "Jiné (upřesněte)"],
 ]
+
+// round 2 F13.1: a booking request the physio can decide on without opening anything else — the same card in
+// Kalendář → Žádosti and in Dnes
+export function RequestItem({ b, onDone }: { b: any; onDone: () => void }) {
+  const toast = useToast()
+  const [busy, setBusy] = useState<string | null>(null)
+  const x = b.detail || {}
+  const act = async (k: string, fn: () => Promise<any>, ok: string) => {
+    setBusy(k)
+    try { await fn(); toast({ title: ok }); onDone() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) } finally { setBusy(null) }
+  }
+  return (
+    <li className="grid gap-1 py-3 text-[13px]" data-testid="request">
+      <div className="flex flex-wrap items-center gap-2">
+        <b className="text-fg">{b.runner?.name || b.name}</b>
+        {x.first_visit && <Chip tone="info">první návštěva</Chip>}
+        <span className="text-fg-2">{fmtDT(b.slot_at)}</span>
+      </div>
+      <p className="text-[12.5px] text-fg-2">
+        {x.service ? `${x.service.name} · ${x.service.duration_minutes} min` : (KIND[b.kind] || b.kind)}
+        {x.price_czk != null ? ` · ${String(x.price_czk).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} Kč` : ""}
+        {x.payer_cs ? ` · ${x.payer_cs}` : ""}
+      </p>
+      {x.reason && <p className="text-[12.5px]"><span className="text-fg-3">{"S čím přichází: "}</span>{x.reason}</p>}
+      {x.questions && <p className="text-[12.5px]"><span className="text-fg-3">{"Chce probrat: "}</span>{x.questions}</p>}
+      {x.conflict && <p className="text-[12px] font-bold text-alert" data-testid="request-clash">{x.conflict}</p>}
+      <div className="mt-1 flex gap-2">
+        <Button size="sm" busy={busy === "c"} onClick={() => act("c", () => api.bookingConfirm(b.id), "Termín potvrzen — klient dostal zprávu")}>Potvrdit</Button>
+        <Button size="sm" variant="outline" busy={busy === "d"} onClick={() => act("d", () => api.bookingDecline(b.id), "Termín odmítnut")}>Odmítnout</Button>
+      </div>
+    </li>
+  )
+}

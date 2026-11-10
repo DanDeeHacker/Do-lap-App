@@ -1587,6 +1587,7 @@ class Service(Base):
     sort_order = Column(Integer, default=0)
     payment_mode = Column(String, default="none")    # B1: none | deposit | full
     deposit_czk = Column(Integer)
+    kind = Column(String)                             # round 2 F13.3: the visit kind the service is (assessment, …)
 
 
 class NoteTemplate(Base):

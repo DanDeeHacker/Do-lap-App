@@ -247,7 +247,7 @@ export const api = {
 
   // booking flow
   setInterest: (rid: string, interested: boolean) => call("POST", `/api/runners/${rid}/physio-interest`, { interested }),
-  bookingOptions: (dow?: string, daypart?: string) => call("GET", `/api/booking/options?${qs({ dow, daypart })}`),
+  bookingOptions: (dow?: string, daypart?: string, service_id?: number) => call("GET", `/api/booking/options?${qs({ dow, daypart, service_id })}`),
   requestSlot: (slotId: number, kind = "assessment") => call("POST", "/api/booking/request", { slot_id: slotId, kind }),
   cancelBooking: (rid: string, bid: number) => call("POST", `/api/runners/${rid}/bookings/${bid}/cancel`, {}),
   declinePhysio: (rid: string, pid: string) => call("POST", `/api/runners/${rid}/physios/${pid}/decline`, {}),

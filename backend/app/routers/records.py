@@ -143,7 +143,20 @@ def get_card(rid: str, user: models.User = Depends(require_verified_physio), db:
     r = db.get(models.Runner, rid)
     if card is None:
         db.commit()
-        return {"id": None, "prefill": R.card_prefill(r) if r else {}, "missing": list(R.PATIENT_REQUIRED),
+        # round 2 F13.6: the runner's first-visit intake fills in what the profile does not know
+        pre = R.card_prefill(r) if r else {}
+        it = (db.query(models.IntakeForm).filter_by(runner_id=rid, physio_id=p.id).order_by(models.IntakeForm.id.desc()).first())
+        if it is not None:
+            dd = it.data or {}
+            for src, dst in (("first_name", "first_name"), ("last_name", "last_name"), ("birth_date", "birth_date"),
+                             ("sex_at_birth", "sex_at_birth"), ("street", "permanent_street"), ("city", "permanent_city"),
+                             ("postal_code", "permanent_postal_code"), ("phone", "phone"), ("gp", "gp_name")):
+                if dd.get(src):
+                    pre[dst] = dd[src]
+            if dd.get("history") or dd.get("red_flags"):
+                pre["anamnesis"] = "\n".join(x for x in (dd.get("history"), ", ".join(dd.get("red_flags") or [])) if x)
+            pre["from_intake"] = True
+        return {"id": None, "prefill": pre, "missing": list(R.PATIENT_REQUIRED),
                 "crypto": R.crypto_on(), "live": live}
     R.physio_event(db, p, "read", "patient_card", card.id, runner_id=rid)
     db.commit()

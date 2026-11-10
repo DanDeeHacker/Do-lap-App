@@ -22,6 +22,45 @@ from ..serializers import to_dict, to_dicts
 
 router = APIRouter(tags=["booking"])
 
+def service_kind(sv) -> str:
+    """Round 2 F13.3: the server decides the visit kind from the service (its own field, else from the name);
+    what the client sends is ignored."""
+    if sv is None:
+        return "follow_up"
+    if sv.kind:
+        return sv.kind
+    n = (sv.name_cs or "").lower()
+    if "vstupní" in n or "vyšetření" in n:
+        return "assessment"
+    if "analýza" in n or "běh" in n:
+        return "gait_analysis"
+    if "video" in n or "online" in n:
+        return "video_call"
+    return "follow_up"
+
+
+def lowest_price(db: DBSession, physio_id: str) -> int | None:
+    """Round 2 F13.5: what the runner sees is 'od {nejnižší cena}' of the active services."""
+    prices = [sv.price_czk for sv in db.query(models.Service).filter_by(physio_id=physio_id, active=True).all()
+              if sv.price_czk is not None]
+    return min(prices) if prices else None
+
+
+PAYER_CS = {"client": "platí klient", "employer": "platí zaměstnavatel", "insurer": "hradí pojišťovna"}
+
+
+def request_detail(db: DBSession, b: models.Booking) -> dict:
+    """Round 2 F13.1: everything the physio needs to decide on a request without opening anything else."""
+    sv = db.get(models.Service, b.service_id) if b.service_id else None
+    first = not db.query(models.Booking.id).filter(models.Booking.runner_id == b.runner_id,
+                                                   models.Booking.physio_id == b.physio_id, models.Booking.id != b.id,
+                                                   models.Booking.status.in_(("confirmed", "completed"))).first()
+    other = booking_conflict(db, b.physio_id, _aware(b.slot_at), b.duration_min or 45, skip_booking=b.id) if b.slot_at else None
+    return {"service": ({"id": sv.id, "name": sv.name_cs, "duration_minutes": sv.duration_minutes} if sv else None),
+            "price_czk": b.price_czk, "payer": b.payer, "payer_cs": PAYER_CS.get(b.payer or "client", b.payer),
+            "reason": b.reason, "questions": b.questions, "first_visit": first, "conflict": other}
+
+
 KIND_PRICE = {"gait_analysis": 1490, "video_call": 690, "follow_up": 1190, "assessment": 1190}
 
 
@@ -157,7 +196,7 @@ def set_interest(rid: str, body: schemas.PhysioInterestRequest,
 
 # ---------------------------------------------------------------- runner: browse + request
 @router.get("/api/booking/options")
-def booking_options(dow: str = "", daypart: str = "",
+def booking_options(dow: str = "", daypart: str = "", service_id: int | None = None,
                     user: models.User = Depends(require_role("runner")), db: DBSession = Depends(get_db)):
     """Partner clinics + physios with their open future slots, filtered by the
     runner's preferred weekdays (`dow`, 0=Mon comma list) and parts of day
@@ -194,7 +233,12 @@ def booking_options(dow: str = "", daypart: str = "",
     for ph in db.query(models.Physio).filter(models.Physio.verified_at.isnot(None)).all():
         if not db.query(models.AvailabilityRule.id).filter_by(physio_id=ph.id, active=True).first():
             continue
-        for ft in W.free_times(db, ph.id, t0, t0 + timedelta(days=W.HORIZON_DAYS)):
+        # round 2 F13.4: with a chosen service, start times that fit its duration + buffer (computed on read);
+        # a physio with exactly one service uses it by default
+        svs = db.query(models.Service).filter_by(physio_id=ph.id, active=True).all()
+        sv = next((x for x in svs if x.id == service_id), None) or (svs[0] if len(svs) == 1 else None)
+        step = (sv.duration_minutes + (sv.buffer_minutes or 0)) if sv else None
+        for ft in W.free_times(db, ph.id, t0, t0 + timedelta(days=W.HORIZON_DAYS), minutes=step):
             if ft.get("slot_id"):
                 continue                       # already listed as an old slot
             when = _dt(ft["start"])
@@ -221,8 +265,15 @@ def booking_options(dow: str = "", daypart: str = "",
         clinic = db.query(models.Clinic).filter(models.Clinic.id == p.clinic_id).first()
         item = _physio_public(p, clinic)
         item["slots"] = plist
+        # round 2 F13.6: no card at this clinic yet → the booking adds the first-visit intake step
+        from .. import records as R
+        item["needs_intake"] = (p.clinic_id is None or R.card(db, p.clinic_id, r.id) is None) and not db.query(
+            models.IntakeForm.id).filter_by(runner_id=r.id, physio_id=pid).first()
+        low = lowest_price(db, pid)
+        if low is not None:
+            item["price_czk"], item["price_from"] = low, True          # F13.5: 'od 600 Kč'; Profil price only without services
         item["services"] = [{"id": sv.id, "name": sv.name_cs, "duration_minutes": sv.duration_minutes, "price_czk": sv.price_czk,
-                             "payment_mode": sv.payment_mode}
+                             "payment_mode": sv.payment_mode, "buffer_minutes": sv.buffer_minutes or 0, "kind": service_kind(sv)}
                             for sv in db.query(models.Service).filter_by(physio_id=pid, active=True).order_by(models.Service.sort_order).all()]
         out.append(item)
     out.sort(key=lambda x: -(x["rating"] or 0))
@@ -247,8 +298,9 @@ def request_slot(body: schemas.SlotBookRequest,
             raise HTTPException(status_code=422, detail="Neplatný formát termínu.")
         sv0 = db.get(models.Service, body.service_id) if body.service_id else None
         mins0 = sv0.duration_minutes if sv0 else 45
+        step0 = (mins0 + (sv0.buffer_minutes or 0)) if sv0 else None      # round 2 F13.4: the times offered for it
         offered = {_aware(ft["start"]) for ft in W.free_times(db, body.physio_id, start.astimezone(E.LOCAL_TZ).date(),
-                                                      start.astimezone(E.LOCAL_TZ).date(), minutes=None)}
+                                                      start.astimezone(E.LOCAL_TZ).date(), minutes=step0)}
         if start not in offered or not W.is_free(db, body.physio_id, start, mins0):   # datetimes, not strings: the offset may differ
             raise HTTPException(status_code=409, detail="Tento termín už není volný.")
         slot0 = models.PhysioSlot(physio_id=body.physio_id, slot_at=start.isoformat(), duration_min=mins0, status="open",
@@ -266,11 +318,17 @@ def request_slot(body: schemas.SlotBookRequest,
     if clash:
         raise HTTPException(status_code=409, detail="Tento termín už není volný.")
     slot.status = "held"
+    svc = db.get(models.Service, body.service_id) if body.service_id else None
+    if svc is not None and svc.physio_id != slot.physio_id:
+        raise HTTPException(status_code=422, detail="Služba nepatří tomuto fyzioterapeutovi.")
+    first_visit = not db.query(models.Booking.id).filter(models.Booking.runner_id == rid,
+                                                         models.Booking.physio_id == slot.physio_id,
+                                                         models.Booking.status.in_(("confirmed", "completed"))).first()
+    kind = service_kind(svc) if svc is not None else ("assessment" if first_visit else "follow_up")
     b = models.Booking(
         runner_id=rid, physio_id=slot.physio_id, slot_id=slot.id, slot_at=slot.slot_at,
-        duration_min=slot.duration_min or 45, kind=body.kind, status="requested",
-        price_czk=(db.get(models.Service, body.service_id).price_czk if body.service_id and db.get(models.Service, body.service_id)
-                   else KIND_PRICE.get(body.kind, 1190)),
+        duration_min=(svc.duration_minutes if svc else slot.duration_min) or 45, kind=kind, status="requested",
+        price_czk=(svc.price_czk if svc is not None else KIND_PRICE.get(kind, 1190)),
         # physio brief W1.6: the client pays unless the physio changes it (it used to become "employer" silently)
         payer="client", service_id=body.service_id, reason=(body.reason or body.note or "").strip()[:500] or None,
         questions=(body.questions or "").strip() or None,
@@ -278,7 +336,11 @@ def request_slot(body: schemas.SlotBookRequest,
     )
     db.add(b)
     from .. import work as W
-    W.NOTIFY.send(db, "booking_requested", "Nová žádost o termín", physio_id=slot.physio_id, runner_id=rid)
+    # round 2 F13.2: the bell names the client and the time
+    db.flush()
+    loc = _aware(slot.slot_at).astimezone(E.LOCAL_TZ)
+    W.NOTIFY.send(db, "booking_requested", f"Nová žádost o termín: {r.name}, {loc.day}. {loc.month}. {loc:%H:%M}",
+                  physio_id=slot.physio_id, runner_id=rid, ref=f"booking:{b.id}")
     from .. import records as R
     R.event(db, actor_type="runner", actor_id=rid, actor_name=user.name, action="create", resource_type="booking",
             runner_id=rid, detail={"slot_id": slot.id})          # physio brief R7

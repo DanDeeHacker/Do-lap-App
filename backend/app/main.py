@@ -288,6 +288,7 @@ def _migrate(engine):
     add("patient_records", "incomplete", "incomplete INTEGER DEFAULT 0")   # round 2 F2
     add("exercises", "target_set", "target_set BOOLEAN DEFAULT FALSE")        # round 2 F6.3
     add("diagnosis_codes", "search", "search VARCHAR")                         # round 2 F9.3
+    add("services", "kind", "kind VARCHAR")                                    # round 2 F13.3
     for col, ddl in (("next_morning_pain", "INTEGER"), ("morning_stiffness_min", "INTEGER"),
                      ("matched_activity_id", "INTEGER"), ("state", "VARCHAR")):
         add("rtr_sessions", col, f"{col} {ddl}")

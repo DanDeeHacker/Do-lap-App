@@ -305,6 +305,7 @@ def _visit_out(db: DBSession, b: models.Booking) -> dict:
 @router.get("/api/physios/me/today")
 def today(user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     """Who do I see, who needs me, what is unfinished."""
+    from .booking import request_detail
     from .records import unsigned_for
     p = _me(db, user)
     W.refresh_alerts(db, p.id)
@@ -339,7 +340,7 @@ def today(user: models.User = Depends(require_verified_physio), db: DBSession = 
             "unread": [{"runner_id": m.runner_id, "name": names.get(m.runner_id), "at": m.created_at,
                         "preview": (m.body or "")[:120]} for m in sorted(unread, key=lambda m: m.created_at, reverse=True)],
             "unsigned": unsigned_for(db, p.id),
-            "requests": [_visit_out(db, b) for b in requests],
+            "requests": [{**_visit_out(db, b), "detail": request_detail(db, b)} for b in requests],   # round 2 F13.1
             "new_cases": new_cases}
 
 
@@ -1098,4 +1099,6 @@ def intake(rid: str, body: IntakeIn, user: models.User = Depends(get_current_use
     return {"id": x.id}
 
 
-INTAKE_FIELDS = ("history", "medications", "surgeries", "red_flags", "goals", "consent", "birth_date", "address", "gp")
+INTAKE_FIELDS = ("history", "medications", "surgeries", "red_flags", "goals", "consent", "birth_date", "address", "gp",
+                 # round 2 F13.6: identity for the first visit, which prefills Karta klienta for the physio to confirm
+                 "first_name", "last_name", "sex_at_birth", "street", "city", "postal_code", "phone")

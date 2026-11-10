@@ -7,7 +7,7 @@ import { api } from "@/api"
 import { Recall } from "@/physio/business"
 import { Button, Card, Chip, useToast } from "@/ui"
 import { fmtDT } from "@/lib"
-import { Empty, KIND, Loading, useLoad } from "@/physio/common"
+import { Empty, KIND, Loading, RequestItem, useLoad } from "@/physio/common"
 
 const SEV: Record<string, string> = { high: "ph-risk-high", medium: "ph-risk-med", low: "ph-unknown" }
 const SEV_CS: Record<string, string> = { high: "vysoká", medium: "střední", low: "nízká" }
@@ -96,10 +96,11 @@ export function TodayPage() {
           <Card>
             <h2 className="font-serif text-xl">Žádosti a nové případy</h2>
             <p className="mt-2 text-[13px] text-fg-2">
-              {d.requests.length ? <Link to="/physio/calendar" className="font-bold text-accent hover:underline">{`Žádosti o termín: ${d.requests.length}`}</Link> : "Žádné žádosti o termín."}
+              {d.requests.length ? null : "Žádné žádosti o termín."}
               {" · "}
               <Link to="/physio/queue" className="font-bold text-accent hover:underline">{`Nové případy ve frontě: ${d.new_cases}`}</Link>
             </p>
+            {d.requests.length > 0 && <ul className="mt-1 divide-y divide-white/[.07]">{d.requests.map((b: any) => <RequestItem key={b.id} b={b} onDone={reload} />)}</ul>}
           </Card>
           <Recall />
         </div>
