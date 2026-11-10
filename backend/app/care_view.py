@@ -138,7 +138,14 @@ def resolve_care_directive(db: DBSession, rid: str, a: dict | None, on_date: dat
     # 1. a safety red flag from the check-in or screening: the existing text, nothing overrides it
     if ov.get("kind") == "red_flag":
         return CareDirective("safety", False, None, ov.get("title"), ov.get("text"), name, involved)
-    # 2. clinical limit "no running" (physio brief W12) — not built yet; it slots in here.
+    # 2. the physio's clinical limit "no running" (physio brief W12)
+    from . import work as W
+    lims = W.active_limits(db, rid)
+    stop = next((x for x in lims if x.kind == "no_running"), None)
+    if stop is not None:
+        ph = db.get(models.Physio, stop.physio_id)
+        return CareDirective("clinical_limit", False, None, "Dnes bez běhu podle pokynu fyzioterapeuta",
+                             stop.reason_cs, ph.name if ph else name, True)
     # 3–5. the return-to-run plan
     if plan:
         levels = plan.levels_json or []
@@ -238,6 +245,13 @@ def present(db: DBSession, rid: str, a: dict | None) -> dict | None:
     if g and d.source in ("rtr", "rtr_paused", "clinical_limit"):
         g["override"] = {"kind": d.source, "title": d.headline_cs, "text": d.reason_cs, "session": d.session}
         _block_running(g, d.headline_cs)
+    if g and d.source == "engine":
+        # W12.2: the lower of the engine's ceiling and the physio's limits, shown with the reason
+        from . import work as W
+        lims = [x for x in W.active_limits(db, rid) if x.kind != "no_running"]
+        if lims:
+            ph = db.get(models.Physio, lims[0].physio_id)
+            W.apply_limits(g, lims, ph.name if ph else None)
     st = display_state(out, d)
     out["display_state"] = st
     out["display_label"] = DISPLAY_LABEL.get(st)

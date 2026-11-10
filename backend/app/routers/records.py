@@ -34,6 +34,9 @@ def _physio(db: DBSession, user: models.User) -> models.Physio:
 def doc_access(db: DBSession, physio: models.Physio, rid: str) -> tuple[models.PatientRecord | None, bool]:
     """Live care, or (R13) documentation only: a client who withdrew consent leaves the provider the records
     it must keep by law, nothing else."""
+    from .. import work as W
+    if not W.can(db, physio.id, "clinical"):          # W1: reception never reads clinical records
+        raise HTTPException(status_code=403, detail="Nemáte přístup k tomuto klientovi")
     clinic = R.clinic_of(db, physio)
     card = R.card(db, clinic.id, rid)
     live = has_care_assignment(db, physio.id, rid)

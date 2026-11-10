@@ -78,9 +78,14 @@ def _daypart(hour: int) -> str:
     return "morning" if hour < 12 else "afternoon" if hour < 17 else "evening"
 
 
+RATING_MIN = 5   # physio brief W14: a rating is shown only once earned from this many reviews
+
+
 def _physio_public(p: models.Physio, clinic: models.Clinic | None) -> dict:
     return {
-        "id": p.id, "name": p.name, "credential": p.credential, "rating": p.rating,
+        "id": p.id, "name": p.name, "credential": p.credential,
+        "rating": p.rating if (p.rating_count or 0) >= RATING_MIN else None,
+        "response_time_text": p.response_time_text, "cancellation_policy": p.cancellation_policy,
         "bio": p.bio, "years_exp": p.years_exp, "specialties": p.specialties or [],
         "price_czk": p.price_czk, "clinic": to_dict(clinic) if clinic else None,
     }
@@ -126,6 +131,16 @@ def set_interest(rid: str, body: schemas.PhysioInterestRequest,
     r = or_404(db.query(models.Runner).filter(models.Runner.id == rid).first(), "Běžec nenalezen")
     r.physio_interest = bool(body.interested)
     r.physio_interest_at = E.now_iso() if body.interested else None
+    if body.interested and (body.reason or body.duration or body.red_flags):
+        # physio brief W4: what the physio needs to decide whether to take the case
+        t = (db.query(models.Triage).filter(models.Triage.runner_id == rid, models.Triage.status != "closed")
+             .order_by(models.Triage.id.desc()).first())
+        if t is None:
+            t = models.Triage(runner_id=rid, decision="request", headline=(body.reason or "")[:120] or None,
+                              status="open", created_at=E.now_iso())
+            db.add(t)
+        t.request_reason, t.request_duration = (body.reason or "").strip()[:1000] or None, body.duration
+        t.red_flags = {k: bool(v) for k, v in (body.red_flags or {}).items()}
     if not body.interested:
         # withdrawing interest releases any pending (not yet confirmed) requests
         for b in db.query(models.Booking).filter(
@@ -172,14 +187,43 @@ def booking_options(dow: str = "", daypart: str = "",
         d["weekday"] = when.weekday()
         d["daypart"] = _daypart(when.hour)
         by_physio.setdefault(s.physio_id, []).append(d)
+    # physio brief W5.9: free times computed from working hours (plus the old one-off slots)
+    from .. import work as W
+    from .work import capacity_full
+    t0 = E.today_date()
+    for ph in db.query(models.Physio).filter(models.Physio.verified_at.isnot(None)).all():
+        if not db.query(models.AvailabilityRule.id).filter_by(physio_id=ph.id, active=True).first():
+            continue
+        for ft in W.free_times(db, ph.id, t0, t0 + timedelta(days=W.HORIZON_DAYS)):
+            if ft.get("slot_id"):
+                continue                       # already listed as an old slot
+            when = _dt(ft["start"])
+            loc = when.astimezone(E.LOCAL_TZ)
+            if want_dow and loc.weekday() not in want_dow:
+                continue
+            if want_part and _daypart(loc.hour) not in want_part:
+                continue
+            by_physio.setdefault(ph.id, []).append({"id": None, "physio_id": ph.id, "slot_at": ft["start"],
+                                                    "end_at": ft["end"], "status": "open", "weekday": loc.weekday(),
+                                                    "daypart": _daypart(loc.hour), "computed": True})
     out = []
     for pid, plist in by_physio.items():
         p = db.query(models.Physio).filter(models.Physio.id == pid).first()
         if not p or not p.verified_at:           # review 2026-10-30 F1: only verified physios take bookings
             continue
+        mine = db.query(models.CareAssignment.id).filter_by(physio_id=pid, runner_id=r.id, status="active").first()
+        if capacity_full(db, p) and not mine:    # W4.2: a full physio receives no new matches
+            continue
+        # the physio's own published one-off slots first, then up to 12 computed times
+        old_slots = sorted([x for x in plist if not x.get("computed")], key=lambda x: x["slot_at"])
+        computed = sorted([x for x in plist if x.get("computed")], key=lambda x: x["slot_at"])[:12]
+        plist = old_slots + computed
         clinic = db.query(models.Clinic).filter(models.Clinic.id == p.clinic_id).first()
         item = _physio_public(p, clinic)
-        item["slots"] = plist[:12]
+        item["slots"] = plist
+        item["services"] = [{"id": sv.id, "name": sv.name_cs, "duration_minutes": sv.duration_minutes, "price_czk": sv.price_czk,
+                             "payment_mode": sv.payment_mode}
+                            for sv in db.query(models.Service).filter_by(physio_id=pid, active=True).order_by(models.Service.sort_order).all()]
         out.append(item)
     out.sort(key=lambda x: -(x["rating"] or 0))
     return out
@@ -192,6 +236,26 @@ def request_slot(body: schemas.SlotBookRequest,
     r = db.query(models.Runner).filter(models.Runner.id == rid).first()
     if not r or not r.physio_interest:
         raise HTTPException(status_code=409, detail="Nejprve potvrďte zájem o fyzioterapii.")
+    if body.slot_id is None:
+        # physio brief W5.4: a computed free time becomes a slot row only when it is held
+        from .. import work as W
+        if not body.physio_id or not body.starts_at:
+            raise HTTPException(status_code=422, detail="Vyberte termín.")
+        try:
+            start = _aware(body.starts_at)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Neplatný formát termínu.")
+        sv0 = db.get(models.Service, body.service_id) if body.service_id else None
+        mins0 = sv0.duration_minutes if sv0 else 45
+        offered = {_aware(ft["start"]) for ft in W.free_times(db, body.physio_id, start.astimezone(E.LOCAL_TZ).date(),
+                                                      start.astimezone(E.LOCAL_TZ).date(), minutes=None)}
+        if start not in offered or not W.is_free(db, body.physio_id, start, mins0):   # datetimes, not strings: the offset may differ
+            raise HTTPException(status_code=409, detail="Tento termín už není volný.")
+        slot0 = models.PhysioSlot(physio_id=body.physio_id, slot_at=start.isoformat(), duration_min=mins0, status="open",
+                                  created_at=E.now_iso())
+        db.add(slot0)
+        db.flush()
+        body.slot_id = slot0.id
     slot = or_404(db.query(models.PhysioSlot).filter(models.PhysioSlot.id == body.slot_id).first(), "Termín nenalezen")
     if slot.status != "open" or not physio_verified(db, slot.physio_id):
         raise HTTPException(status_code=409, detail="Tento termín už není volný.")
@@ -205,11 +269,16 @@ def request_slot(body: schemas.SlotBookRequest,
     b = models.Booking(
         runner_id=rid, physio_id=slot.physio_id, slot_id=slot.id, slot_at=slot.slot_at,
         duration_min=slot.duration_min or 45, kind=body.kind, status="requested",
-        price_czk=KIND_PRICE.get(body.kind, 1190),
-        payer="employer" if r.employer_id else "self",
+        price_czk=(db.get(models.Service, body.service_id).price_czk if body.service_id and db.get(models.Service, body.service_id)
+                   else KIND_PRICE.get(body.kind, 1190)),
+        # physio brief W1.6: the client pays unless the physio changes it (it used to become "employer" silently)
+        payer="client", service_id=body.service_id, reason=(body.reason or body.note or "").strip()[:500] or None,
+        questions=(body.questions or "").strip() or None,
         requested_at=E.now_iso(), created_at=E.now_iso(),
     )
     db.add(b)
+    from .. import work as W
+    W.NOTIFY.send(db, "booking_requested", "Nová žádost o termín", physio_id=slot.physio_id, runner_id=rid)
     from .. import records as R
     R.event(db, actor_type="runner", actor_id=rid, actor_name=user.name, action="create", resource_type="booking",
             runner_id=rid, detail={"slot_id": slot.id})          # physio brief R7
@@ -366,6 +435,7 @@ def confirm_booking(bid: int, user: models.User = Depends(require_verified_physi
             raise HTTPException(status_code=409, detail=clash)
     b.status = "confirmed"
     from .. import records as R
+    from .. import work as W
     b.episode_id = b.episode_id or R.episode_for(db, user.physio_id, b.runner_id).id     # physio brief R3
     if b.slot_id:
         slot = db.query(models.PhysioSlot).filter(models.PhysioSlot.id == b.slot_id).first()
@@ -386,6 +456,7 @@ def confirm_booking(bid: int, user: models.User = Depends(require_verified_physi
         runner_id=b.runner_id, physio_id=user.physio_id, sender="physio",
         body="Váš termín je potvrzený. Uvidíme se — den předem vám přijde připomenutí.", created_at=E.now_iso(),
     ))
+    W.NOTIFY.send(db, "booking_confirmed", "Termín u fyzioterapeuta je potvrzený", runner_id=b.runner_id, ref=f"booking:{b.id}")
     db.commit()
     db.refresh(b)
     return to_dict(b)
@@ -407,6 +478,8 @@ def decline_booking(bid: int, user: models.User = Depends(require_role("physio")
         runner_id=b.runner_id, physio_id=user.physio_id, sender="physio",
         body="Bohužel tento termín nemohu potvrdit — vyberte prosím jiný.", created_at=E.now_iso(),
     ))
+    from .. import work as W
+    W.NOTIFY.send(db, "booking_declined", "Termín nebyl potvrzen", runner_id=b.runner_id, ref=f"booking:{b.id}")
     db.commit()
     db.refresh(b)
     return to_dict(b)
@@ -462,6 +535,8 @@ def physio_cancel(bid: int, body: schemas.BookingCancelRequest, user: models.Use
     db.add(models.Message(runner_id=b.runner_id, physio_id=b.physio_id, sender="physio", created_at=E.now_iso(),
                           body=f"Návštěvu {_hm(_aware(b.slot_at))} musím zrušit: {reason}"))
     _audit(db, b, "zrušení návštěvy")
+    from .. import work as W
+    W.NOTIFY.send(db, "booking_cancelled", "Návštěva byla zrušena", runner_id=b.runner_id, ref=f"booking:{b.id}")
     db.commit()
     return to_dict(b)
 
@@ -502,6 +577,8 @@ def physio_reschedule(bid: int, body: schemas.BookingRescheduleRequest,
     db.add(models.Message(runner_id=b.runner_id, physio_id=b.physio_id, sender="physio", created_at=E.now_iso(),
                           body=f"Návštěvu přesouvám z {_hm(_aware(old))} na {_hm(start)}."))
     _audit(db, b, "přesun návštěvy")
+    from .. import work as W
+    W.NOTIFY.send(db, "booking_moved", "Návštěva má nový termín", runner_id=b.runner_id, ref=f"booking:{b.id}")
     db.commit()
     return to_dict(b)
 
@@ -531,3 +608,20 @@ def physio_no_show(bid: int, user: models.User = Depends(require_verified_physio
     _audit(db, b, "nedostavil(a) se")
     db.commit()
     return to_dict(b)
+
+
+
+def send_due_reminders(db: DBSession) -> int:
+    """physio brief W15.6: the day-before reminder actually goes out once per booking (`reminded`), to both
+    sides, without health details."""
+    from .. import work as W
+    n = 0
+    for r in due_reminders(db):
+        b = db.get(models.Booking, r["booking_id"] if "booking_id" in r else r["id"])
+        if b is None or b.reminded:
+            continue
+        W.NOTIFY.send(db, "reminder_24h", "Zítra máte návštěvu u fyzioterapeuta", runner_id=b.runner_id, ref=f"booking:{b.id}")
+        W.NOTIFY.send(db, "reminder_24h", "Zítra máte návštěvu", physio_id=b.physio_id, runner_id=b.runner_id, ref=f"booking:{b.id}")
+        b.reminded = True
+        n += 1
+    return n

@@ -9,6 +9,7 @@ import { Button, Card, Chip, useToast } from "@/ui"
 import { fmtDT } from "@/lib"
 import { Empty, KIND, Loading, shownScore, useLoad } from "@/physio/common"
 import { ConclusionSheet } from "@/physio/conclusion"
+import { AddVisit, IcsLink, Services, WeekView, WorkingHours } from "@/physio/schedule"
 
 const dayKey = (iso: string) => (iso || "").slice(0, 10)
 const dayLabel = (iso: string) => new Date(iso).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
@@ -22,6 +23,10 @@ export function CalendarPage({ pid }: { pid: string }) {
   const [dur, setDur] = useState(45)
   const [busy, setBusy] = useState<string | null>(null)
   const [concl, setConcl] = useState<any>(null)
+  const [ver, setVer] = useState(0)
+  const [allSlots, setAllSlots] = useState(false)
+  const free = useLoad<any>(() => api.availability().then((x: any) => x.preview || []), [ver])
+  const refresh = () => { setVer((v) => v + 1); reload() }
   const act = async (k: string, fn: () => Promise<any>, msg: string) => {
     setBusy(k)
     try { await fn(); toast({ title: msg }); reload() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
@@ -54,7 +59,8 @@ export function CalendarPage({ pid }: { pid: string }) {
     <>
       <p className="t-label">Kalendář</p>
       <h1 className="mt-1 font-serif text-[30px] leading-tight tracking-[-.03em] md:text-4xl">Termíny a žádosti</h1>
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+      <div className="mt-5"><WeekView pid={pid} version={ver} /></div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="grid content-start gap-4">
           <Card>
             <h2 className="font-serif text-xl">Žádosti o termín</h2>
@@ -83,7 +89,7 @@ export function CalendarPage({ pid }: { pid: string }) {
                     <h3 className="text-[12px] font-extrabold uppercase tracking-[.06em] text-fg-3">{dayLabel(day)}</h3>
                     <ul className="mt-1.5 grid gap-2">
                       {bs.map((b: any) => <Visit key={b.id} b={b} reminder={remind.has(b.id)} onOpen={() => nav(`/physio/client/${b.runner_id}`)}
-                        onConclusion={() => setConcl(b)} onSaved={reload} openSlots={openSlots} />)}
+                        onConclusion={() => setConcl(b)} onSaved={refresh} openSlots={openSlots} freeTimes={free.d || []} />)}
                     </ul>
                   </section>
                 ))}
@@ -111,8 +117,12 @@ export function CalendarPage({ pid }: { pid: string }) {
           </Card>
         </div>
         <div className="grid content-start gap-4">
+          <AddVisit onDone={refresh} />
+          <WorkingHours onDone={refresh} />
+          <Services />
+          <IcsLink />
           <Card>
-            <h2 className="font-serif text-xl">Volné termíny</h2>
+            <h2 className="font-serif text-xl">Jednorázové volné termíny</h2>
             <p className="mt-1 text-[12px] text-fg-2">Běžci si z nich vybírají v záložce Péče; termín platí až po vašem potvrzení.</p>
             <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
               <input type="date" value={date} min={new Date().toLocaleDateString("sv-SE")} onChange={(e) => setDate(e.target.value)} aria-label="Den"
@@ -127,7 +137,7 @@ export function CalendarPage({ pid }: { pid: string }) {
             <Button className="mt-2 w-full" icon={CalendarPlus} busy={busy === "slot"} onClick={addSlot} data-testid="slot-add">Přidat termín</Button>
             {(d.slots || []).length === 0 ? <Empty>Žádné volné termíny.</Empty> : (
               <ul className="mt-3 divide-y divide-white/[.07] text-[13px]" data-testid="slots">
-                {d.slots.map((s: any) => (
+                {(allSlots ? d.slots : d.slots.slice(0, 8)).map((s: any) => (
                   <li key={s.id} className="flex items-center gap-2 py-2">
                     <span className="flex-1 text-fg">{fmtDT(s.slot_at)}<span className="text-fg-3">{` · ${s.duration_min} min`}</span></span>
                     {s.status !== "open" ? <Chip tone="info">{s.status === "booked" ? "obsazeno" : "rezervováno"}</Chip>
@@ -137,6 +147,7 @@ export function CalendarPage({ pid }: { pid: string }) {
                 ))}
               </ul>
             )}
+            {!allSlots && (d.slots || []).length > 8 && <button type="button" className="mt-2 text-[12px] font-bold text-accent hover:underline" onClick={() => setAllSlots(true)}>{`Zobrazit všech ${d.slots.length}`}</button>}
           </Card>
         </div>
       </div>
@@ -153,7 +164,7 @@ function RecordChip({ c }: { c: any }) {
   return <Chip tone="alert">bez záznamu</Chip>
 }
 
-function Visit({ b, reminder, onOpen, onConclusion, onSaved, openSlots }: { b: any; reminder: boolean; onOpen: () => void; onConclusion: () => void; onSaved: () => void; openSlots: any[] }) {
+function Visit({ b, reminder, onOpen, onConclusion, onSaved, openSlots, freeTimes }: { b: any; reminder: boolean; onOpen: () => void; onConclusion: () => void; onSaved: () => void; openSlots: any[]; freeTimes: any[] }) {
   const toast = useToast()
   const [menu, setMenu] = useState<"" | "move" | "cancel">("")
   const [to, setTo] = useState<string>("")
@@ -187,13 +198,19 @@ function Visit({ b, reminder, onOpen, onConclusion, onSaved, openSlots }: { b: a
           </div>
         </details>
       </div>
+      {/* physio brief W5.6: move to an open slot or a computed free time, with a confirmation that says what the client gets */}
       {menu === "move" && (
         <div className="mt-2 flex flex-wrap gap-2">
           <select value={to} onChange={(e) => setTo(e.target.value)} aria-label="Nový termín" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]">
-            <option value="">{openSlots.length ? "— vyberte volný termín —" : "Žádný volný termín — nejdřív ho přidejte"}</option>
-            {openSlots.map((s: any) => <option key={s.id} value={s.id}>{fmtDT(s.slot_at)}</option>)}
+            <option value="">{openSlots.length || freeTimes.length ? "— vyberte volný čas —" : "Žádný volný čas — upravte pracovní dobu"}</option>
+            {openSlots.map((s: any) => <option key={`s${s.id}`} value={`s:${s.id}`}>{fmtDT(s.slot_at)}</option>)}
+            {freeTimes.filter((f: any) => !f.slot_id).slice(0, 40).map((f: any) => <option key={f.start} value={`t:${f.start}`}>{fmtDT(f.start)}</option>)}
           </select>
-          <Button size="sm" disabled={!to} onClick={() => run(() => api.bookingReschedule(b.id, { slot_id: Number(to) }), "Návštěva přesunuta — klient dostal zprávu")}>Přesunout</Button>
+          <Button size="sm" disabled={!to} onClick={() => {
+            const [k, v] = [to.slice(0, 1), to.slice(2)]
+            if (!window.confirm(`Přesunout návštěvu na ${fmtDT(k === "s" ? openSlots.find((s: any) => String(s.id) === v)?.slot_at : v)}? Klient dostane zprávu.`)) return
+            void run(() => api.bookingReschedule(b.id, k === "s" ? { slot_id: Number(v) } : { starts_at: v }), "Návštěva přesunuta — klient dostal zprávu")
+          }}>Přesunout</Button>
           <Button size="sm" variant="outline" onClick={() => setMenu("")}>Zpět</Button>
         </div>
       )}

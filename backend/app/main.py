@@ -23,7 +23,7 @@ from .deps import is_owner, tutorial_demo_runner_id
 from .metrics import engine as E
 from .routers import (
     admin, ai, annotations, auth, booking, calendar, client_errors, coach, conclusions, employers, goals, integrations, partners, physios,
-    personas, plan, programs, records, rtr, runners, self_programs, shoes, simulate, team, triage, assistant, usage,
+    personas, plan, programs, records, rtr, work, runners, self_programs, shoes, simulate, team, triage, assistant, usage,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -264,6 +264,32 @@ def _migrate(engine):
     for t in ("conclusions", "bookings", "programs", "return_to_run", "injury_reports"):
         add(t, "episode_id", "episode_id INTEGER")
     _ledger_guard(engine)
+    # physio brief Phase 2: triage request (W4), physio work settings (W4/W13/W14/W15), booking intake (W16),
+    # programme builder (W10), return to run v2 (W11), messaging (W13)
+    for col, ddl in (("request_reason", "TEXT"), ("request_duration", "VARCHAR"), ("red_flags", "JSON")):
+        add("triage", col, f"{col} {ddl}")
+    for col, ddl in (("accepting_new_clients", "BOOLEAN"), ("max_new_per_week", "INTEGER"), ("response_time_text", "VARCHAR"),
+                     ("cancellation_policy", "TEXT"), ("notify_settings", "JSON"), ("ics_token", "VARCHAR"),
+                     ("rating_count", "INTEGER"), ("photo_url", "VARCHAR"), ("quick_replies", "JSON"),
+                     ("dark_mode", "BOOLEAN")):
+        add("physios", col, f"{col} {ddl}")
+    for col, ddl in (("service_id", "INTEGER"), ("reason", "TEXT"), ("questions", "TEXT"), ("recurring_group", "VARCHAR")):
+        add("bookings", col, f"{col} {ddl}")
+    if inspect(engine).has_table("bookings"):    # W1.6: payer is client | employer | insurer | other
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE bookings SET payer = 'client' WHERE payer = 'self' OR payer IS NULL"))
+    for col, ddl in (("phase_id", "INTEGER"), ("sets", "INTEGER"), ("reps", "INTEGER"), ("duration_s", "INTEGER"),
+                     ("load_text", "VARCHAR"), ("tempo", "VARCHAR"), ("side", "VARCHAR"), ("pain_limit", "INTEGER"),
+                     ("media_url", "VARCHAR"), ("thumbnail_url", "VARCHAR"), ("description", "TEXT")):
+        add("exercises", col, f"{col} {ddl}")
+    add("programs", "version", "version INTEGER")
+    add("programs", "draft_note", "draft_note TEXT")
+    for col, ddl in (("next_morning_pain", "INTEGER"), ("morning_stiffness_min", "INTEGER"),
+                     ("matched_activity_id", "INTEGER"), ("state", "VARCHAR")):
+        add("rtr_sessions", col, f"{col} {ddl}")
+    for col, ddl in (("attachment_path", "VARCHAR"), ("attachment_type", "VARCHAR"), ("attachment_name", "VARCHAR"),
+                     ("handled_at", "VARCHAR")):
+        add("messages", col, f"{col} {ddl}")
     add("messages", "read_at_physio", "read_at_physio VARCHAR")
     add("messages", "read_at_runner", "read_at_runner VARCHAR")
 
@@ -654,6 +680,7 @@ app.include_router(shoes.router)
 app.include_router(shoes.catalog_router)
 app.include_router(physios.router)
 app.include_router(records.router)
+app.include_router(work.router)
 app.include_router(triage.router)
 app.include_router(programs.router)
 app.include_router(booking.router)

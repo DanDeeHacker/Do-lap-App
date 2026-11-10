@@ -4,7 +4,7 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { AlertBanner, Button, Card, Chip, Field, HowTo, Label, ListRow, Segmented, Sheet, Slider, useAsync, useToast } from "@/ui"
 import { CalendarDays, CalendarClock, Send, Star, UserRound } from "lucide-react"
-import { fmtSlot, fmtDT, initials, czk } from "@/lib"
+import { fmtSlot, fmtD, fmtDT, initials, czk } from "@/lib"
 import { Head, Program } from "@/tabs"
 import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
 import { CARE_SUB_EVENT } from "@/onboarding"
@@ -87,6 +87,7 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
   const bookings = (boot?.bookings || []).filter((b: any) => (b.status === "requested" || b.status === "confirmed") && (!b.slot_at || new Date(b.slot_at).getTime() >= now))
   const carePids = new Set<string>([...(boot?.bookings || []).filter((b: any) => b.status === "confirmed").map((b: any) => b.physio_id), ...(boot?.program ? [boot.program.physio_id] : [])].filter(Boolean))
   const pn = (pid: string) => boot?.physios?.[pid]?.name || "fyzioterapeut"
+  const [intakeFor, setIntakeFor] = useState<any>(null)
 
   return (
     <>
@@ -115,6 +116,7 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
                     meta={`${fmtSlot(b.slot_at)} · ${b.status === "requested" ? "čeká na potvrzení" : "potvrzeno"}`}
                     trailing={<>
                       <Chip tone={b.status === "confirmed" ? "ok" : "watch"}>{b.status === "requested" ? "čeká" : "potvrzeno"}</Chip>
+                      {b.status === "confirmed" && b.kind === "assessment" && <button onClick={() => setIntakeFor(b)} className="shrink-0 text-[12px] font-bold text-accent hover:underline">Dotazník</button>}
                       <button onClick={async () => { await api.cancelBooking(rid, b.id); refresh() }} className="shrink-0 text-[12px] font-bold text-fg-3 hover:text-alert">Zrušit</button>
                     </>} />
                 ))}</div>
@@ -135,9 +137,54 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
             </>
           )}
         </Card>
+        {(boot?.conclusions || []).length > 0 && (
+          <Card data-testid="visit-summaries">
+            <Label>Návštěvy</Label>
+            <div className="mt-2 grid gap-3">
+              {(boot.conclusions as any[]).map((c) => (
+                <div key={c.id}>
+                  <b className="text-[13px]">{`${fmtD(c.approved_at || c.shared_at)} · ${pn(c.physio_id)}`}</b>
+                  {c.corrected_at && <span className="ml-2 text-[11.5px] text-fg-3">{`opraveno ${fmtD(c.corrected_at)}`}</span>}
+                  <p translate="no" className="mt-1 whitespace-pre-wrap text-[13px] text-fg-2">{c.summary}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
         <div data-tour="care-chat"><PhysioChat /></div>
       </div>
+      {intakeFor && <IntakeSheet rid={rid} booking={intakeFor} onClose={() => setIntakeFor(null)} />}
     </>
+  )
+}
+
+// physio brief 2026-11-09 W16.4: before the first visit, the client can fill in the intake at home
+function IntakeSheet({ rid, booking, onClose }: { rid: string; booking: any; onClose: () => void }) {
+  const [f, setF] = useState<any>({ history: "", medications: "", surgeries: "", goals: "", red_flags: [] as string[], consent: false })
+  const { busy, err, run } = useAsync()
+  const toast = useToast()
+  const FLAGS: [string, string][] = [["night_pain", "Bolest v noci nebo v klidu"], ["weight_loss", "Nevysvětlené hubnutí"], ["fever", "Horečka nebo celková slabost"], ["numbness", "Necitlivost, mravenčení, slabost nohy"]]
+  const ta = "w-full rounded-xl border border-white/15 bg-panel px-3 py-2 text-sm"
+  return (
+    <Sheet open onClose={onClose}>
+      <h2 className="font-serif text-2xl">Vstupní dotazník</h2>
+      <p className="mt-1 text-[13px] text-fg-2">{`Před návštěvou ${fmtSlot(booking.slot_at)}. Fyzioterapeut ho uvidí v kartě a nemusíte vše říkat znovu.`}</p>
+      <Field label="Dřívější zranění a obtíže"><textarea rows={2} className={ta} value={f.history} onChange={(e) => setF({ ...f, history: e.target.value })} /></Field>
+      <Field label="Léky"><textarea rows={1} className={ta} value={f.medications} onChange={(e) => setF({ ...f, medications: e.target.value })} /></Field>
+      <Field label="Operace"><textarea rows={1} className={ta} value={f.surgeries} onChange={(e) => setF({ ...f, surgeries: e.target.value })} /></Field>
+      <Field label="Co od péče čekáte"><textarea rows={2} className={ta} value={f.goals} onChange={(e) => setF({ ...f, goals: e.target.value })} /></Field>
+      <Field label="Máte něco z tohoto?">
+        <div className="grid gap-1.5">{FLAGS.map(([k, l]) => (
+          <label key={k} className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-accent" checked={f.red_flags.includes(k)}
+            onChange={(e) => setF({ ...f, red_flags: e.target.checked ? [...f.red_flags, k] : f.red_flags.filter((x: string) => x !== k) })} />{l}</label>))}</div>
+      </Field>
+      {f.red_flags.length > 0 && <p className="mt-2 rounded-xl bg-alert/10 px-3 py-2 text-[12.5px] text-alert-soft">Napište to prosím i fyzioterapeutovi do zpráv; při náhlém zhoršení kontaktujte lékaře.</p>}
+      <label className="mt-3 flex items-start gap-2 text-[13px]"><input type="checkbox" className="mt-0.5 accent-accent" checked={f.consent} onChange={(e) => setF({ ...f, consent: e.target.checked })} />Souhlasím se zpracováním těchto údajů pro moji péči u tohoto fyzioterapeuta.</label>
+      {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
+      <button className="btn btn-primary mt-4 w-full" disabled={busy || !f.consent} onClick={() => run(async () => {
+        await api.intake(rid, { booking_id: booking.id, data: f }); toast({ title: "Dotazník odeslán" }); onClose()
+      })}>Odeslat dotazník</button>
+    </Sheet>
   )
 }
 
@@ -224,6 +271,7 @@ function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; on
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-accent" style={{ width: `${Math.round(((rtr.current_level - 1 + (rtr.cleared_at_current || 0) / (rtr.sessions_per_level || 1)) / (rtr.level_count || 1)) * 100)}%` }} /></div>
             <p className="mt-2 text-[12px] text-fg-3">{`Splněno ${rtr.cleared_at_current}/${rtr.sessions_per_level} sezení na této úrovni.`}</p>
             {rtr.note && <p className="mt-2 rounded-xl bg-white/[.04] px-3 py-2 text-[13px] text-fg-2">{"Poznámka fyzioterapeuta: "}{rtr.note}</p>}
+            {rtr.pending_morning && <MorningPrompt plan={rtr} onDone={refresh} />}
             {rtr.status === "paused" ? (
               <p className="mt-3 text-[13px] font-bold text-watch">Plán je pozastavený. Počkejte na pokyn fyzioterapeuta.</p>
             ) : <Button variant="outline" className="mt-3 w-full" onClick={onRtr}>Zaznamenat sezení</Button>}
@@ -271,6 +319,40 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
   const toggle = (s: Set<string>, set: (x: Set<string>) => void, k: string) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); set(n); return n }
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // physio brief 2026-11-09 W16: a confirmation step — service, reason, questions and the cancellation policy
+  const [pick, setPick] = useState<{ pp: any; s: any } | null>(null)
+  const [svc, setSvc] = useState("")
+  const [reason, setReason] = useState("")
+  const [questions, setQuestions] = useState("")
+  if (pick) {
+    const { pp, s } = pick
+    const chosen = (pp.services || []).find((x: any) => String(x.id) === svc)
+    return (
+      <Sheet open onClose={onClose}>
+        <h2 className="font-serif text-2xl">Potvrdit žádost</h2>
+        <p className="mt-1 text-[13px] text-fg-2"><b>{pp.name}</b>{` · ${fmtSlot(s.slot_at)}`}</p>
+        {(pp.services || []).length > 0 && (
+          <Field label="Služba"><select value={svc} onChange={(e) => setSvc(e.target.value)} className="w-full rounded-xl border border-white/15 bg-panel px-3 py-2 text-sm" data-testid="book-service">
+            <option value="">Vyberte službu</option>
+            {pp.services.map((x: any) => <option key={x.id} value={x.id}>{`${x.name} · ${x.duration_minutes} min${x.price_czk != null ? ` · ${czk(x.price_czk)}` : ""}`}</option>)}
+          </select></Field>
+        )}
+        <Field label="S čím přicházíte"><textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} maxLength={500} className="w-full rounded-xl border border-white/15 bg-panel px-3 py-2 text-sm" placeholder="např. bolest pod kolenem po delších bězích" /></Field>
+        <Field label="Na co se chcete zeptat (nepovinné)"><textarea value={questions} onChange={(e) => setQuestions(e.target.value)} rows={2} maxLength={500} className="w-full rounded-xl border border-white/15 bg-panel px-3 py-2 text-sm" /></Field>
+        {pp.cancellation_policy && <p className="mt-3 rounded-xl bg-white/[.04] px-3 py-2 text-[12.5px] text-fg-2">{"Storno podmínky: "}{pp.cancellation_policy}</p>}
+        {chosen?.price_czk != null && <p className="mt-2 text-[12.5px] text-fg-3">{`Cena ${czk(chosen.price_czk)}, platí se na místě.`}</p>}
+        <p className="mt-2 text-[12.5px] text-fg-3">Termín platí až po potvrzení fyzioterapeutem.</p>
+        <div className="mt-4 flex gap-2">
+          <button className="btn btn-outline flex-1" onClick={() => setPick(null)}>Zpět</button>
+          <button className="btn btn-primary flex-1" disabled={busy || ((pp.services || []).length > 0 && !svc)} data-testid="book-confirm" onClick={() => run(async () => {
+            await api.bookingRequestAt({ slot_id: s.id ?? undefined, physio_id: s.id ? undefined : pp.id, starts_at: s.id ? undefined : s.slot_at,
+              service_id: svc ? Number(svc) : undefined, reason: reason || undefined, questions: questions || undefined, kind: "assessment" })
+            toast({ title: "Požádáno — čeká na potvrzení" }); onDone()
+          })}>Požádat o termín</button>
+        </div>
+      </Sheet>
+    )
+  }
   return (
     <Sheet open onClose={onClose}>
       <h2 className="font-serif text-2xl">Najít termín</h2>
@@ -288,8 +370,9 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
               {pp.price_czk ? <Chip tone="accent">{czk(pp.price_czk)}</Chip> : null}
             </div>
             {pp.bio && <p className="mt-2 text-[13px] leading-5 text-fg-2">{pp.bio}</p>}
+            {pp.response_time_text && <p className="mt-1 text-[12px] text-fg-3">{`Obvykle odpovídá ${pp.response_time_text}`}</p>}
             <div className="mt-3 flex flex-wrap gap-2">{pp.slots.map((s: any) => (
-              <button key={s.id} onClick={() => run(async () => { await api.requestSlot(s.id); toast({ title: "Požádáno — čeká na potvrzení" }); onDone() })} className="rounded-full border border-accent/35 px-3 py-1.5 text-[12px] font-bold text-accent hover:bg-accent/10">{fmtSlot(s.slot_at)}</button>
+              <button key={s.id ?? s.slot_at} onClick={() => setPick({ pp, s })} className="rounded-full border border-accent/35 px-3 py-1.5 text-[12px] font-bold text-accent hover:bg-accent/10">{fmtSlot(s.slot_at)}</button>
             ))}</div>
           </div>
         ))}
@@ -350,12 +433,35 @@ function RtrSheet({ plan, onClose, onDone }: { plan: any; onClose: () => void; o
       {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
       <button disabled={busy || pain == null} data-testid="rtr-save" onClick={() => run(async () => {
         const p = await api.logRtrSession(plan.id, { pain, rpe, completed })
-        toast({ title: p.status === "completed" ? "Návrat k běhu je dokončený"
-          : p.status === "paused" ? "Plán je pozastavený. Fyzioterapeut se vám ozve."
-          : `Úroveň ${p.current_level}/${p.level_count}` })
+        toast({ title: p.status === "paused" ? "Plán je pozastavený. Fyzioterapeut se vám ozve."
+          : "Uloženo. Zítra ráno se zeptáme, jak se cítíte — pak se sezení započítá." })
         onDone()
       })} className="btn btn-primary mt-5 w-full py-3 text-sm disabled:opacity-50">Uložit sezení</button>
     </Sheet>
+  )
+}
+
+// physio brief 2026-11-09 W11: a session counts only with the next-morning answer (pain and stiffness)
+function MorningPrompt({ plan, onDone }: { plan: any; onDone: () => void }) {
+  const [pain, setPain] = useState<number | null>(null)
+  const [stiff, setStiff] = useState(0)
+  const { busy, run } = useAsync()
+  const toast = useToast()
+  const p = plan.pending_morning
+  const ready = new Date(p.logged_at).toLocaleDateString("sv-SE") < new Date().toLocaleDateString("sv-SE")
+  if (!ready) return <p className="mt-3 rounded-xl bg-white/[.04] px-3 py-2 text-[12.5px] text-fg-2">Zítra ráno se zeptáme, jak se cítíte. Teprve pak se sezení započítá.</p>
+  return (
+    <div className="mt-3 rounded-xl border border-accent/30 p-3" data-testid="rtr-morning">
+      <p className="text-[13px] font-bold">Jak je to ráno po včerejším sezení?</p>
+      <Field label="Bolest teď ráno" hint={pain == null ? "posuňte jezdec" : "0 žádná"}><Slider name="mpain" min={0} max={10} value={pain ?? 0} onChange={setPain} tone="pain" /></Field>
+      <Field label="Ranní ztuhlost (minuty)"><Slider name="stiff" min={0} max={60} value={stiff} onChange={setStiff} /></Field>
+      <button className="btn btn-primary mt-3 w-full text-sm" disabled={busy || pain == null} onClick={() => run(async () => {
+        const r = await api.rtrMorning(plan.id, p.id, pain!, stiff)
+        const counted = (r.sessions || []).find((x: any) => x.id === p.id)?.counted
+        toast({ title: r.status === "paused" ? "Plán je pozastavený. Fyzioterapeut se vám ozve." : counted ? "Sezení se započítalo" : "Sezení se nezapočítalo, úroveň zopakujete" })
+        onDone()
+      })}>Uložit ranní odpověď</button>
+    </div>
   )
 }
 

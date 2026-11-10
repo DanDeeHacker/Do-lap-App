@@ -51,6 +51,7 @@
    "report.tsx",
    "rundetail.tsx",
    "runstats.ts",
+   "schedule.tsx",
    "tabs.tsx",
    "training.tsx"
   ],
@@ -217,12 +218,12 @@
    "admin.tsx",
    "calendarsync.tsx",
    "care.tsx",
-   "client.tsx",
    "coachview.tsx",
    "common.tsx",
    "conclusion.tsx",
    "invite.tsx",
    "metricsheet.tsx",
+   "plan.tsx",
    "rundetail.tsx",
    "tabs.tsx",
    "teamconsole.tsx",
@@ -258,7 +259,8 @@
    "admin.tsx",
    "fitness.tsx",
    "metricsheet.tsx",
-   "tabs.tsx"
+   "tabs.tsx",
+   "timeline.tsx"
   ],
   "kind": "str"
  },
@@ -418,7 +420,8 @@
  {
   "t": "Ukončit",
   "files": [
-   "admin.tsx"
+   "admin.tsx",
+   "plan.tsx"
   ],
   "kind": "jsx"
  },
@@ -546,6 +549,7 @@
   "t": "Enter",
   "files": [
    "annotate.tsx",
+   "app.tsx",
    "assistant.tsx",
    "care.tsx",
    "client.tsx",
@@ -760,8 +764,10 @@
    "client.tsx",
    "coach.tsx",
    "goal.tsx",
+   "plan.tsx",
    "practice.tsx",
    "report.tsx",
+   "tabs.tsx",
    "teamconsole.tsx",
    "training.tsx"
   ],
@@ -772,11 +778,11 @@
   "files": [
    "annotate.tsx",
    "calendar.tsx",
-   "client.tsx",
    "coach.tsx",
    "coachview.tsx",
    "docs.tsx",
    "goal.tsx",
+   "plan.tsx",
    "shell.tsx",
    "teamconsole.tsx"
   ],
@@ -824,6 +830,7 @@
    "annotate.tsx",
    "calendar.tsx",
    "care.tsx",
+   "client.tsx",
    "coach.tsx",
    "profile.tsx",
    "tabs.tsx",
@@ -927,11 +934,39 @@
   "kind": "str"
  },
  {
-  "t": "— tým Došlapu ověří, kdo jste a vaši odbornou způsobilost. Do té doby nevidíte frontu případů ani klienty; profil a volné termíny si můžete připravit.",
+  "t": "— tým Došlapu ověří, kdo jste a vaši odbornou způsobilost. Do té doby nevidíte frontu případů ani klienty; profil, praxi a pracovní dobu si můžete připravit.",
   "files": [
    "app.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": ", {} nových",
+  "files": [
+   "app.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "ArrowDown",
+  "files": [
+   "app.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "ArrowUp",
+  "files": [
+   "app.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Ctrl K",
+  "files": [
+   "app.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Doplňte profil a praxi",
@@ -941,10 +976,9 @@
   "kind": "jsx"
  },
  {
-  "t": "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-bold transition {}",
+  "t": "flex h-10 items-center gap-3 rounded-lg px-3 text-[14px] font-bold transition {}",
   "files": [
-   "app.tsx",
-   "shell.tsx"
+   "app.tsx"
   ],
   "kind": "tpl"
  },
@@ -960,6 +994,29 @@
   "files": [
    "app.tsx",
    "queue.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Hledat klienta",
+  "files": [
+   "app.tsx",
+   "client.tsx",
+   "messages.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "INPUT",
+  "files": [
+   "app.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jméno klienta",
+  "files": [
+   "app.tsx"
   ],
   "kind": "str"
  },
@@ -988,6 +1045,20 @@
   "kind": "str"
  },
  {
+  "t": "Nic nenalezeno.",
+  "files": [
+   "app.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odhlásit",
+  "files": [
+   "app.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Praxe",
   "files": [
    "app.tsx",
@@ -1012,11 +1083,49 @@
   "kind": "jsx"
  },
  {
+  "t": "SELECT",
+  "files": [
+   "app.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "TEXTAREA",
+  "files": [
+   "app.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Účet čeká na ověření",
   "files": [
    "app.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Upozornění{}",
+  "files": [
+   "app.tsx",
+   "ui.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Žádná upozornění.",
+  "files": [
+   "app.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zprávy",
+  "files": [
+   "app.tsx",
+   "client.tsx",
+   "messages.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": ". Když to omezuje trénink, nahlaste to — zapíše se to do historie zranění, přizpůsobí se plán a po zahojení vás aplikace vrátí k běhu postupně.",
@@ -1435,9 +1544,12 @@
    "care.tsx",
    "conclusion.tsx",
    "landing.tsx",
+   "plan.tsx",
    "queue.tsx",
    "rundetail.tsx",
-   "tabs.tsx"
+   "tabs.tsx",
+   "timeline.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -1765,6 +1877,7 @@
   "files": [
    "App.tsx",
    "admin.tsx",
+   "app.tsx",
    "assistant.tsx",
    "capacity.tsx",
    "coach.tsx",
@@ -1772,6 +1885,8 @@
    "landing.tsx",
    "onboarding.tsx",
    "report.tsx",
+   "schedule.tsx",
+   "today.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -1884,6 +1999,7 @@
   "files": [
    "App.tsx",
    "annotate.tsx",
+   "app.tsx",
    "onboarding.tsx",
    "report.tsx",
    "ui.tsx"
@@ -2148,6 +2264,7 @@
   "t": "Jméno",
   "files": [
    "App.tsx",
+   "client.tsx",
    "docs.tsx",
    "profile.tsx",
    "teamconsole.tsx"
@@ -2187,6 +2304,7 @@
   "files": [
    "App.tsx",
    "care.tsx",
+   "client.tsx",
    "tabs.tsx"
   ],
   "kind": "jsx"
@@ -2324,7 +2442,8 @@
    "metricsheet.tsx",
    "onboarding.tsx",
    "shell.tsx",
-   "tabs.tsx"
+   "tabs.tsx",
+   "timeline.tsx"
   ],
   "kind": "str"
  },
@@ -2339,7 +2458,8 @@
   "t": "mírná",
   "files": [
    "App.tsx",
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -2445,6 +2565,7 @@
    "coachview.tsx",
    "goal.tsx",
    "profile.tsx",
+   "schedule.tsx",
    "selfprograms.tsx"
   ],
   "kind": "str"
@@ -2517,7 +2638,8 @@
   "t": "nízká",
   "files": [
    "App.tsx",
-   "tabs.tsx"
+   "tabs.tsx",
+   "today.tsx"
   ],
   "kind": "str"
  },
@@ -2767,8 +2889,7 @@
  {
   "t": "Pokračovat",
   "files": [
-   "App.tsx",
-   "client.tsx"
+   "App.tsx"
   ],
   "kind": "jsx"
  },
@@ -2812,8 +2933,8 @@
   "t": "Poznámka",
   "files": [
    "App.tsx",
-   "client.tsx",
    "coach.tsx",
+   "plan.tsx",
    "tabs.tsx",
    "teamconsole.tsx"
   ],
@@ -3020,7 +3141,8 @@
    "client.tsx",
    "enginelab.tsx",
    "glossary.tsx",
-   "landing.tsx"
+   "landing.tsx",
+   "timeline.tsx"
   ],
   "kind": "str"
  },
@@ -3645,7 +3767,8 @@
  {
   "t": "Upozornění",
   "files": [
-   "App.tsx"
+   "App.tsx",
+   "practice.tsx"
   ],
   "kind": "str"
  },
@@ -3906,7 +4029,8 @@
   "files": [
    "App.tsx",
    "conclusion.tsx",
-   "report.tsx"
+   "report.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -3915,7 +4039,8 @@
   "files": [
    "App.tsx",
    "conclusion.tsx",
-   "enginelab.tsx"
+   "enginelab.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -3962,8 +4087,10 @@
    "landing.tsx",
    "metricsheet.tsx",
    "onboarding.tsx",
+   "plan.tsx",
    "shell.tsx",
-   "tabs.tsx"
+   "tabs.tsx",
+   "timeline.tsx"
   ],
   "kind": "str"
  },
@@ -4088,9 +4215,9 @@
   "files": [
    "App.tsx",
    "annotate.tsx",
-   "client.tsx",
    "habits.tsx",
    "onboarding.tsx",
+   "plan.tsx",
    "profile.tsx",
    "teamconsole.tsx",
    "ui.tsx"
@@ -4152,13 +4279,15 @@
   "files": [
    "App.tsx",
    "calendar.tsx",
+   "care.tsx",
    "client.tsx",
    "coach.tsx",
    "dayedit.tsx",
    "goal.tsx",
    "landing.tsx",
    "onboarding.tsx",
-   "queue.tsx"
+   "queue.tsx",
+   "tabs.tsx"
   ],
   "kind": "jsx"
  },
@@ -4506,7 +4635,8 @@
  {
   "t": "Otevřít",
   "files": [
-   "assistant.tsx"
+   "assistant.tsx",
+   "today.tsx"
   ],
   "kind": "jsx"
  },
@@ -4730,7 +4860,7 @@
   "kind": "jsx"
  },
  {
-  "t": "— vyberte volný termín —",
+  "t": "— vyberte volný čas —",
   "files": [
    "calendar.tsx"
   ],
@@ -4779,6 +4909,7 @@
    "calendar.tsx",
    "report.tsx",
    "rundetail.tsx",
+   "schedule.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -4813,7 +4944,9 @@
    "coach.tsx",
    "fitness.tsx",
    "outlook.tsx",
-   "teamconsole.tsx"
+   "schedule.tsx",
+   "teamconsole.tsx",
+   "timeline.tsx"
   ],
   "kind": "jsx"
  },
@@ -4837,6 +4970,13 @@
    "calendar.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Jednorázové volné termíny",
+  "files": [
+   "calendar.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Koliduje s návštěvou {} v {}",
@@ -4877,7 +5017,8 @@
   "t": "nedostavil(a) se",
   "files": [
    "calendar.tsx",
-   "client.tsx"
+   "client.tsx",
+   "today.tsx"
   ],
   "kind": "jsx"
  },
@@ -4897,11 +5038,15 @@
    "datapage.tsx",
    "docs.tsx",
    "invite.tsx",
+   "plan.tsx",
    "practice.tsx",
    "profile.tsx",
    "queue.tsx",
+   "schedule.tsx",
    "tabs.tsx",
-   "teamconsole.tsx"
+   "teamconsole.tsx",
+   "today.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -4955,6 +5100,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Přesunout návštěvu na {}? Klient dostane zprávu.",
+  "files": [
+   "calendar.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Přidat termín",
   "files": [
    "calendar.tsx"
@@ -4986,7 +5138,8 @@
   "t": "rozepsaný záznam",
   "files": [
    "calendar.tsx",
-   "client.tsx"
+   "client.tsx",
+   "today.tsx"
   ],
   "kind": "jsx"
  },
@@ -5040,13 +5193,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Volné termíny",
-  "files": [
-   "calendar.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Volný termín přidán",
   "files": [
    "calendar.tsx"
@@ -5075,7 +5221,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Žádný volný termín — nejdřív ho přidejte",
+  "t": "Žádný volný čas — upravte pracovní dobu",
   "files": [
    "calendar.tsx"
   ],
@@ -5107,7 +5253,8 @@
   "t": "Záznam",
   "files": [
    "calendar.tsx",
-   "client.tsx"
+   "client.tsx",
+   "today.tsx"
   ],
   "kind": "jsx"
  },
@@ -5117,6 +5264,13 @@
    "calendar.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Zobrazit všech {}",
+  "files": [
+   "calendar.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "Zrušit návštěvu",
@@ -5178,6 +5332,7 @@
   "t": "Kopírovat",
   "files": [
    "calendarsync.tsx",
+   "client.tsx",
    "coachview.tsx",
    "datapage.tsx",
    "teamconsole.tsx"
@@ -5224,7 +5379,8 @@
  {
   "t": "Odkaz na kalendář",
   "files": [
-   "calendarsync.tsx"
+   "calendarsync.tsx",
+   "schedule.tsx"
   ],
   "kind": "str"
  },
@@ -5253,6 +5409,7 @@
   "t": "Odkaz zkopírován",
   "files": [
    "calendarsync.tsx",
+   "client.tsx",
    "coach.tsx",
    "teamconsole.tsx"
   ],
@@ -5349,7 +5506,8 @@
    "coach.tsx",
    "coachview.tsx",
    "goal.tsx",
-   "tabs.tsx"
+   "tabs.tsx",
+   "timeline.tsx"
   ],
   "kind": "tpl"
  },
@@ -7138,6 +7296,13 @@
   "kind": "jsx"
  },
  {
+  "t": "{} · {} min{}",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "0 žádná",
   "files": [
    "care.tsx",
@@ -7195,6 +7360,20 @@
   "kind": "str"
  },
  {
+  "t": "Bolest teď ráno",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Bolest v noci nebo v klidu",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Část dne",
   "files": [
    "care.tsx"
@@ -7204,7 +7383,8 @@
  {
   "t": "čeká",
   "files": [
-   "care.tsx"
+   "care.tsx",
+   "client.tsx"
   ],
   "kind": "str"
  },
@@ -7215,6 +7395,13 @@
    "client.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Cena {}, platí se na místě.",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "chat se otevře po převzetí případu",
@@ -7266,6 +7453,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Co od péče čekáte",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Co se stane po nahlášení",
   "files": [
    "care.tsx"
@@ -7278,7 +7472,8 @@
    "care.tsx",
    "coach.tsx",
    "coachview.tsx",
-   "goal.tsx"
+   "goal.tsx",
+   "schedule.tsx"
   ],
   "kind": "str"
  },
@@ -7311,6 +7506,27 @@
   "kind": "str"
  },
  {
+  "t": "Dotazník",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Dotazník odeslán",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dřívější zranění a obtíže",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "flex cursor-pointer items-start gap-3 rounded-[14px] border px-3 py-2.5 text-[14px] leading-5 transition {}",
   "files": [
    "care.tsx"
@@ -7323,6 +7539,20 @@
    "care.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "Horečka nebo celková slabost",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jak je to ráno po včerejším sezení?",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Jde o sebehodnocení podle kritérií, která se při návratu k běhu běžně používají, ne o vyšetření. U bolesti kosti se návrat řídí úplnou absencí bolesti (Warden et al., 2014).",
@@ -7374,6 +7604,13 @@
   "kind": "str"
  },
  {
+  "t": "Léky",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "let ·",
   "files": [
    "care.tsx"
@@ -7386,6 +7623,13 @@
    "care.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Máte něco z tohoto?",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Mírná",
@@ -7403,6 +7647,13 @@
  },
  {
   "t": "Mírný",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Na co se chcete zeptat (nepovinné)",
   "files": [
    "care.tsx"
   ],
@@ -7465,11 +7716,25 @@
   "kind": "jsx"
  },
  {
+  "t": "Napište to prosím i fyzioterapeutovi do zpráv; při náhlém zhoršení kontaktujte lékaře.",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Naplánovat schůzku",
   "files": [
    "care.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "např. bolest pod kolenem po delších bězích",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Napsat zprávu…",
@@ -7482,14 +7747,22 @@
   "t": "Návrat k běhu",
   "files": [
    "care.tsx",
-   "client.tsx",
    "common.tsx",
-   "lib.ts"
+   "lib.ts",
+   "plan.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Návrat k běhu je dokončený",
+  "t": "Návštěvy",
+  "files": [
+   "care.tsx",
+   "client.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Necitlivost, mravenčení, slabost nohy",
   "files": [
    "care.tsx"
   ],
@@ -7504,6 +7777,13 @@
  },
  {
   "t": "Nemohl/a jsem",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nevysvětlené hubnutí",
   "files": [
    "care.tsx"
   ],
@@ -7552,6 +7832,20 @@
   "kind": "str"
  },
  {
+  "t": "Obvykle odpovídá {}",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Odeslat dotazník",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Odpoledne",
   "files": [
    "care.tsx"
@@ -7587,6 +7881,20 @@
   "kind": "str"
  },
  {
+  "t": "Operace",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "opraveno {}",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Označit jako zahojené",
   "files": [
    "care.tsx"
@@ -7599,7 +7907,8 @@
    "care.tsx",
    "coach.tsx",
    "coachview.tsx",
-   "goal.tsx"
+   "goal.tsx",
+   "schedule.tsx"
   ],
   "kind": "str"
  },
@@ -7644,7 +7953,8 @@
    "care.tsx",
    "coach.tsx",
    "coachview.tsx",
-   "goal.tsx"
+   "goal.tsx",
+   "schedule.tsx"
   ],
   "kind": "str"
  },
@@ -7654,6 +7964,13 @@
    "care.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Potvrdit žádost",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Potvrdit, že je zahojené",
@@ -7670,6 +7987,13 @@
   "kind": "str"
  },
  {
+  "t": "Požádat o termín",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Poznámka fyzioterapeuta:",
   "files": [
    "care.tsx"
@@ -7677,12 +8001,20 @@
   "kind": "str"
  },
  {
+  "t": "Před návštěvou {}. Fyzioterapeut ho uvidí v kartě a nemusíte vše říkat znovu.",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Program",
   "files": [
    "care.tsx",
-   "client.tsx",
+   "plan.tsx",
    "report.tsx",
-   "tabs.tsx"
+   "tabs.tsx",
+   "timeline.tsx"
   ],
   "kind": "str"
  },
@@ -7701,10 +8033,18 @@
   "kind": "jsx"
  },
  {
+  "t": "Ranní ztuhlost (minuty)",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Ráno",
   "files": [
    "care.tsx",
-   "daytoday.tsx"
+   "daytoday.tsx",
+   "plan.tsx"
   ],
   "kind": "str"
  },
@@ -7732,6 +8072,13 @@
   "kind": "jsx"
  },
  {
+  "t": "S čím přicházíte",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Schody a chůzi kolem 30 minut zvládám bez bolesti.",
   "files": [
    "care.tsx"
@@ -7753,6 +8100,20 @@
   "kind": "jsx"
  },
  {
+  "t": "Sezení se nezapočítalo, úroveň zopakujete",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Sezení se započítalo",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Shrnutí z návštěvy",
   "files": [
    "care.tsx"
@@ -7765,6 +8126,21 @@
    "care.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Služba",
+  "files": [
+   "care.tsx",
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Souhlasím se zpracováním těchto údajů pro moji péči u tohoto fyzioterapeuta.",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Splněno {}/{} sezení na této úrovni.",
@@ -7793,7 +8169,15 @@
    "care.tsx",
    "coach.tsx",
    "coachview.tsx",
-   "goal.tsx"
+   "goal.tsx",
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Storno podmínky:",
+  "files": [
+   "care.tsx"
   ],
   "kind": "str"
  },
@@ -7803,6 +8187,13 @@
    "care.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Termín platí až po potvrzení fyzioterapeutem.",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Tříslo",
@@ -7826,6 +8217,20 @@
   "kind": "str"
  },
  {
+  "t": "Uloženo. Zítra ráno se zeptáme, jak se cítíte — pak se sezení započítá.",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uložit ranní odpověď",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Uložit sezení",
   "files": [
    "care.tsx"
@@ -7842,16 +8247,10 @@
  {
   "t": "Úroveň",
   "files": [
-   "care.tsx"
+   "care.tsx",
+   "plan.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Úroveň {}/{}",
-  "files": [
-   "care.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "Út",
@@ -7859,7 +8258,8 @@
    "care.tsx",
    "coach.tsx",
    "coachview.tsx",
-   "goal.tsx"
+   "goal.tsx",
+   "schedule.tsx"
   ],
   "kind": "str"
  },
@@ -7902,7 +8302,8 @@
   "t": "Vliv na výkon",
   "files": [
    "care.tsx",
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -7913,6 +8314,20 @@
    "tabs.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Vstupní dotazník",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vyberte službu",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Vyberte, kdy se vám hodí. Termín potvrdí fyzio, pak vám přijde do kalendáře a den předem připomenutí.",
@@ -8000,6 +8415,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Zítra ráno se zeptáme, jak se cítíte. Teprve pak se sezení započítá.",
+  "files": [
+   "care.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Zpráva",
   "files": [
    "care.tsx",
@@ -8019,7 +8441,9 @@
   "files": [
    "care.tsx",
    "conclusion.tsx",
-   "onboarding.tsx"
+   "onboarding.tsx",
+   "timeline.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -8036,13 +8460,6 @@
    "client.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "· končí {}",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "· návrat k běhu {}/{}",
@@ -8066,32 +8483,11 @@
   "kind": "tpl"
  },
  {
-  "t": "· program skončil {}",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "· RPE {}",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "· upravil běh",
   "files": [
    "client.tsx"
   ],
   "kind": "str"
- },
- {
-  "t": "· úroveň {} · bolest {}/10",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
  },
  {
   "t": "· závažnost {}",
@@ -8104,14 +8500,6 @@
   "t": "{} – {}, km za týden od pondělí",
   "files": [
    "client.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{} · {}× týdně",
-  "files": [
-   "client.tsx",
-   "selfprograms.tsx"
   ],
   "kind": "tpl"
  },
@@ -8138,17 +8526,9 @@
   "kind": "tpl"
  },
  {
-  "t": "{}/{} splněno",
+  "t": "{}× · naposledy {}",
   "files": [
    "client.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "{}× týdně",
-  "files": [
-   "client.tsx",
-   "selfprograms.tsx"
   ],
   "kind": "tpl"
  },
@@ -8174,14 +8554,14 @@
   "kind": "str"
  },
  {
-  "t": "AI shrnutí",
+  "t": "AI shrnutí před návštěvou",
   "files": [
    "client.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "AI shrnutí před návštěvou",
+  "t": "Anamnéza",
   "files": [
    "client.tsx"
   ],
@@ -8195,11 +8575,18 @@
   "kind": "jsx"
  },
  {
-  "t": "běhá od roku {}",
+  "t": "Anamnéza uložena",
   "files": [
    "client.tsx"
   ],
-  "kind": "tpl"
+  "kind": "str"
+ },
+ {
+  "t": "Anamnéza zatím není zapsaná.",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Bez aktivit.",
@@ -8207,6 +8594,41 @@
    "client.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "bez aplikace",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "bez další návštěvy",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez dat z hodinek",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez diagnózy",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez jména",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "bez naplánované návštěvy",
@@ -8244,13 +8666,6 @@
   "kind": "str"
  },
  {
-  "t": "bolest nad hranicí",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Bolest v check-inech",
   "files": [
    "client.tsx"
@@ -8258,7 +8673,15 @@
   "kind": "str"
  },
  {
-  "t": "Části přehledu klienta",
+  "t": "Časová osa",
+  "files": [
+   "client.tsx",
+   "timeline.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Části karty klienta",
   "files": [
    "client.tsx"
   ],
@@ -8293,14 +8716,24 @@
   "kind": "str"
  },
  {
-  "t": "Cvik upraven",
+  "t": "Další",
   "files": [
-   "client.tsx"
+   "client.tsx",
+   "goal.tsx",
+   "onboarding.tsx",
+   "report.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "další návštěva {}",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "data {}",
   "files": [
    "client.tsx"
   ],
@@ -8321,7 +8754,21 @@
   "kind": "jsx"
  },
  {
-  "t": "Dávka",
+  "t": "Datum narození",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Děkuji, podívám se na to.",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dnes prosím vynechte běh.",
   "files": [
    "client.tsx"
   ],
@@ -8334,6 +8781,20 @@
    "landing.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Dokumentace",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dokumentace zůstává v praxi; nový fyzioterapeut ji uvidí a klient dostane zprávu.",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Dotazy vlastními slovy zatím nejsou zapnuté.",
@@ -8357,70 +8818,35 @@
   "kind": "str"
  },
  {
-  "t": "Důvod změny",
+  "t": "E-mail (nepovinné)",
   "files": [
    "client.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
-  "t": "Důvod změny (klient ho uvidí)",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Důvod změny (povinný, klient ho uvidí)",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] {}",
+  "t": "fáze: {}",
   "files": [
    "client.tsx"
   ],
   "kind": "tpl"
  },
  {
-  "t": "Historie změn",
+  "t": "Fotka do 8 MB, video do 50 MB. Příloha je jen pro vás a klienta.",
   "files": [
    "client.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "grid h-6 w-10 place-items-center rounded text-[12px] font-bold tabular-nums {}",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "hlášení běžce",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Hledat cvik",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Hledat cvik nebo potíž",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Hledat klienta",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Hranice bolesti",
   "files": [
    "client.tsx"
   ],
@@ -8455,6 +8881,13 @@
   "kind": "str"
  },
  {
+  "t": "Jméno (pro vás)",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Kde může být problém",
   "files": [
    "client.tsx"
@@ -8472,14 +8905,31 @@
   "t": "Klient",
   "files": [
    "client.tsx",
-   "queue.tsx"
+   "queue.tsx",
+   "schedule.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Klient dnes vidí:",
+  "t": "Klient aplikaci nepoužívá — zprávy nejsou k dispozici.",
   "files": [
    "client.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klient bez aplikace",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klient dnes vidí:",
+  "files": [
+   "client.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -8491,18 +8941,25 @@
   "kind": "str"
  },
  {
-  "t": "Klient nemá aktuální data.",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Klient vidí každou změnu i s důvodem.",
+  "t": "Klient nemá od vás aktivní program.",
   "files": [
    "client.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "Klient po přijetí odkazu přejde rovnou do vaší péče, bez fronty. Odkaz platí jednou.",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klient předán",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "Klient vypnul sdílení dat z hodinek — vidíte jen hodnocení, check-iny a zprávy.",
@@ -8512,42 +8969,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Klient zatím nemá program od vás.",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Klient zatím nemá žádná data. Stav ani doporučení se nepočítají.",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Klient zatím žádné sezení nezaznamenal.",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Knihovna cviků",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Kolikrát týdně",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "koncept — klient ho zatím nevidí",
   "files": [
    "client.tsx"
   ],
@@ -8584,46 +9006,18 @@
   "kind": "jsx"
  },
  {
-  "t": "Návrh programu je připravený — upravte ho a pošlete",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Navrhnout preventivní program",
+  "t": "Napsat",
   "files": [
    "client.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Návštěvy",
+  "t": "Nová návštěva",
   "files": [
    "client.tsx"
   ],
-  "kind": "str"
- },
- {
-  "t": "nedokončeno",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "nejvýš {}/10",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "nezapočteno{}",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
+  "kind": "jsx"
  },
  {
   "t": "nová zpráva",
@@ -8633,12 +9027,9 @@
   "kind": "str"
  },
  {
-  "t": "Oblast",
+  "t": "oboustranně",
   "files": [
-   "client.tsx",
-   "conclusion.tsx",
-   "docs.tsx",
-   "queue.tsx"
+   "client.tsx"
   ],
   "kind": "str"
  },
@@ -8650,25 +9041,11 @@
   "kind": "str"
  },
  {
-  "t": "od {} · hranice bolesti {}/10 · {} sezení na úroveň",
+  "t": "Odkaz pozvánky",
   "files": [
    "client.tsx"
   ],
-  "kind": "tpl"
- },
- {
-  "t": "Odebráno: {}",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Odebrat {}",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
+  "kind": "str"
  },
  {
   "t": "odmítnuto",
@@ -8692,32 +9069,21 @@
   "kind": "str"
  },
  {
-  "t": "Plán dělí návrat do úrovní (od 1 min běhu / 2 min chůze po 25 min souvislého běhu). Úroveň je splněná až po zvoleném počtu sezení s bolestí nejvýš na vámi nastavené hranici; sezení nad ní plán zastaví a vám přijde zpráva.",
+  "t": "Plán",
+  "files": [
+   "client.tsx",
+   "coach.tsx",
+   "coachview.tsx",
+   "goal.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plnění programu",
   "files": [
    "client.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Plán je pozastavený.",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Plán návratu je u klienta",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Plán se pozastavil: klient hlásil bolest nad hranicí. Obnovíte ho tlačítkem Pokračovat.",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Počítám z dat…",
@@ -8727,39 +9093,18 @@
   "kind": "jsx"
  },
  {
-  "t": "Pokyn",
+  "t": "Pokračujte podle plánu.",
   "files": [
    "client.tsx"
   ],
   "kind": "str"
  },
  {
-  "t": "Pokyn k provedení",
+  "t": "Poslat SMS",
   "files": [
    "client.tsx"
   ],
-  "kind": "str"
- },
- {
-  "t": "poslán {}",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Poslat aktualizaci",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Poslat klientovi",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "Poslední aktivity",
@@ -8771,20 +9116,6 @@
  },
  {
   "t": "Poslední bolest:",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Poslední hlášená bolest je {}/10, na zvolené hranici nebo nad ní.",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Poslední plán je dokončený.",
   "files": [
    "client.tsx"
   ],
@@ -8805,25 +9136,32 @@
   "kind": "jsx"
  },
  {
-  "t": "Potvrzuji, že jsem stav klienta ověřil(a).",
+  "t": "Pozvánka do Došlapu",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pozvat klienta",
   "files": [
    "client.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Pozastavit",
+  "t": "Předat",
   "files": [
    "client.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
-  "t": "Poznámka pro klienta (nepovinné)",
+  "t": "Předat kolegovi z praxe",
   "files": [
    "client.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "Přehled",
@@ -8843,30 +9181,29 @@
   "kind": "str"
  },
  {
-  "t": "Přidáno: {}",
+  "t": "přijato",
   "files": [
    "client.tsx"
   ],
-  "kind": "tpl"
+  "kind": "str"
  },
  {
-  "t": "Přidat",
+  "t": "Příjmení",
   "files": [
    "client.tsx",
-   "coach.tsx",
-   "teamconsole.tsx"
+   "docs.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Přidat cvik",
+  "t": "příloha",
   "files": [
    "client.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
-  "t": "příliš brzy po minulém",
+  "t": "Příloha",
   "files": [
    "client.tsx"
   ],
@@ -8878,6 +9215,14 @@
    "client.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Příprava",
+  "files": [
+   "client.tsx",
+   "today.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Příznaky za 6 týdnů",
@@ -8894,14 +9239,7 @@
   "kind": "str"
  },
  {
-  "t": "Program je prázdný.",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Program je u klienta",
+  "t": "R",
   "files": [
    "client.tsx"
   ],
@@ -8918,6 +9256,13 @@
   "kind": "tpl"
  },
  {
+  "t": "Rychlé odpovědi",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "S tímto klientem zatím nemáte termín.",
   "files": [
    "client.tsx"
@@ -8925,25 +9270,9 @@
   "kind": "jsx"
  },
  {
-  "t": "Sezení",
+  "t": "Soubor se nepodařilo odeslat",
   "files": [
    "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Sezení na úroveň",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "splněno",
-  "files": [
-   "client.tsx",
-   "coach.tsx",
-   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -8955,7 +9284,22 @@
   "kind": "str"
  },
  {
+  "t": "Telefon",
+  "files": [
+   "client.tsx",
+   "docs.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Text upravil jazykový model, čísla jsou z enginu.",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Upravit anamnézu",
   "files": [
    "client.tsx"
   ],
@@ -8983,14 +9327,14 @@
   "kind": "str"
  },
  {
-  "t": "V programu",
+  "t": "Ve vaší péči",
   "files": [
    "client.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Ve vaší péči",
+  "t": "Vede se jen karta pacienta a dokumentace návštěv. Data z hodinek ani zprávy nejsou k dispozici.",
   "files": [
    "client.tsx"
   ],
@@ -9011,13 +9355,6 @@
   "kind": "str"
  },
  {
-  "t": "všechny oblasti",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Vy",
   "files": [
    "client.tsx"
@@ -9025,7 +9362,38 @@
   "kind": "str"
  },
  {
-  "t": "Začít návrat k běhu",
+  "t": "Vyberte…",
+  "files": [
+   "client.tsx",
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "vypršelo",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vytvořit odkaz",
+  "files": [
+   "client.tsx",
+   "coach.tsx",
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vzkaz (klient ho uvidí)",
+  "files": [
+   "client.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Za posledních 6 týdnů bez hlášené bolesti.",
   "files": [
    "client.tsx"
   ],
@@ -9039,18 +9407,19 @@
   "kind": "jsx"
  },
  {
-  "t": "započteno",
+  "t": "Založit kartu",
   "files": [
-   "client.tsx"
+   "client.tsx",
+   "docs.tsx"
   ],
   "kind": "jsx"
  },
  {
-  "t": "Zatím beze změn.",
+  "t": "Zapsat anamnézu",
   "files": [
    "client.tsx"
   ],
-  "kind": "jsx"
+  "kind": "str"
  },
  {
   "t": "Zatím nemáte žádného klienta — převezměte případ z fronty nebo potvrďte žádost o termín.",
@@ -9060,9 +9429,17 @@
   "kind": "jsx"
  },
  {
-  "t": "záznam schválen",
+  "t": "Zavolám vám.",
   "files": [
    "client.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "záznam schválen",
+  "files": [
+   "client.tsx",
+   "today.tsx"
   ],
   "kind": "jsx"
  },
@@ -9097,21 +9474,7 @@
   "kind": "str"
  },
  {
-  "t": "Zpráva k programu",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Zpráva pro klienta k programu (nepovinné)",
-  "files": [
-   "client.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Zprávy",
+  "t": "Zkopírujte odkaz ručně",
   "files": [
    "client.tsx"
   ],
@@ -9134,7 +9497,8 @@
  {
   "t": "zrušeno",
   "files": [
-   "client.tsx"
+   "client.tsx",
+   "practice.tsx"
   ],
   "kind": "str"
  },
@@ -10014,15 +10378,6 @@
   "kind": "str"
  },
  {
-  "t": "Plán",
-  "files": [
-   "coach.tsx",
-   "coachview.tsx",
-   "goal.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "plán ✓",
   "files": [
    "coach.tsx"
@@ -10217,6 +10572,17 @@
   "kind": "str"
  },
  {
+  "t": "Přidat",
+  "files": [
+   "coach.tsx",
+   "plan.tsx",
+   "practice.tsx",
+   "schedule.tsx",
+   "teamconsole.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Přidat trénink",
   "files": [
    "coach.tsx",
@@ -10357,7 +10723,8 @@
   "files": [
    "coach.tsx",
    "coachview.tsx",
-   "goal.tsx"
+   "goal.tsx",
+   "schedule.tsx"
   ],
   "kind": "str"
  },
@@ -10372,6 +10739,15 @@
   "t": "Spárovat s aktivitou",
   "files": [
    "coach.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "splněno",
+  "files": [
+   "coach.tsx",
+   "plan.tsx",
+   "teamconsole.tsx"
   ],
   "kind": "str"
  },
@@ -10562,7 +10938,8 @@
   "files": [
    "coach.tsx",
    "practice.tsx",
-   "report.tsx"
+   "report.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -10704,6 +11081,7 @@
   "t": "Volno",
   "files": [
    "coach.tsx",
+   "schedule.tsx",
    "training.tsx"
   ],
   "kind": "str"
@@ -10724,13 +11102,6 @@
  },
  {
   "t": "Vypnutím se vrátí doporučení a cyklus aplikace; zadaný plán zůstane uložený.",
-  "files": [
-   "coach.tsx"
-  ],
-  "kind": "jsx"
- },
- {
-  "t": "Vytvořit odkaz",
   "files": [
    "coach.tsx"
   ],
@@ -11122,6 +11493,7 @@
   "files": [
    "coachview.tsx",
    "goal.tsx",
+   "schedule.tsx",
    "teamconsole.tsx"
   ],
   "kind": "str"
@@ -11237,6 +11609,7 @@
    "coachview.tsx",
    "goal.tsx",
    "habits.tsx",
+   "plan.tsx",
    "selfprograms.tsx",
    "tabs.tsx"
   ],
@@ -11447,14 +11820,16 @@
  {
   "t": "— vyberte —",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
  {
   "t": "Co jste zjistili, co dělat do příští návštěvy.",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -11468,7 +11843,8 @@
  {
   "t": "Diagnóza: {}{}",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "tpl"
  },
@@ -11483,14 +11859,16 @@
   "t": "Doporučený další postup",
   "files": [
    "conclusion.tsx",
-   "docs.tsx"
+   "docs.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Klient s nahráváním souhlasil.",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
@@ -11499,8 +11877,10 @@
   "files": [
    "conclusion.tsx",
    "docs.tsx",
+   "plan.tsx",
    "profile.tsx",
-   "report.tsx"
+   "report.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
@@ -11514,28 +11894,32 @@
  {
   "t": "mírné",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "mírný",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Nahrání selhalo",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Nahrát návštěvu",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
@@ -11563,7 +11947,8 @@
  {
   "t": "nemůže trénovat",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -11577,7 +11962,8 @@
  {
   "t": "Nevyplňovat",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -11586,7 +11972,9 @@
   "files": [
    "conclusion.tsx",
    "docs.tsx",
-   "profile.tsx"
+   "plan.tsx",
+   "profile.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
@@ -11594,49 +11982,67 @@
   "t": "Objektivně (cílený nález)",
   "files": [
    "conclusion.tsx",
-   "docs.tsx"
+   "docs.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
+  "t": "Oblast",
+  "files": [
+   "conclusion.tsx",
+   "docs.tsx",
+   "plan.tsx",
+   "queue.tsx",
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "omezená",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Omezení objemu tréninku",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "plná, ale s obtížemi",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "plná, bez problému",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Poslat shrnutí klientovi",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
  {
   "t": "Potvrdit: bez zranění",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -11651,7 +12057,8 @@
   "t": "Pracovní závěr / diagnóza",
   "files": [
    "conclusion.tsx",
-   "docs.tsx"
+   "docs.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -11660,8 +12067,10 @@
   "files": [
    "conclusion.tsx",
    "docs.tsx",
+   "plan.tsx",
    "profile.tsx",
-   "report.tsx"
+   "report.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
@@ -11697,7 +12106,8 @@
   "t": "Provedené výkony",
   "files": [
    "conclusion.tsx",
-   "docs.tsx"
+   "docs.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -11711,14 +12121,16 @@
  {
   "t": "Schváleno {}",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "tpl"
  },
  {
   "t": "Schválit záznam",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
@@ -11740,14 +12152,16 @@
   "t": "Shrnutí pro klienta",
   "files": [
    "conclusion.tsx",
-   "docs.tsx"
+   "docs.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
  {
   "t": "silná",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -11756,14 +12170,18 @@
   "files": [
    "conclusion.tsx",
    "docs.tsx",
-   "profile.tsx"
+   "plan.tsx",
+   "profile.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "střední",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "today.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -11771,21 +12189,24 @@
   "t": "Subjektivně (co uvádí klient)",
   "files": [
    "conclusion.tsx",
-   "docs.tsx"
+   "docs.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Účast na tréninku a závodech",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Ukončit nahrávání",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
@@ -11799,35 +12220,40 @@
  {
   "t": "Uložit koncept",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
  {
   "t": "výrazné",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "výrazný",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Výsledek návštěvy",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Výsledek návštěvy (OSTRC)",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
@@ -11835,7 +12261,8 @@
   "t": "žádné",
   "files": [
    "conclusion.tsx",
-   "enginelab.tsx"
+   "enginelab.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -11849,42 +12276,48 @@
  {
   "t": "Závažnost {}/100",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "tpl"
  },
  {
   "t": "Závažnost se spočítá, až budou vyplněné všechny čtyři otázky.",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Záznam je schválený",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Záznam je schválený, shrnutí odešlo klientovi",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "Záznam lze schválit až po začátku návštěvy.",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
  {
   "t": "Záznam nelze otevřít",
   "files": [
-   "conclusion.tsx"
+   "conclusion.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -12955,6 +13388,7 @@
    "datapage.tsx",
    "glossary.tsx",
    "landing.tsx",
+   "plan.tsx",
    "queue.tsx"
   ],
   "kind": "jsx"
@@ -14083,7 +14517,8 @@
  {
   "t": "Návštěva",
   "files": [
-   "docs.tsx"
+   "docs.tsx",
+   "timeline.tsx"
   ],
   "kind": "str"
  },
@@ -14228,13 +14663,6 @@
   "kind": "str"
  },
  {
-  "t": "Příjmení",
-  "files": [
-   "docs.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "probíhá",
   "files": [
    "docs.tsx"
@@ -14271,13 +14699,6 @@
  },
  {
   "t": "Rozsah",
-  "files": [
-   "docs.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Telefon",
   "files": [
    "docs.tsx"
   ],
@@ -14396,13 +14817,6 @@
   "kind": "str"
  },
  {
-  "t": "Založit kartu",
-  "files": [
-   "docs.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Zapíše se, komu, proč a v jakém rozsahu jste dokumentaci předali (§ 4/1 i). Elektronické odeslání vyžaduje elektronickou pečeť nebo podpis a zatím není zapnuté.",
   "files": [
    "docs.tsx"
@@ -14426,7 +14840,8 @@
  {
   "t": "Zatím žádný schválený záznam.",
   "files": [
-   "docs.tsx"
+   "docs.tsx",
+   "visit.tsx"
   ],
   "kind": "jsx"
  },
@@ -15148,7 +15563,8 @@
   "files": [
    "fitness.tsx",
    "goal.tsx",
-   "runprofile.tsx"
+   "runprofile.tsx",
+   "timeline.tsx"
   ],
   "kind": "str"
  },
@@ -15388,7 +15804,8 @@
   "t": "Tabulka",
   "files": [
    "fitness.tsx",
-   "goal.tsx"
+   "goal.tsx",
+   "timeline.tsx"
   ],
   "kind": "str"
  },
@@ -16283,15 +16700,6 @@
   "kind": "str"
  },
  {
-  "t": "Další",
-  "files": [
-   "goal.tsx",
-   "onboarding.tsx",
-   "report.tsx"
-  ],
-  "kind": "jsx"
- },
- {
   "t": "Další zastávka:",
   "files": [
    "goal.tsx"
@@ -16387,7 +16795,8 @@
  {
   "t": "do {}",
   "files": [
-   "goal.tsx"
+   "goal.tsx",
+   "plan.tsx"
   ],
   "kind": "tpl"
  },
@@ -16902,6 +17311,8 @@
   "t": "Název",
   "files": [
    "goal.tsx",
+   "plan.tsx",
+   "schedule.tsx",
    "selfprograms.tsx",
    "teamconsole.tsx",
    "training.tsx"
@@ -17652,6 +18063,7 @@
   "files": [
    "goal.tsx",
    "habits.tsx",
+   "plan.tsx",
    "selfprograms.tsx",
    "tabs.tsx"
   ],
@@ -17739,6 +18151,7 @@
   "files": [
    "goal.tsx",
    "habits.tsx",
+   "plan.tsx",
    "selfprograms.tsx",
    "tabs.tsx"
   ],
@@ -18167,7 +18580,8 @@
  {
   "t": "Zobrazit",
   "files": [
-   "habits.tsx"
+   "habits.tsx",
+   "schedule.tsx"
   ],
   "kind": "str"
  },
@@ -18194,6 +18608,13 @@
   "kind": "str"
  },
  {
+  "t": "Jste v péči: {}. Fyzioterapeut teď vidí vaše běhy, zátěž, spánek a HRV, deník a hlášené bolesti. Sdílení můžete kdykoli ukončit v Péči.",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Jste v týmu Došlapu jako",
   "files": [
    "invite.tsx"
@@ -18209,6 +18630,13 @@
   "kind": "str"
  },
  {
+  "t": "Otevřít Péči",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Otevřít Team Console",
   "files": [
    "invite.tsx"
@@ -18216,7 +18644,35 @@
   "kind": "jsx"
  },
  {
+  "t": "Po přijetí uvidí vaše běhy, zátěž, spánek a HRV, deník a hlášené bolesti. Došlap sleduje zátěž a pomáhá fyzioterapeutovi; nestanovuje diagnózu.",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Pozvánka do týmu",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Pozvánka neplatí",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pozvánka od fyzioterapeuta",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Pozvánku přijímá účet běžce.",
   "files": [
    "invite.tsx"
   ],
@@ -18237,6 +18693,20 @@
   "kind": "jsx"
  },
  {
+  "t": "Přihlaste se nebo si založte účet a pak tento odkaz otevřete znovu. Odkaz platí jen jednou.",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přijmout a sdílet data",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Přijmout pozvánku",
   "files": [
    "invite.tsx"
@@ -18244,9 +18714,17 @@
   "kind": "jsx"
  },
  {
+  "t": "vás zve do péče v Došlapu.",
+  "files": [
+   "invite.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "vlastník",
   "files": [
    "invite.tsx",
+   "practice.tsx",
    "teamconsole.tsx"
   ],
   "kind": "str"
@@ -18774,7 +19252,8 @@
  {
   "t": "Hodinky",
   "files": [
-   "landing.tsx"
+   "landing.tsx",
+   "plan.tsx"
   ],
   "kind": "str"
  },
@@ -20404,6 +20883,76 @@
   "kind": "str"
  },
  {
+  "t": "{} nové",
+  "files": [
+   "messages.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Dobu odpovědi a rychlé odpovědi nastavíte v Praxi.",
+  "files": [
+   "messages.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Jen nepřečtené",
+  "files": [
+   "messages.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klientům se ukazuje: Odpovídám obvykle do {}.",
+  "files": [
+   "messages.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Systém:",
+  "files": [
+   "messages.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vy:",
+  "files": [
+   "messages.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vyřízeno",
+  "files": [
+   "messages.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Žádné konverzace.",
+  "files": [
+   "messages.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zatím bez zpráv",
+  "files": [
+   "messages.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zprávy od klientů",
+  "files": [
+   "messages.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Délka kroku (m). Kratší krok při stejném tempu = vyšší kadence a naopak. Zajímá nás změna proti vaší normě ve srovnatelných podmínkách.",
   "files": [
    "metricinfo.ts"
@@ -20637,14 +21186,16 @@
  {
   "t": "12 týdnů",
   "files": [
-   "metricsheet.tsx"
+   "metricsheet.tsx",
+   "timeline.tsx"
   ],
   "kind": "str"
  },
  {
   "t": "4 týdny",
   "files": [
-   "metricsheet.tsx"
+   "metricsheet.tsx",
+   "timeline.tsx"
   ],
   "kind": "str"
  },
@@ -20658,7 +21209,8 @@
  {
   "t": "8 týdnů",
   "files": [
-   "metricsheet.tsx"
+   "metricsheet.tsx",
+   "timeline.tsx"
   ],
   "kind": "str"
  },
@@ -20908,7 +21460,8 @@
    "MuscleAnatomy.tsx",
    "capacity.tsx",
    "care.tsx",
-   "common.tsx"
+   "common.tsx",
+   "plan.tsx"
   ],
   "kind": "str"
  },
@@ -21049,6 +21602,7 @@
   "files": [
    "MuscleAnatomy.tsx",
    "capacity.tsx",
+   "client.tsx",
    "conclusion.tsx",
    "docs.tsx",
    "enginecompare.tsx",
@@ -21056,12 +21610,14 @@
    "exfigure.tsx",
    "fitness.tsx",
    "landing.tsx",
+   "plan.tsx",
    "report.tsx",
    "routethumb.tsx",
    "rundetail.tsx",
    "runprofile.tsx",
    "tabs.tsx",
-   "ui.tsx"
+   "ui.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -21103,7 +21659,9 @@
   "files": [
    "MuscleAnatomy.tsx",
    "conclusion.tsx",
-   "docs.tsx"
+   "docs.tsx",
+   "plan.tsx",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -22648,7 +23206,8 @@
  {
   "t": "Další týden",
   "files": [
-   "outlook.tsx"
+   "outlook.tsx",
+   "schedule.tsx"
   ],
   "kind": "str"
  },
@@ -23147,7 +23706,8 @@
  {
   "t": "Předchozí týden",
   "files": [
-   "outlook.tsx"
+   "outlook.tsx",
+   "schedule.tsx"
   ],
   "kind": "str"
  },
@@ -23477,6 +24037,1024 @@
   "kind": "jsx"
  },
  {
+  "t": "· {} neodeslaných změn",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· bolest do {}/10",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· končí {}",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· program skončil {}",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} · {}× týdně",
+  "files": [
+   "plan.tsx",
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} · {}× týdně{}",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} ({} cviků)",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}: {} z {}",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "30 minut svižné chůze bez bolesti",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "běh spárován",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Bez intervalů",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Bez seběhů",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez videa",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bolest nad hranicí",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Bolest v běžných činnostech pod 2/10",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "čeká na ráno",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Chůze bez kulhání",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "chybí ranní odpověď",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Dnes bez běhu",
+  "files": [
+   "plan.tsx",
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Do",
+  "files": [
+   "plan.tsx",
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Důvod (klient ho uvidí)",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Důvod změny (povinný, klient ho uvidí)",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Fáze",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Fáze odebrána",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Fáze přidána",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "flex items-center gap-2 rounded-md px-3 py-1.5 text-[13px] {}",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "grid h-7 min-w-9 flex-1 place-items-center rounded text-[11px] font-bold tabular-nums {}",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Historie změn",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Hledat cvik",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Hledat cvik nebo potíž",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Hodnota",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Hranice bolesti",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "každá strana",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kdy",
+  "files": [
+   "plan.tsx",
+   "profile.tsx",
+   "report.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Klient nemá aktuální data.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Klient odškrtl {}× cvičení bez data, plnění po týdnech zatím nejde spočítat.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Klient zatím nemá program od vás.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klient zatím žádné sezení nezaznamenal.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Knihovna cviků",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Knihovna zatím nemá videa; vlastní cvik může mít odkaz na video.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "koncept — klient ho zatím nevidí",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Krát týdně",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "krok zpět",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Max. 20 km týdně",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Max. 5 km na běh",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Náhled úrovní",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "např. 10 kg",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "např. Odlehčení",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "např. výpony na jedné noze L 25 / P 18",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nastavit",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Návrh programu je připravený",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Navrhnout program",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Název šablony",
+  "files": [
+   "plan.tsx",
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nedokončeno",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "nejvýš {}/10",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "nezapočteno",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nová fáze",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "O úroveň zpět",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "obecná",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Obnovit",
+  "files": [
+   "plan.tsx",
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "od {} · hranice bolesti {}/10 · {} sezení na úroveň",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Odebrat {}",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Odebrat fázi {}",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Odebrat úroveň",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "odesláno {} · verze {}",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Odeslat klientovi",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odeslat klientovi novou verzi",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odkaz na video (https://…)",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Omezení platí, Trénink ho zobrazí s důvodem",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Omezení tréninku",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Opakování",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Opakovat úroveň",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Plán je pozastavený.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán návratu je u klienta",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán se pozastavil: bolest nad hranicí (při sezení nebo ráno).",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plán upraven, klient dostal zprávu",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Plnění po týdnech",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pokyn",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Popis",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Pořadí uloženo",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Poslední hlášená bolest je {}/10, na hranici nebo nad ní.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Poslední plán byl ukončen.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Poslední plán je splněný.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Posunout dolů",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Posunout nahoru",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Potvrzuji, že jsem stav klienta ověřil(a).",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Použít šablonu",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Použít šablonu…",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Pozastavit",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Poznámka pro klienta (nepovinné)",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přidáno",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přidáno: {}",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Přidat cvik",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přidat fázi",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "příliš brzy po minulém",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Připravenost před startem",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Program je u klienta",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Program ze šablony je připravený",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "ráno hůř než při sezení",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "ráno nad hranicí",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "rounded-full border px-2.5 py-0.5 text-[12px] {}",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "rounded-full border px-2.5 py-1 text-[12px] {}",
+  "files": [
+   "plan.tsx",
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "RPE",
+  "files": [
+   "plan.tsx",
+   "rundetail.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Šablona",
+  "files": [
+   "plan.tsx",
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Série",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Sezení",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Sezení na úroveň",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Tempo",
+  "files": [
+   "plan.tsx",
+   "report.tsx",
+   "rundetail.tsx",
+   "runprofile.tsx",
+   "training.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Testy síly a poskoků (vaše hodnoty)",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Trénink klienta vezme nižší z hodnot: vaše omezení, nebo strop enginu. Výsledek enginu se nemění.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Týdnů",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Ukončit plán návratu?",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uloženo jako neodeslaná změna",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uloženo jako šablona",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uložit do knihovny",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Uložit jako šablonu",
+  "files": [
+   "plan.tsx",
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "únavové přetížení kosti",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Únavové přetížení kosti: návrat vede fyzioterapeut s dalším uvolněním, případně se souhlasem lékaře.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Uplynulé týdny celé, aktuální týden podle uplynulých dnů.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Úr.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "úroveň se opakuje",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "V programu",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "vlastní cvik",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vlastní cvik",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "všechny oblasti",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "všechny úrovně",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Výdrž (s)",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Začít návrat k běhu",
+  "files": [
+   "plan.tsx",
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Žádná noční bolest ani ranní otok",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "započteno",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zatím bez cviků.",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zpráva k programu",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zpráva pro klienta k programu (nepovinné)",
+  "files": [
+   "plan.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· zkušební období do {}",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "(neaktivní)",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "{} · vaše role: {}",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} {} × {} Kč = {} Kč měsíčně",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "aktivní",
+  "files": [
+   "practice.tsx",
+   "tabs.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Aktivovat",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Člen přidán",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Deaktivovat",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "E-mail a SMS zatím nejsou napojené; upozornění chodí v aplikaci.",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "E-mail kolegy",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "IČO",
   "files": [
    "practice.tsx"
@@ -23491,7 +25069,56 @@
   "kind": "str"
  },
  {
+  "t": "jen pro čtení",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kapacita a komunikace",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klient přijal pozvánku",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Klient zrušil termín",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "kompletní",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "míst",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "místa",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "místo",
   "files": [
    "practice.tsx"
   ],
@@ -23519,7 +25146,28 @@
   "kind": "str"
  },
  {
+  "t": "např. do 24 hodin v pracovní dny",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nastavení uloženo",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Název poskytovatele",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nepodepsaný záznam večer",
   "files": [
    "practice.tsx"
   ],
@@ -23533,7 +25181,35 @@
   "kind": "jsx"
  },
  {
+  "t": "Nová žádost o termín",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nových klientů za týden (max.)",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Obvykle odpovídám",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Odborná způsobilost",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "po splatnosti",
   "files": [
    "practice.tsx"
   ],
@@ -23561,6 +25237,70 @@
   "kind": "str"
  },
  {
+  "t": "Předplatné: {}",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Přesunutý termín",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přijímám nové klienty",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Recepce se do míst nepočítá. Platby zatím nejsou zapnuté.",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Recepce vidí kalendář a platby, ne klinická data.",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Role",
+  "files": [
+   "practice.tsx",
+   "teamconsole.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Role {}",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Rychlé odpovědi (jedna na řádek)",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Samostatná praxe. Kolegu přidáte e-mailem jeho účtu v Došlapu.",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Sídlo — obec",
   "files": [
    "practice.tsx"
@@ -23582,11 +25322,39 @@
   "kind": "str"
  },
  {
+  "t": "správce",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Storno podmínky (klient je uvidí při rezervaci)",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Také e-mailem (bez zdravotních údajů)",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Titul",
   "files": [
    "practice.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Tým praxe",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Tyto údaje se otisknou do každého záznamu z návštěvy a do tisku dokumentace. Bez nich nejde první záznam schválit.",
@@ -23617,6 +25385,13 @@
   "kind": "jsx"
  },
  {
+  "t": "Uložit nastavení",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "V profilu máte specializaci „{}“. Do odborné způsobilosti ji nepřenášíme automaticky.",
   "files": [
    "practice.tsx"
@@ -23629,6 +25404,13 @@
    "practice.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": "zkušební období",
+  "files": [
+   "practice.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": ": užší rezervy na běh",
@@ -23862,14 +25644,6 @@
   "t": "každodenní",
   "files": [
    "profile.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Kdy",
-  "files": [
-   "profile.tsx",
-   "report.tsx"
   ],
   "kind": "str"
  },
@@ -24277,7 +26051,8 @@
  {
   "t": "Skrýt",
   "files": [
-   "profile.tsx"
+   "profile.tsx",
+   "schedule.tsx"
   ],
   "kind": "str"
  },
@@ -24617,7 +26392,8 @@
  {
   "t": "Důvod",
   "files": [
-   "queue.tsx"
+   "queue.tsx",
+   "schedule.tsx"
   ],
   "kind": "str"
  },
@@ -25268,13 +27044,6 @@
    "report.tsx"
   ],
   "kind": "jsx"
- },
- {
-  "t": "Dnes bez běhu",
-  "files": [
-   "report.tsx"
-  ],
-  "kind": "str"
  },
  {
   "t": "Dnes odvedeno · dnes ještě smíte",
@@ -26253,16 +28022,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Tempo",
-  "files": [
-   "report.tsx",
-   "rundetail.tsx",
-   "runprofile.tsx",
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "tepů/min",
   "files": [
    "report.tsx",
@@ -26889,13 +28648,6 @@
   "kind": "str"
  },
  {
-  "t": "RPE",
-  "files": [
-   "rundetail.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Sklon",
   "files": [
    "rundetail.tsx"
@@ -26951,7 +28703,8 @@
   "t": "těžké",
   "files": [
    "rundetail.tsx",
-   "selfprograms.tsx"
+   "selfprograms.tsx",
+   "tabs.tsx"
   ],
   "kind": "str"
  },
@@ -27232,6 +28985,244 @@
   "kind": "str"
  },
  {
+  "t": "· {} Kč",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· +{} min pauza",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} ({} min)",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} min{}{}",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{} volných",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Cena Kč",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Délka termínu",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "dovolená, školení…",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Důvod (nepovinné)",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "jen jednou",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kalendář v telefonu",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "min-h-24 rounded-lg border p-2 {}",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Minut",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Náhled: {} termínů v příštích 14 dnech (před odečtením obsazených).",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Naplánováno: {}",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Naplánovat",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "návštěva",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Návštěva (45 min)",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nic se nenaplánovalo",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Od",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odkaz je připravený",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Opakovat týdně",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Pracovní doba",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Pracovní doba uložena",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přidat blok",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Přidat návštěvu",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Služby",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Smazat volno",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Soukromý odkaz pro Google, Apple nebo Outlook kalendář. Obsahuje jen iniciály klienta a službu. Nový odkaz zruší ten starý.",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Týden {} – {}",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Uložit pracovní dobu",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Z pracovní doby se počítají volné časy, ze kterých si klienti vybírají. Obsazené a volno se odečtou.",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "žádost",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Zatím žádné služby — klienti uvidí obecnou návštěvu.",
+  "files": [
+   "schedule.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "· {} týdnů",
   "files": [
    "selfprograms.tsx"
@@ -27358,6 +29349,13 @@
   "kind": "tpl"
  },
  {
+  "t": "{}× týdně",
+  "files": [
+   "selfprograms.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "← Zpět",
   "files": [
    "selfprograms.tsx"
@@ -27389,7 +29387,8 @@
  {
   "t": "akorát",
   "files": [
-   "selfprograms.tsx"
+   "selfprograms.tsx",
+   "tabs.tsx"
   ],
   "kind": "str"
  },
@@ -27621,7 +29620,8 @@
  {
   "t": "lehké",
   "files": [
-   "selfprograms.tsx"
+   "selfprograms.tsx",
+   "tabs.tsx"
   ],
   "kind": "str"
  },
@@ -28223,6 +30223,13 @@
    "shell.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-bold transition {}",
+  "files": [
+   "shell.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "m nahoru",
@@ -28843,13 +30850,6 @@
   "kind": "jsx"
  },
  {
-  "t": "aktivní",
-  "files": [
-   "tabs.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "B1",
   "files": [
    "tabs.tsx"
@@ -29030,6 +31030,13 @@
    "tabs.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": "Bolest při cviku",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "Bolest se objevila {}×, zatím ojediněle. Držte oči na tom, jestli se neopakuje.",
@@ -29740,6 +31747,14 @@
   "kind": "str"
  },
  {
+  "t": "Náročnost",
+  "files": [
+   "tabs.tsx",
+   "training.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
   "t": "Náročnost celého tréninku",
   "files": [
    "tabs.tsx"
@@ -30167,6 +32182,13 @@
   "kind": "tpl"
  },
  {
+  "t": "rounded-full border px-2.5 py-1 font-bold {}",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "Rozdíl",
   "files": [
    "tabs.tsx"
@@ -30245,6 +32267,13 @@
  },
  {
   "t": "size-5 shrink-0 text-load transition {}",
+  "files": [
+   "tabs.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "size-7 rounded-full border text-[12px] font-bold {}",
   "files": [
    "tabs.tsx"
   ],
@@ -31721,13 +33750,6 @@
   "kind": "jsx"
  },
  {
-  "t": "Obnovit",
-  "files": [
-   "teamconsole.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Od lidí",
   "files": [
    "teamconsole.tsx"
@@ -32079,13 +34101,6 @@
   "kind": "str"
  },
  {
-  "t": "Role",
-  "files": [
-   "teamconsole.tsx"
-  ],
-  "kind": "str"
- },
- {
   "t": "Role platí pro účet, který otevřel odkaz z pozvánky přihlášený e-mailem, na který byla poslaná. Klinický garant schvaluje změny enginu a bezpečnosti, podpora třídí Inbox, auditor jen čte. Vlastníky z proměnné DOSSLAP_OWNER_EMAILS tady změnit nelze.",
   "files": [
    "teamconsole.tsx"
@@ -32424,7 +34439,8 @@
  {
   "t": "Vyřešeno",
   "files": [
-   "teamconsole.tsx"
+   "teamconsole.tsx",
+   "today.tsx"
   ],
   "kind": "jsx"
  },
@@ -32574,6 +34590,279 @@
    "teamconsole.tsx"
   ],
   "kind": "jsx"
+ },
+ {
+  "t": ", ráno {}/10",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· bez běhu",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "· bolest {} {}/10",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· cvičení {}×",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "· návrat: úroveň {}, bolest {}/10{}",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "26 týdnů",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Běh (km za den)",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Bez hlášené bolesti.",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Bolest podle místa",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Bolest podle místa (0–10)",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Cvičení",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Cvičení a návrat k běhu",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Cvičení a sezení návratu",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Kilometry za den",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Legenda",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Najeďte na den v grafu.",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Odchylka od vlastní normy (0 = v normě)",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Omezení",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "svislé čáry: plná = návštěva, čárkovaná = program, omezení, zranění",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "V tomto období klient nemá data ani události.",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Zátěž, mechanika a příznaky",
+  "files": [
+   "timeline.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "bez pokynů k přípravě",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Dnes žádná návštěva.",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kdo mě potřebuje",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Návštěvy dnes",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nepodepsané záznamy",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nepřečtené zprávy",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nic nového.",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nové případy ve frontě: {}",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Odloženo na 24 hodin",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Odložit",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Označeno jako vyřešené",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "po termínu",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Vše podepsané.",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "vysoká",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Žádné upozornění.",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Žádné žádosti o termín.",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Žádosti a nové případy",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Žádosti o termín: {}",
+  "files": [
+   "today.tsx"
+  ],
+  "kind": "tpl"
  },
  {
   "t": "— odlehčovací",
@@ -33473,13 +35762,6 @@
  },
  {
   "t": "Naplno",
-  "files": [
-   "training.tsx"
-  ],
-  "kind": "str"
- },
- {
-  "t": "Náročnost",
   "files": [
    "training.tsx"
   ],
@@ -34858,13 +37140,6 @@
   "kind": "str"
  },
  {
-  "t": "Upozornění{}",
-  "files": [
-   "ui.tsx"
-  ],
-  "kind": "tpl"
- },
- {
   "t": "whitespace-nowrap rounded-full font-bold transition {} {}",
   "files": [
    "ui.tsx"
@@ -34905,6 +37180,356 @@
    "usageconsent.tsx"
   ],
   "kind": "str"
+ },
+ {
+  "t": ", max {}/10",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}: splněno {} %",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "{}{}Nález: {}",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "1. Důvod návštěvy a otázky klienta",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "2. Od poslední návštěvy",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "3. Plán a skutečnost",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "4. Poslední záznam a plán",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "5. Chybějící data",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Automatické uložení selhalo",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Bez programu.",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Bolest ve {} dnech, nejvýš {}/10{}.",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Chce probrat:",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Data jsou kompletní.",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Důvod:",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Hlášená místa: {}",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Klient důvod neuvedl.",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Klinický nález se klientovi automaticky neodesílá. Klient má právo nahlížet do dokumentace.",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Kontrola naplánována na {}",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Mikrofon není dostupný",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Minule:",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Nahrávka",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Nález na mapě těla",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Naplánovat kontrolu",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Neuložené změny…",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Od {}: {} běhů, {} km.",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Od {}: {} běhů, bolest ve {} dnech{}",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Omezení: {}",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Otevřít záznam z návštěvy",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Plán:",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Před návštěvou",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Předchozí schválený záznam není",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Přepis hotový — zkontrolujte ho",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Příprava na návštěvu",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Program splněn na {} %",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "rounded-full border px-3 py-1.5 text-[13px] {}",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Šablona uložena",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Šablona…",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Shrnutí neodesláno",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Shrnutí odesláno",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Termín za 2 týdny koliduje — vyberte jiný v Kalendáři",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Uloženo {}",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Upravit program",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Vstupní dotazník: {}",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Vyberte místa; připíšou se do objektivního nálezu.",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Žádná hlášená bolest.",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Žádná hypotéza.",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
+ },
+ {
+  "t": "Závěr:",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "Záznam z návštěvy {}",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Zkopírováno ze záznamu {} — bez OSTRC",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
+  "t": "Zkopírovat z minula",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "jsx"
  },
  {
   "t": "block text-[10.5px] leading-[14px] text-fg-3 {}",

@@ -698,7 +698,7 @@ function SheetBody({ onClose, children, footer, layer = "z-[80]" }: { open: bool
           onPointerMove={(e) => move(e.clientY)}
           onPointerUp={(e) => end(e.clientY)}
           onPointerCancel={() => end(null)}>
-          <span className="h-1 w-10 rounded-full bg-white/25" aria-hidden="true" />
+          <span className="h-1 w-10 rounded-full bg-white/25" aria-hidden="true" data-sheet-handle="" />
           <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={onClose} aria-label="Zavřít"
             className="absolute right-3 top-2 grid size-8 place-items-center rounded-full text-fg-3 transition hover:bg-white/[.06] hover:text-fg"><X className="size-4" aria-hidden /></button>
         </div>

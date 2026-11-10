@@ -32,7 +32,7 @@ import { NotFound, RouteError, TabBoundary, installCrashReporting } from "@/cras
 import { AssistantProvider, CoachFab, WhyButton } from "@/assistant"
 import { AdminPage, ViewAsBanner } from "@/admin"
 import { PhysioApp } from "@/physio/app"
-import { InvitePage } from "@/invite"
+import { ClientInvitePage, InvitePage } from "@/invite"
 import { RunDetail } from "@/rundetail"
 import { track, useUsageTracking } from "@/usage"
 import { startUpdateWatcher } from "@/updateCheck"
@@ -2120,6 +2120,7 @@ const router = createBrowserRouter([
   { path: "/trener/:token", Component: CoachPage, ErrorBoundary: RouteError },
   // review 2026-10-30 N1: a Team Console invitation is accepted by the invited account through its link
   { path: "/pozvanka/:token", Component: InvitePage, ErrorBoundary: RouteError },
+  { path: "/pozvani/:token", Component: ClientInvitePage, ErrorBoundary: RouteError },   // physio brief W2
   {
     Component: Layout,
     ErrorBoundary: RouteError,

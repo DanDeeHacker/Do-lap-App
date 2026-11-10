@@ -2356,7 +2356,7 @@ export function Program() {
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-accent" style={{ width: `${Math.round(((e.done_count || 0) / (e.target_count || 12)) * 100)}%` }} /></div>
                 </div>
                 <span className="tabular-nums text-[12px] text-fg-2">{e.done_count}/{e.target_count}</span>
-                <Button size="sm" variant="outline" onClick={async () => { await api.logEx(rid, e.id); toast({ title: "Zapsáno" }); refresh() }}>Hotovo</Button>
+                <ExDone onSave={async (body) => { await api.logEx(rid, e.id, body); toast({ title: "Zapsáno" }); refresh() }} />
               </div>
             ))}
           </div>
@@ -2378,3 +2378,28 @@ export function Program() {
 // (Removed the unreachable `Messages` chat tab: the "messages" route renders
 // <Care/>, whose PhysioChat is the live physio conversation. The old standalone
 // Messages component had no import or route and only risked drifting out of sync.)
+
+// physio brief 2026-11-09 W10.8: one tap marks the session, then optionally how much it hurt and how hard
+// it was — the physio sees both next to the adherence
+function ExDone({ onSave }: { onSave: (body: { pain?: number; difficulty?: number }) => Promise<void> }) {
+  const [open, setOpen] = useState(false)
+  const [pain, setPain] = useState<number | null>(null)
+  const [diff, setDiff] = useState<number | null>(null)
+  if (!open) return <Button size="sm" variant="outline" onClick={() => setOpen(true)}>Hotovo</Button>
+  return (
+    <div className="grid w-full max-w-[260px] gap-1.5 text-[12px]" data-testid="ex-done">
+      <span className="text-fg-3">Bolest při cviku</span>
+      <span className="flex flex-wrap gap-1">{[0, 1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+        <button key={n} type="button" aria-pressed={pain === n} onClick={() => setPain(n)}
+          className={`size-7 rounded-full border text-[12px] font-bold ${pain === n ? "border-accent bg-accent text-ink" : "border-white/15 text-fg-2"}`}>{n}</button>))}</span>
+      <span className="text-fg-3">Náročnost</span>
+      <span className="flex gap-1">{([[2, "lehké"], [3, "akorát"], [4, "těžké"]] as [number, string][]).map(([n, l]) => (
+        <button key={n} type="button" aria-pressed={diff === n} onClick={() => setDiff(n)}
+          className={`rounded-full border px-2.5 py-1 font-bold ${diff === n ? "border-accent bg-accent text-ink" : "border-white/15 text-fg-2"}`}>{l}</button>))}</span>
+      <span className="flex gap-1.5">
+        <Button size="sm" onClick={async () => { await onSave({ pain: pain ?? undefined, difficulty: diff ?? undefined }); setOpen(false); setPain(null); setDiff(null) }}>Uložit</Button>
+        <Button size="sm" variant="outline" onClick={() => setOpen(false)}>Zpět</Button>
+      </span>
+    </div>
+  )
+}

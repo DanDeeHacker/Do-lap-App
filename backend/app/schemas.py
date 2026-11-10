@@ -126,6 +126,10 @@ class BookRequest(Lenient):
 
 class PhysioInterestRequest(Lenient):
     interested: bool = True
+    # physio brief W4: the case's reason, duration and red-flag answers, collected when the runner asks
+    reason: Optional[str] = None
+    duration: Optional[str] = None
+    red_flags: Optional[dict[str, Any]] = None
 
 
 class GarminCredsRequest(Lenient):
@@ -177,9 +181,15 @@ class CycleWeekRequest(Lenient):
 
 
 class SlotBookRequest(Lenient):
-    slot_id: int
+    slot_id: Optional[int] = None
     kind: str = "assessment"
     note: Optional[str] = None
+    # physio brief W5/W16: a computed free time, the service, the reason and the questions for the visit
+    physio_id: Optional[str] = None
+    starts_at: Optional[str] = None
+    service_id: Optional[int] = None
+    questions: Optional[str] = None
+    reason: Optional[str] = None
 
 
 class AddSlotRequest(Lenient):
@@ -251,6 +261,9 @@ class CreateRtrRequest(Lenient):
     note: Optional[str] = None
     conclusion_id: Optional[int] = None
     levels: Optional[list[dict[str, Any]]] = None
+    # physio brief W11: the readiness gate (ticked items and the physio's own tests) and a region template
+    readiness: Optional[dict[str, Any]] = None
+    template: Optional[str] = None
 
 
 class LogRtrSessionRequest(Lenient):
@@ -313,3 +326,15 @@ class DayPinRequest(Lenient):
     min: float | None = None
     session: str | None = None
     move_to: str | None = None
+
+
+class RtrMorningRequest(Lenient):
+    """physio brief W11: Jak to bolí dnes ráno?"""
+    pain: Optional[int] = None
+    stiffness_min: Optional[int] = None
+
+
+class RtrControlRequest(Lenient):
+    """physio brief W11.9: resume, repeat_level, step_back, edit_levels, end."""
+    action: str
+    levels: Optional[list[dict[str, Any]]] = None

@@ -6,7 +6,7 @@ write on the runner's behalf) once they've claimed the case.
 """
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 from sqlalchemy.orm import Session as DBSession
 
 from .. import history as H
@@ -327,7 +327,7 @@ def bootstrap(rid: str, user: models.User = Depends(get_current_user), db: DBSes
     program_out = None
     if program:
         from .programs import program_out as _pout
-        program_out = _pout(db, program)
+        program_out = _pout(db, program, runner=user.role == "runner")
     messages = visible_messages(db, rid, user)
     integration = db.query(models.Integration).filter(models.Integration.runner_id == rid).first()
     device_history = (
@@ -1016,17 +1016,26 @@ def get_program(rid: str, user: models.User = Depends(get_current_user), db: DBS
     if not p:
         return None
     from .programs import program_out
-    return program_out(db, p)   # physio brief P0.8: stable order, ends_on
+    return program_out(db, p, runner=user.role == "runner")   # physio brief P0.8 / W10: the published version
 
 
 @router.patch("/{rid}/exercises/{ex_id}/log", dependencies=[Depends(verify_csrf)])
-def log_exercise(rid: str, ex_id: int, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
+def log_exercise(rid: str, ex_id: int, body: dict | None = Body(default=None), user: models.User = Depends(get_current_user),
+                 db: DBSession = Depends(get_db)):
     ensure_runner_self(user, rid)
     ex = or_404(db.query(models.Exercise).filter(models.Exercise.id == ex_id).first(), "Cvik nenalezen")
     prog = or_404(db.query(models.Program).filter(models.Program.id == ex.program_id).first())
     if prog.runner_id != rid:
         raise HTTPException(status_code=403, detail="Nemáte přístup k tomuto cviku")
     ex.done_count = min(ex.target_count or ex.done_count, (ex.done_count or 0) + 1)
+    # physio brief W10.8: the session — done, pain 0–10, difficulty 1–5 — dated for adherence
+    pain, diff = (body or {}).get("pain"), (body or {}).get("difficulty")
+    if pain is not None and not (isinstance(pain, int) and 0 <= pain <= 10):
+        raise HTTPException(status_code=422, detail="Bolest 0–10")
+    if diff is not None and not (isinstance(diff, int) and 1 <= diff <= 5):
+        raise HTTPException(status_code=422, detail="Náročnost 1–5")
+    db.add(models.ExerciseLog(exercise_id=ex.id, program_id=prog.id, runner_id=rid, logged_on=E.iso_date(E.today_date()),
+                              pain=pain, difficulty=diff, created_at=E.now_iso()))
     db.commit()
     db.refresh(ex)
     return to_dict(ex)

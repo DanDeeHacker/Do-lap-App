@@ -1449,6 +1449,12 @@ export function Training() {
           )}
         </div>
       </div>
+      {/* physio brief 2026-11-09 W12.3: the physio's limits, with who set them and why */}
+      {(g.limits || []).length > 0 && (
+        <div className="mt-3 rounded-xl border border-watch/40 bg-watch/10 px-3 py-2 text-[13px] leading-5 text-fg" data-testid="physio-limits">
+          {(g.limits as string[]).map((t, i) => <p key={i}>{t}</p>)}
+        </div>
+      )}
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
         <div className="min-w-0">

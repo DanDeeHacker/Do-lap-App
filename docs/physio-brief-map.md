@@ -84,3 +84,28 @@ privacy, message audience, API docs) → a `/cso` report.
 policy and the yearly object-locked copy; the production database decision (SQLite volume vs managed
 Postgres in the EU). Provider documents from Appendix C. The MKN-10 file must be downloaded from ÚZIS by a
 person and imported with the script; the running-injury shortlist needs a physio's review.
+
+## Phase 2 — the working day
+
+| Item | Code | Tests |
+|---|---|---|
+| W1 practice and roles | `models.ClinicMember`, `models.Subscription`; `work.ensure_clinic/role_of/can` (owner, admin, physio, reception); reception refused in `deps.has_care_assignment` and `records.doc_access`; `/api/physios/me/clinic`, members, `/clients/{rid}/transfer`, `PATCH /api/bookings/{bid}/payer` (default `client`); UI Praxe → Tým praxe, client card → Další | `test_working_day.py` |
+| W2 invites | `models.ClientInvite` (sha256 token, 14 days, single use); `/api/physios/me/invites`, public `/api/invites/{token}`, accept starts care without the queue; client without the app (`/clients/no-app`); UI Klienti → Pozvat klienta / Klient bez aplikace, page `/pozvani/:token` | `test_working_day.py` |
+| W3 Dnes | `/api/physios/me/today` (visits, requests, alerts from `work.refresh_alerts`, unsigned records, unread messages); `PATCH /api/alerts/{id}`; UI `physio/today.tsx` | `test_working_day.py` |
+| W4 requests and capacity | reason, duration and red flags stored with the interest (`booking.set_interest`); `work`/`routers/work.capacity_full`; full physios get no new matches | `test_working_day.py` |
+| W5 calendar | `AvailabilityRule`, `TimeOff`, `Service`; `work.free_times` in Europe/Prague (DST-safe); `/api/physios/{pid}/calendar`, `/me/visits` (weekly series, conflicts per date), private ICS feed; computed free times bookable; UI `physio/schedule.tsx` (week, add visit, working hours with preview, time off, services, ICS) | `test_working_day.py`, `test_booking.py` |
+| W6 client page | five tabs (Přehled, Časová osa, Plán, Dokumentace, Zprávy, old `?tab=` redirect), sticky header from `physios._header` (diagnosis, phase, next visit, data freshness, limits), editable anamnesis, pain by place, weekly adherence | |
+| W7 timeline | `/api/physios/me/clients/{rid}/timeline`; `physio/timeline.tsx` small multiples on one date axis, gaps not interpolated, table view | `test_working_day.py` (access) |
+| W8 preparation | `/clients/{rid}/previsit`; `physio/visit.tsx` `PrevisitPage` | |
+| W9 visit note | note templates, last note, 5 s autosave, body-map chips; `physio/visit.tsx` `VisitEditor` | |
+| W10 programme builder | phases, structured dose, order, custom exercises, templates; edits are drafts, publish asks for the reason the client sees (`ProgramVersion`); runner logs pain and difficulty (`ExerciseLog`); UI `physio/plan.tsx`, runner `tabs.ExDone` | `test_program_integrity.py` |
+| W11 return to running v2 | readiness gate, templates (general, Achilles, bone stress with a warning), session counts only after the next-morning answer (36 h window), controls; UI `physio/plan.tsx`, runner `care.MorningPrompt` | `test_rtr.py` |
+| W12 limits | `ClinicalLimit`; `work.apply_limits` at the presentation layer (engine output unchanged, no version bump); Trénink shows who set it and why | `test_working_day.py` |
+| W13 messages | inbox, handled, attachments (images ≤ 8 MB, video ≤ 50 MB, access-checked download), quick replies | |
+| W14 profile and practice | capacity, response time, cancellation policy, notification settings; rating shown from 5 reviews | |
+| W15 notifications | `work.Notifier` (in-app; e-mail and SMS only logged until a provider is chosen), bodies without health details; reminders once | `test_working_day.py` |
+| W16 runner booking | confirmation step with service, reason, questions and the cancellation policy; intake questionnaire; visit summaries in Péče | `test_working_day.py` |
+| W17 light theme | `[data-surface="physio"]` tokens in `index.css` | |
+
+**Left for later:** a QR code for the invite (needs a library; the link can be copied or sent); e-mail and
+SMS delivery (provider and contract); video in the exercise library (content).

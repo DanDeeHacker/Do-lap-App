@@ -549,10 +549,17 @@ def build_and_seed(db: DBSession) -> None:
     db.add(prog)
     db.flush()
     for n, dose, pw, cue in lib_for(a0.prior_injury):
-        db.add(models.Exercise(
+        ex = models.Exercise(
             program_id=prog.id, name=n, dose=dose, per_week=pw, cue=cue,
             done_count=math.floor(rand() * 7) + 2, target_count=12,
-        ))
+        )
+        db.add(ex)
+        db.flush()
+        # physio brief 2026-11-09 W10.8: the sessions are dated, so adherence by week has something to count
+        for k in range(ex.done_count):
+            db.add(models.ExerciseLog(exercise_id=ex.id, program_id=prog.id, runner_id=a0.id,
+                                      logged_on=E.day_ago(8 - (k * 8) // max(1, ex.done_count))[:10],
+                                      pain=math.floor(rand() * 4), difficulty=3, created_at=E.day_ago(0)))
     db.add(models.ProgramRevision(
         program_id=prog.id, physio_id=p0.id, at=E.day_ago(4),
         note="Pacientka hlásila bolest 4/10 po výponech — snížena frekvence z 6 na 5× týdně.",
@@ -575,8 +582,10 @@ def build_and_seed(db: DBSession) -> None:
         ))
     db.add(models.Booking(
         runner_id=a0.id, physio_id=p0.id,
-        slot_at=(datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
-        kind="gait_analysis", status="confirmed", price_czk=1490, payer="employer", created_at=E.day_ago(9),
+        # physio brief 2026-11-09 P0.12: in two days at 10:00 Prague time, inside Tereza's hours (not "now + 48 h")
+        slot_at=datetime.combine(E.today_date() + timedelta(days=2), datetime.min.time().replace(hour=10),
+                                 E.LOCAL_TZ).astimezone(timezone.utc).isoformat(),
+        kind="gait_analysis", status="confirmed", price_czk=1490, payer="client", created_at=E.day_ago(9),
     ))
     # physio brief 2026-11-09 P0.12: the physio is Tereza (feminine forms), messages have real times,
     # and the chat does not act on vertical-ratio drift, which the thesis calls unproven
@@ -620,6 +629,19 @@ def _seed_records(db, physio, runner) -> None:
         clinic.registered_postal_code = clinic.care_site_postal_code = "170 00"
         clinic.provider_details_confirmed_at = E.now_iso()
         physio.title, physio.qualification = "Mgr.", "Fyzioterapeut (ukázkový účet)"
+    # physio brief Phase 2: every demo physio is a clinic member; Tereza has working hours and services
+    from . import work as W
+    for ph in db.query(models.Physio).all():
+        W.ensure_clinic(db, ph)
+    if not db.query(models.Service).filter_by(physio_id=physio.id).first():
+        for k, (name, mins, price) in enumerate((("Vstupní vyšetření", 60, 1290), ("Kontrola", 45, 990),
+                                                  ("Analýza běhu", 60, 1490))):
+            db.add(models.Service(physio_id=physio.id, clinic_id=physio.clinic_id, name_cs=name, duration_minutes=mins,
+                                  price_czk=price, buffer_minutes=10 if mins == 60 else 0, sort_order=k + 1, active=True))
+    if not db.query(models.AvailabilityRule).filter_by(physio_id=physio.id).first():
+        for wd, (a, b) in {0: ("08:00", "12:00"), 1: ("13:00", "18:00"), 3: ("08:00", "16:00")}.items():
+            db.add(models.AvailabilityRule(physio_id=physio.id, clinic_id=physio.clinic_id, weekday=wd, start_local=a,
+                                           end_local=b, slot_minutes=60, active=True))
     if clinic is not None and R.card(db, clinic.id, runner.id) is None:
         first, last = R._split_name(runner.name)
         db.add(models.PatientRecord(

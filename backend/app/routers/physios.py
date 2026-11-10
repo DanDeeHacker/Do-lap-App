@@ -11,6 +11,7 @@ from .. import models
 from ..db import get_db
 from ..deps import require_role, require_verified_physio
 from .. import care_view as CV
+from .. import records as R
 from ..metrics import ai_brief, engine as E
 from ..serializers import to_dict, to_dicts
 
@@ -121,6 +122,12 @@ def _profile_out(db: DBSession, p: models.Physio, user: models.User) -> dict:
             "clinic": {"id": clinic.id, "name": clinic.name, "city": clinic.city} if clinic else None,
             "email": user.email, "complete": bool(p.credential and clinic and clinic.city),
             "verified": bool(p.verified_at),
+            # physio brief 2026-11-09 W4/W13/W14: the settings the working day reads
+            "accepting_new_clients": p.accepting_new_clients is not False, "max_new_per_week": p.max_new_per_week,
+            "response_time_text": p.response_time_text, "cancellation_policy": p.cancellation_policy,
+            "notify_settings": p.notify_settings or {}, "quick_replies": p.quick_replies or [],
+            "dark_mode": bool(p.dark_mode), "photo_url": p.photo_url, "rating_count": p.rating_count or 0,
+            "has_ics": bool(p.ics_token),
             # physio brief 2026-11-09 P0.1: what the app may offer, from configuration, no network call
             "capabilities": ai_brief.capabilities()}
 
@@ -329,7 +336,53 @@ def client_overview(rid: str, user: models.User = Depends(require_verified_physi
                       "conclusion": ({"id": concl[b.id].id, "status": concl[b.id].status} if b.id in concl else None)}
                      for b in bks],
         "rtr": _plan_dict(db, rtr) if rtr else None,
+        **_header(db, pid, rid, cis),
     }
+
+
+def _header(db: DBSession, pid: str, rid: str, cis: list) -> dict:
+    """physio brief W6.2: the sticky header (diagnosis and side, phase, next visit, last data) and the body map
+    from the check-ins' pain points (W6.5); the clinic's colleagues for a transfer (W1.5)."""
+    from .. import care_view as CV
+    from .. import work as W
+    ep = (db.query(models.CareEpisode).filter_by(physio_id=pid, runner_id=rid, status="open")
+          .order_by(models.CareEpisode.id.desc()).first())
+    nxt = (db.query(models.Booking).filter(models.Booking.runner_id == rid, models.Booking.physio_id == pid,
+                                           models.Booking.status.in_(("confirmed", "requested")),
+                                           models.Booking.slot_at >= E.now_iso()[:16])
+           .order_by(models.Booking.slot_at.asc()).first())
+    prog = (db.query(models.Program).filter_by(runner_id=rid, physio_id=pid, active=True).order_by(models.Program.id.desc()).first())
+    pains: dict[str, dict] = {}
+    for c in cis:
+        for pt in (getattr(c, "pain_points", None) or []):
+            reg = pt.get("region") or c.pain_site
+            if not reg:
+                continue
+            x = pains.setdefault(reg, {"region": reg, "count": 0, "max": 0, "last": None})
+            x["count"] += 1
+            x["max"] = max(x["max"], c.pain_score or 0)
+            x["last"] = max(x["last"] or "", c.submitted_at[:10])
+        if not getattr(c, "pain_points", None) and c.pain_site and (c.pain_score or 0) > 0:
+            x = pains.setdefault(c.pain_site, {"region": c.pain_site, "count": 0, "max": 0, "last": None})
+            x["count"] += 1
+            x["max"] = max(x["max"], c.pain_score or 0)
+            x["last"] = max(x["last"] or "", c.submitted_at[:10])
+    me = db.get(models.Physio, pid)
+    colleagues = [{"id": m.physio_id, "name": db.get(models.Physio, m.physio_id).name}
+                  for m in db.query(models.ClinicMember).filter_by(clinic_id=me.clinic_id, active=True).all()
+                  if m.physio_id != pid and m.role != "reception" and db.get(models.Physio, m.physio_id)] if me else []
+    card = R.card(db, me.clinic_id, rid) if me and me.clinic_id else None
+    return {"episode": ({"id": ep.id, "diagnosis": ep.diagnosis_label, "code": ep.diagnosis_code, "region": ep.region,
+                         "side": ep.side, "opened_at": ep.opened_at} if ep else None),
+            "phase": prog.phase if prog else None,
+            "next_visit": {"id": nxt.id, "at": nxt.slot_at, "kind": nxt.kind} if nxt else None,
+            "freshness": CV.freshness_for(db, rid),
+            "pain_map": sorted(pains.values(), key=lambda x: -x["count"]),
+            "adherence": W.adherence(db, prog) if prog else None,
+            "limits": [W.limit_text(x) for x in W.active_limits(db, rid)],
+            "anamnesis": card.anamnesis if card else None,
+            "colleagues": colleagues,
+            "no_app": bool(((db.get(models.Runner, rid).onboarding_json or {}) if db.get(models.Runner, rid) else {}).get("no_app"))}
 
 
 @router.post("/me/clients/{rid}/injuries/{iid}/close", dependencies=[Depends(verify_csrf)])

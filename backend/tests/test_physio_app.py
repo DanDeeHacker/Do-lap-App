@@ -26,7 +26,8 @@ def test_profile_and_clinic_set_the_queue_region(client, db_session):
 def test_a_new_physio_sets_up_a_clinic(client):
     register(client, "nova-fyzio@test.cz", "Nová Fyzio", "physio")
     me = client.get("/api/physios/me").json()
-    assert me["clinic"] is None and not me["complete"]
+    # physio brief W1: registration creates a solo practice; the city is still missing
+    assert me["clinic"]["city"] is None and not me["complete"]
     me = client.patch("/api/physios/me", json={"credential": "Bc.", "clinic_name": "Fyzio Brno", "clinic_city": "Brno"}).json()
     assert me["clinic"]["city"] == "Brno" and me["complete"]
     # review 2026-10-30 F1: until an owner verifies the account, no runner data at all
