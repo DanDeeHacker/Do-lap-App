@@ -13,14 +13,17 @@ import { readinessPct } from "@/capacity"
 import { Vo2Line } from "@/fitness"
 import { C } from "@/tokens"
 import { RecentActivities } from "@/recents"
+import { weeklyTotals, type WeekKind } from "@/runstats"
 
-export const METRIC_IDS = ["readiness", "load", "mech", "hrv", "rhr", "sleep", "week", "form", "fit", "fat"] as const
+export const METRIC_IDS = ["readiness", "load", "mech", "hrv", "rhr", "sleep", "week", "ttime", "rtime", "elev", "form", "fit", "fat"] as const
 export type MetricId = (typeof METRIC_IDS)[number]
 const RANGES = [["7", "7 dní"], ["30", "1 měsíc"], ["91", "3 měsíce"], ["183", "6 měsíců"]] as const
-type Range = (typeof RANGES)[number][0]
+type Range = string
+// feedback #228-#230 — the weekly numbers show the last 4, 8 or 12 weeks
+const WEEK_RANGES = [["28", "4 týdny"], ["56", "8 týdnů"], ["84", "12 týdnů"]] as const
 
 type Def = { label: string; unit: string; dec: number; to: string; tab: string; about: string; source: "daily" | "hist" | "acts" | "fit";
-  field?: string; yMin?: number; yMax?: number; threshold?: number; weekly?: boolean }
+  field?: string; yMin?: number; yMax?: number; threshold?: number; weekly?: boolean; series?: WeekKind; weekRanges?: boolean }
 const DEFS: Record<MetricId, Def> = {
   readiness: { label: "Připravenost", unit: " %", dec: 0, to: "/app/training", tab: "Trénink", source: "hist", field: "readinessMorning", yMin: 0, yMax: 100,
     about: "Ranní připravenost po noci: HRV, klidový tep a spánek proti vaší normě." },
@@ -36,6 +39,13 @@ const DEFS: Record<MetricId, Def> = {
     about: "Délka spánku z hodinek. Rozhoduje vaše obvyklá délka, ne obecných 8 hodin." },
   week: { label: "Kilometry týdně", unit: " km", dec: 1, to: "/app/load", tab: "Zátěž", source: "acts", weekly: true,
     about: "Součet naběhaných kilometrů v každém týdnu (pondělí až neděle)." },
+  // feedback #228-#230 — the week's totals of the running statistics, week by week
+  ttime: { label: "Čas tréninku týdne", unit: " min", dec: 0, to: "/app/load", tab: "Zátěž", source: "acts", weekly: true, series: "all", weekRanges: true,
+    about: "Součet času všech aktivit v každém týdnu (pondělí až neděle), bez ručně vyřazených." },
+  rtime: { label: "Čas běhu týdne", unit: " min", dec: 0, to: "/app/load", tab: "Zátěž", source: "acts", weekly: true, series: "run", weekRanges: true,
+    about: "Součet času běhu v každém týdnu (pondělí až neděle), bez ručně vyřazených." },
+  elev: { label: "Převýšení týdne", unit: " m", dec: 0, to: "/app/load", tab: "Zátěž", source: "acts", weekly: true, series: "ascent", weekRanges: true,
+    about: "Součet převýšení nahoru z běhů v každém týdnu (pondělí až neděle), bez ručně vyřazených." },
   // feedback #222 — the fitness trend of Trénink → Tělo a den, as cards
   form: { label: "Čerstvost", unit: " %", dec: 0, to: "/app/training", tab: "Trénink", source: "fit", field: "form",
     about: "Kondice minus Únava jako podíl Kondice. Kladná = poslední dny jste zatěžovali méně, než jste zvyklí. Záporná = poslední týden byl nad vaším průměrem." },
@@ -141,7 +151,7 @@ export function useTileTrends(ids: string[]): Record<string, (number | null)[]> 
     const days = Array.from({ length: 14 }, (_, k) => iso(new Date(Date.now() - (13 - k) * 86400000)))
     for (const id of metric) {
       const def = DEFS[id]
-      if (def.source === "acts") { out[id] = weeklyKm(boot?.activities || [], 8).map((p) => p.v); continue }
+      if (def.source === "acts") { out[id] = (def.series ? weeklyTotals(boot?.activities || [], 8, def.series) : weeklyKm(boot?.activities || [], 8)).map((p) => p.v); continue }
       const rows = def.source === "hist" ? hist : def.source === "fit" ? fit?.days : daily
       if (!rows) continue
       const by = new Map(rows.map((r: any) => [String(r.date).slice(0, 10), r]))
@@ -161,12 +171,12 @@ export function MetricSheet({ id, onClose }: { id: MetricId; onClose: () => void
   const asOf = a?.computed_at || ""
   const daily = useDailyRows(rid, asOf, def.source === "daily")
   const fit = useFitnessTrend(rid, asOf, def.source === "fit")
-  const [range, setRange] = useState<Range>(def.weekly ? "91" : "30")
+  const [range, setRange] = useState<Range>(def.weekRanges ? "56" : def.weekly ? "91" : "30")
   const all = useMemo((): { t: string; v: number | null }[] => {
     if (def.source === "hist") return (hist || []).map((h: any) => ({ t: String(h.date), v: valueOf(id, def, h) }))
     if (def.source === "fit") return (fit?.days || []).map((r: any) => ({ t: String(r.date), v: valueOf(id, def, r) }))
     if (def.source === "daily") return (daily || []).map((r: any) => ({ t: String(r.date), v: valueOf(id, def, r) }))
-    return weeklyKm(boot?.activities || [], 27)
+    return def.series ? weeklyTotals(boot?.activities || [], 27, def.series) : weeklyKm(boot?.activities || [], 27)
   }, [def, hist, daily, fit, boot?.activities, id])
   const lo = iso(new Date(Date.now() - (Number(range) - 1) * 86400000))
   const pts = all.filter((p) => p.t >= (def.weekly ? monday(lo) : lo))
@@ -200,11 +210,15 @@ export function MetricSheet({ id, onClose }: { id: MetricId; onClose: () => void
           {now != null && last && <span className="pb-1 text-[12px] text-fg-3">{def.weekly ? "tento týden" : live != null ? "dnes" : `naposledy ${new Date(last.t + "T12:00:00").toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric" })}`}</span>}
         </div>
         <Segmented className="mt-4" size="sm" ariaLabel="Období" value={range} onChange={setRange}
-          options={(def.weekly ? RANGES.slice(1) : RANGES) as any} />
+          options={(def.weekRanges ? WEEK_RANGES : def.weekly ? RANGES.slice(1) : RANGES) as any} />
         {loading ? <p className="mt-4 text-[12px] text-fg-3">Načítám…</p>
           : vals.length > 1 ? <AxisLineChart points={pts} yMin={def.yMin} yMax={def.yMax} threshold={def.threshold} thresholdLabel={def.threshold ? "práh" : undefined}
               unit={def.unit} dec={def.dec} color={C.info} height={150} band={band} />
           : <p className="mt-4 text-[12px] text-fg-3">Za toto období zatím málo dat.</p>}
+        {def.weekly && pts.length > 1 && (() => {
+          const prev = pts.slice(0, -1).map((p) => p.v).filter((v): v is number => v != null)
+          return prev.length ? <p className="mt-3 text-[12.5px] leading-5 text-fg-2" data-testid="metric-prev-avg">{`Průměr předchozích týdnů ${nf(prev.reduce((x, y) => x + y, 0) / prev.length, def.dec)}${def.unit}. Tento týden ještě neskončil, do průměru se nepočítá.`}</p> : null
+        })()}
         {vals.length > 0 && (
           <div className="mt-3 grid grid-cols-3 gap-1.5" data-testid="metric-stats">
             {stat("nejméně", Math.min(...vals))}
@@ -214,7 +228,7 @@ export function MetricSheet({ id, onClose }: { id: MetricId; onClose: () => void
         )}
         {id === "fit" && <Vo2Line vo2={fit?.vo2} />}
         <p className="mt-3 text-[12.5px] leading-5 text-fg-2">{def.about}{id === "readiness" && " Graf ukazuje ranní hodnotu každého dne."}</p>
-        {id === "week" && <RecentActivities onClose={onClose} />}
+        {def.source === "acts" && <RecentActivities onClose={onClose} />}
         <Link to={def.to} onClick={onClose} className="mt-3 inline-flex items-center gap-1 text-[13px] font-bold text-accent">{`Více na stránce ${def.tab}`}<ChevronRight className="size-4" aria-hidden /></Link>
       </div>
     </Sheet>

@@ -12,6 +12,11 @@ type Release = { id: string; date: string; items: [LucideIcon, string, string][]
 // newest first; the id is what the account remembers as seen
 export const NEWS: Release[] = [
   {
+    id: "2026-11-08", date: "2026-11-08", items: [
+      [LayoutGrid, "Trend po týdnech v Moje čísla", "Čas tréninku, Čas běhu, Převýšení a Kilometry týdně ukazují po klepnutí sloupce za 4, 8 nebo 12 týdnů a průměr předchozích týdnů. Rozpracovaný týden se do průměru nepočítá."],
+    ],
+  },
+  {
     id: "2026-11-05", date: "2026-11-05", items: [
       [LayoutGrid, "Poslední aktivity v Moje čísla", "Klepnutím na Čas tréninku, Čas běhu, Převýšení, Poslední aktivitu nebo Kilometry týdně uvidíte seznam posledních sedmi aktivit s vzdáleností, časem, tempem a tepem. U běhu otevřete jeho detail."],
     ],

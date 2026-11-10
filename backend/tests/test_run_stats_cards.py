@@ -13,7 +13,7 @@ from .conftest import register
 SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "src", "runstats.ts"))
 
 PROBE = """
-import { weekStats, lastActivity, hm, paceStr, recentActivities, sportCs } from %r
+import { weekStats, lastActivity, hm, paceStr, recentActivities, sportCs, weeklyTotals } from %r
 const acts = [
   { started_at: "2026-11-02T07:00:00", sport: "running", duration_min: 50, ascent_m: 300, descent_m: 290 },
   { started_at: "2026-11-03T18:00:00", sport: "cycling", duration_min: 70 },
@@ -23,6 +23,7 @@ const acts = [
 console.log(JSON.stringify({ week: weekStats(acts, "2026-11-04"), last: lastActivity(acts).started_at,
   empty: weekStats([], "2026-11-04"),
   recent: recentActivities(acts, 2).map((x) => x.started_at), all: recentActivities(acts).length, none_recent: recentActivities([]).length,
+  wAll: weeklyTotals(acts, 3, "all", "2026-11-04"), wRun: weeklyTotals(acts, 3, "run", "2026-11-04"), wUp: weeklyTotals(acts, 2, "ascent", "2026-11-04"),
   sports: [sportCs("running"), sportCs(null), sportCs("cycling"), sportCs("kayak")], a: hm(95), b: hm(42), c: hm(120), p: paceStr(307), none: paceStr(null) }))
 """
 
@@ -64,3 +65,13 @@ def test_recent_activities_are_newest_first_skip_excluded_and_cap(tmp_path):
     assert out["recent"] == ["2026-11-03T18:00:00", "2026-11-02T07:00:00"]   # the excluded run of 3 Nov 19:00 is skipped
     assert out["all"] == 3 and out["none_recent"] == 0
     assert out["sports"] == ["běh", "běh", "kolo", "jiný sport"]
+
+
+def test_weekly_totals_follow_the_week_rules_and_end_with_the_running_week(tmp_path):
+    """feedback #228-#230 — the trend sheets: Monday-Sunday weeks, oldest first, the running week last;
+    all sports for the training time, runs only for run time and climb, excluded activities never count"""
+    out = _node(tmp_path)
+    # weeks: 19 Oct, 26 Oct (the run of 30 Oct: 60 min), 2 Nov (run 50 + ride 70; the excluded run is left out)
+    assert out["wAll"] == [{"t": "2026-10-19", "v": 0}, {"t": "2026-10-26", "v": 60}, {"t": "2026-11-02", "v": 120}]
+    assert out["wRun"] == [{"t": "2026-10-19", "v": 0}, {"t": "2026-10-26", "v": 60}, {"t": "2026-11-02", "v": 50}]
+    assert out["wUp"] == [{"t": "2026-10-26", "v": 500}, {"t": "2026-11-02", "v": 300}]

@@ -225,8 +225,8 @@ function CardEditor({ cards, chosen, onChange, hint }: { cards: RailCard[]; chos
 }
 
 const isMetric = (id: string): id is MetricId => (METRIC_IDS as readonly string[]).includes(id)
-// feedback #231 — these cards open a sheet with the latest activities instead of jumping to Zátěž
-const RUN_STAT_IDS = ["ttime", "rtime", "elev", "last"]
+// feedback #231 — this card opens a sheet with the latest activities (the weekly ones have a trend sheet, #228)
+const RUN_STAT_IDS = ["last"]
 const isRunStat = (id: string) => RUN_STAT_IDS.includes(id)
 
 export function StatRail() {
