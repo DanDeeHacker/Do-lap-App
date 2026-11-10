@@ -630,6 +630,8 @@ def _seed_records(db, physio, runner) -> None:
         clinic.registered_postal_code = clinic.care_site_postal_code = "170 00"
         clinic.provider_details_confirmed_at = E.now_iso()
         physio.title, physio.qualification = "Mgr.", "Fyzioterapeut (ukázkový účet)"
+    if physio.grammatical_gender is None:
+        physio.grammatical_gender = "f"          # round 2 F15.2: the demo physio writes "upravila jsem"
     # physio brief Phase 2: every demo physio is a clinic member; Tereza has working hours and services
     from . import work as W
     for ph in db.query(models.Physio).all():
