@@ -116,7 +116,12 @@ def _plan_dict(db: DBSession, plan: models.ReturnToRun) -> dict:
     )
     out["cleared_at_current"] = cleared_at_current
     out["remaining_at_current"] = max(0, plan.sessions_per_level - cleared_at_current)
-    out["pending_morning"] = next(({"id": x.id, "logged_at": x.logged_at} for x in sessions if x.state == "pending"), None)
+    pend = next((x for x in sessions if x.state == "pending"), None)
+    out["pending_morning"] = ({"id": pend.id, "logged_at": pend.logged_at,
+                               "from": W.morning_from(pend.logged_at).isoformat()} if pend else None)
+    # round 2 F5.1: before the rest gap ends the runner card offers "Nahlásit bolest", not a session
+    nxt = CV.next_session_at(db, plan)
+    out["next_allowed_at"] = nxt.isoformat() if nxt else None
     rc = db.query(models.RtrReadinessCheck).filter_by(plan_id=plan.id).first()
     out["readiness"] = {"items": rc.items, "tests": rc.tests} if rc else None
     return out
@@ -182,31 +187,39 @@ def log_session(pid: int, body: schemas.LogRtrSessionRequest,
     if body.pain is None or not 0 <= body.pain <= 10:
         raise HTTPException(status_code=422, detail="Zapište bolest během sezení (0–10).")
     pain = body.pain
-    # physio brief 2026-11-09 P0.7: pain over the limit pauses the plan (the UI promised it); a session
-    # sooner than MIN_HOURS_BETWEEN_SESSIONS after the last one is kept but never advances the ladder
+    # physio brief 2026-11-09 P0.7: pain over the limit pauses the plan (the UI promised it).
+    # Round 2 F5.2: anything logged before next_allowed_at is stored as not counted, reason "too_soon",
+    # whatever the pain — and the pause rule still applies. A pain-only report (F5.1) is never a session.
     nxt = CV.next_session_at(db, plan)
     now = datetime.fromisoformat(E.now_iso())
     if nxt is not None and nxt.tzinfo is None:
         nxt = nxt.replace(tzinfo=now.tzinfo)
-    reason = None
-    if pain > plan.pain_threshold:
+    inside_gap = nxt is not None and now < nxt
+    if body.pain_only:
+        reason = "pain_report"
+    elif inside_gap:
+        reason = "too_soon"
+    elif pain > plan.pain_threshold:
         reason = "pain_over_limit"
     elif not body.completed:
         reason = "not_completed"
-    elif nxt is not None and now < nxt:
-        reason = "too_soon"
+    else:
+        reason = None
     # physio brief W11.5: a good session waits for the next-morning answer before it counts
     from .. import work as W
     level = next((lv for lv in (plan.levels_json or []) if lv.get("level") == plan.current_level), None)
-    match = W.match_activity(db, plan, level, E.now_iso())
+    match = None if body.pain_only else W.match_activity(db, plan, level, E.now_iso())
+    note = body.note
+    if body.pain_only and body.site:
+        note = f"{body.site}: {note}" if note else body.site
     s = models.RtrSession(
         plan_id=plan.id, runner_id=plan.runner_id, level=plan.current_level, logged_at=E.now_iso(),
-        pain=pain, rpe=body.rpe, completed=bool(body.completed), counted=False, count_reason=reason,
-        state="pending" if reason is None else "not_counted", note=body.note,
+        pain=pain, rpe=None if body.pain_only else body.rpe, completed=False if body.pain_only else bool(body.completed),
+        counted=False, count_reason=reason, state="pending" if reason is None else "not_counted", note=note,
         matched_activity_id=match["activity_id"] if match else None,
     )
     db.add(s)
-    if reason == "pain_over_limit":
+    if pain > plan.pain_threshold:
         plan.status, plan.paused_reason = "paused", "pain_over_limit"
         db.add(models.Message(
             runner_id=plan.runner_id, physio_id=plan.physio_id, sender="system", audience="physio",
@@ -214,6 +227,12 @@ def log_session(pid: int, body: schemas.LogRtrSessionRequest,
                  f"{plan.pain_threshold}/10). Plán je pozastavený, dokud ho neobnovíte.",
             created_at=E.now_iso(),
         ))
+        # round 2 F5.4: a bell notification with the client's name; the e-mail carries no health details
+        r = db.get(models.Runner, plan.runner_id)
+        name = (r.name if r else None) or "Klient"
+        W.NOTIFY.send(db, "rtr_paused", f"{name}: pozastavený plán návratu k běhu", physio_id=plan.physio_id,
+                      runner_id=plan.runner_id, ref=f"rtr:{plan.id}",
+                      body=f"Klient {name} má pozastavený plán návratu k běhu. Otevřete Došlap.")
     db.flush()
     _recompute_progress(db, plan)
     db.commit()
@@ -253,6 +272,8 @@ def morning(pid: int, sid: int, body: schemas.RtrMorningRequest, user: models.Us
     W.expire_morning(db, plan)
     if s.state != "pending":
         raise HTTPException(status_code=409, detail="Na toto sezení už se ráno neptáme.")
+    if datetime.fromisoformat(E.now_iso()) < W.morning_from(s.logged_at):
+        raise HTTPException(status_code=409, detail="Ranní odpověď půjde zapsat zítra od 6:00.")
     s.next_morning_pain, s.morning_stiffness_min = body.pain, body.stiffness_min
     s.morning_at = E.now_iso()
     if body.pain > plan.pain_threshold:
@@ -262,6 +283,11 @@ def morning(pid: int, sid: int, body: schemas.RtrMorningRequest, user: models.Us
                               created_at=E.now_iso(),
                               body=f"Návrat k běhu: ráno po sezení bolest {body.pain}/10 (hranice {plan.pain_threshold}/10). "
                                    "Plán je pozastavený, dokud ho neobnovíte."))
+        r = db.get(models.Runner, plan.runner_id)
+        name = (r.name if r else None) or "Klient"
+        W.NOTIFY.send(db, "rtr_paused", f"{name}: pozastavený plán návratu k běhu", physio_id=plan.physio_id,
+                      runner_id=plan.runner_id, ref=f"rtr:{plan.id}",
+                      body=f"Klient {name} má pozastavený plán návratu k běhu. Otevřete Došlap.")
     elif body.pain > (s.pain or 0):
         s.state, s.counted, s.count_reason = "not_counted", False, "morning_worse"
     else:

@@ -4,7 +4,7 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { AlertBanner, Button, Card, Chip, Field, HowTo, Label, ListRow, Segmented, Sheet, Slider, useAsync, useToast } from "@/ui"
 import { CalendarDays, CalendarClock, Send, Star, UserRound } from "lucide-react"
-import { fmtSlot, fmtD, fmtDT, initials, czk } from "@/lib"
+import { fmtSlot, fmtD, fmtDT, initials, czk, painWord } from "@/lib"
 import { Head, Program } from "@/tabs"
 import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
 import { CARE_SUB_EVENT } from "@/onboarding"
@@ -29,7 +29,7 @@ export function Care() {
   const [sub, setSub] = useState<"physio" | "program" | "health">("program")
   const [findOpen, setFindOpen] = useState(false)
   const [injOpen, setInjOpen] = useState(false)
-  const [rtrOpen, setRtrOpen] = useState(false)
+  const [rtrOpen, setRtrOpen] = useState<false | "session" | "pain">(false)
   const [healedOpen, setHealedOpen] = useState(false)
   // railway#117 — Trénink links here (?sub=health&healed=1) to confirm a healed injury
   const [params, setParams] = useSearchParams()
@@ -59,7 +59,7 @@ export function Care() {
     <>
       {findOpen && <FindSlotSheet onClose={() => setFindOpen(false)} onDone={() => { setFindOpen(false); refresh() }} />}
       {injOpen && <InjurySheet rid={rid} onClose={() => setInjOpen(false)} onDone={() => { setInjOpen(false); refresh() }} />}
-      {rtrOpen && rtr && <RtrSheet plan={rtr} onClose={() => setRtrOpen(false)} onDone={() => { setRtrOpen(false); refresh() }} />}
+      {rtrOpen && rtr && <RtrSheet plan={rtr} painOnly={rtrOpen === "pain"} onClose={() => setRtrOpen(false)} onDone={() => { setRtrOpen(false); refresh() }} />}
       {healedOpen && <HealedSheet rid={rid} site={boot?.assessment?.injury?.active?.site} onClose={() => setHealedOpen(false)} onDone={() => { refresh() }} onPhysio={() => { setHealedOpen(false); setSub("physio") }} />}
 
       <div className="mb-6" data-tour="care-tabs">
@@ -69,7 +69,7 @@ export function Care() {
 
       {sub === "physio" && <PhysioSection onFind={() => setFindOpen(true)} />}
       {sub === "program" && <Program />}
-      {sub === "health" && <HealthSection onReport={() => setInjOpen(true)} onRtr={() => setRtrOpen(true)} onHealed={() => setHealedOpen(true)} />}
+      {sub === "health" && <HealthSection onReport={() => setInjOpen(true)} onRtr={(m) => setRtrOpen(m)} onHealed={() => setHealedOpen(true)} />}
     </>
   )
 }
@@ -229,7 +229,7 @@ function RtrState({ rtr }: { rtr: any }) {
   return <>{"Plán návratu k běhu "}{RTR_STATE[rtr.status] || rtr.status}{levels ? ` · úroveň ${rtr.current_level} z ${levels}` : ""}{". Podrobnosti níže."}</>
 }
 
-function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; onRtr: () => void; onHealed: () => void }) {
+function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; onRtr: (mode: "session" | "pain") => void; onHealed: () => void }) {
   const { me, boot, refresh } = useApp()
   const rid = me!.runner_id!
   const a = boot?.assessment
@@ -283,7 +283,13 @@ function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; on
             {rtr.pending_morning && <MorningPrompt plan={rtr} onDone={refresh} />}
             {rtr.status === "paused" ? (
               <p className="mt-3 text-[13px] font-bold text-watch">Plán je pozastavený. Počkejte na pokyn fyzioterapeuta.</p>
-            ) : <Button variant="outline" className="mt-3 w-full" onClick={onRtr}>Zaznamenat sezení</Button>}
+            ) : rtr.next_allowed_at && new Date(rtr.next_allowed_at).getTime() > Date.now() ? (
+              // round 2 F5.1: inside the rest gap only a pain report; the session button comes back from next_allowed_at
+              <>
+                <p className="mt-3 text-[12.5px] text-fg-2">{`Další sezení od ${new Date(rtr.next_allowed_at).toLocaleString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}.`}</p>
+                <Button variant="outline" className="mt-2 w-full" onClick={() => onRtr("pain")} data-testid="rtr-pain-only">Nahlásit bolest</Button>
+              </>
+            ) : <Button variant="outline" className="mt-3 w-full" onClick={() => onRtr("session")}>Zaznamenat sezení</Button>}
           </Card>
         )}
 
@@ -428,28 +434,38 @@ export function InjurySheet({ rid, onClose, onDone, initialRegions = [], initial
   )
 }
 
-function RtrSheet({ plan, onClose, onDone }: { plan: any; onClose: () => void; onDone: () => void }) {
+const RTR_INP = "w-full rounded-xl border border-white/10 bg-white/[.04] px-3 py-2.5 text-sm text-fg"
+
+function RtrSheet({ plan, painOnly = false, onClose, onDone }: { plan: any; painOnly?: boolean; onClose: () => void; onDone: () => void }) {
   // physio brief 2026-11-09 P0.7: pain has no default — saving waits until the runner sets it
   const [pain, setPain] = useState<number | null>(null)
   const [rpe, setRpe] = useState(4)
   const [completed, setCompleted] = useState(true)
+  const [site, setSite] = useState("")
+  const [note, setNote] = useState("")
   const { busy, err, run } = useAsync()
   const toast = useToast()
   return (
     <Sheet open onClose={onClose}>
-      <h2 className="font-serif text-2xl">Sezení návratu k běhu</h2>
-      <p className="mt-1 text-[13px] text-fg-2">Úroveň {plan.current_level}: <b>{plan.current?.label}</b>.</p>
+      <h2 className="font-serif text-2xl">{painOnly ? "Nahlásit bolest" : "Sezení návratu k běhu"}</h2>
+      {painOnly
+        ? <p className="mt-1 text-[13px] text-fg-2">Mezi sezeními je pauza. Bolest zapište kdykoli — sezení se tím nezapočítá.</p>
+        : <p className="mt-1 text-[13px] text-fg-2">Úroveň {plan.current_level}: <b>{plan.current?.label}</b>.</p>}
       <p className="mt-1 text-[12.5px] text-fg-3">Zapište bolest tak, jak ji opravdu cítíte. Postup určuje váš fyzioterapeut.</p>
-      <Field label="Dokončil/a jsem sezení"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} className="accent-accent" /> odškrtněte, pokud jste musel/a přerušit</label></Field>
-      <Field label="Bolest během sezení" hint={pain == null ? "posuňte jezdec" : "0 žádná"}><Slider name="pain" min={0} max={10} value={pain ?? 0} onChange={setPain} tone="pain" /></Field>
-      <Field label="Vnímaná námaha (RPE)"><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>
+      {!painOnly && <Field label="Dokončil/a jsem sezení"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} className="accent-accent" /> odškrtněte, pokud jste musel/a přerušit</label></Field>}
+      <Field label={painOnly ? "Bolest teď" : "Bolest během sezení"} hint={painWord(pain)}><Slider name="pain" min={0} max={10} value={pain ?? 0} onChange={setPain} tone="pain" /></Field>
+      {painOnly ? <>
+        <Field label="Kde to bolí"><input className={RTR_INP} value={site} onChange={(e) => setSite(e.target.value)} placeholder="např. Achillova šlacha vpravo" /></Field>
+        <Field label="Poznámka"><input className={RTR_INP} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+      </> : <Field label="Vnímaná námaha (RPE)"><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>}
       {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
       <button disabled={busy || pain == null} data-testid="rtr-save" onClick={() => run(async () => {
-        const p = await api.logRtrSession(plan.id, { pain, rpe, completed })
+        const p = await api.logRtrSession(plan.id, painOnly ? { pain, pain_only: true, site: site || null, note: note || null } : { pain, rpe, completed })
         toast({ title: p.status === "paused" ? "Plán je pozastavený. Fyzioterapeut se vám ozve."
+          : painOnly ? "Bolest zapsaná. Fyzioterapeut ji uvidí."
           : "Uloženo. Zítra ráno se zeptáme, jak se cítíte — pak se sezení započítá." })
         onDone()
-      })} className="btn btn-primary mt-5 w-full py-3 text-sm disabled:opacity-50">Uložit sezení</button>
+      })} className="btn btn-primary mt-5 w-full py-3 text-sm disabled:opacity-50">{painOnly ? "Uložit bolest" : "Uložit sezení"}</button>
     </Sheet>
   )
 }
@@ -461,12 +477,13 @@ function MorningPrompt({ plan, onDone }: { plan: any; onDone: () => void }) {
   const { busy, run } = useAsync()
   const toast = useToast()
   const p = plan.pending_morning
-  const ready = new Date(p.logged_at).toLocaleDateString("sv-SE") < new Date().toLocaleDateString("sv-SE")
-  if (!ready) return <p className="mt-3 rounded-xl bg-white/[.04] px-3 py-2 text-[12.5px] text-fg-2">Zítra ráno se zeptáme, jak se cítíte. Teprve pak se sezení započítá.</p>
+  // round 2 F5.5: the server says when the question opens (06:00 the next day)
+  const ready = p.from ? new Date(p.from).getTime() <= Date.now() : new Date(p.logged_at).toLocaleDateString("sv-SE") < new Date().toLocaleDateString("sv-SE")
+  if (!ready) return <p className="mt-3 rounded-xl bg-white/[.04] px-3 py-2 text-[12.5px] text-fg-2">Zítra od 6:00 se zeptáme, jak se cítíte. Teprve pak se sezení započítá.</p>
   return (
     <div className="mt-3 rounded-xl border border-accent/30 p-3" data-testid="rtr-morning">
       <p className="text-[13px] font-bold">Jak je to ráno po včerejším sezení?</p>
-      <Field label="Bolest teď ráno" hint={pain == null ? "posuňte jezdec" : "0 žádná"}><Slider name="mpain" min={0} max={10} value={pain ?? 0} onChange={setPain} tone="pain" /></Field>
+      <Field label="Bolest teď ráno" hint={painWord(pain)}><Slider name="mpain" min={0} max={10} value={pain ?? 0} onChange={setPain} tone="pain" /></Field>
       <Field label="Ranní ztuhlost (minuty)"><Slider name="stiff" min={0} max={60} value={stiff} onChange={setStiff} /></Field>
       <button className="btn btn-primary mt-3 w-full text-sm" disabled={busy || pain == null} onClick={() => run(async () => {
         const r = await api.rtrMorning(plan.id, p.id, pain!, stiff)

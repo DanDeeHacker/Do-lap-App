@@ -123,6 +123,7 @@ function Team() {
 const EVENTS: [string, string][] = [
   ["booking_requested", "Nová žádost o termín"], ["booking_cancelled", "Klient zrušil termín"], ["booking_moved", "Přesunutý termín"],
   ["note_unsigned", "Nepodepsaný záznam večer"], ["invite_accepted", "Klient přijal pozvánku"],
+  ["rtr_paused", "Pozastavený plán návratu k běhu"],   // round 2 F5.4
 ]
 
 // W4 capacity, W13 response time + quick replies, W14 cancellation policy, W15 notifications

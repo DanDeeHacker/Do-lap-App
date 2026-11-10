@@ -6,7 +6,7 @@ import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty,
 import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Route, Ship, Trash2, TriangleAlert, Waves, type LucideIcon } from "lucide-react"
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
-import { clamp, cz, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, PHASE, plural, QUAD, sgn, toImpact } from "@/lib"
+import { clamp, cz, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, painWord, PHASE, plural, QUAD, sgn, toImpact } from "@/lib"
 import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/components/MuscleAnatomy"
 import { CAP_SIGNAL_IDS, CapacityPanel, readinessCol, readinessPct } from "@/capacity"
 import { C, goodCol } from "@/tokens"
@@ -561,7 +561,7 @@ export function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; ri
           <Field label="Jak vám bylo"><Slider name="feeling" min={1} max={5} value={feeling} onChange={setFeeling} labels={FEEL_LABEL} /></Field>
           <Field label="Nohy" hint="1 těžké · 5 svěží"><Slider name="legs" min={1} max={5} value={legs} onChange={setLegs} /></Field>
           {!cross && <Field label="Vnímaná námaha (RPE)" hint={`hodinky ${act.rpe || "—"}/10`}><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>}
-          <Field label={cross ? "Bolest během tréninku" : "Bolest během běhu"} hint="0 žádná"><Slider name="pain" min={0} max={10} value={pain} onChange={setPain} tone="pain" /></Field>
+          <Field label={cross ? "Bolest během tréninku" : "Bolest během běhu"} hint={painWord(pain)}><Slider name="pain" min={0} max={10} value={pain} onChange={setPain} tone="pain" /></Field>
           <Field label="Poznámka">
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="Kdy se to ozvalo, co to zhoršilo…" />
           </Field>

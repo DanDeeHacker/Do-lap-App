@@ -57,7 +57,7 @@ class Notifier:
     channels = ("in_app",)
 
     def send(self, db: DBSession, event: str, title: str, *, physio_id: str | None = None,
-             runner_id: str | None = None, ref: str | None = None) -> list[str]:
+             runner_id: str | None = None, ref: str | None = None, body: str | None = None) -> list[str]:
         prefs = {}
         if physio_id:
             p = db.get(models.Physio, physio_id)
@@ -70,7 +70,7 @@ class Notifier:
                 continue
             delivered = ch == "in_app"     # email / SMS: no provider yet — logged, not delivered
             db.add(models.Notification(physio_id=physio_id, runner_id=runner_id, channel=ch, event=event, title=title,
-                                       ref=ref, delivered=delivered, created_at=E.now_iso()))
+                                       body=body, ref=ref, delivered=delivered, created_at=E.now_iso()))
             if delivered:
                 sent.append(ch)
         return sent
@@ -379,6 +379,18 @@ def rtr_morning_worse(db: DBSession, plan: models.ReturnToRun) -> dict | None:
     if last.next_morning_pain is not None and last.next_morning_pain > plan.pain_threshold:
         return {"morning": last.next_morning_pain}
     return None
+
+
+MORNING_FROM_HOUR = 6          # round 2 F5.5: the morning question opens at 06:00 the next local day
+
+
+def morning_from(logged_at: str) -> datetime:
+    """When the next-morning question opens for a session: 06:00 local on the day after it."""
+    at = datetime.fromisoformat(logged_at)
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=E.LOCAL_TZ)
+    loc = at.astimezone(E.LOCAL_TZ)
+    return datetime.combine(loc.date() + timedelta(days=1), time(MORNING_FROM_HOUR), E.LOCAL_TZ)
 
 
 def expire_morning(db: DBSession, plan: models.ReturnToRun) -> None:

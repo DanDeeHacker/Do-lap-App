@@ -178,7 +178,10 @@ def rest_gap_headline(nxt: datetime, now: datetime) -> tuple[str, bool]:
 
 def next_session_at(db: DBSession, plan: models.ReturnToRun) -> datetime | None:
     """When the next return-to-run session may start: MIN_HOURS_BETWEEN_SESSIONS after the last one."""
-    last = (db.query(models.RtrSession.logged_at).filter(models.RtrSession.plan_id == plan.id)
+    # round 2 F5.1: a pain report from inside the gap is not a session and does not restart the gap
+    last = (db.query(models.RtrSession.logged_at).filter(models.RtrSession.plan_id == plan.id,
+                                                         (models.RtrSession.count_reason.is_(None))
+                                                         | (models.RtrSession.count_reason != "pain_report"))
             .order_by(models.RtrSession.logged_at.desc()).first())
     if not last or not last[0]:
         return None

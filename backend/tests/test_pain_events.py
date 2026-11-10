@@ -40,7 +40,8 @@ def test_three_sources_are_three_events_everywhere(client, db_session):
     assert "check-in" in summ["sources_cs"] and "návrat k běhu" in summ["sources_cs"] and "po běhu" in summ["sources_cs"]
     # lastPain is the newest event, whatever its source
     lp = CV.last_pain(db_session, RID)
-    assert lp["score"] == 6 and lp["source"] == "rtr_session"
+    newest = CV.pain_events(db_session, RID)[-1]
+    assert (lp["at"], lp["score"], lp["source"]) == (newest["at"], newest["score"], newest["source"])
     # the physio's overview: the same count and the same places
     body = client.get(f"/api/physios/me/clients/{RID}").json()
     assert body["pain_summary"]["count"] == summ["count"]

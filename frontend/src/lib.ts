@@ -104,3 +104,6 @@ export function leadReasons(type: string | null | undefined, reasons: string[]):
   const i = off >= 0 ? off : 0
   return [reasons[i], reasons.filter((_, k) => k !== i)]
 }
+
+// round 2 F5.3: a pain slider's caption follows its value (0 žádná, 1–3 mírná, 4–6 střední, 7–10 silná)
+export const painWord = (v: number | null) => (v == null ? "posuňte jezdec" : v === 0 ? "žádná" : v <= 3 ? "mírná" : v <= 6 ? "střední" : "silná")

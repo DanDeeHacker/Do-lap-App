@@ -271,6 +271,8 @@ class LogRtrSessionRequest(Lenient):
     rpe: Optional[int] = None
     completed: bool = True
     note: Optional[str] = None
+    pain_only: bool = False       # round 2 F5.1: "Nahlásit bolest" inside the rest gap — not a session
+    site: Optional[str] = None
 
 
 class ConclusionPatch(Lenient):
