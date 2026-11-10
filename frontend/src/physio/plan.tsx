@@ -8,6 +8,7 @@ import { api } from "@/api"
 import { Button, Card, Chip, Sheet, useToast } from "@/ui"
 import { fmtD, fmtDT, plural } from "@/lib"
 import { Empty, Loading, noData, useLoad } from "@/physio/common"
+import { ClinicTests, Proms } from "@/physio/business"
 
 const inp = "mt-1 w-full rounded-lg border border-white/15 bg-panel px-2.5 py-1.5 text-[13px] font-normal text-fg"
 
@@ -17,6 +18,7 @@ export function PlanTab({ rid, d, onChange }: { rid: string; d: any; onChange: (
       <ProgramBuilder rid={rid} />
       <div id="rtr"><RtrPlan rid={rid} plan={d.rtr} a={d.a} onChange={onChange} /></div>
       <Limits rid={rid} />
+      <div className="grid gap-4 lg:grid-cols-2"><Proms rid={rid} /><ClinicTests rid={rid} /></div>
     </div>
   )
 }
@@ -273,6 +275,11 @@ function RtrPlan({ rid, plan, a, onChange }: { rid: string; plan: any; a: any; o
   const [ack, setAck] = useState(false)
   const [warning, setWarning] = useState<string | null>(null)
   useEffect(() => { api.rtrTemplates().then((x: any) => { setTpl(x); setLevels(x.templates.default) }).catch(() => null) }, [])
+  const [lastTests, setLastTests] = useState<string[]>([])
+  useEffect(() => {
+    api.clinicTests(rid).then((x: any) => setLastTests(Object.values(x.latest || {}).map((t: any) =>
+      `${t.name} L ${t.left ?? "—"} / P ${t.right ?? "—"}${t.lsi != null ? `, LSI ${t.lsi} %` : ""} (${fmtD(t.tested_on)})`))).catch(() => null)
+  }, [rid])
   const control = async (action: string, lv?: any[]) => {
     try { await api.rtrControl(plan.id, action, lv); toast({ title: "Plán upraven, klient dostal zprávu" }); onChange() }
     catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
@@ -297,6 +304,11 @@ function RtrPlan({ rid, plan, a, onChange }: { rid: string; plan: any; a: any; o
             </div>
           ))}
           <label className="text-[12px] font-bold text-fg-2">Testy síly a poskoků (vaše hodnoty)<input className={inp} value={tests} onChange={(e) => setTests(e.target.value)} placeholder="např. výpony na jedné noze L 25 / P 18" /></label>
+          {/* physio brief M4: the clinic tests feed the readiness gate */}
+          {lastTests.length > 0 && !tests && (
+            <button type="button" className="justify-self-start text-[12px] font-bold text-accent hover:underline" onClick={() => setTests(lastTests.join("; "))}>
+              {`Vložit poslední testy z ordinace (${lastTests.length})`}</button>
+          )}
         </div>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <label className="text-[12px] font-bold text-fg-2">Šablona<select className={inp} value={choice} onChange={(e) => { setChoice(e.target.value); setLevels(tpl?.templates[e.target.value] || []) }}>

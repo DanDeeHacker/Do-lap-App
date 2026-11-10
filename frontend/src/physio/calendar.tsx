@@ -10,6 +10,7 @@ import { fmtDT } from "@/lib"
 import { Empty, KIND, Loading, shownScore, useLoad } from "@/physio/common"
 import { ConclusionSheet } from "@/physio/conclusion"
 import { AddVisit, IcsLink, Services, WeekView, WorkingHours } from "@/physio/schedule"
+import { Waitlist } from "@/physio/business"
 
 const dayKey = (iso: string) => (iso || "").slice(0, 10)
 const dayLabel = (iso: string) => new Date(iso).toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })
@@ -117,6 +118,7 @@ export function CalendarPage({ pid }: { pid: string }) {
           </Card>
         </div>
         <div className="grid content-start gap-4">
+          <Waitlist />
           <AddVisit onDone={refresh} />
           <WorkingHours onDone={refresh} />
           <Services />

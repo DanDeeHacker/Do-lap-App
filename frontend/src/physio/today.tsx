@@ -4,6 +4,7 @@
 import { Link } from "react-router"
 import { AlertTriangle, Bell, CheckCircle2, Clock, FileText, MessageCircle, NotebookPen } from "lucide-react"
 import { api } from "@/api"
+import { Recall } from "@/physio/business"
 import { Button, Card, Chip, useToast } from "@/ui"
 import { fmtDT } from "@/lib"
 import { Empty, KIND, Loading, useLoad } from "@/physio/common"
@@ -100,6 +101,7 @@ export function TodayPage() {
               <Link to="/physio/queue" className="font-bold text-accent hover:underline">{`Nové případy ve frontě: ${d.new_cases}`}</Link>
             </p>
           </Card>
+          <Recall />
         </div>
       </div>
     </>

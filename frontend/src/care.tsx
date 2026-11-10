@@ -8,6 +8,7 @@ import { fmtSlot, fmtD, fmtDT, initials, czk } from "@/lib"
 import { Head, Program } from "@/tabs"
 import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
 import { CARE_SUB_EVENT } from "@/onboarding"
+import { CareTasks } from "@/caretasks"
 
 const OSTRC: [string, string, [number, string][]][] = [
   ["q_participation", "Účast na tréninku/závodech", [[0, "Plná bez obtíží"], [8, "Plná s obtížemi"], [17, "Omezená"], [25, "Nemohl/a jsem"]]],
@@ -137,6 +138,7 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
             </>
           )}
         </Card>
+        <CareTasks rid={rid} onChange={refresh} />
         {(boot?.conclusions || []).length > 0 && (
           <Card data-testid="visit-summaries">
             <Label>Návštěvy</Label>
@@ -371,6 +373,10 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
             </div>
             {pp.bio && <p className="mt-2 text-[13px] leading-5 text-fg-2">{pp.bio}</p>}
             {pp.response_time_text && <p className="mt-1 text-[12px] text-fg-3">{`Obvykle odpovídá ${pp.response_time_text}`}</p>}
+            {/* physio brief B4: nothing that suits? wait for a freed time with your days and parts of day */}
+            <button className="mt-2 text-[12px] font-bold text-fg-3 underline underline-offset-2 hover:text-fg-2" onClick={() => run(async () => {
+              await api.waitlistJoin(pp.id, { dow: [...dow].join(","), dayparts: [...part].join(",") }); toast({ title: "Jste v pořadníku — ozveme se, až se uvolní termín" })
+            })}>Nic se nehodí — zapsat do pořadníku</button>
             <div className="mt-3 flex flex-wrap gap-2">{pp.slots.map((s: any) => (
               <button key={s.id ?? s.slot_at} onClick={() => setPick({ pp, s })} className="rounded-full border border-accent/35 px-3 py-1.5 text-[12px] font-bold text-accent hover:bg-accent/10">{fmtSlot(s.slot_at)}</button>
             ))}</div>

@@ -286,9 +286,12 @@ def request_slot(body: schemas.SlotBookRequest,
         runner_id=rid, physio_id=slot.physio_id, sender="system", audience="physio",
         body="Pacient požádal o termín — čeká na vaše potvrzení.", created_at=E.now_iso(),
     ))
+    db.flush()
+    from .. import business as B
+    pay = B.payment_for_booking(db, b)        # physio brief B1.2: deposit or full price when the service asks
     db.commit()
     db.refresh(b)
-    return to_dict(b)
+    return {**to_dict(b), "payment": to_dict(pay) if pay else None}
 
 
 @router.post("/api/runners/{rid}/bookings/{bid}/cancel", dependencies=[Depends(verify_csrf)])
@@ -309,6 +312,9 @@ def cancel_booking(rid: str, bid: int, user: models.User = Depends(get_current_u
         runner_id=rid, physio_id=b.physio_id, sender="system", audience="physio",
         body="Pacient zrušil rezervaci termínu.", created_at=E.now_iso(),
     ))
+    if b.slot_at and _aware(b.slot_at) > datetime.now(timezone.utc):
+        from .. import business as B
+        B.on_cancellation(db, b)               # physio brief B4
     db.commit()
     db.refresh(b)
     return to_dict(b)
@@ -537,6 +543,8 @@ def physio_cancel(bid: int, body: schemas.BookingCancelRequest, user: models.Use
     _audit(db, b, "zrušení návštěvy")
     from .. import work as W
     W.NOTIFY.send(db, "booking_cancelled", "Návštěva byla zrušena", runner_id=b.runner_id, ref=f"booking:{b.id}")
+    from .. import business as B
+    B.on_cancellation(db, b)                   # physio brief B4: who on the waitlist would take the freed time
     db.commit()
     return to_dict(b)
 
@@ -597,6 +605,11 @@ def physio_complete(bid: int, user: models.User = Depends(require_verified_physi
     b = _past_visit(db, bid, user)
     b.status = "completed"
     _audit(db, b, "návštěva proběhla")
+    # physio brief B1.3/B1.4: a package pays for the visit if the client has one; the receipt is issued now
+    from .. import business as B
+    B.use_package(db, b)
+    db.flush()
+    B.issue_invoice(db, b, physio=db.get(models.Physio, b.physio_id))
     db.commit()
     return to_dict(b)
 

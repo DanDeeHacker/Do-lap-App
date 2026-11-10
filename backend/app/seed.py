@@ -558,7 +558,7 @@ def build_and_seed(db: DBSession) -> None:
         # physio brief 2026-11-09 W10.8: the sessions are dated, so adherence by week has something to count
         for k in range(ex.done_count):
             db.add(models.ExerciseLog(exercise_id=ex.id, program_id=prog.id, runner_id=a0.id,
-                                      logged_on=E.day_ago(8 - (k * 8) // max(1, ex.done_count))[:10],
+                                      logged_on=E.day_ago(9 - (k * 9) // max(1, ex.done_count))[:10],
                                       pain=math.floor(rand() * 4), difficulty=3, created_at=E.day_ago(0)))
     db.add(models.ProgramRevision(
         program_id=prog.id, physio_id=p0.id, at=E.day_ago(4),
@@ -637,7 +637,9 @@ def _seed_records(db, physio, runner) -> None:
         for k, (name, mins, price) in enumerate((("Vstupní vyšetření", 60, 1290), ("Kontrola", 45, 990),
                                                   ("Analýza běhu", 60, 1490))):
             db.add(models.Service(physio_id=physio.id, clinic_id=physio.clinic_id, name_cs=name, duration_minutes=mins,
-                                  price_czk=price, buffer_minutes=10 if mins == 60 else 0, sort_order=k + 1, active=True))
+                                  price_czk=price, buffer_minutes=10 if mins == 60 else 0, sort_order=k + 1, active=True,
+                                  # physio brief B1.2: the first visit asks a deposit (mock payment, no money moves)
+                                  payment_mode="deposit" if k == 0 else "none", deposit_czk=300 if k == 0 else None))
     if not db.query(models.AvailabilityRule).filter_by(physio_id=physio.id).first():
         for wd, (a, b) in {0: ("08:00", "12:00"), 1: ("13:00", "18:00"), 3: ("08:00", "16:00")}.items():
             db.add(models.AvailabilityRule(physio_id=physio.id, clinic_id=physio.clinic_id, weekday=wd, start_local=a,

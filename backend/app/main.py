@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import models  # noqa: F401  (registers ORM tables on Base before create_all)
@@ -23,7 +23,7 @@ from .deps import is_owner, tutorial_demo_runner_id
 from .metrics import engine as E
 from .routers import (
     admin, ai, annotations, auth, booking, calendar, client_errors, coach, conclusions, employers, goals, integrations, partners, physios,
-    personas, plan, programs, records, rtr, work, runners, self_programs, shoes, simulate, team, triage, assistant, usage,
+    personas, plan, programs, records, rtr, work, business, runners, self_programs, shoes, simulate, team, triage, assistant, usage,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -674,6 +674,30 @@ async def persona_clock(request, call_next):
         E._sim_now.reset(tok)
 
 
+@app.middleware("http")
+async def read_only_practice(request, call_next):
+    """physio brief 2026-11-09 B2: an unpaid practice (after the trial, the paid month and 14 days' grace)
+    may read everything but change nothing — except the documentation (corrections, print, export),
+    signing in and paying."""
+    token = request.cookies.get(security.SESSION_COOKIE)
+    if token and request.method not in ("GET", "HEAD", "OPTIONS") and request.url.path.startswith("/api/"):
+        why = await asyncio.to_thread(_read_only_why, token, request.method, request.url.path)
+        if why:
+            return JSONResponse({"detail": why}, status_code=402)
+    return await call_next(request)
+
+
+def _read_only_why(token: str, method: str, path: str) -> str | None:
+    from . import business as B
+    db = SessionLocal()
+    try:
+        return B.read_only_block(db, security.get_user_for_token(db, token), method, path)
+    except Exception:
+        return None                    # never lock a practice out because the check itself failed
+    finally:
+        db.close()
+
+
 app.include_router(auth.router)
 app.include_router(runners.router)
 app.include_router(shoes.router)
@@ -681,6 +705,7 @@ app.include_router(shoes.catalog_router)
 app.include_router(physios.router)
 app.include_router(records.router)
 app.include_router(work.router)
+app.include_router(business.router)   # physio brief 2026-11-09 Phases 3 and 4
 app.include_router(triage.router)
 app.include_router(programs.router)
 app.include_router(booking.router)

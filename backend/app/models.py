@@ -1702,3 +1702,133 @@ class IntakeForm(Base):
     booking_id = Column(Integer)
     data = Column(JSON)
     created_at = Column(String)
+
+
+# ======================================================================== physio brief 2026-11-09 Phase 3
+class Payment(Base):
+    """B1/B2: a payment through PaymentProvider (mock only until a provider is contracted)."""
+    __tablename__ = "payments"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    booking_id = Column(Integer, index=True)
+    clinic_id = Column(String, index=True)
+    physio_id = Column(String)
+    runner_id = Column(String, index=True)
+    amount_czk = Column(Integer)
+    kind = Column(String)                               # deposit | full | subscription
+    status = Column(String, default="pending")          # pending | paid | refunded | failed
+    provider = Column(String)
+    provider_ref = Column(String)
+    created_at = Column(String)
+    paid_at = Column(String)
+
+
+class Invoice(Base):
+    """B1.3: a receipt per visit, numbered per clinic and year; no VAT lines until an accountant confirms them."""
+    __tablename__ = "invoices"
+    __table_args__ = (UniqueConstraint("clinic_id", "number", name="uq_invoice_number"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    clinic_id = Column(String, index=True)
+    number = Column(String)
+    booking_id = Column(Integer, index=True)
+    runner_id = Column(String, index=True)
+    physio_id = Column(String, index=True)
+    payer = Column(String)
+    amount_czk = Column(Integer)
+    paid_czk = Column(Integer, default=0)
+    items = Column(JSON)
+    status = Column(String, default="issued")           # issued | paid | cancelled
+    issued_at = Column(String)
+    paid_at = Column(String)
+
+
+class Package(Base):
+    """B1.4: a package of visits with the remaining count."""
+    __tablename__ = "visit_packages"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    clinic_id = Column(String, index=True)
+    physio_id = Column(String, index=True)
+    runner_id = Column(String, index=True)
+    name = Column(String)
+    visits_total = Column(Integer)
+    visits_used = Column(Integer, default=0)
+    price_czk = Column(Integer)
+    status = Column(String, default="open")             # open | used | cancelled
+    paid_at = Column(String)
+    created_at = Column(String)
+
+
+class PackageUse(Base):
+    __tablename__ = "visit_package_uses"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    package_id = Column(Integer, index=True)
+    booking_id = Column(Integer, unique=True)
+    created_at = Column(String)
+
+
+class Waitlist(Base):
+    """B4: a runner waits for a physio; an offer holds a time for 2 hours, one person at a time."""
+    __tablename__ = "waitlist"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    physio_id = Column(String, index=True)
+    runner_id = Column(String, index=True)
+    dow = Column(String)                                # "0,2,4" (0 = Monday)
+    dayparts = Column(String)                           # "morning,evening"
+    note = Column(String)
+    status = Column(String, default="waiting")          # waiting | offered | booked | removed
+    offered_slot_at = Column(String)
+    offered_at = Column(String)
+    booking_id = Column(Integer)
+    created_at = Column(String)
+
+
+class PromSchedule(Base):
+    """B5: a questionnaire sent on a schedule (only instruments listed in business.INSTRUMENTS)."""
+    __tablename__ = "prom_schedules"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, index=True)
+    physio_id = Column(String, index=True)
+    instrument = Column(String)
+    every_days = Column(Integer, default=14)
+    next_due = Column(String)
+    active = Column(Boolean, default=True)
+    created_at = Column(String)
+
+
+class PromResponse(Base):
+    __tablename__ = "prom_responses"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    schedule_id = Column(Integer, index=True)
+    runner_id = Column(String, index=True)
+    physio_id = Column(String)
+    instrument = Column(String)
+    answers = Column(JSON)
+    score = Column(Integer)
+    answered_at = Column(String)
+
+
+# ======================================================================== physio brief 2026-11-09 Phase 4
+class VideoNote(Base):
+    """M3: the physio's note at a moment of the client's video."""
+    __tablename__ = "video_notes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    message_id = Column(Integer, index=True)
+    physio_id = Column(String)
+    runner_id = Column(String, index=True)
+    t_seconds = Column(Float)
+    text = Column(String)
+    created_at = Column(String)
+
+
+class ClinicTest(Base):
+    """M4: a structured clinic test, both sides, with the involved side for the limb symmetry index."""
+    __tablename__ = "clinic_tests"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, index=True)
+    physio_id = Column(String)
+    booking_id = Column(Integer)
+    test = Column(String)
+    left = Column(Float)
+    right = Column(Float)
+    involved = Column(String)                           # L | R | None
+    tested_on = Column(String)
+    created_at = Column(String)

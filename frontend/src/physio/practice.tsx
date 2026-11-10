@@ -5,6 +5,7 @@ import { api } from "@/api"
 import { Button, Card, Chip, useToast } from "@/ui"
 import { fmtDT } from "@/lib"
 import { Loading } from "@/physio/common"
+import { ClinicReport, Money, Subscription } from "@/physio/business"
 
 const CLINIC: [string, string][] = [
   ["legal_name", "Název poskytovatele"], ["legal_form", "Právní forma"], ["ico", "IČO"],
@@ -65,13 +66,15 @@ export function PracticePage() {
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <Team />
         <Settings />
+        <Subscription />
+        <ClinicReport />
+        <div className="lg:col-span-2"><Money /></div>
       </div>
     </>
   )
 }
 
 const ROLE_CS: Record<string, string> = { owner: "vlastník", admin: "správce", physio: "fyzioterapeut", reception: "recepce" }
-const SUB_CS: Record<string, string> = { trial: "zkušební období", active: "aktivní", past_due: "po splatnosti", read_only: "jen pro čtení", cancelled: "zrušeno" }
 
 // W1 roles and members, B2 seats (shown to owner and admin only — the server leaves it out for others)
 function Team() {
@@ -83,7 +86,6 @@ function Team() {
   useEffect(() => { void load() }, [])
   if (!d) return <Card><Loading err={null} /></Card>
   const manage = ["owner", "admin"].includes(d.role)
-  const sub = d.subscription
   return (
     <Card>
       <h2 className="font-serif text-xl">Tým praxe</h2>
@@ -114,14 +116,6 @@ function Team() {
         </div>
       )}
       <p className="mt-2 text-[11.5px] text-fg-3">Recepce vidí kalendář a platby, ne klinická data.</p>
-      {sub && (
-        <div className="mt-4 rounded-lg bg-white/[.04] p-3 text-[13px]" data-testid="subscription">
-          <b>{`Předplatné: ${SUB_CS[sub.status] || sub.status}`}</b>
-          <p className="mt-1 text-fg-2">{`${sub.seats} ${sub.seats === 1 ? "místo" : sub.seats < 5 ? "místa" : "míst"} × ${sub.price_czk_per_seat} Kč = ${sub.monthly_czk} Kč měsíčně`}
-            {sub.status === "trial" && sub.trial_ends_at ? ` · zkušební období do ${new Date(sub.trial_ends_at).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" })}` : ""}</p>
-          <p className="mt-1 text-[11.5px] text-fg-3">Recepce se do míst nepočítá. Platby zatím nejsou zapnuté.</p>
-        </div>
-      )}
     </Card>
   )
 }

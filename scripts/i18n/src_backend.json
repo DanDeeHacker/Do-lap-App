@@ -1,5 +1,79 @@
 [
  {
+  "t": "Bolest při běhu (0–10)",
+  "files": [
+   "business.py"
+  ]
+ },
+ {
+  "t": "Bolest v běžném dni (0–10)",
+  "files": [
+   "business.py"
+  ]
+ },
+ {
+  "t": "GET",
+  "files": [
+   "business.py",
+   "main.py",
+   "plan_import.py",
+   "routers/personas.py",
+   "routers/physios.py",
+   "routers/team.py",
+   "team.py"
+  ]
+ },
+ {
+  "t": "HEAD",
+  "files": [
+   "business.py",
+   "main.py"
+  ]
+ },
+ {
+  "t": "Jak dobře zvládáte běh, jak byste chtěli? (0 = vůbec, 10 = úplně)",
+  "files": [
+   "business.py"
+  ]
+ },
+ {
+  "t": "Krátká kontrola funkce (Došlap, nevalidovaný)",
+  "files": [
+   "business.py"
+  ]
+ },
+ {
+  "t": "Návštěva fyzioterapeuta",
+  "files": [
+   "business.py"
+  ]
+ },
+ {
+  "t": "OPTIONS",
+  "files": [
+   "business.py",
+   "main.py"
+  ]
+ },
+ {
+  "t": "Předplatné praxe není zaplacené — aplikace je jen pro čtení. Dokumentace zůstává dostupná.",
+  "files": [
+   "business.py"
+  ]
+ },
+ {
+  "t": "Uvolněný termín: čeká {} z pořadníku",
+  "files": [
+   "business.py"
+  ]
+ },
+ {
+  "t": "{} — z balíčku „{}“",
+  "files": [
+   "business.py"
+  ]
+ },
+ {
   "t": "Pravděpodobnosti jsou jen interní. Náhodný intercept běžce se fituje offline z exportu. Primární událost nezávisí na vstupech modelu; bezpečnostní pravidla nejsou v kalibrovaném skóre.",
   "files": [
    "calibration.py"
@@ -1097,6 +1171,7 @@
   "t": "Nenalezeno",
   "files": [
    "deps.py",
+   "routers/business.py",
    "routers/work.py"
   ]
  },
@@ -1831,17 +1906,6 @@
   "t": "Duplicate activity merge failed",
   "files": [
    "main.py"
-  ]
- },
- {
-  "t": "GET",
-  "files": [
-   "main.py",
-   "plan_import.py",
-   "routers/personas.py",
-   "routers/physios.py",
-   "routers/team.py",
-   "team.py"
   ]
  },
  {
@@ -11543,6 +11607,60 @@
   ]
  },
  {
+  "t": "Chybí klíč pro pseudonymizaci (DOSSLAP_PSEUDO_KEY, alespoň 32 znaků).",
+  "files": [
+   "moat.py"
+  ]
+ },
+ {
+  "t": "Chybí právní základ exportu (DOSSLAP_OUTCOME_EXPORT_BASIS) — nejdřív ho potvrďte s právníkem.",
+  "files": [
+   "moat.py"
+  ]
+ },
+ {
+  "t": "Dřep na jedné noze (opakování)",
+  "files": [
+   "moat.py"
+  ]
+ },
+ {
+  "t": "Poskoky na jedné noze 30 s",
+  "files": [
+   "moat.py"
+  ]
+ },
+ {
+  "t": "Skok na jedné noze do dálky",
+  "files": [
+   "moat.py"
+  ]
+ },
+ {
+  "t": "Trojskok na jedné noze",
+  "files": [
+   "moat.py"
+  ]
+ },
+ {
+  "t": "Výpony na jedné noze do únavy",
+  "files": [
+   "moat.py"
+  ]
+ },
+ {
+  "t": "opakování",
+  "files": [
+   "moat.py"
+  ]
+ },
+ {
+  "t": "počet",
+  "files": [
+   "moat.py"
+  ]
+ },
+ {
   "t": "1 min každá noha",
   "files": [
    "mobility_library.py"
@@ -16335,6 +16453,7 @@
   "t": "Nemáte přístup",
   "files": [
    "routers/booking.py",
+   "routers/business.py",
    "routers/work.py"
   ]
  },
@@ -16556,6 +16675,228 @@
   "t": "zrušení návštěvy",
   "files": [
    "routers/booking.py"
+  ]
+ },
+ {
+  "t": "Balíček: název, 2 až 50 návštěv, cena 0 až 200 000 Kč.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Bolest 0 až 10.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "DPH není nastavené — potvrďte ho s účetní.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Do pořadníku se zapisuje běžec.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Doklad jde vystavit jen k proběhlé nebo potvrzené návštěvě.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Doklad nenalezen",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Dotazník nenalezen",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Fyzioterapeut nenalezen",
+  "files": [
+   "routers/business.py",
+   "routers/physios.py",
+   "routers/runners.py",
+   "routers/team.py"
+  ]
+ },
+ {
+  "t": "Hodnota 0 až 1000.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Jen pro vlastníky.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Nabídka už neplatí.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Nemáte přístup k tomuto klientovi",
+  "files": [
+   "routers/business.py",
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Neplatné datum.",
+  "files": [
+   "routers/business.py",
+   "routers/work.py"
+  ]
+ },
+ {
+  "t": "Neplatný čas.",
+  "files": [
+   "routers/business.py",
+   "routers/work.py"
+  ]
+ },
+ {
+  "t": "Neznámý dotazník nebo interval mimo 7 až 90 dní.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Neznámý test",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Návštěva nenalezena",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Období nejvýš 400 dní.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Platba nenalezena",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Postižená strana: L, P nebo nevyplněno.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Poznámka potřebuje text a čas ve videu.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Poznámky v čase jdou jen k videu.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Předplatné nenalezeno",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Předplatné platí vlastník praxe.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Přehled praxe vidí vlastník a správce.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Stav: zaplaceno nebo zrušeno.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Tento čas je už nabídnutý někomu jinému.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Tento čas už není volný.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Termín mezitím obsadil někdo jiný.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Termín z pořadníku přijat",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Uvolnil se termín z pořadníku",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Uvolnil se termín z pořadníku. Potvrďte ho do 2 hodin v záložce Péče.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Validované dotazníky (např. VISA-A) přidáme až s licencí a validovanou českou verzí.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Vyplňte alespoň jednu stranu.",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Vyplňte: {}",
+  "files": [
+   "routers/business.py"
+  ]
+ },
+ {
+  "t": "Zpráva nenalezena",
+  "files": [
+   "routers/business.py"
   ]
  },
  {
@@ -17126,14 +17467,6 @@
   ]
  },
  {
-  "t": "Fyzioterapeut nenalezen",
-  "files": [
-   "routers/physios.py",
-   "routers/runners.py",
-   "routers/team.py"
-  ]
- },
- {
   "t": "Fyzioterapeut uzavřel zranění. Další postup najdete v záložce Péče.",
   "files": [
    "routers/physios.py"
@@ -17513,12 +17846,6 @@
  },
  {
   "t": "Kód MKN-10 není v číselníku.",
-  "files": [
-   "routers/records.py"
-  ]
- },
- {
-  "t": "Nemáte přístup k tomuto klientovi",
   "files": [
    "routers/records.py"
   ]
@@ -18699,18 +19026,6 @@
  },
  {
   "t": "Naplánoval(a) jsem vám {} {}. Termíny najdete v záložce Péče.",
-  "files": [
-   "routers/work.py"
-  ]
- },
- {
-  "t": "Neplatné datum.",
-  "files": [
-   "routers/work.py"
-  ]
- },
- {
-  "t": "Neplatný čas.",
   "files": [
    "routers/work.py"
   ]

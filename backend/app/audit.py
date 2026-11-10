@@ -119,6 +119,42 @@ ROUTES: dict[str, tuple] = {
     "GET /api/rtr/templates": EXEMPT("templates, no client data"),
     "POST /api/rtr/{pid}/sessions/{sid}/morning": ("update", "rtr"),
     "POST /api/rtr/{pid}/control": SELF,
+    # physio brief 2026-11-09 Phase 3 (payments and receipts carry no clinical content, but who paid for care
+    # with whom is still personal data, so reads and changes are logged)
+    "GET /api/physios/me/invoices": ("read", "invoice"),
+    "GET /api/physios/me/invoices.csv": ("export", "invoice"),
+    "POST /api/bookings/{bid}/invoice": ("create", "invoice"),
+    "PATCH /api/invoices/{iid}": ("update", "invoice"),
+    "GET /api/physios/me/revenue": EXEMPT("sums only, no person"),
+    "GET /api/physios/me/clients/{rid}/packages": ("read", "package"),
+    "POST /api/physios/me/clients/{rid}/packages": ("create", "package"),
+    "GET /api/runners/{rid}/payments": EXEMPT("the runner's own payments"),
+    "POST /api/payments/{pid}/mock-pay": EXEMPT("mock payment of the payer's own record"),
+    "GET /api/physios/me/subscription": EXEMPT("the practice's seats, no client data"),
+    "POST /api/physios/me/subscription/pay": EXEMPT("the practice's seats, no client data"),
+    "POST /api/physios/{pid}/waitlist": EXEMPT("the runner's own waitlist entry"),
+    "GET /api/runners/{rid}/waitlist": EXEMPT("the runner's own waitlist entries"),
+    "DELETE /api/waitlist/{wid}": EXEMPT("the runner's own waitlist entry"),
+    "GET /api/physios/me/waitlist": ("read", "waitlist"),
+    "POST /api/waitlist/{wid}/offer": ("update", "waitlist"),
+    "POST /api/waitlist/{wid}/accept": EXEMPT("the runner's own booking request"),
+    "GET /api/proms/instruments": EXEMPT("questionnaire catalogue"),
+    "GET /api/physios/me/clients/{rid}/proms": ("read", "prom"),
+    "POST /api/physios/me/clients/{rid}/proms": ("create", "prom"),
+    "DELETE /api/proms/{sid}": ("update", "prom"),
+    "GET /api/runners/{rid}/proms/due": EXEMPT("the runner's own questionnaires"),
+    "POST /api/proms/{sid}/answer": SELF,
+    "GET /api/physios/me/clinic/report": EXEMPT("aggregates only (B6), no person"),
+    # Phase 4
+    "GET /api/runners/{rid}/outcome-followups": EXEMPT("the runner's own follow-up"),
+    "POST /api/outcome-followups/{fid}": SELF,
+    "GET /api/team/outcomes/export": ("export", "outcomes"),
+    "GET /api/physios/me/recall": SELF,
+    "GET /api/messages/{mid}/annotations": ("read", "video_note"),
+    "POST /api/messages/{mid}/annotations": ("create", "video_note"),
+    "GET /api/clinic-tests": EXEMPT("test catalogue"),
+    "GET /api/physios/me/clients/{rid}/tests": ("read", "clinic_test"),
+    "POST /api/physios/me/clients/{rid}/tests": ("create", "clinic_test"),
 }
 
 
@@ -151,6 +187,18 @@ def runner_of(db: DBSession, path: str, params: dict) -> str | None:
     if params.get("pid") and path.startswith("/api/rtr/"):
         p = db.get(models.ReturnToRun, int(params["pid"]))
         return p.runner_id if p else None
+    if params.get("iid") and path.startswith("/api/invoices/"):
+        i = db.get(models.Invoice, int(params["iid"]))
+        return i.runner_id if i else None
+    if params.get("wid"):
+        w = db.get(models.Waitlist, int(params["wid"]))
+        return w.runner_id if w else None
+    if params.get("sid") and path.startswith("/api/proms/"):
+        s = db.get(models.PromSchedule, int(params["sid"]))
+        return s.runner_id if s else None
+    if params.get("mid"):
+        m = db.get(models.Message, int(params["mid"]))
+        return m.runner_id if m else None
     if params.get("lid"):
         lim = db.get(models.ClinicalLimit, int(params["lid"])) if hasattr(models, "ClinicalLimit") else None
         return lim.runner_id if lim else None

@@ -15,6 +15,7 @@ import { ConclusionSheet } from "@/physio/conclusion"
 import { DocsTab } from "@/physio/docs"
 import { AdherenceGrid, PlanTab } from "@/physio/plan"
 import { Timeline } from "@/physio/timeline"
+import { Packages, VideoNotes } from "@/physio/business"
 
 const ATTN: Record<string, [string, "alert" | "watch" | "info"]> = {
   pain: ["bolest 4+/10", "alert"], alert: ["vysoké riziko", "alert"], setback: ["zhoršení v návratu", "watch"], message: ["nová zpráva", "info"],
@@ -505,6 +506,7 @@ function AiTab({ rid }: { rid: string }) {
 
 function VisitsTab({ rid, d, onChange }: { rid: string; d: any; onChange: () => void; pid: string }) {
   const [concl, setConcl] = useState<any>(null)
+  const toast = useToast()
   return (
     <div className="grid gap-4">
       <Card>
@@ -517,11 +519,16 @@ function VisitsTab({ rid, d, onChange }: { rid: string; d: any; onChange: () => 
                 {b.conclusion?.status === "approved" ? <Chip tone="ok">záznam schválen</Chip> : b.conclusion ? <Chip tone="watch">rozepsaný záznam</Chip> : null}
                 {["confirmed", "completed"].includes(b.status) && new Date(b.at).getTime() <= Date.now() &&
                   <Button size="sm" variant="outline" icon={FileText} onClick={() => setConcl({ id: b.id, slot_at: b.at, kind: b.kind, runner: d.runner })}>Záznam</Button>}
+                {["confirmed", "completed"].includes(b.status) && new Date(b.at).getTime() <= Date.now() &&
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    try { const i = await api.invoiceIssue(b.id); toast({ title: `Doklad ${i.number}` }) } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+                  }}>Doklad</Button>}
               </li>
             ))}
           </ul>
         )}
       </Card>
+      <Packages rid={rid} />
       <DocsTab rid={rid} />
       <ConclusionSheet booking={concl} onClose={() => setConcl(null)} onDone={() => { setConcl(null); onChange() }} />
     </div>
@@ -592,6 +599,7 @@ const QUICK_DEFAULT = ["Děkuji, podívám se na to.", "Pokračujte podle plánu
 export function Attachment({ m }: { m: any }) {
   const url = `/api/messages/${m.id}/attachment`
   if ((m.attachment_type || "").startsWith("image/")) return <a href={url} target="_blank" rel="noreferrer"><img src={url} alt={m.attachment_name || "fotka"} className="mb-1 max-h-60 rounded-lg" /></a>
-  if ((m.attachment_type || "").startsWith("video/")) return <video src={url} controls className="mb-1 max-h-60 rounded-lg" />
+  // physio brief M3: a client's video gets the physio's notes at moments of it
+  if ((m.attachment_type || "").startsWith("video/")) return <div className="mb-1"><video id={`v${m.id}`} src={url} controls className="max-h-60 rounded-lg" /><VideoNotes m={m} physio videoId={`v${m.id}`} /></div>
   return <a href={url} className="mb-1 block text-accent underline">{m.attachment_name || "příloha"}</a>
 }

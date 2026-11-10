@@ -109,3 +109,29 @@ person and imported with the script; the running-injury shortlist needs a physio
 
 **Left for later:** a QR code for the invite (needs a library; the link can be copied or sent); e-mail and
 SMS delivery (provider and contract); video in the exercise library (content).
+
+## Phase 3 — paid product
+
+| Item | Code | Tests |
+|---|---|---|
+| B1 payments and receipts | `business.PaymentProvider` with `MockProvider` only (no money moves; every screen says so); per-service deposit or full price opened at the booking request; `Invoice` numbered per clinic and year (`YYYY-NNNN`, unique index, cancelled numbers never reused), issued when a visit is marked held; packages (`Package`, `PackageUse`) pay a visit with a zero receipt; CSV for the accountant; revenue per period, per payer, outstanding. **No VAT lines** — the brief says an accountant confirms first. UI Praxe → Doklady a tržby, client Dokumentace → Balíčky, runner Péče → Čeká na vás | `test_business.py` |
+| B2 seats | `business.subscription_state` (trial → active while paid → past due for 14 days → read-only); `main.read_only_practice` returns 402 on writes except sign-in, paying and the documentation (corrections, print, export); owner pays a month (mock). UI Praxe → Předplatné | `test_business.py` |
+| B3 referral fee | **not built** — waits for counsel, as the brief says | |
+| B4 waitlist | `Waitlist`; runner joins from Najít termín with the chosen days and parts of day; Kalendář → Pořadník lists fitting free times; an offer holds a time for 2 hours, one person at a time; a cancellation notifies the physio how many wait | `test_business.py` |
+| B5 PROMs | schedule and answers (`PromSchedule`, `PromResponse`), chart in Plán → Dotazníky, runner form in Péče. Only Došlap's own short check, labelled **not validated**; VISA-A and others wait for a licence and the validated Czech version | `test_business.py` |
+| B6 clinic report | occupancy, visits, no-shows, new against returning, revenue — counts and sums only; owner and admin | `test_business.py` |
+
+## Phase 4 — moat
+
+| Item | Code | Tests |
+|---|---|---|
+| M1 outcome dataset | labels from the episode the physio closes (diagnosis code, side, onset, outcome, return date) plus the runner's 3-month answer (`OutcomeFollowup`, Péče → Čeká na vás); pseudonymised export `/api/team/outcomes/export` for owners only, refused until `DOSSLAP_OUTCOME_EXPORT_BASIS` and `DOSSLAP_PSEUDO_KEY` are set; only coded diagnoses with an outcome. Complements `app/outcomes.py` (engine snapshots against self-reported events) | `test_business.py` |
+| M2 recall | `moat.recall_list`: discharged, still sharing data (active consent), not back in care, with high risk or pain ≥ 3 since discharge; Dnes → Bývalí klienti s novým signálem | `test_business.py` |
+| M3 video review | `VideoNote` — the physio's notes at moments of a client's video in Zprávy (reuses W13 storage); click jumps the video | `test_business.py` |
+| M4 test battery | `ClinicTest`, five tests, limb symmetry index; Plán → Testy v ordinaci; the latest values are offered in W11's readiness gate | `test_business.py` |
+| M5 interoperability | **not built** — the official record identifier and export format apply later; the R9 export stays the hand-over format | |
+
+**Owner decisions before this goes live:** a payment provider and contract; VAT treatment from an accountant;
+the seat price (`DOSSLAP_SEAT_PRICE_CZK`, default 690) and trial length; the legal basis for the outcome
+export; licences for validated questionnaires; counsel's view on B3. The consent text should mention recall
+(M2) before it is switched on for real clients.
