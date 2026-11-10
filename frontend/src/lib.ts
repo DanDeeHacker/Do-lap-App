@@ -118,3 +118,17 @@ export function icoValid(ico: string): boolean {
 const squash = (x: string) => x.toLowerCase().replace(/[.\s,]/g, "")
 export const nameHasForm = (name?: string | null, form?: string | null) => !!form && squash(name || "").endsWith(squash(form))
 export const providerName = (name?: string | null, form?: string | null) => (!form || nameHasForm(name, form) ? (name || "") : `${name || ""}, ${form}`)
+
+// round 2 F11.1: clinical contexts (Dokumentace, printout, Karta klienta, Historie přístupů) always carry the year,
+// in numbers: "15. 3. 1979", "10. 11. 2026 10:12"
+export const fmtDY = (iso?: string | null) => {
+  if (!iso) return "—"
+  const d = new Date(iso.length <= 10 ? `${iso}T12:00:00` : iso)
+  return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`
+}
+export const fmtDTY = (iso?: string | null) => {
+  if (!iso) return "—"
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return fmtDY(iso)
+  const d = new Date(iso)
+  return `${fmtDY(iso)} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+}

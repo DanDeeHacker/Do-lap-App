@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { Download, FilePlus2, Pencil, Printer, Send } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, Sheet, useToast } from "@/ui"
-import { fmtD, fmtDT, providerName } from "@/lib"
+import { fmtDTY, fmtDY, providerName } from "@/lib"
 import { Empty, KIND, Loading, REGIONS, useLoad } from "@/physio/common"
 
 const SOAP: [string, string][] = [
@@ -50,7 +50,7 @@ export function DocsTab({ rid }: { rid: string }) {
           <p className="mt-2 text-[13px] text-fg-2">
             <b className="text-fg">{`${d.patient.first_name} ${d.patient.last_name}`}</b>
             {/* round 2 F2.7: missing identity reads "neuvedeno", never a guess */}
-            {" · nar. "}{d.patient.birth_date ? fmtD(d.patient.birth_date) : "neuvedeno"}
+            {" · nar. "}{d.patient.birth_date ? fmtDY(d.patient.birth_date) : "neuvedeno"}
             {" · pohlaví při narození: "}{d.patient.sex_at_birth ? (d.patient.sex_at_birth === "f" ? "žena" : "muž") : "neuvedeno"}
             {" · adresa: "}{d.patient.permanent_address?.city ? [d.patient.permanent_address.street, d.patient.permanent_address.postal_code, d.patient.permanent_address.city].filter(Boolean).join(", ") : "neuvedeno"}
             <span className="block text-[11.5px] text-fg-3">{`Identifikátor ${d.patient.identifier}`}</span>
@@ -79,7 +79,7 @@ export function DocsTab({ rid }: { rid: string }) {
         <p className="mt-1 text-[12px] text-fg-3">Kdy, kdo a v jakém rozsahu s dokumentací a daty klienta pracoval (vyhl. 444/2024 § 3/1 t).</p>
         {d.access.length === 0 ? <Empty>Zatím žádný záznam.</Empty> : (
           <ul className="mt-2 grid gap-1 text-[12.5px]" data-testid="access-history">
-            {d.access.map((e: any, i: number) => <li key={i} className="text-fg-2"><span className="tabular-nums text-fg-3">{fmtDT(e.at)}</span>{` · ${e.who} ${e.text}`}</li>)}
+            {d.access.map((e: any, i: number) => <li key={i} className="text-fg-2"><span className="tabular-nums text-fg-3">{fmtDTY(e.at)}</span>{` · ${e.who} ${e.text}`}</li>)}
           </ul>
         )}
       </Card>
@@ -110,11 +110,11 @@ function RecordView({ r, onChange }: { r: any; onChange: () => void }) {
   return (
     <section className="rounded-xl border border-white/[.08] p-3 text-[13px]" data-testid="record">
       <div className="flex flex-wrap items-center gap-2">
-        <b className="text-fg">{fmtDT(r.encounter_at)}</b>
+        <b className="text-fg">{fmtDTY(r.encounter_at)}</b>
         <span className="text-fg-3">{r.kind === "discharge" ? "Ukončení péče" : KIND[c.visit_kind] || "Návštěva"}</span>
         {r.legacy && <Chip>převzato ze staršího záznamu</Chip>}
         {r.flags?.includes("approved_before_encounter") && <Chip tone="watch">schváleno před začátkem návštěvy</Chip>}
-        {r.corrections.length > 0 && <Chip tone="watch">{`Opraveno ${fmtD(r.corrections.at(-1).at)}, ${r.corrections.at(-1).by}`}</Chip>}
+        {r.corrections.length > 0 && <Chip tone="watch">opraveno</Chip>}
         <span className="flex-1" />
         {r.kind !== "discharge" && <>
           <button type="button" className="text-[12px] font-bold text-accent hover:underline" onClick={() => setMode(mode === "fix" ? "" : "fix")}>Opravit záznam</button>
@@ -134,8 +134,12 @@ function RecordView({ r, onChange }: { r: any; onChange: () => void }) {
           {shown?.note_patient_request && <p className="text-[12px] text-fg-3">{shown.note_patient_request}</p>}
         </dl>
       )}
-      {r.addenda.map((a: any) => <p key={a.id} className="mt-2 rounded-lg bg-white/[.03] px-3 py-2 text-fg-2"><b className="text-fg">{`Doplněk ${fmtDT(a.at)}, ${a.by}: `}</b>{a.text}</p>)}
-      <p className="mt-2 text-[11.5px] text-fg-3">{`Záznam ${r.id} · ${r.author}${r.author_identifier ? ` (${r.author_identifier})` : ""} · schváleno ${fmtDT(r.authorised_at)}`}
+      {/* round 2 F11.3: as the printout — when, who, why and the correction's own record ID */}
+      {r.corrections.map((x: any) => (
+        <p key={x.id} className="mt-2 text-[12px] text-fg-2" data-testid="correction-line">{`Opraveno ${fmtDTY(x.at)}, ${x.by} — důvod: ${x.reason || "neuveden"}${x.at_patient_request ? " (na žádost pacienta)" : ""} · záznam ${String(x.id).slice(0, 8)}…`}</p>
+      ))}
+      {r.addenda.map((a: any) => <p key={a.id} className="mt-2 rounded-lg bg-white/[.03] px-3 py-2 text-fg-2"><b className="text-fg">{`Doplněk ${fmtDTY(a.at)}, ${a.by}: `}</b>{a.text}</p>)}
+      <p className="mt-2 text-[11.5px] text-fg-3">{`Záznam ${r.id} · ${r.author}${r.author_identifier ? ` (${r.author_identifier})` : ""} · schváleno ${fmtDTY(r.authorised_at)}`}
         {r.original && <> · <button type="button" className="font-bold underline" onClick={() => setOrig(!orig)}>{orig ? "Zobrazit aktuální znění" : "Zobrazit původní znění"}</button></>}</p>
       {mode === "fix" && (
         <div className="mt-3 grid gap-2 rounded-xl bg-white/[.03] p-3">
@@ -181,8 +185,8 @@ function Episodes({ rid }: { rid: string }) {
           {items.map((ep: any) => (
             <li key={ep.id} className="rounded-xl border border-white/[.07] p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <b className="text-fg">{"Od "}{fmtD(ep.opened_at)}</b>
-                {ep.status === "open" ? <Chip tone="info">probíhá</Chip> : <Chip>{`ukončeno ${fmtD(ep.closed_at)} · ${OUTCOME[ep.discharge_outcome] || ""}`}</Chip>}
+                <b className="text-fg">{"Od "}{fmtDY(ep.opened_at)}</b>
+                {ep.status === "open" ? <Chip tone="info">probíhá</Chip> : <Chip>{`ukončeno ${fmtDY(ep.closed_at)} · ${OUTCOME[ep.discharge_outcome] || ""}`}</Chip>}
                 <span className="flex-1" />
                 {ep.status === "open" && <Button size="sm" variant="outline" onClick={() => setClosing(ep)}>Ukončit péči</Button>}
               </div>
@@ -341,13 +345,13 @@ export function PrintPage({ rid }: { rid: string }) {
       <div className="head">
         <h1>Zdravotnická dokumentace — fyzioterapie</h1>
         <div>{`${providerName(pv.legal_name || pv.name, pv.legal_form)} · IČO ${pv.ico || "—"} · ${[pv.care_site_street, pv.care_site_postal_code, pv.care_site_city].filter(Boolean).join(", ")}`}</div>
-        {pt ? <div>{`Pacient: ${pt.first_name} ${pt.last_name} · nar. ${pt.birth_date ? fmtD(pt.birth_date) : "—"} · ${pt.sex_at_birth === "f" ? "žena" : pt.sex_at_birth === "m" ? "muž" : "—"} · ${[pt.permanent_address?.street, pt.permanent_address?.postal_code, pt.permanent_address?.city].filter(Boolean).join(", ")} · identifikátor ${pt.identifier}`}</div> : <div>Karta pacienta není založená.</div>}
+        {pt ? <div>{`Pacient: ${pt.first_name} ${pt.last_name} · nar. ${pt.birth_date ? fmtDY(pt.birth_date) : "—"} · ${pt.sex_at_birth === "f" ? "žena" : pt.sex_at_birth === "m" ? "muž" : "—"} · ${[pt.permanent_address?.street, pt.permanent_address?.postal_code, pt.permanent_address?.city].filter(Boolean).join(", ")} · identifikátor ${pt.identifier}`}</div> : <div>Karta pacienta není založená.</div>}
       </div>
       {d.records.map((r: any) => {
         const c = r.current || {}
         return (
           <section key={r.id}>
-            <h2>{`${fmtDT(r.encounter_at)} · ${r.kind === "discharge" ? "Ukončení péče" : KIND[c.visit_kind] || "Návštěva"} · záznam ${r.id}`}</h2>
+            <h2>{`${fmtDTY(r.encounter_at)} · ${r.kind === "discharge" ? "Ukončení péče" : KIND[c.visit_kind] || "Návštěva"} · záznam ${r.id}`}</h2>
             <dl>
               {SOAP.map(([k, label]) => c[k] ? <div key={k}><dt>{label}</dt><dd>{c[k]}</dd></div> : null)}
               {c.diagnosis_label && <div><dt>Diagnóza</dt><dd>{`${c.diagnosis_code || ""} ${c.diagnosis_label}`}</dd></div>}
@@ -355,14 +359,14 @@ export function PrintPage({ rid }: { rid: string }) {
               {c.outcome && <div><dt>Výsledek (OSTRC)</dt><dd><Outcome o={c.outcome} /></dd></div>}
               {r.kind === "discharge" && <div><dt>Výsledek péče</dt><dd>{`${OUTCOME[c.episode?.discharge_outcome] || ""}${c.episode?.closing_note ? ` — ${c.episode.closing_note}` : ""}`}</dd></div>}
             </dl>
-            {r.corrections.map((k: any) => <div key={k.id}>{`Opraveno ${fmtDT(k.at)}, ${k.by}: ${k.reason}${k.at_patient_request ? " (na žádost pacienta)" : ""}. Původní znění: záznam ${r.id}.`}</div>)}
-            {r.addenda.map((a: any) => <div key={a.id}>{`Doplněk ${fmtDT(a.at)}, ${a.by}: ${a.text}`}</div>)}
-            <div>{`Zapsal(a): ${r.author}${r.author_identifier ? ` (${r.author_identifier})` : ""} · autorizováno ${fmtDT(r.authorised_at)}`}</div>
+            {r.corrections.map((k: any) => <div key={k.id}>{`Opraveno ${fmtDTY(k.at)}, ${k.by}: ${k.reason}${k.at_patient_request ? " (na žádost pacienta)" : ""}. Původní znění: záznam ${r.id}.`}</div>)}
+            {r.addenda.map((a: any) => <div key={a.id}>{`Doplněk ${fmtDTY(a.at)}, ${a.by}: ${a.text}`}</div>)}
+            <div>{`Zapsal(a): ${r.author}${r.author_identifier ? ` (${r.author_identifier})` : ""} · autorizováno ${fmtDTY(r.authorised_at)}`}</div>
             <div className="sig">podpis</div>
           </section>
         )
       })}
-      <p style={{ marginTop: 16, fontSize: 10 }}>{`Vytištěno ${fmtDT(d.generated_at)} z aplikace Došlap.`}</p>
+      <p style={{ marginTop: 16, fontSize: 10 }}>{`Vytištěno ${fmtDTY(d.generated_at)} z aplikace Došlap.`}</p>
     </div>
   )
 }
@@ -371,12 +375,13 @@ export function PrintPage({ rid }: { rid: string }) {
 // translates them (one joined string stayed Czech)
 const SIDE_CS: Record<string, string> = { L: "vlevo", P: "vpravo", R: "vpravo", both: "oboustranně" }
 function Outcome({ o }: { o: any }) {
-  if (o.kind === "no_injury") return <>bez zranění</>
-  return (
-    <>
-      <span>{o.region_label || ""}</span>{o.side ? <>{", "}<span>{SIDE_CS[o.side] || o.side}</span></> : null}
-      {" · "}<span>{`závažnost ${o.severity}/100`}</span>
-      {Object.entries(o.answers || {}).map(([q, a]) => <span key={q}>{" · "}<span>{q}</span>{": "}<span>{String(a)}</span></span>)}
-    </>
-  )
+  // round 2 F11.2: "Bez zranění · Bolest: žádná · …" — every part its own text node, joined by " · "
+  const parts: React.ReactNode[] = []
+  if (o.kind === "no_injury") parts.push(<span key="k">Bez zranění</span>)
+  else {
+    if (o.region_label) parts.push(<span key="r"><span>{o.region_label}</span>{o.side ? <>{", "}<span>{SIDE_CS[o.side] || o.side}</span></> : null}</span>)
+    if (o.severity != null) parts.push(<span key="s">{`závažnost ${o.severity}/100`}</span>)
+  }
+  for (const [q, a] of Object.entries(o.answers || {})) parts.push(<span key={q}><span>{q}</span>{": "}<span>{String(a)}</span></span>)
+  return <>{parts.map((x, i) => <span key={i}>{i > 0 ? " · " : null}{x}</span>)}</>
 }

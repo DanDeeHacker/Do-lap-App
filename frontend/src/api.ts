@@ -279,7 +279,7 @@ export const api = {
   docExport: (rid: string) => call("GET", `/api/physios/me/clients/${rid}/documentation/export`),
   unsigned: () => call("GET", "/api/physios/me/unsigned"),
   recordingConsent: (bid: number) => call("POST", `/api/bookings/${bid}/recording-consent`, {}),
-  accessEvents: (rid: string) => call("GET", `/api/runners/${rid}/access-events`),
+  accessEvents: (rid: string, before?: number) => call("GET", `/api/runners/${rid}/access-events${before ? `?before=${before}` : ""}`),
   deleteAccount: (rid: string, confirm: string) => call("POST", `/api/runners/${rid}/account/delete`, { confirm }),
   // physio brief 2026-11-09 Phase 2: a physio's working day
   clinic: () => call("GET", "/api/physios/me/clinic"),

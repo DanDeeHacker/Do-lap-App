@@ -5,7 +5,7 @@ destruction (R11) and what stays after the client withdraws consent (R13)."""
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -473,7 +473,8 @@ def export_doc(rid: str, user: models.User = Depends(require_verified_physio), d
     rows = db.query(models.ClinicalRecord).filter_by(patient_record_id=card.id).order_by(models.ClinicalRecord.created_at).all()
     R.physio_event(db, p, "export", "documentation", card.id, runner_id=rid, detail={"records": len(rows)})
     db.commit()
-    return {"format": "dosslap-record-export/1", "patient": R.patient_snapshot(card),
+    # round 2 F11.4: the format is named after the product; an import added later accepts both names
+    return {"format": "doslap-record-export/1", "patient": R.patient_snapshot(card),
             "records": [{"id": r.id, "kind": r.kind, "encounter_at": r.encounter_at, "authorised_at": r.authorised_at,
                          "author": r.author_name, "corrects": r.corrects_record_id, "content": json.loads(r.content_json),
                          "content_sha256": r.content_sha256, "chain_sha256": r.chain_sha256} for r in rows],
@@ -507,20 +508,71 @@ RESOURCE_CS = {"documentation": "dokumentaci", "patient_card": "kartu klienta", 
                "waitlist": "pořadník", "video_note": "poznámku k videu", "outcomes": "výsledky", "recall": "seznam k oslovení"}
 
 
+WRITE_ACTIONS = {"create", "update", "approve", "correct", "export", "handover", "message", "consent", "close",
+                 "transcribe", "addendum", "delete", "publish", "cancel", "move"}
+
+
+def _detail(e: models.RecordEvent) -> dict:
+    try:
+        d = json.loads(e.detail_json) if e.detail_json else {}
+    except (TypeError, ValueError):
+        d = {}
+    return d if isinstance(d, dict) else {}
+
+
 def _event_out(e: models.RecordEvent) -> dict:
-    return {"at": e.at, "who": e.actor_name or e.actor_type, "actor_type": e.actor_type, "action": e.action,
-            "resource": e.resource_type,
-            "text": f"{ACTION_CS.get(e.action, e.action)} {RESOURCE_CS.get(e.resource_type, e.resource_type)}"}
+    text = f"{ACTION_CS.get(e.action, e.action)} {RESOURCE_CS.get(e.resource_type, e.resource_type)}"
+    if e.action == "handover":
+        # round 2 F11.6: who received it and why — never clinical text
+        d = _detail(e)
+        bits = [f"příjemce: {d['recipient']}" if d.get("recipient") else None, f"účel: {d['purpose']}" if d.get("purpose") else None]
+        if any(bits):
+            text += " — " + ", ".join(b for b in bits if b)
+    return {"id": e.id, "at": e.at, "who": e.actor_name or e.actor_type, "actor_type": e.actor_type, "action": e.action,
+            "resource": e.resource_type, "text": text}
+
+
+PAGE = 50
 
 
 @router.get("/api/runners/{rid}/access-events")
-def runner_access_events(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
-    """R7.5: Kdo přistupoval k vašim datům → Zobrazit detail."""
+def runner_access_events(rid: str, before: int | None = None, user: models.User = Depends(get_current_user),
+                         db: DBSession = Depends(get_db)):
+    """R7.5: Kdo přistupoval k vašim datům → Zobrazit detail. Round 2 F12.1: every event, 50 per page, newest
+    first, cursor on id (`before`); `since` is the first detailed event, so the list can say where it starts."""
     ensure_runner_self(user, rid)
-    rows = (db.query(models.RecordEvent).filter(models.RecordEvent.runner_id == rid,
-                                                models.RecordEvent.actor_type != "runner")
-            .order_by(models.RecordEvent.id.desc()).limit(200).all())
-    return {"items": [_event_out(e) for e in rows]}
+    q = db.query(models.RecordEvent).filter(models.RecordEvent.runner_id == rid, models.RecordEvent.actor_type != "runner")
+    first = q.order_by(models.RecordEvent.id.asc()).first()
+    if before:
+        q = q.filter(models.RecordEvent.id < before)
+    rows = q.order_by(models.RecordEvent.id.desc()).limit(PAGE + 1).all()
+    more = len(rows) > PAGE
+    rows = rows[:PAGE]
+    return {"items": [_event_out(e) for e in rows], "next": rows[-1].id if more and rows else None,
+            "since": first.at if first else None}
+
+
+def access_summary(db: DBSession, rid: str, limit: int = 40) -> list[dict]:
+    """Round 2 F12.2: the daily summary from record_events — one row per local day, actor and read/write — so it
+    counts every audited route; the coach and the app owner keep their own logs."""
+    rows = (db.query(models.RecordEvent).filter(models.RecordEvent.runner_id == rid, models.RecordEvent.actor_type != "runner")
+            .order_by(models.RecordEvent.id.desc()).limit(5000).all())
+    groups: dict[tuple, dict] = {}
+    for e in rows:
+        try:
+            day = datetime.fromisoformat(e.at).astimezone(E.LOCAL_TZ).date().isoformat()
+        except (TypeError, ValueError):
+            day = (e.at or "")[:10]
+        kind = "write" if e.action in WRITE_ACTIONS else "read"
+        key = (day, e.actor_id or e.actor_name, kind)
+        g = groups.setdefault(key, {"id": f"ev-{day}-{e.actor_id}-{kind}", "runner_id": rid, "physio_id": e.actor_id,
+                                    "actor_role": e.actor_type, "action": kind, "date": day, "access_count": 0,
+                                    "first_at": e.at, "last_at": e.at, "physio_name": e.actor_name})
+        g["access_count"] += 1
+        g["first_at"] = min(g["first_at"], e.at)
+        g["last_at"] = max(g["last_at"], e.at)
+    out = sorted(groups.values(), key=lambda g: (g["date"], g["last_at"]), reverse=True)
+    return out[:limit]
 
 
 # ---- R8 unsigned ---------------------------------------------------------------------------------------------
