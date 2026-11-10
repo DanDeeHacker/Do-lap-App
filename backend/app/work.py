@@ -305,6 +305,18 @@ def alert_title(rule: str, payload: dict | None) -> str:
     return ALERT_CS.get(rule, rule)
 
 
+def by_gender(physio, feminine: str, masculine: str, neutral: str) -> str:
+    """Round 2 F15.2: texts about the physio follow their grammatical gender; without one, neutral wording."""
+    g = getattr(physio, "grammatical_gender", None)
+    return feminine if g == "f" else masculine if g == "m" else neutral
+
+
+def verb(physio, stem_f: str, stem_m: str) -> str:
+    """A past-tense verb for the access history: 'zobrazila' / 'zobrazil', else 'zobrazil(a)'."""
+    g = getattr(physio, "grammatical_gender", None)
+    return stem_f if g == "f" else stem_m if g == "m" else f"{stem_m}(a)"
+
+
 def _clients(db: DBSession, physio_id: str) -> list[str]:
     return [c.runner_id for c in db.query(models.CareAssignment).filter_by(physio_id=physio_id, status="active").all()]
 

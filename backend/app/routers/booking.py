@@ -122,7 +122,7 @@ RATING_MIN = 5   # physio brief W14: a rating is shown only once earned from thi
 
 def _physio_public(p: models.Physio, clinic: models.Clinic | None) -> dict:
     return {
-        "id": p.id, "name": p.name, "credential": p.credential,
+        "id": p.id, "name": p.name, "credential": p.credential, "title": p.title, "photo_url": p.photo_url,
         "rating": p.rating if (p.rating_count or 0) >= RATING_MIN else None,
         "response_time_text": p.response_time_text, "cancellation_policy": p.cancellation_policy,
         "bio": p.bio, "years_exp": p.years_exp, "specialties": p.specialties or [],

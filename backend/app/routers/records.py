@@ -368,7 +368,7 @@ def documentation(rid: str, user: models.User = Depends(require_verified_physio)
             "patient": R.patient_snapshot(card) if card else None,
             "patient_missing": R.patient_missing(card),
             "records": [_version_out(db, r) for r in roots],
-            "access": [_event_out(e) for e in events],
+            "access": [_event_out(e, db) for e in events],
             "can_send_electronically": SIGNING.configured(),
             "generated_at": E.now_iso()}
 
@@ -533,8 +533,19 @@ def _detail(e: models.RecordEvent) -> dict:
     return d if isinstance(d, dict) else {}
 
 
-def _event_out(e: models.RecordEvent) -> dict:
-    text = f"{ACTION_CS.get(e.action, e.action)} {RESOURCE_CS.get(e.resource_type, e.resource_type)}"
+def _action_cs(e: models.RecordEvent, db: DBSession | None = None) -> str:
+    """Round 2 F11.7 / F15.2: the verb in the physio's grammatical gender ('zobrazila'), '(a)' without one."""
+    base = ACTION_CS.get(e.action, e.action)
+    if db is None or e.actor_type != "physio" or not e.actor_id or "(a)" not in base:
+        return base
+    from .. import work as W
+    ph = db.get(models.Physio, e.actor_id)
+    stem = base.split("(a)")[0]
+    return W.verb(ph, stem + "a", stem) + base.split("(a)", 1)[1] if ph else base
+
+
+def _event_out(e: models.RecordEvent, db: DBSession | None = None) -> dict:
+    text = f"{_action_cs(e, db)} {RESOURCE_CS.get(e.resource_type, e.resource_type)}"
     if e.action == "handover":
         # round 2 F11.6: who received it and why — never clinical text
         d = _detail(e)
@@ -561,7 +572,7 @@ def runner_access_events(rid: str, before: int | None = None, user: models.User 
     rows = q.order_by(models.RecordEvent.id.desc()).limit(PAGE + 1).all()
     more = len(rows) > PAGE
     rows = rows[:PAGE]
-    return {"items": [_event_out(e) for e in rows], "next": rows[-1].id if more and rows else None,
+    return {"items": [_event_out(e, db) for e in rows], "next": rows[-1].id if more and rows else None,
             "since": first.at if first else None}
 
 

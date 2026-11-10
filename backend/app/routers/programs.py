@@ -432,13 +432,16 @@ def send_program(pid: int, body: schemas.SendProgramRequest, user: models.User =
     base = max(top, p.version or 0, 0 if first else 1)
     p.version = base + 1
     p.draft_note = None
+    from .. import work as W
     db.add(models.ProgramVersion(program_id=pid, version=p.version, status="published", published_at=_utc(),
                                  note=note or None, snapshot=snapshot(db, p)))
     db.add(models.Message(
         runner_id=p.runner_id, physio_id=user.physio_id, sender="physio",
         body=(body.note if first and body.note else
               f"Posílám vám program „{p.name}“. Projděte si pokyny u jednotlivých cviků." if first else
-              f"Upravil(a) jsem váš program „{p.name}“: {note}"),
+              # round 2 F15.2: the physio's grammatical gender, neutral without one
+              W.by_gender(db.get(models.Physio, user.physio_id), f"Upravila jsem váš program „{p.name}“: {note}",
+                          f"Upravil jsem váš program „{p.name}“: {note}", f"Program „{p.name}“ byl upraven: {note}")),
         created_at=E.now_iso(),
     ))
     from .. import work as W

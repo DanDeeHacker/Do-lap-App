@@ -132,6 +132,10 @@ def _profile_out(db: DBSession, p: models.Physio, user: models.User) -> dict:
             "notify_settings": p.notify_settings or {}, "quick_replies": p.quick_replies or [],
             "dark_mode": bool(p.dark_mode), "photo_url": p.photo_url, "rating_count": p.rating_count or 0,
             "has_ics": bool(p.ics_token),
+            # round 2 F15.1: the public card — title from Praxe (read-only here), services, verification
+            "title": p.title, "grammatical_gender": p.grammatical_gender, "verified_at": p.verified_at,
+            "services": [{"id": sv.id, "name": sv.name_cs, "duration_minutes": sv.duration_minutes, "price_czk": sv.price_czk}
+                         for sv in db.query(models.Service).filter_by(physio_id=p.id, active=True).order_by(models.Service.sort_order).all()],
             # physio brief 2026-11-09 P0.1: what the app may offer, from configuration, no network call
             "capabilities": ai_brief.capabilities()}
 
@@ -153,6 +157,8 @@ class PhysioProfileIn(schemas.Lenient):
     price_czk: int | None = Field(default=None, ge=0, le=20000)
     clinic_name: str | None = Field(default=None, max_length=160)
     clinic_city: str | None = Field(default=None, max_length=80)
+    grammatical_gender: str | None = None        # round 2 F15.2: "f" | "m" | "" (clear)
+    photo: str | None = None                     # round 2 F15.1: a small JPEG/PNG data URL, resized in the browser
 
 
 @router.patch("/me", dependencies=[Depends(verify_csrf)])
@@ -168,6 +174,18 @@ def update_profile(body: PhysioProfileIn, user: models.User = Depends(require_ro
             setattr(p, k, v.strip() if isinstance(v, str) else v)
     if body.specialties is not None:
         p.specialties = [s.strip()[:40] for s in body.specialties if s.strip()]
+    if body.grammatical_gender is not None:
+        if body.grammatical_gender not in ("f", "m", ""):
+            raise HTTPException(status_code=422, detail="Vyberte, jak o vás psát.")
+        p.grammatical_gender = body.grammatical_gender or None
+    if body.photo is not None:
+        if body.photo == "":
+            p.photo_url = None
+        elif not body.photo.startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,")) \
+                or len(body.photo) > 400_000:
+            raise HTTPException(status_code=422, detail="Fotka musí být obrázek do 300 kB.")
+        else:
+            p.photo_url = body.photo
     if body.clinic_name or body.clinic_city:
         clinic = db.get(models.Clinic, p.clinic_id) if p.clinic_id else None
         if clinic is None:

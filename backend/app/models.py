@@ -66,6 +66,7 @@ class Physio(Base):
     notify_settings = Column(JSON)
     ics_token = Column(String)
     rating_count = Column(Integer)
+    grammatical_gender = Column(String)          # round 2 F15.2: "f" | "m" | None — how texts about the physio read
     photo_url = Column(String)
     quick_replies = Column(JSON)
     dark_mode = Column(Boolean)

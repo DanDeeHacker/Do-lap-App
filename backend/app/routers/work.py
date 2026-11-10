@@ -928,7 +928,9 @@ def add_limit(rid: str, body: LimitIn, user: models.User = Depends(require_verif
     db.flush()
     R.physio_event(db, p, "create", "limit", x.id, runner_id=rid, detail={"kind": body.kind})
     db.add(models.Message(runner_id=rid, physio_id=p.id, sender="system", created_at=E.now_iso(),
-                          body=f"Fyzioterapeut nastavil omezení tréninku: {W.limit_text(x)} — {x.reason_cs}"))
+                          # round 2 F15.2: in the physio's grammatical gender, neutral without one
+                          body=W.by_gender(p, f"{p.name} nastavila omezení tréninku: ", f"{p.name} nastavil omezení tréninku: ",
+                                           "Bylo nastaveno omezení tréninku: ") + f"{W.limit_text(x)} — {x.reason_cs}"))
     db.commit()
     E.recompute_assessment(db, rid)
     return _limit_out(x)

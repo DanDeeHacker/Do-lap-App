@@ -401,8 +401,9 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
         {opts?.map((pp) => (
           <div key={pp.id} className="nest p-4">
             <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-extrabold text-accent">{initials(pp.name)}</span>
-              <div className="min-w-0 flex-1"><b className="font-bold">{pp.name}</b><p className="text-[12px] text-fg-3">{pp.clinic?.name || ""}{pp.clinic?.city ? ` · ${pp.clinic.city}` : ""} · {pp.years_exp || "—"} let · <Star className="inline size-3 -translate-y-px fill-watch text-watch" aria-hidden /> {pp.rating || "—"}</p></div>
+              {pp.photo_url ? <img src={pp.photo_url} alt="" className="size-10 shrink-0 rounded-full object-cover" />
+                : <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-extrabold text-accent">{initials(pp.name)}</span>}
+              <div className="min-w-0 flex-1"><b className="font-bold">{[pp.title, pp.name].filter(Boolean).join(" ")}</b><p className="text-[12px] text-fg-3">{pp.clinic?.name || ""}{pp.clinic?.city ? ` · ${pp.clinic.city}` : ""} · {pp.years_exp || "—"} let · <Star className="inline size-3 -translate-y-px fill-watch text-watch" aria-hidden /> {pp.rating || "—"}</p></div>
               {pp.price_czk ? <Chip tone="accent">{pp.price_from ? `od ${czk(pp.price_czk)}` : czk(pp.price_czk)}</Chip> : null}
             </div>
             {pp.bio && <p className="mt-2 text-[13px] leading-5 text-fg-2">{pp.bio}</p>}
