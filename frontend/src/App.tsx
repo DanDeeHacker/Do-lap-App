@@ -28,11 +28,11 @@ import { EngineLab } from "@/enginelab"
 import { EngineCompare } from "@/enginecompare"
 import { CapacityMini, ReadinessFactors, afterLine, readinessCol, readinessPct } from "@/capacity"
 import { Training } from "@/training"
-import { RouteError, TabBoundary, installCrashReporting } from "@/crash"
+import { NotFound, RouteError, TabBoundary, installCrashReporting } from "@/crash"
 import { AssistantProvider, CoachFab, WhyButton } from "@/assistant"
 import { AdminPage, ViewAsBanner } from "@/admin"
 import { PhysioApp } from "@/physio/app"
-import { InvitePage } from "@/invite"
+import { ClientInvitePage, InvitePage } from "@/invite"
 import { RunDetail } from "@/rundetail"
 import { track, useUsageTracking } from "@/usage"
 import { startUpdateWatcher } from "@/updateCheck"
@@ -556,7 +556,7 @@ function ReadinessDetail({ r, fallback }: { r: any; fallback: number | null }) {
     </div>
   )
 }
-const QCOL: Record<string, string> = { stable: C.ok, overreaching: C.watch, silent: C.self, critical: C.alert }
+const QCOL: Record<string, string> = { stable: C.ok, overreaching: C.watch, silent: C.self, critical: C.alert, injury: C.alert, rtr: C.watch, unknown: C.fg4 }
 // State card, top row: quadrant chip (the only place the quadrant name appears, FIX-4),
 // the Garmin sync button and the 6-month history button.
 function QuadrantHead({ quadrant = "stable", live, onSync, syncing, syncMsg, canSync, alertSlot }: { quadrant?: string; live?: any; onSync?: () => void; syncing?: boolean; syncMsg?: string | null; canSync?: boolean | null; alertSlot?: React.ReactNode }) {
@@ -781,11 +781,13 @@ function RecommendationStrip({ a, early = false }: { a: any; early?: boolean }) 
       aria-label={`Doporučení na dnes: ${t.label}${ov?.title ? ` — ${ov.title}` : facts ? ` — ${facts}` : ""}`} title={ov?.title || facts || undefined}>
       <p className="min-w-[7rem] flex-1 font-serif text-[20px] leading-tight" style={{ color: ov ? C.alertSoft : C.fg }}>
         <span className="t-label mb-0.5 block font-sans !text-fg-3">{early && !ov ? "Obecné doporučení pro začátek:" : "Dnes doporučeno:"}</span>
-        {t.label}
+        {/* physio brief 2026-11-09 P0.2: the physio's plan or missing data is the day's headline */}
+        {ov && ["rtr", "rtr_paused", "clinical_limit", "no_data"].includes(ov.kind) ? ov.title : t.label}
         {g.provisional && <i className="ml-2 inline-block size-2 -translate-y-0.5 rounded-full bg-watch" title="předběžné · čeká na ranní data" />}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         {physio && <Link to="/app/messages" className="btn btn-primary btn-sm">Objednat fyzioterapeuta</Link>}
+        {ov?.kind === "no_data" && <Link to="/data" className="btn btn-primary btn-sm">Nahrát data</Link>}
         <Link to="/app/training" className="btn btn-outline btn-sm">Trénink <ChevronRight className="size-3.5" aria-hidden /></Link>
       </div>
     </div>
@@ -892,12 +894,15 @@ type OverviewDay = {
   date?: string; quadrant?: string; overall?: number; tier?: string
   mech?: number | null; load?: number | null; symp?: number | null; readiness?: number | null
   painRecurring?: { site: string; days: number } | null; signals?: any[]
+  directive?: string | null; noData?: boolean   // physio brief 2026-11-09 P0.2 / P0.3
 }
 const axisCol = (v: number | null | undefined, hot: string) => (v == null ? C.fg3 : v >= 25 ? hot : v >= 12 ? C.watch : C.fg)
 const gradeTone = (g: string) => (g === "A" ? "alert" : g === "B" ? "watch" : "ok") as "alert" | "watch" | "ok"
 function StateOverview({ d, open = null, onToggle, onHistory, note, recommendation, early = false }: { d: OverviewDay; open?: PanelKey | null; onToggle?: (k: PanelKey) => void; onHistory?: () => void; note?: React.ReactNode; recommendation?: React.ReactNode; early?: boolean }) {
   // railway#99 — shown as 100 − risk, so a better state reads higher (the engine keeps risk)
-  const overall = 100 - clamp(d.overall ?? 0, 0, 100)
+  // physio brief 2026-11-09 P0.3.4: a missing score is "—", never 100
+  const known = d.overall != null
+  const overall = known ? 100 - clamp(d.overall ?? 0, 0, 100) : 0
   const RING = 2 * Math.PI * 44
   const tierCol = d.tier === "alert" ? C.alert : d.tier === "watch" ? C.watch : C.ok
   // railway#108 — the Skóre ring by its number (green above 70, red below 40), but never
@@ -907,7 +912,7 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
   const ringCol = (RANK[numCol] ?? 0) >= (RANK[tierCol] ?? 0) ? numCol : tierCol
   // UX audit F01 — in the first two weeks a calm day is "getting to know you", not "low risk"
   const settling = early && (d.tier ?? "ok") === "ok" && !d.painRecurring
-  const tierWord = settling ? "riziko zatím nehodnotíme" : d.tier === "alert" ? "vysoké riziko" : d.tier === "watch" ? "sledovat" : "nízké riziko"
+  const tierWord = d.noData ? "bez aktuálních dat" : settling ? "riziko zatím nehodnotíme" : d.tier === "alert" ? "vysoké riziko" : d.tier === "watch" ? "sledovat" : "nízké riziko"
   const recur = d.painRecurring
   // FIX-4: the quadrant name lives in the chip; the verdict carries the priority.
   // UX audit F09 — a "watch" day names the axis that drives it, not always the load
@@ -915,7 +920,9 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
   const watchAxis = d.quadrant === "silent" ? "Sledujte techniku běhu" : d.quadrant === "overreaching" ? "Sledujte zátěž"
     : axes.reduce((m, x) => (x[0] > m[0] ? x : m))[1]
   const priority = d.tier === "alert" || recur ? "Prioritou je odlehčení" : d.tier === "watch" ? watchAxis : "Trénink sedí"
-  const verdict = settling ? "Poznáváme vaši normu" : recur && d.tier !== "alert" ? "Odlehčit — opakovaná bolest" : priority
+  // physio brief 2026-11-09 P0.2: the physio's plan or a missing-data state is the day's verdict
+  const verdict = d.directive ? d.directive : d.noData ? "Nemáme aktuální data"
+    : settling ? "Poznáváme vaši normu" : recur && d.tier !== "alert" ? "Odlehčit — opakovaná bolest" : priority
   const signals = d.signals || []
   const tg = (k: PanelKey) => (onToggle ? () => onToggle(k) : undefined)
   return (
@@ -933,10 +940,10 @@ function StateOverview({ d, open = null, onToggle, onHistory, note, recommendati
                 <>
                   <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
                     <circle cx="50" cy="50" r="44" fill="none" stroke="rgb(255 255 255 / .09)" strokeWidth="8" />
-                    <circle cx="50" cy="50" r="44" fill="none" stroke={ringCol} strokeWidth="8" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
+                    <circle cx="50" cy="50" r="44" fill="none" stroke={known ? ringCol : C.fg4} strokeWidth="8" strokeLinecap="round" strokeDasharray={RING} strokeDashoffset={RING * (1 - clamp(overall, 0, 100) / 100)} />
                   </svg>
                   <span className="relative text-center">
-                    <b className="t-num block text-[40px] leading-none text-fg">{overall}</b>
+                    <b className="t-num block text-[40px] leading-none text-fg">{known ? overall : "—"}</b>
                     <span className="mt-1 flex items-center justify-center gap-0.5 text-[11px] font-bold uppercase tracking-[.1em] text-fg-2">
                       Skóre{onHistory && <ChevronRight className="size-3.5 text-fg-3 transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />}
                     </span>
@@ -1200,9 +1207,11 @@ function TodayV2() {
   const axisPoints = (axisHist || []).map((h: any) => ({ t: h.date, v: pk === "mech" ? h.mech : h.load }))
   if (axisPoints.length && a) axisPoints[axisPoints.length - 1] = { t: (a.computed_at || "").slice(0, 10) || axisPoints[axisPoints.length - 1].t, v: (pk === "mech" ? a.mech : a.load) ?? axisPoints[axisPoints.length - 1].v }
   const todayDay: OverviewDay = {
-    date: (a?.computed_at || "").slice(0, 10), quadrant: a?.quadrant, overall: a?.overall ?? 0, tier: a?.tier,
+    date: (a?.computed_at || "").slice(0, 10), quadrant: a?.quadrant, overall: a ? a.overall : 0, tier: a?.tier,
     mech: a ? a.mech : null, load: a ? a.load : null, symp: a ? a.symp : null, readiness,
     painRecurring: a?.painRecurring ?? null, signals,
+    directive: a?.careDirective && a.careDirective.source !== "engine" ? a.careDirective.headline_cs : null,
+    noData: ["stale", "none"].includes(a?.freshness?.status),
   }
   const firstCollapsible = alerts.find((x) => x.tone !== "stop")?.key ?? null
   const [openAlert, setOpenAlert] = useState<string | null | undefined>(undefined)
@@ -1233,7 +1242,7 @@ function TodayV2() {
       )}
       {stage === "none" && !error ? <FirstDay /> : (
       <section className="card mt-6 p-4 text-fg md:p-6">
-        <QuadrantHead quadrant={a?.quadrant} live={a} onSync={viewing || touring ? undefined : doSync} syncing={syncing} syncMsg={syncMsg} canSync={gStatus == null ? null : !!gStatus.connected}
+        <QuadrantHead quadrant={a?.display_state || a?.quadrant} live={a} onSync={viewing || touring ? undefined : doSync} syncing={syncing} syncMsg={syncMsg} canSync={gStatus == null ? null : !!gStatus.connected}
           alertSlot={<><ReportIcon />{alertCount > 0 && (
             <button type="button" onClick={() => setAlertsOpen((v) => !v)} aria-expanded={alertsOpen} aria-label={`Upozornění (${alertCount})`} title="Upozornění"
               className={`relative inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-[12px] font-extrabold transition ${hasStop ? "bg-alert text-ink motion-safe:animate-pulse" : worstTone === "alert" ? "bg-alert/15 text-alert-soft ring-1 ring-alert/40" : "bg-watch/15 text-watch ring-1 ring-watch/40"}`}>
@@ -2111,6 +2120,7 @@ const router = createBrowserRouter([
   { path: "/trener/:token", Component: CoachPage, ErrorBoundary: RouteError },
   // review 2026-10-30 N1: a Team Console invitation is accepted by the invited account through its link
   { path: "/pozvanka/:token", Component: InvitePage, ErrorBoundary: RouteError },
+  { path: "/pozvani/:token", Component: ClientInvitePage, ErrorBoundary: RouteError },   // physio brief W2
   {
     Component: Layout,
     ErrorBoundary: RouteError,
@@ -2125,6 +2135,7 @@ const router = createBrowserRouter([
       { path: "/engines", Component: EngineCompare },
     ],
   },
+  { path: "*", Component: NotFound },
 ])
 installCrashReporting()
 

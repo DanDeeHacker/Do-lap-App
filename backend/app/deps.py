@@ -71,6 +71,12 @@ def physio_verified(db: DBSession, physio_id: str | None) -> bool:
 
 
 def has_care_assignment(db: DBSession, physio_id: str, runner_id: str) -> bool:
+    # physio brief 2026-11-09 W1: reception staff never read clinical data
+    recep = db.query(models.ClinicMember.id).filter(models.ClinicMember.physio_id == physio_id,
+                                                    models.ClinicMember.role == "reception",
+                                                    models.ClinicMember.active.is_(True)).first()
+    if recep is not None:
+        return False
     return physio_verified(db, physio_id) and (
         db.query(models.CareAssignment)
         .filter(

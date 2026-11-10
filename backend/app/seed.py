@@ -5,6 +5,7 @@ README) so the app is testable immediately without registering fresh.
 """
 import math
 from datetime import datetime, timedelta, timezone
+from datetime import time as dtime
 
 from sqlalchemy.orm import Session as DBSession
 
@@ -301,6 +302,8 @@ def ensure_demo_accounts(db: DBSession) -> None:
                 city=s["city"], goal_race=s["race"],
                 goal_date=E.iso_date(E.today_date() + timedelta(days=s["gd"])),
                 prior_injury=s["pi"], prior_injury_months_ago=s["pim"], device="Garmin Forerunner 265",
+                # physio brief 2026-11-09 P0.12: running since well before the first seeded run
+                running_since=E.iso_date(E.today_date() - timedelta(days=365 * (4 + idx % 5))),
             )
             db.add(r)
             db.flush()
@@ -419,6 +422,8 @@ def build_and_seed(db: DBSession) -> None:
             employer_id=employers[s["emp"]].id if s["emp"] is not None else None,
             partner_id=partners[s["par"]].id if s["par"] is not None else None,
             prior_injury=s["pi"], prior_injury_months_ago=s["pim"], device=devices[i % 3],
+            # physio brief 2026-11-09 P0.12: running since well before the first seeded run
+            running_since=E.iso_date(E.today_date() - timedelta(days=365 * (4 + i % 5))),
             physio_interest=(i in consented),
             physio_interest_at=(E.now_iso() if i in consented else None),
         )
@@ -544,10 +549,17 @@ def build_and_seed(db: DBSession) -> None:
     db.add(prog)
     db.flush()
     for n, dose, pw, cue in lib_for(a0.prior_injury):
-        db.add(models.Exercise(
+        ex = models.Exercise(
             program_id=prog.id, name=n, dose=dose, per_week=pw, cue=cue,
             done_count=math.floor(rand() * 7) + 2, target_count=12,
-        ))
+        )
+        db.add(ex)
+        db.flush()
+        # physio brief 2026-11-09 W10.8: the sessions are dated, so adherence by week has something to count
+        for k in range(ex.done_count):
+            db.add(models.ExerciseLog(exercise_id=ex.id, program_id=prog.id, runner_id=a0.id,
+                                      logged_on=E.day_ago(9 - (k * 9) // max(1, ex.done_count))[:10],
+                                      pain=math.floor(rand() * 4), difficulty=3, created_at=E.day_ago(0)))
     db.add(models.ProgramRevision(
         program_id=prog.id, physio_id=p0.id, at=E.day_ago(4),
         note="Pacientka hlásila bolest 4/10 po výponech — snížena frekvence z 6 na 5× týdně.",
@@ -570,25 +582,31 @@ def build_and_seed(db: DBSession) -> None:
         ))
     db.add(models.Booking(
         runner_id=a0.id, physio_id=p0.id,
-        slot_at=(datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
-        kind="gait_analysis", status="confirmed", price_czk=1490, payer="employer", created_at=E.day_ago(9),
+        # physio brief 2026-11-09 P0.12: in two days at 10:00 Prague time, inside Tereza's hours (not "now + 48 h")
+        slot_at=datetime.combine(E.today_date() + timedelta(days=2), datetime.min.time().replace(hour=10),
+                                 E.LOCAL_TZ).astimezone(timezone.utc).isoformat(),
+        kind="gait_analysis", status="confirmed", price_czk=1490, payer="client", created_at=E.day_ago(9),
     ))
-    for sender, body, d in [
-        ("system", "Triáž zachytila drift vertikálního poměru dřív, než se objevila bolest.", 9),
-        ("physio", "Dobrý den Adélo, vertikální poměr vám za tři týdny vyskočil o 0,8 na srovnatelných "
-                   "trasách. Vysadíme intervaly na 10 dní. Zvládnete video ze strany?", 9),
-        ("runner", "Video pošlu zítra. Můžu zatím plavat?", 8),
-        ("physio", "Plavání a kolo ano, bez odrazu z přední nohy. Bolest při běhu držte pod 3/10.", 8),
-        ("runner", "Po výponech to včera bolelo 4/10, tak jsem jeden den vynechala.", 4),
-        ("physio", "Dobře, snížil jsem frekvenci na 5× týdně. Uvidíme se ve čtvrtek.", 4),
+    # physio brief 2026-11-09 P0.12: the physio is Tereza (feminine forms), messages have real times,
+    # and the chat does not act on vertical-ratio drift, which the thesis calls unproven
+    for sender, body, d, hm in [
+        ("physio", "Dobrý den Adélo, v check-inech hlásíte bolest Achillovy šlachy a za poslední tři týdny "
+                   "jste přidala objem. Vysadíme intervaly na 10 dní. Zvládnete video ze strany?", 9, (8, 40)),
+        ("runner", "Video pošlu zítra. Můžu zatím plavat?", 8, (19, 12)),
+        ("physio", "Plavání a kolo ano, bez odrazu z přední nohy. Bolest při běhu držte pod 3/10.", 8, (20, 5)),
+        ("runner", "Po výponech to včera bolelo 4/10, tak jsem jeden den vynechala.", 4, (7, 55)),
+        ("physio", "Dobře, snížila jsem frekvenci na 5× týdně. Uvidíme se ve čtvrtek.", 4, (12, 30)),
     ]:
-        db.add(models.Message(runner_id=a0.id, physio_id=p0.id, sender=sender, body=body, created_at=E.day_ago(d)))
+        at = datetime.combine(E.today_date() - timedelta(days=d), dtime(*hm), E.LOCAL_TZ).isoformat()
+        db.add(models.Message(runner_id=a0.id, physio_id=p0.id, sender=sender, body=body, created_at=at,
+                              read_at_physio=at, read_at_runner=at))
     db.commit()
 
     # ---------------------------------------------------------- demo logins
     hashed = hash_password(DEMO_PASSWORD)
     _mk_user(db, "adela@demo.cz", "Adéla Kučerová", "runner", hashed, runner_id=runner_rows[0].id)
     _mk_user(db, "havlickova@fyzioholesovice.cz", "Mgr. Tereza Havlíčková", "physio", hashed, physio_id=physios[0].id)
+    _seed_records(db, physios[0], runner_rows[0])
     _mk_user(db, "hexanet@demo.cz", "Hexanet s.r.o. (HR)", "employer", hashed, employer_id=employers[0].id)
     _mk_user(db, "letna@demo.cz", "Běžecká speciálka Letná", "partner", hashed, partner_id=partners[0].id)
     # Two runner-only demo logins the app actually uses — password "demo",
@@ -596,4 +614,41 @@ def build_and_seed(db: DBSession) -> None:
     demo_hashed = hash_password("demo")
     _mk_user(db, "tichydrift@demo.cz", "Tichý drift", "runner", demo_hashed, runner_id=runner_rows[10].id)
     _mk_user(db, "kritickepretizeni@demo.cz", "Kritické přetížení", "runner", demo_hashed, runner_id=runner_rows[11].id)
+    db.commit()
+
+
+def _seed_records(db, physio, runner) -> None:
+    """physio brief 2026-11-09 R1/R2: the demo practice has a provider identity and Adéla has a patient
+    card, so a demo visit can be approved. Synthetic values, clearly not a real provider or person."""
+    from . import records as R
+    clinic = db.get(models.Clinic, physio.clinic_id)
+    if clinic is not None and not clinic.legal_name:
+        clinic.legal_name, clinic.legal_form, clinic.ico = "Fyzio Holešovice (ukázková praxe)", "s.r.o.", "00000000"
+        clinic.registered_street = clinic.care_site_street = "Ukázková 1"
+        clinic.registered_city = clinic.care_site_city = "Praha 7"
+        clinic.registered_postal_code = clinic.care_site_postal_code = "170 00"
+        clinic.provider_details_confirmed_at = E.now_iso()
+        physio.title, physio.qualification = "Mgr.", "Fyzioterapeut (ukázkový účet)"
+    # physio brief Phase 2: every demo physio is a clinic member; Tereza has working hours and services
+    from . import work as W
+    for ph in db.query(models.Physio).all():
+        W.ensure_clinic(db, ph)
+    if not db.query(models.Service).filter_by(physio_id=physio.id).first():
+        for k, (name, mins, price) in enumerate((("Vstupní vyšetření", 60, 1290), ("Kontrola", 45, 990),
+                                                  ("Analýza běhu", 60, 1490))):
+            db.add(models.Service(physio_id=physio.id, clinic_id=physio.clinic_id, name_cs=name, duration_minutes=mins,
+                                  price_czk=price, buffer_minutes=10 if mins == 60 else 0, sort_order=k + 1, active=True,
+                                  # physio brief B1.2: the first visit asks a deposit (mock payment, no money moves)
+                                  payment_mode="deposit" if k == 0 else "none", deposit_czk=300 if k == 0 else None))
+    if not db.query(models.AvailabilityRule).filter_by(physio_id=physio.id).first():
+        for wd, (a, b) in {0: ("08:00", "12:00"), 1: ("13:00", "18:00"), 3: ("08:00", "16:00")}.items():
+            db.add(models.AvailabilityRule(physio_id=physio.id, clinic_id=physio.clinic_id, weekday=wd, start_local=a,
+                                           end_local=b, slot_minutes=60, active=True))
+    if clinic is not None and R.card(db, clinic.id, runner.id) is None:
+        first, last = R._split_name(runner.name)
+        db.add(models.PatientRecord(
+            id=R.new_record_id(), clinic_id=clinic.id, runner_id=runner.id, first_name=first, last_name=last,
+            birth_date=f"{runner.birth_year}-05-14" if runner.birth_year else None, sex_at_birth=runner.sex,
+            permanent_street="Ukázková 12", permanent_city=runner.city or "Praha", permanent_postal_code="170 00",
+            source_snapshot=R.runner_snapshot(runner), created_at=E.now_iso(), updated_at=E.now_iso()))
     db.commit()

@@ -101,7 +101,11 @@ def register(body: schemas.RegisterRequest, response: Response, db: DBSession = 
         fk["runner_id"] = rid
     elif role == "physio":
         pid = _next_id(db, models.Physio, "phy")
-        db.add(models.Physio(id=pid, clinic_id=None, name=body.name, credential=None, rating=None))
+        ph = models.Physio(id=pid, clinic_id=None, name=body.name, credential=None, rating=None)
+        db.add(ph)
+        db.flush()
+        from .. import work as W
+        W.ensure_clinic(db, ph)        # physio brief W1: a solo practice with its owner and a trial
         fk["physio_id"] = pid
     elif role == "employer":
         eid = _next_id(db, models.Employer, "emp")

@@ -26,7 +26,8 @@ def test_profile_and_clinic_set_the_queue_region(client, db_session):
 def test_a_new_physio_sets_up_a_clinic(client):
     register(client, "nova-fyzio@test.cz", "Nová Fyzio", "physio")
     me = client.get("/api/physios/me").json()
-    assert me["clinic"] is None and not me["complete"]
+    # physio brief W1: registration creates a solo practice; the city is still missing
+    assert me["clinic"]["city"] is None and not me["complete"]
     me = client.patch("/api/physios/me", json={"credential": "Bc.", "clinic_name": "Fyzio Brno", "clinic_city": "Brno"}).json()
     assert me["clinic"]["city"] == "Brno" and me["complete"]
     # review 2026-10-30 F1: until an owner verifies the account, no runner data at all
@@ -51,7 +52,8 @@ def test_clients_overview_and_documentation_need_the_care_assignment(client, db_
     log = db_session.query(models.AccessLog).filter(models.AccessLog.runner_id == rid, models.AccessLog.physio_id == pid).all()
     assert any(x.resource in ("přehled klienta", "dokumentace") or x.action == "read" for x in log)
     doc = client.get(f"/api/physios/me/clients/{rid}/documentation").json()
-    assert doc["physio"]["email"] == PHYSIO and isinstance(doc["visits"], list)
+    # physio brief 2026-11-09 R9: the documentation is the ledger with provider, author and patient identity
+    assert doc["author"]["id"] == "phy-0001" and isinstance(doc["records"], list) and "provider" in doc
     # someone not in my care
     other = db_session.query(models.Runner).filter(~models.Runner.id.in_([i["runnerId"] for i in items])).first()
     assert client.get(f"/api/physios/me/clients/{other.id}").status_code == 403

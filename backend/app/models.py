@@ -24,6 +24,18 @@ class Clinic(Base):
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     city = Column(String)
+    # physio brief 2026-11-09 R1: the provider's identity, required before the first record
+    legal_name = Column(String)
+    legal_form = Column(String)
+    ico = Column(String)
+    registered_street = Column(String)
+    registered_city = Column(String)
+    registered_postal_code = Column(String)
+    care_site_street = Column(String)
+    care_site_city = Column(String)
+    care_site_postal_code = Column(String)
+    is_solo = Column(Boolean, default=False)
+    provider_details_confirmed_at = Column(String)
 
 
 class Physio(Base):
@@ -41,6 +53,22 @@ class Physio(Base):
     # account in Team Console (registration checks no credential)
     verified_at = Column(String)
     verified_by = Column(String)
+    # physio brief R1: title, qualification and the health-professional identifier (credential stays as
+    # the specialism; it is moved to qualification only after a person checked it)
+    title = Column(String)
+    qualification = Column(String)
+    hcp_identifier = Column(String)
+    # physio brief Phase 2 settings: W4 capacity, W13 response time, W14 policy, W15 notifications, W5 ICS
+    accepting_new_clients = Column(Boolean, default=True)
+    max_new_per_week = Column(Integer)
+    response_time_text = Column(String)
+    cancellation_policy = Column(Text)
+    notify_settings = Column(JSON)
+    ics_token = Column(String)
+    rating_count = Column(Integer)
+    photo_url = Column(String)
+    quick_replies = Column(JSON)
+    dark_mode = Column(Boolean)
 
 
 class Employer(Base):
@@ -466,6 +494,7 @@ class InjuryReport(Base):
     physio_id = Column(String, ForeignKey("physios.id"))  # set when source=physio_conclusion
     confirmed = Column(Boolean, default=False)  # physio-confirmed → evidence grade A
     resolved_at = Column(String)
+    episode_id = Column(Integer)     # physio brief R3
 
 
 class Assessment(Base):
@@ -510,6 +539,9 @@ class Triage(Base):
     headline = Column(String)
     status = Column(String, default="open")
     claimed_by = Column(String, ForeignKey("physios.id"))
+    request_reason = Column(Text)      # physio brief W4: the runner's own words
+    request_duration = Column(String)
+    red_flags = Column(JSON)
     created_at = Column(String)
 
 
@@ -582,13 +614,21 @@ class Booking(Base):
     slot_id = Column(Integer, ForeignKey("physio_slots.id"))
     slot_at = Column(String)
     kind = Column(String)
-    # requested (runner asked, awaiting physio) | confirmed | declined | cancelled | confirmed-direct(legacy default)
+    # requested (runner asked, awaiting physio) | confirmed | declined | cancelled | completed | no_show
+    # (physio brief 2026-11-09 P0.6) | confirmed-direct(legacy default)
     status = Column(String, default="confirmed")
     price_czk = Column(Integer)
     payer = Column(String)
     requested_at = Column(String)
     prep_info = Column(String)      # day-before info, managed by the physio/clinic
     reminded = Column(Boolean, default=False)
+    duration_min = Column(Integer, default=45)   # physio brief 2026-11-09 P0.6: overlap checks
+    cancel_reason = Column(String)
+    episode_id = Column(Integer)   # physio brief R3
+    service_id = Column(Integer)      # physio brief W5/W16
+    reason = Column(Text)             # W16: Důvod návštěvy
+    questions = Column(Text)          # W16: Co chcete probrat?
+    recurring_group = Column(String)  # W5.7
     created_at = Column(String)
 
 
@@ -613,6 +653,22 @@ class Conclusion(Base):
     transcript = Column(String)
     transcript_source = Column(String)  # asr | manual | None
     summary = Column(String)   # free-text conclusion / recommendation (LLM draft, physio-edited)
+    ai_draft = Column(Boolean, default=False)   # physio brief 2026-11-09 P0.1: a model filled the summary draft
+    # physio brief 2026-11-09 P0.5: an explicit outcome (None | injury | no_injury) instead of a switch that
+    # saved zeros, and approving the record is separate from sending the summary to the client
+    outcome_kind = Column(String)
+    shared_at = Column(String)
+    # physio brief 2026-11-09 R4: structured visit content (vyhl. 444/2024 § 3/1); `finding` stays for old rows
+    subjective = Column(Text)
+    objective = Column(Text)
+    assessment = Column(Text)
+    plan = Column(Text)
+    services_provided = Column(Text)
+    diagnosis_code = Column(String)
+    diagnosis_label = Column(String)
+    autosaved_at = Column(String)
+    episode_id = Column(Integer)
+    record_id = Column(String)          # R5: the ledger row written on approval
     finding = Column(String)   # short clinical finding / diagnosis line
     # structured OSTRC-H outcome, only when has_outcome — mirrors InjuryReport
     has_outcome = Column(Boolean, default=False)
@@ -647,6 +703,8 @@ class ReturnToRun(Base):
     sessions_per_level = Column(Integer, default=3)
     levels_json = Column(JSON, default=list)
     note = Column(String)
+    paused_reason = Column(String)   # physio brief 2026-11-09 P0.7: pain_over_limit | physio
+    episode_id = Column(Integer)     # physio brief R3
 
 
 class RtrSession(Base):
@@ -660,6 +718,11 @@ class RtrSession(Base):
     rpe = Column(Integer)
     completed = Column(Boolean, default=True)
     counted = Column(Boolean, default=False)  # completed AND pain <= threshold → advances the ladder
+    count_reason = Column(String)   # physio brief 2026-11-09 P0.7: pain_over_limit | too_soon | not_completed
+    next_morning_pain = Column(Integer)      # physio brief W11
+    morning_stiffness_min = Column(Integer)
+    matched_activity_id = Column(Integer)
+    state = Column(String)                   # pending | counted | not_counted
     note = Column(String)
 
 
@@ -675,6 +738,9 @@ class Program(Base):
     active = Column(Boolean, default=True)
     status = Column(String, default="draft")
     sent_at = Column(String)
+    episode_id = Column(Integer)     # physio brief R3
+    version = Column(Integer)        # W10: the published version the runner sees
+    draft_note = Column(Text)
 
 
 class Exercise(Base):
@@ -687,6 +753,20 @@ class Exercise(Base):
     cue = Column(String)
     done_count = Column(Integer, default=0)
     target_count = Column(Integer, default=12)
+    position = Column(Integer)       # physio brief 2026-11-09 P0.8: the order never jumps
+    library_id = Column(String)      # the library item it came from — added once per programme
+    # physio brief W10: the structured dose; `dose` stays the display string
+    phase_id = Column(Integer)
+    sets = Column(Integer)
+    reps = Column(Integer)
+    duration_s = Column(Integer)
+    load_text = Column(String)
+    tempo = Column(String)
+    side = Column(String)
+    pain_limit = Column(Integer)
+    media_url = Column(String)
+    thumbnail_url = Column(String)
+    description = Column(Text)
 
 
 class SelfProgram(Base):
@@ -715,6 +795,16 @@ class ProgramRevision(Base):
     changes = Column(JSON, default=list)
 
 
+class TriagePass(Base):
+    """physio brief 2026-11-09 P0.9: a queue case one physio passed on (or released), hidden for them only."""
+    __tablename__ = "triage_passes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    triage_id = Column(Integer, ForeignKey("triage.id"), index=True, nullable=False)
+    physio_id = Column(String, ForeignKey("physios.id"), index=True, nullable=False)
+    reason = Column(String)
+    created_at = Column(String)
+
+
 class Message(Base):
     __tablename__ = "messages"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -723,6 +813,14 @@ class Message(Base):
     sender = Column(String)
     body = Column(String)
     created_at = Column(String)
+    # physio brief 2026-11-09 P0.10: who sees it (physio | runner | both) and when each side read it
+    audience = Column(String, default="both")
+    read_at_physio = Column(String)
+    read_at_runner = Column(String)
+    attachment_path = Column(String)     # physio brief W13
+    attachment_type = Column(String)
+    attachment_name = Column(String)
+    handled_at = Column(String)
 
 
 class Referral(Base):
@@ -1241,3 +1339,496 @@ class CoachAccessLog(Base):
     first_at = Column(String)
     last_at = Column(String)
     __table_args__ = (UniqueConstraint("token", "date", "action", name="uq_coach_access_daily"),)
+
+
+
+# ======================================================================== physio brief 2026-11-09 Phase 1
+class PatientRecord(Base):
+    """R2: the provider's patient card. It belongs to the clinic and outlives the runner account; a client
+    may have no app account at all. *_enc fields are AES-GCM (records.encrypt), never clear text."""
+    __tablename__ = "patient_records"
+    __table_args__ = (UniqueConstraint("clinic_id", "runner_id", name="ux_patient_clinic_runner"),)
+    id = Column(String, primary_key=True)            # UUID, the patient identifier until the standard format
+    clinic_id = Column(String, nullable=False, index=True)
+    runner_id = Column(String, index=True)           # set to NULL when the runner deletes the account
+    first_name = Column(String, nullable=False)
+    last_name = Column(String, nullable=False)
+    birth_date = Column(String)
+    sex_at_birth = Column(String)
+    rodne_cislo_enc = Column(Text)
+    insurance_no_enc = Column(Text)
+    insurer_code = Column(String)
+    id_doc_type = Column(String)
+    id_doc_no_enc = Column(Text)
+    permanent_street = Column(String)
+    permanent_city = Column(String)
+    permanent_postal_code = Column(String)
+    delivery_street = Column(String)
+    delivery_city = Column(String)
+    delivery_postal_code = Column(String)
+    phone = Column(String)
+    email = Column(String)
+    gp_name = Column(String)
+    gp_contact = Column(String)
+    legal_representative = Column(JSON)
+    anamnesis = Column(Text)                          # W6: editable history and red flags
+    red_flags = Column(JSON)
+    source_snapshot = Column(JSON)                    # the runner profile the card was confirmed from
+    retain_until = Column(String)                     # R11: from the last service in the record
+    created_at = Column(String)
+    updated_at = Column(String)
+
+
+class CareEpisode(Base):
+    """R3: one problem cared for — links visits, programmes, return-to-run plans and records."""
+    __tablename__ = "care_episodes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    clinic_id = Column(String)
+    physio_id = Column(String, index=True)
+    runner_id = Column(String, index=True)
+    patient_record_id = Column(String)
+    region = Column(String)
+    side = Column(String)
+    diagnosis_code = Column(String)
+    diagnosis_label = Column(String)
+    onset_date = Column(String)
+    opened_at = Column(String)
+    closed_at = Column(String)
+    status = Column(String, default="open")           # open | discharged | abandoned
+    discharge_outcome = Column(String)                 # returned_full | returned_reduced | referred | stopped
+    return_to_run_date = Column(String)
+    closing_note = Column(Text)
+
+
+class DiagnosisCode(Base):
+    """R3: the MKN-10 list, imported from the official ÚZIS file (app/scripts/import_mkn10.py), never typed."""
+    __tablename__ = "diagnosis_codes"
+    code = Column(String, primary_key=True)
+    label = Column(String, nullable=False)
+    running_shortlist = Column(Boolean, default=False)   # set only after a physio reviewed it
+
+
+class ClinicalRecord(Base):
+    """R5: the append-only ledger. Approving a visit copies it here; UPDATE and DELETE are refused by
+    database triggers (main._ledger_guard), destruction only after a logged, approved destruction (R11)."""
+    __tablename__ = "clinical_records"
+    id = Column(String, primary_key=True)
+    clinic_id = Column(String, nullable=False, index=True)
+    patient_record_id = Column(String, nullable=False, index=True)
+    episode_id = Column(Integer)
+    booking_id = Column(Integer)
+    conclusion_id = Column(Integer)
+    kind = Column(String, nullable=False)              # visit_note | correction | addendum | discharge | consent
+    encounter_at = Column(String, nullable=False)
+    content_json = Column(Text, nullable=False)
+    content_sha256 = Column(String, nullable=False)
+    chain_sha256 = Column(String, nullable=False)
+    corrects_record_id = Column(String)
+    correction_reason = Column(Text)
+    at_patient_request = Column(Integer, nullable=False, default=0)
+    author_physio_id = Column(String, nullable=False)
+    author_name = Column(String, nullable=False)
+    author_identifier = Column(String)
+    authorised_at = Column(String, nullable=False)
+    retain_until = Column(String, nullable=False)
+    created_at = Column(String, nullable=False)
+
+
+class RecordEvent(Base):
+    """R7: every read and change of clinical or runner health data, append-only (same triggers as the
+    ledger). detail_json carries changed field names, never the clinical text."""
+    __tablename__ = "record_events"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    at = Column(String, nullable=False)
+    actor_type = Column(String, nullable=False)        # physio | runner | staff | system
+    actor_id = Column(String)
+    actor_name = Column(String)
+    clinic_id = Column(String)
+    runner_id = Column(String, index=True)
+    patient_record_id = Column(String, index=True)
+    action = Column(String, nullable=False)
+    resource_type = Column(String, nullable=False)
+    resource_id = Column(String)
+    detail_json = Column(Text)
+    request_id = Column(String)
+
+
+class RecordDestruction(Base):
+    """R11: the destruction log — what, when, how and by whom; kept 40 years (vyhl. § 17/2), append-only.
+    A clinical record can be deleted only after a row here names its patient card."""
+    __tablename__ = "record_destructions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    patient_record_id = Column(String, nullable=False, index=True)
+    clinic_id = Column(String)
+    records_count = Column(Integer)
+    method = Column(String, nullable=False)
+    approved_by = Column(String, nullable=False)
+    approval_ref = Column(String)
+    executed_by = Column(String, nullable=False)
+    executed_at = Column(String, nullable=False)
+    keep_until = Column(String, nullable=False)
+
+
+class OutcomeFollowup(Base):
+    """M1: three months after discharge the runner app asks how it went (calibration labels)."""
+    __tablename__ = "outcome_followups"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    episode_id = Column(Integer, index=True)
+    runner_id = Column(String, index=True)
+    due_on = Column(String)
+    status = Column(String, default="scheduled")      # scheduled | answered | skipped
+    answered_at = Column(String)
+    running_normally = Column(Boolean)
+    recurrence = Column(Boolean)
+    pain = Column(Integer)
+    created_at = Column(String)
+
+
+# ======================================================================== physio brief 2026-11-09 Phase 2
+class ClinicMember(Base):
+    """W1: who works in a clinic and in which role (owner | admin | physio | reception)."""
+    __tablename__ = "clinic_members"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    clinic_id = Column(String, index=True, nullable=False)
+    physio_id = Column(String, index=True, nullable=False)
+    role = Column(String, nullable=False, default="physio")
+    active = Column(Boolean, default=True)
+    created_at = Column(String)
+
+
+class Subscription(Base):
+    """W1/B2: the clinic's seats; no payment yet — a trial of one year (thesis assumption)."""
+    __tablename__ = "subscriptions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    clinic_id = Column(String, index=True, nullable=False)
+    status = Column(String, default="trial")         # trial | active | past_due | cancelled
+    seats = Column(Integer, default=1)
+    trial_ends_at = Column(String)
+    price_czk_per_seat = Column(Integer)
+    paid_until = Column(String)
+    created_at = Column(String)
+
+
+class ClientInvite(Base):
+    """W2: a physio invites a client; the token is single-use, 14 days, stored hashed."""
+    __tablename__ = "client_invites"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token_hash = Column(String, unique=True, nullable=False)
+    clinic_id = Column(String)
+    physio_id = Column(String, index=True, nullable=False)
+    name = Column(String)
+    email = Column(String)
+    phone = Column(String)
+    message = Column(Text)
+    status = Column(String, default="open")          # open | accepted | revoked
+    expires_at = Column(String)
+    accepted_runner_id = Column(String)
+    created_at = Column(String)
+
+
+class PhysioAlert(Base):
+    """W3: one active alert per rule and client."""
+    __tablename__ = "physio_alerts"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    physio_id = Column(String, index=True, nullable=False)
+    runner_id = Column(String, index=True)
+    rule = Column(String, nullable=False)
+    severity = Column(String, nullable=False)
+    payload_json = Column(JSON)
+    created_at = Column(String)
+    status = Column(String, default="active")        # active | snoozed | resolved
+    snoozed_until = Column(String)
+    resolved_at = Column(String)
+
+
+class AvailabilityRule(Base):
+    """W5: working hours as local HH:MM on a weekday (Europe/Prague), cut into slots on read."""
+    __tablename__ = "availability_rules"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    physio_id = Column(String, index=True, nullable=False)
+    clinic_id = Column(String)
+    weekday = Column(Integer, nullable=False)        # 0 = Monday
+    start_local = Column(String, nullable=False)     # "08:00"
+    end_local = Column(String, nullable=False)
+    slot_minutes = Column(Integer, default=45)
+    valid_from = Column(String)
+    valid_until = Column(String)
+    active = Column(Boolean, default=True)
+
+
+class TimeOff(Base):
+    __tablename__ = "time_off"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    physio_id = Column(String, index=True, nullable=False)
+    starts_at = Column(String, nullable=False)
+    ends_at = Column(String, nullable=False)
+    reason = Column(String)
+    all_day = Column(Boolean, default=False)
+
+
+class Service(Base):
+    """W5/W14/B1: what a visit is — name, length, price, buffer, payment rule."""
+    __tablename__ = "services"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    clinic_id = Column(String)
+    physio_id = Column(String, index=True)
+    code = Column(String)
+    name_cs = Column(String, nullable=False)
+    duration_minutes = Column(Integer, default=45)
+    price_czk = Column(Integer)
+    buffer_minutes = Column(Integer, default=0)
+    active = Column(Boolean, default=True)
+    sort_order = Column(Integer, default=0)
+    payment_mode = Column(String, default="none")    # B1: none | deposit | full
+    deposit_czk = Column(Integer)
+
+
+class NoteTemplate(Base):
+    """W9: reusable visit-note templates per physio and clinic."""
+    __tablename__ = "note_templates"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    physio_id = Column(String, index=True)
+    clinic_id = Column(String)
+    name = Column(String, nullable=False)
+    fields = Column(JSON)
+    created_at = Column(String)
+
+
+class ProgramVersion(Base):
+    """W10: edits to a sent programme make a draft; publishing makes the version the runner sees."""
+    __tablename__ = "program_versions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    program_id = Column(Integer, index=True, nullable=False)
+    version = Column(Integer, nullable=False)
+    status = Column(String, default="published")     # draft | published
+    published_at = Column(String)
+    note = Column(Text)
+    snapshot = Column(JSON)
+
+
+class ProgramPhase(Base):
+    __tablename__ = "program_phases"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    program_id = Column(Integer, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    weeks = Column(Integer, default=2)
+    position = Column(Integer, default=0)
+
+
+class CustomExercise(Base):
+    __tablename__ = "custom_exercises"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    physio_id = Column(String, index=True)
+    clinic_id = Column(String)
+    name = Column(String, nullable=False)
+    description = Column(Text)
+    media_url = Column(String)
+    created_at = Column(String)
+
+
+class ProgramTemplate(Base):
+    __tablename__ = "program_templates"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    physio_id = Column(String, index=True)
+    clinic_id = Column(String)
+    name = Column(String, nullable=False)
+    data = Column(JSON)
+    created_at = Column(String)
+
+
+class ExerciseLog(Base):
+    """W10.8: the runner's session — done, pain 0–10, difficulty 1–5 — dated for adherence."""
+    __tablename__ = "exercise_logs"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    exercise_id = Column(Integer, index=True)
+    program_id = Column(Integer, index=True)
+    runner_id = Column(String, index=True)
+    logged_on = Column(String)
+    pain = Column(Integer)
+    difficulty = Column(Integer)
+    created_at = Column(String)
+
+
+class RtrReadinessCheck(Base):
+    """W11.1: the readiness gate before a return-to-run plan."""
+    __tablename__ = "rtr_readiness_checks"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    plan_id = Column(Integer, index=True)
+    runner_id = Column(String, index=True)
+    physio_id = Column(String)
+    items = Column(JSON)
+    tests = Column(JSON)
+    created_at = Column(String)
+
+
+class ClinicalLimit(Base):
+    """W12: a structured limit the physio sets; Trénink takes the lower of it and the engine."""
+    __tablename__ = "clinical_limits"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, index=True, nullable=False)
+    physio_id = Column(String, nullable=False)
+    episode_id = Column(Integer)
+    kind = Column(String, nullable=False)
+    value = Column(Float)
+    starts_on = Column(String)
+    ends_on = Column(String)
+    reason_cs = Column(Text, nullable=False)
+    active = Column(Boolean, default=True)
+    created_at = Column(String)
+
+
+class Notification(Base):
+    """W15: every notification the Notifier sent, per channel; in-app first. No health details."""
+    __tablename__ = "notifications"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    physio_id = Column(String, index=True)
+    runner_id = Column(String, index=True)
+    channel = Column(String, default="in_app")       # in_app | email | sms
+    event = Column(String, nullable=False)
+    title = Column(String)
+    body = Column(Text)
+    ref = Column(String)
+    delivered = Column(Boolean, default=True)
+    created_at = Column(String)
+    read_at = Column(String)
+
+
+class IntakeForm(Base):
+    """W16.4: the first-visit intake, attached to the patient card."""
+    __tablename__ = "intake_forms"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, index=True)
+    physio_id = Column(String)
+    booking_id = Column(Integer)
+    data = Column(JSON)
+    created_at = Column(String)
+
+
+# ======================================================================== physio brief 2026-11-09 Phase 3
+class Payment(Base):
+    """B1/B2: a payment through PaymentProvider (mock only until a provider is contracted)."""
+    __tablename__ = "payments"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    booking_id = Column(Integer, index=True)
+    clinic_id = Column(String, index=True)
+    physio_id = Column(String)
+    runner_id = Column(String, index=True)
+    amount_czk = Column(Integer)
+    kind = Column(String)                               # deposit | full | subscription
+    status = Column(String, default="pending")          # pending | paid | refunded | failed
+    provider = Column(String)
+    provider_ref = Column(String)
+    created_at = Column(String)
+    paid_at = Column(String)
+
+
+class Invoice(Base):
+    """B1.3: a receipt per visit, numbered per clinic and year; no VAT lines until an accountant confirms them."""
+    __tablename__ = "invoices"
+    __table_args__ = (UniqueConstraint("clinic_id", "number", name="uq_invoice_number"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    clinic_id = Column(String, index=True)
+    number = Column(String)
+    booking_id = Column(Integer, index=True)
+    runner_id = Column(String, index=True)
+    physio_id = Column(String, index=True)
+    payer = Column(String)
+    amount_czk = Column(Integer)
+    paid_czk = Column(Integer, default=0)
+    items = Column(JSON)
+    status = Column(String, default="issued")           # issued | paid | cancelled
+    issued_at = Column(String)
+    paid_at = Column(String)
+
+
+class Package(Base):
+    """B1.4: a package of visits with the remaining count."""
+    __tablename__ = "visit_packages"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    clinic_id = Column(String, index=True)
+    physio_id = Column(String, index=True)
+    runner_id = Column(String, index=True)
+    name = Column(String)
+    visits_total = Column(Integer)
+    visits_used = Column(Integer, default=0)
+    price_czk = Column(Integer)
+    status = Column(String, default="open")             # open | used | cancelled
+    paid_at = Column(String)
+    created_at = Column(String)
+
+
+class PackageUse(Base):
+    __tablename__ = "visit_package_uses"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    package_id = Column(Integer, index=True)
+    booking_id = Column(Integer, unique=True)
+    created_at = Column(String)
+
+
+class Waitlist(Base):
+    """B4: a runner waits for a physio; an offer holds a time for 2 hours, one person at a time."""
+    __tablename__ = "waitlist"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    physio_id = Column(String, index=True)
+    runner_id = Column(String, index=True)
+    dow = Column(String)                                # "0,2,4" (0 = Monday)
+    dayparts = Column(String)                           # "morning,evening"
+    note = Column(String)
+    status = Column(String, default="waiting")          # waiting | offered | booked | removed
+    offered_slot_at = Column(String)
+    offered_at = Column(String)
+    booking_id = Column(Integer)
+    created_at = Column(String)
+
+
+class PromSchedule(Base):
+    """B5: a questionnaire sent on a schedule (only instruments listed in business.INSTRUMENTS)."""
+    __tablename__ = "prom_schedules"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, index=True)
+    physio_id = Column(String, index=True)
+    instrument = Column(String)
+    every_days = Column(Integer, default=14)
+    next_due = Column(String)
+    active = Column(Boolean, default=True)
+    created_at = Column(String)
+
+
+class PromResponse(Base):
+    __tablename__ = "prom_responses"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    schedule_id = Column(Integer, index=True)
+    runner_id = Column(String, index=True)
+    physio_id = Column(String)
+    instrument = Column(String)
+    answers = Column(JSON)
+    score = Column(Integer)
+    answered_at = Column(String)
+
+
+# ======================================================================== physio brief 2026-11-09 Phase 4
+class VideoNote(Base):
+    """M3: the physio's note at a moment of the client's video."""
+    __tablename__ = "video_notes"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    message_id = Column(Integer, index=True)
+    physio_id = Column(String)
+    runner_id = Column(String, index=True)
+    t_seconds = Column(Float)
+    text = Column(String)
+    created_at = Column(String)
+
+
+class ClinicTest(Base):
+    """M4: a structured clinic test, both sides, with the involved side for the limb symmetry index."""
+    __tablename__ = "clinic_tests"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    runner_id = Column(String, index=True)
+    physio_id = Column(String)
+    booking_id = Column(Integer)
+    test = Column(String)
+    left = Column(Float)
+    right = Column(Float)
+    involved = Column(String)                           # L | R | None
+    tested_on = Column(String)
+    created_at = Column(String)

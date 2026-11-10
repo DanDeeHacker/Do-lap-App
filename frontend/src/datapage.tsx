@@ -404,6 +404,7 @@ export function DataView() {
                 trailing={<Chip tone={x.action === "read" ? "muted" : "watch"}>{x.action === "read" ? "čtení" : "zápis"}</Chip>} />
             ))}</div>
           ) : <p className="mt-3 text-sm text-fg-3">Zatím k vašim datům nikdo nepřistupoval.</p>}
+          <AccessDetail rid={rid} />
         </Card>
         <Card>
           <Label>Historie zařízení</Label>
@@ -415,7 +416,42 @@ export function DataView() {
         </Card>
       </div>
       <OutcomesPanel />
+      <DeleteAccount rid={rid} />
     </>
+  )
+}
+
+// physio brief 2026-11-09 R7.5: the event-level history behind the daily summary
+function AccessDetail({ rid }: { rid: string }) {
+  const [rows, setRows] = useState<any[] | null>(null)
+  if (rows === null) return <button type="button" className="mt-3 text-[12px] font-bold text-fg-2 underline underline-offset-2" onClick={() => api.accessEvents(rid).then((x: any) => setRows(x.items)).catch(() => setRows([]))}>Zobrazit detail</button>
+  return rows.length === 0 ? <p className="mt-3 text-[12px] text-fg-3">Žádné podrobné záznamy.</p> : (
+    <ul className="mt-3 grid max-h-64 gap-1 overflow-y-auto text-[12px] text-fg-2" data-testid="access-detail">
+      {rows.map((e, i) => <li key={i}><span className="tabular-nums text-fg-3">{new Date(e.at).toLocaleString("cs-CZ", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}</span>{` · ${e.who} ${e.text}`}</li>)}
+    </ul>
+  )
+}
+
+// physio brief 2026-11-09 R11.2: deleting the account removes the runner's data, not the providers' records
+function DeleteAccount({ rid }: { rid: string }) {
+  const { logout } = useApp()
+  const toast = useToast()
+  const [open, setOpen] = useState(false)
+  const [word, setWord] = useState("")
+  return (
+    <Card className="mt-4">
+      <Label>Smazat účet</Label>
+      {!open ? <button type="button" className="mt-2 text-[13px] font-bold text-alert underline underline-offset-2" onClick={() => setOpen(true)}>Smazat účet a data</button> : (
+        <div className="mt-2 grid gap-2 text-[13px] text-fg-2">
+          <p>Smažeme vaše běhy, check-iny, deník, zprávy a přihlášení. Záznamy z návštěv u fyzioterapeuta ale zůstávají u poskytovatele po dobu, kterou stanoví zákon (obvykle 5 let), bez vazby na tento účet.</p>
+          <label className="text-[12px] font-bold">Pro potvrzení napište SMAZAT
+            <input value={word} onChange={(e) => setWord(e.target.value)} className="mt-1 w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]" /></label>
+          <Button variant="danger" disabled={word.trim().toUpperCase() !== "SMAZAT"} onClick={async () => {
+            try { await api.deleteAccount(rid, word); toast({ title: "Účet je smazaný" }); logout() } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+          }}>Smazat účet</Button>
+        </div>
+      )}
+    </Card>
   )
 }
 

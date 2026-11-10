@@ -47,6 +47,8 @@ export const fmtDLong = (iso?: string) => {
 }
 export const fmtDT = (iso?: string) => {
   if (!iso) return "—"
+  // physio brief 2026-11-09 P0.11: a date without a time never shows one (it read 01:00 or 02:00)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return new Date(`${iso}T12:00:00`).toLocaleDateString("cs-CZ", { day: "numeric", month: "short" })
   return new Date(iso).toLocaleString("cs-CZ", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
 }
 export const fmtSlot = (iso?: string) => {
@@ -73,6 +75,11 @@ export const QUAD: Record<string, { t: string; d: string }> = {
   overreaching: { t: "Přetížení", d: "Zátěž vyskočila nad to, co jste v posledních týdnech zvládali. Technika zatím drží." },
   silent: { t: "Tichý drift", d: "Technika běhu se mění, i když to možná necítíte. Bývá to znak únavy, ne předpověď zranění." },
   critical: { t: "Kritická kombinace", d: "Zátěž je nad normou a zároveň se mění technika běhu." },
+  // physio brief 2026-11-09 P0.4: display states that outrank the quadrant, so "Stabilní" never sits
+  // next to an active injury or missing data
+  injury: { t: "Zranění v péči", d: "Řiďte se pokyny fyzioterapeuta. Trénink se vrátí, až zranění uzavře." },
+  rtr: { t: "Návrat k běhu", d: "Běháte podle plánu návratu od fyzioterapeuta." },
+  unknown: { t: "Bez aktuálních dat", d: "Nemáme aktuální data, stav ani doporučení se nepočítají. Nahrajte je a spočítají se znovu." },
 }
 export const TIER: Record<string, string> = { ok: "Nízké riziko", watch: "Sledovat", alert: "Vysoké riziko" }
 export const FEEL_LABEL = ["", "špatný", "slabší", "normální", "dobrý", "výborný"]

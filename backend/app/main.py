@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import models  # noqa: F401  (registers ORM tables on Base before create_all)
@@ -23,7 +23,7 @@ from .deps import is_owner, tutorial_demo_runner_id
 from .metrics import engine as E
 from .routers import (
     admin, ai, annotations, auth, booking, calendar, client_errors, coach, conclusions, employers, goals, integrations, partners, physios,
-    personas, plan, programs, rtr, runners, self_programs, shoes, simulate, team, triage, assistant, usage,
+    personas, plan, programs, records, rtr, work, business, runners, self_programs, shoes, simulate, team, triage, assistant, usage,
 )
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,6 +39,64 @@ FRONTEND_FILES = {
 # Falls back to the legacy vanilla site when the bundle hasn't been built.
 DIST_DIR = os.path.join(FRONTEND_DIR, "frontend", "dist")
 HAS_SPA = os.path.isfile(os.path.join(DIST_DIR, "index.html"))
+
+
+def _booking_guard(engine):
+    """physio brief 2026-11-09 P0.6: the database refuses a second requested/confirmed visit at the same
+    start for one physio. Existing duplicates are reported, never cancelled silently — the index then
+    waits until someone resolves them."""
+    from sqlalchemy import inspect, text
+    if not inspect(engine).has_table("bookings"):
+        return
+    with engine.begin() as conn:
+        dups = conn.execute(text(
+            "SELECT physio_id, slot_at, COUNT(*) FROM bookings WHERE status IN ('requested','confirmed') "
+            "GROUP BY physio_id, slot_at HAVING COUNT(*) > 1")).fetchall()
+        if dups:
+            for pid, at, n in dups:
+                logging.getLogger("dosslap.db").warning(
+                    "bookings: %s active visits of %s at %s — resolve them; the unique index waits", n, pid, at)
+            return
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_bookings_active_start ON bookings(physio_id, slot_at) "
+            "WHERE status IN ('requested','confirmed')"))
+
+
+APPEND_ONLY = ("clinical_records", "record_events", "record_destructions")
+
+
+def _ledger_guard(engine):
+    """physio brief 2026-11-09 R5/R7/R11: the ledger, the activity log and the destruction log refuse UPDATE
+    and DELETE in the database itself. The one exception: a clinical record past its retention whose patient
+    card has a logged destruction (record_destructions) can be deleted. Idempotent, SQLite and Postgres."""
+    from sqlalchemy import inspect, text
+    insp = inspect(engine)
+    if not all(insp.has_table(t) for t in APPEND_ONLY):
+        return
+    with engine.begin() as conn:
+        if engine.dialect.name == "sqlite":
+            for t in APPEND_ONLY:
+                conn.execute(text(f"CREATE TRIGGER IF NOT EXISTS {t}_no_update BEFORE UPDATE ON {t} "
+                                  f"BEGIN SELECT RAISE(ABORT, '{t} are append-only'); END"))
+            for t in ("record_events", "record_destructions"):
+                conn.execute(text(f"CREATE TRIGGER IF NOT EXISTS {t}_no_delete BEFORE DELETE ON {t} "
+                                  f"BEGIN SELECT RAISE(ABORT, '{t} are append-only'); END"))
+            conn.execute(text(
+                "CREATE TRIGGER IF NOT EXISTS clinical_records_no_delete BEFORE DELETE ON clinical_records "
+                "WHEN OLD.retain_until > date('now') OR NOT EXISTS (SELECT 1 FROM record_destructions d "
+                "WHERE d.patient_record_id = OLD.patient_record_id) "
+                "BEGIN SELECT RAISE(ABORT, 'clinical_records are append-only'); END"))
+        elif engine.dialect.name == "postgresql":
+            conn.execute(text(
+                "CREATE OR REPLACE FUNCTION dosslap_append_only() RETURNS trigger AS $$ BEGIN "
+                "IF TG_OP = 'DELETE' AND TG_TABLE_NAME = 'clinical_records' AND OLD.retain_until <= to_char(now(), 'YYYY-MM-DD') "
+                "AND EXISTS (SELECT 1 FROM record_destructions d WHERE d.patient_record_id = OLD.patient_record_id) "
+                "THEN RETURN OLD; END IF; "
+                "RAISE EXCEPTION '% are append-only', TG_TABLE_NAME; END $$ LANGUAGE plpgsql"))
+            for t in APPEND_ONLY:
+                conn.execute(text(f"DROP TRIGGER IF EXISTS {t}_append_only ON {t}"))
+                conn.execute(text(f"CREATE TRIGGER {t}_append_only BEFORE UPDATE OR DELETE ON {t} "
+                                  f"FOR EACH ROW EXECUTE FUNCTION dosslap_append_only()"))
 
 
 def _migrate(engine):
@@ -167,12 +225,73 @@ def _migrate(engine):
     # with its e-mail only when that account is older than the invitation (it can't be a squatter
     # who registered the invited address); the rest need a new invitation link.
     add("work_items", "clinical_sha", "clinical_sha VARCHAR")
+    add("conclusions", "ai_draft", "ai_draft BOOLEAN")
+    add("conclusions", "outcome_kind", "outcome_kind VARCHAR")
+    add("conclusions", "shared_at", "shared_at VARCHAR",
+        "UPDATE conclusions SET shared_at = approved_at WHERE status = 'approved' AND shared_at IS NULL")
     add("team_members", "extra_roles", "extra_roles JSON")
     add("team_members", "invite_hash", "invite_hash VARCHAR")
     add("team_members", "invite_expires_at", "invite_expires_at VARCHAR")
     add("team_members", "user_id", "user_id INTEGER",
         "UPDATE team_members SET user_id = (SELECT users.id FROM users WHERE lower(users.email) = team_members.email "
         "AND users.created_at IS NOT NULL AND users.created_at <= team_members.created_at)")
+    # physio brief 2026-11-09 P0.6: a visit knows its length, and one physio has one active visit per start
+    add("bookings", "duration_min", "duration_min INTEGER",
+        "UPDATE bookings SET duration_min = COALESCE((SELECT physio_slots.duration_min FROM physio_slots "
+        "WHERE physio_slots.id = bookings.slot_id), 45) WHERE duration_min IS NULL")
+    add("bookings", "cancel_reason", "cancel_reason VARCHAR")
+    _booking_guard(engine)
+    add("rtr_sessions", "count_reason", "count_reason VARCHAR")      # physio brief P0.7
+    add("return_to_run", "paused_reason", "paused_reason VARCHAR")
+    # physio brief P0.10: message audience; the old system notes meant for the physio stay with the physio
+    add("messages", "audience", "audience VARCHAR",
+        "UPDATE messages SET audience = CASE WHEN sender = 'system' AND (body LIKE 'Pacient %' OR body LIKE 'Návrat k běhu:%' "
+        "OR body LIKE 'Triáž%') THEN 'physio' ELSE 'both' END WHERE audience IS NULL")
+    # physio brief P0.8: exercise order and library origin
+    add("exercises", "position", "position INTEGER", "UPDATE exercises SET position = id WHERE position IS NULL")
+    add("exercises", "library_id", "library_id VARCHAR")
+    # physio brief Phase 1: provider identity (R1), structured visit content (R4), episodes (R3)
+    for col in ("legal_name", "legal_form", "ico", "registered_street", "registered_city", "registered_postal_code",
+                "care_site_street", "care_site_city", "care_site_postal_code", "provider_details_confirmed_at"):
+        add("clinics", col, f"{col} VARCHAR")
+    add("clinics", "is_solo", "is_solo BOOLEAN")
+    for col in ("title", "qualification", "hcp_identifier"):
+        add("physios", col, f"{col} VARCHAR")
+    for col in ("subjective", "objective", "assessment", "plan", "services_provided"):
+        add("conclusions", col, f"{col} TEXT")
+    for col in ("diagnosis_code", "diagnosis_label", "autosaved_at", "record_id"):
+        add("conclusions", col, f"{col} VARCHAR")
+    for t in ("conclusions", "bookings", "programs", "return_to_run", "injury_reports"):
+        add(t, "episode_id", "episode_id INTEGER")
+    _ledger_guard(engine)
+    # physio brief Phase 2: triage request (W4), physio work settings (W4/W13/W14/W15), booking intake (W16),
+    # programme builder (W10), return to run v2 (W11), messaging (W13)
+    for col, ddl in (("request_reason", "TEXT"), ("request_duration", "VARCHAR"), ("red_flags", "JSON")):
+        add("triage", col, f"{col} {ddl}")
+    for col, ddl in (("accepting_new_clients", "BOOLEAN"), ("max_new_per_week", "INTEGER"), ("response_time_text", "VARCHAR"),
+                     ("cancellation_policy", "TEXT"), ("notify_settings", "JSON"), ("ics_token", "VARCHAR"),
+                     ("rating_count", "INTEGER"), ("photo_url", "VARCHAR"), ("quick_replies", "JSON"),
+                     ("dark_mode", "BOOLEAN")):
+        add("physios", col, f"{col} {ddl}")
+    for col, ddl in (("service_id", "INTEGER"), ("reason", "TEXT"), ("questions", "TEXT"), ("recurring_group", "VARCHAR")):
+        add("bookings", col, f"{col} {ddl}")
+    if inspect(engine).has_table("bookings"):    # W1.6: payer is client | employer | insurer | other
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE bookings SET payer = 'client' WHERE payer = 'self' OR payer IS NULL"))
+    for col, ddl in (("phase_id", "INTEGER"), ("sets", "INTEGER"), ("reps", "INTEGER"), ("duration_s", "INTEGER"),
+                     ("load_text", "VARCHAR"), ("tempo", "VARCHAR"), ("side", "VARCHAR"), ("pain_limit", "INTEGER"),
+                     ("media_url", "VARCHAR"), ("thumbnail_url", "VARCHAR"), ("description", "TEXT")):
+        add("exercises", col, f"{col} {ddl}")
+    add("programs", "version", "version INTEGER")
+    add("programs", "draft_note", "draft_note TEXT")
+    for col, ddl in (("next_morning_pain", "INTEGER"), ("morning_stiffness_min", "INTEGER"),
+                     ("matched_activity_id", "INTEGER"), ("state", "VARCHAR")):
+        add("rtr_sessions", col, f"{col} {ddl}")
+    for col, ddl in (("attachment_path", "VARCHAR"), ("attachment_type", "VARCHAR"), ("attachment_name", "VARCHAR"),
+                     ("handled_at", "VARCHAR")):
+        add("messages", col, f"{col} {ddl}")
+    add("messages", "read_at_physio", "read_at_physio VARCHAR")
+    add("messages", "read_at_runner", "read_at_runner VARCHAR")
 
     # SQLite-only data cleanup: sensor-dropout zeros → NULL so the engine skips
     # them (Postgres deploys never imported those raw zeros). Idempotent.
@@ -425,7 +544,10 @@ async def lifespan(app: FastAPI):
                 pass
 
 
-app = FastAPI(title="Došlap API", lifespan=lifespan)
+# physio brief 2026-11-09 P0.10: the API description is for development, not for anyone on production
+_PROD = os.environ.get("RAILWAY_ENVIRONMENT_NAME") == "production"
+app = FastAPI(title="Došlap API", lifespan=lifespan, docs_url=None if _PROD else "/docs",
+              redoc_url=None if _PROD else "/redoc", openapi_url=None if _PROD else "/openapi.json")
 # Compress responses for clients that accept it (every mobile browser) — the
 # JS bundle drops ~445 KB → ~140 KB on the wire, a big win on phone networks.
 # Applies to API JSON and the served SPA assets alike.
@@ -466,32 +588,63 @@ def _record_admin_access(db, rid: str, user_id: int, resource: str) -> None:
 
 @app.middleware("http")
 async def audit_access(request, call_next):
-    """Logs a physio's access to a runner's record (GDPR right-of-access
-    transparency). Runs after the response so it never blocks the request,
-    and swallows its own errors — auditing must not break the API."""
+    """Logs access to a runner's record: the daily access_log roll-up the runner sees (GDPR transparency)
+    and, physio brief 2026-11-09 R7, one record_events row per successful request on every route declared
+    in app/audit.py. Runs after the response so it never blocks the request, and swallows its own errors —
+    auditing must not break the API."""
     response = await call_next(request)
     try:
-        path = request.url.path
-        parts = path.split("/")
-        # /api/runners/{rid}/...  (skip the access-log read itself would still
-        # be a physio touching the record, so it's fine to log)
-        if path.startswith("/api/runners/") and len(parts) > 3 and response.status_code < 400:
-            rid = parts[3]
-            token = request.cookies.get(security.SESSION_COOKIE)
-            db = SessionLocal()
-            try:
-                user = security.get_user_for_token(db, token)
-                if user and user.role == "physio" and user.physio_id:
-                    _record_access(db, rid, user.physio_id, request.method,
-                                   parts[4] if len(parts) > 4 else "profil")
-                elif user and user.runner_id != rid and is_owner(user) and rid != tutorial_demo_runner_id():
-                    # the owner's admin view of someone else's record (read-only by construction)
-                    _record_admin_access(db, rid, user.id, parts[4] if len(parts) > 4 else "profil")
-            finally:
-                db.close()
+        if response.status_code < 400 and request.url.path.startswith("/api/"):
+            await asyncio.to_thread(_audit_after, request.scope, request.method, request.url.path,
+                                    request.cookies.get(security.SESSION_COOKIE))
     except Exception:
         pass
     return response
+
+
+def _audit_after(scope, method: str, path: str, token: str | None) -> None:
+    from . import audit as AU
+    from . import records as RC
+    route = scope.get("route")
+    template = getattr(route, "path", None)
+    params = scope.get("path_params") or {}
+    decl = AU.declaration(method, template) if template else None
+    parts = path.split("/")
+    db = SessionLocal()
+    try:
+        user = security.get_user_for_token(db, token)
+        if user is None:
+            return
+        # the daily roll-up, as before, for /api/runners/{rid}/…
+        if path.startswith("/api/runners/") and len(parts) > 3:
+            rid = parts[3]
+            if user.role == "physio" and user.physio_id:
+                _record_access(db, rid, user.physio_id, method, parts[4] if len(parts) > 4 else "profil")
+            elif user.runner_id != rid and is_owner(user) and rid != tutorial_demo_runner_id():
+                _record_admin_access(db, rid, user.id, parts[4] if len(parts) > 4 else "profil")
+        if decl is None and template and template.startswith("/api/runners/{rid}") and user.role == "physio":
+            decl = ("read" if method == "GET" else "update", "runner")
+        if not decl or decl[0] in ("self", "exempt"):
+            return
+        action, rtype = decl
+        rid = AU.runner_of(db, template, params)
+        if user.role == "physio" and user.physio_id:
+            ph = db.get(models.Physio, user.physio_id)
+            if ph is None:
+                return
+            RC.physio_event(db, ph, action, rtype, AU.resource_id(params), runner_id=rid,
+                            detail={"route": f"{method} {template}"})
+            if rid and not path.startswith("/api/runners/"):
+                _record_access(db, rid, ph.id, method, rtype)
+        elif user.role == "runner" and method != "GET":
+            RC.event(db, actor_type="runner", actor_id=user.runner_id, actor_name=user.name, action=action,
+                     resource_type=rtype, resource_id=AU.resource_id(params), runner_id=user.runner_id,
+                     detail={"route": f"{method} {template}"})
+        else:
+            return
+        db.commit()
+    finally:
+        db.close()
 
 
 def _persona_clock_for(token: str | None):
@@ -521,11 +674,38 @@ async def persona_clock(request, call_next):
         E._sim_now.reset(tok)
 
 
+@app.middleware("http")
+async def read_only_practice(request, call_next):
+    """physio brief 2026-11-09 B2: an unpaid practice (after the trial, the paid month and 14 days' grace)
+    may read everything but change nothing — except the documentation (corrections, print, export),
+    signing in and paying."""
+    token = request.cookies.get(security.SESSION_COOKIE)
+    if token and request.method not in ("GET", "HEAD", "OPTIONS") and request.url.path.startswith("/api/"):
+        why = await asyncio.to_thread(_read_only_why, token, request.method, request.url.path)
+        if why:
+            return JSONResponse({"detail": why}, status_code=402)
+    return await call_next(request)
+
+
+def _read_only_why(token: str, method: str, path: str) -> str | None:
+    from . import business as B
+    db = SessionLocal()
+    try:
+        return B.read_only_block(db, security.get_user_for_token(db, token), method, path)
+    except Exception:
+        return None                    # never lock a practice out because the check itself failed
+    finally:
+        db.close()
+
+
 app.include_router(auth.router)
 app.include_router(runners.router)
 app.include_router(shoes.router)
 app.include_router(shoes.catalog_router)
 app.include_router(physios.router)
+app.include_router(records.router)
+app.include_router(work.router)
+app.include_router(business.router)   # physio brief 2026-11-09 Phases 3 and 4
 app.include_router(triage.router)
 app.include_router(programs.router)
 app.include_router(booking.router)

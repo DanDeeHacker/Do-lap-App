@@ -172,6 +172,35 @@ def chat_messages(messages: list[dict], temperature: float = 0.25, max_tokens: i
         return None
 
 
+def chat_ex(messages: list[dict], temperature: float = 0.25, max_tokens: int = 700) -> tuple[str | None, str | None]:
+    """(text, reason) for the physio app (physio brief 2026-11-09 P0.1): not configured → no network
+    call at all; otherwise 5 s to connect, 25 s in total and one retry on a 5xx, so a physio never
+    waits a minute for a fallback. reason: None | "not_configured" | "timeout" | "error"."""
+    if not available():
+        return None, "not_configured"
+    for attempt in (1, 2):
+        try:
+            resp = httpx.post(
+                f"{NVIDIA_BASE_URL}/chat/completions",
+                headers={"Authorization": f"Bearer {NVIDIA_API_KEY}", "Content-Type": "application/json"},
+                json={"model": NVIDIA_MODEL, "messages": messages, "temperature": temperature,
+                      "max_tokens": max_tokens, "stream": False},
+                timeout=httpx.Timeout(25.0, connect=5.0),
+            )
+            if resp.status_code >= 500 and attempt == 1:
+                continue
+            resp.raise_for_status()
+            text = (resp.json()["choices"][0]["message"]["content"] or "").strip()
+            return (text, None) if text else (None, "error")
+        except httpx.TimeoutException as e:
+            _note_error("chat", e)
+            return None, "timeout"
+        except Exception as e:  # noqa: BLE001 — any other failure falls back to the template
+            _note_error("chat", e)
+            return None, "error"
+    return None, "error"
+
+
 # v0.12.0 — image input (shoe recognition). Tested on NVIDIA's catalog 2026-10-04 with a
 # shoe photo: Llama 3.2 Vision 11B answered in ~3 s, 90B in 20–70 s, Gemma 4 timed out on
 # images. VISION_MODELS (comma-separated) overrides the order.

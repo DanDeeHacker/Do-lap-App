@@ -6,9 +6,9 @@ import { useMemo, useState } from "react"
 import { useNavigate } from "react-router"
 import { Inbox, MapPin } from "lucide-react"
 import { api } from "@/api"
-import { Button, Card, Chip, Segmented, useToast } from "@/ui"
+import { Button, Card, Chip, Segmented, Sheet, useToast } from "@/ui"
 import { fmtD } from "@/lib"
-import { Empty, Loading, QuadChip, RiskChip, shownScore, useLoad } from "@/physio/common"
+import { Empty, Loading, PainAgo, QuadChip, RiskChip, shownScore, useLoad } from "@/physio/common"
 
 export function QueuePage({ pid }: { pid: string }) {
   const toast = useToast()
@@ -19,20 +19,28 @@ export function QueuePage({ pid }: { pid: string }) {
   const [busy, setBusy] = useState<number | null>(null)
   const items = d || []
   const counts = useMemo(() => ({
-    open: items.filter((t) => !t.claimed_by).length,
+    open: items.length,
     ok: items.filter((t) => t.a?.tier === "ok").length,
     watch: items.filter((t) => t.a?.tier === "watch").length,
     alert: items.filter((t) => t.a?.tier === "alert").length,
   }), [items])
   const list = items.filter((t) => risk === "all" || (risk === "open" ? !t.claimed_by : t.a?.tier === risk))
+  // physio brief 2026-11-09 P0.9: claiming asks first and says what it opens; passing hides the case for me
+  const [ask, setAsk] = useState<any>(null)
+  const [passing, setPassing] = useState<any>(null)
+  const [why, setWhy] = useState("")
   const claim = async (t: any) => {
     setBusy(t.id)
     try {
       await api.triageClaim(t.id)
-      toast({ title: `${t.runner?.name || "Případ"} je ve vaší péči — data jsou otevřená` })
+      toast({ title: "Případ je ve vaší péči — data jsou otevřená" })
       nav(`/physio/client/${t.runner_id}`)
     } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }); reload() }
-    finally { setBusy(null) }
+    finally { setBusy(null); setAsk(null) }
+  }
+  const pass = async () => {
+    try { await api.triagePass(passing.id, why); toast({ title: "Případ skrytý — ostatním fyzioterapeutům zůstává" }); setPassing(null); setWhy(""); reload() }
+    catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
   }
   const tile = (k: typeof risk, label: string, n: number, tone: string) => (
     <button type="button" onClick={() => setRisk(risk === k ? "all" : k)} aria-pressed={risk === k}
@@ -76,29 +84,30 @@ export function QueuePage({ pid }: { pid: string }) {
                 {list.map((t: any) => {
                   const sig = [...(t.a?.signals || [])].sort((x: any, y: any) => (y.pts || 0) - (x.pts || 0))[0]
                   const ps = t.a?.painState || {}
-                  const mine = t.claimed_by === pid
                   return (
                     <tr key={t.id} className="border-t border-white/[.06] align-top">
                       <td className="py-2.5 pr-3">
-                        <b className="block text-fg">{t.runner?.name || t.runner_id}</b>
-                        <span className="flex items-center gap-1 text-[11.5px] text-fg-3"><MapPin className="size-3" aria-hidden />{t.runner?.city || "—"}
+                        <b className="block text-fg">{t.display_name || "Klient"}</b>
+                        <span className="flex items-center gap-1 text-[11.5px] text-fg-3"><MapPin className="size-3" aria-hidden />{t.age_band || "věk neuveden"}
                           {!t.in_region && <span>{" · mimo region"}</span>}</span>
                       </td>
                       <td className="py-2.5 pr-3 text-[18px] font-bold tabular-nums text-fg">{t.a?.overall == null ? "—" : Math.round(shownScore(t.a.overall)!)}</td>
-                      <td className="py-2.5 pr-3"><span className="flex flex-wrap gap-1"><RiskChip tier={t.a?.tier} /><QuadChip q={t.a?.quadrant} /></span></td>
+                      <td className="py-2.5 pr-3"><span className="flex flex-wrap gap-1"><RiskChip tier={t.a?.tier} a={t.a} /><QuadChip q={t.a?.quadrant} a={t.a} /></span></td>
                       <td className="py-2.5 pr-3 text-fg-2">{sig ? <>{sig.name}<span className="block text-[11.5px] text-fg-3">{sig.val}</span></> : "—"}</td>
                       <td className="py-2.5 pr-3 text-fg-2">
                         {ps.todayPain != null ? <span className="font-bold text-watch">{`${ps.todayPain}/10`}</span>
-                          : ps.lastPainDay ? <span>{`naposledy ${fmtD(ps.lastPainDay)}`}</span> : "—"}
+                          : <PainAgo p={t.a?.lastPain} />}
                         {ps.todaySites?.length ? <span className="block text-[11.5px] text-fg-3">{ps.todaySites.join(", ")}</span> : null}
                       </td>
                       <td className="py-2.5 pr-3">
-                        {mine ? <Chip tone="ok">ve vaší péči</Chip> : t.claimed_by ? <Chip>převzal jiný</Chip> : <Chip tone="info">volný</Chip>}
+                        <Chip tone="info">volný</Chip>
                         {t.headline && <span className="mt-1 block max-w-[220px] text-[11.5px] text-fg-3">{t.headline}</span>}
                       </td>
                       <td className="py-2.5 text-right">
-                        {mine ? <Button size="sm" variant="outline" onClick={() => nav(`/physio/client/${t.runner_id}`)}>Otevřít</Button>
-                          : !t.claimed_by && <Button size="sm" icon={Inbox} busy={busy === t.id} onClick={() => claim(t)} data-testid="queue-claim">Převzít</Button>}
+                        <span className="inline-flex gap-1.5">
+                          <Button size="sm" icon={Inbox} busy={busy === t.id} onClick={() => setAsk(t)} data-testid="queue-claim">Převzít</Button>
+                          <Button size="sm" variant="outline" onClick={() => setPassing(t)}>Přeskočit</Button>
+                        </span>
                       </td>
                     </tr>
                   )
@@ -108,6 +117,33 @@ export function QueuePage({ pid }: { pid: string }) {
           </div>
         )}
       </Card>
+      <Sheet open={!!ask} onClose={() => setAsk(null)}>
+        {ask && (
+          <div data-testid="claim-confirm">
+            <h2 className="font-serif text-2xl">Převzít případ?</h2>
+            <p className="mt-2 text-[13px] leading-5 text-fg-2">
+              Otevře se vám jméno klienta, jeho data z hodinek, check-iny, hlášení bolesti a zranění. Každé otevření se zapíše
+              do jeho přehledu přístupů. Případ zmizí z fronty ostatním fyzioterapeutům.
+            </p>
+            {!ask.in_region && <p className="mt-2 text-[13px] font-bold text-watch">{`Klient je mimo váš region (${ask.city || "neuvedeno"}). Opravdu ho chcete převzít?`}</p>}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button variant="outline" onClick={() => setAsk(null)}>Zpět</Button>
+              <Button busy={busy === ask.id} onClick={() => claim(ask)} data-testid="claim-yes">Převzít</Button>
+            </div>
+          </div>
+        )}
+      </Sheet>
+      <Sheet open={!!passing} onClose={() => setPassing(null)}>
+        {passing && (
+          <div>
+            <h2 className="font-serif text-2xl">Přeskočit případ</h2>
+            <p className="mt-2 text-[13px] text-fg-2">Případ se skryje jen vám, ostatní fyzioterapeuti ho dál uvidí.</p>
+            <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Důvod (např. mimo moji specializaci)" aria-label="Důvod"
+              className="mt-3 w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]" />
+            <Button className="mt-3 w-full" disabled={!why.trim()} onClick={pass}>Přeskočit</Button>
+          </div>
+        )}
+      </Sheet>
     </>
   )
 }
