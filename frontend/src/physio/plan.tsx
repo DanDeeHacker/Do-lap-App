@@ -91,7 +91,7 @@ function ProgramBuilder({ rid }: { rid: string }) {
         <div>
           <h2 className="font-serif text-xl">{p.name}</h2>
           <p className="text-[12px] text-fg-3">
-            {p.status === "sent" ? `odesláno ${fmtD(p.sent_at)} · verze ${p.version || 1}` : "koncept — klient ho zatím nevidí"}
+            {p.status === "sent" ? `odesláno ${fmtD(p.published_at || p.sent_at)} · verze ${p.version || 1}` : "koncept — klient ho zatím nevidí"}
             {p.ends_on ? (p.ended ? ` · program skončil ${fmtD(p.ends_on)}` : ` · končí ${fmtD(p.ends_on)}`) : ""}
             {p.pending_changes ? ` · ${p.pending_changes} neodeslaných změn` : ""}
           </p>
@@ -189,7 +189,7 @@ function ExerciseRow({ e, phases, onChange, onUp, onDown }: { e: any; phases: an
           <label className="text-[12px] font-bold text-fg-2">Zátěž<input className={inp} value={f.load_text ?? ""} onChange={(x) => setF({ ...f, load_text: x.target.value })} placeholder="např. 10 kg" /></label>
           <label className="text-[12px] font-bold text-fg-2">Tempo<input className={inp} value={f.tempo ?? ""} onChange={(x) => setF({ ...f, tempo: x.target.value })} placeholder="3-1-3" /></label>
           <label className="text-[12px] font-bold text-fg-2">Strana<select className={inp} value={f.side ?? ""} onChange={(x) => setF({ ...f, side: x.target.value })}>
-            <option value="">—</option><option value="L">levá</option><option value="P">pravá</option><option value="each">každá strana</option><option value="both">obě</option></select></label>
+            <option value="">—</option><option value="L">levá</option><option value="P">pravá</option><option value="per_leg">na každou nohu (/ noha)</option><option value="each">na každou stranu (/ strana)</option><option value="both">obě</option></select></label>
           <label className="text-[12px] font-bold text-fg-2">Hranice bolesti<input type="number" min={0} max={10} className={inp} value={f.pain_limit ?? ""} onChange={(x) => setF({ ...f, pain_limit: x.target.value })} /></label>
           {phases.length > 0 && <label className="text-[12px] font-bold text-fg-2">Fáze<select className={inp} value={f.phase_id ?? ""} onChange={(x) => setF({ ...f, phase_id: x.target.value })}>
             <option value="">—</option>{phases.map((ph) => <option key={ph.id} value={ph.id}>{ph.name}</option>)}</select></label>}

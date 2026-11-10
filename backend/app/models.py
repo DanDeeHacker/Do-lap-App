@@ -768,6 +768,7 @@ class Exercise(Base):
     media_url = Column(String)
     thumbnail_url = Column(String)
     description = Column(Text)
+    target_set = Column(Boolean, default=False)   # round 2 F6.3: set when per_week changed (done + per_week × weeks left)
 
 
 class SelfProgram(Base):

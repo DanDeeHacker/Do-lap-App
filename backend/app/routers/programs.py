@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session as DBSession
 
 from .. import content, models, records as R, schemas
@@ -29,18 +30,76 @@ def exercises_of(db: DBSession, pid: int) -> list:
             .order_by(models.Exercise.position.asc(), models.Exercise.id.asc()).all())
 
 
-def ends_on(p: models.Program) -> str | None:
+def _latest_version(db: DBSession, p: models.Program) -> models.ProgramVersion | None:
+    return (db.query(models.ProgramVersion).filter_by(program_id=p.id, status="published")
+            .order_by(models.ProgramVersion.version.desc()).first())
+
+
+def total_weeks(db: DBSession | None, p: models.Program) -> int:
+    """Round 2 F6.2: all phases' weeks, or the programme's weeks when it has no phases."""
+    if db is not None:
+        ph = db.query(models.ProgramPhase).filter_by(program_id=p.id).all()
+        if ph:
+            return sum(x.weeks or 0 for x in ph)
+    return p.weeks or 0
+
+
+def published_at(db: DBSession | None, p: models.Program) -> str | None:
+    """Round 2 F6.1: when the client last received the programme (the latest published version)."""
+    v = _latest_version(db, p) if db is not None else None
+    return (v.published_at if v and v.published_at else None) or p.sent_at
+
+
+def ends_on(p: models.Program, db: DBSession | None = None) -> str | None:
+    """Round 2 F6.2: latest publish + total weeks; 'Program skončil' only after that day."""
+    weeks = total_weeks(db, p)
+    start = (published_at(db, p) or p.started_on or "")[:10]
     try:
-        return (date.fromisoformat((p.started_on or "")[:10]) + timedelta(weeks=p.weeks or 0)).isoformat() if p.weeks else None
+        return (date.fromisoformat(start) + timedelta(weeks=weeks)).isoformat() if weeks and start else None
     except ValueError:
         return None
 
 
-def _weeks_left(p: models.Program) -> int:
-    end = ends_on(p)
+def _weeks_left(p: models.Program, db: DBSession | None = None) -> int:
+    end = ends_on(p, db)
     if not end:
-        return p.weeks or 0
+        return total_weeks(db, p)
     return max(0, -(-(date.fromisoformat(end) - E.today_date()).days // 7))
+
+
+def target_of(e, weeks: int) -> int:
+    """Round 2 F6.3: per_week × weeks on read, unless per_week was changed (then done + per_week × weeks left,
+    stored when it changed — P0.8.7)."""
+    if getattr(e, "target_set", False) and e.target_count is not None:
+        return e.target_count
+    return (e.per_week or 0) * weeks if e.per_week and weeks else (e.target_count or 0)
+
+
+GENERIC_NOTES = {"Úprava po zpětné vazbě pacienta."}    # a removed default reason never reaches the client
+
+
+def runner_history(db: DBSession, p: models.Program) -> list[dict]:
+    """Round 2 F6.6: one entry per published version — its note and the changes in plain Czech; older revisions
+    (before versions existed) grouped by publish date."""
+    revs = (db.query(models.ProgramRevision).filter(models.ProgramRevision.program_id == p.id,
+                                                    models.ProgramRevision.note.isnot(None))
+            .order_by(models.ProgramRevision.id.asc()).all())
+    by_day: dict[str, dict] = {}
+    for r in revs:
+        day = (r.at or "")[:10]
+        x = by_day.setdefault(day, {"at": r.at, "notes": [], "changes": []})
+        if r.note and r.note.strip() not in GENERIC_NOTES and r.note not in x["notes"]:
+            x["notes"].append(r.note)
+        for c in r.changes or []:
+            if c not in x["changes"]:
+                x["changes"].append(c)
+    vers = {(v.published_at or "")[:10]: v for v in db.query(models.ProgramVersion).filter_by(program_id=p.id).all()}
+    out = []
+    for day, x in sorted(by_day.items()):
+        v = vers.get(day)
+        out.append({"at": x["at"], "version": v.version if v else None, "note": " ".join(x["notes"]) or None,
+                    "changes": x["changes"]})
+    return out
 
 
 def program_out(db: DBSession, p: models.Program, runner: bool = False) -> dict:
@@ -64,10 +123,18 @@ def program_out(db: DBSession, p: models.Program, runner: bool = False) -> dict:
     if runner:
         q = q.filter(models.ProgramRevision.note.isnot(None))
     out["revisions"] = to_dicts(q.order_by(models.ProgramRevision.id.asc()).all())
+    weeks = total_weeks(db, p)
+    for x in out["exercises"]:
+        e = live.get(x.get("id"))
+        x["target_count"] = target_of(e, weeks) if e is not None else x.get("target_count")
+    out["total_weeks"] = weeks
+    out["published_at"] = published_at(db, p)
+    if runner:
+        out["history"] = runner_history(db, p)
     out["pending_changes"] = 0 if runner else db.query(models.ProgramRevision).filter(
         models.ProgramRevision.program_id == p.id, models.ProgramRevision.note.is_(None)).count()
     out["adherence"] = W.adherence(db, p)
-    out["ends_on"] = ends_on(p)
+    out["ends_on"] = ends_on(p, db)
     out["ended"] = bool(out["ends_on"] and out["ends_on"] < E.iso_date(E.today_date()))
     return out
 
@@ -148,7 +215,8 @@ class ExerciseIn(BaseModel):
 
 STRUCT = ("phase_id", "sets", "reps", "duration_s", "load_text", "tempo", "side", "pain_limit", "media_url",
           "thumbnail_url", "description")
-SIDE_CS = {"L": "levá", "P": "pravá", "both": "obě strany", "each": "každá strana"}
+SIDE_CS = {"L": "levá", "P": "pravá", "both": "obě strany"}
+PER_SIDE = {"per_leg": "/ noha", "each": "/ strana"}      # round 2 F6.4: a per-side dose keeps its suffix
 
 
 def dose_text(sets, reps, duration_s, load_text=None, side=None) -> str | None:
@@ -158,12 +226,25 @@ def dose_text(sets, reps, duration_s, load_text=None, side=None) -> str | None:
     core += f"{reps}" if reps else (f"{duration_s} s" if duration_s else "")
     if reps and duration_s:
         core += f" ({duration_s} s)"
-    parts = [core.strip(" ×")]
+    core = core.strip(" ×")
+    if side in PER_SIDE:
+        core = f"{core} {PER_SIDE[side]}"
+    parts = [core]
     if load_text:
         parts.append(load_text)
     if side and side in SIDE_CS:
         parts.append(SIDE_CS[side])
     return " · ".join(p for p in parts if p)
+
+
+def legacy_side(dose: str | None) -> str | None:
+    """A legacy dose string written by hand: '3 × 15 / noha' is per leg."""
+    d = (dose or "").replace("\u00a0", " ")
+    if "/ noha" in d or "/noha" in d:
+        return "per_leg"
+    if "/ strana" in d or "/strana" in d:
+        return "each"
+    return None
 
 
 def _pending(db: DBSession, p: models.Program, physio_id: str, change: str) -> None:
@@ -186,7 +267,7 @@ def add_exercise(pid: int, body: ExerciseIn, user: models.User = Depends(require
         raise HTTPException(status_code=409, detail="Tento cvik už v programu je.")
     last = max([x.position or 0 for x in exercises_of(db, pid)] or [0])
     e = models.Exercise(program_id=pid, name=body.name, dose=dose, per_week=body.per_week, library_id=body.library_id,
-                         cue=body.cue, done_count=0, position=last + 1, target_count=body.per_week * _weeks_left(p),
+                         cue=body.cue, done_count=0, position=last + 1, target_count=body.per_week * total_weeks(db, p),
                          **{k: getattr(body, k) for k in STRUCT})
     db.add(e)
     _pending(db, p, user.physio_id, f"Přidáno: {body.name}")
@@ -203,31 +284,42 @@ def edit_exercise(ex_id: int, body: schemas.EditExerciseRequest, user: models.Us
     ensure_program_owner(user, p)
     patch = {k: v for k, v in body.patch.items() if k in {"dose", "per_week", "cue", *STRUCT}}
     _check(patch.get("dose", None) if "dose" in patch else None, patch.get("per_week"))
+    # round 2 F6.4: a legacy "/ noha" dose gets its side before the dose is regenerated
+    if e.side is None and "side" not in patch and legacy_side(e.dose):
+        e.side = legacy_side(e.dose)
     before = {k: getattr(e, k) for k in ("dose", "per_week", "cue", *STRUCT)}
-    changes = []
+    norm = lambda v: (v.strip() or None) if isinstance(v, str) else v   # noqa: E731
+    changes, struct_changed = [], False
     for k, v in patch.items():
-        if isinstance(v, str) and not v.strip():
-            v = None
-        if v == before[k]:
+        v = norm(v)
+        if v == norm(before[k]):
             continue
         setattr(e, k, v)
         if k == "per_week":
             changes.append(f"{e.name}: {before['per_week']}× → {v}× týdně")
-            e.target_count = (e.done_count or 0) + v * _weeks_left(p)
+            e.target_count = (e.done_count or 0) + v * _weeks_left(p, db)
+            e.target_set = True                 # P0.8.7: the target follows the change from now on
         elif k == "dose":
-            changes.append(f"{e.name}: dávka {before['dose']} → {v}")
+            changes.append(f"{e.name}: nová dávka {v}")
         elif k == "cue":
-            changes.append(f"{e.name}: pokyn odstraněn" if v is None else f"{e.name}: upraven pokyn")
+            changes.append(f"{e.name}: pokyn odstraněn" if v is None else f"{e.name}: upravený pokyn")
         elif k in ("sets", "reps", "duration_s", "load_text", "side"):
-            changes.append(f"{e.name}: upravena dávka")
+            struct_changed = True
         elif k == "pain_limit":
             changes.append(f"{e.name}: hranice bolesti {v}/10")
-    if any(k in patch for k in ("sets", "reps", "duration_s", "load_text", "side")) and "dose" not in patch:
-        e.dose = dose_text(e.sets, e.reps, e.duration_s, e.load_text, e.side) or e.dose
+    if struct_changed and "dose" not in patch:
+        new_dose = dose_text(e.sets, e.reps, e.duration_s, e.load_text, e.side) or e.dose
+        if new_dose != before["dose"]:
+            e.dose = new_dose
+            changes.append(f"{e.name}: nová dávka {new_dose}")
+    # round 2 F6.5: a PATCH that changes nothing is a no-op — no revision, no message
+    if not changes:
+        db.rollback()
+        return to_dict(db.get(models.Exercise, ex_id))
     for c in dict.fromkeys(changes):
         _pending(db, p, user.physio_id, c)
     # physio brief P0.8 → W10: the reason is asked once, when the change is published to the client
-    if body.note and changes:
+    if body.note:
         p.draft_note = body.note.strip()
     db.commit()
     db.refresh(e)
@@ -335,7 +427,10 @@ def send_program(pid: int, body: schemas.SendProgramRequest, user: models.User =
             db.delete(r)
     p.status = "sent"
     p.sent_at = p.sent_at if not first else E.iso_date(E.today_date())
-    p.version = (p.version or 0) + 1
+    # round 2 F6.1: max + 1 over the stored versions; a programme sent before versions existed was version 1
+    top = db.query(func.max(models.ProgramVersion.version)).filter(models.ProgramVersion.program_id == pid).scalar() or 0
+    base = max(top, p.version or 0, 0 if first else 1)
+    p.version = base + 1
     p.draft_note = None
     db.add(models.ProgramVersion(program_id=pid, version=p.version, status="published", published_at=_utc(),
                                  note=note or None, snapshot=snapshot(db, p)))

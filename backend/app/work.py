@@ -308,7 +308,7 @@ def _rule_hits(db: DBSession, physio_id: str, rid: str) -> dict[str, dict]:
             .order_by(models.Program.id.desc()).first())
     if prog is not None:
         from .routers.programs import ends_on
-        end = ends_on(prog)
+        end = ends_on(prog, db)
         if end and end < E.iso_date(E.today_date()):
             hits["programme_ended"] = {"program_id": prog.id, "ended": end}
         else:

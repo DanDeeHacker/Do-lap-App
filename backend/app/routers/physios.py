@@ -51,7 +51,7 @@ def bootstrap(pid: str, user: models.User = Depends(require_verified_physio), db
         item = _with_runner_and_assessment(p, p.runner_id)
         from .programs import exercises_of, ends_on
         item["exercises"] = to_dicts(exercises_of(db, p.id))
-        item["ends_on"] = ends_on(p)
+        item["ends_on"] = ends_on(p, db)
         item["revision_count"] = db.query(models.ProgramRevision).filter(models.ProgramRevision.program_id == p.id).count()
         programs_out.append(item)
     programmed_runner_ids = {p.runner_id for p in programs}
