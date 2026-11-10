@@ -305,6 +305,7 @@ def _visit_out(db: DBSession, b: models.Booking) -> dict:
 @router.get("/api/physios/me/today")
 def today(user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     """Who do I see, who needs me, what is unfinished."""
+    from .booking import request_detail
     from .records import unsigned_for
     p = _me(db, user)
     W.refresh_alerts(db, p.id)
@@ -327,19 +328,20 @@ def today(user: models.User = Depends(require_verified_physio), db: DBSession = 
     unread = (db.query(models.Message).filter(models.Message.runner_id.in_(clients), models.Message.sender == "runner",
                                               models.Message.read_at_physio.is_(None)).all()) if clients else []
     requests = db.query(models.Booking).filter_by(physio_id=p.id, status="requested").all()
-    new_cases = (db.query(models.Triage).filter(models.Triage.claimed_by.is_(None), models.Triage.status != "closed").count())
+    from .triage import queue_rows
+    new_cases = len(queue_rows(db, p.id))          # round 2 F17.1: the same query and filters as Fronta
     names = {rid: (db.get(models.Runner, rid).name if db.get(models.Runner, rid) else rid)
              for rid in {a.runner_id for a in alerts if a.runner_id} | {m.runner_id for m in unread}}
     R.physio_event(db, p, "read", "runner", None, detail={"screen": "today"})
     db.commit()
     return {"visits": sorted([_visit_out(db, b) for b in visits], key=lambda x: x["slot_at"]),
             "alerts": [{"id": a.id, "runner_id": a.runner_id, "name": names.get(a.runner_id), "rule": a.rule,
-                        "title": W.ALERT_CS.get(a.rule, a.rule), "severity": a.severity, "payload": a.payload_json,
+                        "title": W.alert_title(a.rule, a.payload_json), "severity": a.severity, "payload": a.payload_json,
                         "created_at": a.created_at} for a in alerts],
             "unread": [{"runner_id": m.runner_id, "name": names.get(m.runner_id), "at": m.created_at,
                         "preview": (m.body or "")[:120]} for m in sorted(unread, key=lambda m: m.created_at, reverse=True)],
             "unsigned": unsigned_for(db, p.id),
-            "requests": [_visit_out(db, b) for b in requests],
+            "requests": [{**_visit_out(db, b), "detail": request_detail(db, b)} for b in requests],   # round 2 F13.1
             "new_cases": new_cases}
 
 
@@ -555,6 +557,9 @@ def calendar(pid: str, start: str = "", end: str = "", user: models.User = Depen
     return {"bookings": out_b, "free": W.free_times(db, pid, max(d0, E.today_date()), d1),
             "time_off": to_dicts([t for t in db.query(models.TimeOff).filter_by(physio_id=pid).all()
                                   if t.ends_at >= lo and t.starts_at < hi]),
+            # round 2 F14: the grid shades working hours
+            "rules": [{"weekday": r.weekday, "start": r.start_local, "end": r.end_local}
+                      for r in db.query(models.AvailabilityRule).filter_by(physio_id=pid, active=True).all()],
             "from": d0.isoformat(), "to": d1.isoformat()}
 
 
@@ -666,23 +671,32 @@ def timeline(rid: str, weeks: int = 12, user: models.User = Depends(require_veri
         x = day((a.started_at or "")[:10])
         if (a.sport or "running") == "running":
             x["km"] = round((x.get("km") or 0) + (a.distance_km or 0), 2)
-    for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= d0).all():
-        x = day(c.submitted_at[:10])
-        if c.pain_score is not None:
-            x.setdefault("pain", {})[c.pain_site or "bez místa"] = c.pain_score
-    for f in db.query(models.ActivityFeedback).filter(models.ActivityFeedback.runner_id == rid,
-                                                      models.ActivityFeedback.submitted_at >= d0).all():
-        if f.pain_during:
-            x = day(f.submitted_at[:10])
-            x.setdefault("pain", {})[f.pain_site or "při běhu"] = max(f.pain_during, (x.get("pain") or {}).get(f.pain_site or "při běhu", 0))
+    from .. import care_view as CV
+    seen: set[str] = set()            # days with any data at all (round 2 F4.3)
+    for a in db.query(models.Activity.started_at).filter(models.Activity.runner_id == rid, models.Activity.started_at >= d0).all():
+        seen.add((a[0] or "")[:10])
+    for c in db.query(models.Checkin.submitted_at).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= d0).all():
+        seen.add((c[0] or "")[:10])
+    # round 2 F4.2: the pain row from pain_events — check-ins, runs, return-to-run sessions and mornings, exercises
+    for e in CV.pain_events(db, rid, d0):
+        d = e["at"][:10]
+        seen.add(d)
+        if e["score"] <= 0 and e["source"] != "checkin":
+            continue
+        place = e["region"] or ("při běhu" if e["source"] == "activity" else "bez místa")
+        x = day(d)
+        x.setdefault("pain", {})[place] = max(e["score"], (x.get("pain") or {}).get(place, 0))
     from .. import history as H
     try:
         hist = H.quadrant_cache_fresh(db, rid) or H.build_quadrant_history(db, rid, min(190, weeks * 7 + 1))
     except Exception:
         hist = []
+    # round 2 F4.3: a day without data is a gap — no engine value is drawn there (never 0, never carried over)
+    gaps = _gaps(d0, t, seen)
+    in_gap = {g_d for g in gaps for g_d in _span(g["from"], g["to"])}
     for h in hist or []:
         d = (h.get("date") or "")[:10]
-        if d >= d0:
+        if d >= d0 and d not in in_gap:
             x = day(d)
             for k in ("load", "mech", "symp", "overall", "readiness", "quadrant"):
                 if h.get(k) is not None:
@@ -718,10 +732,53 @@ def timeline(rid: str, weeks: int = 12, user: models.User = Depends(require_veri
     R.physio_event(db, p, "read", "runner", rid, runner_id=rid, detail={"screen": "timeline"})
     db.commit()
     return {"from": d0, "to": t.isoformat(), "weeks": weeks, "days": sorted(days.values(), key=lambda x: x["date"]),
-            "events": sorted(events, key=lambda e: e["at"] or "")}
+            "events": sorted(events, key=lambda e: e["at"] or ""), "gaps": gaps}
+
+
+def _span(a: str, b: str) -> list[str]:
+    d, end, out = date.fromisoformat(a), date.fromisoformat(b), []
+    while d <= end:
+        out.append(d.isoformat())
+        d += timedelta(days=1)
+    return out
+
+
+def _gaps(d0: str, today: date, seen: set[str]) -> list[dict]:
+    """Ranges with no data longer than the freshness window (CV.FRESH_MAX_DAYS): shaded "bez dat" in the timeline.
+    The range starts the day after the freshness window runs out, so a short pause between runs is no gap."""
+    from .. import care_view as CV
+    out, run = [], []
+    for d in _span(d0, today.isoformat()):
+        if d in seen:
+            if len(run) > CV.FRESH_MAX_DAYS:
+                out.append({"from": run[CV.FRESH_MAX_DAYS], "to": run[-1], "days": len(run)})
+            run = []
+        else:
+            run.append(d)
+    if len(run) > CV.FRESH_MAX_DAYS:
+        out.append({"from": run[CV.FRESH_MAX_DAYS], "to": run[-1], "days": len(run)})
+    return out
 
 
 # =============================================================================================== W8 previsit
+def _last_record(db: DBSession, last: models.Conclusion | None) -> dict | None:
+    """Round 2 F2 / F16.4: the last note's assessment and plan — from the ledger's current version when there is
+    one (corrections count), and for older notes without SOAP fields the finding and the client summary."""
+    if last is None:
+        return None
+    cur = {}
+    if last.record_id:
+        vs = R.versions(db, last.record_id)
+        cur = R.content_of(vs[-1])["content"] if vs else {}
+    get = lambda k: cur.get(k) if cur.get(k) is not None else getattr(last, k)   # noqa: E731
+    bk = db.get(models.Booking, last.booking_id) if last.booking_id else None
+    dx = " ".join(x for x in (get("diagnosis_code"), get("diagnosis_label")) if x)
+    return {"at": bk.slot_at if bk and bk.slot_at else last.approved_at, "approved_at": last.approved_at,
+            "record_id": last.record_id, "booking_id": last.booking_id,
+            "assessment": get("assessment") or get("finding") or dx or None,
+            "plan": get("plan") or get("summary") or None, "summary": get("summary")}
+
+
 @router.get("/api/physios/me/clients/{rid}/previsit")
 def previsit(rid: str, booking_id: int | None = None, user: models.User = Depends(require_verified_physio),
              db: DBSession = Depends(get_db)):
@@ -738,8 +795,9 @@ def previsit(rid: str, booking_id: int | None = None, user: models.User = Depend
     since = (last.approved_at if last else (E.today_date() - timedelta(days=28)).isoformat())[:10]
     runs = [a for a in db.query(models.Activity).filter(models.Activity.runner_id == rid, models.Activity.started_at >= since).all()
             if (a.sport or "running") == "running"]
-    pains = [c for c in db.query(models.Checkin).filter(models.Checkin.runner_id == rid, models.Checkin.submitted_at >= since).all()
-             if (c.pain_score or 0) > 0]
+    ev = CV.pain_events(db, rid, since)             # round 2 F4.2: every source, one query
+    pains = [e for e in ev if e["score"] > 0]
+    psum = CV.pain_summary(ev)
     prog = (db.query(models.Program).filter_by(runner_id=rid, physio_id=p.id, active=True).order_by(models.Program.id.desc()).first())
     po = program_out(db, prog) if prog else None
     a = CV.present(db, rid, E.get_or_refresh_assessment(db, rid)) or {}
@@ -752,17 +810,48 @@ def previsit(rid: str, booking_id: int | None = None, user: models.User = Depend
     out = {"reason": b.reason if b else None, "questions": b.questions if b else None,
            "intake": intake.data if intake else None,
            "since": {"from": since, "runs": len(runs), "km": round(sum(r.distance_km or 0 for r in runs), 1),
-                     "pain_days": len({c.submitted_at[:10] for c in pains}),
-                     "pain_max": max((c.pain_score for c in pains), default=None),
-                     "sites": sorted({c.pain_site for c in pains if c.pain_site})},
+                     "pain_days": psum["days"], "pain_count": psum["count"], "pain_max": psum["max"],
+                     "pain_sources": psum["sources_cs"],
+                     "sites": sorted({e["region"] for e in pains if e["region"]})},
            "plan_vs_reality": ({"program": po["name"], "adherence": po["adherence"],
                                 "exercises": [{"name": e["name"], "per_week": e["per_week"], "done": e["done_count"],
                                                "target": e["target_count"]} for e in po["exercises"]]} if po else None),
            "limits": [W.limit_text(x) for x in W.active_limits(db, rid)],
-           "last_record": ({"at": last.approved_at, "assessment": last.assessment, "plan": last.plan, "summary": last.summary}
-                           if last else None),
+           "last_record": _last_record(db, last),
            "missing": missing, "care_directive": a.get("careDirective"),
            "hypotheses": None}
+    # round 2 F16: the header (who, when, what) and plan against reality for running and the return to running
+    r = db.get(models.Runner, rid)
+    sv = db.get(models.Service, b.service_id) if b and b.service_id else None
+    out["runner_name"] = r.name if r else rid
+    out["visit"] = ({"id": b.id, "at": b.slot_at, "kind": b.kind, "service": sv.name_cs if sv else None} if b else None)
+    weeks = []
+    lims = W.active_limits(db, rid)
+    cap = min((x.value for x in lims if x.kind == "max_km_week" and x.value is not None), default=None)
+    g = (a.get("guidance") or {})
+    eng = (((g.get("week") or {}).get("channels") or {}).get("volume") or {}).get("engineBudget") or \
+        (((g.get("week") or {}).get("channels") or {}).get("volume") or {}).get("budget")
+    d0 = date.fromisoformat(since)
+    ws = d0 - timedelta(days=d0.weekday())
+    while ws <= E.today_date():
+        we = ws + timedelta(days=6)
+        km = round(sum(x.distance_km or 0 for x in runs if ws.isoformat() <= (x.started_at or "")[:10] <= we.isoformat()), 1)
+        weeks.append({"week": ws.isoformat(), "km": km, "target": cap if cap is not None else (round(eng, 1) if eng else None),
+                      "target_source": "limit" if cap is not None else ("engine" if eng else None)})
+        ws += timedelta(days=7)
+    out["running"] = weeks[-8:]
+    plan = (db.query(models.ReturnToRun).filter(models.ReturnToRun.runner_id == rid,
+                                                models.ReturnToRun.status.in_(("active", "paused")))
+            .order_by(models.ReturnToRun.id.desc()).first())
+    if plan is not None:
+        ss = [x for x in db.query(models.RtrSession).filter_by(plan_id=plan.id).all()
+              if (x.logged_at or "") >= since and x.count_reason != "pain_report"]
+        days_since = max(1, (E.today_date() - d0).days)
+        per_week = (plan.levels_json or [{}])[0].get("per_week") or 3
+        out["rtr"] = {"done": len(ss), "counted": sum(1 for x in ss if x.counted),
+                      "planned": round(per_week * days_since / 7), "status": plan.status, "level": plan.current_level}
+    else:
+        out["rtr"] = None
     if AB.hypotheses_on():
         out["hypotheses"] = {"label": "Hypotéza z dat, nenahrazuje vyšetření", "items": []}
     R.physio_event(db, p, "read", "runner", rid, runner_id=rid, detail={"screen": "previsit"})
@@ -809,12 +898,24 @@ def add_note_template(body: NoteTplIn, user: models.User = Depends(require_verif
 
 
 @router.get("/api/physios/me/clients/{rid}/last-note")
-def last_note(rid: str, user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
-    """W9.6: Zkopírovat z minula — the text fields of the last approved record, never the OSTRC."""
+def last_note(rid: str, bid: int | None = None, user: models.User = Depends(require_verified_physio),
+              db: DBSession = Depends(get_db)):
+    """W9.6: Zkopírovat z minula — the text fields of the last approved record, never the OSTRC.
+    Round 2 F1.9: from the same care episode as the visit being written (bid); without one, the open episode."""
     p = _me(db, user)
     _client(db, p, rid)
-    c = (db.query(models.Conclusion).filter_by(runner_id=rid, physio_id=p.id, status="approved")
-         .order_by(models.Conclusion.approved_at.desc()).first())
+    bk = db.get(models.Booking, bid) if bid else None
+    ep_id = bk.episode_id if bk is not None and bk.runner_id == rid else None
+    if ep_id is None:
+        ep = (db.query(models.CareEpisode).filter_by(runner_id=rid, physio_id=p.id, status="open")
+              .order_by(models.CareEpisode.id.desc()).first())
+        ep_id = ep.id if ep else None
+    q = db.query(models.Conclusion).filter_by(runner_id=rid, physio_id=p.id, status="approved")
+    if ep_id is not None:
+        q = q.filter(models.Conclusion.episode_id == ep_id)
+    if bid:
+        q = q.filter(models.Conclusion.booking_id != bid)
+    c = q.order_by(models.Conclusion.approved_at.desc()).first()
     if c is None:
         return {"fields": None}
     return {"fields": {k: getattr(c, k) for k in ("subjective", "objective", "assessment", "plan", "services_provided",
@@ -860,7 +961,9 @@ def add_limit(rid: str, body: LimitIn, user: models.User = Depends(require_verif
     db.flush()
     R.physio_event(db, p, "create", "limit", x.id, runner_id=rid, detail={"kind": body.kind})
     db.add(models.Message(runner_id=rid, physio_id=p.id, sender="system", created_at=E.now_iso(),
-                          body=f"Fyzioterapeut nastavil omezení tréninku: {W.limit_text(x)} — {x.reason_cs}"))
+                          # round 2 F15.2: in the physio's grammatical gender, neutral without one
+                          body=W.by_gender(p, f"{p.name} nastavila omezení tréninku: ", f"{p.name} nastavil omezení tréninku: ",
+                                           "Bylo nastaveno omezení tréninku: ") + f"{W.limit_text(x)} — {x.reason_cs}"))
     db.commit()
     E.recompute_assessment(db, rid)
     return _limit_out(x)
@@ -1034,4 +1137,6 @@ def intake(rid: str, body: IntakeIn, user: models.User = Depends(get_current_use
     return {"id": x.id}
 
 
-INTAKE_FIELDS = ("history", "medications", "surgeries", "red_flags", "goals", "consent", "birth_date", "address", "gp")
+INTAKE_FIELDS = ("history", "medications", "surgeries", "red_flags", "goals", "consent", "birth_date", "address", "gp",
+                 # round 2 F13.6: identity for the first visit, which prefills Karta klienta for the physio to confirm
+                 "first_name", "last_name", "sex_at_birth", "street", "city", "postal_code", "phone")

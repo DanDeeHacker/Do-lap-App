@@ -143,6 +143,13 @@ function translateCore(s: string, depth: number): string | null {
   if (hit != null) return hit
   const n = viaNumbers(s)
   if (n != null) return n
+  // a separator the template put in front (" · Achillova šlacha (P)", "— Pacientka hlásila…") kept the
+  // whole text out of the dictionary on the physio screens
+  const lead = s.match(/^([·•—–]\s+)(.*\p{L}.*)$/u)
+  if (lead) {
+    const t = translateCore(lead[2], depth)
+    if (t != null) return lead[1] + t
+  }
   // a weather or status icon in front ("🌦 slabý déšť") keeps the text out of the dictionary
   const icon = s.match(/^(\p{Extended_Pictographic}\uFE0F?\s*)(.*\p{L}.*)$/u)
   if (icon) {

@@ -104,3 +104,31 @@ export function leadReasons(type: string | null | undefined, reasons: string[]):
   const i = off >= 0 ? off : 0
   return [reasons[i], reasons.filter((_, k) => k !== i)]
 }
+
+// round 2 F5.3: a pain slider's caption follows its value (0 žádná, 1–3 mírná, 4–6 střední, 7–10 silná)
+export const painWord = (v: number | null) => (v == null ? "posuňte jezdec" : v === 0 ? "žádná" : v <= 3 ? "mírná" : v <= 6 ? "střední" : "silná")
+
+// round 2 F10.1: the IČO checksum (the same rule the server checks)
+export function icoValid(ico: string): boolean {
+  if (!/^\d{8}$/.test(ico)) return false
+  const r = [...ico.slice(0, 7)].reduce((s, d, i) => s + Number(d) * (8 - i), 0) % 11
+  return (11 - r) % 10 === Number(ico[7])
+}
+// round 2 F10.3: "TEST s.r.o." + "s.r.o." prints once
+const squash = (x: string) => x.toLowerCase().replace(/[.\s,]/g, "")
+export const nameHasForm = (name?: string | null, form?: string | null) => !!form && squash(name || "").endsWith(squash(form))
+export const providerName = (name?: string | null, form?: string | null) => (!form || nameHasForm(name, form) ? (name || "") : `${name || ""}, ${form}`)
+
+// round 2 F11.1: clinical contexts (Dokumentace, printout, Karta klienta, Historie přístupů) always carry the year,
+// in numbers: "15. 3. 1979", "10. 11. 2026 10:12"
+export const fmtDY = (iso?: string | null) => {
+  if (!iso) return "—"
+  const d = new Date(iso.length <= 10 ? `${iso}T12:00:00` : iso)
+  return `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`
+}
+export const fmtDTY = (iso?: string | null) => {
+  if (!iso) return "—"
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return fmtDY(iso)
+  const d = new Date(iso)
+  return `${fmtDY(iso)} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+}

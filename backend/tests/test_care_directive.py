@@ -154,3 +154,123 @@ def test_stable_never_next_to_an_injury_or_missing_data(quadrant, injury, fresh)
         assert st == "unknown"
     if st == "stable":
         assert not (injury or {}).get("confirmed") and fresh not in ("stale", "none")
+
+
+# ---------------------------------------------------------------- round 2 F3: one running answer
+from zoneinfo import ZoneInfo  # noqa: E402
+
+PRG = ZoneInfo("Europe/Prague")
+
+
+def test_rest_gap_headline_later_today_tomorrow_and_later():
+    now = datetime(2026, 11, 10, 10, 21, tzinfo=PRG)
+    h, ok = CV.rest_gap_headline(datetime(2026, 11, 10, 15, 29, tzinfo=PRG), now)
+    assert h == "Další sezení návratu k běhu dnes od 15:29." and ok is False
+    h, _ = CV.rest_gap_headline(datetime(2026, 11, 11, 6, 5, tzinfo=PRG), now)
+    assert h == "Dnes bez běhu — další sezení zítra od 06:05."
+    h, _ = CV.rest_gap_headline(datetime(2026, 11, 13, 9, 0, tzinfo=PRG), now)
+    assert h == "Dnes bez běhu — další sezení pátek 13. 11."
+    # a UTC timestamp is read in local time
+    h, _ = CV.rest_gap_headline(datetime(2026, 11, 10, 14, 29, tzinfo=ZoneInfo("UTC")), now)
+    assert h.endswith("dnes od 15:29.")
+
+
+def test_inside_the_gap_next_session_later_today_blocks_every_run_option(client, db_session):
+    rid, _ = _runner(client, db_session, "cd-gap-today@test.cz")
+    p = _plan(db_session, rid)
+    now = datetime.fromisoformat(E.now_iso())
+    # the gap ends in 30 minutes (on the same day unless the test runs just before midnight)
+    db_session.add(models.RtrSession(plan_id=p.id, runner_id=rid, level=2, pain=1, completed=True, counted=True,
+                                     logged_at=(now - timedelta(hours=CV.MIN_HOURS_BETWEEN_SESSIONS) + timedelta(minutes=30)).isoformat()))
+    db_session.commit()
+    a = CV.present(db_session, rid, _assess(db_session, rid))
+    d = a["careDirective"]
+    assert d["running_allowed"] is False and d["next_allowed_at"]
+    if (now + timedelta(minutes=30)).date() == now.date():
+        assert d["headline_cs"].startswith("Další sezení návratu k běhu dnes od ")
+    g = a["guidance"]
+    # snapshot of Trénink's alternatives: no running option at all, one line why
+    assert not set(CV.RUN_TYPES) & set(g["types"]) and not set(CV.RUN_TYPES) & set(g.get("rank") or [])
+    assert g["type"] not in CV.RUN_TYPES
+    assert g["noRun"]["line"].startswith("Běh dnes ne — ")
+    assert g["noRun"]["capacity"] == "Běh dnes 0 km podle pokynu fyzioterapeuta."
+    assert g["week"]["channels"]["volume"]["budget"] == 0
+
+
+def test_inside_the_gap_next_session_tomorrow(client, db_session):
+    rid, _ = _runner(client, db_session, "cd-gap-tomorrow@test.cz")
+    p = _plan(db_session, rid)
+    now = datetime.fromisoformat(E.now_iso())
+    nxt = (now + timedelta(days=1)).replace(hour=7, minute=15, second=0, microsecond=0)
+    db_session.add(models.RtrSession(plan_id=p.id, runner_id=rid, level=2, pain=1, completed=True, counted=True,
+                                     logged_at=(nxt - timedelta(hours=CV.MIN_HOURS_BETWEEN_SESSIONS)).isoformat()))
+    db_session.commit()
+    d = CV.present(db_session, rid, _assess(db_session, rid))["careDirective"]
+    assert d["headline_cs"] == "Dnes bez běhu — další sezení zítra od 07:15." and d["running_allowed"] is False
+
+
+def _limit(db, rid, kind, value=None, ends_on=None):
+    db.add(models.ClinicalLimit(runner_id=rid, physio_id="phy-0001", kind=kind, value=value, ends_on=ends_on,
+                                starts_on=E.iso_date(E.today_date() - timedelta(days=1)), reason_cs="Achillova šlacha",
+                                active=True, created_at=E.now_iso()))
+    db.commit()
+
+
+def test_weekly_limit_below_the_engine_target_changes_the_numbers(client, db_session):
+    rid, _ = _runner(client, db_session, "cd-limit-week@test.cz")
+    raw = _assess(db_session, rid)
+    eng = CV.present(db_session, rid, raw)
+    target = eng["guidance"]["week"]["channels"]["volume"]["budget"]
+    done = eng["guidance"]["week"]["channels"]["volume"].get("done") or 0
+    cap = round(done + 5)                         # below the engine's target, with room for one short run
+    assert target and target > cap
+    _limit(db_session, rid, "max_km_week", cap)
+    a = CV.present(db_session, rid, raw)
+    g, d = a["guidance"], a["careDirective"]
+    vol = g["week"]["channels"]["volume"]
+    assert vol["budget"] == cap and vol["engineBudget"] == target
+    left = vol["left"]
+    for t in CV.RUN_TYPES:
+        x = g["types"].get(t)
+        if x and x.get("allowed") and x.get("km") and t != "závod":
+            assert x["km"]["hi"] <= left + 1e-9          # every offered run fits what is left of the week
+    assert d["source"] == "clinical_limit"
+    assert any(b.startswith("Podle ") and f"max. {cap} km týdně" in b for b in g["limits"])
+    # the physio reads it in the third person
+    assert not any(w in b for b in a["guidance_physio"] for w in (" jste", " vám", "Jste ", "Vám "))
+    assert any("omezeno z" in b for b in a["guidance_physio"])
+
+
+def test_no_intervals_removes_quality_sessions(client, db_session):
+    rid, _ = _runner(client, db_session, "cd-limit-int@test.cz")
+    _limit(db_session, rid, "no_intervals")
+    g = CV.present(db_session, rid, _assess(db_session, rid))["guidance"]
+    assert "kvalitní" not in g["types"] and "kvalitní" not in (g.get("rank") or [])
+    assert g["type"] != "kvalitní"
+
+
+def test_limit_wording():
+    from app import work as W
+    today = date(2026, 11, 10)      # a Tuesday; that week's Sunday is 15. 11.
+    x = models.ClinicalLimit(kind="max_km_week", value=20, reason_cs="r")
+    assert W.limit_text(x, today) == "max. 20 km týdně"
+    x.ends_on = "2026-11-24"
+    assert W.limit_text(x, today) == "max. 20 km týdně do 24. 11."
+    x.ends_on = "2026-11-15"
+    assert W.limit_text(x, today) == "max. 20 km tento týden"
+
+
+def test_stale_data_physio_sees_no_engine_bullets(client, db_session):
+    rid = _stale_runner(client, db_session, "stale-bullets@test.cz")
+    a = CV.present(db_session, rid, _assess(db_session, rid))
+    assert a["guidance_physio"] == []
+
+
+def test_race_day_number_does_not_break_the_physio_bullets():
+    out = {"freshness": {"status": "fresh"}, "careDirective": {"running_allowed": True},
+           "guidance": {"type": "závod", "types": {"závod": {"label": "Závod", "km": 21.1}}}}
+    assert CV.guidance_physio(out) == []
+    g = {"type": "závod", "types": {"závod": {"label": "Závod", "km": 21.1}, "lehký": {"km": {"lo": 4, "hi": 6}, "allowed": True}},
+         "week": {"channels": {"volume": {"budget": 40, "done": 10}}}}
+    lim = models.ClinicalLimit(kind="max_km_week", value=20, reason_cs="r")
+    assert CV.apply_clinical_limits(g, [lim], "X") is True

@@ -97,7 +97,7 @@ def test_approval_needs_provider_and_patient_identity(client, db_session):
     db_session.commit()
     try:
         r = client.post(f"/api/conclusions/{cid}/approve", json={"send_summary": False})
-        assert r.status_code == 409 and "identifikační" in r.json()["detail"]
+        assert r.status_code == 409 and r.json()["detail"].startswith("Doplňte v kartě klienta:") and r.json()["missing"]
         assert db_session.query(models.Conclusion).get(cid).status == "draft"        # nothing half-written
     finally:
         card.permanent_street = street

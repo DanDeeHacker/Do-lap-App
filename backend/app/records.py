@@ -22,6 +22,38 @@ from .metrics import engine as E
 PATIENT_REQUIRED = ("first_name", "last_name", "birth_date", "sex_at_birth",
                     "permanent_street", "permanent_city", "permanent_postal_code")     # brief C.4
 PROVIDER_REQUIRED = ("legal_name", "ico", "care_site_street", "care_site_city", "care_site_postal_code")
+PATIENT_LABEL = {"first_name": "jméno", "last_name": "příjmení", "birth_date": "datum narození",
+                 "sex_at_birth": "pohlaví při narození", "permanent_address": "adresa trvalého pobytu"}
+
+
+def ico_valid(ico: str) -> bool:
+    """Round 2 F10.1: the IČO checksum — weights 8…2 over the first 7 digits, r = sum % 11, check = (11 - r) % 10."""
+    if not (ico.isdigit() and len(ico) == 8):
+        return False
+    r = sum(int(d) * w for d, w in zip(ico[:7], range(8, 1, -1))) % 11
+    return (11 - r) % 10 == int(ico[7])
+
+
+def provider_name(legal_name: str | None, legal_form: str | None) -> str:
+    """Round 2 F10.3: never 's.r.o., s.r.o.' — the form is appended only when the name does not already end with it."""
+    name = (legal_name or "").strip()
+    form = (legal_form or "").strip()
+    if not form:
+        return name
+    squash = lambda x: "".join(ch for ch in x.lower() if ch not in ". ,")   # noqa: E731
+    return name if squash(name).endswith(squash(form)) else f"{name}, {form}"
+
+
+def missing_grouped(p) -> list[str]:
+    """The approval gate's missing list with the address as one item (F10.4)."""
+    out = []
+    for k in patient_missing(p):
+        k = "permanent_address" if k.startswith("permanent_") else k
+        if k not in out:
+            out.append(k)
+    return out
+
+
 RETENTION_YEARS = 5           # vyhl. 444/2024 § 13/2, příloha 3 bod 2: from 1 January after the last service
 DESTRUCTION_LOG_YEARS = 40    # vyhl. § 17/2
 ENC_FIELDS = ("rodne_cislo", "insurance_no", "id_doc_no")
@@ -32,8 +64,7 @@ SEX_LABEL = {"f": "žena", "m": "muž"}
 
 
 # ---- field encryption (R2) ---------------------------------------------------------------------------
-def _key() -> bytes | None:
-    raw = os.environ.get("FIELD_ENCRYPTION_KEY")
+def _parse_key(raw: str | None) -> bytes | None:
     if not raw:
         return None
     try:
@@ -43,17 +74,26 @@ def _key() -> bytes | None:
     return k if len(k) in (16, 24, 32) else None
 
 
+def _key() -> bytes | None:
+    return _parse_key(os.environ.get("FIELD_ENCRYPTION_KEY"))
+
+
+def _previous_key() -> bytes | None:
+    """Round 2 F9.1: during a rotation the old key still reads what it wrote (docs/field-encryption.md)."""
+    return _parse_key(os.environ.get("FIELD_ENCRYPTION_KEY_PREVIOUS"))
+
+
 def crypto_on() -> bool:
     return _key() is not None
 
 
 def encrypt(value: str | None) -> str | None:
-    """AES-GCM with FIELD_ENCRYPTION_KEY. Without the key nothing is stored (the inputs are hidden)."""
+    """AES-GCM with the field key. Without the key nothing is stored (the inputs are hidden)."""
     if value in (None, ""):
         return None
     key = _key()
     if key is None:
-        raise RuntimeError("FIELD_ENCRYPTION_KEY není nastavený — citlivé údaje nelze uložit.")
+        raise RuntimeError("Šifrování citlivých údajů není zapnuté — nelze je uložit.")
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     nonce = os.urandom(12)
     ct = AESGCM(key).encrypt(nonce, value.encode("utf-8"), b"dosslap-field-v1")
@@ -61,14 +101,19 @@ def encrypt(value: str | None) -> str | None:
 
 
 def decrypt(blob: str | None) -> str | None:
-    if not blob:
+    if not blob or not blob.startswith("v1:"):
         return None
-    key = _key()
-    if key is None or not blob.startswith("v1:"):
-        return None
+    from cryptography.exceptions import InvalidTag
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     raw = base64.b64decode(blob[3:])
-    return AESGCM(key).decrypt(raw[:12], raw[12:], b"dosslap-field-v1").decode("utf-8")
+    for key in (_key(), _previous_key()):
+        if key is None:
+            continue
+        try:
+            return AESGCM(key).decrypt(raw[:12], raw[12:], b"dosslap-field-v1").decode("utf-8")
+        except InvalidTag:
+            continue
+    return None
 
 
 # ---- identity -----------------------------------------------------------------------------------------
@@ -198,7 +243,8 @@ def _last_chain(db: DBSession, clinic_id: str) -> str:
 def write_record(db: DBSession, *, clinic: models.Clinic, patient: models.PatientRecord, author: models.Physio,
                  kind: str, encounter_at: str, content: dict, booking_id=None, conclusion_id=None, episode_id=None,
                  corrects: str | None = None, reason: str | None = None, at_patient_request: bool = False,
-                 legacy: bool = False) -> models.ClinicalRecord:
+                 legacy: bool = False, authorised_at: str | None = None,
+                 flags: list[str] | None = None) -> models.ClinicalRecord:
     """One ledger row, in the caller's transaction (flush only). The content carries provider, author and
     patient identity as they are now, so the record reads the same years later."""
     now = E.now_iso()
@@ -211,6 +257,8 @@ def write_record(db: DBSession, *, clinic: models.Clinic, patient: models.Patien
             "episode_id": episode_id, "booking_id": booking_id}
     if legacy:
         body["legacy"] = True
+    if flags:
+        body["flags"] = list(flags)        # round 2 F2.4, e.g. approved_before_encounter
     text = canonical(body)
     h = sha256(text)
     rec = models.ClinicalRecord(
@@ -219,7 +267,8 @@ def write_record(db: DBSession, *, clinic: models.Clinic, patient: models.Patien
         content_json=text, content_sha256=h, chain_sha256=sha256(_last_chain(db, clinic.id) + h),
         corrects_record_id=corrects, correction_reason=reason, at_patient_request=1 if at_patient_request else 0,
         author_physio_id=author.id, author_name=author.name, author_identifier=author.hcp_identifier,
-        authorised_at=now, retain_until=retain_until_for(last_service), created_at=now)
+        # round 2 F2.3: a legacy note keeps the time it was approved; created_at stays the insert time (chain order)
+        authorised_at=authorised_at or now, retain_until=retain_until_for(last_service), created_at=now)
     db.add(rec)
     # R11: the card's retention follows the last service in the record
     ru = retain_until_for(last_service)

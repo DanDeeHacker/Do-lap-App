@@ -92,7 +92,7 @@ TESTS: dict[str, dict] = {
     "heel_raise_sl": {"name_cs": "Výpony na jedné noze do únavy", "unit": "opakování", "higher_better": True},
     "hop_sl": {"name_cs": "Skok na jedné noze do dálky", "unit": "cm", "higher_better": True},
     "triple_hop": {"name_cs": "Trojskok na jedné noze", "unit": "cm", "higher_better": True},
-    "sl_squat": {"name_cs": "Dřep na jedné noze (opakování)", "unit": "opakování", "higher_better": True},
+    "sl_squat": {"name_cs": "Dřep na jedné noze", "unit": "opakování", "higher_better": True},
     "hop_endurance": {"name_cs": "Poskoky na jedné noze 30 s", "unit": "počet", "higher_better": True},
 }
 

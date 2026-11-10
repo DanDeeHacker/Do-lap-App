@@ -93,13 +93,49 @@
   ]
  },
  {
+  "t": "Běh dnes 0 km podle pokynu fyzioterapeuta.",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
+  "t": "Běh dnes 0 km — {}",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
+  "t": "Běh dnes ne — {}",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
+  "t": "Další sezení návratu k běhu dnes od {}.",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
   "t": "Dnes bez běhu podle pokynu fyzioterapeuta",
   "files": [
    "care_view.py"
   ]
  },
  {
-  "t": "Dnes bez běhu — další sezení {}",
+  "t": "Dnes bez běhu — další sezení zítra od {}.",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
+  "t": "Dnes bez běhu — další sezení {} {}. {}.",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
+  "t": "Dnes jen sezení podle plánu návratu k běhu.",
   "files": [
    "care_view.py"
   ]
@@ -111,7 +147,19 @@
   ]
  },
  {
+  "t": "Doporučený trénink: {}, {} km.",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
   "t": "Fyzioterapeut plán návratu k běhu pozastavil. Do jeho pokynu dnes bez běhu.",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
+  "t": "Jiný běh dnes ne — jen sezení podle plánu návratu k běhu.",
   "files": [
    "care_view.py"
   ]
@@ -130,6 +178,12 @@
  },
  {
   "t": "Nemáme aktuální data",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
+  "t": "Nevejde se do omezení fyzioterapeuta",
   "files": [
    "care_view.py"
   ]
@@ -159,7 +213,19 @@
   ]
  },
  {
+  "t": "Týden cyklu si klient zvolil ručně.",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
   "t": "Zranění v péči",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
+  "t": "cvičení",
   "files": [
    "care_view.py"
   ]
@@ -176,8 +242,13 @@
    "mobility_library.py",
    "personas/checks.py",
    "personas/sim.py",
-   "routers/calendar.py",
-   "work.py"
+   "routers/calendar.py"
+  ]
+ },
+ {
+  "t": "dnes jen sezení podle plánu návratu k běhu",
+  "files": [
+   "care_view.py"
   ]
  },
  {
@@ -192,8 +263,7 @@
    "mobility_library.py",
    "personas/checks.py",
    "personas/sim.py",
-   "routers/calendar.py",
-   "work.py"
+   "routers/calendar.py"
   ]
  },
  {
@@ -205,8 +275,81 @@
    "metrics/mobility.py",
    "metrics/week_plan.py",
    "mobility_library.py",
-   "personas/sim.py",
-   "work.py"
+   "personas/sim.py"
+  ]
+ },
+ {
+  "t": "neděle",
+  "files": [
+   "care_view.py",
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "návrat k běhu",
+  "files": [
+   "care_view.py",
+   "metrics/sig_doc.py",
+   "seed.py"
+  ]
+ },
+ {
+  "t": "po běhu",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
+  "t": "pondělí",
+  "files": [
+   "care_view.py",
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "pátek",
+  "files": [
+   "care_view.py",
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "ráno po sezení",
+  "files": [
+   "care_view.py"
+  ]
+ },
+ {
+  "t": "středa",
+  "files": [
+   "care_view.py",
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "týdenní cíl {} km{}; od pondělí naběháno {} km.",
+  "files": [
+   "care_view.py"
   ]
  },
  {
@@ -222,7 +365,7 @@
   ]
  },
  {
-  "t": "zítra",
+  "t": "{}. týden cyklu, {}",
   "files": [
    "care_view.py"
   ]
@@ -231,6 +374,30 @@
   "t": "úroveň {}",
   "files": [
    "care_view.py"
+  ]
+ },
+ {
+  "t": "úterý",
+  "files": [
+   "care_view.py",
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
+  ]
+ },
+ {
+  "t": "čtvrtek",
+  "files": [
+   "care_view.py",
+   "i18n_static.py",
+   "metrics/coach_plan.py",
+   "metrics/daily_report.py",
+   "metrics/guidance.py",
+   "metrics/week_plan.py",
+   "plan_import.py"
   ]
  },
  {
@@ -1782,17 +1949,6 @@
   ]
  },
  {
-  "t": "neděle",
-  "files": [
-   "i18n_static.py",
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
   "t": "neděli",
   "files": [
    "i18n_static.py",
@@ -1801,43 +1957,10 @@
   ]
  },
  {
-  "t": "pondělí",
-  "files": [
-   "i18n_static.py",
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
   "t": "pá",
   "files": [
    "i18n_static.py",
    "metrics/daily_report.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
-  "t": "pátek",
-  "files": [
-   "i18n_static.py",
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
-  "t": "středa",
-  "files": [
-   "i18n_static.py",
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
    "metrics/week_plan.py",
    "plan_import.py"
   ]
@@ -1860,32 +1983,10 @@
   ]
  },
  {
-  "t": "úterý",
-  "files": [
-   "i18n_static.py",
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
   "t": "čt",
   "files": [
    "i18n_static.py",
    "metrics/daily_report.py",
-   "metrics/week_plan.py",
-   "plan_import.py"
-  ]
- },
- {
-  "t": "čtvrtek",
-  "files": [
-   "i18n_static.py",
-   "metrics/coach_plan.py",
-   "metrics/daily_report.py",
-   "metrics/guidance.py",
    "metrics/week_plan.py",
    "plan_import.py"
   ]
@@ -2612,7 +2713,8 @@
   "files": [
    "metrics/capacity.py",
    "metrics/coach_texts.py",
-   "metrics/signal_sources.py"
+   "metrics/signal_sources.py",
+   "routers/booking.py"
   ]
  },
  {
@@ -10519,13 +10621,6 @@
   ]
  },
  {
-  "t": "návrat k běhu",
-  "files": [
-   "metrics/sig_doc.py",
-   "seed.py"
-  ]
- },
- {
   "t": "odlehčení",
   "files": [
    "metrics/sig_doc.py"
@@ -11619,9 +11714,10 @@
   ]
  },
  {
-  "t": "Dřep na jedné noze (opakování)",
+  "t": "Dřep na jedné noze",
   "files": [
-   "moat.py"
+   "moat.py",
+   "programs_library.py"
   ]
  },
  {
@@ -13829,12 +13925,6 @@
  },
  {
   "t": "Dřep místo předklonu v kyčlích.",
-  "files": [
-   "programs_library.py"
-  ]
- },
- {
-  "t": "Dřep na jedné noze",
   "files": [
    "programs_library.py"
   ]
@@ -16182,13 +16272,43 @@
   ]
  },
  {
-  "t": "FIELD_ENCRYPTION_KEY není nastavený — citlivé údaje nelze uložit.",
+  "t": "adresa trvalého pobytu",
+  "files": [
+   "records.py"
+  ]
+ },
+ {
+  "t": "datum narození",
+  "files": [
+   "records.py"
+  ]
+ },
+ {
+  "t": "jméno",
   "files": [
    "records.py"
   ]
  },
  {
   "t": "muž",
+  "files": [
+   "records.py"
+  ]
+ },
+ {
+  "t": "pohlaví při narození",
+  "files": [
+   "records.py"
+  ]
+ },
+ {
+  "t": "příjmení",
+  "files": [
+   "records.py"
+  ]
+ },
+ {
+  "t": "Šifrování citlivých údajů není zapnuté — nelze je uložit.",
   "files": [
    "records.py"
   ]
@@ -16464,7 +16584,7 @@
   ]
  },
  {
-  "t": "Nová žádost o termín",
+  "t": "Nová žádost o termín: {}, {}. {}. {}",
   "files": [
    "routers/booking.py"
   ]
@@ -16537,6 +16657,12 @@
  },
  {
   "t": "Sdílení dat s fyzioterapeutem je odvolané. Ukončeno:",
+  "files": [
+   "routers/booking.py"
+  ]
+ },
+ {
+  "t": "Služba nepatří tomuto fyzioterapeutovi.",
   "files": [
    "routers/booking.py"
   ]
@@ -16653,7 +16779,31 @@
   ]
  },
  {
+  "t": "analýza",
+  "files": [
+   "routers/booking.py"
+  ]
+ },
+ {
+  "t": "hradí pojišťovna",
+  "files": [
+   "routers/booking.py"
+  ]
+ },
+ {
   "t": "návštěva proběhla",
+  "files": [
+   "routers/booking.py"
+  ]
+ },
+ {
+  "t": "platí klient",
+  "files": [
+   "routers/booking.py"
+  ]
+ },
+ {
+  "t": "platí zaměstnavatel",
   "files": [
    "routers/booking.py"
   ]
@@ -16667,6 +16817,18 @@
  },
  {
   "t": "přesun návštěvy",
+  "files": [
+   "routers/booking.py"
+  ]
+ },
+ {
+  "t": "vstupní",
+  "files": [
+   "routers/booking.py"
+  ]
+ },
+ {
+  "t": "vyšetření",
   "files": [
    "routers/booking.py"
   ]
@@ -16978,10 +17140,9 @@
   ]
  },
  {
-  "t": "Doplňte identifikační údaje klienta.",
+  "t": "Doplňte v kartě klienta:",
   "files": [
-   "routers/conclusions.py",
-   "routers/records.py"
+   "routers/conclusions.py"
   ]
  },
  {
@@ -17467,7 +17628,19 @@
   ]
  },
  {
+  "t": "Fotka musí být obrázek do 300 kB.",
+  "files": [
+   "routers/physios.py"
+  ]
+ },
+ {
   "t": "Fyzioterapeut uzavřel zranění. Další postup najdete v záložce Péče.",
+  "files": [
+   "routers/physios.py"
+  ]
+ },
+ {
+  "t": "Jméno musí mít 2 až 120 znaků.",
   "files": [
    "routers/physios.py"
   ]
@@ -17487,6 +17660,12 @@
  },
  {
   "t": "Praxe",
+  "files": [
+   "routers/physios.py"
+  ]
+ },
+ {
+  "t": "Vyberte, jak o vás psát.",
   "files": [
    "routers/physios.py"
   ]
@@ -17719,7 +17898,13 @@
   ]
  },
  {
-  "t": "Upravil(a) jsem váš program „{}“: {}",
+  "t": "Upravil jsem váš program „{}“: {}",
+  "files": [
+   "routers/programs.py"
+  ]
+ },
+ {
+  "t": "Upravila jsem váš program „{}“: {}",
   "files": [
    "routers/programs.py"
   ]
@@ -17737,12 +17922,6 @@
   ]
  },
  {
-  "t": "každá strana",
-  "files": [
-   "routers/programs.py"
-  ]
- },
- {
   "t": "obě strany",
   "files": [
    "routers/programs.py"
@@ -17755,7 +17934,7 @@
   ]
  },
  {
-  "t": "{}: dávka {} → {}",
+  "t": "{}: nová dávka {}",
   "files": [
    "routers/programs.py"
   ]
@@ -17767,13 +17946,19 @@
   ]
  },
  {
-  "t": "{}: upravena dávka",
+  "t": "{}: upravený pokyn",
   "files": [
    "routers/programs.py"
   ]
  },
  {
   "t": "{}: {}× → {}× týdně",
+  "files": [
+   "routers/programs.py"
+  ]
+ },
+ {
+  "t": "Úprava po zpětné vazbě pacienta.",
   "files": [
    "routers/programs.py"
   ]
@@ -17809,6 +17994,12 @@
   ]
  },
  {
+  "t": "Doplňte identifikační údaje klienta.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
   "t": "Doplňte název, IČO a adresu místa poskytování.",
   "files": [
    "routers/records.py"
@@ -17827,12 +18018,6 @@
   ]
  },
  {
-  "t": "IČO má 8 číslic.",
-  "files": [
-   "routers/records.py"
-  ]
- },
- {
   "t": "Klient nemá kartu ani záznamy.",
   "files": [
    "routers/records.py"
@@ -17846,6 +18031,12 @@
  },
  {
   "t": "Kód MKN-10 není v číselníku.",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "Neplatné IČO.",
   "files": [
    "routers/records.py"
   ]
@@ -17935,7 +18126,19 @@
   ]
  },
  {
+  "t": "balíček návštěv",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
   "t": "doplněk záznamu",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "dotazník",
   "files": [
    "routers/records.py"
   ]
@@ -17960,7 +18163,25 @@
   ]
  },
  {
+  "t": "poznámku k videu",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "pořadník",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
   "t": "předal(a)",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "příjemce: {}",
   "files": [
    "routers/records.py"
   ]
@@ -17978,6 +18199,12 @@
   ]
  },
  {
+  "t": "seznam k oslovení",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
   "t": "uzavřel(a)",
   "files": [
    "routers/records.py"
@@ -17985,6 +18212,12 @@
  },
  {
   "t": "vytvořil(a)",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "výsledky",
   "files": [
    "routers/records.py"
   ]
@@ -18010,6 +18243,12 @@
  },
  {
   "t": "údaje praxe",
+  "files": [
+   "routers/records.py"
+  ]
+ },
+ {
+  "t": "účel: {}",
   "files": [
    "routers/records.py"
   ]
@@ -18147,6 +18386,19 @@
   ]
  },
  {
+  "t": "Klient",
+  "files": [
+   "routers/rtr.py",
+   "routers/triage.py"
+  ]
+ },
+ {
+  "t": "Klient {} má pozastavený plán návratu k běhu. Otevřete Došlap.",
+  "files": [
+   "routers/rtr.py"
+  ]
+ },
+ {
   "t": "Máte připravený plán návratu k běhu. Najdete ho v záložce Péče → Zranění. Po každém sezení zapište, jak vás to bolelo.",
   "files": [
    "routers/rtr.py"
@@ -18219,6 +18471,12 @@
   ]
  },
  {
+  "t": "Ranní odpověď půjde zapsat zítra od 6:00.",
+  "files": [
+   "routers/rtr.py"
+  ]
+ },
+ {
   "t": "Sezení nenalezeno",
   "files": [
    "routers/rtr.py"
@@ -18238,6 +18496,12 @@
  },
  {
   "t": "Zapište ranní bolest (0–10).",
+  "files": [
+   "routers/rtr.py"
+  ]
+ },
+ {
+  "t": "{}: pozastavený plán návratu k běhu",
   "files": [
    "routers/rtr.py"
   ]
@@ -18850,7 +19114,7 @@
   ]
  },
  {
-  "t": "Klient",
+  "t": "Fyzioterapeutka převzala váš případ.",
   "files": [
    "routers/triage.py"
   ]
@@ -18898,6 +19162,12 @@
   ]
  },
  {
+  "t": "Váš případ má teď na starosti fyzioterapeut.",
+  "files": [
+   "routers/triage.py"
+  ]
+ },
+ {
   "t": "vráceno do fronty",
   "files": [
    "routers/triage.py"
@@ -18917,6 +19187,12 @@
  },
  {
   "t": "Aspekce: Palpace: Rozsah pohybu: Svalová síla: Funkční testy:",
+  "files": [
+   "routers/work.py"
+  ]
+ },
+ {
+  "t": "Bylo nastaveno omezení tréninku:",
   "files": [
    "routers/work.py"
   ]
@@ -18947,12 +19223,6 @@
  },
  {
   "t": "Fotka musí být odkaz https://",
-  "files": [
-   "routers/work.py"
-  ]
- },
- {
-  "t": "Fyzioterapeut nastavil omezení tréninku: {} — {}",
   "files": [
    "routers/work.py"
   ]
@@ -19266,6 +19536,18 @@
   ]
  },
  {
+  "t": "{} nastavil omezení tréninku:",
+  "files": [
+   "routers/work.py"
+  ]
+ },
+ {
+  "t": "{} nastavila omezení tréninku:",
+  "files": [
+   "routers/work.py"
+  ]
+ },
+ {
   "t": "Člen nenalezen",
   "files": [
    "routers/work.py"
@@ -19278,21 +19560,63 @@
   ]
  },
  {
-  "t": "by se převedlo (přidejte --apply).",
+  "t": "NESEDÍ",
   "files": [
-   "scripts/backfill_records.py"
+   "scripts/backfill_round2.py"
   ]
  },
  {
-  "t": "převedeno.",
+  "t": "Počty podle tabulek:",
   "files": [
-   "scripts/backfill_records.py"
+   "scripts/backfill_round2.py"
   ]
  },
  {
-  "t": "{} záznamů",
+  "t": "Zapsáno.",
   "files": [
-   "scripts/backfill_records.py"
+   "scripts/backfill_round2.py"
+  ]
+ },
+ {
+  "t": "Zkušební běh — nic se nezapsalo.",
+  "files": [
+   "scripts/backfill_round2.py"
+  ]
+ },
+ {
+  "t": "Záznamy schválené před začátkem návštěvy (pro poskytovatele ke kontrole):",
+  "files": [
+   "scripts/backfill_round2.py"
+  ]
+ },
+ {
+  "t": "nic k doplnění",
+  "files": [
+   "scripts/backfill_round2.py"
+  ]
+ },
+ {
+  "t": "nový záznam {}",
+  "files": [
+   "scripts/backfill_round2.py"
+  ]
+ },
+ {
+  "t": "verify_records: {} ({} záznamů)",
+  "files": [
+   "scripts/backfill_round2.py"
+  ]
+ },
+ {
+  "t": "záznam {} · klient {} · schváleno {} · návštěva {}",
+  "files": [
+   "scripts/backfill_round2.py"
+  ]
+ },
+ {
+  "t": "{} už proběhl (migrations_applied). Nic se nemění; --force spustí kontrolu znovu.",
+  "files": [
+   "scripts/backfill_round2.py"
   ]
  },
  {
@@ -19338,6 +19662,12 @@
   ]
  },
  {
+  "t": "KODSTECKOU",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
   "t": "KÓD",
   "files": [
    "scripts/import_mkn10.py"
@@ -19362,7 +19692,25 @@
   ]
  },
  {
+  "t": "NAZEVPLNY",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
+  "t": "NFKD",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
   "t": "NÁZEV",
+  "files": [
+   "scripts/import_mkn10.py"
+  ]
+ },
+ {
+  "t": "PLATNOSTDO",
   "files": [
    "scripts/import_mkn10.py"
   ]
@@ -19380,6 +19728,43 @@
   ]
  },
  {
+  "t": "Databáze je znovu nasazená z ukázkových dat.",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Fyzio Holešovice (ukázková praxe)",
+  "files": [
+   "scripts/reset_demo.py",
+   "seed.py"
+  ]
+ },
+ {
+  "t": "Nastavil jsem",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Nastavila jsem",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Odmítnuto: --recreate nikdy na produkci.",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Odmítnuto: databáze obsahuje {} účtů, které nejsou demo — nic se nezměnilo.",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
   "t": "Odmítnuto: nastavte ALLOW_DEMO_RESET=1.",
   "files": [
    "scripts/reset_demo.py"
@@ -19392,7 +19777,73 @@
   ]
  },
  {
+  "t": "Poslal jsem",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Poslala jsem",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Potvrdil jsem",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Potvrdila jsem",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Sdílel jsem",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Sdílela jsem",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Snížil jsem",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Snížila jsem",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "TEST Claude",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "TEST Fyzio",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
   "t": "Termín {} nepatří demo fyzioterapeutce — nic se nezměnilo.",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "Upravila jsem",
   "files": [
    "scripts/reset_demo.py"
   ]
@@ -19404,7 +19855,25 @@
   ]
  },
  {
+  "t": "[nanečisto] smazat všechny tabulky a znovu nasadit ukázková data",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
   "t": "obnovit dřívější zranění Adély (Achillova šlacha, před 8 měsíci)",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "obnovit údaje poskytovatele z ukázky",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "omezení {}",
   "files": [
    "scripts/reset_demo.py"
   ]
@@ -19422,6 +19891,12 @@
   ]
  },
  {
+  "t": "smazat omezení tréninku {}",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
   "t": "smazat plán návratu {}",
   "files": [
    "scripts/reset_demo.py"
@@ -19434,7 +19909,19 @@
   ]
  },
  {
+  "t": "smazat sezení {} (do {} h po předchozím)",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
   "t": "smazat sezení {} plánu {}",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "smazat službu {} ({})",
   "files": [
    "scripts/reset_demo.py"
   ]
@@ -19446,7 +19933,19 @@
   ]
  },
  {
+  "t": "vrátit klienta {} do fronty (převzetí mimo seed)",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
   "t": "vrátit případ {} do fronty",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "vyčistit kartu klienta {} ({})",
   "files": [
    "scripts/reset_demo.py"
   ]
@@ -19458,7 +19957,19 @@
   ]
  },
  {
+  "t": "zprávu {} v ženském rodě",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
   "t": "záznam z návštěvy {}",
+  "files": [
+   "scripts/reset_demo.py"
+  ]
+ },
+ {
+  "t": "záznam {} schválený před návštěvou",
   "files": [
    "scripts/reset_demo.py"
   ]
@@ -19491,6 +20002,36 @@
   "t": "Žádná záloha k obnově.",
   "files": [
    "scripts/restore_test.py"
+  ]
+ },
+ {
+  "t": "Nový klíč není nastavený.",
+  "files": [
+   "scripts/rotate_field_key.py"
+  ]
+ },
+ {
+  "t": "by se přešifrovalo (přidejte --apply)",
+  "files": [
+   "scripts/rotate_field_key.py"
+  ]
+ },
+ {
+  "t": "karta {}: pole {} nejde otevřít žádným klíčem",
+  "files": [
+   "scripts/rotate_field_key.py"
+  ]
+ },
+ {
+  "t": "přešifrováno",
+  "files": [
+   "scripts/rotate_field_key.py"
+  ]
+ },
+ {
+  "t": "{} hodnot {}; {} nejde otevřít.",
+  "files": [
+   "scripts/rotate_field_key.py"
   ]
  },
  {
@@ -19610,12 +20151,6 @@
  },
  {
   "t": "Fyzio Holešovice",
-  "files": [
-   "seed.py"
-  ]
- },
- {
-  "t": "Fyzio Holešovice (ukázková praxe)",
   "files": [
    "seed.py"
   ]
@@ -19785,12 +20320,6 @@
   ]
  },
  {
-  "t": "Pacientka hlásila bolest 4/10 po výponech — snížena frekvence z 6 na 5× týdně.",
-  "files": [
-   "seed.py"
-  ]
- },
- {
   "t": "Pavel Urban",
   "files": [
    "seed.py"
@@ -19810,6 +20339,12 @@
  },
  {
   "t": "Po výponech to včera bolelo 4/10, tak jsem jeden den vynechala.",
+  "files": [
+   "seed.py"
+  ]
+ },
+ {
+  "t": "Po výponech vás bolelo 4/10, proto jsem snížila frekvenci na 5× týdně.",
   "files": [
    "seed.py"
   ]
@@ -22668,7 +23203,13 @@
   ]
  },
  {
-  "t": "7 dní bez dat",
+  "t": "Bez dat",
+  "files": [
+   "work.py"
+  ]
+ },
+ {
+  "t": "Bez dat {} dní",
   "files": [
    "work.py"
   ]
@@ -22710,6 +23251,18 @@
   ]
  },
  {
+  "t": "Plnění zatím nejde spočítat.",
+  "files": [
+   "work.py"
+  ]
+ },
+ {
+  "t": "Program bez cviků.",
+  "files": [
+   "work.py"
+  ]
+ },
+ {
   "t": "Program se plní pod 50 %",
   "files": [
    "work.py"
@@ -22717,6 +23270,18 @@
  },
  {
   "t": "Program skončil",
+  "files": [
+   "work.py"
+  ]
+ },
+ {
+  "t": "Program splněn na {} %",
+  "files": [
+   "work.py"
+  ]
+ },
+ {
+  "t": "Program splněn na {} % (odhad)",
   "files": [
    "work.py"
   ]
@@ -22764,7 +23329,19 @@
   ]
  },
  {
-  "t": "max. {v} km tento týden",
+  "t": "max. {v} km týdně",
+  "files": [
+   "work.py"
+  ]
+ },
+ {
+  "t": "tento týden",
+  "files": [
+   "work.py"
+  ]
+ },
+ {
+  "t": "týdně",
   "files": [
    "work.py"
   ]

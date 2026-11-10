@@ -135,3 +135,52 @@ SMS delivery (provider and contract); video in the exercise library (content).
 the seat price (`DOSSLAP_SEAT_PRICE_CZK`, default 690) and trial length; the legal basis for the outcome
 export; licences for validated questionnaires; counsel's view on B3. The consent text should mention recall
 (M2) before it is switched on for real clients.
+
+## Round 2 (`DOSLAP_PHYSIO_BRIEF_ROUND2.md`, 10. 11. 2026)
+
+### Phase A — data safety and one consistent answer
+
+| Item | Code | Tests |
+|---|---|---|
+| F1 note editor | `frontend/src/physio/visit.tsx` (`VisitEditor` at `/physio/client/:id/visit/:bookingId`, `/navsteva/` still opens it; changed-field autosave 2 s / at most 5 s, backoff retry, `doslap:note:{bookingId}` local copy with Obnovit / Zahodit, `useBlocker` dialog, OSTRC full width), `physio/docs.tsx` `DiagnosisPicker` (Escape and outside click close only the list), `routers/conclusions.py` (`autosaved_at` on every save, `service_id` for the follow-up), `routers/work.py` `last_note` (same episode). The modal `physio/conclusion.tsx` is gone | `tests/test_note_editor_round2.py`; browser `scripts/e2e/note_editor.mjs` (+ `seed_past_visit.py`) — the five Done-when lines, 6/6 locally |
+| F2 older notes into the record | `app/scripts/backfill_round2.py` (guard `migrations_applied`, `--dry-run`, cards `incomplete = 1`, one episode per pair, legacy rows through `records.write_record` with `authorised_at` and `flags`), `backfill_records.py` delegates; Dokumentace chips in `physio/docs.tsx`; Příprava section 4 `routers/work.py` `_last_record`; calendar hides Proběhla for an approved note | `tests/test_backfill_round2.py` |
+| F3 one running answer | `app/care_view.py` (`rest_gap_headline`, `next_allowed_at`, `_block_running` removes running options, `apply_clinical_limits`, `guidance_physio`), `app/work.py` `limit_text`; UI `training.tsx` (Jiné možnosti, Dnešní kapacita, Plán týdne), `outlook.tsx` (Týden od pondělí), `App.tsx` (Dnes verdict), `care.tsx` (Zranění), `physio/client.tsx` (Klient dnes vidí) | `tests/test_care_directive.py` |
+| F4 one pain source | `care_view.pain_events` / `pain_summary` / `last_pain`; `routers/physios.py` `_header`, `routers/work.py` `timeline` (gaps) and `previsit`; `work.alert_title`; `physio/timeline.tsx` shaded `bez dat` | `tests/test_pain_events.py` |
+| F5 return to run | `routers/rtr.py` (`too_soon` whatever the pain, `pain_only`, `next_allowed_at`, morning from 06:00, `rtr_paused` notification), `work.morning_from`, `care.tsx` (Nahlásit bolest, slider captions `lib.painWord`), `physio/practice.tsx` toggle | `tests/test_rtr.py` |
+| F6 programme versions | `routers/programs.py` (`total_weeks`, `published_at`, `ends_on`, `target_of`, `runner_history`, version max + 1, no-op PATCH, `/ noha` side) | `tests/test_program_integrity.py` |
+| F7 one adherence | `work.program_adherence` used by Klienti, Dnes alert, Přehled, Plán, Příprava, runner Péče | `tests/test_adherence_round2.py` |
+| F8 demo reset | `app/scripts/reset_demo.py` (round-2 data, rest-gap sessions, approved-before-visit notes, gender, `--recreate` demo-only), `seed.py` (client-facing reason, physio gender, valid IČO); a confirmed injury no longer writes `runner.prior_injury*` (`routers/conclusions.py`, history on close in `routers/physios.py`) | `tests/test_reset_demo.py` |
+
+### Phase B — record polish
+
+| Item | Code | Tests |
+|---|---|---|
+| F9 configuration | no variable names in the physio UI; `docs/field-encryption.md`; `records.py` previous key; `app/scripts/rotate_field_key.py`; MKN-10 bundled from ÚZIS 1. 1. 2026 (`app/data/mkn10-20260101.csv.gz`, `app/scripts/import_mkn10.py`, imported on start when empty), search by code prefix and folded text (`routers/records.py`) | `tests/test_round2_config.py` |
+| F10 validation | `records.ico_valid`, `provider_name`, `missing_grouped`; `routers/physios.py` name 2–120; approval 409 `{detail, missing}`; `physio/practice.tsx`, `lib.icoValid` | `tests/test_round2_config.py`, `test_records_ledger.py` |
+| F11 dates and labels | `lib.fmtDY` / `fmtDTY` in `physio/docs.tsx` and `datapage.tsx`; OSTRC `Outcome`; correction line; `doslap-record-export/1`; handover row from `detail_json`; verbs by gender (`work.verb`) | `tests/test_access_history_round2.py`, `test_access_history_labels.py` |
+| F12 access history | `routers/records.py` `runner_access_events` (50 per page, cursor, `since`), `access_summary` from `record_events`; `routers/runners.py` `_access_log`; `datapage.tsx` `AccessDetail` | `tests/test_access_history_round2.py` |
+
+### Phase C — working day
+
+| Item | Code | Tests |
+|---|---|---|
+| F13 requests | `routers/booking.py` (`service_kind`, `lowest_price`, `request_detail`, per-service free times, bell title, `needs_intake`), `routers/records.py` card prefill from the intake, `physio/common.tsx` `RequestItem` (Kalendář and Dnes), `care.tsx` (service first, `od` price, intake identity) | `tests/test_booking_requests_round2.py` |
+| F14 calendar grid | `physio/schedule.tsx` `WeekView` (week / day, 30-minute rows, status colours, cell menu, drag to move), `AddVisit` reset; `physio/calendar.tsx` (`Menu`, any-time move, `bez aktuálních dat`); `work.within_hours`; reschedule returns `outside_hours` | `tests/test_calendar_round2.py` |
+| F15 Profil and gender | `physio/profile.tsx` (photo, title read-only, specialties, services, verification, preview, gender, title prompt), `physios.grammatical_gender`, `work.by_gender` in programme, limit and claim messages | `tests/test_profile_gender_round2.py` |
+| F16 Příprava | `physio/visit.tsx` `PrevisitPage` / `PrevisitSections`, `routers/work.py` `previsit` (`runner_name`, `visit`, `running`, `rtr`) | `tests/test_pain_events.py` |
+| F17 counts and header | `routers/triage.py` `queue_rows` (Fronta and Dnes), `routers/physios.py` `next_visit`, phase labels in `physio/client.tsx` | `tests/test_counts_round2.py` |
+| F18 small fixes | client tabs scroll, invite `Pozvánka zrušena`, `/physio/clients/:id` redirect (`physio/app.tsx`), landing page physio text and `/auth?role=physio`, test unit once, Schůzka status once | (UI) |
+
+### Phase D — F19 results (checked 10. 11. 2026 in the code and the test suite; nothing here touched production)
+
+1. **Transcription.** `capabilities.asr` is `bool(ASR_API_KEY and ASR_BASE_URL)` (`app/llm.py`). `ASR_API_KEY` falls back to the model key, so production shows "Přepis zatím není zapnutý" because `ASR_BASE_URL` is not set. To switch it on, an owner sets `ASR_BASE_URL` (an OpenAI-compatible `/audio/transcriptions` endpoint) in Railway. No code change.
+2. **The AI observation.** The pre-visit summary uses `llm.chat_ex` (5 s to connect, 25 s in total, one retry on a 5xx, up to 700 tokens) and a larger prompt (all facts of the client), while the runner chat uses `chat_messages` with 30 s (`LLM_TIMEOUT_S`) and up to 600 tokens. So the summary has the shorter timeout and the larger prompt; a slow answer falls back to the data-only view as designed. Changed nothing (AI code is out of scope this round). If it recurs, raising `chat_ex`'s 25 s to 30 s is the one-line option.
+3. **R5 on production.** Not run here (no production access in AI sessions). Command for an owner: `railway run python -m app.scripts.verify_records` (exit 0 = intact). The UPDATE/DELETE triggers are created on every start by `main._ledger_guard` for both SQLite and Postgres; locally `verify_records` passes and `--recreate` reseeds keep it passing.
+4. **R6.6.** Covered by `tests/test_records_corrections.py::test_two_corrections_and_the_original`: after a correction of `summary` the client receives the corrected text with `corrected_at` (Péče → Návštěvy shows "opraveno …"). Passes.
+5. **R8.4 and W15.6.** `work.unsigned_reminders` sends at 17:00 and 21:00 local, once each (new frozen-clock test `tests/test_f19_checks.py`; it found that a second call in the same session did not see the first — fixed with a flush). The 24-hour visit reminder sets `reminded` once (`tests/test_working_day.py::test_reminder_goes_out_once`). Both pass.
+6. **R13 consent withdrawal.** `tests/test_consent_withdrawal.py` runs the 403/200 matrix on a throwaway runner: after Odvolat only the documentation stays readable. Passes; nothing destructive was run on real accounts.
+7. **R11 and R12.** `tests/test_retention.py` (retention from 1 January after the last service) and `tests/test_backup_restore.py` (backup, restore test, `verify_records`) pass. Daily production backups and a restore on a production copy are an owner's step on Railway.
+8. **W12 runner side.** After F3 the runner's Trénink reads the same `care_view.present` payload: the weekly target becomes `min(engine, max_km_week)` and every offered run fits what is left (`tests/test_care_directive.py::test_weekly_limit_below_the_engine_target_changes_the_numbers`).
+9. **Rating.** `booking._physio_public` returns `rating = None` below `RATING_MIN = 5` reviews, so the card shows `⭐ —`; the seeded 4.9 is never sent for a physio without reviews (`tests/test_f19_checks.py`). The Profil preview uses the same threshold.
+
+**Owner steps after merge:** set `FIELD_ENCRYPTION_KEY` (docs/field-encryption.md); run `python -m app.scripts.backfill_round2 --dry-run`, then without `--dry-run` on production; optionally `ASR_BASE_URL`; on staging `ALLOW_DEMO_RESET=1 python -m app.scripts.reset_demo --recreate --apply`.

@@ -4,7 +4,7 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { Button, Card, Chip, Field, HowTo, Label, ListRow, Switch, useAsync, useToast } from "@/ui"
 import { ArrowRight, Copy, Database, Download, Eye, Map as MapIcon, Mountain, Pencil, Power, RefreshCw, Smartphone, Sunrise, Unplug, Upload, Watch } from "lucide-react"
-import { fmtD, initials } from "@/lib"
+import { fmtD, fmtDTY, fmtDY, initials } from "@/lib"
 import { ASSISTANT_REFRESH_EVENT, KnowledgeAdminCard } from "@/assistant"
 import { CoachModeCard } from "@/coach"
 
@@ -400,7 +400,7 @@ export function DataView() {
           {(boot?.access_log || []).length ? (
             <div className="mt-2 divide-y divide-white/[.07]">{(boot.access_log as any[]).map((x) => (
               <ListRow key={x.id} icon={x.action === "read" ? Eye : Pencil} tone={x.action === "read" ? "muted" : "watch"} title={x.physio_name || "Fyzioterapeut"}
-                meta={`${fmtD(x.date)} · ${x.access_count}× ${x.action === "read" ? "čtení" : "zápis"}`}
+                meta={`${fmtDY(x.date)} · ${x.access_count}× ${x.action === "read" ? "čtení" : "zápis"}`}
                 trailing={<Chip tone={x.action === "read" ? "muted" : "watch"}>{x.action === "read" ? "čtení" : "zápis"}</Chip>} />
             ))}</div>
           ) : <p className="mt-3 text-sm text-fg-3">Zatím k vašim datům nikdo nepřistupoval.</p>}
@@ -421,14 +421,30 @@ export function DataView() {
   )
 }
 
-// physio brief 2026-11-09 R7.5: the event-level history behind the daily summary
+// physio brief 2026-11-09 R7.5: the event-level history behind the daily summary; round 2 F12.1: every event,
+// 50 at a time, and where the detailed log begins
 function AccessDetail({ rid }: { rid: string }) {
   const [rows, setRows] = useState<any[] | null>(null)
-  if (rows === null) return <button type="button" className="mt-3 text-[12px] font-bold text-fg-2 underline underline-offset-2" onClick={() => api.accessEvents(rid).then((x: any) => setRows(x.items)).catch(() => setRows([]))}>Zobrazit detail</button>
-  return rows.length === 0 ? <p className="mt-3 text-[12px] text-fg-3">Žádné podrobné záznamy.</p> : (
-    <ul className="mt-3 grid max-h-64 gap-1 overflow-y-auto text-[12px] text-fg-2" data-testid="access-detail">
-      {rows.map((e, i) => <li key={i}><span className="tabular-nums text-fg-3">{new Date(e.at).toLocaleString("cs-CZ", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}</span>{` · ${e.who} ${e.text}`}</li>)}
-    </ul>
+  const [next, setNext] = useState<number | null>(null)
+  const [since, setSince] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const load = (before?: number | null) => {
+    setBusy(true)
+    api.accessEvents(rid, before ?? undefined).then((x: any) => {
+      setRows((cur) => [...(before ? cur || [] : []), ...x.items]); setNext(x.next); setSince(x.since)
+    }).catch(() => setRows((cur) => cur || [])).finally(() => setBusy(false))
+  }
+  if (rows === null) return <button type="button" className="mt-3 text-[12px] font-bold text-fg-2 underline underline-offset-2" onClick={() => load()}>Zobrazit detail</button>
+  return (
+    <div className="mt-3" data-testid="access-detail">
+      {rows.length === 0 ? <p className="text-[12px] text-fg-3">Žádné podrobné záznamy.</p> : (
+        <ul className="grid max-h-80 gap-1 overflow-y-auto text-[12px] text-fg-2">
+          {rows.map((e) => <li key={e.id}><span className="tabular-nums text-fg-3">{fmtDTY(e.at)}</span>{` · ${e.who} ${e.text}`}</li>)}
+        </ul>
+      )}
+      {next ? <button type="button" disabled={busy} className="mt-2 text-[12px] font-bold text-accent hover:underline" onClick={() => load(next)}>Načíst starší</button>
+        : since && <p className="mt-2 text-[11.5px] text-fg-3">{`Podrobný záznam vedeme od ${fmtDY(since)}.`}</p>}
+    </div>
   )
 }
 

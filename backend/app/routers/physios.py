@@ -32,6 +32,9 @@ def bootstrap(pid: str, user: models.User = Depends(require_verified_physio), db
         out["runner"] = to_dict(r)
         a = db.query(models.Assessment).filter(models.Assessment.runner_id == runner_id).first()
         out["assessment"] = E.assessment_row_to_dict(a)
+        # round 2 F14.4: the calendar shows the display state, never a stale score
+        if out["assessment"] is not None:
+            out["assessment"]["freshness"] = CV.freshness_for(db, runner_id)
         return out
 
     conclusions = db.query(models.Conclusion).filter(models.Conclusion.physio_id == pid).all()
@@ -51,7 +54,7 @@ def bootstrap(pid: str, user: models.User = Depends(require_verified_physio), db
         item = _with_runner_and_assessment(p, p.runner_id)
         from .programs import exercises_of, ends_on
         item["exercises"] = to_dicts(exercises_of(db, p.id))
-        item["ends_on"] = ends_on(p)
+        item["ends_on"] = ends_on(p, db)
         item["revision_count"] = db.query(models.ProgramRevision).filter(models.ProgramRevision.program_id == p.id).count()
         programs_out.append(item)
     programmed_runner_ids = {p.runner_id for p in programs}
@@ -75,7 +78,8 @@ def bootstrap(pid: str, user: models.User = Depends(require_verified_physio), db
         .filter(models.Booking.physio_id == pid, models.Booking.status == "requested")
         .order_by(models.Booking.slot_at.asc()).all()
     )
-    requests_out = [_with_runner_and_assessment(b, b.runner_id) for b in requests]
+    from .booking import request_detail
+    requests_out = [{**_with_runner_and_assessment(b, b.runner_id), "detail": request_detail(db, b)} for b in requests]
     slots = (
         db.query(models.PhysioSlot)
         .filter(models.PhysioSlot.physio_id == pid, models.PhysioSlot.slot_at > E.now_iso())
@@ -128,6 +132,10 @@ def _profile_out(db: DBSession, p: models.Physio, user: models.User) -> dict:
             "notify_settings": p.notify_settings or {}, "quick_replies": p.quick_replies or [],
             "dark_mode": bool(p.dark_mode), "photo_url": p.photo_url, "rating_count": p.rating_count or 0,
             "has_ics": bool(p.ics_token),
+            # round 2 F15.1: the public card — title from Praxe (read-only here), services, verification
+            "title": p.title, "grammatical_gender": p.grammatical_gender, "verified_at": p.verified_at,
+            "services": [{"id": sv.id, "name": sv.name_cs, "duration_minutes": sv.duration_minutes, "price_czk": sv.price_czk}
+                         for sv in db.query(models.Service).filter_by(physio_id=p.id, active=True).order_by(models.Service.sort_order).all()],
             # physio brief 2026-11-09 P0.1: what the app may offer, from configuration, no network call
             "capabilities": ai_brief.capabilities()}
 
@@ -149,6 +157,8 @@ class PhysioProfileIn(schemas.Lenient):
     price_czk: int | None = Field(default=None, ge=0, le=20000)
     clinic_name: str | None = Field(default=None, max_length=160)
     clinic_city: str | None = Field(default=None, max_length=80)
+    grammatical_gender: str | None = None        # round 2 F15.2: "f" | "m" | "" (clear)
+    photo: str | None = None                     # round 2 F15.1: a small JPEG/PNG data URL, resized in the browser
 
 
 @router.patch("/me", dependencies=[Depends(verify_csrf)])
@@ -156,12 +166,26 @@ def update_profile(body: PhysioProfileIn, user: models.User = Depends(require_ro
     """The physio's own card the runners pick from (Care tab) and the clinic whose city sets the
     region of the case queue (triage._physio_region)."""
     p = db.get(models.Physio, _pid(user))
+    if body.name is not None and not 2 <= len(body.name.strip()) <= 120:
+        raise HTTPException(status_code=422, detail="Jméno musí mít 2 až 120 znaků.")   # round 2 F10.2
     for k in ("name", "credential", "bio", "years_exp", "price_czk"):
         v = getattr(body, k)
         if v is not None:
             setattr(p, k, v.strip() if isinstance(v, str) else v)
     if body.specialties is not None:
         p.specialties = [s.strip()[:40] for s in body.specialties if s.strip()]
+    if body.grammatical_gender is not None:
+        if body.grammatical_gender not in ("f", "m", ""):
+            raise HTTPException(status_code=422, detail="Vyberte, jak o vás psát.")
+        p.grammatical_gender = body.grammatical_gender or None
+    if body.photo is not None:
+        if body.photo == "":
+            p.photo_url = None
+        elif not body.photo.startswith(("data:image/jpeg;base64,", "data:image/png;base64,", "data:image/webp;base64,")) \
+                or len(body.photo) > 400_000:
+            raise HTTPException(status_code=422, detail="Fotka musí být obrázek do 300 kB.")
+        else:
+            p.photo_url = body.photo
     if body.clinic_name or body.clinic_city:
         clinic = db.get(models.Clinic, p.clinic_id) if p.clinic_id else None
         if clinic is None:
@@ -210,6 +234,7 @@ def _claim_info(db: DBSession, pid: str, rid: str) -> dict | None:
 def my_clients(user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     """Everyone in my care, the most urgent first: state, pain, next visit, programme adherence,
     the return to running and the last message."""
+    from .. import work as W
     pid = _pid(user)
     rows = db.query(models.CareAssignment).filter(models.CareAssignment.physio_id == pid,
                                                   models.CareAssignment.status == "active").all()
@@ -225,17 +250,13 @@ def my_clients(user: models.User = Depends(require_verified_physio), db: DBSessi
         a = _a_summary(CV.present(db, rid, E.assessment_row_to_dict(a_row)) if a_row else CV.present(db, rid, {}))
         ci = (db.query(models.Checkin).filter(models.Checkin.runner_id == rid)
               .order_by(models.Checkin.submitted_at.desc()).first())
-        nxt = (db.query(models.Booking).filter(models.Booking.runner_id == rid, models.Booking.physio_id == pid,
-                                               models.Booking.status.in_(("confirmed", "requested")),
-                                               models.Booking.slot_at >= now[:16])
-               .order_by(models.Booking.slot_at.asc()).first())
+        nxt = next_visit(db, rid, pid)
         prog = (db.query(models.Program).filter(models.Program.runner_id == rid, models.Program.active.is_(True))
                 .order_by(models.Program.id.desc()).first())
-        adher = None
+        adher, adh = None, {"method": None}
         if prog is not None:
-            ex = db.query(models.Exercise).filter(models.Exercise.program_id == prog.id).all()
-            tgt = sum(e.target_count or 0 for e in ex)
-            adher = round(100 * sum(e.done_count or 0 for e in ex) / tgt) if tgt else None
+            adh = W.program_adherence(db, prog)          # round 2 F7: one number everywhere
+            adher = adh["pct"]
         rtr = (db.query(models.ReturnToRun).filter(models.ReturnToRun.runner_id == rid,
                                                     models.ReturnToRun.status.notin_(("completed", "ended"))).first())
         msg = (db.query(models.Message).filter(models.Message.runner_id == rid)
@@ -253,7 +274,8 @@ def my_clients(user: models.User = Depends(require_verified_physio), db: DBSessi
             "runnerId": rid, "name": r.name, "city": r.city, "since": ca.created_at, "a": a,
             "checkin": {"at": ci.submitted_at, "pain": ci.pain_score, "site": ci.pain_site} if ci else None,
             "next": {"id": nxt.id, "at": nxt.slot_at, "kind": nxt.kind, "status": nxt.status} if nxt else None,
-            "program": {"id": prog.id, "name": prog.name, "status": prog.status, "adherence": adher} if prog else None,
+            "program": {"id": prog.id, "name": prog.name, "status": prog.status, "adherence": adher,
+                        "adherence_method": adh["method"]} if prog else None,
             "rtr": {"level": rtr.current_level, "levels": len(rtr.levels_json or []), "status": rtr.status} if rtr else None,
             "lastMessage": {"sender": msg.sender, "at": msg.created_at, "body": (msg.body or "")[:120]} if msg else None,
             "attention": attention,
@@ -340,6 +362,21 @@ def client_overview(rid: str, user: models.User = Depends(require_verified_physi
     }
 
 
+def next_visit(db: DBSession, rid: str, pid: str) -> models.Booking | None:
+    """Round 2 F17.2: the next visit from now on, later today included. Times are compared as datetimes — the
+    stored UTC string against the local 'now' string skipped a visit later the same day."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    rows = db.query(models.Booking).filter(models.Booking.runner_id == rid, models.Booking.physio_id == pid,
+                                           models.Booking.status.in_(("confirmed", "requested"))).all()
+
+    def at(b):
+        d = datetime.fromisoformat(b.slot_at)
+        return d if d.tzinfo else d.replace(tzinfo=E.LOCAL_TZ)
+    ahead = [b for b in rows if b.slot_at and at(b) >= now]
+    return min(ahead, key=at) if ahead else None
+
+
 def _header(db: DBSession, pid: str, rid: str, cis: list) -> dict:
     """physio brief W6.2: the sticky header (diagnosis and side, phase, next visit, last data) and the body map
     from the check-ins' pain points (W6.5); the clinic's colleagues for a transfer (W1.5)."""
@@ -347,26 +384,10 @@ def _header(db: DBSession, pid: str, rid: str, cis: list) -> dict:
     from .. import work as W
     ep = (db.query(models.CareEpisode).filter_by(physio_id=pid, runner_id=rid, status="open")
           .order_by(models.CareEpisode.id.desc()).first())
-    nxt = (db.query(models.Booking).filter(models.Booking.runner_id == rid, models.Booking.physio_id == pid,
-                                           models.Booking.status.in_(("confirmed", "requested")),
-                                           models.Booking.slot_at >= E.now_iso()[:16])
-           .order_by(models.Booking.slot_at.asc()).first())
+    nxt = next_visit(db, rid, pid)
     prog = (db.query(models.Program).filter_by(runner_id=rid, physio_id=pid, active=True).order_by(models.Program.id.desc()).first())
-    pains: dict[str, dict] = {}
-    for c in cis:
-        for pt in (getattr(c, "pain_points", None) or []):
-            reg = pt.get("region") or c.pain_site
-            if not reg:
-                continue
-            x = pains.setdefault(reg, {"region": reg, "count": 0, "max": 0, "last": None})
-            x["count"] += 1
-            x["max"] = max(x["max"], c.pain_score or 0)
-            x["last"] = max(x["last"] or "", c.submitted_at[:10])
-        if not getattr(c, "pain_points", None) and c.pain_site and (c.pain_score or 0) > 0:
-            x = pains.setdefault(c.pain_site, {"region": c.pain_site, "count": 0, "max": 0, "last": None})
-            x["count"] += 1
-            x["max"] = max(x["max"], c.pain_score or 0)
-            x["last"] = max(x["last"] or "", c.submitted_at[:10])
+    # round 2 F4.2: Kde to bolí and the symptom counts come from pain_events (every source), 6 weeks
+    ps = CV.pain_summary(CV.pain_events(db, rid, (E.today_date() - timedelta(weeks=6)).isoformat()))
     me = db.get(models.Physio, pid)
     colleagues = [{"id": m.physio_id, "name": db.get(models.Physio, m.physio_id).name}
                   for m in db.query(models.ClinicMember).filter_by(clinic_id=me.clinic_id, active=True).all()
@@ -377,8 +398,9 @@ def _header(db: DBSession, pid: str, rid: str, cis: list) -> dict:
             "phase": prog.phase if prog else None,
             "next_visit": {"id": nxt.id, "at": nxt.slot_at, "kind": nxt.kind} if nxt else None,
             "freshness": CV.freshness_for(db, rid),
-            "pain_map": sorted(pains.values(), key=lambda x: -x["count"]),
-            "adherence": W.adherence(db, prog) if prog else None,
+            "pain_map": ps["regions"],
+            "pain_summary": {k: ps[k] for k in ("count", "days", "max", "by_source", "sources_cs")},
+            "adherence": W.program_adherence(db, prog) if prog else None,
             "limits": [W.limit_text(x) for x in W.active_limits(db, rid)],
             "anamnesis": card.anamnesis if card else None,
             "colleagues": colleagues,
@@ -397,6 +419,7 @@ def close_injury(rid: str, iid: int, user: models.User = Depends(require_verifie
         raise HTTPException(status_code=404, detail="Zranění nenalezeno")
     if rep.status != "active":
         raise HTTPException(status_code=409, detail="Zranění už není aktivní.")
+    E.record_injury(db, rid, rep)        # round 2 F8.4: history once it is over (plan B3)
     rep.status, rep.resolved_at = "resolved", E.iso_date(E.today_date())
     db.add(models.Message(runner_id=rid, physio_id=pid, sender="system", created_at=E.now_iso(),
                           body="Fyzioterapeut uzavřel zranění. Další postup najdete v záložce Péče."))

@@ -66,6 +66,7 @@ class Physio(Base):
     notify_settings = Column(JSON)
     ics_token = Column(String)
     rating_count = Column(Integer)
+    grammatical_gender = Column(String)          # round 2 F15.2: "f" | "m" | None — how texts about the physio read
     photo_url = Column(String)
     quick_replies = Column(JSON)
     dark_mode = Column(Boolean)
@@ -721,6 +722,7 @@ class RtrSession(Base):
     count_reason = Column(String)   # physio brief 2026-11-09 P0.7: pain_over_limit | too_soon | not_completed
     next_morning_pain = Column(Integer)      # physio brief W11
     morning_stiffness_min = Column(Integer)
+    morning_at = Column(String)              # round 2 F4/F5: when the next-morning answer was given
     matched_activity_id = Column(Integer)
     state = Column(String)                   # pending | counted | not_counted
     note = Column(String)
@@ -767,6 +769,7 @@ class Exercise(Base):
     media_url = Column(String)
     thumbnail_url = Column(String)
     description = Column(Text)
+    target_set = Column(Boolean, default=False)   # round 2 F6.3: set when per_week changed (done + per_week × weeks left)
 
 
 class SelfProgram(Base):
@@ -1377,6 +1380,9 @@ class PatientRecord(Base):
     retain_until = Column(String)                     # R11: from the last service in the record
     created_at = Column(String)
     updated_at = Column(String)
+    # round 2 F2: a card created from the runner's name only (backfill); identity is never invented, and
+    # completeness is still enforced at approval (records.patient_missing)
+    incomplete = Column(Integer, default=0)
 
 
 class CareEpisode(Base):
@@ -1406,6 +1412,7 @@ class DiagnosisCode(Base):
     code = Column(String, primary_key=True)
     label = Column(String, nullable=False)
     running_shortlist = Column(Boolean, default=False)   # set only after a physio reviewed it
+    search = Column(String, index=True)                  # round 2 F9.3: code + label folded (no diacritics)
 
 
 class ClinicalRecord(Base):
@@ -1581,6 +1588,7 @@ class Service(Base):
     sort_order = Column(Integer, default=0)
     payment_mode = Column(String, default="none")    # B1: none | deposit | full
     deposit_czk = Column(Integer)
+    kind = Column(String)                             # round 2 F13.3: the visit kind the service is (assessment, …)
 
 
 class NoteTemplate(Base):
@@ -1832,3 +1840,11 @@ class ClinicTest(Base):
     involved = Column(String)                           # L | R | None
     tested_on = Column(String)
     created_at = Column(String)
+
+
+class MigrationApplied(Base):
+    """Round 2 F2: one-off data scripts run once; a row here guards a second run."""
+    __tablename__ = "migrations_applied"
+    name = Column(String, primary_key=True)
+    applied_at = Column(String)
+    detail = Column(JSON)

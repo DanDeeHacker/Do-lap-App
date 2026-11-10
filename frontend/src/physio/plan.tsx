@@ -25,10 +25,12 @@ export function PlanTab({ rid, d, onChange }: { rid: string; d: any; onChange: (
 
 // ---------------------------------------------------------------- W10 programme builder
 export function AdherenceGrid({ adh }: { adh: any }) {
-  if (adh?.undated) return <p className="mt-2 text-[12px] text-fg-3">{`Klient odškrtl ${adh.undated}× cvičení bez data, plnění po týdnech zatím nejde spočítat.`}</p>
-  if (!adh?.weeks?.length) return null
+  // round 2 F7: the same number and label as Klienti, Dnes, Příprava and the runner's Péče
+  if (!adh) return null
   return (
-    <div className="mt-2" aria-label="Plnění po týdnech">
+    <div className="mt-2" aria-label="Plnění po týdnech" data-testid="adherence">
+      <p className="mb-1.5 text-[13px] font-bold">{adh.text}</p>
+      {adh.method === "total_estimate" && <p className="mb-1.5 text-[11.5px] text-fg-3">{`Odhad: ${adh.undated_logs}× odškrtnuto bez data, počítáno z celkového počtu.`}</p>}
       <div className="flex gap-1">
         {adh.weeks.map((w: any) => (
           <div key={w.week} title={`${fmtD(w.week)}: ${w.done} z ${String(w.expected).replace(".", ",")}`}
@@ -37,7 +39,7 @@ export function AdherenceGrid({ adh }: { adh: any }) {
           </div>
         ))}
       </div>
-      <p className="mt-1 text-[11.5px] text-fg-3">Uplynulé týdny celé, aktuální týden podle uplynulých dnů.</p>
+      {adh.weeks?.length > 0 && <p className="mt-1 text-[11.5px] text-fg-3">Uplynulé týdny celé, aktuální týden podle uplynulých dnů.</p>}
     </div>
   )
 }
@@ -91,7 +93,7 @@ function ProgramBuilder({ rid }: { rid: string }) {
         <div>
           <h2 className="font-serif text-xl">{p.name}</h2>
           <p className="text-[12px] text-fg-3">
-            {p.status === "sent" ? `odesláno ${fmtD(p.sent_at)} · verze ${p.version || 1}` : "koncept — klient ho zatím nevidí"}
+            {p.status === "sent" ? `odesláno ${fmtD(p.published_at || p.sent_at)} · verze ${p.version || 1}` : "koncept — klient ho zatím nevidí"}
             {p.ends_on ? (p.ended ? ` · program skončil ${fmtD(p.ends_on)}` : ` · končí ${fmtD(p.ends_on)}`) : ""}
             {p.pending_changes ? ` · ${p.pending_changes} neodeslaných změn` : ""}
           </p>
@@ -189,7 +191,7 @@ function ExerciseRow({ e, phases, onChange, onUp, onDown }: { e: any; phases: an
           <label className="text-[12px] font-bold text-fg-2">Zátěž<input className={inp} value={f.load_text ?? ""} onChange={(x) => setF({ ...f, load_text: x.target.value })} placeholder="např. 10 kg" /></label>
           <label className="text-[12px] font-bold text-fg-2">Tempo<input className={inp} value={f.tempo ?? ""} onChange={(x) => setF({ ...f, tempo: x.target.value })} placeholder="3-1-3" /></label>
           <label className="text-[12px] font-bold text-fg-2">Strana<select className={inp} value={f.side ?? ""} onChange={(x) => setF({ ...f, side: x.target.value })}>
-            <option value="">—</option><option value="L">levá</option><option value="P">pravá</option><option value="each">každá strana</option><option value="both">obě</option></select></label>
+            <option value="">—</option><option value="L">levá</option><option value="P">pravá</option><option value="per_leg">na každou nohu (/ noha)</option><option value="each">na každou stranu (/ strana)</option><option value="both">obě</option></select></label>
           <label className="text-[12px] font-bold text-fg-2">Hranice bolesti<input type="number" min={0} max={10} className={inp} value={f.pain_limit ?? ""} onChange={(x) => setF({ ...f, pain_limit: x.target.value })} /></label>
           {phases.length > 0 && <label className="text-[12px] font-bold text-fg-2">Fáze<select className={inp} value={f.phase_id ?? ""} onChange={(x) => setF({ ...f, phase_id: x.target.value })}>
             <option value="">—</option>{phases.map((ph) => <option key={ph.id} value={ph.id}>{ph.name}</option>)}</select></label>}
@@ -230,7 +232,7 @@ function Library({ open, onClose, onPick, have }: { open: boolean; onClose: () =
               <span className="grid size-12 shrink-0 place-items-center rounded-md ph-unknown text-[10px]" aria-hidden>{x.thumbnail_url ? <img src={x.thumbnail_url} alt="" className="size-12 rounded-md object-cover" /> : "bez videa"}</span>
               <span className="min-w-0 flex-1"><b>{x.name}</b>
                 <span className="block text-[12px] text-fg-2">{x.dose ? `${x.dose} · ${x.per_week}× týdně` : "vlastní cvik"}</span>
-                <span className="block text-[11.5px] text-fg-3">{(x.treats || []).join(", ")}</span></span>
+                <span className="block text-[11.5px] text-fg-3">{(x.treats || []).map((t: string, i: number) => <span key={i}>{i ? ", " : ""}{t}</span>)}</span></span>
               {have.has(x.id) ? <Chip tone="ok">V programu</Chip> : added.has(x.id) ? <Chip tone="ok">Přidáno</Chip>
                 : <Button size="sm" variant="outline" icon={Plus} onClick={async () => { await onPick(x); setAdded(new Set([...added, x.id])) }}>Přidat</Button>}
             </li>

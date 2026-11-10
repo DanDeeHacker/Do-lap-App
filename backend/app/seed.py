@@ -562,7 +562,8 @@ def build_and_seed(db: DBSession) -> None:
                                       pain=math.floor(rand() * 4), difficulty=3, created_at=E.day_ago(0)))
     db.add(models.ProgramRevision(
         program_id=prog.id, physio_id=p0.id, at=E.day_ago(4),
-        note="Pacientka hlásila bolest 4/10 po výponech — snížena frekvence z 6 na 5× týdně.",
+        # round 2 F6.7: the client reads this — in words written for them
+        note="Po výponech vás bolelo 4/10, proto jsem snížila frekvenci na 5× týdně.",
         changes=["Excentrické výpony na schodu: 6× → 5× týdně"],
     ))
     db.add(models.CareAssignment(physio_id=p0.id, runner_id=a0.id, status="active", created_at=E.day_ago(9)))
@@ -623,12 +624,14 @@ def _seed_records(db, physio, runner) -> None:
     from . import records as R
     clinic = db.get(models.Clinic, physio.clinic_id)
     if clinic is not None and not clinic.legal_name:
-        clinic.legal_name, clinic.legal_form, clinic.ico = "Fyzio Holešovice (ukázková praxe)", "s.r.o.", "00000000"
+        clinic.legal_name, clinic.legal_form, clinic.ico = "Fyzio Holešovice (ukázková praxe)", "s.r.o.", "00000001"   # a synthetic IČO that passes the checksum (round 2 F10.1)
         clinic.registered_street = clinic.care_site_street = "Ukázková 1"
         clinic.registered_city = clinic.care_site_city = "Praha 7"
         clinic.registered_postal_code = clinic.care_site_postal_code = "170 00"
         clinic.provider_details_confirmed_at = E.now_iso()
         physio.title, physio.qualification = "Mgr.", "Fyzioterapeut (ukázkový účet)"
+    if physio.grammatical_gender is None:
+        physio.grammatical_gender = "f"          # round 2 F15.2: the demo physio writes "upravila jsem"
     # physio brief Phase 2: every demo physio is a clinic member; Tereza has working hours and services
     from . import work as W
     for ph in db.query(models.Physio).all():

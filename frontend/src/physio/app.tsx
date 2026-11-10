@@ -60,8 +60,12 @@ export function PhysioApp() {
   // R9: the printout renders on its own, black on white, without the app shell
   const print = pathname.match(/^\/physio\/client\/([^/]+)\/tisk$/)
   if (print) return <PrintPage rid={decodeURIComponent(print[1])} />
-  const visit = pathname.match(/^\/physio\/client\/([^/]+)\/navsteva\/(\d+)$/)
+  // round 2 F1.1: the note is a full page at /visit/:bookingId; the older /navsteva/ links still open it
+  const visit = pathname.match(/^\/physio\/client\/([^/]+)\/(?:visit|navsteva)\/(\d+)$/)
   const prep = pathname.match(/^\/physio\/client\/([^/]+)\/priprava\/(\d+)$/)
+  // round 2 F18: /physio/clients/:id is the client, not the list
+  const oldClient = pathname.match(/^\/physio\/clients\/([^/]+)/)
+  if (oldClient) return <Navigate to={`/physio/client/${oldClient[1]}${window.location.search}`} replace />
   let page = <TodayPage />
   if (visit) page = <VisitEditor rid={decodeURIComponent(visit[1])} bid={Number(visit[2])} />
   else if (prep) page = <PrevisitPage rid={decodeURIComponent(prep[1])} bid={Number(prep[2])} />
@@ -97,7 +101,7 @@ export function PhysioApp() {
         </div>
       </aside>
       <div className="lg:pl-[208px]">
-        <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-white/[.08] bg-panel/95 px-4 py-2 backdrop-blur lg:px-8">
+        <header className="sticky top-0 z-30 flex h-12 items-center justify-between gap-3 border-b border-white/[.08] bg-panel/95 px-4 py-2 backdrop-blur lg:px-8">
           <Link to="/physio" className="flex items-center gap-2 text-lg lg:invisible"><Mark size={26} /><Wordmark /></Link>
           <div className="flex items-center gap-1">
             <button type="button" onClick={() => setSearch(true)} aria-label="Hledat klienta" className="grid size-9 place-items-center rounded-lg text-fg-2 hover:bg-white/[.06] lg:hidden"><Search className="size-5" aria-hidden /></button>

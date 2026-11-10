@@ -1,11 +1,11 @@
 // Dokumentace (physio brief 2026-11-09, Phase 1): the client card (R2), care episodes (R3), the approved
 // records from the ledger with corrections and addenda (R5/R6), printout, handover and export (R9) and the
 // access history (R7). After a withdrawal of consent only this tab stays (R13).
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Download, FilePlus2, Pencil, Printer, Send } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, Sheet, useToast } from "@/ui"
-import { fmtD, fmtDT } from "@/lib"
+import { fmtDTY, fmtDY, providerName } from "@/lib"
 import { Empty, KIND, Loading, REGIONS, useLoad } from "@/physio/common"
 
 const SOAP: [string, string][] = [
@@ -19,7 +19,8 @@ const inp = "mt-1 w-full rounded-xl border border-white/10 bg-panel px-3 py-2 te
 
 export function DocsTab({ rid }: { rid: string }) {
   const { d, err, reload } = useLoad<any>(() => api.physioDocumentation(rid), [rid])
-  const [card, setCard] = useState(false)
+  // round 2 F10.4: "Otevřít kartu" from the approval gate opens the card directly
+  const [card, setCard] = useState(() => new URLSearchParams(window.location.search).get("karta") === "1")
   const [handover, setHandover] = useState(false)
   const toast = useToast()
   if (!d) return <Card><Loading err={err} /></Card>
@@ -48,9 +49,10 @@ export function DocsTab({ rid }: { rid: string }) {
         {d.patient ? (
           <p className="mt-2 text-[13px] text-fg-2">
             <b className="text-fg">{`${d.patient.first_name} ${d.patient.last_name}`}</b>
-            {d.patient.birth_date ? ` · nar. ${fmtD(d.patient.birth_date)}` : ""}
-            {d.patient.sex_at_birth ? ` · ${d.patient.sex_at_birth === "f" ? "žena" : "muž"}` : ""}
-            {d.patient.permanent_address?.city ? ` · ${[d.patient.permanent_address.street, d.patient.permanent_address.postal_code, d.patient.permanent_address.city].filter(Boolean).join(", ")}` : ""}
+            {/* round 2 F2.7: missing identity reads "neuvedeno", never a guess */}
+            {" · nar. "}{d.patient.birth_date ? fmtDY(d.patient.birth_date) : "neuvedeno"}
+            {" · pohlaví při narození: "}{d.patient.sex_at_birth ? (d.patient.sex_at_birth === "f" ? "žena" : "muž") : "neuvedeno"}
+            {" · adresa: "}{d.patient.permanent_address?.city ? [d.patient.permanent_address.street, d.patient.permanent_address.postal_code, d.patient.permanent_address.city].filter(Boolean).join(", ") : "neuvedeno"}
             <span className="block text-[11.5px] text-fg-3">{`Identifikátor ${d.patient.identifier}`}</span>
           </p>
         ) : <Empty>Karta zatím není založená. Bez ní nejde schválit záznam z návštěvy.</Empty>}
@@ -77,7 +79,7 @@ export function DocsTab({ rid }: { rid: string }) {
         <p className="mt-1 text-[12px] text-fg-3">Kdy, kdo a v jakém rozsahu s dokumentací a daty klienta pracoval (vyhl. 444/2024 § 3/1 t).</p>
         {d.access.length === 0 ? <Empty>Zatím žádný záznam.</Empty> : (
           <ul className="mt-2 grid gap-1 text-[12.5px]" data-testid="access-history">
-            {d.access.map((e: any, i: number) => <li key={i} className="text-fg-2"><span className="tabular-nums text-fg-3">{fmtDT(e.at)}</span>{` · ${e.who} ${e.text}`}</li>)}
+            {d.access.map((e: any, i: number) => <li key={i} className="text-fg-2"><span className="tabular-nums text-fg-3">{fmtDTY(e.at)}</span>{` · ${e.who} ${e.text}`}</li>)}
           </ul>
         )}
       </Card>
@@ -108,9 +110,11 @@ function RecordView({ r, onChange }: { r: any; onChange: () => void }) {
   return (
     <section className="rounded-xl border border-white/[.08] p-3 text-[13px]" data-testid="record">
       <div className="flex flex-wrap items-center gap-2">
-        <b className="text-fg">{fmtDT(r.encounter_at)}</b>
+        <b className="text-fg">{fmtDTY(r.encounter_at)}</b>
         <span className="text-fg-3">{r.kind === "discharge" ? "Ukončení péče" : KIND[c.visit_kind] || "Návštěva"}</span>
-        {r.corrections.length > 0 && <Chip tone="watch">{`Opraveno ${fmtD(r.corrections.at(-1).at)}, ${r.corrections.at(-1).by}`}</Chip>}
+        {r.legacy && <Chip>převzato ze staršího záznamu</Chip>}
+        {r.flags?.includes("approved_before_encounter") && <Chip tone="watch">schváleno před začátkem návštěvy</Chip>}
+        {r.corrections.length > 0 && <Chip tone="watch">opraveno</Chip>}
         <span className="flex-1" />
         {r.kind !== "discharge" && <>
           <button type="button" className="text-[12px] font-bold text-accent hover:underline" onClick={() => setMode(mode === "fix" ? "" : "fix")}>Opravit záznam</button>
@@ -125,14 +129,17 @@ function RecordView({ r, onChange }: { r: any; onChange: () => void }) {
           {shown?.diagnosis_label && <div><dt className="text-[11.5px] font-bold text-fg-3">Diagnóza</dt><dd className="text-fg-soft">{`${shown.diagnosis_code ? `${shown.diagnosis_code} ` : ""}${shown.diagnosis_label}`}</dd></div>}
           {shown?.finding && <div><dt className="text-[11.5px] font-bold text-fg-3">Klinický nález</dt><dd className="whitespace-pre-line text-fg-soft">{shown.finding}</dd></div>}
           {shown?.outcome && <div><dt className="text-[11.5px] font-bold text-fg-3">Výsledek (OSTRC)</dt><dd className="text-fg-soft">
-            {shown.outcome.kind === "no_injury" ? "bez zranění" : `${shown.outcome.region_label || ""} ${shown.outcome.side || ""} · závažnost ${shown.outcome.severity}/100 · `}
-            {Object.entries(shown.outcome.answers || {}).map(([q, a]) => `${q}: ${a}`).join(" · ")}</dd></div>}
+            <Outcome o={shown.outcome} />{/* separate text nodes so each answer is translated */}</dd></div>}
           {shown?.summary && <div><dt className="text-[11.5px] font-bold text-fg-3">Shrnutí pro klienta</dt><dd className="whitespace-pre-line text-fg-soft">{shown.summary}</dd></div>}
           {shown?.note_patient_request && <p className="text-[12px] text-fg-3">{shown.note_patient_request}</p>}
         </dl>
       )}
-      {r.addenda.map((a: any) => <p key={a.id} className="mt-2 rounded-lg bg-white/[.03] px-3 py-2 text-fg-2"><b className="text-fg">{`Doplněk ${fmtDT(a.at)}, ${a.by}: `}</b>{a.text}</p>)}
-      <p className="mt-2 text-[11.5px] text-fg-3">{`Záznam ${r.id} · ${r.author}${r.author_identifier ? ` (${r.author_identifier})` : ""} · schváleno ${fmtDT(r.authorised_at)}`}
+      {/* round 2 F11.3: as the printout — when, who, why and the correction's own record ID */}
+      {r.corrections.map((x: any) => (
+        <p key={x.id} className="mt-2 text-[12px] text-fg-2" data-testid="correction-line">{`Opraveno ${fmtDTY(x.at)}, ${x.by} — důvod: ${x.reason || "neuveden"}${x.at_patient_request ? " (na žádost pacienta)" : ""} · záznam ${String(x.id).slice(0, 8)}…`}</p>
+      ))}
+      {r.addenda.map((a: any) => <p key={a.id} className="mt-2 rounded-lg bg-white/[.03] px-3 py-2 text-fg-2"><b className="text-fg">{`Doplněk ${fmtDTY(a.at)}, ${a.by}: `}</b>{a.text}</p>)}
+      <p className="mt-2 text-[11.5px] text-fg-3">{`Záznam ${r.id} · ${r.author}${r.author_identifier ? ` (${r.author_identifier})` : ""} · schváleno ${fmtDTY(r.authorised_at)}`}
         {r.original && <> · <button type="button" className="font-bold underline" onClick={() => setOrig(!orig)}>{orig ? "Zobrazit aktuální znění" : "Zobrazit původní znění"}</button></>}</p>
       {mode === "fix" && (
         <div className="mt-3 grid gap-2 rounded-xl bg-white/[.03] p-3">
@@ -178,8 +185,8 @@ function Episodes({ rid }: { rid: string }) {
           {items.map((ep: any) => (
             <li key={ep.id} className="rounded-xl border border-white/[.07] p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <b className="text-fg">{`Od ${fmtD(ep.opened_at)}`}</b>
-                {ep.status === "open" ? <Chip tone="info">probíhá</Chip> : <Chip>{`ukončeno ${fmtD(ep.closed_at)} · ${OUTCOME[ep.discharge_outcome] || ""}`}</Chip>}
+                <b className="text-fg">{"Od "}{fmtDY(ep.opened_at)}</b>
+                {ep.status === "open" ? <Chip tone="info">probíhá</Chip> : <Chip>{`ukončeno ${fmtDY(ep.closed_at)} · ${OUTCOME[ep.discharge_outcome] || ""}`}</Chip>}
                 <span className="flex-1" />
                 {ep.status === "open" && <Button size="sm" variant="outline" onClick={() => setClosing(ep)}>Ukončit péči</Button>}
               </div>
@@ -216,21 +223,34 @@ function Episodes({ rid }: { rid: string }) {
   )
 }
 
+// round 2 F1.6: Escape closes only this list (never the page or a sheet under it); an outside click closes it too
 export function DiagnosisPicker({ value, onPick }: { value: any; onPick: (x: { code: string | null; label: string }) => void }) {
   const [q, setQ] = useState("")
   const [res, setRes] = useState<any>(null)
+  const box = useRef<HTMLDivElement>(null)
+  const open = !!res && q.trim().length >= 2
+  const close = () => setRes(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setRes(null) }
+    // capture phase, so the sheet's own window listener never sees the Escape that closed the list
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault(); setRes(null) } }
+    document.addEventListener("mousedown", onDown)
+    window.addEventListener("keydown", onKey, true)
+    return () => { document.removeEventListener("mousedown", onDown); window.removeEventListener("keydown", onKey, true) }
+  }, [open])
   const search = async (v: string) => { setQ(v); if (v.trim().length >= 2) setRes(await api.diagnoses(v).catch(() => null)) }
   return (
-    <div className="relative sm:col-span-3">
-      <input className={inp} value={q} onChange={(e) => search(e.target.value)} aria-label="Diagnóza"
+    <div ref={box} className="relative sm:col-span-3">
+      <input className={inp} value={q} onChange={(e) => search(e.target.value)} aria-label="Diagnóza" role="combobox" aria-expanded={open} aria-controls="dg-list"
         placeholder={value?.diagnosis_label ? `${value.diagnosis_code || ""} ${value.diagnosis_label}` : "Diagnóza (MKN-10)"} />
-      {res && q.trim().length >= 2 && (
-        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-white/10 bg-panel p-1 text-[12.5px] shadow-lg">
+      {open && (
+        <div id="dg-list" role="listbox" data-testid="diagnosis-list" className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-white/10 bg-panel p-1 text-[12.5px] shadow-lg">
           {res.items.map((x: any) => (
-            <button key={x.code} type="button" className="block w-full rounded-lg px-3 py-1.5 text-left hover:bg-white/[.06]" onClick={() => { onPick(x); setQ(""); setRes(null) }}>{`${x.code} ${x.label}`}</button>
+            <button key={x.code} type="button" role="option" aria-selected={false} className="block w-full rounded-lg px-3 py-1.5 text-left hover:bg-white/[.06]" onClick={() => { onPick(x); setQ(""); close() }}>{`${x.code} ${x.label}`}</button>
           ))}
-          {!res.imported && <p className="px-3 py-1.5 text-fg-3">Číselník MKN-10 zatím není importovaný.</p>}
-          <button type="button" className="block w-full rounded-lg px-3 py-1.5 text-left text-fg-2 hover:bg-white/[.06]" onClick={() => { onPick({ code: null, label: q.trim() }); setQ(""); setRes(null) }}>{`Použít text „${q.trim()}“ bez kódu`}</button>
+          {!res.imported && res.items.length === 0 && <p className="px-3 py-1.5 text-fg-3">Kód nenalezen.</p>}
+          <button type="button" className="block w-full rounded-lg px-3 py-1.5 text-left text-fg-2 hover:bg-white/[.06]" onClick={() => { onPick({ code: null, label: q.trim() }); setQ(""); close() }}>{`Použít text „${q.trim()}“ bez kódu`}</button>
         </div>
       )}
     </div>
@@ -274,7 +294,8 @@ function CardSheet({ rid, onClose, onSaved }: { rid: string; onClose: () => void
           {field("permanent_postal_code", "PSČ")}{field("phone", "Telefon", "tel")}{field("email", "E-mail", "email")}
           {field("insurer_code", "Kód pojišťovny")}{field("gp_name", "Praktický lékař")}{field("gp_contact", "Kontakt na lékaře")}
           {d?.crypto ? <>{field("rodne_cislo", "Rodné číslo (šifrováno)")}{field("insurance_no", "Číslo pojištěnce (šifrováno)")}</>
-            : <p className="text-[11.5px] text-fg-3 sm:col-span-2">Rodné číslo a číslo pojištěnce lze uložit, až bude nastavené šifrování (FIELD_ENCRYPTION_KEY).</p>}
+            // round 2 F9.2: no configuration names in the UI
+            : <p className="text-[11.5px] text-fg-3 sm:col-span-2">Rodné číslo zatím nelze uložit.</p>}
           <label className="text-[12px] font-bold text-fg-2 sm:col-span-2">Anamnéza a červené vlajky
             <textarea rows={4} className={inp} value={f.anamnesis || ""} onChange={(e) => set("anamnesis", e.target.value)} /></label>
         </div>
@@ -323,29 +344,44 @@ export function PrintPage({ rid }: { rid: string }) {
       <div className="no-print"><button type="button" onClick={() => window.print()} style={{ border: "1px solid #000", padding: "6px 12px", borderRadius: 8 }}>Vytisknout</button></div>
       <div className="head">
         <h1>Zdravotnická dokumentace — fyzioterapie</h1>
-        <div>{`${pv.legal_name || pv.name || ""}${pv.legal_form ? `, ${pv.legal_form}` : ""} · IČO ${pv.ico || "—"} · ${[pv.care_site_street, pv.care_site_postal_code, pv.care_site_city].filter(Boolean).join(", ")}`}</div>
-        {pt ? <div>{`Pacient: ${pt.first_name} ${pt.last_name} · nar. ${pt.birth_date ? fmtD(pt.birth_date) : "—"} · ${pt.sex_at_birth === "f" ? "žena" : pt.sex_at_birth === "m" ? "muž" : "—"} · ${[pt.permanent_address?.street, pt.permanent_address?.postal_code, pt.permanent_address?.city].filter(Boolean).join(", ")} · identifikátor ${pt.identifier}`}</div> : <div>Karta pacienta není založená.</div>}
+        <div>{`${providerName(pv.legal_name || pv.name, pv.legal_form)} · IČO ${pv.ico || "—"} · ${[pv.care_site_street, pv.care_site_postal_code, pv.care_site_city].filter(Boolean).join(", ")}`}</div>
+        {pt ? <div>{`Pacient: ${pt.first_name} ${pt.last_name} · nar. ${pt.birth_date ? fmtDY(pt.birth_date) : "—"} · ${pt.sex_at_birth === "f" ? "žena" : pt.sex_at_birth === "m" ? "muž" : "—"} · ${[pt.permanent_address?.street, pt.permanent_address?.postal_code, pt.permanent_address?.city].filter(Boolean).join(", ")} · identifikátor ${pt.identifier}`}</div> : <div>Karta pacienta není založená.</div>}
       </div>
       {d.records.map((r: any) => {
         const c = r.current || {}
         return (
           <section key={r.id}>
-            <h2>{`${fmtDT(r.encounter_at)} · ${r.kind === "discharge" ? "Ukončení péče" : KIND[c.visit_kind] || "Návštěva"} · záznam ${r.id}`}</h2>
+            <h2>{`${fmtDTY(r.encounter_at)} · ${r.kind === "discharge" ? "Ukončení péče" : KIND[c.visit_kind] || "Návštěva"} · záznam ${r.id}`}</h2>
             <dl>
               {SOAP.map(([k, label]) => c[k] ? <div key={k}><dt>{label}</dt><dd>{c[k]}</dd></div> : null)}
               {c.diagnosis_label && <div><dt>Diagnóza</dt><dd>{`${c.diagnosis_code || ""} ${c.diagnosis_label}`}</dd></div>}
               {c.finding && <div><dt>Klinický nález</dt><dd>{c.finding}</dd></div>}
-              {c.outcome && <div><dt>Výsledek (OSTRC)</dt><dd>{c.outcome.kind === "no_injury" ? "bez zranění" : `${c.outcome.region_label || ""} ${c.outcome.side || ""}, závažnost ${c.outcome.severity}/100; `}{Object.entries(c.outcome.answers || {}).map(([q, a]) => `${q}: ${a}`).join("; ")}</dd></div>}
+              {c.outcome && <div><dt>Výsledek (OSTRC)</dt><dd><Outcome o={c.outcome} /></dd></div>}
               {r.kind === "discharge" && <div><dt>Výsledek péče</dt><dd>{`${OUTCOME[c.episode?.discharge_outcome] || ""}${c.episode?.closing_note ? ` — ${c.episode.closing_note}` : ""}`}</dd></div>}
             </dl>
-            {r.corrections.map((k: any) => <div key={k.id}>{`Opraveno ${fmtDT(k.at)}, ${k.by}: ${k.reason}${k.at_patient_request ? " (na žádost pacienta)" : ""}. Původní znění: záznam ${r.id}.`}</div>)}
-            {r.addenda.map((a: any) => <div key={a.id}>{`Doplněk ${fmtDT(a.at)}, ${a.by}: ${a.text}`}</div>)}
-            <div>{`Zapsal(a): ${r.author}${r.author_identifier ? ` (${r.author_identifier})` : ""} · autorizováno ${fmtDT(r.authorised_at)}`}</div>
+            {r.corrections.map((k: any) => <div key={k.id}>{`Opraveno ${fmtDTY(k.at)}, ${k.by}: ${k.reason}${k.at_patient_request ? " (na žádost pacienta)" : ""}. Původní znění: záznam ${r.id}.`}</div>)}
+            {r.addenda.map((a: any) => <div key={a.id}>{`Doplněk ${fmtDTY(a.at)}, ${a.by}: ${a.text}`}</div>)}
+            <div>{`Zapsal(a): ${r.author}${r.author_identifier ? ` (${r.author_identifier})` : ""} · autorizováno ${fmtDTY(r.authorised_at)}`}</div>
             <div className="sig">podpis</div>
           </section>
         )
       })}
-      <p style={{ marginTop: 16, fontSize: 10 }}>{`Vytištěno ${fmtDT(d.generated_at)} z aplikace Došlap.`}</p>
+      <p style={{ marginTop: 16, fontSize: 10 }}>{`Vytištěno ${fmtDTY(d.generated_at)} z aplikace Došlap.`}</p>
     </div>
   )
+}
+
+// the OSTRC outcome: region, side in words, severity and each answer as its own text, so the English view
+// translates them (one joined string stayed Czech)
+const SIDE_CS: Record<string, string> = { L: "vlevo", P: "vpravo", R: "vpravo", both: "oboustranně" }
+function Outcome({ o }: { o: any }) {
+  // round 2 F11.2: "Bez zranění · Bolest: žádná · …" — every part its own text node, joined by " · "
+  const parts: React.ReactNode[] = []
+  if (o.kind === "no_injury") parts.push(<span key="k">Bez zranění</span>)
+  else {
+    if (o.region_label) parts.push(<span key="r"><span>{o.region_label}</span>{o.side ? <>{", "}<span>{SIDE_CS[o.side] || o.side}</span></> : null}</span>)
+    if (o.severity != null) parts.push(<span key="s">{`závažnost ${o.severity}/100`}</span>)
+  }
+  for (const [q, a] of Object.entries(o.answers || {})) parts.push(<span key={q}><span>{q}</span>{": "}<span>{String(a)}</span></span>)
+  return <>{parts.map((x, i) => <span key={i}>{i > 0 ? " · " : null}{x}</span>)}</>
 }

@@ -3,12 +3,12 @@
 // before (booking.due_reminders); after the visit the physio writes the conclusion here.
 import { useState } from "react"
 import { useNavigate } from "react-router"
-import { CalendarPlus, Check, FileText, MoreHorizontal, Trash2, X } from "lucide-react"
+import { CalendarPlus, FileText, Trash2 } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, useToast } from "@/ui"
 import { fmtDT } from "@/lib"
-import { Empty, KIND, Loading, shownScore, useLoad } from "@/physio/common"
-import { ConclusionSheet } from "@/physio/conclusion"
+import { visitPath } from "@/physio/visit"
+import { Empty, KIND, Loading, Menu, RequestItem, noData, shownScore, useLoad } from "@/physio/common"
 import { AddVisit, IcsLink, Services, WeekView, WorkingHours } from "@/physio/schedule"
 import { Waitlist } from "@/physio/business"
 
@@ -23,10 +23,9 @@ export function CalendarPage({ pid }: { pid: string }) {
   const [time, setTime] = useState("09:00")
   const [dur, setDur] = useState(45)
   const [busy, setBusy] = useState<string | null>(null)
-  const [concl, setConcl] = useState<any>(null)
   const [ver, setVer] = useState(0)
   const [allSlots, setAllSlots] = useState(false)
-  const free = useLoad<any>(() => api.availability().then((x: any) => x.preview || []), [ver])
+  const rules = useLoad<any>(() => api.availability(), [ver])
   const refresh = () => { setVer((v) => v + 1); reload() }
   const act = async (k: string, fn: () => Promise<any>, msg: string) => {
     setBusy(k)
@@ -42,13 +41,6 @@ export function CalendarPage({ pid }: { pid: string }) {
   const upcoming = confirmed.filter((b: any) => t(b) > nowMs)
   const past = (d.bookings || []).filter((b: any) => ["confirmed", "completed", "no_show"].includes(b.status) && t(b) <= nowMs)
     .sort((a: any, b: any) => t(b) - t(a)).slice(0, 12)
-  const openSlots = (d.slots || []).filter((s: any) => s.status === "open")
-  // P0.6.10: a request that clashes with a confirmed visit says so
-  const clash = (r: any) => {
-    const a0 = t(r), a1 = a0 + (r.duration_min || 45) * 60000
-    const x = confirmed.find((b: any) => b.id !== r.id && t(b) < a1 && a0 < t(b) + (b.duration_min || 45) * 60000)
-    return x ? `Koliduje s návštěvou ${x.runner?.name || "klienta"} v ${new Date(x.slot_at).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}` : null
-  }
   const byDay: Record<string, any[]> = {}
   for (const b of upcoming) (byDay[dayKey(b.slot_at)] ||= []).push(b)
   const addSlot = () => {
@@ -67,17 +59,7 @@ export function CalendarPage({ pid }: { pid: string }) {
             <h2 className="font-serif text-xl">Žádosti o termín</h2>
             {(d.requests || []).length === 0 ? <Empty>Žádné nové žádosti.</Empty> : (
               <ul className="mt-2 divide-y divide-white/[.07]" data-testid="requests">
-                {d.requests.map((b: any) => (
-                  <li key={b.id} className="flex flex-wrap items-center gap-2 py-2.5 text-[13px]">
-                    <span className="min-w-0 flex-1">
-                      <b className="text-fg">{b.runner?.name}</b>
-                      <span className="block text-[12px] text-fg-3">{fmtDT(b.slot_at)}{" · "}{KIND[b.kind] || b.kind}</span>
-                      {clash(b) && <span className="block text-[12px] font-bold text-alert" data-testid="request-clash">{clash(b)}</span>}
-                    </span>
-                    <Button size="sm" icon={Check} busy={busy === `c${b.id}`} onClick={() => act(`c${b.id}`, () => api.bookingConfirm(b.id), "Termín potvrzen — klient dostal zprávu")}>Potvrdit</Button>
-                    <Button size="sm" variant="outline" icon={X} busy={busy === `d${b.id}`} onClick={() => act(`d${b.id}`, () => api.bookingDecline(b.id), "Termín odmítnut")}>Odmítnout</Button>
-                  </li>
-                ))}
+                {d.requests.map((b: any) => <RequestItem key={b.id} b={b} onDone={refresh} />)}
               </ul>
             )}
           </Card>
@@ -90,7 +72,7 @@ export function CalendarPage({ pid }: { pid: string }) {
                     <h3 className="text-[12px] font-extrabold uppercase tracking-[.06em] text-fg-3">{dayLabel(day)}</h3>
                     <ul className="mt-1.5 grid gap-2">
                       {bs.map((b: any) => <Visit key={b.id} b={b} reminder={remind.has(b.id)} onOpen={() => nav(`/physio/client/${b.runner_id}`)}
-                        onConclusion={() => setConcl(b)} onSaved={refresh} openSlots={openSlots} freeTimes={free.d || []} />)}
+                        onConclusion={() => nav(visitPath(b.runner_id, b.id))} onSaved={refresh} rules={rules.d?.rules || []} />)}
                     </ul>
                   </section>
                 ))}
@@ -106,11 +88,11 @@ export function CalendarPage({ pid }: { pid: string }) {
                     <span className="min-w-0 flex-1"><b className="text-fg">{b.runner?.name}</b>
                       <span className="block text-[12px] text-fg-3">{fmtDT(b.slot_at)}{" · "}{KIND[b.kind] || b.kind}</span></span>
                     {b.status === "no_show" ? <Chip>nedostavil(a) se</Chip> : <RecordChip c={b.conclusion} />}
-                    {b.status === "confirmed" && <>
+                    {b.status === "confirmed" && b.conclusion?.status !== "approved" && <>
                       <Button size="sm" variant="outline" busy={busy === `p${b.id}`} onClick={() => act(`p${b.id}`, () => api.bookingComplete(b.id), "Návštěva označena jako proběhlá")}>Proběhla</Button>
                       <Button size="sm" variant="outline" busy={busy === `n${b.id}`} onClick={() => act(`n${b.id}`, () => api.bookingNoShow(b.id), "Zaznamenáno: nedostavil(a) se")}>Nedostavil(a) se</Button>
                     </>}
-                    {b.status !== "no_show" && <Button size="sm" variant="outline" icon={FileText} onClick={() => setConcl(b)}>Záznam</Button>}
+                    {b.status !== "no_show" && <Button size="sm" variant="outline" icon={FileText} onClick={() => nav(visitPath(b.runner_id, b.id))}>Záznam</Button>}
                   </li>
                 ))}
               </ul>
@@ -153,7 +135,6 @@ export function CalendarPage({ pid }: { pid: string }) {
           </Card>
         </div>
       </div>
-      <ConclusionSheet booking={concl} onClose={() => setConcl(null)} onDone={() => { setConcl(null); reload() }} />
     </>
   )
 }
@@ -166,7 +147,12 @@ function RecordChip({ c }: { c: any }) {
   return <Chip tone="alert">bez záznamu</Chip>
 }
 
-function Visit({ b, reminder, onOpen, onConclusion, onSaved, openSlots, freeTimes }: { b: any; reminder: boolean; onOpen: () => void; onConclusion: () => void; onSaved: () => void; openSlots: any[]; freeTimes: any[] }) {
+function Visit({ b, reminder, onOpen, onConclusion, onSaved, rules }: { b: any; reminder: boolean; onOpen: () => void; onConclusion: () => void; onSaved: () => void; rules: any[] }) {
+  const inHours = (v: string) => {
+    const d = new Date(v), wd = (d.getDay() + 6) % 7, m = d.getHours() * 60 + d.getMinutes(), len = b.duration_min || 45
+    return rules.some((r: any) => r.weekday === wd && Number(r.start_local.slice(0, 2)) * 60 + Number(r.start_local.slice(3, 5)) <= m &&
+      m + len <= Number(r.end_local.slice(0, 2)) * 60 + Number(r.end_local.slice(3, 5)))
+  }
   const toast = useToast()
   const [menu, setMenu] = useState<"" | "move" | "cancel">("")
   const [to, setTo] = useState<string>("")
@@ -188,30 +174,27 @@ function Visit({ b, reminder, onOpen, onConclusion, onSaved, openSlots, freeTime
         <button type="button" onClick={onOpen} className="font-bold text-accent hover:underline">{b.runner?.name}</button>
         <span className="text-fg-3">{KIND[b.kind] || b.kind}</span>
         {reminder && <Chip tone="watch">do 24 h · klient vidí připomínku</Chip>}
-        {a.overall != null && <span className="text-fg-3">{`· skóre ${Math.round(shownScore(a.overall)!)}`}</span>}
+        {/* round 2 F14.4 (P0.4): stale or missing data shows the state, never an old score */}
+        {noData(a) ? <span className="text-fg-3">· bez aktuálních dat</span>
+          : a.overall != null && <span className="text-fg-3">{`· skóre ${Math.round(shownScore(a.overall)!)}`}</span>}
         <span className="flex-1" />
         {new Date(b.slot_at).getTime() <= Date.now() &&
           <Button size="sm" variant="outline" icon={FileText} onClick={onConclusion}>Záznam</Button>}
-        <details className="relative" data-testid="visit-menu">
-          <summary aria-label="Další akce" className="cursor-pointer list-none rounded-lg px-2 py-1 text-fg-2 hover:bg-white/[.06]"><MoreHorizontal className="size-4" aria-hidden /></summary>
-          <div className="absolute right-0 z-20 mt-1 grid w-40 rounded-xl border border-white/10 bg-panel p-1 text-[13px] shadow-lg">
-            <button type="button" className="rounded-lg px-3 py-2 text-left hover:bg-white/[.06]" onClick={() => setMenu("move")}>Přesunout</button>
-            <button type="button" className="rounded-lg px-3 py-2 text-left text-alert hover:bg-white/[.06]" onClick={() => setMenu("cancel")}>Zrušit</button>
-          </div>
-        </details>
+        <Menu label="Další akce">{(close) => <>
+          <button type="button" role="menuitem" className="rounded-lg px-3 py-2 text-left hover:bg-white/[.06]" onClick={() => { close(); setMenu("move") }}>Přesunout</button>
+          <button type="button" role="menuitem" className="rounded-lg px-3 py-2 text-left text-alert hover:bg-white/[.06]" onClick={() => { close(); setMenu("cancel") }}>Zrušit</button>
+        </>}</Menu>
       </div>
-      {/* physio brief W5.6: move to an open slot or a computed free time, with a confirmation that says what the client gets */}
+      {/* round 2 F14.1: any date and time; outside working hours a warning, a clash a 409 from the server */}
       {menu === "move" && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          <select value={to} onChange={(e) => setTo(e.target.value)} aria-label="Nový termín" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]">
-            <option value="">{openSlots.length || freeTimes.length ? "— vyberte volný čas —" : "Žádný volný čas — upravte pracovní dobu"}</option>
-            {openSlots.map((s: any) => <option key={`s${s.id}`} value={`s:${s.id}`}>{fmtDT(s.slot_at)}</option>)}
-            {freeTimes.filter((f: any) => !f.slot_id).slice(0, 40).map((f: any) => <option key={f.start} value={`t:${f.start}`}>{fmtDT(f.start)}</option>)}
-          </select>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <input type="datetime-local" step={900} value={to} onChange={(e) => setTo(e.target.value)} aria-label="Nový termín"
+            className="min-w-0 flex-1 rounded-xl border border-white/10 bg-panel px-3 py-2 text-[13px]" />
+          {to && !inHours(to) && <span className="text-[12px] text-watch" data-testid="move-outside">Mimo pracovní dobu.</span>}
           <Button size="sm" disabled={!to} onClick={() => {
-            const [k, v] = [to.slice(0, 1), to.slice(2)]
-            if (!window.confirm(`Přesunout návštěvu na ${fmtDT(k === "s" ? openSlots.find((s: any) => String(s.id) === v)?.slot_at : v)}? Klient dostane zprávu.`)) return
-            void run(() => api.bookingReschedule(b.id, k === "s" ? { slot_id: Number(v) } : { starts_at: v }), "Návštěva přesunuta — klient dostal zprávu")
+            const when = new Date(to)
+            if (!window.confirm(`Přesunout návštěvu na ${fmtDT(when.toISOString())}? Klient dostane zprávu.`)) return
+            void run(() => api.bookingReschedule(b.id, { starts_at: when.toISOString() }), "Návštěva přesunuta — klient dostal zprávu")
           }}>Přesunout</Button>
           <Button size="sm" variant="outline" onClick={() => setMenu("")}>Zpět</Button>
         </div>

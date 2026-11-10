@@ -48,6 +48,9 @@ def _booking_owned(db: DBSession, bid: int, physio_id: str) -> models.Booking:
 def _out(c: models.Conclusion, bk: models.Booking | None) -> dict:
     d = to_dict(c)
     d["slot_at"] = bk.slot_at if bk else None
+    # physio brief round 2 F1.8: the follow-up keeps the same service and kind
+    d["service_id"] = bk.service_id if bk else None
+    d["kind"] = bk.kind if bk else None
     d["severity_complete"] = c.outcome_kind == "injury" and all(
         getattr(c, f) in OSTRC_VALUES for f in ("out_participation", "out_volume", "out_performance", "out_pain"))
     return d
@@ -62,7 +65,10 @@ def runner_view(c: models.Conclusion, db: DBSession | None = None) -> dict:
         vs = R.versions(db, c.record_id)
         if len(vs) > 1:
             summary, corrected = R.content_of(vs[-1])["content"].get("summary") or summary, vs[-1].authorised_at
+    # round 2 F2: the client sees the note under the visit's date, never the day it was approved
+    bk = db.get(models.Booking, c.booking_id) if db is not None and c.booking_id else None
     return {"id": c.id, "booking_id": c.booking_id, "physio_id": c.physio_id, "summary": summary,
+            "visit_at": bk.slot_at if bk else None,
             "shared_at": c.shared_at, "approved_at": c.approved_at, "status": c.status, "corrected_at": corrected}
 
 
@@ -77,7 +83,8 @@ def open_conclusion(bid: int, user: models.User = Depends(require_role("physio")
     return {"id": None, "booking_id": bid, "runner_id": bk.runner_id, "physio_id": user.physio_id, "status": "new",
             "transcript": None, "summary": None, "finding": None, "outcome_kind": None, "has_outcome": False,
             "out_participation": None, "out_volume": None, "out_performance": None, "out_pain": None,
-            "out_region": None, "out_side": None, "slot_at": bk.slot_at, "severity_complete": False}
+            "out_region": None, "out_side": None, "slot_at": bk.slot_at, "severity_complete": False,
+            "service_id": bk.service_id, "kind": bk.kind, "autosaved_at": None}
 
 
 SOAP = ("subjective", "objective", "assessment", "plan", "services_provided")
@@ -157,6 +164,7 @@ def save_new_conclusion(bid: int, body: schemas.ConclusionPatch,
     elif c.status != "draft":
         raise HTTPException(status_code=409, detail="Schválený závěr už nelze upravovat.")
     _apply(c, body)
+    c.autosaved_at = E.now_iso()          # round 2 F1.3: the server's own time of the last save
     db.commit()
     db.refresh(c)
     return _out(c, bk)
@@ -216,6 +224,7 @@ def edit_conclusion(cid: int, body: schemas.ConclusionPatch,
     if c.status != "draft":
         raise HTTPException(status_code=409, detail="Schválený závěr už nelze upravovat.")
     _apply(c, body)
+    c.autosaved_at = E.now_iso()          # round 2 F1.3
     db.commit()
     db.refresh(c)
     return _out(c, db.get(models.Booking, c.booking_id))
@@ -255,7 +264,13 @@ def approve_conclusion(cid: int, body: schemas.ConclusionApprove | None = None,
         raise HTTPException(status_code=409, detail="Před prvním záznamem doplňte údaje poskytovatele v Praxi.")
     patient = R.card(db, clinic.id, c.runner_id)
     if R.patient_missing(patient):
-        raise HTTPException(status_code=409, detail="Doplňte identifikační údaje klienta.")
+        # round 2 F10.4: say what is missing, so the physio can fill it in without guessing
+        from fastapi.responses import JSONResponse
+        miss = R.missing_grouped(patient)
+        db.rollback()
+        return JSONResponse(status_code=409, content={
+            "detail": "Doplňte v kartě klienta: " + ", ".join(R.PATIENT_LABEL.get(k, k) for k in miss) + ".",
+            "missing": miss})
     visit_day = (bk.slot_at if bk and bk.slot_at else E.now_iso())[:10]
     if c.outcome_kind == "injury":
         vals = [getattr(c, f) for f in ("out_participation", "out_volume", "out_performance", "out_pain")]
@@ -279,7 +294,8 @@ def approve_conclusion(cid: int, body: schemas.ConclusionApprove | None = None,
         )
         db.add(rep)
         db.flush()
-        E.record_injury(db, c.runner_id, rep)   # plan B3: a confirmed injury becomes the injury history
+        # round 2 F8.4 (P0.5.9): a confirmed injury is the current injury, not a prior one — it enters the
+        # runner's injury history (runner.prior_injury*) when the physio closes it
         c.out_severity = severity
         c.injury_report_id = rep.id
 

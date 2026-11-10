@@ -57,7 +57,7 @@ class Notifier:
     channels = ("in_app",)
 
     def send(self, db: DBSession, event: str, title: str, *, physio_id: str | None = None,
-             runner_id: str | None = None, ref: str | None = None) -> list[str]:
+             runner_id: str | None = None, ref: str | None = None, body: str | None = None) -> list[str]:
         prefs = {}
         if physio_id:
             p = db.get(models.Physio, physio_id)
@@ -70,7 +70,7 @@ class Notifier:
                 continue
             delivered = ch == "in_app"     # email / SMS: no provider yet — logged, not delivered
             db.add(models.Notification(physio_id=physio_id, runner_id=runner_id, channel=ch, event=event, title=title,
-                                       ref=ref, delivered=delivered, created_at=E.now_iso()))
+                                       body=body, ref=ref, delivered=delivered, created_at=E.now_iso()))
             if delivered:
                 sent.append(ch)
         return sent
@@ -140,6 +140,20 @@ def free_times(db: DBSession, physio_id: str, start: date, end: date, minutes: i
     return sorted(out, key=lambda x: x["start"])
 
 
+def within_hours(db: DBSession, physio_id: str, start: datetime, minutes: int) -> bool:
+    """Round 2 F14.1: does [start, start + minutes) fall inside one of the working-hours rules?"""
+    loc = start.astimezone(E.LOCAL_TZ)
+    end = loc + timedelta(minutes=minutes)
+    for r in db.query(models.AvailabilityRule).filter_by(physio_id=physio_id, active=True).all():
+        if r.weekday != loc.weekday():
+            continue
+        if (r.valid_from and loc.date().isoformat() < r.valid_from) or (r.valid_until and loc.date().isoformat() > r.valid_until):
+            continue
+        if _local(loc.date(), r.start_local) <= loc and end <= _local(loc.date(), r.end_local):
+            return True
+    return False
+
+
 def is_free(db: DBSession, physio_id: str, start: datetime, minutes: int) -> bool:
     end = start + timedelta(minutes=minutes)
     return not any(start < b1 and b0 < end for b0, b1 in busy_intervals(db, physio_id))
@@ -147,7 +161,7 @@ def is_free(db: DBSession, physio_id: str, start: datetime, minutes: int) -> boo
 
 # ---- W12 clinical limits -----------------------------------------------------------------------------------
 LIMIT_KINDS = {
-    "no_running": "Dnes bez běhu", "max_km_week": "max. {v} km tento týden", "max_km_session": "max. {v} km na jeden běh",
+    "no_running": "Dnes bez běhu", "max_km_week": "max. {v} km týdně", "max_km_session": "max. {v} km na jeden běh",
     "no_intervals": "bez intervalů a intenzity", "no_downhill": "bez seběhů", "max_descent_m": "klesání max. {v} m",
     "max_high_intensity_min": "intenzita max. {v} min",
 }
@@ -159,36 +173,24 @@ def active_limits(db: DBSession, rid: str, on: date | None = None) -> list[model
             if (not x.starts_on or x.starts_on <= on) and (not x.ends_on or x.ends_on >= on)]
 
 
-def limit_text(x: models.ClinicalLimit) -> str:
+def limit_text(x: models.ClinicalLimit, today: date | None = None) -> str:
+    """Round 2 F3.5: one wording everywhere — "max. 20 km týdně", with an end date "max. 20 km týdně do 24. 11.",
+    and "tento týden" only when the limit ends this Sunday."""
     v = x.value
     vs = (str(int(v)) if v is not None and float(v).is_integer() else str(v).replace(".", ",")) if v is not None else ""
-    return LIMIT_KINDS.get(x.kind, x.kind).format(v=vs)
-
-
-def apply_limits(g: dict, limits: list, physio_name: str | None) -> None:
-    """W12.2: training options take the lower of the engine's ceiling and the physio's limit (presentation only)."""
-    if not g or not limits:
-        return
-    types = g.get("types") or {}
-    who = physio_name or "fyzioterapeuta"
-    notes = []
-    for x in limits:
-        why = f"Podle {who}: {limit_text(x)} — {x.reason_cs}"
-        notes.append(why)
-        if x.kind == "max_km_session" and x.value is not None:
-            for t in ("regenerace", "lehký", "dlouhý", "kvalitní"):
-                km = (types.get(t) or {}).get("km")
-                if km and km.get("hi") is not None and km["hi"] > x.value:
-                    km["hi"] = x.value
-                    km["lo"] = min(km.get("lo") or x.value, x.value)
-                    types[t].setdefault("notes", []).insert(0, why)
-        if x.kind in ("no_intervals", "max_high_intensity_min") and "kvalitní" in types:
-            types["kvalitní"]["allowed"], types["kvalitní"]["why"] = False, why
-        if x.kind in ("no_downhill", "max_descent_m"):
-            for t in types.values():
-                if isinstance(t, dict) and "descentMax" in t:
-                    t["descentMax"] = 0 if x.kind == "no_downhill" else min(t.get("descentMax") or x.value, x.value)
-    g["limits"] = notes
+    text = LIMIT_KINDS.get(x.kind, x.kind).format(v=vs)
+    end = None
+    try:
+        end = date.fromisoformat(x.ends_on[:10]) if x.ends_on else None
+    except ValueError:
+        end = None
+    if end is None or x.kind == "no_running":
+        return text
+    t = today or E.today_date()
+    sunday = t + timedelta(days=6 - t.weekday())
+    if x.kind == "max_km_week" and end == sunday:
+        return text.replace("týdně", "tento týden")
+    return f"{text} do {end.day}. {end.month}."
 
 
 def week_km(db: DBSession, rid: str) -> float:
@@ -223,25 +225,29 @@ def limit_breaches(db: DBSession, rid: str) -> list[dict]:
 
 
 # ---- W10 adherence ---------------------------------------------------------------------------------------
-def adherence(db: DBSession, program: models.Program, days: int | None = None) -> dict:
-    """Full weeks for past weeks and the elapsed days of the current week (the method Physitrack uses).
-    `days` limits it to the last N days (W3 adherence_drop)."""
+def program_adherence(db: DBSession, program: models.Program, as_of: date | None = None) -> dict:
+    """Round 2 F7: the one adherence number for Klienti, Dnes, Přehled, Plán, Příprava and the runner's Péče.
+    Weekly (W10.9: past weeks in full, the current week by its elapsed days) when every tick has a date — a log
+    without logged_on takes its created_at. Ticks from before dated logs existed (done_count above the logs) make
+    it a total estimate: done / expected to date, capped at 100 %, labelled "odhad".
+    Returns {pct, method, done, expected, undated_logs, weeks, text}."""
+    from .routers.programs import published_at
     ex = db.query(models.Exercise).filter_by(program_id=program.id).all()
     per_week = sum(e.per_week or 0 for e in ex)
+    empty = {"pct": None, "method": "weekly", "done": 0, "expected": 0, "undated_logs": 0, "weeks": [],
+             "text": "Program bez cviků."}
     if not per_week:
-        return {"pct": None, "weeks": []}
+        return empty
     try:
-        start = date.fromisoformat((program.sent_at or program.started_on or "")[:10])
+        start = date.fromisoformat((program.sent_at or program.started_on or published_at(db, program) or "")[:10])
     except ValueError:
         start = E.today_date()
-    today = E.today_date()
-    if days:
-        start = max(start, today - timedelta(days=days - 1))
-    logs = db.query(models.ExerciseLog).filter(models.ExerciseLog.program_id == program.id,
-                                               models.ExerciseLog.logged_on >= start.isoformat()).all()
-    if not logs and not days and any((e.done_count or 0) for e in ex):
-        # sessions ticked before dated logs existed: counted, but not placeable in a week — say so, not 0 %
-        return {"pct": None, "weeks": [], "undated": sum(e.done_count or 0 for e in ex)}
+    today = as_of or E.today_date()
+    logs = db.query(models.ExerciseLog).filter(models.ExerciseLog.program_id == program.id).all()
+    dated = [((lg.logged_on or (lg.created_at or "")[:10]) or None) for lg in logs]
+    dated = [d for d in dated if d and start.isoformat() <= d <= today.isoformat()]
+    ticks = sum(e.done_count or 0 for e in ex)
+    undated = max(0, ticks - len(logs))
     weeks, expected, done = [], 0.0, 0
     ws = start - timedelta(days=start.weekday())
     while ws <= today:
@@ -249,13 +255,26 @@ def adherence(db: DBSession, program: models.Program, days: int | None = None) -
         span_start, span_end = max(ws, start), min(we, today)
         frac = ((span_end - span_start).days + 1) / 7
         exp = per_week * frac
-        n = sum(1 for lg in logs if span_start.isoformat() <= (lg.logged_on or "") <= span_end.isoformat())
+        n = sum(1 for d in dated if span_start.isoformat() <= d <= span_end.isoformat())
         weeks.append({"week": ws.isoformat(), "expected": round(exp, 1), "done": n,
-                      "pct": round(100 * min(1.0, n / exp)) if exp else None})
+                      "pct": round(100 * min(1.0, n / exp)) if exp > 0 else None})
         expected += exp
         done += n
         ws += timedelta(days=7)
-    return {"pct": round(100 * min(1.0, done / expected)) if expected else None, "weeks": weeks}
+    if undated:
+        tot = done + undated
+        pct = round(100 * min(1.0, tot / expected)) if expected else None
+        return {"pct": pct, "method": "total_estimate", "done": tot, "expected": round(expected, 1),
+                "undated_logs": undated, "weeks": weeks,
+                "text": f"Program splněn na {pct} % (odhad)" if pct is not None else "Plnění zatím nejde spočítat."}
+    pct = round(100 * min(1.0, done / expected)) if expected else None
+    return {"pct": pct, "method": "weekly", "done": done, "expected": round(expected, 1), "undated_logs": 0,
+            "weeks": weeks, "text": f"Program splněn na {pct} %" if pct is not None else "Plnění zatím nejde spočítat."}
+
+
+def adherence(db: DBSession, program: models.Program, days: int | None = None) -> dict:
+    """Kept for callers; round 2 F7 has one number (program_adherence) — `days` no longer changes it."""
+    return program_adherence(db, program)
 
 
 # ---- W3 alerts ---------------------------------------------------------------------------------------------
@@ -270,8 +289,32 @@ SEVERITY = {"rtr_paused_pain": "high", "rtr_morning_worse": "high", "checkin_pai
 ALERT_CS = {"rtr_paused_pain": "Návrat k běhu: bolest nad hranicí", "rtr_morning_worse": "Návrat k běhu: ráno hůř",
             "checkin_pain_high": "Vysoká bolest v check-inu", "limit_exceeded": "Překročené omezení tréninku",
             "adherence_drop": "Program se plní pod 50 %", "load_spike": "Skok v zátěži",
-            "no_data_7d": "7 dní bez dat", "note_unsigned": "Nepodepsaný záznam", "programme_ended": "Program skončil",
+            "no_data_7d": "Bez dat", "note_unsigned": "Nepodepsaný záznam", "programme_ended": "Program skončil",
             "no_morning_data": "Návrat k běhu: chybí ranní odpověď"}
+
+
+def alert_title(rule: str, payload: dict | None) -> str:
+    """Round 2 F4.4 / F7.5: the title carries the real number — "Bez dat 54 dní", "Program splněn na 38 %"."""
+    p = payload or {}
+    if rule == "no_data_7d":
+        if p.get("days") is not None:
+            return f"Bez dat {p['days']} dní"
+        return "Bez dat" if not p.get("last") else f"Bez dat od {int(p['last'][8:10])}. {int(p['last'][5:7])}."
+    if rule == "adherence_drop" and p.get("pct") is not None:
+        return f"Program splněn na {round(p['pct'])} %" + (" (odhad)" if p.get("method") == "total_estimate" else "")
+    return ALERT_CS.get(rule, rule)
+
+
+def by_gender(physio, feminine: str, masculine: str, neutral: str) -> str:
+    """Round 2 F15.2: texts about the physio follow their grammatical gender; without one, neutral wording."""
+    g = getattr(physio, "grammatical_gender", None)
+    return feminine if g == "f" else masculine if g == "m" else neutral
+
+
+def verb(physio, stem_f: str, stem_m: str) -> str:
+    """A past-tense verb for the access history: 'zobrazila' / 'zobrazil', else 'zobrazil(a)'."""
+    g = getattr(physio, "grammatical_gender", None)
+    return stem_f if g == "f" else stem_m if g == "m" else f"{stem_m}(a)"
 
 
 def _clients(db: DBSession, physio_id: str) -> list[str]:
@@ -308,21 +351,23 @@ def _rule_hits(db: DBSession, physio_id: str, rid: str) -> dict[str, dict]:
             .order_by(models.Program.id.desc()).first())
     if prog is not None:
         from .routers.programs import ends_on
-        end = ends_on(prog)
+        end = ends_on(prog, db)
         if end and end < E.iso_date(E.today_date()):
             hits["programme_ended"] = {"program_id": prog.id, "ended": end}
         else:
             sent = (prog.sent_at or "")[:10]
             if sent and sent <= (E.today_date() - timedelta(days=7)).isoformat():
-                adh = adherence(db, prog, days=7)["pct"]
-                if adh is not None and adh < ADHERENCE_LOW:
-                    hits["adherence_drop"] = {"program_id": prog.id, "pct": adh}
+                adh = program_adherence(db, prog)          # round 2 F7.5: the same number as everywhere
+                if adh["pct"] is not None and adh["pct"] < ADHERENCE_LOW:
+                    hits["adherence_drop"] = {"program_id": prog.id, "pct": adh["pct"], "method": adh["method"]}
     a = E.get_or_refresh_assessment(db, rid) or {}
     if any(s.get("id") in SPIKE_SIGNALS for s in a.get("signals") or []):
         hits["load_spike"] = {}
     fr = CV.freshness_for(db, rid)
     if fr["status"] == "none" or (fr["days_since"] or 0) >= NO_DATA_DAYS:
-        hits["no_data_7d"] = {"last": fr["last_data_at"]}
+        # round 2 F4.4: the real N, and the severity from the freshness thresholds (stale is high)
+        hits["no_data_7d"] = {"last": fr["last_data_at"], "days": fr["days_since"],
+                              "severity": "high" if fr["status"] in ("stale", "none") else "medium"}
     return hits
 
 
@@ -341,10 +386,12 @@ def refresh_alerts(db: DBSession, physio_id: str) -> None:
     for key, payload in current.items():
         x = existing.get(key)
         if x is None:
-            db.add(models.PhysioAlert(physio_id=physio_id, runner_id=key[1], rule=key[0], severity=SEVERITY[key[0]],
+            db.add(models.PhysioAlert(physio_id=physio_id, runner_id=key[1], rule=key[0],
+                                      severity=payload.get("severity") or SEVERITY[key[0]],
                                       payload_json=payload, created_at=now, status="active"))
         else:
             x.payload_json = payload
+            x.severity = payload.get("severity") or x.severity
             if x.status == "snoozed" and x.snoozed_until and x.snoozed_until <= now:
                 x.status = "active"
     for key, x in existing.items():
@@ -375,6 +422,18 @@ def rtr_morning_worse(db: DBSession, plan: models.ReturnToRun) -> dict | None:
     if last.next_morning_pain is not None and last.next_morning_pain > plan.pain_threshold:
         return {"morning": last.next_morning_pain}
     return None
+
+
+MORNING_FROM_HOUR = 6          # round 2 F5.5: the morning question opens at 06:00 the next local day
+
+
+def morning_from(logged_at: str) -> datetime:
+    """When the next-morning question opens for a session: 06:00 local on the day after it."""
+    at = datetime.fromisoformat(logged_at)
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=E.LOCAL_TZ)
+    loc = at.astimezone(E.LOCAL_TZ)
+    return datetime.combine(loc.date() + timedelta(days=1), time(MORNING_FROM_HOUR), E.LOCAL_TZ)
 
 
 def expire_morning(db: DBSession, plan: models.ReturnToRun) -> None:
@@ -428,4 +487,5 @@ def unsigned_reminders(db: DBSession, physio_id: str) -> int:
     if not todays:
         return 0
     NOTIFY.send(db, "note_unsigned", f"Nepodepsané záznamy: {len(todays)}", physio_id=physio_id, ref=ref)
+    db.flush()      # round 2 F19.5: the session does not autoflush — a second call in it must see this one
     return 1

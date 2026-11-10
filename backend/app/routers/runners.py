@@ -711,10 +711,16 @@ def access_log(rid: str, user: models.User = Depends(get_current_user), db: DBSe
 def _access_log(db: DBSession, rid: str, limit: int) -> list[dict]:
     """Who touched the record: claimed physios, and the app owner's admin view
     ("Správce aplikace", read-only), newest first."""
-    rows = (db.query(models.AccessLog).filter(models.AccessLog.runner_id == rid)
+    # round 2 F12.2: physio reads and writes from record_events (every audited route), grouped per local day;
+    # days before the detailed log began still come from the older counters
+    from .records import access_summary
+    out = access_summary(db, rid, limit)
+    first = (db.query(models.RecordEvent.at).filter(models.RecordEvent.runner_id == rid)
+             .order_by(models.RecordEvent.id.asc()).first())
+    since = (first[0] or "")[:10] if first else "9999"
+    rows = (db.query(models.AccessLog).filter(models.AccessLog.runner_id == rid, models.AccessLog.date < since)
             .order_by(models.AccessLog.last_at.desc()).limit(limit).all())
     names = {p.id: p.name for p in db.query(models.Physio).filter(models.Physio.id.in_({r.physio_id for r in rows})).all()} if rows else {}
-    out = []
     for r in rows:
         d = to_dict(r)
         d["physio_name"] = names.get(r.physio_id)

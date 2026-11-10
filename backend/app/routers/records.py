@@ -5,10 +5,11 @@ destruction (R11) and what stays after the client withdraws consent (R13)."""
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session as DBSession
 
 from .. import models
@@ -89,8 +90,8 @@ def put_practice(body: PracticeIn, user: models.User = Depends(require_verified_
     p = _physio(db, user)
     c = R.clinic_of(db, p)
     given = body.model_fields_set
-    if body.ico is not None and body.ico.strip() and not (body.ico.strip().isdigit() and len(body.ico.strip()) == 8):
-        raise HTTPException(status_code=422, detail="IČO má 8 číslic.")
+    if body.ico is not None and body.ico.strip() and not R.ico_valid(body.ico.strip()):
+        raise HTTPException(status_code=422, detail="Neplatné IČO.")      # round 2 F10.1
     changed = []
     for k in CLINIC_FIELDS:
         if k in given:
@@ -142,7 +143,20 @@ def get_card(rid: str, user: models.User = Depends(require_verified_physio), db:
     r = db.get(models.Runner, rid)
     if card is None:
         db.commit()
-        return {"id": None, "prefill": R.card_prefill(r) if r else {}, "missing": list(R.PATIENT_REQUIRED),
+        # round 2 F13.6: the runner's first-visit intake fills in what the profile does not know
+        pre = R.card_prefill(r) if r else {}
+        it = (db.query(models.IntakeForm).filter_by(runner_id=rid, physio_id=p.id).order_by(models.IntakeForm.id.desc()).first())
+        if it is not None:
+            dd = it.data or {}
+            for src, dst in (("first_name", "first_name"), ("last_name", "last_name"), ("birth_date", "birth_date"),
+                             ("sex_at_birth", "sex_at_birth"), ("street", "permanent_street"), ("city", "permanent_city"),
+                             ("postal_code", "permanent_postal_code"), ("phone", "phone"), ("gp", "gp_name")):
+                if dd.get(src):
+                    pre[dst] = dd[src]
+            if dd.get("history") or dd.get("red_flags"):
+                pre["anamnesis"] = "\n".join(x for x in (dd.get("history"), ", ".join(dd.get("red_flags") or [])) if x)
+            pre["from_intake"] = True
+        return {"id": None, "prefill": pre, "missing": list(R.PATIENT_REQUIRED),
                 "crypto": R.crypto_on(), "live": live}
     R.physio_event(db, p, "read", "patient_card", card.id, runner_id=rid)
     db.commit()
@@ -186,6 +200,7 @@ def put_card(rid: str, body: CardIn, user: models.User = Depends(require_verifie
     if r is not None and live:
         card.source_snapshot = R.runner_snapshot(r)
     card.updated_at = E.now_iso()
+    card.incomplete = 1 if R.patient_missing(card) else 0      # round 2 F2.1
     db.flush()
     R.physio_event(db, p, "create" if created else "update", "patient_card", card.id, runner_id=rid,
                    detail={"fields": changed})
@@ -290,11 +305,25 @@ def _schedule_followup(db: DBSession, ep: models.CareEpisode) -> None:
 @router.get("/api/diagnoses")
 def search_diagnoses(q: str = "", user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     """R3.3: the imported MKN-10 list. Empty until the official ÚZIS file is imported."""
+    from ..scripts.import_mkn10 import fold
     qs = db.query(models.DiagnosisCode)
-    if q:
-        like = f"%{q.strip()}%"
-        qs = qs.filter((models.DiagnosisCode.code.ilike(like)) | (models.DiagnosisCode.label.ilike(like)))
-    rows = qs.order_by(models.DiagnosisCode.running_shortlist.desc(), models.DiagnosisCode.code).limit(30).all()
+    rows = []
+    if q.strip():
+        # round 2 F9.3: a code prefix ("M76", "m766") first, then text, both without diacritics; every word must match
+        f = fold(q.strip())
+        code = f.upper().replace(" ", "")
+        rows = (qs.filter((models.DiagnosisCode.code.ilike(f"{code}%")) |
+                          (func.replace(models.DiagnosisCode.code, ".", "").ilike(f"{code.replace('.', '')}%")))
+                .order_by(models.DiagnosisCode.code).limit(30).all())
+        if len(rows) < 30:
+            tq = qs
+            for w in f.split():
+                tq = tq.filter(models.DiagnosisCode.search.like(f"%{w}%"))
+            seen = {r.code for r in rows}
+            rows += [r for r in tq.order_by(models.DiagnosisCode.running_shortlist.desc(), models.DiagnosisCode.code)
+                     .limit(30).all() if r.code not in seen][:30 - len(rows)]
+    else:
+        rows = qs.order_by(models.DiagnosisCode.running_shortlist.desc(), models.DiagnosisCode.code).limit(30).all()
     return {"items": [{"code": d.code, "label": d.label, "shortlist": bool(d.running_shortlist)} for d in rows],
             "imported": db.query(models.DiagnosisCode.code).first() is not None}
 
@@ -305,7 +334,10 @@ def _version_out(db: DBSession, rec: models.ClinicalRecord) -> dict:
     cur = vs[-1]
     addenda = (db.query(models.ClinicalRecord).filter_by(corrects_record_id=rec.id, kind="addendum")
                .order_by(models.ClinicalRecord.created_at).all())
+    body = R.content_of(rec)
     return {"id": rec.id, "kind": rec.kind, "encounter_at": rec.encounter_at, "episode_id": rec.episode_id,
+            # round 2 F2.7: notes brought in from before the ledger, and what the backfill flagged
+            "legacy": bool(body.get("legacy")), "flags": body.get("flags") or [],
             "booking_id": rec.booking_id, "current_id": cur.id, "current": R.content_of(cur)["content"],
             "author": rec.author_name, "author_identifier": rec.author_identifier, "authorised_at": rec.authorised_at,
             "corrections": [{"id": v.id, "at": v.authorised_at, "by": v.author_name, "reason": v.correction_reason,
@@ -336,7 +368,7 @@ def documentation(rid: str, user: models.User = Depends(require_verified_physio)
             "patient": R.patient_snapshot(card) if card else None,
             "patient_missing": R.patient_missing(card),
             "records": [_version_out(db, r) for r in roots],
-            "access": [_event_out(e) for e in events],
+            "access": [_event_out(e, db) for e in events],
             "can_send_electronically": SIGNING.configured(),
             "generated_at": E.now_iso()}
 
@@ -454,7 +486,8 @@ def export_doc(rid: str, user: models.User = Depends(require_verified_physio), d
     rows = db.query(models.ClinicalRecord).filter_by(patient_record_id=card.id).order_by(models.ClinicalRecord.created_at).all()
     R.physio_event(db, p, "export", "documentation", card.id, runner_id=rid, detail={"records": len(rows)})
     db.commit()
-    return {"format": "dosslap-record-export/1", "patient": R.patient_snapshot(card),
+    # round 2 F11.4: the format is named after the product; an import added later accepts both names
+    return {"format": "doslap-record-export/1", "patient": R.patient_snapshot(card),
             "records": [{"id": r.id, "kind": r.kind, "encounter_at": r.encounter_at, "authorised_at": r.authorised_at,
                          "author": r.author_name, "corrects": r.corrects_record_id, "content": json.loads(r.content_json),
                          "content_sha256": r.content_sha256, "chain_sha256": r.chain_sha256} for r in rows],
@@ -482,23 +515,88 @@ ACTION_CS = {"read": "zobrazil(a)", "create": "vytvořil(a)", "update": "upravil
 RESOURCE_CS = {"documentation": "dokumentaci", "patient_card": "kartu klienta", "clinical_record": "záznam z návštěvy",
                "program": "program", "rtr": "plán návratu k běhu", "booking": "návštěvu", "conclusion": "záznam z návštěvy",
                "runner": "data z aplikace", "triage": "případ", "episode": "epizodu péče", "addendum": "doplněk záznamu",
-               "practice": "údaje praxe", "messages": "zprávy", "limit": "omezení tréninku", "injury": "zranění"}
+               "practice": "údaje praxe", "messages": "zprávy", "limit": "omezení tréninku", "injury": "zranění",
+               # physio brief Phases 3 and 4: the history showed the raw keys (clinic_test, prom, package)
+               "clinic_test": "test v ordinaci", "prom": "dotazník", "package": "balíček návštěv", "invoice": "doklad",
+               "waitlist": "pořadník", "video_note": "poznámku k videu", "outcomes": "výsledky", "recall": "seznam k oslovení"}
 
 
-def _event_out(e: models.RecordEvent) -> dict:
-    return {"at": e.at, "who": e.actor_name or e.actor_type, "actor_type": e.actor_type, "action": e.action,
-            "resource": e.resource_type,
-            "text": f"{ACTION_CS.get(e.action, e.action)} {RESOURCE_CS.get(e.resource_type, e.resource_type)}"}
+WRITE_ACTIONS = {"create", "update", "approve", "correct", "export", "handover", "message", "consent", "close",
+                 "transcribe", "addendum", "delete", "publish", "cancel", "move"}
+
+
+def _detail(e: models.RecordEvent) -> dict:
+    try:
+        d = json.loads(e.detail_json) if e.detail_json else {}
+    except (TypeError, ValueError):
+        d = {}
+    return d if isinstance(d, dict) else {}
+
+
+def _action_cs(e: models.RecordEvent, db: DBSession | None = None) -> str:
+    """Round 2 F11.7 / F15.2: the verb in the physio's grammatical gender ('zobrazila'), '(a)' without one."""
+    base = ACTION_CS.get(e.action, e.action)
+    if db is None or e.actor_type != "physio" or not e.actor_id or "(a)" not in base:
+        return base
+    from .. import work as W
+    ph = db.get(models.Physio, e.actor_id)
+    stem = base.split("(a)")[0]
+    return W.verb(ph, stem + "a", stem) + base.split("(a)", 1)[1] if ph else base
+
+
+def _event_out(e: models.RecordEvent, db: DBSession | None = None) -> dict:
+    text = f"{_action_cs(e, db)} {RESOURCE_CS.get(e.resource_type, e.resource_type)}"
+    if e.action == "handover":
+        # round 2 F11.6: who received it and why — never clinical text
+        d = _detail(e)
+        bits = [f"příjemce: {d['recipient']}" if d.get("recipient") else None, f"účel: {d['purpose']}" if d.get("purpose") else None]
+        if any(bits):
+            text += " — " + ", ".join(b for b in bits if b)
+    return {"id": e.id, "at": e.at, "who": e.actor_name or e.actor_type, "actor_type": e.actor_type, "action": e.action,
+            "resource": e.resource_type, "text": text}
+
+
+PAGE = 50
 
 
 @router.get("/api/runners/{rid}/access-events")
-def runner_access_events(rid: str, user: models.User = Depends(get_current_user), db: DBSession = Depends(get_db)):
-    """R7.5: Kdo přistupoval k vašim datům → Zobrazit detail."""
+def runner_access_events(rid: str, before: int | None = None, user: models.User = Depends(get_current_user),
+                         db: DBSession = Depends(get_db)):
+    """R7.5: Kdo přistupoval k vašim datům → Zobrazit detail. Round 2 F12.1: every event, 50 per page, newest
+    first, cursor on id (`before`); `since` is the first detailed event, so the list can say where it starts."""
     ensure_runner_self(user, rid)
-    rows = (db.query(models.RecordEvent).filter(models.RecordEvent.runner_id == rid,
-                                                models.RecordEvent.actor_type != "runner")
-            .order_by(models.RecordEvent.id.desc()).limit(200).all())
-    return {"items": [_event_out(e) for e in rows]}
+    q = db.query(models.RecordEvent).filter(models.RecordEvent.runner_id == rid, models.RecordEvent.actor_type != "runner")
+    first = q.order_by(models.RecordEvent.id.asc()).first()
+    if before:
+        q = q.filter(models.RecordEvent.id < before)
+    rows = q.order_by(models.RecordEvent.id.desc()).limit(PAGE + 1).all()
+    more = len(rows) > PAGE
+    rows = rows[:PAGE]
+    return {"items": [_event_out(e, db) for e in rows], "next": rows[-1].id if more and rows else None,
+            "since": first.at if first else None}
+
+
+def access_summary(db: DBSession, rid: str, limit: int = 40) -> list[dict]:
+    """Round 2 F12.2: the daily summary from record_events — one row per local day, actor and read/write — so it
+    counts every audited route; the coach and the app owner keep their own logs."""
+    rows = (db.query(models.RecordEvent).filter(models.RecordEvent.runner_id == rid, models.RecordEvent.actor_type != "runner")
+            .order_by(models.RecordEvent.id.desc()).limit(5000).all())
+    groups: dict[tuple, dict] = {}
+    for e in rows:
+        try:
+            day = datetime.fromisoformat(e.at).astimezone(E.LOCAL_TZ).date().isoformat()
+        except (TypeError, ValueError):
+            day = (e.at or "")[:10]
+        kind = "write" if e.action in WRITE_ACTIONS else "read"
+        key = (day, e.actor_id or e.actor_name, kind)
+        g = groups.setdefault(key, {"id": f"ev-{day}-{e.actor_id}-{kind}", "runner_id": rid, "physio_id": e.actor_id,
+                                    "actor_role": e.actor_type, "action": kind, "date": day, "access_count": 0,
+                                    "first_at": e.at, "last_at": e.at, "physio_name": e.actor_name})
+        g["access_count"] += 1
+        g["first_at"] = min(g["first_at"], e.at)
+        g["last_at"] = max(g["last_at"], e.at)
+    out = sorted(groups.values(), key=lambda g: (g["date"], g["last_at"]), reverse=True)
+    return out[:limit]
 
 
 # ---- R8 unsigned ---------------------------------------------------------------------------------------------

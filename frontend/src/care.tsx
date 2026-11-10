@@ -4,7 +4,7 @@ import { api } from "@/api"
 import { useApp } from "@/store"
 import { AlertBanner, Button, Card, Chip, Field, HowTo, Label, ListRow, Segmented, Sheet, Slider, useAsync, useToast } from "@/ui"
 import { CalendarDays, CalendarClock, Send, Star, UserRound } from "lucide-react"
-import { fmtSlot, fmtD, fmtDT, initials, czk } from "@/lib"
+import { fmtSlot, fmtD, fmtDT, initials, czk, painWord } from "@/lib"
 import { Head, Program } from "@/tabs"
 import MuscleAnatomy, { type BodyPoint } from "@/components/MuscleAnatomy"
 import { CARE_SUB_EVENT } from "@/onboarding"
@@ -29,7 +29,7 @@ export function Care() {
   const [sub, setSub] = useState<"physio" | "program" | "health">("program")
   const [findOpen, setFindOpen] = useState(false)
   const [injOpen, setInjOpen] = useState(false)
-  const [rtrOpen, setRtrOpen] = useState(false)
+  const [rtrOpen, setRtrOpen] = useState<false | "session" | "pain">(false)
   const [healedOpen, setHealedOpen] = useState(false)
   // railway#117 — Trénink links here (?sub=health&healed=1) to confirm a healed injury
   const [params, setParams] = useSearchParams()
@@ -59,7 +59,7 @@ export function Care() {
     <>
       {findOpen && <FindSlotSheet onClose={() => setFindOpen(false)} onDone={() => { setFindOpen(false); refresh() }} />}
       {injOpen && <InjurySheet rid={rid} onClose={() => setInjOpen(false)} onDone={() => { setInjOpen(false); refresh() }} />}
-      {rtrOpen && rtr && <RtrSheet plan={rtr} onClose={() => setRtrOpen(false)} onDone={() => { setRtrOpen(false); refresh() }} />}
+      {rtrOpen && rtr && <RtrSheet plan={rtr} painOnly={rtrOpen === "pain"} onClose={() => setRtrOpen(false)} onDone={() => { setRtrOpen(false); refresh() }} />}
       {healedOpen && <HealedSheet rid={rid} site={boot?.assessment?.injury?.active?.site} onClose={() => setHealedOpen(false)} onDone={() => { refresh() }} onPhysio={() => { setHealedOpen(false); setSub("physio") }} />}
 
       <div className="mb-6" data-tour="care-tabs">
@@ -69,7 +69,7 @@ export function Care() {
 
       {sub === "physio" && <PhysioSection onFind={() => setFindOpen(true)} />}
       {sub === "program" && <Program />}
-      {sub === "health" && <HealthSection onReport={() => setInjOpen(true)} onRtr={() => setRtrOpen(true)} onHealed={() => setHealedOpen(true)} />}
+      {sub === "health" && <HealthSection onReport={() => setInjOpen(true)} onRtr={(m) => setRtrOpen(m)} onHealed={() => setHealedOpen(true)} />}
     </>
   )
 }
@@ -114,7 +114,7 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
               {bookings.length > 0 && (
                 <div className="mt-2 divide-y divide-white/[.07]">{bookings.map((b: any) => (
                   <ListRow key={b.id} icon={CalendarDays} tone={b.status === "confirmed" ? "ok" : "watch"} title={pn(b.physio_id)}
-                    meta={`${fmtSlot(b.slot_at)} · ${b.status === "requested" ? "čeká na potvrzení" : "potvrzeno"}`}
+                    meta={fmtSlot(b.slot_at)}   // round 2 F18: the status is the chip, said once
                     trailing={<>
                       <Chip tone={b.status === "confirmed" ? "ok" : "watch"}>{b.status === "requested" ? "čeká" : "potvrzeno"}</Chip>
                       {b.status === "confirmed" && b.kind === "assessment" && <button onClick={() => setIntakeFor(b)} className="shrink-0 text-[12px] font-bold text-accent hover:underline">Dotazník</button>}
@@ -145,7 +145,7 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
             <div className="mt-2 grid gap-3">
               {(boot.conclusions as any[]).map((c) => (
                 <div key={c.id}>
-                  <b className="text-[13px]">{`${fmtD(c.approved_at || c.shared_at)} · ${pn(c.physio_id)}`}</b>
+                  <b className="text-[13px]">{`${fmtD(c.visit_at || c.approved_at || c.shared_at)} · ${pn(c.physio_id)}`}</b>
                   {c.corrected_at && <span className="ml-2 text-[11.5px] text-fg-3">{`opraveno ${fmtD(c.corrected_at)}`}</span>}
                   <p translate="no" className="mt-1 whitespace-pre-wrap text-[13px] text-fg-2">{c.summary}</p>
                 </div>
@@ -161,8 +161,11 @@ function PhysioSection({ onFind }: { onFind: () => void }) {
 }
 
 // physio brief 2026-11-09 W16.4: before the first visit, the client can fill in the intake at home
-function IntakeSheet({ rid, booking, onClose }: { rid: string; booking: any; onClose: () => void }) {
-  const [f, setF] = useState<any>({ history: "", medications: "", surgeries: "", goals: "", red_flags: [] as string[], consent: false })
+function IntakeSheet({ rid, booking, onClose, identity = false }: { rid: string; booking: any; onClose: () => void; identity?: boolean }) {
+  const { boot } = useApp()
+  const [first0, ...rest0] = String(boot?.runner?.name || "").split(" ")
+  const [f, setF] = useState<any>({ history: "", medications: "", surgeries: "", goals: "", red_flags: [] as string[], consent: false,
+    first_name: first0 || "", last_name: rest0.join(" "), birth_date: "", sex_at_birth: boot?.runner?.sex || "", street: "", city: boot?.runner?.city || "", postal_code: "", phone: "", gp: "" })
   const { busy, err, run } = useAsync()
   const toast = useToast()
   const FLAGS: [string, string][] = [["night_pain", "Bolest v noci nebo v klidu"], ["weight_loss", "Nevysvětlené hubnutí"], ["fever", "Horečka nebo celková slabost"], ["numbness", "Necitlivost, mravenčení, slabost nohy"]]
@@ -171,6 +174,15 @@ function IntakeSheet({ rid, booking, onClose }: { rid: string; booking: any; onC
     <Sheet open onClose={onClose}>
       <h2 className="font-serif text-2xl">Vstupní dotazník</h2>
       <p className="mt-1 text-[13px] text-fg-2">{`Před návštěvou ${fmtSlot(booking.slot_at)}. Fyzioterapeut ho uvidí v kartě a nemusíte vše říkat znovu.`}</p>
+      {/* round 2 F13.6: the first visit at a clinic — the identity the record needs, filled once, confirmed by the physio */}
+      {identity && <div className="mt-2 grid gap-2 sm:grid-cols-2" data-testid="intake-identity">
+        {([["first_name", "Jméno"], ["last_name", "Příjmení"], ["birth_date", "Datum narození", "date"], ["street", "Ulice a číslo (trvalý pobyt)"],
+          ["city", "Obec"], ["postal_code", "PSČ"], ["phone", "Telefon", "tel"], ["gp", "Praktický lékař"]] as [string, string, string?][]).map(([k, l, type]) => (
+          <Field key={k} label={l}><input type={type || "text"} className={ta} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></Field>
+        ))}
+        <Field label="Pohlaví při narození"><select className={ta} value={f.sex_at_birth} onChange={(e) => setF({ ...f, sex_at_birth: e.target.value })}>
+          <option value="">—</option><option value="f">žena</option><option value="m">muž</option></select></Field>
+      </div>}
       <Field label="Dřívější zranění a obtíže"><textarea rows={2} className={ta} value={f.history} onChange={(e) => setF({ ...f, history: e.target.value })} /></Field>
       <Field label="Léky"><textarea rows={1} className={ta} value={f.medications} onChange={(e) => setF({ ...f, medications: e.target.value })} /></Field>
       <Field label="Operace"><textarea rows={1} className={ta} value={f.surgeries} onChange={(e) => setF({ ...f, surgeries: e.target.value })} /></Field>
@@ -223,7 +235,13 @@ function PhysioChat() {
   )
 }
 
-function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; onRtr: () => void; onHealed: () => void }) {
+const RTR_STATE: Record<string, string> = { active: "probíhá", paused: "pozastavený", completed: "dokončený" }
+function RtrState({ rtr }: { rtr: any }) {
+  const levels = rtr.levels_json?.length || rtr.levels?.length
+  return <>{"Plán návratu k běhu "}{RTR_STATE[rtr.status] || rtr.status}{levels ? ` · úroveň ${rtr.current_level} z ${levels}` : ""}{". Podrobnosti níže."}</>
+}
+
+function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; onRtr: (mode: "session" | "pain") => void; onHealed: () => void }) {
   const { me, boot, refresh } = useApp()
   const rid = me!.runner_id!
   const a = boot?.assessment
@@ -254,7 +272,8 @@ function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; on
               {/* physio brief 2026-11-09 P0.2.5: the generic return only when no physio leads it */}
               {(cd?.source === "engine" || (cd?.source === "injury" && !cd?.physio_involved))
                 ? "Pak následují 3 týdny postupného návratu (50 → 75 → 90 % týdne před zraněním), první 2 týdny bez intenzity."
-                : cd?.headline_cs || "Řiďte se pokyny fyzioterapeuta."}
+                // round 2 F3.2: the plan card's state, not the day's headline a second time
+                : rtr ? <RtrState rtr={rtr} /> : "Řiďte se pokyny fyzioterapeuta."}
             </AlertBanner>
             <button onClick={onReport} className="mt-3 text-[12px] font-bold text-fg-3 underline underline-offset-2 hover:text-fg-2">Nahlásit další obtíže</button>
           </Card>
@@ -276,7 +295,13 @@ function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; on
             {rtr.pending_morning && <MorningPrompt plan={rtr} onDone={refresh} />}
             {rtr.status === "paused" ? (
               <p className="mt-3 text-[13px] font-bold text-watch">Plán je pozastavený. Počkejte na pokyn fyzioterapeuta.</p>
-            ) : <Button variant="outline" className="mt-3 w-full" onClick={onRtr}>Zaznamenat sezení</Button>}
+            ) : rtr.next_allowed_at && new Date(rtr.next_allowed_at).getTime() > Date.now() ? (
+              // round 2 F5.1: inside the rest gap only a pain report; the session button comes back from next_allowed_at
+              <>
+                <p className="mt-3 text-[12.5px] text-fg-2">{`Další sezení od ${new Date(rtr.next_allowed_at).toLocaleString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}.`}</p>
+                <Button variant="outline" className="mt-2 w-full" onClick={() => onRtr("pain")} data-testid="rtr-pain-only">Nahlásit bolest</Button>
+              </>
+            ) : <Button variant="outline" className="mt-3 w-full" onClick={() => onRtr("session")}>Zaznamenat sezení</Button>}
           </Card>
         )}
 
@@ -321,9 +346,17 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
   const toggle = (s: Set<string>, set: (x: Set<string>) => void, k: string) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); set(n); return n }
   useEffect(() => { load() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // physio brief 2026-11-09 W16: a confirmation step — service, reason, questions and the cancellation policy
+  // physio brief 2026-11-09 W16: a confirmation step — service, reason, questions and the cancellation policy.
+  // Round 2 F13.4: the service comes first (preselected when there is one); the times fit its length
   const [pick, setPick] = useState<{ pp: any; s: any } | null>(null)
   const [svc, setSvc] = useState("")
+  const [svcFor, setSvcFor] = useState<Record<string, string>>({})
+  const [intakeFor, setIntakeFor] = useState<any>(null)
+  const chooseSvc = (pid: string, id: string) => {
+    setSvcFor({ ...svcFor, [pid]: id })
+    run(async () => setOpts(await api.bookingOptions([...dow].join(","), [...part].join(","), id ? Number(id) : undefined)))
+  }
+  if (intakeFor) return <IntakeSheet rid={intakeFor.runner_id} booking={intakeFor} identity onClose={onDone} />
   const [reason, setReason] = useState("")
   const [questions, setQuestions] = useState("")
   if (pick) {
@@ -347,9 +380,10 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
         <div className="mt-4 flex gap-2">
           <button className="btn btn-outline flex-1" onClick={() => setPick(null)}>Zpět</button>
           <button className="btn btn-primary flex-1" disabled={busy || ((pp.services || []).length > 0 && !svc)} data-testid="book-confirm" onClick={() => run(async () => {
-            await api.bookingRequestAt({ slot_id: s.id ?? undefined, physio_id: s.id ? undefined : pp.id, starts_at: s.id ? undefined : s.slot_at,
-              service_id: svc ? Number(svc) : undefined, reason: reason || undefined, questions: questions || undefined, kind: "assessment" })
-            toast({ title: "Požádáno — čeká na potvrzení" }); onDone()
+            const bk = await api.bookingRequestAt({ slot_id: s.id ?? undefined, physio_id: s.id ? undefined : pp.id, starts_at: s.id ? undefined : s.slot_at,
+              service_id: svc ? Number(svc) : undefined, reason: reason || undefined, questions: questions || undefined })
+            toast({ title: "Požádáno — čeká na potvrzení" })
+            if (pp.needs_intake) setIntakeFor(bk); else onDone()
           })}>Požádat o termín</button>
         </div>
       </Sheet>
@@ -367,9 +401,10 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
         {opts?.map((pp) => (
           <div key={pp.id} className="nest p-4">
             <div className="flex items-start gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-extrabold text-accent">{initials(pp.name)}</span>
-              <div className="min-w-0 flex-1"><b className="font-bold">{pp.name}</b><p className="text-[12px] text-fg-3">{pp.clinic?.name || ""}{pp.clinic?.city ? ` · ${pp.clinic.city}` : ""} · {pp.years_exp || "—"} let · <Star className="inline size-3 -translate-y-px fill-watch text-watch" aria-hidden /> {pp.rating || "—"}</p></div>
-              {pp.price_czk ? <Chip tone="accent">{czk(pp.price_czk)}</Chip> : null}
+              {pp.photo_url ? <img src={pp.photo_url} alt="" className="size-10 shrink-0 rounded-full object-cover" />
+                : <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-extrabold text-accent">{initials(pp.name)}</span>}
+              <div className="min-w-0 flex-1"><b className="font-bold">{[pp.title, pp.name].filter(Boolean).join(" ")}</b><p className="text-[12px] text-fg-3">{pp.clinic?.name || ""}{pp.clinic?.city ? ` · ${pp.clinic.city}` : ""} · {pp.years_exp || "—"} let · <Star className="inline size-3 -translate-y-px fill-watch text-watch" aria-hidden /> {pp.rating || "—"}</p></div>
+              {pp.price_czk ? <Chip tone="accent">{pp.price_from ? `od ${czk(pp.price_czk)}` : czk(pp.price_czk)}</Chip> : null}
             </div>
             {pp.bio && <p className="mt-2 text-[13px] leading-5 text-fg-2">{pp.bio}</p>}
             {pp.response_time_text && <p className="mt-1 text-[12px] text-fg-3">{`Obvykle odpovídá ${pp.response_time_text}`}</p>}
@@ -377,9 +412,20 @@ function FindSlotSheet({ onClose, onDone }: { onClose: () => void; onDone: () =>
             <button className="mt-2 text-[12px] font-bold text-fg-3 underline underline-offset-2 hover:text-fg-2" onClick={() => run(async () => {
               await api.waitlistJoin(pp.id, { dow: [...dow].join(","), dayparts: [...part].join(",") }); toast({ title: "Jste v pořadníku — ozveme se, až se uvolní termín" })
             })}>Nic se nehodí — zapsat do pořadníku</button>
+            {(pp.services || []).length > 1 && (
+              <div className="mt-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Služba">
+                {pp.services.map((x: any) => {
+                  const on = svcFor[pp.id] === String(x.id)
+                  return <button key={x.id} type="button" role="radio" aria-checked={on} onClick={() => chooseSvc(pp.id, on ? "" : String(x.id))}
+                    className={`rounded-full border px-3 py-1.5 text-[12px] font-bold ${on ? "border-accent bg-accent/12 text-accent" : "border-white/15 text-fg-2"}`}>
+                    {`${x.name} · ${x.duration_minutes} min${x.price_czk != null ? ` · ${czk(x.price_czk)}` : ""}`}</button>
+                })}
+              </div>
+            )}
+            {(pp.services || []).length > 1 && !svcFor[pp.id] ? <p className="mt-2 text-[12px] text-fg-3">Nejdřív vyberte službu — časy se ukážou podle její délky.</p> : (
             <div className="mt-3 flex flex-wrap gap-2">{pp.slots.map((s: any) => (
-              <button key={s.id ?? s.slot_at} onClick={() => setPick({ pp, s })} className="rounded-full border border-accent/35 px-3 py-1.5 text-[12px] font-bold text-accent hover:bg-accent/10">{fmtSlot(s.slot_at)}</button>
-            ))}</div>
+              <button key={s.id ?? s.slot_at} onClick={() => { setSvc(svcFor[pp.id] || (pp.services?.length === 1 ? String(pp.services[0].id) : "")); setPick({ pp, s }) }} className="rounded-full border border-accent/35 px-3 py-1.5 text-[12px] font-bold text-accent hover:bg-accent/10">{fmtSlot(s.slot_at)}</button>
+            ))}</div>)}
           </div>
         ))}
       </div>
@@ -421,28 +467,38 @@ export function InjurySheet({ rid, onClose, onDone, initialRegions = [], initial
   )
 }
 
-function RtrSheet({ plan, onClose, onDone }: { plan: any; onClose: () => void; onDone: () => void }) {
+const RTR_INP = "w-full rounded-xl border border-white/10 bg-white/[.04] px-3 py-2.5 text-sm text-fg"
+
+function RtrSheet({ plan, painOnly = false, onClose, onDone }: { plan: any; painOnly?: boolean; onClose: () => void; onDone: () => void }) {
   // physio brief 2026-11-09 P0.7: pain has no default — saving waits until the runner sets it
   const [pain, setPain] = useState<number | null>(null)
   const [rpe, setRpe] = useState(4)
   const [completed, setCompleted] = useState(true)
+  const [site, setSite] = useState("")
+  const [note, setNote] = useState("")
   const { busy, err, run } = useAsync()
   const toast = useToast()
   return (
     <Sheet open onClose={onClose}>
-      <h2 className="font-serif text-2xl">Sezení návratu k běhu</h2>
-      <p className="mt-1 text-[13px] text-fg-2">Úroveň {plan.current_level}: <b>{plan.current?.label}</b>.</p>
+      <h2 className="font-serif text-2xl">{painOnly ? "Nahlásit bolest" : "Sezení návratu k běhu"}</h2>
+      {painOnly
+        ? <p className="mt-1 text-[13px] text-fg-2">Mezi sezeními je pauza. Bolest zapište kdykoli — sezení se tím nezapočítá.</p>
+        : <p className="mt-1 text-[13px] text-fg-2">Úroveň {plan.current_level}: <b>{plan.current?.label}</b>.</p>}
       <p className="mt-1 text-[12.5px] text-fg-3">Zapište bolest tak, jak ji opravdu cítíte. Postup určuje váš fyzioterapeut.</p>
-      <Field label="Dokončil/a jsem sezení"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} className="accent-accent" /> odškrtněte, pokud jste musel/a přerušit</label></Field>
-      <Field label="Bolest během sezení" hint={pain == null ? "posuňte jezdec" : "0 žádná"}><Slider name="pain" min={0} max={10} value={pain ?? 0} onChange={setPain} tone="pain" /></Field>
-      <Field label="Vnímaná námaha (RPE)"><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>
+      {!painOnly && <Field label="Dokončil/a jsem sezení"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={completed} onChange={(e) => setCompleted(e.target.checked)} className="accent-accent" /> odškrtněte, pokud jste musel/a přerušit</label></Field>}
+      <Field label={painOnly ? "Bolest teď" : "Bolest během sezení"} hint={painWord(pain)}><Slider name="pain" min={0} max={10} value={pain ?? 0} onChange={setPain} tone="pain" /></Field>
+      {painOnly ? <>
+        <Field label="Kde to bolí"><input className={RTR_INP} value={site} onChange={(e) => setSite(e.target.value)} placeholder="např. Achillova šlacha vpravo" /></Field>
+        <Field label="Poznámka"><input className={RTR_INP} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+      </> : <Field label="Vnímaná námaha (RPE)"><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>}
       {err && <p className="mt-3 text-xs font-bold text-alert">{err}</p>}
       <button disabled={busy || pain == null} data-testid="rtr-save" onClick={() => run(async () => {
-        const p = await api.logRtrSession(plan.id, { pain, rpe, completed })
+        const p = await api.logRtrSession(plan.id, painOnly ? { pain, pain_only: true, site: site || null, note: note || null } : { pain, rpe, completed })
         toast({ title: p.status === "paused" ? "Plán je pozastavený. Fyzioterapeut se vám ozve."
+          : painOnly ? "Bolest zapsaná. Fyzioterapeut ji uvidí."
           : "Uloženo. Zítra ráno se zeptáme, jak se cítíte — pak se sezení započítá." })
         onDone()
-      })} className="btn btn-primary mt-5 w-full py-3 text-sm disabled:opacity-50">Uložit sezení</button>
+      })} className="btn btn-primary mt-5 w-full py-3 text-sm disabled:opacity-50">{painOnly ? "Uložit bolest" : "Uložit sezení"}</button>
     </Sheet>
   )
 }
@@ -454,12 +510,13 @@ function MorningPrompt({ plan, onDone }: { plan: any; onDone: () => void }) {
   const { busy, run } = useAsync()
   const toast = useToast()
   const p = plan.pending_morning
-  const ready = new Date(p.logged_at).toLocaleDateString("sv-SE") < new Date().toLocaleDateString("sv-SE")
-  if (!ready) return <p className="mt-3 rounded-xl bg-white/[.04] px-3 py-2 text-[12.5px] text-fg-2">Zítra ráno se zeptáme, jak se cítíte. Teprve pak se sezení započítá.</p>
+  // round 2 F5.5: the server says when the question opens (06:00 the next day)
+  const ready = p.from ? new Date(p.from).getTime() <= Date.now() : new Date(p.logged_at).toLocaleDateString("sv-SE") < new Date().toLocaleDateString("sv-SE")
+  if (!ready) return <p className="mt-3 rounded-xl bg-white/[.04] px-3 py-2 text-[12.5px] text-fg-2">Zítra od 6:00 se zeptáme, jak se cítíte. Teprve pak se sezení započítá.</p>
   return (
     <div className="mt-3 rounded-xl border border-accent/30 p-3" data-testid="rtr-morning">
       <p className="text-[13px] font-bold">Jak je to ráno po včerejším sezení?</p>
-      <Field label="Bolest teď ráno" hint={pain == null ? "posuňte jezdec" : "0 žádná"}><Slider name="mpain" min={0} max={10} value={pain ?? 0} onChange={setPain} tone="pain" /></Field>
+      <Field label="Bolest teď ráno" hint={painWord(pain)}><Slider name="mpain" min={0} max={10} value={pain ?? 0} onChange={setPain} tone="pain" /></Field>
       <Field label="Ranní ztuhlost (minuty)"><Slider name="stiff" min={0} max={60} value={stiff} onChange={setStiff} /></Field>
       <button className="btn btn-primary mt-3 w-full text-sm" disabled={busy || pain == null} onClick={() => run(async () => {
         const r = await api.rtrMorning(plan.id, p.id, pain!, stiff)

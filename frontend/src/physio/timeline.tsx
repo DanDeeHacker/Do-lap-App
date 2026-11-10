@@ -1,7 +1,8 @@
 // Časová osa (physio brief 2026-11-09 W7): one date axis for everything the physio needs to read cause and
 // effect — running volume, the engine's three domains, pain per place, exercise sessions, the return to
 // running and markers for visits, programme changes, injuries and limits. Small multiples share the x axis,
-// each with its own y scale (never two scales on one plot). Days without data are gaps, never interpolated.
+// each with its own y scale (never two scales on one plot). Days without data are gaps, never interpolated;
+// round 2 F4.3: a range without any data is shaded and labelled "bez dat" on every row.
 import { useMemo, useState } from "react"
 import { api } from "@/api"
 import { Card, Chip, Segmented } from "@/ui"
@@ -12,7 +13,7 @@ import { Empty, Loading, useLoad } from "@/physio/common"
 const SERIES: [string, string, string][] = [["load", "Zátěž", "#2F5F7A"], ["mech", "Mechanika", "#7A4FA0"], ["symp", "Příznaky", "#A0522D"]]
 const EVENT: Record<string, string> = { visit: "Návštěva", program: "Program", injury: "Zranění", limit: "Omezení" }
 const W = 720
-const PAD = 70
+const PAD = 108
 
 export function Timeline({ rid }: { rid: string }) {
   const [weeks, setWeeks] = useState("12")
@@ -37,8 +38,17 @@ export function Timeline({ rid }: { rid: string }) {
   const idx = (iso: string) => days.indexOf((iso || "").slice(0, 10))
   const h = hover ? by[hover] || { date: hover } : null
   const empty = d.days.length === 0 && d.events.length === 0
+  const gaps: any[] = d.gaps || []
   const Markers = ({ height }: { height: number }) => (
-    <>{d.events.map((e: any, k: number) => {
+    <>{gaps.map((g: any, k: number) => {
+      const a = idx(g.from), b = idx(g.to)
+      if (a < 0 || b < 0) return null
+      const step = (W - PAD - 8) / n
+      const x0 = x(a) - step / 2, w = x(b) - x(a) + step
+      return <g key={`g${k}`} data-testid="timeline-gap"><rect x={x0} y={0} width={w} height={height} fill="currentColor" opacity={0.06} />
+        {w > 40 && height >= 30 && <text x={x0 + w / 2} y={12} fontSize={9} textAnchor="middle" fill="currentColor" opacity={0.6}>bez dat</text>}</g>
+    })}
+    {d.events.map((e: any, k: number) => {
       const i = idx(e.at)
       return i < 0 ? null : <line key={k} x1={x(i)} x2={x(i)} y1={0} y2={height} stroke="currentColor" strokeOpacity={e.type === "injury" ? 0.55 : 0.22} strokeDasharray={e.type === "visit" ? "0" : "3 3"} />
     })}</>
@@ -100,7 +110,7 @@ export function Timeline({ rid }: { rid: string }) {
               <Markers height={places.length * 16 + 4} />
               {places.map((pl, r) => (
                 <g key={pl}>
-                  <text x={2} y={r * 16 + 12} fontSize={9} fill="currentColor" opacity={0.75}>{pl.length > 13 ? `${pl.slice(0, 12)}…` : pl}</text>
+                  <text x={2} y={r * 16 + 12} fontSize={9} fill="currentColor" opacity={0.75}>{pl.length > 22 ? `${pl.slice(0, 21)}…` : pl}</text>
                   {days.map((dd, i) => {
                     const v = by[dd]?.pain?.[pl]
                     return v == null ? null : <circle key={dd} cx={x(i)} cy={r * 16 + 9} r={v ? 2 + v * 0.45 : 1.5}

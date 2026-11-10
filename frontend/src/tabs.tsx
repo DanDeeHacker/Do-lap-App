@@ -6,7 +6,7 @@ import { AlertBanner, AxisLineChart, Bars, Button, Card, Chip, Empty as UiEmpty,
 import { Activity as ActivityIcon, Bike, ChevronDown, ChevronLeft, ChevronRight, CloudSun, Dumbbell, FileText, Footprints, Gauge, History, LoaderCircle, Mountain, Orbit, Route, Ship, Trash2, TriangleAlert, Waves, type LucideIcon } from "lucide-react"
 import { Link } from "react-router"
 import { METRIC_INFO as MI, MECH_INFO_BY_LABEL } from "@/metricinfo"
-import { clamp, cz, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, PHASE, plural, QUAD, sgn, toImpact } from "@/lib"
+import { clamp, cz, czk, FEEL_LABEL, fmtD, fmtImpact, fmtSlot, paceStr, painWord, PHASE, plural, QUAD, sgn, toImpact } from "@/lib"
 import MuscleAnatomy, { PainHeatmap, painKey, type BodyPoint } from "@/components/MuscleAnatomy"
 import { CAP_SIGNAL_IDS, CapacityPanel, readinessCol, readinessPct } from "@/capacity"
 import { C, goodCol } from "@/tokens"
@@ -561,7 +561,7 @@ export function RateSheet({ act, rid, initial, onClose, onDone }: { act: any; ri
           <Field label="Jak vám bylo"><Slider name="feeling" min={1} max={5} value={feeling} onChange={setFeeling} labels={FEEL_LABEL} /></Field>
           <Field label="Nohy" hint="1 těžké · 5 svěží"><Slider name="legs" min={1} max={5} value={legs} onChange={setLegs} /></Field>
           {!cross && <Field label="Vnímaná námaha (RPE)" hint={`hodinky ${act.rpe || "—"}/10`}><Slider name="rpe" min={1} max={10} value={rpe} onChange={setRpe} /></Field>}
-          <Field label={cross ? "Bolest během tréninku" : "Bolest během běhu"} hint="0 žádná"><Slider name="pain" min={0} max={10} value={pain} onChange={setPain} tone="pain" /></Field>
+          <Field label={cross ? "Bolest během tréninku" : "Bolest během běhu"} hint={painWord(pain)}><Slider name="pain" min={0} max={10} value={pain} onChange={setPain} tone="pain" /></Field>
           <Field label="Poznámka">
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} className="w-full rounded-xl border px-3 py-2 text-sm" placeholder="Kdy se to ozvalo, co to zhoršilo…" />
           </Field>
@@ -2337,13 +2337,16 @@ export function Program() {
       </>
     )
   const ex = (p.exercises || []) as any[]
-  const adh = ex.length ? Math.round((ex.reduce((s, e) => s + (e.done_count || 0) / (e.target_count || 12), 0) / ex.length) * 100) : 0
+  // round 2 F7: the server's one adherence number, not a local average
+  const adh: number | null = p.adherence?.pct ?? null
+  const adhEst = p.adherence?.method === "total_estimate"
   return (
     <>
-      <Head kicker={`${PHASE[p.phase] || p.phase} · ${p.weeks} týdny`} title={p.name} sub={`Vede ${boot?.physios?.[p.physio_id]?.name || "—"}. Odesláno ${fmtD(p.sent_at || p.started_on)}`} />
+      {/* round 2 F6.1: the date of the latest published version */}
+      <Head kicker={`${PHASE[p.phase] || p.phase} · ${p.total_weeks || p.weeks} ${plural(p.total_weeks || p.weeks || 0, "týden", "týdny", "týdnů")}`} title={p.name} sub={`Vede ${boot?.physios?.[p.physio_id]?.name || "—"}. Odesláno ${fmtD(p.published_at || p.sent_at || p.started_on)}`} />
       <div className="grid gap-4 lg:grid-cols-[1.5fr_.8fr]">
         <Card data-tour="care-programs">
-          <div className="flex items-center justify-between"><Label>Cviky</Label><Chip tone={adh >= 60 ? "ok" : "watch"}>{adh} % splněno</Chip></div>
+          <div className="flex items-center justify-between"><Label>Cviky</Label><Chip tone={(adh ?? 0) >= 60 ? "ok" : "watch"}>{adh == null ? "plnění zatím nejde spočítat" : `${adh} % splněno${adhEst ? " (odhad)" : ""}`}</Chip></div>
           <div className="mt-2 divide-y divide-white/[.07]">
             {ex.map((e) => (
               <div key={e.id} className="flex items-center gap-3 py-3">
@@ -2352,7 +2355,7 @@ export function Program() {
                   <b className="text-sm font-bold">{e.name}</b>
                   <span className="block text-[12px] text-fg-3">{e.dose} · {e.per_week}× týdně{e.cue ? <>{" — "}{e.cue}</> : null}</span>
                   {/* physio brief 2026-11-09 P0.8: the target is per_week × weeks, in Czech plurals */}
-                  {p.weeks ? <span className="block text-[11.5px] text-fg-3">{`Cíl: ${e.target_count}× za ${p.weeks} ${plural(p.weeks, "týden", "týdny", "týdnů")}`}</span> : null}
+                  {(p.total_weeks || p.weeks) ? <span className="block text-[11.5px] text-fg-3">{`Cíl: ${e.target_count}× za ${p.total_weeks || p.weeks} ${plural(p.total_weeks || p.weeks, "týden", "týdny", "týdnů")}`}</span> : null}
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[.08]"><i className="block h-full rounded-full bg-accent" style={{ width: `${Math.round(((e.done_count || 0) / (e.target_count || 12)) * 100)}%` }} /></div>
                 </div>
                 <span className="tabular-nums text-[12px] text-fg-2">{e.done_count}/{e.target_count}</span>
@@ -2363,9 +2366,11 @@ export function Program() {
         </Card>
         <div className="grid gap-4">
           <Card><Label>Jak to funguje</Label><p className="mt-2 text-sm text-fg-2">Cíl máte u každého cviku. Když cvik provokuje bolest nad 3/10, je to informace pro fyzioterapeuta, ne důvod ho zatnout zuby dodělat.</p></Card>
-          {(p.revisions || []).length > 0 && (
-            <Card><Label>Změny v programu</Label><div className="mt-2 space-y-3">{p.revisions.slice().reverse().map((rv: any) => (
-              <div key={rv.id}><b className="text-sm">{fmtD(rv.at)}</b><p className="text-[12px] text-fg-3">{rv.note}</p>{(rv.changes || []).map((c: string, i: number) => <div key={i} className="mt-1"><Chip>{c}</Chip></div>)}</div>
+          {/* round 2 F6.6: one entry per published version — the note and the changes in plain words */}
+          {(p.history || []).length > 0 && (
+            <Card><Label>Změny v programu</Label><div className="mt-2 space-y-3" data-testid="program-history">{p.history.slice().reverse().map((h: any, k: number) => (
+              <div key={k}><b className="text-sm">{fmtD(h.at)}{h.version ? ` · verze ${h.version}` : ""}</b>{h.note && <p className="text-[12.5px] text-fg-2">{h.note}</p>}
+                {h.changes?.length > 0 && <ul className="mt-1 list-disc pl-4 text-[12px] text-fg-3">{h.changes.map((c: string, i: number) => <li key={i}>{c}</li>)}</ul>}</div>
             ))}</div></Card>
           )}
         </div>

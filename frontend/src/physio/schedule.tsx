@@ -5,8 +5,8 @@ import { useEffect, useMemo, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router"
 import { CalendarPlus, ChevronLeft, ChevronRight, Link2, Trash2 } from "lucide-react"
 import { api } from "@/api"
-import { Button, Card, Chip, useToast } from "@/ui"
-import { fmtD, fmtDT } from "@/lib"
+import { Button, Card, Chip, Segmented, useToast } from "@/ui"
+import { fmtD, fmtDT, plural } from "@/lib"
 import { Empty, Loading, useLoad } from "@/physio/common"
 
 const inp = "mt-1 w-full rounded-lg border border-white/15 bg-panel px-2.5 py-1.5 text-[13px] font-normal"
@@ -15,52 +15,176 @@ const iso = (d: Date) => d.toLocaleDateString("sv-SE")
 const hm = (s: string) => new Date(s).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })
 const monday = (d: Date) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); x.setHours(12, 0, 0, 0); return x }
 
+// round 2 F14 (W5.6): a time grid — week by default, a day on demand, 30-minute rows, colours by status (never by
+// risk), a click on an empty time adds a visit, an opening or a block, and a drag moves a visit after a confirmation
+// that tells the client
+const START_H = 7, END_H = 20, ROW = 22
+const ROWS = (END_H - START_H) * 2
+const STATUS_STYLE: Record<string, string> = {
+  requested: "border border-dashed border-accent/70 bg-accent/[.06] text-fg",
+  confirmed: "bg-accent/20 text-fg",
+  completed: "bg-white/[.10] text-fg-2",
+  no_show: "bg-white/[.05] text-fg-3 line-through",
+}
+const STATUS_CS: Record<string, string> = { requested: "žádost", confirmed: "potvrzeno", completed: "proběhla", no_show: "nedostavil(a) se" }
+const mins = (s: string) => { const d = new Date(s); return d.getHours() * 60 + d.getMinutes() }
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
+export const freeLabel = (n: number) => (n === 0 ? "plno" : `${n} ${plural(n, "volný", "volné", "volných")}`)
+
 export function WeekView({ pid, version }: { pid: string; version: number }) {
   const nav = useNavigate()
+  const toast = useToast()
+  const [mode, setMode] = useState<"week" | "day">("week")
   const [start, setStart] = useState(() => monday(new Date()))
+  const [dayIdx, setDayIdx] = useState(() => (new Date().getDay() + 6) % 7)
+  const [ver, setVer] = useState(0)
+  const [cell, setCell] = useState<{ day: string; m: number; x: number; y: number } | null>(null)
+  const [drag, setDrag] = useState<any>(null)
   const end = useMemo(() => { const e = new Date(start); e.setDate(e.getDate() + 6); return e }, [start])
-  const { d, err } = useLoad<any>(() => api.physioCalendar(pid, iso(start), iso(end)), [pid, start, version])
-  const shift = (w: number) => { const x = new Date(start); x.setDate(x.getDate() + 7 * w); setStart(x) }
-  const days = Array.from({ length: 7 }, (_, i) => { const x = new Date(start); x.setDate(x.getDate() + i); return iso(x) })
+  const { d, err } = useLoad<any>(() => api.physioCalendar(pid, iso(start), iso(end)), [pid, start, version, ver])
+  const shift = (n: number) => { const x = new Date(start); x.setDate(x.getDate() + 7 * n); setStart(x) }
+  const all = Array.from({ length: 7 }, (_, i) => { const x = new Date(start); x.setDate(x.getDate() + i); return iso(x) })
+  const days = mode === "week" ? all : [all[dayIdx]]
   const day = (s: string) => new Date(s).toLocaleDateString("sv-SE")
+  const at = (dd: string, m: number) => new Date(`${dd}T${hhmm(m)}:00`)
+  const refresh = () => setVer((v) => v + 1)
+  const add = async (kind: "visit" | "slot" | "block") => {
+    if (!cell) return
+    const when = at(cell.day, cell.m)
+    setCell(null)
+    if (kind === "visit") { window.dispatchEvent(new CustomEvent("doslap:add-visit", { detail: { date: cell.day, time: hhmm(cell.m) } })); return }
+    try {
+      if (kind === "slot") await api.slotAdd(pid, when.toISOString(), 30)
+      else await api.timeOffAdd({ starts_at: when.toISOString(), ends_at: new Date(when.getTime() + 30 * 60000).toISOString(), reason: "" })
+      toast({ title: kind === "slot" ? "Volný termín přidán" : "Čas zablokován" }); refresh()
+    } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+  }
+  const drop = async (dd: string, m: number) => {
+    const b = drag
+    setDrag(null)
+    if (!b) return
+    const when = at(dd, m)
+    if (!window.confirm(`Přesunout návštěvu ${b.name} na ${fmtDT(when.toISOString())}? Klient dostane zprávu.`)) return
+    try {
+      const r = await api.bookingReschedule(b.id, { starts_at: when.toISOString() })
+      toast({ title: r.outside_hours ? "Přesunuto mimo pracovní dobu — klient dostal zprávu" : "Návštěva přesunuta — klient dostal zprávu" })
+      refresh()
+    } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
+  }
+  const now = new Date()
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-serif text-xl">{`Týden ${fmtD(iso(start))} – ${fmtD(iso(end))}`}</h2>
-        <span className="flex gap-1">
-          <Button size="sm" variant="outline" icon={ChevronLeft} onClick={() => shift(-1)} aria-label="Předchozí týden">{""}</Button>
-          <Button size="sm" variant="outline" onClick={() => setStart(monday(new Date()))}>Dnes</Button>
-          <Button size="sm" variant="outline" icon={ChevronRight} onClick={() => shift(1)} aria-label="Další týden">{""}</Button>
+        <h2 className="font-serif text-xl">{mode === "week" ? `Týden ${fmtD(iso(start))} – ${fmtD(iso(end))}` : `${WD[dayIdx]} ${fmtD(all[dayIdx])}`}</h2>
+        <span className="flex flex-wrap items-center gap-1">
+          <Segmented size="sm" ariaLabel="Zobrazení" value={mode} onChange={setMode} options={[["week", "Týden"], ["day", "Den"]] as const} />
+          <Button size="sm" variant="outline" icon={ChevronLeft} onClick={() => (mode === "day" && dayIdx > 0 ? setDayIdx(dayIdx - 1) : (shift(-1), mode === "day" && setDayIdx(6)))} aria-label="Předchozí">{""}</Button>
+          <Button size="sm" variant="outline" onClick={() => { setStart(monday(new Date())); setDayIdx((new Date().getDay() + 6) % 7) }}>Dnes</Button>
+          <Button size="sm" variant="outline" icon={ChevronRight} onClick={() => (mode === "day" && dayIdx < 6 ? setDayIdx(dayIdx + 1) : (shift(1), mode === "day" && setDayIdx(0)))} aria-label="Další">{""}</Button>
         </span>
       </div>
+      <p className="mt-1 flex flex-wrap gap-3 text-[11.5px] text-fg-3" aria-label="Legenda">
+        {Object.entries(STATUS_CS).map(([k, l]) => <span key={k} className="inline-flex items-center gap-1"><i className={`inline-block h-3 w-4 rounded-sm ${STATUS_STYLE[k]}`} />{l}</span>)}
+        <span className="inline-flex items-center gap-1"><i className="inline-block h-3 w-4 rounded-sm bg-white/[.04]" />pracovní doba</span>
+      </p>
       {!d ? <Loading err={err} /> : (
-        <div className="mt-3 grid gap-2 overflow-x-auto sm:grid-cols-7" data-testid="week">
-          {days.map((dd, i) => {
-            const bs = d.bookings.filter((b: any) => day(b.slot_at) === dd && !["cancelled"].includes(b.status)).sort((a: any, b: any) => a.slot_at.localeCompare(b.slot_at))
-            const free = d.free.filter((f: any) => day(f.start) === dd).length
-            const off = d.time_off.some((t: any) => day(t.starts_at) <= dd && dd <= day(t.ends_at))
-            return (
-              <section key={dd} className={`min-h-24 rounded-lg border p-2 ${dd === iso(new Date()) ? "border-accent" : "border-white/[.1]"}`}>
-                <h3 className="text-[11.5px] font-bold uppercase tracking-[.05em] text-fg-3">{`${WD[i]} ${fmtD(dd)}`}</h3>
-                {off && <Chip>volno</Chip>}
-                <ul className="mt-1 grid gap-1">
-                  {bs.map((b: any) => (
-                    <li key={b.id}>
-                      <button type="button" onClick={() => nav(`/physio/client/${b.runner_id}`)}
-                        className={`w-full rounded-md px-1.5 py-1 text-left text-[12px] ${b.status === "requested" ? "ph-risk-med" : "bg-accent/12"}`}>
-                        <b className="tabular-nums">{hm(b.slot_at)}</b>{` ${b.name}`}
-                        <span className="block text-[11px] opacity-80">{b.service || (b.status === "requested" ? "žádost" : "návštěva")}</span>
+        <div className="mt-3 overflow-x-auto" data-testid="week">
+          <div className="grid min-w-[640px]" style={{ gridTemplateColumns: `44px repeat(${days.length}, minmax(0, 1fr))` }}>
+            <div />
+            {days.map((dd) => {
+              const i = all.indexOf(dd)
+              const free = d.free.filter((f: any) => day(f.start) === dd).length
+              const rules = d.rules.filter((r: any) => r.weekday === i)
+              return (
+                <button key={dd} type="button" onClick={() => { setDayIdx(i); setMode("day") }}
+                  className={`border-b px-1 pb-1 text-left text-[11.5px] ${dd === iso(now) ? "border-accent text-accent" : "border-white/[.1] text-fg-2"}`}>
+                  <b className="uppercase tracking-[.05em]">{`${WD[i]} ${fmtD(dd)}`}</b>
+                  <span className="block text-fg-3" data-testid="day-free">{dd < iso(now) ? "\u00a0" : rules.length || free ? freeLabel(free) : "nepracuji"}</span>
+                </button>
+              )
+            })}
+            <div className="relative" style={{ height: ROWS * ROW }}>
+              {Array.from({ length: END_H - START_H }, (_, h) => <span key={h} className="absolute right-1 text-[10.5px] tabular-nums text-fg-3" style={{ top: h * 2 * ROW - 6 }}>{`${START_H + h}:00`}</span>)}
+            </div>
+            {days.map((dd) => {
+              const i = all.indexOf(dd)
+              const rules = d.rules.filter((r: any) => r.weekday === i)
+              const offs = d.time_off.filter((t: any) => day(t.starts_at) <= dd && dd <= day(t.ends_at))
+              const bs = d.bookings.filter((b: any) => day(b.slot_at) === dd && b.status !== "cancelled")
+                .sort((x: any, y: any) => x.slot_at.localeCompare(y.slot_at))
+              // overlapping visits sit side by side: each takes the first free lane
+              const lanes: number[] = [], lane: Record<number, number> = {}
+              for (const b of bs) {
+                const a0 = mins(b.slot_at), a1 = a0 + (b.duration_min || 45)
+                let k = lanes.findIndex((endM) => endM <= a0)
+                if (k < 0) { k = lanes.length; lanes.push(a1) } else lanes[k] = a1
+                lane[b.id] = k
+              }
+              const nl = Math.max(1, lanes.length)
+              return (
+                <div key={dd} className="relative border-l border-white/[.08]" style={{ height: ROWS * ROW }} data-testid="day-column">
+                  {rules.map((r: any, k: number) => {
+                    const a = Number(r.start.slice(0, 2)) * 60 + Number(r.start.slice(3, 5)), b = Number(r.end.slice(0, 2)) * 60 + Number(r.end.slice(3, 5))
+                    return <div key={k} className="absolute inset-x-0 bg-white/[.04]" style={{ top: ((a - START_H * 60) / 30) * ROW, height: ((b - a) / 30) * ROW }} />
+                  })}
+                  {offs.map((t: any) => {
+                    const a = day(t.starts_at) < dd ? START_H * 60 : mins(t.starts_at), b = day(t.ends_at) > dd ? END_H * 60 : mins(t.ends_at)
+                    return <div key={t.id} className="absolute inset-x-0 bg-[repeating-linear-gradient(135deg,rgb(128_128_128/.18)_0_4px,transparent_4px_8px)]" title="blokováno"
+                      style={{ top: ((Math.max(a, START_H * 60) - START_H * 60) / 30) * ROW, height: ((Math.min(b, END_H * 60) - Math.max(a, START_H * 60)) / 30) * ROW }} />
+                  })}
+                  {Array.from({ length: ROWS }, (_, r) => {
+                    const m = START_H * 60 + r * 30
+                    return <button key={r} type="button" aria-label={`${dd} ${hhmm(m)}`} data-testid="grid-cell"
+                      className={`absolute inset-x-0 border-t ${r % 2 ? "border-white/[.03]" : "border-white/[.07]"} hover:bg-accent/[.06]`}
+                      style={{ top: r * ROW, height: ROW }}
+                      onClick={(e) => setCell({ day: dd, m, x: e.clientX, y: e.clientY })}
+                      onDragOver={(e) => drag && e.preventDefault()} onDrop={() => drop(dd, m)} />
+                  })}
+                  {bs.map((b: any) => {
+                    const top = ((mins(b.slot_at) - START_H * 60) / 30) * ROW
+                    const movable = ["requested", "confirmed"].includes(b.status) && new Date(b.slot_at) > now
+                    return (
+                      <button key={b.id} type="button" draggable={movable} onDragStart={() => setDrag(b)} onDragEnd={() => setDrag(null)}
+                        onClick={() => nav(`/physio/client/${b.runner_id}`)} data-testid="grid-visit"
+                        className={`absolute overflow-hidden rounded-md px-1.5 py-0.5 text-left text-[11.5px] leading-tight ${STATUS_STYLE[b.status] || STATUS_STYLE.confirmed} ${movable ? "cursor-grab" : ""}`}
+                        style={{ top: Math.max(0, top), height: Math.max(ROW - 2, ((b.duration_min || 45) / 30) * ROW - 2),
+                          left: `calc(${(lane[b.id] / nl) * 100}% + 2px)`, width: `calc(${100 / nl}% - 4px)` }}
+                        title={`${b.name} · ${STATUS_CS[b.status] || b.status}`}>
+                        <b className="tabular-nums">{new Date(b.slot_at).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}</b>{` ${b.name}`}
+                        <span className="block truncate opacity-80">{b.service || STATUS_CS[b.status]}</span>
                       </button>
-                    </li>
-                  ))}
-                </ul>
-                {free > 0 && <p className="mt-1 text-[11px] text-fg-3">{`${free} volných`}</p>}
-              </section>
-            )
-          })}
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
+      {cell && (
+        <CellMenu cell={cell} onClose={() => setCell(null)} onPick={add} />
+      )}
     </Card>
+  )
+}
+
+function CellMenu({ cell, onClose, onPick }: { cell: { day: string; m: number; x: number; y: number }; onClose: () => void; onPick: (k: "visit" | "slot" | "block") => void }) {
+  const box = useMemo(() => ({ current: null as HTMLDivElement | null }), [])
+  useEffect(() => {
+    const down = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) onClose() }
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose() } }
+    const t = setTimeout(() => document.addEventListener("mousedown", down), 0)
+    window.addEventListener("keydown", key, true)
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", down); window.removeEventListener("keydown", key, true) }
+  }, [box, onClose])
+  return (
+    <div ref={(el) => { box.current = el }} role="menu" data-testid="cell-menu" className="fixed z-50 grid w-48 rounded-xl border border-white/10 bg-panel p-1 text-[13px] shadow-lg"
+      style={{ left: Math.min(cell.x, window.innerWidth - 200), top: Math.min(cell.y, window.innerHeight - 140) }}>
+      <p className="px-3 py-1 text-[11.5px] text-fg-3">{`${fmtD(cell.day)} ${hhmm(cell.m)}`}</p>
+      <button type="button" role="menuitem" className="rounded-lg px-3 py-2 text-left hover:bg-white/[.06]" onClick={() => onPick("visit")}>Přidat návštěvu</button>
+      <button type="button" role="menuitem" className="rounded-lg px-3 py-2 text-left hover:bg-white/[.06]" onClick={() => onPick("slot")}>Přidat volný termín</button>
+      <button type="button" role="menuitem" className="rounded-lg px-3 py-2 text-left hover:bg-white/[.06]" onClick={() => onPick("block")}>Blokovat čas</button>
+    </div>
   )
 }
 
@@ -72,12 +196,24 @@ export function AddVisit({ onDone }: { onDone: () => void }) {
   const [f, setF] = useState<any>({ runner_id: sp.get("client") || "", date: "", time: "09:00", service_id: "", weeks: 1, reason: "" })
   const [res, setRes] = useState<any>(null)
   useEffect(() => { if (sp.get("client")) document.getElementById("add-visit")?.scrollIntoView({ behavior: "smooth" }) }, [sp])
+  // round 2 F14: a click on an empty time in the grid fills the day and time
+  useEffect(() => {
+    const h = (e: Event) => {
+      const x = (e as CustomEvent).detail
+      setF((cur: any) => ({ ...cur, date: x.date, time: x.time }))
+      document.getElementById("add-visit")?.scrollIntoView({ behavior: "smooth" })
+    }
+    window.addEventListener("doslap:add-visit", h)
+    return () => window.removeEventListener("doslap:add-visit", h)
+  }, [])
   const submit = async () => {
     try {
       const r = await api.visitAdd({ runner_id: f.runner_id, starts_at: new Date(`${f.date}T${f.time}:00`).toISOString(),
         service_id: f.service_id ? Number(f.service_id) : null, weeks: Number(f.weeks), reason: f.reason || null })
       setRes(r)
       toast({ title: r.created.length ? `Naplánováno: ${r.created.length}` : "Nic se nenaplánovalo" })
+      // round 2 F14.2: ready for the next one — client, date and reason cleared, the service kept
+      if (r.created.length) setF((cur: any) => ({ ...cur, runner_id: "", date: "", reason: "" }))
       onDone()
     } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
   }

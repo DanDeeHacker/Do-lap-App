@@ -7,7 +7,7 @@ import { api } from "@/api"
 import { Recall } from "@/physio/business"
 import { Button, Card, Chip, useToast } from "@/ui"
 import { fmtDT } from "@/lib"
-import { Empty, KIND, Loading, useLoad } from "@/physio/common"
+import { Empty, KIND, Loading, RequestItem, useLoad } from "@/physio/common"
 
 const SEV: Record<string, string> = { high: "ph-risk-high", medium: "ph-risk-med", low: "ph-unknown" }
 const SEV_CS: Record<string, string> = { high: "vysoká", medium: "střední", low: "nízká" }
@@ -40,7 +40,7 @@ export function TodayPage() {
                     : v.record ? <Chip tone="watch">rozepsaný záznam</Chip> : null}
                   {!v.prep && <Chip>bez pokynů k přípravě</Chip>}
                   <Link to={`/physio/client/${v.runner_id}/priprava/${v.id}`} className="btn btn-outline btn-sm">Příprava</Link>
-                  <Link to={`/physio/client/${v.runner_id}/navsteva/${v.id}`} className="btn btn-outline btn-sm"><FileText className="size-3.5" aria-hidden />Záznam</Link>
+                  <Link to={`/physio/client/${v.runner_id}/visit/${v.id}`} className="btn btn-outline btn-sm"><FileText className="size-3.5" aria-hidden />Záznam</Link>
                 </li>
               ))}
             </ol>
@@ -74,7 +74,7 @@ export function TodayPage() {
               <ul className="mt-2 grid gap-1 text-[13px]" data-testid="unsigned">
                 {d.unsigned.map((u: any) => (
                   <li key={u.booking_id} className="flex items-center gap-2">
-                    <Link to={`/physio/client/${u.runner_id}/navsteva/${u.booking_id}`} className="min-w-0 flex-1 truncate font-bold text-fg hover:underline">{u.name}</Link>
+                    <Link to={`/physio/client/${u.runner_id}/visit/${u.booking_id}`} className="min-w-0 flex-1 truncate font-bold text-fg hover:underline">{u.name}</Link>
                     <span className="text-fg-3">{fmtDT(u.slot_at)}</span>
                     {u.overdue && <AlertTriangle className="size-4 text-alert" aria-label="po termínu" />}
                   </li>
@@ -96,10 +96,11 @@ export function TodayPage() {
           <Card>
             <h2 className="font-serif text-xl">Žádosti a nové případy</h2>
             <p className="mt-2 text-[13px] text-fg-2">
-              {d.requests.length ? <Link to="/physio/calendar" className="font-bold text-accent hover:underline">{`Žádosti o termín: ${d.requests.length}`}</Link> : "Žádné žádosti o termín."}
+              {d.requests.length ? null : "Žádné žádosti o termín."}
               {" · "}
               <Link to="/physio/queue" className="font-bold text-accent hover:underline">{`Nové případy ve frontě: ${d.new_cases}`}</Link>
             </p>
+            {d.requests.length > 0 && <ul className="mt-1 divide-y divide-white/[.07]">{d.requests.map((b: any) => <RequestItem key={b.id} b={b} onDone={reload} />)}</ul>}
           </Card>
           <Recall />
         </div>

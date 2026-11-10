@@ -8,10 +8,10 @@ import { Link, useNavigate, useSearchParams } from "react-router"
 import { AlertTriangle, ArrowLeft, Bot, FileText, MessageCircle, Paperclip, Pause, Play, Plus, Printer, Search, Send, Sparkles, Trash2 } from "lucide-react"
 import { api } from "@/api"
 import { Button, Card, Chip, Segmented, Sheet, useToast } from "@/ui"
-import { fmtD, fmtDT } from "@/lib"
+import { fmtD, fmtDT, PHASE } from "@/lib"
 import { C } from "@/tokens"
+import { visitPath } from "@/physio/visit"
 import { Empty, KIND, Loading, PainAgo, QuadChip, REGIONS, RiskChip, Score, noData, shownScore, stripTags, useLoad } from "@/physio/common"
-import { ConclusionSheet } from "@/physio/conclusion"
 import { DocsTab } from "@/physio/docs"
 import { AdherenceGrid, PlanTab } from "@/physio/plan"
 import { Timeline } from "@/physio/timeline"
@@ -50,7 +50,7 @@ export function ClientsPage() {
                       {c.attention.map((k: string) => <Chip key={k} tone={ATTN[k]?.[1] || "muted"}>{ATTN[k]?.[0] || k}</Chip>)}</b>
                     <span className="mt-0.5 block text-[12px] text-fg-3">
                       {c.next ? `další návštěva ${fmtDT(c.next.at)}` : "bez naplánované návštěvy"}
-                      {c.program ? ` · program ${c.program.adherence ?? "—"} % splněno` : ""}
+                      {c.program ? ` · program ${c.program.adherence ?? "—"} % splněno${c.program.adherence_method === "total_estimate" ? " (odhad)" : ""}` : ""}
                       {c.rtr ? ` · návrat k běhu ${c.rtr.level}/${c.rtr.levels}` : ""}
                     </span>
                     {c.lastMessage && <span className="block truncate text-[12px] text-fg-3">{`${c.lastMessage.sender === "runner" ? "Klient" : c.lastMessage.sender === "physio" ? "Vy" : "Systém"}: ${c.lastMessage.body}`}</span>}
@@ -75,16 +75,19 @@ function InviteClient() {
   const [open, setOpen] = useState(false)
   const [f, setF] = useState({ name: "", email: "", message: "" })
   const [link, setLink] = useState<string | null>(null)
-  const list = useLoad<any>(() => (open ? api.invites() : Promise.resolve({ items: [] })), [open, link])
+  const [cur, setCur] = useState<number | null>(null)
+  const [revoked, setRevoked] = useState(false)
+  const list = useLoad<any>(() => (open ? api.invites() : Promise.resolve({ items: [] })), [open, link, revoked])
   const inp = "mt-1 w-full rounded-lg border border-white/15 bg-panel px-2.5 py-1.5 text-[13px] font-normal"
   const ST: Record<string, string> = { open: "čeká", accepted: "přijato", revoked: "zrušeno", expired: "vypršelo" }
   return (
     <>
-      <Button size="sm" icon={Plus} onClick={() => { setOpen(true); setLink(null) }}>Pozvat klienta</Button>
+      <Button size="sm" icon={Plus} onClick={() => { setOpen(true); setLink(null); setRevoked(false); setCur(null) }}>Pozvat klienta</Button>
       <Sheet open={open} onClose={() => setOpen(false)}>
         <h2 className="font-serif text-2xl">Pozvat klienta</h2>
         <p className="mt-1 text-[12.5px] text-fg-2">Klient po přijetí odkazu přejde rovnou do vaší péče, bez fronty. Odkaz platí jednou.</p>
-        {link ? (
+        {/* round 2 F18: a cancelled invitation shows no link, code or copy button */}
+        {link && revoked ? <p className="mt-3 rounded-xl bg-white/[.04] px-3 py-2 text-[13px] font-bold" data-testid="invite-revoked">Pozvánka zrušena</p> : link ? (
           <div className="mt-3 grid gap-2" data-testid="invite-link">
             <input readOnly className={inp} value={link} onFocus={(e) => e.target.select()} aria-label="Odkaz pozvánky" />
             <span className="flex flex-wrap gap-2">
@@ -98,7 +101,7 @@ function InviteClient() {
             <label className="text-[12px] font-bold text-fg-2">Jméno (pro vás)<input className={inp} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
             <label className="text-[12px] font-bold text-fg-2">E-mail (nepovinné)<input type="email" className={inp} value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
             <label className="text-[12px] font-bold text-fg-2">Vzkaz (klient ho uvidí)<textarea rows={2} className={inp} value={f.message} onChange={(e) => setF({ ...f, message: e.target.value })} /></label>
-            <Button size="sm" onClick={async () => { try { setLink((await api.inviteCreate(f)).link) } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) } }}>Vytvořit odkaz</Button>
+            <Button size="sm" onClick={async () => { try { const x = await api.inviteCreate(f); setCur(x.id); setLink(x.link) } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) } }}>Vytvořit odkaz</Button>
           </div>
         )}
         {(list.d?.items || []).length > 0 && (
@@ -106,7 +109,7 @@ function InviteClient() {
             {list.d.items.slice(0, 10).map((i: any) => (
               <li key={i.id} className="flex items-center gap-2 py-1.5"><span className="flex-1">{i.name || i.email || "bez jména"}<span className="ml-1 text-fg-3">{fmtD(i.created_at)}</span></span>
                 <Chip tone={i.status === "accepted" ? "ok" : "muted"}>{ST[i.status] || i.status}</Chip>
-                {i.status === "open" && <button type="button" className="text-[12px] font-bold text-accent hover:underline" onClick={async () => { await api.inviteRevoke(i.id); list.reload() }}>Zrušit</button>}</li>
+                {i.status === "open" && <button type="button" className="text-[12px] font-bold text-accent hover:underline" onClick={async () => { await api.inviteRevoke(i.id); if (i.id === cur) setRevoked(true); list.reload() }}>Zrušit</button>}</li>
             ))}
           </ul>
         )}
@@ -168,7 +171,7 @@ export function ClientPage({ pid, rid }: { pid: string; rid: string }) {
     <>
       <Back />
       {/* W6.2: sticky header — who, what, which phase, when next, how fresh the data are */}
-      <div className="sticky top-0 z-10 -mx-4 mt-2 border-b border-white/[.08] bg-bg/95 px-4 py-2 backdrop-blur" data-testid="client-header">
+      <div className="sticky top-12 z-10 -mx-4 mt-2 border-b border-white/[.08] bg-bg/95 px-4 py-2 backdrop-blur" data-testid="client-header">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <h1 className="font-serif text-[26px] leading-tight tracking-[-.02em]">{r.name}
@@ -176,7 +179,7 @@ export function ClientPage({ pid, rid }: { pid: string; rid: string }) {
                 {[r.age ? `${r.age} let` : null, r.sex === "f" ? "žena" : r.sex === "m" ? "muž" : null, r.city].filter(Boolean).join(" · ")}</span></h1>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-fg-2">
               <span>{ep?.diagnosis ? `${ep.code ? `${ep.code} ` : ""}${ep.diagnosis}${ep.side ? ` (${ep.side === "L" ? "vlevo" : ep.side === "R" ? "vpravo" : "oboustranně"})` : ""}` : "bez diagnózy"}</span>
-              {d.phase && <span>{`fáze: ${d.phase}`}</span>}
+              {d.phase && <span>{`fáze: ${PHASE[d.phase] || d.phase}`}</span>}{/* round 2 F17.3: the runner app's labels */}
               <span>{d.next_visit ? `další návštěva ${fmtDT(d.next_visit.at)}` : "bez další návštěvy"}</span>
               <span className={fr?.status === "fresh" ? "" : "text-watch"}>{fr?.last_data_at ? `data ${fmtD(fr.last_data_at)}` : "bez dat z hodinek"}</span>
               {d.no_app && <Chip>bez aplikace</Chip>}
@@ -191,7 +194,9 @@ export function ClientPage({ pid, rid }: { pid: string; rid: string }) {
             <ClientMenu d={d} rid={rid} onChange={reload} />
           </span>
         </div>
-        <Segmented className="mt-2" value={tab} onChange={(k) => setSp({ tab: k }, { replace: true })} ariaLabel="Části karty klienta"
+        {/* round 2 F18: at 390 px the active tab scrolls into view; the scroller keeps room on the right */}
+        <Segmented className="mt-2 pr-4" value={tab} onChange={(k) => { setSp({ tab: k }, { replace: true }); requestAnimationFrame(() =>
+          document.querySelector('[aria-label="Části karty klienta"] [aria-pressed="true"]')?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" })) }} ariaLabel="Části karty klienta"
           options={[["overview", "Přehled"], ["timeline", "Časová osa"], ["plan", "Plán"], ["docs", "Dokumentace"], ["chat", "Zprávy"]] as const} />
       </div>
       {!d.share && <p className="mt-3 flex items-center gap-2 rounded-xl bg-watch/10 px-3 py-2 text-[12.5px] text-watch-soft">
@@ -275,12 +280,17 @@ function Overview({ d, rid, onChange, onClose }: { d: any; rid: string; onChange
           <Score v={a.load} label="Zátěž" hint="0 = v normě" /><Score v={a.mech} label="Mechanika" hint="0 = v normě" />
         </div>
         <p className="mt-2 text-[12px] text-fg-3">{"Poslední bolest: "}<PainAgo p={a.lastPain} />{a.lastPain?.site ? ` · ${a.lastPain.site}` : ""}</p>
-        {/* physio brief 2026-11-09 P0.2: exactly what the client's Dnes and Trénink say today */}
-        {(a.careDirective?.headline_cs || a.guidance?.typeLabel) && (
-          <p className="mt-3 text-[13px] text-fg-2" data-testid="client-sees">{"Klient dnes vidí: "}
-            <b className="text-fg">{a.careDirective?.headline_cs || a.guidance?.typeLabel}</b></p>
+        {/* physio brief 2026-11-09 P0.2 / round 2 F3.6: the client's headline from the same function as their app,
+            then the physio's own bullets (guidance_physio); with stale or missing data nothing from the engine */}
+        {noData(a) ? (
+          <p className="mt-3 text-[13px] text-fg-2" data-testid="client-sees">{"Klient dnes vidí: "}<b className="text-fg">Nemáme aktuální data</b></p>
+        ) : (a.careDirective?.headline_cs || a.guidance?.typeLabel) && (
+          <>
+            <p className="mt-3 text-[13px] text-fg-2" data-testid="client-sees">{"Klient dnes vidí: "}
+              <b className="text-fg">{a.careDirective?.headline_cs || a.guidance?.typeLabel}</b></p>
+            {(a.guidance_physio || []).slice(0, 4).map((x: string, i: number) => <p key={i} className="mt-1 text-[12px] leading-[17px] text-fg-3">{"• "}{x}</p>)}
+          </>
         )}
-        {a.careDirective?.source === "engine" && (a.guidance?.reasons || []).slice(0, 3).map((x: string, i: number) => <p key={i} className="mt-1 text-[12px] leading-[17px] text-fg-3">{`• ${stripTags(x)}`}</p>)}
       </Card>
       <Card>
         <h2 className="font-serif text-xl">Co nejvíc ovlivňuje skóre</h2>
@@ -305,7 +315,7 @@ function Overview({ d, rid, onChange, onClose }: { d: any; rid: string; onChange
               <li key={x.region} className="flex items-center gap-2">
                 <span className={`grid h-6 w-10 place-items-center rounded text-[12px] font-bold tabular-nums ${x.max >= 5 ? "ph-risk-high" : x.max >= 3 ? "ph-risk-med" : "ph-unknown"}`}>{`${x.max}/10`}</span>
                 <b className="min-w-0 flex-1">{REGION_CS[x.region] || x.region}</b>
-                <span className="text-[12px] text-fg-3">{`${x.count}× · naposledy ${fmtD(x.last)}`}</span>
+                <span className="text-[12px] text-fg-3">{`${x.count}× · naposledy ${fmtD(x.last)}`}{x.sides?.length ? ` · ${x.sides.map((v: string) => (v === "L" ? "vlevo" : v === "P" ? "vpravo" : "obě strany")).join(", ")}` : ""}</span>
               </li>
             ))}
           </ul>
@@ -329,7 +339,8 @@ function Overview({ d, rid, onChange, onClose }: { d: any; rid: string; onChange
       </Card>
       <Card>
         <h2 className="font-serif text-xl">Příznaky za 6 týdnů</h2>
-        <p className="mt-1 text-[12px] text-fg-2">{`Check-in ${d.checkins.length}×, bolest hlášena ${painDays.length}×.`}</p>
+        {/* round 2 F4.2: the pain count covers every source and names them */}
+        <p className="mt-1 text-[12px] text-fg-2" data-testid="symptom-counts">{`Check-in ${d.checkins.length}×, bolest hlášena ${d.pain_summary?.count ?? painDays.length}×`}{d.pain_summary?.sources_cs ? ` (${d.pain_summary.sources_cs})` : ""}{"."}</p>
         <div className="mt-3 flex flex-wrap gap-1" role="img" aria-label="Bolest v check-inech">
           {d.checkins.map((c: any, i: number) => {
             const p = c.pain || 0
@@ -504,9 +515,9 @@ function AiTab({ rid }: { rid: string }) {
   )
 }
 
-function VisitsTab({ rid, d, onChange }: { rid: string; d: any; onChange: () => void; pid: string }) {
-  const [concl, setConcl] = useState<any>(null)
+function VisitsTab({ rid, d }: { rid: string; d: any; onChange: () => void; pid: string }) {
   const toast = useToast()
+  const nav = useNavigate()
   return (
     <div className="grid gap-4">
       <Card>
@@ -518,7 +529,7 @@ function VisitsTab({ rid, d, onChange }: { rid: string; d: any; onChange: () => 
                 <span className="min-w-0 flex-1"><b className="text-fg">{fmtDT(b.at)}</b><span className="block text-[12px] text-fg-3">{KIND[b.kind] || b.kind}{` · ${STATUS[b.status] || b.status}`}</span></span>
                 {b.conclusion?.status === "approved" ? <Chip tone="ok">záznam schválen</Chip> : b.conclusion ? <Chip tone="watch">rozepsaný záznam</Chip> : null}
                 {["confirmed", "completed"].includes(b.status) && new Date(b.at).getTime() <= Date.now() &&
-                  <Button size="sm" variant="outline" icon={FileText} onClick={() => setConcl({ id: b.id, slot_at: b.at, kind: b.kind, runner: d.runner })}>Záznam</Button>}
+                  <Button size="sm" variant="outline" icon={FileText} onClick={() => nav(visitPath(rid, b.id))}>Záznam</Button>}
                 {["confirmed", "completed"].includes(b.status) && new Date(b.at).getTime() <= Date.now() &&
                   <Button size="sm" variant="outline" onClick={async () => {
                     try { const i = await api.invoiceIssue(b.id); toast({ title: `Doklad ${i.number}` }) } catch (e: any) { toast({ title: e?.message || "Nepodařilo se" }) }
@@ -530,7 +541,6 @@ function VisitsTab({ rid, d, onChange }: { rid: string; d: any; onChange: () => 
       </Card>
       <Packages rid={rid} />
       <DocsTab rid={rid} />
-      <ConclusionSheet booking={concl} onClose={() => setConcl(null)} onDone={() => { setConcl(null); onChange() }} />
     </div>
   )
 }

@@ -242,6 +242,7 @@ def _migrate(engine):
     add("bookings", "cancel_reason", "cancel_reason VARCHAR")
     _booking_guard(engine)
     add("rtr_sessions", "count_reason", "count_reason VARCHAR")      # physio brief P0.7
+    add("rtr_sessions", "morning_at", "morning_at VARCHAR")          # round 2 F4/F5
     add("return_to_run", "paused_reason", "paused_reason VARCHAR")
     # physio brief P0.10: message audience; the old system notes meant for the physio stay with the physio
     add("messages", "audience", "audience VARCHAR",
@@ -284,6 +285,11 @@ def _migrate(engine):
         add("exercises", col, f"{col} {ddl}")
     add("programs", "version", "version INTEGER")
     add("programs", "draft_note", "draft_note TEXT")
+    add("patient_records", "incomplete", "incomplete INTEGER DEFAULT 0")   # round 2 F2
+    add("exercises", "target_set", "target_set BOOLEAN DEFAULT FALSE")        # round 2 F6.3
+    add("diagnosis_codes", "search", "search VARCHAR")                         # round 2 F9.3
+    add("services", "kind", "kind VARCHAR")                                    # round 2 F13.3
+    add("physios", "grammatical_gender", "grammatical_gender VARCHAR")         # round 2 F15.2
     for col, ddl in (("next_morning_pain", "INTEGER"), ("morning_stiffness_min", "INTEGER"),
                      ("matched_activity_id", "INTEGER"), ("state", "VARCHAR")):
         add("rtr_sessions", col, f"{col} {ddl}")
@@ -518,6 +524,12 @@ async def lifespan(app: FastAPI):
         # appear on an already-seeded / redeployed database. Idempotent.
         seed_module.ensure_demo_accounts(db)
         _dedupe_activities(db)
+        # round 2 F9.3: the official MKN-10 list (ÚZIS, bundled) when the table is empty
+        try:
+            from .scripts.import_mkn10 import ensure_imported
+            ensure_imported(db)
+        except Exception:  # noqa: BLE001 — a missing code list must never block startup
+            logging.getLogger("dosslap").exception("MKN-10 import failed")
         # Physio AI Assistant: built-in knowledge (cards, summaries, app guide) from the repo
         try:
             from .assistant import knowledge as KB
