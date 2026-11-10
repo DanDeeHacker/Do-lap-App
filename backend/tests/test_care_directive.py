@@ -264,3 +264,13 @@ def test_stale_data_physio_sees_no_engine_bullets(client, db_session):
     rid = _stale_runner(client, db_session, "stale-bullets@test.cz")
     a = CV.present(db_session, rid, _assess(db_session, rid))
     assert a["guidance_physio"] == []
+
+
+def test_race_day_number_does_not_break_the_physio_bullets():
+    out = {"freshness": {"status": "fresh"}, "careDirective": {"running_allowed": True},
+           "guidance": {"type": "závod", "types": {"závod": {"label": "Závod", "km": 21.1}}}}
+    assert CV.guidance_physio(out) == []
+    g = {"type": "závod", "types": {"závod": {"label": "Závod", "km": 21.1}, "lehký": {"km": {"lo": 4, "hi": 6}, "allowed": True}},
+         "week": {"channels": {"volume": {"budget": 40, "done": 10}}}}
+    lim = models.ClinicalLimit(kind="max_km_week", value=20, reason_cs="r")
+    assert CV.apply_clinical_limits(g, [lim], "X") is True

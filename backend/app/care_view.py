@@ -308,8 +308,8 @@ def apply_clinical_limits(g: dict, limits: list, physio_name: str | None) -> boo
         return False
     types = g.get("types") or {}
     vol = ((g.get("week") or {}).get("channels") or {}).get("volume") or {}
-    before = (g.get("type"), {k: (v.get("km") or {}).get("hi") for k, v in types.items() if isinstance(v, dict)},
-              vol.get("budget"))
+    hi = lambda v: v["km"].get("hi") if isinstance(v, dict) and isinstance(v.get("km"), dict) else None   # noqa: E731
+    before = (g.get("type"), {k: hi(v) for k, v in types.items()}, vol.get("budget"))
     who = physio_name or "fyzioterapeuta"
     notes = [f"Podle {who}: {W.limit_text(x)} — {x.reason_cs}" if x.reason_cs else f"Podle {who}: {W.limit_text(x)}"
              for x in limits]
@@ -328,7 +328,7 @@ def apply_clinical_limits(g: dict, limits: list, physio_name: str | None) -> boo
         x = types.get(t)
         if not isinstance(x, dict) or t == "závod":
             continue
-        km = x.get("km") or {}
+        km = x.get("km") if isinstance(x.get("km"), dict) else {}
         if cap is not None and km.get("hi") is not None:
             if (km.get("lo") or 0) > cap or cap <= 0:
                 x["allowed"], x["why"] = False, notes[0] if len(notes) == 1 else "Nevejde se do omezení fyzioterapeuta"
@@ -354,8 +354,7 @@ def apply_clinical_limits(g: dict, limits: list, physio_name: str | None) -> boo
         g["type"] = fit or ("volno" if "volno" in types else g.get("type"))
         g["typeLabel"] = (types.get(g["type"]) or {}).get("label", g.get("typeLabel"))
     g["limits"] = notes
-    after = (g.get("type"), {k: (v.get("km") or {}).get("hi") for k, v in types.items() if isinstance(v, dict)},
-             vol.get("budget"))
+    after = (g.get("type"), {k: hi(v) for k, v in types.items()}, vol.get("budget"))
     return after != before
 
 
@@ -371,7 +370,7 @@ def guidance_physio(out: dict) -> list[str]:
     if g.get("noRun"):
         bullets.append(f"Běh dnes ne — {g['noRun']['reason']}")
     t = (g.get("types") or {}).get(g.get("type")) or {}
-    km = t.get("km") or {}
+    km = t.get("km") if isinstance(t.get("km"), dict) else {}      # a race day carries a plain number
     if d.get("running_allowed") is not False and g.get("type") in RUN_TYPES and km.get("hi"):
         lo, hi = km.get("lo") or km["hi"], km["hi"]
         rng = _num(hi) if lo == hi else f"{_num(lo)}–{_num(hi)}"
