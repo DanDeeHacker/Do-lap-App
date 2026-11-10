@@ -211,25 +211,29 @@ def limit_breaches(db: DBSession, rid: str) -> list[dict]:
 
 
 # ---- W10 adherence ---------------------------------------------------------------------------------------
-def adherence(db: DBSession, program: models.Program, days: int | None = None) -> dict:
-    """Full weeks for past weeks and the elapsed days of the current week (the method Physitrack uses).
-    `days` limits it to the last N days (W3 adherence_drop)."""
+def program_adherence(db: DBSession, program: models.Program, as_of: date | None = None) -> dict:
+    """Round 2 F7: the one adherence number for Klienti, Dnes, Přehled, Plán, Příprava and the runner's Péče.
+    Weekly (W10.9: past weeks in full, the current week by its elapsed days) when every tick has a date — a log
+    without logged_on takes its created_at. Ticks from before dated logs existed (done_count above the logs) make
+    it a total estimate: done / expected to date, capped at 100 %, labelled "odhad".
+    Returns {pct, method, done, expected, undated_logs, weeks, text}."""
+    from .routers.programs import published_at
     ex = db.query(models.Exercise).filter_by(program_id=program.id).all()
     per_week = sum(e.per_week or 0 for e in ex)
+    empty = {"pct": None, "method": "weekly", "done": 0, "expected": 0, "undated_logs": 0, "weeks": [],
+             "text": "Program bez cviků."}
     if not per_week:
-        return {"pct": None, "weeks": []}
+        return empty
     try:
-        start = date.fromisoformat((program.sent_at or program.started_on or "")[:10])
+        start = date.fromisoformat((program.sent_at or program.started_on or published_at(db, program) or "")[:10])
     except ValueError:
         start = E.today_date()
-    today = E.today_date()
-    if days:
-        start = max(start, today - timedelta(days=days - 1))
-    logs = db.query(models.ExerciseLog).filter(models.ExerciseLog.program_id == program.id,
-                                               models.ExerciseLog.logged_on >= start.isoformat()).all()
-    if not logs and not days and any((e.done_count or 0) for e in ex):
-        # sessions ticked before dated logs existed: counted, but not placeable in a week — say so, not 0 %
-        return {"pct": None, "weeks": [], "undated": sum(e.done_count or 0 for e in ex)}
+    today = as_of or E.today_date()
+    logs = db.query(models.ExerciseLog).filter(models.ExerciseLog.program_id == program.id).all()
+    dated = [((lg.logged_on or (lg.created_at or "")[:10]) or None) for lg in logs]
+    dated = [d for d in dated if d and start.isoformat() <= d <= today.isoformat()]
+    ticks = sum(e.done_count or 0 for e in ex)
+    undated = max(0, ticks - len(logs))
     weeks, expected, done = [], 0.0, 0
     ws = start - timedelta(days=start.weekday())
     while ws <= today:
@@ -237,13 +241,26 @@ def adherence(db: DBSession, program: models.Program, days: int | None = None) -
         span_start, span_end = max(ws, start), min(we, today)
         frac = ((span_end - span_start).days + 1) / 7
         exp = per_week * frac
-        n = sum(1 for lg in logs if span_start.isoformat() <= (lg.logged_on or "") <= span_end.isoformat())
+        n = sum(1 for d in dated if span_start.isoformat() <= d <= span_end.isoformat())
         weeks.append({"week": ws.isoformat(), "expected": round(exp, 1), "done": n,
-                      "pct": round(100 * min(1.0, n / exp)) if exp else None})
+                      "pct": round(100 * min(1.0, n / exp)) if exp > 0 else None})
         expected += exp
         done += n
         ws += timedelta(days=7)
-    return {"pct": round(100 * min(1.0, done / expected)) if expected else None, "weeks": weeks}
+    if undated:
+        tot = done + undated
+        pct = round(100 * min(1.0, tot / expected)) if expected else None
+        return {"pct": pct, "method": "total_estimate", "done": tot, "expected": round(expected, 1),
+                "undated_logs": undated, "weeks": weeks,
+                "text": f"Program splněn na {pct} % (odhad)" if pct is not None else "Plnění zatím nejde spočítat."}
+    pct = round(100 * min(1.0, done / expected)) if expected else None
+    return {"pct": pct, "method": "weekly", "done": done, "expected": round(expected, 1), "undated_logs": 0,
+            "weeks": weeks, "text": f"Program splněn na {pct} %" if pct is not None else "Plnění zatím nejde spočítat."}
+
+
+def adherence(db: DBSession, program: models.Program, days: int | None = None) -> dict:
+    """Kept for callers; round 2 F7 has one number (program_adherence) — `days` no longer changes it."""
+    return program_adherence(db, program)
 
 
 # ---- W3 alerts ---------------------------------------------------------------------------------------------
@@ -270,7 +287,7 @@ def alert_title(rule: str, payload: dict | None) -> str:
             return f"Bez dat {p['days']} dní"
         return "Bez dat" if not p.get("last") else f"Bez dat od {int(p['last'][8:10])}. {int(p['last'][5:7])}."
     if rule == "adherence_drop" and p.get("pct") is not None:
-        return f"Program splněn na {round(p['pct'])} %"
+        return f"Program splněn na {round(p['pct'])} %" + (" (odhad)" if p.get("method") == "total_estimate" else "")
     return ALERT_CS.get(rule, rule)
 
 
@@ -314,9 +331,9 @@ def _rule_hits(db: DBSession, physio_id: str, rid: str) -> dict[str, dict]:
         else:
             sent = (prog.sent_at or "")[:10]
             if sent and sent <= (E.today_date() - timedelta(days=7)).isoformat():
-                adh = adherence(db, prog, days=7)["pct"]
-                if adh is not None and adh < ADHERENCE_LOW:
-                    hits["adherence_drop"] = {"program_id": prog.id, "pct": adh}
+                adh = program_adherence(db, prog)          # round 2 F7.5: the same number as everywhere
+                if adh["pct"] is not None and adh["pct"] < ADHERENCE_LOW:
+                    hits["adherence_drop"] = {"program_id": prog.id, "pct": adh["pct"], "method": adh["method"]}
     a = E.get_or_refresh_assessment(db, rid) or {}
     if any(s.get("id") in SPIKE_SIGNALS for s in a.get("signals") or []):
         hits["load_spike"] = {}

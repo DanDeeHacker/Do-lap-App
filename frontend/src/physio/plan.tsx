@@ -25,10 +25,12 @@ export function PlanTab({ rid, d, onChange }: { rid: string; d: any; onChange: (
 
 // ---------------------------------------------------------------- W10 programme builder
 export function AdherenceGrid({ adh }: { adh: any }) {
-  if (adh?.undated) return <p className="mt-2 text-[12px] text-fg-3">{`Klient odškrtl ${adh.undated}× cvičení bez data, plnění po týdnech zatím nejde spočítat.`}</p>
-  if (!adh?.weeks?.length) return null
+  // round 2 F7: the same number and label as Klienti, Dnes, Příprava and the runner's Péče
+  if (!adh) return null
   return (
-    <div className="mt-2" aria-label="Plnění po týdnech">
+    <div className="mt-2" aria-label="Plnění po týdnech" data-testid="adherence">
+      <p className="mb-1.5 text-[13px] font-bold">{adh.text}</p>
+      {adh.method === "total_estimate" && <p className="mb-1.5 text-[11.5px] text-fg-3">{`Odhad: ${adh.undated_logs}× odškrtnuto bez data, počítáno z celkového počtu.`}</p>}
       <div className="flex gap-1">
         {adh.weeks.map((w: any) => (
           <div key={w.week} title={`${fmtD(w.week)}: ${w.done} z ${String(w.expected).replace(".", ",")}`}
@@ -37,7 +39,7 @@ export function AdherenceGrid({ adh }: { adh: any }) {
           </div>
         ))}
       </div>
-      <p className="mt-1 text-[11.5px] text-fg-3">Uplynulé týdny celé, aktuální týden podle uplynulých dnů.</p>
+      {adh.weeks?.length > 0 && <p className="mt-1 text-[11.5px] text-fg-3">Uplynulé týdny celé, aktuální týden podle uplynulých dnů.</p>}
     </div>
   )
 }

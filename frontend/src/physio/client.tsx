@@ -50,7 +50,7 @@ export function ClientsPage() {
                       {c.attention.map((k: string) => <Chip key={k} tone={ATTN[k]?.[1] || "muted"}>{ATTN[k]?.[0] || k}</Chip>)}</b>
                     <span className="mt-0.5 block text-[12px] text-fg-3">
                       {c.next ? `další návštěva ${fmtDT(c.next.at)}` : "bez naplánované návštěvy"}
-                      {c.program ? ` · program ${c.program.adherence ?? "—"} % splněno` : ""}
+                      {c.program ? ` · program ${c.program.adherence ?? "—"} % splněno${c.program.adherence_method === "total_estimate" ? " (odhad)" : ""}` : ""}
                       {c.rtr ? ` · návrat k běhu ${c.rtr.level}/${c.rtr.levels}` : ""}
                     </span>
                     {c.lastMessage && <span className="block truncate text-[12px] text-fg-3">{`${c.lastMessage.sender === "runner" ? "Klient" : c.lastMessage.sender === "physio" ? "Vy" : "Systém"}: ${c.lastMessage.body}`}</span>}

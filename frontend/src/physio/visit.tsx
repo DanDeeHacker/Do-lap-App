@@ -56,7 +56,7 @@ export function PrevisitPage({ rid, bid }: { rid: string; bid?: number }) {
           <h2 className="font-serif text-xl">3. Plán a skutečnost</h2>
           {!d.plan_vs_reality ? <Empty>Bez programu.</Empty> : (
             <>
-              <p className="mt-2 text-[14px]">{`${d.plan_vs_reality.program}: splněno ${d.plan_vs_reality.adherence?.pct ?? "—"} %`}</p>
+              <p className="mt-2 text-[14px]">{`${d.plan_vs_reality.program}: `}{d.plan_vs_reality.adherence?.text}</p>
               <table className="mt-2 w-full text-[13px]"><tbody>
                 {d.plan_vs_reality.exercises.map((e: any, i: number) => (
                   <tr key={i} className="border-t border-white/[.07]"><td className="py-1.5">{e.name}</td><td className="text-right tabular-nums">{`${e.done}/${e.target}`}</td></tr>

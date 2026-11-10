@@ -210,6 +210,7 @@ def _claim_info(db: DBSession, pid: str, rid: str) -> dict | None:
 def my_clients(user: models.User = Depends(require_verified_physio), db: DBSession = Depends(get_db)):
     """Everyone in my care, the most urgent first: state, pain, next visit, programme adherence,
     the return to running and the last message."""
+    from .. import work as W
     pid = _pid(user)
     rows = db.query(models.CareAssignment).filter(models.CareAssignment.physio_id == pid,
                                                   models.CareAssignment.status == "active").all()
@@ -231,11 +232,10 @@ def my_clients(user: models.User = Depends(require_verified_physio), db: DBSessi
                .order_by(models.Booking.slot_at.asc()).first())
         prog = (db.query(models.Program).filter(models.Program.runner_id == rid, models.Program.active.is_(True))
                 .order_by(models.Program.id.desc()).first())
-        adher = None
+        adher, adh = None, {"method": None}
         if prog is not None:
-            ex = db.query(models.Exercise).filter(models.Exercise.program_id == prog.id).all()
-            tgt = sum(e.target_count or 0 for e in ex)
-            adher = round(100 * sum(e.done_count or 0 for e in ex) / tgt) if tgt else None
+            adh = W.program_adherence(db, prog)          # round 2 F7: one number everywhere
+            adher = adh["pct"]
         rtr = (db.query(models.ReturnToRun).filter(models.ReturnToRun.runner_id == rid,
                                                     models.ReturnToRun.status.notin_(("completed", "ended"))).first())
         msg = (db.query(models.Message).filter(models.Message.runner_id == rid)
@@ -253,7 +253,8 @@ def my_clients(user: models.User = Depends(require_verified_physio), db: DBSessi
             "runnerId": rid, "name": r.name, "city": r.city, "since": ca.created_at, "a": a,
             "checkin": {"at": ci.submitted_at, "pain": ci.pain_score, "site": ci.pain_site} if ci else None,
             "next": {"id": nxt.id, "at": nxt.slot_at, "kind": nxt.kind, "status": nxt.status} if nxt else None,
-            "program": {"id": prog.id, "name": prog.name, "status": prog.status, "adherence": adher} if prog else None,
+            "program": {"id": prog.id, "name": prog.name, "status": prog.status, "adherence": adher,
+                        "adherence_method": adh["method"]} if prog else None,
             "rtr": {"level": rtr.current_level, "levels": len(rtr.levels_json or []), "status": rtr.status} if rtr else None,
             "lastMessage": {"sender": msg.sender, "at": msg.created_at, "body": (msg.body or "")[:120]} if msg else None,
             "attention": attention,
@@ -366,7 +367,7 @@ def _header(db: DBSession, pid: str, rid: str, cis: list) -> dict:
             "freshness": CV.freshness_for(db, rid),
             "pain_map": ps["regions"],
             "pain_summary": {k: ps[k] for k in ("count", "days", "max", "by_source", "sources_cs")},
-            "adherence": W.adherence(db, prog) if prog else None,
+            "adherence": W.program_adherence(db, prog) if prog else None,
             "limits": [W.limit_text(x) for x in W.active_limits(db, rid)],
             "anamnesis": card.anamnesis if card else None,
             "colleagues": colleagues,

@@ -133,7 +133,7 @@ def program_out(db: DBSession, p: models.Program, runner: bool = False) -> dict:
         out["history"] = runner_history(db, p)
     out["pending_changes"] = 0 if runner else db.query(models.ProgramRevision).filter(
         models.ProgramRevision.program_id == p.id, models.ProgramRevision.note.is_(None)).count()
-    out["adherence"] = W.adherence(db, p)
+    out["adherence"] = W.program_adherence(db, p)
     out["ends_on"] = ends_on(p, db)
     out["ended"] = bool(out["ends_on"] and out["ends_on"] < E.iso_date(E.today_date()))
     return out

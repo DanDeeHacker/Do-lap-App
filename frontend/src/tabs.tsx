@@ -2337,14 +2337,16 @@ export function Program() {
       </>
     )
   const ex = (p.exercises || []) as any[]
-  const adh = ex.length ? Math.round((ex.reduce((s, e) => s + (e.done_count || 0) / (e.target_count || 12), 0) / ex.length) * 100) : 0
+  // round 2 F7: the server's one adherence number, not a local average
+  const adh: number | null = p.adherence?.pct ?? null
+  const adhEst = p.adherence?.method === "total_estimate"
   return (
     <>
       {/* round 2 F6.1: the date of the latest published version */}
       <Head kicker={`${PHASE[p.phase] || p.phase} · ${p.total_weeks || p.weeks} ${plural(p.total_weeks || p.weeks || 0, "týden", "týdny", "týdnů")}`} title={p.name} sub={`Vede ${boot?.physios?.[p.physio_id]?.name || "—"}. Odesláno ${fmtD(p.published_at || p.sent_at || p.started_on)}`} />
       <div className="grid gap-4 lg:grid-cols-[1.5fr_.8fr]">
         <Card data-tour="care-programs">
-          <div className="flex items-center justify-between"><Label>Cviky</Label><Chip tone={adh >= 60 ? "ok" : "watch"}>{adh} % splněno</Chip></div>
+          <div className="flex items-center justify-between"><Label>Cviky</Label><Chip tone={(adh ?? 0) >= 60 ? "ok" : "watch"}>{adh == null ? "plnění zatím nejde spočítat" : `${adh} % splněno${adhEst ? " (odhad)" : ""}`}</Chip></div>
           <div className="mt-2 divide-y divide-white/[.07]">
             {ex.map((e) => (
               <div key={e.id} className="flex items-center gap-3 py-3">
