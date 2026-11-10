@@ -53,6 +53,7 @@ def test_three_sources_are_three_events_everywhere(client, db_session):
     # Příprava counts every source too
     pre = client.get(f"/api/physios/me/clients/{RID}/previsit").json()
     assert pre["since"]["pain_count"] >= 3 and "návrat k běhu" in pre["since"]["pain_sources"]
+    assert sum(pre["since"]["pain_by_source"].values()) == pre["since"]["pain_count"] and pre["since"]["pain_by_source"].get("rtr_session")
     # leave the shared demo runner without an open plan for the other tests
     plan.status = "completed"
     db_session.commit()

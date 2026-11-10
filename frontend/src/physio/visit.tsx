@@ -4,7 +4,7 @@
 // asks before leaving with unsaved text, offers templates and "Zkopírovat z minula" (text only, never the OSTRC),
 // records only with the client's consent, and after approval leads to the programme, the next visit and the
 // return to running.
-import { useCallback, useEffect, useRef, useState } from "react"
+import { Fragment, useCallback, useEffect, useRef, useState } from "react"
 import { Link, useBlocker, useNavigate } from "react-router"
 import { ArrowLeft, CalendarPlus, Copy, Dumbbell, Footprints, Mic, Save, Square } from "lucide-react"
 import { api } from "@/api"
@@ -34,6 +34,21 @@ function Back({ rid }: { rid: string }) {
 // ---------------------------------------------------------------- W8 Příprava (round 2 F16)
 // "v 1 dni", "ve 2 dnech", "v 5 dnech"
 export const inDays = (n: number) => (n === 1 ? "v 1 dni" : n >= 2 && n <= 4 ? `ve ${n} dnech` : `v ${n} dnech`)
+
+// Each source and place is its own text node so the English dictionary translates it (a joined
+// "cvičení 10×, návrat k běhu 3×" stayed Czech); region keys such as "achilles" get their label.
+const PAIN_SRC: Record<string, string> = { checkin: "check-in", activity: "po běhu", rtr_session: "návrat k běhu",
+  rtr_morning: "ráno po sezení", exercise: "cvičení" }
+const PLACE: Record<string, string> = Object.fromEntries(REGIONS)
+function PainSince({ s }: { s: any }) {
+  const by = Object.entries((s.pain_by_source || {}) as Record<string, number>).sort((a, b) => b[1] - a[1])
+  return <>{`Bolest ${inDays(s.pain_days)}, hlášena ${s.pain_count}×`}{" ("}{by.length ? by.map(([k, v], i) => (
+    <Fragment key={k}>{i ? ", " : ""}<span>{PAIN_SRC[k] || k}</span>{` ${v}×`}</Fragment>)) : s.pain_sources}{")"}{`, nejvýš ${s.pain_max}/10`}</>
+}
+function sitesOf(sites: string[]) {
+  const names = [...new Set(sites.map((x) => PLACE[x] || x))]
+  return names.length ? <>{" — "}{names.map((n, i) => <Fragment key={n}>{i ? ", " : ""}<span>{n}</span></Fragment>)}</> : null
+}
 const visitWhen = (iso: string) => new Date(iso).toLocaleString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })
 
 export function PrevisitPage({ rid, bid }: { rid: string; bid?: number }) {
@@ -45,7 +60,7 @@ export function PrevisitPage({ rid, bid }: { rid: string; bid?: number }) {
       {/* F16.1: who, when and what the visit is, with a link to the client */}
       <h1 className="mt-2 font-serif text-[30px]" data-testid="previsit-title">
         {"Příprava na návštěvu — "}<Link to={`/physio/client/${encodeURIComponent(rid)}`} className="hover:underline">{d.runner_name}</Link>
-        {d.visit ? <>{", "}{visitWhen(d.visit.at)}{d.visit.service || KIND[d.visit.kind] ? `, ${d.visit.service || KIND[d.visit.kind]}` : ""}</> : null}
+        {d.visit ? <>{", "}{visitWhen(d.visit.at)}{d.visit.service || KIND[d.visit.kind] ? <>{", "}{d.visit.service || KIND[d.visit.kind]}</> : null}</> : null}
       </h1>
       <div className="mt-4 grid gap-4 lg:grid-cols-2" data-testid="previsit">
         <PrevisitSections d={d} rid={rid} />
@@ -67,16 +82,14 @@ function PrevisitSections({ d, rid }: { d: any; rid: string }) {
       <Card>
         <h2 className="font-serif text-xl">2. Od poslední návštěvy</h2>
         <p className="mt-2 text-[14px]">{`Od ${fmtD(d.since.from)}: ${d.since.runs} běhů, ${String(d.since.km).replace(".", ",")} km.`}</p>
-        <p className="text-[14px]" data-testid="previsit-pain">{d.since.pain_count
-          ? `Bolest ${inDays(d.since.pain_days)}, hlášena ${d.since.pain_count}× (${d.since.pain_sources}), nejvýš ${d.since.pain_max}/10${d.since.sites.length ? ` — ${d.since.sites.join(", ")}` : ""}.`
-          : "Žádná hlášená bolest."}</p>
+        <p className="text-[14px]" data-testid="previsit-pain">{d.since.pain_count ? <><PainSince s={d.since} />{sitesOf(d.since.sites)}{"."}</> : "Žádná hlášená bolest."}</p>
         {d.care_directive?.headline_cs && <p className="mt-1 text-[13px] text-fg-2">{"Klient dnes vidí: "}<b>{d.care_directive.headline_cs}</b></p>}
       </Card>
       <Card>
         <h2 className="font-serif text-xl">3. Plán a skutečnost</h2>
         {!d.plan_vs_reality ? <p className="mt-2 text-[13px] text-fg-3">Bez programu.</p> : (
           <>
-            <p className="mt-2 text-[14px]">{`${d.plan_vs_reality.program}: `}{d.plan_vs_reality.adherence?.text}</p>
+            <p className="mt-2 text-[14px]"><span>{d.plan_vs_reality.program}</span>{": "}{d.plan_vs_reality.adherence?.text}</p>
             <table className="mt-2 w-full text-[13px]"><tbody>
               {d.plan_vs_reality.exercises.map((e: any, i: number) => (
                 <tr key={i} className="border-t border-white/[.07]"><td className="py-1.5">{e.name}</td><td className="text-right tabular-nums">{`${e.done}/${e.target}`}</td></tr>
@@ -88,9 +101,9 @@ function PrevisitSections({ d, rid }: { d: any; rid: string }) {
           <table className="mt-3 w-full text-[13px]" data-testid="previsit-running">
             <thead className="text-left text-[11.5px] text-fg-3"><tr><th className="font-bold">Týden</th><th className="text-right font-bold">Naběháno</th><th className="text-right font-bold">Předepsáno</th></tr></thead>
             <tbody>{d.running.map((w: any) => (
-              <tr key={w.week} className="border-t border-white/[.07]"><td className="py-1">{`od ${fmtD(w.week)}`}</td>
+              <tr key={w.week} className="border-t border-white/[.07]"><td className="py-1">{"od "}{fmtD(w.week)}</td>
                 <td className={`text-right tabular-nums ${w.target != null && w.km > w.target ? "font-bold text-alert" : ""}`}>{`${String(w.km).replace(".", ",")} km`}</td>
-                <td className="text-right tabular-nums text-fg-2">{w.target == null ? "—" : `${String(w.target).replace(".", ",")} km${w.target_source === "limit" ? " (omezení)" : ""}`}</td></tr>
+                <td className="text-right tabular-nums text-fg-2">{w.target == null ? "—" : `${String(w.target).replace(".", ",")} km`}{w.target_source === "limit" ? <>{" "}<span>(omezení)</span></> : null}</td></tr>
             ))}</tbody>
           </table>
         )}
@@ -469,7 +482,7 @@ function PrevisitBrief({ d }: { d: any }) {
       {d.reason && <p><b>{"Důvod: "}</b>{d.reason}</p>}
       {d.questions && <p><b>{"Chce probrat: "}</b>{d.questions}</p>}
       <p>{`Od ${fmtD(d.since.from)}: ${d.since.runs} běhů, ${String(d.since.km).replace(".", ",")} km`}</p>
-      <p>{d.since.pain_count ? `Bolest ${inDays(d.since.pain_days)}, hlášena ${d.since.pain_count}× (${d.since.pain_sources}), nejvýš ${d.since.pain_max}/10` : "Žádná hlášená bolest."}</p>
+      <p>{d.since.pain_count ? <PainSince s={d.since} /> : "Žádná hlášená bolest."}</p>
       {d.plan_vs_reality && <p>{d.plan_vs_reality.adherence?.text || `Program splněn na ${d.plan_vs_reality.adherence?.pct ?? "—"} %`}</p>}
       {d.limits.length > 0 && <p className="text-fg-2">{`Omezení: ${d.limits.join(" · ")}`}</p>}
       <div className="mt-2 border-t border-white/[.08] pt-2">

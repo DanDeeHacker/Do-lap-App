@@ -1,0 +1,17 @@
+{
+  "opraveno": "corrected",
+  "plno": "full",
+  "nepracuji": "not working",
+  "{} volný": "{0} free",
+  "{} volné": "{0} free",
+  "Klientům se ukazuje:": "Clients see:",
+  "Bolest {}, hlášena {}×": "Pain {0}, reported {1}×",
+  ", nejvýš {}/10": ", at most {0}/10",
+  "klient": "client",
+  "zaplaceno": "paid",
+  "nezaplaceno": "unpaid",
+  "{} nastavila omezení tréninku: {} — {}": "{0} set a training limit: {1} — {2}",
+  "{} nastavil omezení tréninku: {} — {}": "{0} set a training limit: {1} — {2}",
+  "{} nastavila omezení tréninku: {}": "{0} set a training limit: {1}",
+  "{} nastavil omezení tréninku: {}": "{0} set a training limit: {1}"
+}

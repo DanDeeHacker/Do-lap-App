@@ -811,7 +811,7 @@ def previsit(rid: str, booking_id: int | None = None, user: models.User = Depend
            "intake": intake.data if intake else None,
            "since": {"from": since, "runs": len(runs), "km": round(sum(r.distance_km or 0 for r in runs), 1),
                      "pain_days": psum["days"], "pain_count": psum["count"], "pain_max": psum["max"],
-                     "pain_sources": psum["sources_cs"],
+                     "pain_sources": psum["sources_cs"], "pain_by_source": psum["by_source"],  # for per-source labels in the UI
                      "sites": sorted({e["region"] for e in pains if e["region"]})},
            "plan_vs_reality": ({"program": po["name"], "adherence": po["adherence"],
                                 "exercises": [{"name": e["name"], "per_week": e["per_week"], "done": e["done_count"],

@@ -53,7 +53,7 @@ export function ClientsPage() {
                       {c.program ? ` · program ${c.program.adherence ?? "—"} % splněno${c.program.adherence_method === "total_estimate" ? " (odhad)" : ""}` : ""}
                       {c.rtr ? ` · návrat k běhu ${c.rtr.level}/${c.rtr.levels}` : ""}
                     </span>
-                    {c.lastMessage && <span className="block truncate text-[12px] text-fg-3">{`${c.lastMessage.sender === "runner" ? "Klient" : c.lastMessage.sender === "physio" ? "Vy" : "Systém"}: ${c.lastMessage.body}`}</span>}
+                    {c.lastMessage && <span className="block truncate text-[12px] text-fg-3">{`${c.lastMessage.sender === "runner" ? "Klient" : c.lastMessage.sender === "physio" ? "Vy" : "Systém"}: `}<span>{c.lastMessage.body}</span></span>}
                   </span>
                   <span className="flex items-center gap-2">
                     <RiskChip tier={c.a?.tier} a={c.a} />
@@ -178,7 +178,8 @@ export function ClientPage({ pid, rid }: { pid: string; rid: string }) {
               <span className="ml-2 align-middle text-[12.5px] font-normal text-fg-2">
                 {[r.age ? `${r.age} let` : null, r.sex === "f" ? "žena" : r.sex === "m" ? "muž" : null, r.city].filter(Boolean).join(" · ")}</span></h1>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-fg-2">
-              <span>{ep?.diagnosis ? `${ep.code ? `${ep.code} ` : ""}${ep.diagnosis}${ep.side ? ` (${ep.side === "L" ? "vlevo" : ep.side === "R" ? "vpravo" : "oboustranně"})` : ""}` : "bez diagnózy"}</span>
+              {/* the side is its own text node so the English dictionary translates it; episodes store L / P / both */}
+              <span>{ep?.diagnosis ? <>{`${ep.code ? `${ep.code} ` : ""}${ep.diagnosis}`}{ep.side ? <>{" ("}<span>{ep.side === "L" ? "vlevo" : ep.side === "P" || ep.side === "R" ? "vpravo" : "oboustranně"}</span>{")"}</> : null}</> : "bez diagnózy"}</span>
               {d.phase && <span>{`fáze: ${PHASE[d.phase] || d.phase}`}</span>}{/* round 2 F17.3: the runner app's labels */}
               <span>{d.next_visit ? `další návštěva ${fmtDT(d.next_visit.at)}` : "bez další návštěvy"}</span>
               <span className={fr?.status === "fresh" ? "" : "text-watch"}>{fr?.last_data_at ? `data ${fmtD(fr.last_data_at)}` : "bez dat z hodinek"}</span>

@@ -8574,6 +8574,7 @@
   "t": "Obvykle odpovídá {}",
   "files": [
    "care.tsx",
+   "messages.tsx",
    "profile.tsx"
   ],
   "kind": "tpl"
@@ -8584,8 +8585,7 @@
    "care.tsx",
    "datapage.tsx",
    "profile.tsx",
-   "training.tsx",
-   "visit.tsx"
+   "training.tsx"
   ],
   "kind": "tpl"
  },
@@ -21340,7 +21340,8 @@
  {
   "t": "návrat k běhu",
   "files": [
-   "lib.ts"
+   "lib.ts",
+   "visit.tsx"
   ],
   "kind": "str"
  },
@@ -21469,11 +21470,11 @@
   "kind": "jsx"
  },
  {
-  "t": "Klientům se ukazuje: Odpovídám obvykle do {}.",
+  "t": "Klientům se ukazuje:",
   "files": [
    "messages.tsx"
   ],
-  "kind": "tpl"
+  "kind": "str"
  },
  {
   "t": "Systém:",
@@ -23524,8 +23525,7 @@
   "t": "{} km{}",
   "files": [
    "outlook.tsx",
-   "runprofile.tsx",
-   "visit.tsx"
+   "runprofile.tsx"
   ],
   "kind": "tpl"
  },
@@ -37873,6 +37873,13 @@
   "kind": "jsx"
  },
  {
+  "t": ", nejvýš {}/10",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "tpl"
+ },
+ {
   "t": "· plán je pozastavený",
   "files": [
    "visit.tsx"
@@ -37884,7 +37891,7 @@
   "files": [
    "visit.tsx"
   ],
-  "kind": "str"
+  "kind": "jsx"
  },
  {
   "t": "{}{}Nález: {}",
@@ -37936,14 +37943,7 @@
   "kind": "jsx"
  },
  {
-  "t": "Bolest {}, hlášena {}× ({}), nejvýš {}/10",
-  "files": [
-   "visit.tsx"
-  ],
-  "kind": "tpl"
- },
- {
-  "t": "Bolest {}, hlášena {}× ({}), nejvýš {}/10{}.",
+  "t": "Bolest {}, hlášena {}×",
   "files": [
    "visit.tsx"
   ],
@@ -37951,6 +37951,13 @@
  },
  {
   "t": "Co jste zjistili, co dělat do příští návštěvy.",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
+  "t": "cvičení",
   "files": [
    "visit.tsx"
   ],
@@ -38202,6 +38209,13 @@
   "kind": "str"
  },
  {
+  "t": "po běhu",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
+ },
+ {
   "t": "Poslat shrnutí klientovi",
   "files": [
    "visit.tsx"
@@ -38256,6 +38270,13 @@
    "visit.tsx"
   ],
   "kind": "tpl"
+ },
+ {
+  "t": "ráno po sezení",
+  "files": [
+   "visit.tsx"
+  ],
+  "kind": "str"
  },
  {
   "t": "rounded-full border px-3 py-1.5 text-[13px] {}",

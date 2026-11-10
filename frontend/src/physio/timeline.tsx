@@ -7,7 +7,7 @@ import { useMemo, useState } from "react"
 import { api } from "@/api"
 import { Card, Chip, Segmented } from "@/ui"
 import { fmtD, fmtDT } from "@/lib"
-import { Empty, Loading, useLoad } from "@/physio/common"
+import { Empty, Loading, REGIONS, useLoad } from "@/physio/common"
 
 // fixed categorical order; text never wears these colours (labels stay in ink)
 const SERIES: [string, string, string][] = [["load", "Zátěž", "#2F5F7A"], ["mech", "Mechanika", "#7A4FA0"], ["symp", "Příznaky", "#A0522D"]]
@@ -108,16 +108,19 @@ export function Timeline({ rid }: { rid: string }) {
           {places.length === 0 ? <p className="text-[12px] text-fg-3">Bez hlášené bolesti.</p> : (
             <svg viewBox={`0 0 ${W} ${places.length * 16 + 4}`} className="w-full" role="img" aria-label="Bolest podle místa">
               <Markers height={places.length * 16 + 4} />
-              {places.map((pl, r) => (
+              {places.map((pl, r) => {
+                const name = PLACE_CS[pl] || pl  // region keys from return-to-run and exercise pain, not raw "achilles"
+                return (
                 <g key={pl}>
-                  <text x={2} y={r * 16 + 12} fontSize={9} fill="currentColor" opacity={0.75}>{pl.length > 22 ? `${pl.slice(0, 21)}…` : pl}</text>
+                  <text x={2} y={r * 16 + 12} fontSize={9} fill="currentColor" opacity={0.75}>{name.length > 22 ? `${name.slice(0, 21)}…` : name}</text>
                   {days.map((dd, i) => {
                     const v = by[dd]?.pain?.[pl]
                     return v == null ? null : <circle key={dd} cx={x(i)} cy={r * 16 + 9} r={v ? 2 + v * 0.45 : 1.5}
                       fill={v >= 5 ? "var(--color-alert)" : v >= 3 ? "var(--color-watch)" : "var(--color-fg-3)"} stroke="var(--color-panel)" strokeWidth={1.5} />
                   })}
                 </g>
-              ))}
+                )
+              })}
               <HoverHits height={places.length * 16 + 4} />
             </svg>
           )}
@@ -179,3 +182,5 @@ function TimelineTable({ d }: { d: any }) {
     </div>
   )
 }
+
+const PLACE_CS: Record<string, string> = Object.fromEntries(REGIONS)

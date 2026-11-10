@@ -30,7 +30,7 @@ export function MessagesPage() {
               <li key={c.runner_id} className="flex flex-wrap items-center gap-2 py-2.5 text-[13px]">
                 <Link to={`/physio/client/${c.runner_id}?tab=chat`} className="min-w-0 flex-1">
                   <b className="text-fg">{c.name}</b>
-                  <span className="block truncate text-fg-2">{c.last ? `${c.last.sender === "runner" ? "" : c.last.sender === "physio" ? "Vy: " : "Systém: "}${c.last.body}` : "Zatím bez zpráv"}</span>
+                  <span className="block truncate text-fg-2">{c.last ? <>{c.last.sender === "runner" ? "" : c.last.sender === "physio" ? "Vy: " : "Systém: "}<span>{c.last.body}</span></> : "Zatím bez zpráv"}</span>
                 </Link>
                 {c.last && <span className="text-[12px] text-fg-3">{fmtDT(c.last.at)}</span>}
                 {c.unread > 0 && <Chip tone="alert">{`${c.unread} nové`}</Chip>}
@@ -40,7 +40,7 @@ export function MessagesPage() {
           </ul>
         )}
       </Card>
-      {d && <p className="mt-3 text-[12px] text-fg-3">{d.response_time_text ? `Klientům se ukazuje: Odpovídám obvykle do ${d.response_time_text}.` : "Dobu odpovědi a rychlé odpovědi nastavíte v Praxi."}</p>}
+      {d && <p className="mt-3 text-[12px] text-fg-3">{d.response_time_text ? <>{"Klientům se ukazuje: "}{`Obvykle odpovídá ${d.response_time_text}`}</> : "Dobu odpovědi a rychlé odpovědi nastavíte v Praxi."}{/* the runner card's own words; the text already starts with "do …" */}</p>}
     </>
   )
 }

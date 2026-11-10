@@ -45,17 +45,17 @@ export function Money() {
         </div>
       )}
       {rev.d && Object.keys(rev.d.by_payer || {}).length > 0 && (
-        <p className="mt-2 text-[12px] text-fg-2">{"Podle plátce: "}{Object.entries(rev.d.by_payer).map(([k, v]) => `${PAYER[k] || k} ${czk(v as number)}`).join(" · ")}</p>
+        <p className="mt-2 text-[12px] text-fg-2">{"Podle plátce: "}{Object.entries(rev.d.by_payer).map(([k, v], n) => <span key={k}>{n ? " · " : ""}<span>{PAYER[k] || k}</span>{` ${czk(v as number)}`}</span>)}</p>
       )}
       {!inv.d ? <Loading err={inv.err} /> : inv.d.items.length === 0 ? <Empty>V tomto období žádné doklady. Doklad vznikne, když návštěvu označíte jako proběhlou.</Empty> : (
         <table className="mt-3 w-full text-[12.5px]" data-testid="invoices">
-          <thead className="text-left text-fg-3"><tr><th className="py-1">Číslo</th><th>Datum</th><th>Klient</th><th>Plátce</th><th className="text-right">Částka</th><th>Stav</th><th /></tr></thead>
+          <thead className="text-left text-fg-3"><tr><th className="py-1">Číslo</th><th>Datum</th><th>Klient</th><th>Plátce</th><th className="text-right">Částka</th><th className="pl-3">Stav</th><th /></tr></thead>
           <tbody>
             {inv.d.items.map((i: any) => (
               <tr key={i.id} className="border-t border-white/[.07]">
                 <td className="py-1.5 tabular-nums">{i.number}</td><td>{fmtD(i.issued_at)}</td><td>{i.client}</td><td>{PAYER[i.payer] || i.payer}</td>
                 <td className="text-right tabular-nums">{czk(i.amount_czk)}</td>
-                <td><Chip tone={i.status === "paid" ? "ok" : i.status === "cancelled" ? "muted" : "watch"}>{INV[i.status] || i.status}</Chip></td>
+                <td className="pl-3"><Chip tone={i.status === "paid" ? "ok" : i.status === "cancelled" ? "muted" : "watch"}>{INV[i.status] || i.status}</Chip></td>
                 <td className="text-right">{i.status === "issued" && <>
                   <button type="button" className="text-[12px] font-bold text-accent hover:underline" onClick={() => set(i.id, "paid")}>Zaplaceno</button>{" "}
                   <button type="button" className="text-[12px] font-bold text-fg-3 hover:text-alert" onClick={() => set(i.id, "cancelled")}>Zrušit</button></>}</td>
