@@ -76,3 +76,14 @@ def test_dnes_alert_title_carries_the_real_number():
     from app import work as W
     assert W.alert_title("no_data_7d", {"days": 54, "last": "2026-09-17"}) == "Bez dat 54 dní"
     assert W.alert_title("no_data_7d", {"last": "2026-09-17"}) == "Bez dat od 17. 9."
+
+
+def test_previsit_header_running_and_last_record(client, db_session):
+    """Round 2 F16: Příprava names the client and the visit, compares running with the target, links the last note."""
+    login(client, PHYSIO)
+    bk = db_session.query(models.Booking).filter_by(runner_id=RID, physio_id="phy-0001").order_by(models.Booking.id.desc()).first()
+    pre = client.get(f"/api/physios/me/clients/{RID}/previsit", params={"booking_id": bk.id}).json()
+    assert pre["runner_name"] == "Adéla Kučerová" and pre["visit"]["id"] == bk.id
+    assert pre["running"] and {"week", "km", "target", "target_source"} <= set(pre["running"][-1])
+    if pre["last_record"]:
+        assert "booking_id" in pre["last_record"]

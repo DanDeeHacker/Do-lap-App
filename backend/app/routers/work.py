@@ -819,6 +819,38 @@ def previsit(rid: str, booking_id: int | None = None, user: models.User = Depend
            "last_record": _last_record(db, last),
            "missing": missing, "care_directive": a.get("careDirective"),
            "hypotheses": None}
+    # round 2 F16: the header (who, when, what) and plan against reality for running and the return to running
+    r = db.get(models.Runner, rid)
+    sv = db.get(models.Service, b.service_id) if b and b.service_id else None
+    out["runner_name"] = r.name if r else rid
+    out["visit"] = ({"id": b.id, "at": b.slot_at, "kind": b.kind, "service": sv.name_cs if sv else None} if b else None)
+    weeks = []
+    lims = W.active_limits(db, rid)
+    cap = min((x.value for x in lims if x.kind == "max_km_week" and x.value is not None), default=None)
+    g = (a.get("guidance") or {})
+    eng = (((g.get("week") or {}).get("channels") or {}).get("volume") or {}).get("engineBudget") or \
+        (((g.get("week") or {}).get("channels") or {}).get("volume") or {}).get("budget")
+    d0 = date.fromisoformat(since)
+    ws = d0 - timedelta(days=d0.weekday())
+    while ws <= E.today_date():
+        we = ws + timedelta(days=6)
+        km = round(sum(x.distance_km or 0 for x in runs if ws.isoformat() <= (x.started_at or "")[:10] <= we.isoformat()), 1)
+        weeks.append({"week": ws.isoformat(), "km": km, "target": cap if cap is not None else (round(eng, 1) if eng else None),
+                      "target_source": "limit" if cap is not None else ("engine" if eng else None)})
+        ws += timedelta(days=7)
+    out["running"] = weeks[-8:]
+    plan = (db.query(models.ReturnToRun).filter(models.ReturnToRun.runner_id == rid,
+                                                models.ReturnToRun.status.in_(("active", "paused")))
+            .order_by(models.ReturnToRun.id.desc()).first())
+    if plan is not None:
+        ss = [x for x in db.query(models.RtrSession).filter_by(plan_id=plan.id).all()
+              if (x.logged_at or "") >= since and x.count_reason != "pain_report"]
+        days_since = max(1, (E.today_date() - d0).days)
+        per_week = (plan.levels_json or [{}])[0].get("per_week") or 3
+        out["rtr"] = {"done": len(ss), "counted": sum(1 for x in ss if x.counted),
+                      "planned": round(per_week * days_since / 7), "status": plan.status, "level": plan.current_level}
+    else:
+        out["rtr"] = None
     if AB.hypotheses_on():
         out["hypotheses"] = {"label": "Hypotéza z dat, nenahrazuje vyšetření", "items": []}
     R.physio_event(db, p, "read", "runner", rid, runner_id=rid, detail={"screen": "previsit"})

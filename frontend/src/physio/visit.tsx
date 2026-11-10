@@ -31,64 +31,93 @@ function Back({ rid }: { rid: string }) {
   return <Link to={`/physio/client/${rid}`} className="inline-flex items-center gap-1 text-[13px] font-bold text-fg-2 hover:text-fg"><ArrowLeft className="size-4" aria-hidden />Klient</Link>
 }
 
-// ---------------------------------------------------------------- W8 Příprava
+// ---------------------------------------------------------------- W8 Příprava (round 2 F16)
+// "v 1 dni", "ve 2 dnech", "v 5 dnech"
+export const inDays = (n: number) => (n === 1 ? "v 1 dni" : n >= 2 && n <= 4 ? `ve ${n} dnech` : `v ${n} dnech`)
+const visitWhen = (iso: string) => new Date(iso).toLocaleString("cs-CZ", { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })
+
 export function PrevisitPage({ rid, bid }: { rid: string; bid?: number }) {
   const { d, err } = useLoad<any>(() => api.previsit(rid, bid), [rid, bid])
   if (!d) return <><Back rid={rid} /><Loading err={err} /></>
   return (
     <>
       <Back rid={rid} />
-      <h1 className="mt-2 font-serif text-[30px]">Příprava na návštěvu</h1>
+      {/* F16.1: who, when and what the visit is, with a link to the client */}
+      <h1 className="mt-2 font-serif text-[30px]" data-testid="previsit-title">
+        {"Příprava na návštěvu — "}<Link to={`/physio/client/${encodeURIComponent(rid)}`} className="hover:underline">{d.runner_name}</Link>
+        {d.visit ? <>{", "}{visitWhen(d.visit.at)}{d.visit.service || KIND[d.visit.kind] ? `, ${d.visit.service || KIND[d.visit.kind]}` : ""}</> : null}
+      </h1>
       <div className="mt-4 grid gap-4 lg:grid-cols-2" data-testid="previsit">
-        <Card>
-          <h2 className="font-serif text-xl">1. Důvod návštěvy a otázky klienta</h2>
-          <p className="mt-2 text-[14px]">{d.reason || <span className="text-fg-3">Klient důvod neuvedl.</span>}</p>
-          {d.questions && <p className="mt-1 text-[14px] text-fg-2">{"Chce probrat: "}{d.questions}</p>}
-          {d.intake && <p className="mt-1 text-[13px] text-fg-3">{`Vstupní dotazník: ${Object.keys(d.intake).filter((k) => k !== "consent").join(", ")}`}</p>}
-        </Card>
-        <Card>
-          <h2 className="font-serif text-xl">2. Od poslední návštěvy</h2>
-          <p className="mt-2 text-[14px]">{`Od ${fmtD(d.since.from)}: ${d.since.runs} běhů, ${String(d.since.km).replace(".", ",")} km.`}</p>
-          <p className="text-[14px]" data-testid="previsit-pain">{d.since.pain_count ? `Bolest hlášena ${d.since.pain_count}× (${d.since.pain_sources}), nejvýš ${d.since.pain_max}/10${d.since.sites.length ? ` — ${d.since.sites.join(", ")}` : ""}.` : "Žádná hlášená bolest."}</p>
-          {d.care_directive?.headline_cs && <p className="mt-1 text-[13px] text-fg-2">{"Klient dnes vidí: "}<b>{d.care_directive.headline_cs}</b></p>}
-        </Card>
-        <Card>
-          <h2 className="font-serif text-xl">3. Plán a skutečnost</h2>
-          {!d.plan_vs_reality ? <Empty>Bez programu.</Empty> : (
-            <>
-              <p className="mt-2 text-[14px]">{`${d.plan_vs_reality.program}: `}{d.plan_vs_reality.adherence?.text}</p>
-              <table className="mt-2 w-full text-[13px]"><tbody>
-                {d.plan_vs_reality.exercises.map((e: any, i: number) => (
-                  <tr key={i} className="border-t border-white/[.07]"><td className="py-1.5">{e.name}</td><td className="text-right tabular-nums">{`${e.done}/${e.target}`}</td></tr>
-                ))}
-              </tbody></table>
-            </>
-          )}
-          {d.limits.length > 0 && <p className="mt-2 text-[13px] text-fg-2">{`Omezení: ${d.limits.join(" · ")}`}</p>}
-        </Card>
-        <Card>
-          <h2 className="font-serif text-xl">4. Poslední záznam a plán</h2>
-          {!d.last_record ? <Empty>Zatím žádný schválený záznam.</Empty> : (
-            <div className="mt-2 grid gap-1 text-[14px]">
-              <p className="text-[12px] text-fg-3">{fmtDT(d.last_record.at)}</p>
-              {d.last_record.assessment && <p><b>{"Závěr: "}</b>{d.last_record.assessment}</p>}
-              {d.last_record.plan && <p><b>{"Plán: "}</b>{d.last_record.plan}</p>}
-            </div>
-          )}
-        </Card>
-        <Card>
-          <h2 className="font-serif text-xl">5. Chybějící data</h2>
-          {d.missing.length === 0 ? <p className="mt-2 text-[14px] text-fg-2">Data jsou kompletní.</p> : <ul className="mt-2 list-disc pl-5 text-[14px]">{d.missing.map((m: string) => <li key={m}>{m}</li>)}</ul>}
-        </Card>
-        {d.hypotheses && (
-          <Card><h2 className="font-serif text-xl">6. {d.hypotheses.label}</h2><Empty>Žádná hypotéza.</Empty></Card>
-        )}
+        <PrevisitSections d={d} rid={rid} />
       </div>
       {bid && <Link to={`/physio/client/${rid}/visit/${bid}`} className="btn btn-primary mt-4">Otevřít záznam z návštěvy</Link>}
     </>
   )
 }
 
+function PrevisitSections({ d, rid }: { d: any; rid: string }) {
+  return (
+    <>
+      <Card>
+        <h2 className="font-serif text-xl">1. Důvod návštěvy a otázky klienta</h2>
+        <p className="mt-2 text-[14px]">{d.reason || <span className="text-fg-3">Klient důvod neuvedl.</span>}</p>
+        {d.questions && <p className="mt-1 text-[14px] text-fg-2">{"Chce probrat: "}{d.questions}</p>}
+        {d.intake && <p className="mt-1 text-[13px] text-fg-3">{`Vstupní dotazník: ${Object.keys(d.intake).filter((k) => k !== "consent").join(", ")}`}</p>}
+      </Card>
+      <Card>
+        <h2 className="font-serif text-xl">2. Od poslední návštěvy</h2>
+        <p className="mt-2 text-[14px]">{`Od ${fmtD(d.since.from)}: ${d.since.runs} běhů, ${String(d.since.km).replace(".", ",")} km.`}</p>
+        <p className="text-[14px]" data-testid="previsit-pain">{d.since.pain_count
+          ? `Bolest ${inDays(d.since.pain_days)}, hlášena ${d.since.pain_count}× (${d.since.pain_sources}), nejvýš ${d.since.pain_max}/10${d.since.sites.length ? ` — ${d.since.sites.join(", ")}` : ""}.`
+          : "Žádná hlášená bolest."}</p>
+        {d.care_directive?.headline_cs && <p className="mt-1 text-[13px] text-fg-2">{"Klient dnes vidí: "}<b>{d.care_directive.headline_cs}</b></p>}
+      </Card>
+      <Card>
+        <h2 className="font-serif text-xl">3. Plán a skutečnost</h2>
+        {!d.plan_vs_reality ? <p className="mt-2 text-[13px] text-fg-3">Bez programu.</p> : (
+          <>
+            <p className="mt-2 text-[14px]">{`${d.plan_vs_reality.program}: `}{d.plan_vs_reality.adherence?.text}</p>
+            <table className="mt-2 w-full text-[13px]"><tbody>
+              {d.plan_vs_reality.exercises.map((e: any, i: number) => (
+                <tr key={i} className="border-t border-white/[.07]"><td className="py-1.5">{e.name}</td><td className="text-right tabular-nums">{`${e.done}/${e.target}`}</td></tr>
+              ))}
+            </tbody></table>
+          </>
+        )}
+        {(d.running || []).length > 0 && (
+          <table className="mt-3 w-full text-[13px]" data-testid="previsit-running">
+            <thead className="text-left text-[11.5px] text-fg-3"><tr><th className="font-bold">Týden</th><th className="text-right font-bold">Naběháno</th><th className="text-right font-bold">Předepsáno</th></tr></thead>
+            <tbody>{d.running.map((w: any) => (
+              <tr key={w.week} className="border-t border-white/[.07]"><td className="py-1">{`od ${fmtD(w.week)}`}</td>
+                <td className={`text-right tabular-nums ${w.target != null && w.km > w.target ? "font-bold text-alert" : ""}`}>{`${String(w.km).replace(".", ",")} km`}</td>
+                <td className="text-right tabular-nums text-fg-2">{w.target == null ? "—" : `${String(w.target).replace(".", ",")} km${w.target_source === "limit" ? " (omezení)" : ""}`}</td></tr>
+            ))}</tbody>
+          </table>
+        )}
+        {d.rtr && <p className="mt-2 text-[13px]">{`Návrat k běhu: ${d.rtr.done} sezení z plánovaných ${d.rtr.planned}, započteno ${d.rtr.counted}${d.rtr.status === "paused" ? " · plán je pozastavený" : ""}.`}</p>}
+        {d.limits.length > 0 && <p className="mt-2 text-[13px] text-fg-2">{`Omezení: ${d.limits.join(" · ")}`}</p>}
+      </Card>
+      <Card>
+        <h2 className="font-serif text-xl">4. Poslední záznam a plán</h2>
+        {!d.last_record ? <Empty>Zatím žádný schválený záznam.</Empty> : (
+          <div className="mt-2 grid gap-1 text-[14px]">
+            <p className="text-[12px] text-fg-3">{fmtDT(d.last_record.at)}</p>
+            {d.last_record.assessment && <p><b>{"Závěr: "}</b>{d.last_record.assessment}</p>}
+            {d.last_record.plan && <p><b>{"Plán: "}</b>{d.last_record.plan}</p>}
+            {d.last_record.booking_id && <Link to={`/physio/client/${encodeURIComponent(rid)}/visit/${d.last_record.booking_id}`} className="text-[13px] font-bold text-accent hover:underline">Otevřít záznam</Link>}
+          </div>
+        )}
+      </Card>
+      <Card>
+        <h2 className="font-serif text-xl">5. Chybějící data</h2>
+        {d.missing.length === 0 ? <p className="mt-2 text-[14px] text-fg-2">Data jsou kompletní.</p> : <ul className="mt-2 list-disc pl-5 text-[14px]">{d.missing.map((m: string) => <li key={m}>{m}</li>)}</ul>}
+      </Card>
+      {d.hypotheses && (
+        <Card><h2 className="font-serif text-xl">6. {d.hypotheses.label}</h2><Empty>Žádná hypotéza.</Empty></Card>
+      )}
+    </>
+  )
+}
 
 // ---------------------------------------------------------------- W9 / F1 the note editor
 export const visitPath = (rid: string, bid: number | string) => `/physio/client/${encodeURIComponent(rid)}/visit/${bid}`
@@ -440,7 +469,7 @@ function PrevisitBrief({ d }: { d: any }) {
       {d.reason && <p><b>{"Důvod: "}</b>{d.reason}</p>}
       {d.questions && <p><b>{"Chce probrat: "}</b>{d.questions}</p>}
       <p>{`Od ${fmtD(d.since.from)}: ${d.since.runs} běhů, ${String(d.since.km).replace(".", ",")} km`}</p>
-      <p>{d.since.pain_count ? `Bolest hlášena ${d.since.pain_count}× (${d.since.pain_sources}), nejvýš ${d.since.pain_max}/10` : "Žádná hlášená bolest."}</p>
+      <p>{d.since.pain_count ? `Bolest ${inDays(d.since.pain_days)}, hlášena ${d.since.pain_count}× (${d.since.pain_sources}), nejvýš ${d.since.pain_max}/10` : "Žádná hlášená bolest."}</p>
       {d.plan_vs_reality && <p>{d.plan_vs_reality.adherence?.text || `Program splněn na ${d.plan_vs_reality.adherence?.pct ?? "—"} %`}</p>}
       {d.limits.length > 0 && <p className="text-fg-2">{`Omezení: ${d.limits.join(" · ")}`}</p>}
       <div className="mt-2 border-t border-white/[.08] pt-2">
