@@ -125,7 +125,7 @@ export function ProfilePage({ onSaved }: { onSaved: () => void }) {
             <div className="flex items-start gap-3">
               {f.photo_url ? <img src={f.photo_url} alt="" className="size-10 shrink-0 rounded-full object-cover" /> : <span className="grid size-10 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-extrabold text-accent">{initials(f.name || "")}</span>}
               <div className="min-w-0 flex-1"><b className="font-bold">{[f.title, f.name].filter(Boolean).join(" ")}</b>
-                <p className="text-[12px] text-fg-3">{f.clinic_name || ""}{f.clinic_city ? ` · ${f.clinic_city}` : ""} · {f.years_exp || "—"} let · <Star className="inline size-3 -translate-y-px fill-watch text-watch" aria-hidden /> {f.rating_count >= 3 ? f.rating : "—"}</p></div>
+                <p className="text-[12px] text-fg-3">{f.clinic_name || ""}{f.clinic_city ? ` · ${f.clinic_city}` : ""} · {f.years_exp || "—"} let · <Star className="inline size-3 -translate-y-px fill-watch text-watch" aria-hidden /> {f.rating_count >= 5 ? f.rating : "—"}</p></div>
               {lowest.length ? <Chip tone="accent">{`od ${czk(Math.min(...lowest))}`}</Chip> : f.price_czk ? <Chip tone="accent">{czk(Number(f.price_czk))}</Chip> : null}
             </div>
             {specialties.length > 0 && <p className="mt-2 flex flex-wrap gap-1">{specialties.map((x: string) => <Chip key={x}>{x}</Chip>)}</p>}

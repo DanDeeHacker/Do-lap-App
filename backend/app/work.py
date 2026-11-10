@@ -487,4 +487,5 @@ def unsigned_reminders(db: DBSession, physio_id: str) -> int:
     if not todays:
         return 0
     NOTIFY.send(db, "note_unsigned", f"Nepodepsané záznamy: {len(todays)}", physio_id=physio_id, ref=ref)
+    db.flush()      # round 2 F19.5: the session does not autoflush — a second call in it must see this one
     return 1
