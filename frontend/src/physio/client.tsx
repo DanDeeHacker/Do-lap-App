@@ -275,12 +275,17 @@ function Overview({ d, rid, onChange, onClose }: { d: any; rid: string; onChange
           <Score v={a.load} label="Zátěž" hint="0 = v normě" /><Score v={a.mech} label="Mechanika" hint="0 = v normě" />
         </div>
         <p className="mt-2 text-[12px] text-fg-3">{"Poslední bolest: "}<PainAgo p={a.lastPain} />{a.lastPain?.site ? ` · ${a.lastPain.site}` : ""}</p>
-        {/* physio brief 2026-11-09 P0.2: exactly what the client's Dnes and Trénink say today */}
-        {(a.careDirective?.headline_cs || a.guidance?.typeLabel) && (
-          <p className="mt-3 text-[13px] text-fg-2" data-testid="client-sees">{"Klient dnes vidí: "}
-            <b className="text-fg">{a.careDirective?.headline_cs || a.guidance?.typeLabel}</b></p>
+        {/* physio brief 2026-11-09 P0.2 / round 2 F3.6: the client's headline from the same function as their app,
+            then the physio's own bullets (guidance_physio); with stale or missing data nothing from the engine */}
+        {noData(a) ? (
+          <p className="mt-3 text-[13px] text-fg-2" data-testid="client-sees">{"Klient dnes vidí: "}<b className="text-fg">Nemáme aktuální data</b></p>
+        ) : (a.careDirective?.headline_cs || a.guidance?.typeLabel) && (
+          <>
+            <p className="mt-3 text-[13px] text-fg-2" data-testid="client-sees">{"Klient dnes vidí: "}
+              <b className="text-fg">{a.careDirective?.headline_cs || a.guidance?.typeLabel}</b></p>
+            {(a.guidance_physio || []).slice(0, 4).map((x: string, i: number) => <p key={i} className="mt-1 text-[12px] leading-[17px] text-fg-3">{"• "}{x}</p>)}
+          </>
         )}
-        {a.careDirective?.source === "engine" && (a.guidance?.reasons || []).slice(0, 3).map((x: string, i: number) => <p key={i} className="mt-1 text-[12px] leading-[17px] text-fg-3">{`• ${stripTags(x)}`}</p>)}
       </Card>
       <Card>
         <h2 className="font-serif text-xl">Co nejvíc ovlivňuje skóre</h2>

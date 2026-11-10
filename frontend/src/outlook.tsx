@@ -103,6 +103,7 @@ export function WeekLoadCard({ g, cap }: { g: any; cap: any }) {
         <span className="flex items-center gap-1.5"><Label>Týden od pondělí</Label><InfoDot text={MI.weekLoad} label="Týden od pondělí" /></span>
         <button type="button" onClick={() => setTable((v) => !v)} className="text-[11px] font-bold text-accent hover:underline" aria-pressed={table}>{table ? "graf" : "tabulka"}</button>
       </div>
+      {g.noRun && ch === "volume" && <p className="mt-1 text-[12.5px] text-fg-soft" data-testid="week-load-no-run">{`Cíl běhu 0 km — ${g.noRun.reason}`}</p>}
       {pastWeeks.length > 0 && (
         <div className="mt-2 flex items-center justify-between gap-2" data-testid="week-nav">
           <button type="button" onClick={() => go(back + 1)} disabled={back >= pastWeeks.length} aria-label="Předchozí týden" data-testid="week-prev"

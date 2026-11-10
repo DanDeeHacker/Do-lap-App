@@ -147,7 +147,7 @@ def is_free(db: DBSession, physio_id: str, start: datetime, minutes: int) -> boo
 
 # ---- W12 clinical limits -----------------------------------------------------------------------------------
 LIMIT_KINDS = {
-    "no_running": "Dnes bez běhu", "max_km_week": "max. {v} km tento týden", "max_km_session": "max. {v} km na jeden běh",
+    "no_running": "Dnes bez běhu", "max_km_week": "max. {v} km týdně", "max_km_session": "max. {v} km na jeden běh",
     "no_intervals": "bez intervalů a intenzity", "no_downhill": "bez seběhů", "max_descent_m": "klesání max. {v} m",
     "max_high_intensity_min": "intenzita max. {v} min",
 }
@@ -159,36 +159,24 @@ def active_limits(db: DBSession, rid: str, on: date | None = None) -> list[model
             if (not x.starts_on or x.starts_on <= on) and (not x.ends_on or x.ends_on >= on)]
 
 
-def limit_text(x: models.ClinicalLimit) -> str:
+def limit_text(x: models.ClinicalLimit, today: date | None = None) -> str:
+    """Round 2 F3.5: one wording everywhere — "max. 20 km týdně", with an end date "max. 20 km týdně do 24. 11.",
+    and "tento týden" only when the limit ends this Sunday."""
     v = x.value
     vs = (str(int(v)) if v is not None and float(v).is_integer() else str(v).replace(".", ",")) if v is not None else ""
-    return LIMIT_KINDS.get(x.kind, x.kind).format(v=vs)
-
-
-def apply_limits(g: dict, limits: list, physio_name: str | None) -> None:
-    """W12.2: training options take the lower of the engine's ceiling and the physio's limit (presentation only)."""
-    if not g or not limits:
-        return
-    types = g.get("types") or {}
-    who = physio_name or "fyzioterapeuta"
-    notes = []
-    for x in limits:
-        why = f"Podle {who}: {limit_text(x)} — {x.reason_cs}"
-        notes.append(why)
-        if x.kind == "max_km_session" and x.value is not None:
-            for t in ("regenerace", "lehký", "dlouhý", "kvalitní"):
-                km = (types.get(t) or {}).get("km")
-                if km and km.get("hi") is not None and km["hi"] > x.value:
-                    km["hi"] = x.value
-                    km["lo"] = min(km.get("lo") or x.value, x.value)
-                    types[t].setdefault("notes", []).insert(0, why)
-        if x.kind in ("no_intervals", "max_high_intensity_min") and "kvalitní" in types:
-            types["kvalitní"]["allowed"], types["kvalitní"]["why"] = False, why
-        if x.kind in ("no_downhill", "max_descent_m"):
-            for t in types.values():
-                if isinstance(t, dict) and "descentMax" in t:
-                    t["descentMax"] = 0 if x.kind == "no_downhill" else min(t.get("descentMax") or x.value, x.value)
-    g["limits"] = notes
+    text = LIMIT_KINDS.get(x.kind, x.kind).format(v=vs)
+    end = None
+    try:
+        end = date.fromisoformat(x.ends_on[:10]) if x.ends_on else None
+    except ValueError:
+        end = None
+    if end is None or x.kind == "no_running":
+        return text
+    t = today or E.today_date()
+    sunday = t + timedelta(days=6 - t.weekday())
+    if x.kind == "max_km_week" and end == sunday:
+        return text.replace("týdně", "tento týden")
+    return f"{text} do {end.day}. {end.month}."
 
 
 def week_km(db: DBSession, rid: str) -> float:

@@ -1210,7 +1210,9 @@ function TodayV2() {
     date: (a?.computed_at || "").slice(0, 10), quadrant: a?.quadrant, overall: a ? a.overall : 0, tier: a?.tier,
     mech: a ? a.mech : null, load: a ? a.load : null, symp: a ? a.symp : null, readiness,
     painRecurring: a?.painRecurring ?? null, signals,
-    directive: a?.careDirective && a.careDirective.source !== "engine" ? a.careDirective.headline_cs : null,
+    // round 2 F3.2: the headline itself stands once, in "Dnes doporučeno"; the verdict only names whose plan it is
+    directive: a?.careDirective && a.careDirective.source !== "engine"
+      ? (a.display_label || (a.careDirective.source === "clinical_limit" ? "Trénink s omezením fyzioterapeuta" : "Podle pokynu fyzioterapeuta")) : null,
     noData: ["stale", "none"].includes(a?.freshness?.status),
   }
   const firstCollapsible = alerts.find((x) => x.tone !== "stop")?.key ?? null

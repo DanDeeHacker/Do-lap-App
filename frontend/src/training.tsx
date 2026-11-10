@@ -1213,6 +1213,8 @@ function ActivityRow({ g, onPick }: { g: any; onPick: (k: string) => void }) {
         <p className="t-label !text-fg-3">Jiné možnosti dnes</p>
         <span className="text-[11px] text-fg-3">od nejvhodnější · posuňte</span>
       </div>
+      {/* round 2 F3.3: no running option is offered when running is not allowed; one line says why */}
+      {g.noRun && <p className="mb-1.5 text-[12.5px] font-bold text-fg-soft" data-testid="no-run-line">{g.noRun.line}</p>}
       <div ref={carousel} className="-mx-5 flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-px-5 px-5 pb-3 pt-1 [scrollbar-width:none] md:-mx-0 md:px-0" role="list" aria-label="Aktivity" data-testid="activity-carousel">
         {order.map((k) => {
           const t = g.types[k]
@@ -1268,13 +1270,15 @@ function WeekCard({ g, plan, rid, onPlan }: { g: any; plan: any; rid?: string; o
         </span>
         {vol.budget != null && <b className="text-[13px] tabular-nums text-fg">{`${num(vol.done ?? 0)} z ${num(vol.budget, 0)} km`}</b>}
       </div>
+      {g.noRun ? <p className="mt-1 text-[12.5px] font-bold text-fg-soft" data-testid="week-no-run">{`Plán běhu je pozastavený — ${g.noRun.reason}`}</p> : (
       <p className="mt-1 text-[12.5px] text-fg-2">
         <span style={{ color: modeCol }}>{modeLabel}</span>
         {cyc.pos && (wk.mode === "build" || wk.mode === "recovery") ? ` · ${cyc.pos}. týden cyklu, ${Math.round((wk.progression ?? 1) * 100)} % referenčního týdne` : ""}
         {wk.mode === "goal" && g.goal?.week ? ` · ${PHASE[g.goal.week.phase] || ""}, ${g.goal.week.i}. týden z ${g.goal.weeks}` : ""}{wk.mode === "goal" && g.goal?.week?.deload ? ", odlehčovací" : ""}
-      </p>
+      </p>)}
       {plan === undefined ? <p className="mt-3 animate-pulse text-[12px] text-fg-3">Načítám plán týdne…</p>
         : !plan ? <p className="nest mt-3 px-3.5 py-3 text-[12.5px] leading-5 text-fg-3">Plán týdne zatím nejde sestavit. Každé ráno den určí Trénink.</p>
+        : g.noRun ? null
         : plan.override ? <p className="nest mt-3 px-3.5 py-3 text-[13px] leading-5 text-fg-soft">{plan.override}. Plán běhu je pozastavený, každé ráno ho Trénink znovu posoudí.</p>
         : (
           <>
@@ -1341,8 +1345,9 @@ function CapacityCard({ g, plan }: { g: any; plan?: any }) {
       </div>
       {tab === "z" ? <div className="mt-2"><TomorrowCard g={g} embedded tomorrowPlan={planTomorrow(plan)} /></div> : <>
       {hasTomorrow && <p className="mt-1 text-[12px] text-fg-2">kolik dnes ještě smíte</p>}
-      {status && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
-      {f && (
+      {g.noRun && <p className="nest mt-3 px-3.5 py-3 text-[13.5px] font-bold leading-5 text-fg-soft" data-testid="capacity-no-run">{g.noRun.capacity}</p>}
+      {!g.noRun && status && <p className="mt-2 flex items-start gap-2 text-[13px] leading-5 text-fg-soft" data-testid="capacity-status"><i className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: status.col }} />{status.text}</p>}
+      {f && !g.noRun && (
         <>
           <p className="mt-3 rounded-[12px] bg-watch/10 px-3 py-2 text-[12.5px] leading-[18px] text-watch-soft" data-testid="capacity-summary">
             {rest ? "Dnes bez tréninku. Pruhy ukazují, kolik by kapacita ještě dovolila." : f.summary}

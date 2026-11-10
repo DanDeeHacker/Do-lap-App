@@ -223,6 +223,12 @@ function PhysioChat() {
   )
 }
 
+const RTR_STATE: Record<string, string> = { active: "probíhá", paused: "pozastavený", completed: "dokončený" }
+function RtrState({ rtr }: { rtr: any }) {
+  const levels = rtr.levels_json?.length || rtr.levels?.length
+  return <>{"Plán návratu k běhu "}{RTR_STATE[rtr.status] || rtr.status}{levels ? ` · úroveň ${rtr.current_level} z ${levels}` : ""}{". Podrobnosti níže."}</>
+}
+
 function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; onRtr: () => void; onHealed: () => void }) {
   const { me, boot, refresh } = useApp()
   const rid = me!.runner_id!
@@ -254,7 +260,8 @@ function HealthSection({ onReport, onRtr, onHealed }: { onReport: () => void; on
               {/* physio brief 2026-11-09 P0.2.5: the generic return only when no physio leads it */}
               {(cd?.source === "engine" || (cd?.source === "injury" && !cd?.physio_involved))
                 ? "Pak následují 3 týdny postupného návratu (50 → 75 → 90 % týdne před zraněním), první 2 týdny bez intenzity."
-                : cd?.headline_cs || "Řiďte se pokyny fyzioterapeuta."}
+                // round 2 F3.2: the plan card's state, not the day's headline a second time
+                : rtr ? <RtrState rtr={rtr} /> : "Řiďte se pokyny fyzioterapeuta."}
             </AlertBanner>
             <button onClick={onReport} className="mt-3 text-[12px] font-bold text-fg-3 underline underline-offset-2 hover:text-fg-2">Nahlásit další obtíže</button>
           </Card>
